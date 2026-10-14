@@ -16,24 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Badge, Button, HStack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
+
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui/Tooltip";
-import { renderDuration } from "src/utils/datetimeUtils";
+
+import { useDurationFormat } from "src/utils";
+import { translateCompletionRule } from "src/utils/deadlines";
 
 import { DeadlineStatusModal } from "./DeadlineStatusModal";
-
-dayjs.extend(duration);
-dayjs.extend(relativeTime);
 
 type DeadlineStatusProps = {
   readonly dagId: string;
@@ -43,6 +43,7 @@ type DeadlineStatusProps = {
 
 export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps) => {
   const { t: translate } = useTranslation("dag");
+  const { locale, renderDuration } = useDurationFormat();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
@@ -84,12 +85,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
       <VStack alignItems="flex-start" gap={0.5}>
         {(alertData?.deadline_alerts ?? []).map((deadlineAlert) => (
           <Text fontSize="xs" key={deadlineAlert.id}>
-            {translate("deadlineAlerts.completionRule", {
-              interval: dayjs.duration(deadlineAlert.interval, "seconds").humanize(),
-              reference: translate(`deadlineAlerts.referenceType.${deadlineAlert.reference_type}`, {
-                defaultValue: deadlineAlert.reference_type,
-              }),
-            })}
+            {translateCompletionRule(translate, deadlineAlert, locale)}
           </Text>
         ))}
       </VStack>
@@ -156,13 +152,14 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
   }
 
   const alert = dl.alert_id !== undefined && dl.alert_id !== null ? alertMap.get(dl.alert_id) : undefined;
+  const completionRule = translateCompletionRule(translate, alert, locale);
   const deadlineTime = dayjs(dl.deadline_time);
 
   let actualDurationLabel: string | undefined;
 
   if (dl.missed && runEndDate !== undefined) {
     const diff = dayjs(runEndDate).diff(deadlineTime);
-    const dur = renderDuration(Math.abs(diff) / 1000, false);
+    const dur = renderDuration(Math.abs(diff) / 1000);
 
     if (dur !== undefined) {
       actualDurationLabel =
@@ -185,14 +182,9 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate }: DeadlineStatusProps
           </Text>
         )}
       </HStack>
-      {alert === undefined ? undefined : (
+      {completionRule === undefined ? undefined : (
         <Text color="fg.muted" fontSize="xs">
-          {translate("deadlineAlerts.completionRule", {
-            interval: dayjs.duration(alert.interval, "seconds").humanize(),
-            reference: translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-              defaultValue: alert.reference_type,
-            }),
-          })}
+          {completionRule}
         </Text>
       )}
       <HStack gap={1}>

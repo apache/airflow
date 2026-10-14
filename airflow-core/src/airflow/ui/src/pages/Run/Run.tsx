@@ -23,8 +23,10 @@ import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
-import { usePluginTabs } from "src/hooks/usePluginTabs";
+
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
 import { Header } from "./Header";
@@ -40,6 +42,7 @@ export const Run = () => {
 
   const tabs = [
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    { icon: <MdOutlineTask />, label: translate("execution.title"), value: "execution" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
@@ -60,7 +63,7 @@ export const Run = () => {
     },
     undefined,
     {
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 

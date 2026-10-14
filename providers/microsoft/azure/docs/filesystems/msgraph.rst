@@ -35,13 +35,15 @@ Create a Microsoft Graph connection in Airflow with the following parameters:
 * **Connection Type**: msgraph
 * **Host**: Tenant ID
 * **Login**: Client ID
-* **Password**: Client Secret
+* **Password**: Client Secret, or certificate password when using certificate-based authentication
 
 The connection form provides additional configuration fields:
 
 * **Tenant ID**: Azure AD tenant identifier
 * **Drive ID**: Specific drive to access (optional - leave empty for general access)
 * **Scopes**: OAuth2 scopes (default: https://graph.microsoft.com/.default)
+* **Certificate path**: File path to a PEM certificate for certificate-based authentication
+* **Certificate data**: PEM certificate data for certificate-based authentication
 
 Additional OAuth2 parameters supported via connection extras:
 
@@ -52,6 +54,10 @@ Additional OAuth2 parameters supported via connection extras:
 * **code_challenge_method**: PKCE code challenge method (e.g., 'S256')
 * **username**: Username for password grant flow
 * **password**: Password for password grant flow
+* **certificate_path**: File path to a PEM certificate
+* **certificate_data**: PEM certificate data
+* **authority**: Microsoft Entra authority host
+* **disable_instance_discovery**: Disable Microsoft Entra instance discovery
 
 Connection extra field configuration example:
 

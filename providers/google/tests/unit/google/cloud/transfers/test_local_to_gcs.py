@@ -236,6 +236,45 @@ class TestFileToGcsOperator:
         assert all(inp.name in expected_inputs for inp in result.inputs)
         assert all(inp.namespace == "file" for inp in result.inputs)
 
+    def test_get_openlineage_facets_on_start_with_none_and_empty_src_entries(self):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="gcs_to_file_sensor",
+            dag=self.dag,
+            src=[f"{self.tmpdir_posix}/fake1.csv", None, "", f"{self.tmpdir_posix}/fake2.csv"],
+            dst="test/",
+            **self._config,
+        )
+        result = operator.get_openlineage_facets_on_start()
+        assert len(result.inputs) == 2
+        assert {inp.name for inp in result.inputs} == {
+            f"{self.tmpdir_posix}/fake1.csv",
+            f"{self.tmpdir_posix}/fake2.csv",
+        }
+
+    def test_get_openlineage_facets_on_start_no_bucket(self):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="gcs_to_file_sensor",
+            dag=self.dag,
+            src=[f"{self.tmpdir_posix}/fake1.csv"],
+            dst="test/",
+            **{**self._config, "bucket": None},
+        )
+        result = operator.get_openlineage_facets_on_start()
+        assert result.inputs == []
+        assert result.outputs == []
+
+    def test_get_openlineage_facets_on_start_no_dst(self):
+        operator = LocalFilesystemToGCSOperator(
+            task_id="gcs_to_file_sensor",
+            dag=self.dag,
+            src=[f"{self.tmpdir_posix}/fake1.csv"],
+            dst=None,
+            **self._config,
+        )
+        result = operator.get_openlineage_facets_on_start()
+        assert result.inputs == []
+        assert result.outputs == []
+
     # Return value tests
     @mock.patch("airflow.providers.google.cloud.transfers.local_to_gcs.GCSHook", autospec=True)
     def test_execute_returns_list_of_destination_uris_single_file(self, mock_hook):

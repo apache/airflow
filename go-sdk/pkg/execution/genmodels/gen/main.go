@@ -63,6 +63,8 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+
+	"github.com/apache/airflow/go-sdk/internal/genlicense"
 )
 
 var deadTypeName = regexp.MustCompile(`_[0-9]+$`)
@@ -106,7 +108,7 @@ func main() {
 	if err := pointerizeFields(*modelsPath, pointerized); err != nil {
 		log.Fatalf("gen: pointerizing %s: %v", *modelsPath, err)
 	}
-	if err := ensureLicenseHeader(*modelsPath); err != nil {
+	if err := genlicense.EnsureHeader(*modelsPath); err != nil {
 		log.Fatalf("gen: adding license header to %s: %v", *modelsPath, err)
 	}
 	if err := writeDiscriminators(doc, *outPath, *pkg, structByKey); err != nil {
@@ -337,51 +339,6 @@ func pointerizeFields(path string, set map[string]map[string]bool) error {
 		return err
 	}
 	return os.WriteFile(path, buf.Bytes(), 0o644)
-}
-
-// asfLicenseHeader is the Apache source header as Go line comments. go-jsonschema
-// emits none, so the gen tool adds it (the template-generated files carry it
-// inline) to keep models.gen.go self-contained and reproducible from go generate.
-const asfLicenseHeader = `// Licensed to the Apache Software Foundation (ASF) under one
-// or more contributor license agreements.  See the NOTICE file
-// distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
-// to you under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance
-// with the License.  You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.`
-
-// ensureLicenseHeader inserts the Apache header into models.gen.go right after
-// go-jsonschema's "Code generated" line when absent, matching the layout of the
-// other generated Go files. It is idempotent so re-running gen is a no-op.
-func ensureLicenseHeader(path string) error {
-	src, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if bytes.Contains(src, []byte("Licensed to the Apache Software Foundation")) {
-		return nil
-	}
-	lines := strings.Split(string(src), "\n")
-	insertAt := 0
-	for i, l := range lines {
-		if strings.HasPrefix(l, "// Code generated") {
-			insertAt = i + 1
-			break
-		}
-	}
-	out := append([]string{}, lines[:insertAt]...)
-	out = append(out, strings.Split(asfLicenseHeader, "\n")...)
-	out = append(out, lines[insertAt:]...)
-	return os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644)
 }
 
 // identUseCounts counts identifier occurrences across the file in one pass. A

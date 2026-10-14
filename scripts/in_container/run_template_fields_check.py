@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import ast
+import functools
 import importlib.util
 import inspect
 import itertools
@@ -27,6 +28,8 @@ import warnings
 import yaml
 from rich.console import Console
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
@@ -35,8 +38,7 @@ except ImportError:
 console = Console(width=400, color_system="standard")
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
 
-provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob("provider.yaml")
-errors: list[str] = []
+provider_files_pattern = pathlib.Path(ROOT_DIR, "providers").rglob("provider.yaml")
 
 OPERATORS: list[str] = ["sensors", "operators"]
 CLASS_IDENTIFIERS: list[str] = ["sensor", "operator"]
@@ -69,6 +71,40 @@ class InstanceFieldExtractor(ast.NodeVisitor):
         return node
 
 
+@functools.cache
+def get_instance_fields_by_qualname(source_file: str) -> dict[str, tuple[str, ...]]:
+    """
+    Parse one source file and map every class's qualified name to the ``self.<field>`` names
+    assigned in its ``__init__``.
+
+    Cached per file because base classes such as ``BaseOperator`` sit in the MRO of every operator,
+    and ``inspect.getsource`` on a class re-parses its whole module to locate it. Parsing each file
+    once and indexing all of its classes replaces both of those repeated parses.
+    """
+    result: dict[str, tuple[str, ...]] = {}
+
+    def index_classes(node: ast.AST, prefix: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef):
+                qualname = f"{prefix}{child.name}"
+                visitor = InstanceFieldExtractor()
+                visitor.visit(child)
+                # Like inspect.getsource, the first definition wins when a name is defined twice.
+                result.setdefault(qualname, tuple(visitor.instance_fields))
+                index_classes(child, f"{qualname}.")
+
+    index_classes(ast.parse(pathlib.Path(source_file).read_text()), "")
+    return result
+
+
+def get_class_instance_fields(current_class: type) -> tuple[str, ...]:
+    """Return the ``self.<field>`` names assigned in the class's own ``__init__``."""
+    source_file = inspect.getsourcefile(current_class)
+    if source_file is None:
+        raise OSError(f"could not find source file for {current_class!r}")
+    return get_instance_fields_by_qualname(source_file).get(current_class.__qualname__, ())
+
+
 def get_template_fields_and_class_instance_fields(cls):
     """
     1.This method retrieves the operator class and obtains all its parent classes using the method resolution order (MRO).
@@ -87,11 +123,7 @@ def get_template_fields_and_class_instance_fields(cls):
                 if fields:
                     all_template_fields.extend(fields)
 
-            tree = ast.parse(inspect.getsource(current_class))
-            visitor = InstanceFieldExtractor()
-            visitor.visit(tree)
-            if visitor.instance_fields:
-                class_instance_fields.extend(visitor.instance_fields)
+            class_instance_fields.extend(get_class_instance_fields(current_class))
     return all_template_fields, class_instance_fields
 
 
@@ -121,6 +153,24 @@ def get_providers_modules() -> list[str]:
     return modules_container
 
 
+def path_to_module(pyfile: str) -> str:
+    """
+    Turn a repo-relative source path into the dotted module name provider.yaml uses.
+
+    Both distributions keep their sources under ``src``, and only the part after it
+    is importable::
+
+        providers/ftp/src/airflow/providers/ftp/operators/ftp.py
+            -> airflow.providers.ftp.operators.ftp
+        airflow-core/src/airflow/sensors/base.py
+            -> airflow.sensors.base
+    """
+    parts = pathlib.PurePosixPath(pyfile).with_suffix("").parts
+    if "src" in parts:
+        parts = parts[parts.index("src") + 1 :]
+    return ".".join(parts)
+
+
 def is_class_eligible(name: str) -> bool:
     for op in CLASS_IDENTIFIERS:
         if name.lower().endswith(op):
@@ -138,24 +188,37 @@ def get_eligible_classes(all_classes):
     return eligible_classes
 
 
-def iter_check_template_fields(module: str):
+def check_template_fields(module: str) -> list[str]:
     """
     1. This method imports the providers module and retrieves all the classes defined within it.
+       Modules that only import under an optional provider dependency are skipped.
     2. It then filters and selects classes related to operators or sensors by checking if the class name ends with "Operator" or "Sensor."
     3. For each operator class, it validates the template fields by inspecting the class instance fields.
+
+    Returns the list of errors found in the module.
     """
     with warnings.catch_warnings(record=True):
-        imported_module = importlib.import_module(module)
+        try:
+            imported_module = importlib.import_module(module)
+        except AirflowOptionalProviderFeatureException:
+            # The module gates a cross-provider feature behind an optional
+            # dependency that is not installed here (e.g. the Google Dataflow
+            # operators need apache-airflow-providers-apache-beam). There are no
+            # classes to inspect, and a missing optional provider is not what
+            # this hook reports on.
+            return []
         classes = inspect.getmembers(imported_module, inspect.isclass)
     op_classes = get_eligible_classes(classes)
 
+    module_errors: list[str] = []
     for op_class_name, cls in op_classes:
         if cls.__module__ == module:
             templated_fields, class_instance_fields = get_template_fields_and_class_instance_fields(cls)
 
             for field in templated_fields:
                 if field not in class_instance_fields:
-                    errors.append(f"{module}: {op_class_name}: {field}")
+                    module_errors.append(f"{module}: {op_class_name}: {field}")
+    return module_errors
 
 
 if __name__ == "__main__":
@@ -164,14 +227,14 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         py_files = sorted(sys.argv[1:])
         modules_to_validate = [
-            module_name
-            for pyfile in py_files
-            if (module_name := pyfile.rstrip(".py").replace("/", ".")) in provider_modules
+            module_name for pyfile in py_files if (module_name := path_to_module(pyfile)) in provider_modules
         ]
     else:
         modules_to_validate = provider_modules
 
-    [iter_check_template_fields(module) for module in modules_to_validate]
+    errors: list[str] = []
+    for module in modules_to_validate:
+        errors.extend(check_template_fields(module))
     if errors:
         console.print("[red]Found Invalid template fields:")
         for error in errors:

@@ -26,11 +26,11 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START download]
 mkdir -p docker-context-files
-export AIRFLOW_VERSION="2.5.3"
+export AIRFLOW_VERSION="3.0.3"
 rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files/*.txt || true
 
-curl -Lo "docker-context-files/constraints-3.10.txt" \
-    "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.10.txt"
+curl -Lo "docker-context-files/constraints-3.11.txt" \
+    "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.11.txt"
 
 echo
 echo "Make sure you use the right python version here (should be same as in constraints)!"
@@ -38,8 +38,8 @@ echo
 python --version
 
 pip download --dest docker-context-files \
-    --constraint docker-context-files/constraints-3.10.txt  \
-    "apache-airflow[async,celery,elasticsearch,kubernetes,postgres,redis,ssh,statsd,virtualenv]==${AIRFLOW_VERSION}"
+    --constraint docker-context-files/constraints-3.11.txt  \
+    "apache-airflow[async,celery,cncf.kubernetes,elasticsearch,postgres,redis,ssh,statsd]==${AIRFLOW_VERSION}"
 # [END download]
 
 # [START build]
@@ -48,7 +48,7 @@ export DOCKER_BUILDKIT=1
 docker build . \
     --pull \
     --build-arg BASE_IMAGE="debian:bookworm-slim" \
-    --build-arg AIRFLOW_PYTHON_VERSION="3.13.14" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.13.15" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
@@ -56,7 +56,7 @@ docker build . \
     --build-arg INSTALL_POSTGRES_CLIENT="true" \
     --build-arg DOCKER_CONTEXT_FILES="docker-context-files" \
     --build-arg INSTALL_DISTRIBUTIONS_FROM_CONTEXT="true" \
-    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.10.txt" \
+    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.11.txt" \
     --tag airflow-my-restricted-environment:0.0.1
 # [END build]
 

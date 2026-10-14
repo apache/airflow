@@ -25,12 +25,13 @@ from os.path import isabs
 from typing import TYPE_CHECKING
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import make_url
 
 import airflow
+from airflow import settings
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.fab.www.db import AirflowSQLAlchemy
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
 from airflow.providers.fab.www.extensions.init_views import init_plugins
@@ -65,6 +66,8 @@ def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
             )
         flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-        db = SQLAlchemy(flask_app)
+        db = AirflowSQLAlchemy(flask_app)
         yield _return_appbuilder(flask_app, db)
-        db.engine.dispose(close=True)
+        # The shared metadata engine outlives this helper — only a locally built one may be disposed.
+        if db.engine is not settings.engine:
+            db.engine.dispose(close=True)

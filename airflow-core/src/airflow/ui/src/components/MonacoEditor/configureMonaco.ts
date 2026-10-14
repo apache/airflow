@@ -27,18 +27,18 @@ type MonacoEnvironment = {
 let configurationPromise: Promise<void> | undefined;
 
 const loadMonacoModules = async () => {
-  // `editor.api` is API-only — the contribs/styles below must be side-effect imported
-  // to register their actions and render their glyphs. The CDN bundle pulled these in
-  // transitively; the local ESM build does not.
+  // The editor entry point is API-only; register the selected features and codicon styles
+  // explicitly to keep the local bundle small.
   const monacoApi = Promise.all([
-    import("monaco-editor/esm/vs/editor/editor.api.js"),
-    import("monaco-editor/esm/vs/editor/contrib/folding/browser/folding.js"),
-    import("monaco-editor/esm/vs/editor/contrib/find/browser/findController.js"),
-    // monaco-editor 0.53 removed the `codiconStyles` side-effect module; import the two codicon
-    // stylesheets it used to pull in directly so folding/find glyphs still render. Both files
-    // ship in 0.52 and 0.55, so this resolves against the current pin and any newer bump.
-    import("monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon.css"),
-    import("monaco-editor/esm/vs/base/browser/ui/codicons/codicon/codicon-modifiers.css"),
+    import("monaco-editor/editor"),
+    import("monaco-editor/features/codeAction/register"),
+    import("monaco-editor/features/codelens/register"),
+    import("monaco-editor/features/dropOrPasteInto/register"),
+    import("monaco-editor/features/inlayHints/register"),
+    import("monaco-editor/features/suggest/register"),
+    import("monaco-editor/features/folding/register"),
+    import("monaco-editor/features/find/register"),
+    import("monaco-editor/features/codicon/register"),
   ]).then(([api]) => api);
 
   // Resolve the bundled worker URLs (`?worker&url` runs the worker through Vite's worker
@@ -52,22 +52,27 @@ const loadMonacoModules = async () => {
   // sidesteps the restriction (CORS still permits the inner import). In production the
   // worker is same-origin and the shim is harmless.
   const workerUrls = Promise.all([
-    import("monaco-editor/esm/vs/editor/editor.worker.js?worker&url").then((module) => module.default),
-    import("monaco-editor/esm/vs/language/json/json.worker.js?worker&url").then((module) => module.default),
+    import("monaco-editor/editor/editor.worker.js?worker&url").then((module) => module.default),
+    import("monaco-editor/languages/features/json/json.worker.js?worker&url").then(
+      (module) => module.default,
+    ),
   ]);
 
-  // The JSON contribution registers its language as a side effect. Python is registered
-  // manually below from its grammar module instead of importing `python.contribution`,
-  // whose lazy tokens provider would overwrite our patched grammar on first use.
-  // The grammar module is a private monaco internal (verified against monaco-editor
-  // 0.52.2); the runtime guard below fails loudly if its export shape changes.
-  const jsonContribution = import("monaco-editor/esm/vs/language/json/monaco.contribution.js");
-  const pythonGrammar = import("monaco-editor/esm/vs/basic-languages/python/python.js");
+  // The JSON feature registers its language as a side effect. Every Monarch grammar monaco
+  // ships is registered with a lazy loader, so a grammar chunk is only fetched the first time
+  // an editor uses its language: any language id an importer stores for its Dag source gets
+  // highlighted without the UI knowing the list up front.
+  const jsonContribution = import("monaco-editor/languages/features/json/register");
+  const grammarContributions = import("monaco-editor/languages/definitions/register.all");
 
-  const [monaco, [editorWorkerUrl, jsonWorkerUrl], { conf: pythonConf, language: pythonLanguage }] =
-    await Promise.all([monacoApi, workerUrls, pythonGrammar, jsonContribution]);
+  const [monaco, [editorWorkerUrl, jsonWorkerUrl]] = await Promise.all([
+    monacoApi,
+    workerUrls,
+    jsonContribution,
+    grammarContributions,
+  ]);
 
-  return { editorWorkerUrl, jsonWorkerUrl, monaco, pythonConf, pythonLanguage };
+  return { editorWorkerUrl, jsonWorkerUrl, monaco };
 };
 
 const createWorkerFromUrl = (workerUrl: string): Worker => {
@@ -84,27 +89,29 @@ export const configureMonaco = () => {
   }
 
   configurationPromise = loadMonacoModules()
-    .then(({ editorWorkerUrl, jsonWorkerUrl, monaco, pythonConf, pythonLanguage }) => {
+    .then(({ editorWorkerUrl, jsonWorkerUrl, monaco }) => {
       Reflect.set(globalThis, "MonacoEnvironment", {
         getWorker: (_moduleId: string, label: string) =>
           createWorkerFromUrl(label === "json" ? jsonWorkerUrl : editorWorkerUrl),
       } satisfies MonacoEnvironment);
 
-      // Register Python with the patched grammar (triple-quoted f-string support). The
-      // editor always sets `language="python"` explicitly, so no extensions/firstLine
-      // auto-detection metadata is needed. Guard the internal grammar export shape: if a
-      // monaco upgrade drops these, fail loudly here rather than silently disabling
-      // Python highlighting (`setMonarchTokensProvider("python", undefined)`).
-      // The `conf`/`language` types come from a hand-written ambient declaration, so
-      // TypeScript believes they are always defined; this guard checks the real runtime
-      // shape the types cannot vouch for.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (pythonConf === undefined || pythonLanguage === undefined) {
-        throw new Error("monaco Python grammar module changed shape: missing `conf`/`language` export");
-      }
-      monaco.languages.register({ id: "python" });
-      monaco.languages.setLanguageConfiguration("python", pythonConf);
-      monaco.languages.setMonarchTokensProvider("python", patchPythonFStrings(pythonLanguage));
+      // Replaces the lazy Python tokenizer `register.all` set up with the patched grammar
+      // (triple-quoted f-string support), still loaded on first use.
+      monaco.languages.registerTokensProviderFactory("python", {
+        create: async () => {
+          const { language } = await import("monaco-editor/languages/definitions/python/python");
+
+          // The `language` type comes from a hand-written ambient declaration, so TypeScript
+          // believes it is always defined; fail loudly if a monaco upgrade drops the export
+          // rather than silently disabling Python highlighting.
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          if (language === undefined) {
+            throw new Error("monaco python grammar module changed shape: missing `language` export");
+          }
+
+          return patchPythonFStrings(language);
+        },
+      });
 
       loader.config({ monaco });
     })

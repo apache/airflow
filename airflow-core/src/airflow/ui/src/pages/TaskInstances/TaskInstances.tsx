@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+import type { ReactNode } from "react";
+
+import { Flex, HStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -24,9 +26,15 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, ActionBar } from "src/system-components";
+
+import { ITERATION_ALL } from "src/pages/GroupTaskInstance/LoopIterations/loopUtils";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -35,16 +43,18 @@ import {
   type GetColumnsParams,
 } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
-import { useAutoRefresh, isStatePending, renderDuration, useDocumentTitle } from "src/utils";
+import { useConfig } from "src/queries/useConfig";
+import { formatNumber, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
@@ -59,7 +69,7 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 // Matches the identifier the bulk task-instance endpoint echoes back in its
 // ``success`` / ``errors`` lists, so the bulk response can deselect rows directly.
 const getRowKey = (ti: TaskInstanceResponse) =>
-  `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]`;
+  ti.region_id === undefined ? `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]` : ti.id;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -78,11 +88,13 @@ const {
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
+  TEAMS: TEAMS_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type ColumnProps = {
   readonly dagId?: string;
+  readonly hasLoopIteration: boolean;
   readonly runId?: string;
   readonly taskId?: string;
   readonly translate: TFunction;
@@ -90,10 +102,12 @@ type ColumnProps = {
 
 const taskInstanceColumns = ({
   dagId,
+  hasLoopIteration,
+  multiTeam,
   runId,
   taskId,
   translate,
-}: ColumnProps & GetColumnsParams): Array<ColumnDef<TaskInstanceResponse>> => [
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<DataTableFeatures, TaskInstanceResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox rowKey={getRowKey(row.original)} />,
@@ -133,6 +147,16 @@ const taskInstanceColumns = ({
             ),
           header: translate("dagRun_one"),
         },
+        {
+          accessorKey: "dag_run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+              <TruncatedText text={original.dag_run_id} />
+            </RouterLink>
+          ),
+          enableSorting: false,
+          header: translate("dagRunId"),
+        },
       ]),
   ...(Boolean(taskId)
     ? []
@@ -161,6 +185,16 @@ const taskInstanceColumns = ({
       ),
     header: translate("mapIndex"),
   },
+  ...(hasLoopIteration
+    ? [
+        {
+          accessorKey: "loop_iteration",
+          cell: ({ row: { original } }: TaskInstanceRow) => original.loop_iteration?.iteration,
+          enableSorting: false,
+          header: translate("taskInstance.iteration"),
+        },
+      ]
+    : []),
   {
     accessorKey: "state",
     cell: ({
@@ -174,6 +208,16 @@ const taskInstanceColumns = ({
     ),
     header: () => translate("state"),
   },
+  ...(multiTeam
+    ? [
+        {
+          accessorKey: "team_name",
+          cell: ({ row: { original } }: TaskInstanceRow) => <TeamName teamName={original.team_name} />,
+          enableSorting: false,
+          header: translate("dagDetails.team"),
+        },
+      ]
+    : []),
   {
     accessorKey: "start_date",
     cell: ({ row: { original } }) =>
@@ -223,7 +267,7 @@ const taskInstanceColumns = ({
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
+    cell: ({ row: { original } }) => <DurationCell duration={original.duration} />,
     header: translate("duration"),
   },
   {
@@ -250,17 +294,26 @@ const taskInstanceColumns = ({
   },
 ];
 
-export const TaskInstances = () => {
-  const { t: translate } = useTranslation();
+type TaskInstancesProps = {
+  readonly extraFilter?: ReactNode;
+  /** Selected iteration of the loop group; undefined holds the list until the default is known. */
+  readonly iteration?: string;
+  readonly loopGroupId?: string;
+};
+
+export const TaskInstances = ({ extraFilter, iteration, loopGroupId }: TaskInstancesProps = {}) => {
+  const { i18n, t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
   useDocumentTitle(dagId === undefined ? translate("common:taskInstance_other") : undefined);
 
   const [searchParams] = useSearchParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
+      dag_run_id: false,
       dag_version: false,
       end_date: false,
       executor: false,
@@ -281,6 +334,7 @@ export const TaskInstances = () => {
   const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
+  const inLoopRun = loopGroupId !== undefined && runId !== undefined;
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const poolNamePattern = searchParams.get(POOL_NAME_PATTERN_PARAM);
@@ -291,6 +345,7 @@ export const TaskInstances = () => {
   const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
   const taskDisplayNamePattern = searchParams.get(NAME_PATTERN_PARAM);
+  const teams = searchParams.getAll(TEAMS_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
@@ -346,9 +401,12 @@ export const TaskInstances = () => {
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
+      iteration:
+        inLoopRun && iteration !== undefined && iteration !== ITERATION_ALL ? Number(iteration) : undefined,
       limit: pagination.pageSize,
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
+      loopId: runId === undefined ? undefined : loopGroupId,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       ...operatorNameArg,
       orderBy,
@@ -361,12 +419,14 @@ export const TaskInstances = () => {
       ...taskDisplayNameArg,
       taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
+      teams: teams.length > 0 ? teams : undefined,
       tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
       versionNumber:
         filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
     },
     undefined,
     {
+      enabled: !inLoopRun || iteration !== undefined,
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
@@ -386,7 +446,10 @@ export const TaskInstances = () => {
 
   const columns = taskInstanceColumns({
     dagId,
-    multiTeam: false,
+    hasLoopIteration: (data?.task_instances ?? []).some(
+      (ti) => ti.loop_iteration !== null && ti.loop_iteration !== undefined,
+    ),
+    multiTeam: multiTeamEnabled,
     runId,
     taskId: Boolean(groupId) ? undefined : taskId,
     translate,
@@ -399,22 +462,33 @@ export const TaskInstances = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <TaskInstancesFilter />
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        filterActions={
+          extraFilter === undefined ? (
+            <TaskInstancesFilter />
+          ) : (
+            <HStack alignItems="flex-start" gap={2} wrap="wrap">
+              {extraFilter}
+              <TaskInstancesFilter />
+            </HStack>
+          )
+        }
         initialState={tableURLState}
-        isLoading={isLoading}
+        isLoading={isLoading || (inLoopRun && iteration === undefined)}
         modelName="common:taskInstance"
         nextCursor={nextCursor}
         onStateChange={setTableURLState}
         previousCursor={previousCursor}
+        total={data?.total_entries ?? 0}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearTaskInstancesButton

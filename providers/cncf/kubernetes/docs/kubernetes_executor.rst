@@ -21,14 +21,6 @@
 Kubernetes Executor
 ===================
 
-.. note::
-
-    As of Airflow 2.7.0, you need to install the ``cncf.kubernetes`` provider package to use
-    this executor. This can done by installing ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
-    or by installing Airflow with the ``cncf.kubernetes`` extras:
-    ``pip install 'apache-airflow[cncf.kubernetes]'``.
-
-
 The Kubernetes executor runs each task instance in its own pod on a Kubernetes cluster.
 
 KubernetesExecutor runs as a process in the Airflow Scheduler. The scheduler itself does
@@ -239,11 +231,9 @@ the task will keep running until it completes (or times out, etc). But with Cele
 task will only keep running up until the grace period has elapsed, at which time the task will be terminated.  Another scenario where
 KubernetesExecutor can work well is when your tasks are not very uniform with respect to resource requirements or images.
 
-Finally, note that it does not have to be either-or; with CeleryKubernetesExecutor, it is possible to use both CeleryExecutor and
-KubernetesExecutor simultaneously on the same cluster. CeleryKubernetesExecutor will look at a task's ``queue`` to determine
-whether to run on Celery or Kubernetes.  By default, tasks are sent to Celery workers, but if you want a task to run using KubernetesExecutor,
-you send it to the  ``kubernetes`` queue and it will run in its own pod.  And KubernetesPodOperator can be used
-to similar effect, no matter what executor you are using.
+Finally, note that it does not have to be either-or; using the `Multiple Executors Concurrently feature
+<https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_,
+it is possible to use both CeleryExecutor and KubernetesExecutor simultaneously on the same cluster.
 
 Fault Tolerance
 ---------------
@@ -288,3 +278,12 @@ When monitoring the Kubernetes cluster's watcher thread, each event has a monoto
 Every time the executor reads a ``resourceVersion``, the executor stores the latest value in the backend database.
 Because the resourceVersion is stored, the scheduler can restart and continue reading the watcher stream from where it left off.
 Since the tasks are run independently of the executor and report results directly to the database, scheduler failures will not lead to task failures or re-runs.
+
+Task-instance identity
+----------------------
+
+On Airflow versions with UUID executor-key support, task pods carry a ``task_instance_id``
+annotation. Watcher events, adoption and revocation use the submitted attempt's UUID.
+Pre-upgrade task pods can be adopted when their original serialized workload contains
+that UUID. Pods without a recoverable attempt identity are not adopted by a UUID-capable
+executor. Older supported Airflow versions retain coordinate keys and their existing adoption behavior.

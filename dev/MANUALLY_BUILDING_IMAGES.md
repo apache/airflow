@@ -94,7 +94,7 @@ The benefit of this method is that the images can be built and pushed in a singl
 to build and push them separately and perform the additional manifest merge step.
 
 ```bash
-docker buildx create --name airflow_cache --driver docker-container unix:///var/run/docker.sock  # your local builder (you might want to use
+docker buildx create --name airflow_cache --driver docker-container unix:///var/run/docker.sock  # your local builder
 docker buildx create --name airflow_cache --append HOST:PORT  # your remote builder
 ```
 
@@ -167,7 +167,7 @@ with appropriate versions).
 You can then merge the images into a single multi-platform image with:
 
 ```bash
-docker release-management merge-prod-images --airflow-version "${VERSION}" --metadata-folder dist
+breeze release-management merge-prod-images --airflow-version "${VERSION}" --metadata-folder dist
 ```
 
 The same can be repeated for slim images by adding `--slim-images` option to the command, the manifests are
@@ -189,5 +189,5 @@ breeze release-management release-prod-images --slim-images --airflow-version "$
 Merging the images:
 
 ```bash
-docker release-management merge-prod-images --slim-images --airflow-version "${VERSION}" --metadata-folder dist
+breeze release-management merge-prod-images --slim-images --airflow-version "${VERSION}" --metadata-folder dist
 ```

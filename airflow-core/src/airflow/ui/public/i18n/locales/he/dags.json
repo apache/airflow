@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} מתוך {{total}} נכסים עודכנו",
+  "assetSchedule": "{{count, number}} מתוך {{total, number}} נכסים עודכנו",
   "dagActions": {
     "delete": {
       "button": "מחק Dag",
@@ -26,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "לא נמצאו משימות.",
-      "title": "משימות שהושפעו: {{count}}"
+      "title": "משימות שהושפעו: {{count, number}}"
     },
     "clear": {
       "button": "נקה {{type}}",
@@ -76,6 +76,11 @@
       "upstream": "במעלה הזרם"
     }
   },
+  "runStateCounts": {
+    "label": "מצבי ריצה",
+    "loading": "טוען ספירת מצבי ריצה",
+    "tooltip": "{{state}}: {{formattedCount}} — לחץ כדי לסנן ריצות"
+  },
   "search": {
     "advanced": "חיפוש מתקדם",
     "clear": "נקה חיפוש",
@@ -87,6 +92,10 @@
     "displayName": {
       "asc": "מיין לפי שם תצוגה (A-Z)",
       "desc": "מיין לפי שם תצוגה (Z-A)"
+    },
+    "lastRunAfter": {
+      "asc": "מיין לפי ריצה לאחר של הריצה האחרונה (מהמוקדם למאוחר)",
+      "desc": "מיין לפי ריצה לאחר של הריצה האחרונה (מהמאוחר למוקדם)"
     },
     "lastRunStartDate": {
       "asc": "מיין לפי תאריך התחלת ריצה אחרון (מהמוקדם למאוחר)",

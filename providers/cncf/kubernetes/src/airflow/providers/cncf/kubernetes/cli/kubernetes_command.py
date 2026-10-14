@@ -119,6 +119,31 @@ def generate_pod_yaml(args):
     print(f"YAML output can be found at {yaml_output_path}")
 
 
+def _get_pod_completion_time(pod):
+    """
+    Return the time the pod's last container finished.
+
+    Scans both ``container_statuses`` and ``init_container_statuses`` and returns the
+    latest ``finished_at`` timestamp. Falls back to the latest condition
+    ``last_transition_time`` (which is updated at the terminal transition), and finally
+    to ``creation_timestamp`` as a last resort.
+    """
+    statuses = [*(pod.status.container_statuses or []), *(pod.status.init_container_statuses or [])]
+    times = [
+        s.state.terminated.finished_at
+        for s in statuses
+        if s.state and s.state.terminated and s.state.terminated.finished_at
+    ]
+    if times:
+        return max(times)
+    condition_times = [
+        c.last_transition_time for c in (pod.status.conditions or []) if c.last_transition_time
+    ]
+    if condition_times:
+        return max(condition_times)
+    return pod.metadata.creation_timestamp
+
+
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def cleanup_pods(args):
@@ -129,6 +154,8 @@ def cleanup_pods(args):
     # protect newly created pods from deletion
     if min_pending_minutes < 5:
         min_pending_minutes = 5
+
+    min_completed_minutes = args.min_completed_minutes
 
     # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
     # All Containers in the Pod have terminated in success, and will not be restarted.
@@ -173,16 +200,20 @@ def cleanup_pods(args):
             pod_restart_policy = pod.spec.restart_policy.lower()
             current_time = datetime.now(pod.metadata.creation_timestamp.tzinfo)
 
-            if (
+            is_terminal = (
                 pod_phase == pod_succeeded
                 or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
                 or (pod_reason == pod_reason_evicted)
-                or (
-                    pod_phase == pod_pending
-                    and current_time - pod.metadata.creation_timestamp
-                    > timedelta(minutes=min_pending_minutes)
-                )
-            ):
+            )
+            is_terminal_old_enough = is_terminal and (
+                min_completed_minutes == 0
+                or current_time - _get_pod_completion_time(pod) > timedelta(minutes=min_completed_minutes)
+            )
+            is_pending_too_long = (
+                pod_phase == pod_pending
+                and current_time - pod.metadata.creation_timestamp > timedelta(minutes=min_pending_minutes)
+            )
+            if is_terminal_old_enough or is_pending_too_long:
                 print(
                     f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
                     f'restart policy "{pod_restart_policy}"'

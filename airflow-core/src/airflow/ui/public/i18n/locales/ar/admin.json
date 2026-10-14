@@ -9,8 +9,7 @@
   "config": {
     "columns": {
       "section": "القسم"
-    },
-    "title": "Airflow إعدادات"
+    }
   },
   "connections": {
     "add": "إضافة موَّصل",
@@ -27,10 +26,10 @@
     "connection_two": "موَّصلان",
     "connection_zero": "لا يوجد أي موصل",
     "delete": {
-      "deleteConnection_few": "حذف {{count}} موَّصلات",
-      "deleteConnection_many": "حذف {{count}} موَّصل",
+      "deleteConnection_few": "حذف {{count, number}} موَّصلات",
+      "deleteConnection_many": "حذف {{count, number}} موَّصل",
       "deleteConnection_one": "حذف موَّصل واحد",
-      "deleteConnection_other": "حذف {{count}} موَّصل",
+      "deleteConnection_other": "حذف {{count, number}} موَّصل",
       "deleteConnection_two": "حذف موَّصلين",
       "deleteConnection_zero": "لا يوجد أي موَّصل للحذف",
       "firstConfirmMessage_few": "أنت على وشك حذف الموَّصلات التالية:",
@@ -46,7 +45,6 @@
       "connectionIdRequired": "مطلوب معرِّف الموَّصل",
       "connectionIdRequirement": "لا يمكن أن يحتوي معرِّف الموَّصل على مسافات فقط",
       "connectionTypeRequired": "مطلوب نوع الموَّصل",
-      "extraFields": "حقول إضافية",
       "extraFieldsJson": "JSON حقول إضافية بصيغة",
       "helperText": "نوع الموَّصل مفقود؟ تأكد من تثبيت حزمة Airflow المناسبة.",
       "helperTextForRedactedFields": "لن تتغير الحقول المحجوبة ('***') إذا لم يتم تعديلها.",
@@ -165,10 +163,10 @@
       "isEncrypted": "مُشفر"
     },
     "delete": {
-      "deleteVariable_few": "حذف {{count}} متغيرات",
-      "deleteVariable_many": "حذف {{count}} متغير",
+      "deleteVariable_few": "حذف {{count, number}} متغيرات",
+      "deleteVariable_many": "حذف {{count, number}} متغير",
       "deleteVariable_one": "حذف متغير واحد",
-      "deleteVariable_other": "حذف {{count}} متغير",
+      "deleteVariable_other": "حذف {{count, number}} متغير",
       "deleteVariable_two": "حذف متغيرين",
       "deleteVariable_zero": "لا يوجد أي متغير للحذف",
       "firstConfirmMessage_few": "أنت على وشك حذف المتغيرات التالية:",
@@ -205,6 +203,7 @@
           "title": "تخطي"
         }
       },
+      "parsingFile": "جارٍ تحليل الملف...",
       "title": "استيراد المتغيرات",
       "upload": "تحميل ملف JSON",
       "uploadPlaceholder": "حمل ملف JSON يحتوي علي متغيرات (مثال: {\"key\": \"value\", ...})"

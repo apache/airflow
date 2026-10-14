@@ -123,7 +123,7 @@ class TestRotateFernetKeyCommand:
                     host=conn.host,
                     login=conn.login,
                     password=conn.password,
-                    schema_=conn.schema,
+                    schema=conn.schema,
                     port=conn.port,
                     extra=conn.extra,
                 )

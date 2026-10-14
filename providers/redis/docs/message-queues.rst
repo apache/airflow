@@ -39,9 +39,22 @@ Redis as the underlying message queue system.
 It allows you to send and receive messages using Redis channels in your Airflow workflows with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
 
-.. include:: /../src/airflow/providers/redis/queues/redis.py
-    :start-after: [START redis_message_queue_provider_description]
-    :end-before: [END redis_message_queue_provider_description]
+* It uses ``redis+pubsub`` as scheme for identifying Redis queues.
+* For parameter definitions take a look at :class:`~airflow.providers.redis.triggers.redis_await_message.AwaitMessageTrigger`.
+
+.. code-block:: python
+
+    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+    from airflow.sdk import Asset, AssetWatcher
+
+    trigger = MessageQueueTrigger(
+        scheme="redis+pubsub",
+        # Additional Redis AwaitMessageTrigger parameters as needed
+        channels=["my_channel"],
+        redis_conn_id="redis_default",
+    )
+
+    asset = Asset("redis_queue_asset", watchers=[AssetWatcher(name="redis_watcher", trigger=trigger)])
 
 
 .. _howto/triggers:RedisMessageQueueTrigger:

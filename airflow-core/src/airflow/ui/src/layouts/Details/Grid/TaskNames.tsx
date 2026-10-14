@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { MouseEvent } from "react";
+
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
-import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
+
 import { useGroups } from "src/context/groups";
+import { stripExecutionParams } from "src/utils/executionParams";
 
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
@@ -70,7 +73,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
     onRowClick?.();
   };
 
-  const search = searchParams.toString();
+  const search = stripExecutionParams(searchParams).toString();
 
   // If virtualItems is provided, use virtualization; otherwise render all items
   const itemsToRender =
@@ -109,7 +112,13 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             transition="background-color 0.2s"
           >
             {node.isGroup ? (
-              <Link asChild data-testid={node.id} display="block" width="100%">
+              <Link
+                _hover={{ textDecoration: "none" }}
+                asChild
+                data-testid={node.id}
+                display="block"
+                width="100%"
+              >
                 <RouterLink
                   data-group-id={node.id}
                   onClick={onClick}
@@ -125,8 +134,10 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                       fontSize="sm"
                       fontWeight="normal"
                       isGroup={true}
+                      isLoop={Boolean(node.is_loop)}
                       isMapped={Boolean(node.is_mapped)}
                       label={node.label}
+                      loopMaxIterations={node.loop_max_iterations}
                       paddingLeft={indent(node.depth)}
                       setupTeardownType={node.setup_teardown_type}
                     />
@@ -153,7 +164,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                 </RouterLink>
               </Link>
             ) : (
-              <Link asChild data-testid={node.id} display="inline">
+              <Link _hover={{ textDecoration: "none" }} asChild data-testid={node.id} display="inline">
                 <RouterLink
                   onClick={onRowClick}
                   replace

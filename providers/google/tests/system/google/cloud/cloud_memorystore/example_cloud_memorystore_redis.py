@@ -41,7 +41,7 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import (
-    GCSBucketCreateAclEntryOperator,
+    GCSBucketAddIamBindingOperator,
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
 )
@@ -84,7 +84,9 @@ with DAG(
     tags=["example"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME, resource={"predefined_acl": "public_read_write"}
+        task_id="create_bucket",
+        bucket_name=BUCKET_NAME,
+        resource={"iamConfiguration": {"uniformBucketLevelAccess": {"enabled": True}}},
     )
 
     # [START howto_operator_create_instance]
@@ -163,15 +165,23 @@ with DAG(
     )
     # [END howto_operator_update_instance]
 
-    # [START howto_operator_set_acl_permission]
-    set_acl_permission = GCSBucketCreateAclEntryOperator(
-        task_id="gcs-set-acl-permission",
-        bucket=BUCKET_NAME,
-        entity="user-{{ task_instance.xcom_pull('get-instance')['persistence_iam_identity']"
-        ".split(':', 2)[1] }}",
-        role="OWNER",
+    # [START howto_operator_set_iam_permissions]
+    redis_service_account = (
+        "{{ task_instance.xcom_pull(task_ids='get-instance')['persistence_iam_identity'] }}"
     )
-    # [END howto_operator_set_acl_permission]
+    set_bucket_reader_permission = GCSBucketAddIamBindingOperator(
+        task_id="gcs-set-bucket-reader-permission",
+        bucket=BUCKET_NAME,
+        role="roles/storage.legacyBucketReader",
+        member=redis_service_account,
+    )
+    set_object_admin_permission = GCSBucketAddIamBindingOperator(
+        task_id="gcs-set-object-admin-permission",
+        bucket=BUCKET_NAME,
+        role="roles/storage.objectAdmin",
+        member=redis_service_account,
+    )
+    # [END howto_operator_set_iam_permissions]
 
     # [START howto_operator_export_instance]
     export_instance = CloudMemorystoreExportInstanceOperator(
@@ -253,7 +263,8 @@ with DAG(
         >> create_instance_result
         >> get_instance
         >> get_instance_result
-        >> set_acl_permission
+        >> set_bucket_reader_permission
+        >> set_object_admin_permission
         >> export_instance
         >> update_instance
         >> list_instances

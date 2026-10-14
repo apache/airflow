@@ -117,7 +117,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
-    "3.4.0": "7a98f1b7dbd3",
+    "3.4.0": "a5d7b9c13e40",
+    "3.5.0": "c71065a1b14f",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -1080,12 +1081,19 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
-def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
+def reflect_tables(tables: Sequence[MappedClassProtocol | str] | None, session, schema: str | None = None):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 
     This function gets the current state of each table in the set of models
     provided and returns a SqlAlchemy metadata object containing them.
+
+    A string entry in ``tables`` may be schema-qualified using dot notation (e.g.
+    ``"celery.celery_taskmeta"``) to reflect a table from a non-default schema; the returned
+    metadata's ``tables`` mapping is then keyed by that same ``schema.table`` string. When
+    ``tables`` is ``None``, ``schema`` selects which schema to reflect in full (default: the
+    connection's default schema); SQLAlchemy keys every reflected table by ``schema.table`` in
+    that case too, whenever a non-``None`` schema was given.
     """
     import sqlalchemy.schema
 
@@ -1093,21 +1101,57 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
     metadata = sqlalchemy.schema.MetaData()
 
     if tables is None:
-        metadata.reflect(bind=bind, resolve_fks=False)
+        metadata.reflect(bind=bind, schema=schema, resolve_fks=False)
     else:
         for tbl in tables:
             try:
                 table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-                metadata.reflect(bind=bind, only=[table_name], extend_existing=True, resolve_fks=False)
+                tbl_schema: str | None
+                tbl_schema, sep, name = table_name.partition(".")
+                if not sep:
+                    tbl_schema, name = None, table_name
+                metadata.reflect(
+                    bind=bind, schema=tbl_schema, only=[name], extend_existing=True, resolve_fks=False
+                )
             except exc.InvalidRequestError:
                 continue
     return metadata
 
 
+def check_team_names_can_be_lower_cased(*, session: Session) -> Iterable[str]:
+    """
+    Yield an error for each group of stored team names that cannot be folded to lower case.
+
+    Team names became lower case only, and a migration rewrites the stored ones. Names that
+    differ only in case collapse onto a single row, which would silently merge two teams -- one
+    would inherit the other's Dag bundles, Connections, Variables, Pools and Triggers. Nothing
+    here can choose which name survives, so migration stops and the operator renames one first.
+    """
+    from collections import defaultdict
+
+    from airflow.models.team import Team
+
+    if not inspect(session.get_bind()).has_table(Team.__tablename__):
+        return
+
+    by_lower: dict[str, list[str]] = defaultdict(list)
+    for name in Team.get_all_team_names(session=session):
+        by_lower[name.lower()].append(name)
+
+    for lowered, names in sorted(by_lower.items()):
+        if len(names) > 1:
+            yield (
+                f"Teams {', '.join(repr(name) for name in sorted(names))} differ only in case and "
+                f"would both become '{lowered}'. Rename all but one with `airflow teams create` / "
+                "`airflow teams delete`, moving its Dag bundles, Connections, Variables and Pools "
+                "across, before migrating."
+            )
+
+
 @provide_session
 def _check_migration_errors(*, session: Session = NEW_SESSION) -> Iterable[str]:
     """:session: session of the sqlalchemy."""
-    check_functions: Iterable[Callable[..., Iterable[str]]] = ()
+    check_functions: Iterable[Callable[..., Iterable[str]]] = (check_team_names_can_be_lower_cased,)
     for check_fn in check_functions:
         log.debug("running check function %s", check_fn.__name__)
         yield from check_fn(session=session)
@@ -1474,7 +1518,7 @@ def _handle_fab_downgrade(*, session: Session) -> None:
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
     except ImportError:
         raise RuntimeError(
-            "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
+            "Import error occurred while importing FABDBManager. The apache-airflow-providers-fab package must be installed before we can "
             "downgrade to <3.0.0."
         )
 
@@ -1717,6 +1761,9 @@ def _normalize_mysql_server_default(default: Any) -> str | None:
         return None
 
     normalized = str(default).strip().strip("'\"").lower()
+    # MySQL reflects expression defaults with escaped quotes and a charset introducer,
+    # e.g. unhex(_utf8mb4\'00ff\') for a model default of UNHEX('00ff').
+    normalized = re.sub(r"\b_[a-z0-9]+(?=')", "", normalized.replace("\\'", "'"))
     while normalized.startswith("(") and normalized.endswith(")"):
         normalized = normalized[1:-1].strip()
     normalized = normalized.replace(" ", "")

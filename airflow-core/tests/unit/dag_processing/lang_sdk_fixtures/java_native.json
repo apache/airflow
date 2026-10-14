@@ -1,0 +1,151 @@
+{
+  "type": "DagFileParsingResult",
+  "fileloc": "/bundles/app/dags.jar",
+  "serialized_dags": [
+    {
+      "data": {
+        "__version": 3,
+        "dag": {
+          "dag_id": "java_native",
+          "fileloc": "/bundles/app/dags.jar",
+          "relative_fileloc": "dags.jar",
+          "timezone": "UTC",
+          "timetable": {
+            "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+            "__var": {
+              "expression": "@daily",
+              "timezone": "UTC",
+              "interval": 0.0,
+              "run_immediately": false
+            }
+          },
+          "tasks": [
+            {
+              "__type": "operator",
+              "__var": {
+                "task_id": "extract",
+                "task_type": "DumpExtract",
+                "_task_module": "org.apache.airflow.sdk.execution",
+                "language": "java",
+                "template_fields": [],
+                "retries": 2,
+                "queue": "java",
+                "retry_delay": 600.0,
+                "execution_timeout": 90.0,
+                "downstream_task_ids": [
+                  "load"
+                ]
+              }
+            },
+            {
+              "__type": "operator",
+              "__var": {
+                "task_id": "load",
+                "task_type": "DumpLoad",
+                "_task_module": "org.apache.airflow.sdk.execution",
+                "language": "java",
+                "template_fields": [],
+                "queue": "java",
+                "trigger_rule": "all_done"
+              }
+            }
+          ],
+          "dag_dependencies": [],
+          "task_group": {
+            "_group_id": null,
+            "group_display_name": "",
+            "prefix_group_id": true,
+            "tooltip": "",
+            "ui_color": "CornflowerBlue",
+            "ui_fgcolor": "#000",
+            "children": {
+              "extract": [
+                "operator",
+                "extract"
+              ],
+              "load": [
+                "operator",
+                "load"
+              ]
+            },
+            "upstream_group_ids": [],
+            "downstream_group_ids": [],
+            "upstream_task_ids": [],
+            "downstream_task_ids": []
+          },
+          "edge_info": {},
+          "params": [],
+          "deadline": null,
+          "allowed_run_types": null,
+          "description": "java native",
+          "start_date": 1767225600.0,
+          "dagrun_timeout": 300.0,
+          "tags": [
+            "a",
+            "b"
+          ],
+          "max_active_tasks": 16,
+          "max_active_runs": 3,
+          "max_consecutive_failed_dag_runs": 0,
+          "catchup": true,
+          "disable_bundle_versioning": false
+        }
+      }
+    },
+    {
+      "data": {
+        "__version": 3,
+        "dag": {
+          "dag_id": "java_once",
+          "fileloc": "/bundles/app/dags.jar",
+          "relative_fileloc": "dags.jar",
+          "timezone": "UTC",
+          "timetable": {
+            "__type": "airflow.timetables.simple.OnceTimetable",
+            "__var": {}
+          },
+          "tasks": [
+            {
+              "__type": "operator",
+              "__var": {
+                "task_id": "solo",
+                "task_type": "DumpExtract",
+                "_task_module": "org.apache.airflow.sdk.execution",
+                "language": "java",
+                "template_fields": []
+              }
+            }
+          ],
+          "dag_dependencies": [],
+          "task_group": {
+            "_group_id": null,
+            "group_display_name": "",
+            "prefix_group_id": true,
+            "tooltip": "",
+            "ui_color": "CornflowerBlue",
+            "ui_fgcolor": "#000",
+            "children": {
+              "solo": [
+                "operator",
+                "solo"
+              ]
+            },
+            "upstream_group_ids": [],
+            "downstream_group_ids": [],
+            "upstream_task_ids": [],
+            "downstream_task_ids": []
+          },
+          "edge_info": {},
+          "params": [],
+          "deadline": null,
+          "allowed_run_types": null,
+          "max_active_tasks": 16,
+          "max_active_runs": 16,
+          "max_consecutive_failed_dag_runs": 0,
+          "catchup": false,
+          "disable_bundle_versioning": false
+        }
+      }
+    }
+  ]
+}

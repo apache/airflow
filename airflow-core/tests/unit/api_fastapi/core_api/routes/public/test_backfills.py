@@ -23,10 +23,12 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.dagbag import DagBag
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
@@ -42,7 +44,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -78,6 +80,16 @@ def _clean_db():
 def clean_db():
     yield
     _clean_db()
+
+
+@pytest.fixture
+def dag_reader_headers(test_client):
+    """A caller who may read the Dags but not write them: viewer is below the role edits require."""
+    auth_manager = test_client.app.state.auth_manager
+    token = auth_manager._get_token_signer().generate(
+        auth_manager.serialize_user(SimpleAuthManagerUser(username="reader", role="viewer"))
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 def make_dags():
@@ -204,6 +216,21 @@ class TestGetBackfill(TestBackfillEndpoint):
         assert response.status_code == 404
         assert response.json().get("detail") == "Backfill not found"
 
+    def test_unknown_backfill_is_indistinguishable_from_an_unreadable_one(
+        self, session, unauthorized_test_client
+    ):
+        """Telling the two apart discloses which backfill ids exist across Dags."""
+        (dag,) = self._create_dag_models()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=timezone.utcnow(), to_date=timezone.utcnow())
+        session.add(backfill)
+        session.commit()
+
+        existing = unauthorized_test_client.get(f"/backfills/{backfill.id}")
+        unknown = unauthorized_test_client.get(f"/backfills/{231984098}")
+
+        assert existing.status_code == 404
+        assert (existing.status_code, existing.json()) == (unknown.status_code, unknown.json())
+
     def test_invalid_id(self, test_client):
         response = test_client.get("/backfills/invalid_id")
         assert response.status_code == 422
@@ -251,7 +278,8 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
         session.add_all([bdr1, bdr2])
         session.commit()
 
-        response = test_client.get(f"/backfills/{b.id}/dag_runs")
+        with assert_queries_count(5):
+            response = test_client.get(f"/backfills/{b.id}/dag_runs")
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 2
@@ -299,6 +327,7 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
         """Non-existent backfill returns 404."""
         response = test_client.get("/backfills/999999/dag_runs")
         assert response.status_code == 404
+        assert response.json().get("detail") == "Backfill not found"
 
     def test_list_backfill_dag_runs_pagination(self, test_client, session):
         """Limit and offset work correctly."""
@@ -321,13 +350,13 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
             )
         session.commit()
 
-        response = test_client.get(f"/backfills/{b.id}/dag_runs?limit=2&offset=0")
+        response = test_client.get(f"/backfills/{b.id}/dag_runs", params={"limit": 2, "offset": 0})
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 3
         assert len(data["backfill_dag_runs"]) == 2
 
-        response = test_client.get(f"/backfills/{b.id}/dag_runs?limit=2&offset=2")
+        response = test_client.get(f"/backfills/{b.id}/dag_runs", params={"limit": 2, "offset": 2})
         assert response.status_code == 200
         data = response.json()
         assert len(data["backfill_dag_runs"]) == 1
@@ -376,7 +405,7 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
             )
         session.commit()
 
-        response = test_client.get(f"/backfills/{b.id}/dag_runs?order_by={order_by}")
+        response = test_client.get(f"/backfills/{b.id}/dag_runs", params={"order_by": order_by})
         assert response.status_code == 200
         data = response.json()
         assert data["backfill_dag_runs"][0]["sort_ordinal"] == expected_first_ordinal
@@ -432,6 +461,96 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
+
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_state"),
+        [
+            pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
+            pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
+        ],
+    )
+    def test_create_backfill_on_paused_dag_with_drain_dag(
+        self, session, dag_maker, test_client, drain_dag, expected_state
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
+            EmptyOperator(task_id="mytask")
+        session.execute(update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post(
+            url="/backfills",
+            json={
+                "dag_id": dag.dag_id,
+                "from_date": to_iso(pendulum.parse("2024-01-01")),
+                "to_date": to_iso(pendulum.parse("2024-01-03")),
+                "drain_dag": drain_dag,
+            },
+        )
+
+        assert response.status_code == 200
+        session.expire_all()
+        assert session.get(DagModel, dag.dag_id).scheduling_state == expected_state
+        assert session.scalar(
+            select(func.count()).select_from(DagRun).where(DagRun.backfill_id == response.json()["id"])
+        )
+
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_status"),
+        [({"drain_dag": True}, 403), ({"drain_dag": False}, 200), ({}, 200)],
+    )
+    def test_create_backfill_with_drain_dag_requires_dag_edit_access(
+        self, session, dag_maker, test_client, deny_dag_edit_access, request_fields, expected_status
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
+            EmptyOperator(task_id="mytask")
+        session.execute(update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post(
+            url="/backfills",
+            json={
+                "dag_id": dag.dag_id,
+                "from_date": to_iso(pendulum.parse("2024-01-01")),
+                "to_date": to_iso(pendulum.parse("2024-01-03")),
+                **request_fields,
+            },
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.PAUSED
+        if expected_status == 403:
+            assert response.json()["detail"] == f"Draining requires permission to edit Dag: {dag.dag_id}"
+            assert session.scalar(select(func.count()).select_from(Backfill)) == 0
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=dag.dag_id), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+        else:
+            assert session.scalar(select(func.count()).select_from(Backfill)) == 1
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_create_backfill_records_triggering_user_display_name(
+        self, mock_display_name, session, dag_maker, test_client
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_DISPLAY_NAME", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.commit()
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-02-01")),
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+        }
+        response = test_client.post(url="/backfills", json=data)
+        assert response.status_code == 200
+        backfill = session.scalars(select(Backfill).where(Backfill.dag_id == dag.dag_id)).one()
+        assert backfill.triggering_user_name == "Jane Doe"
 
     def test_dag_not_exist(self, session, test_client):
         session.scalars(select(DagModel)).all()
@@ -1480,6 +1599,11 @@ class TestCancelBackfill(TestBackfillEndpoint):
         states = [x.state for x in dag_runs]
         assert states == ["running", "failed", "failed", "failed", "failed"]
 
+    def test_cancel_backfill_not_found(self, test_client):
+        response = test_client.put("/backfills/999999/cancel")
+        assert response.status_code == 404
+        assert response.json().get("detail") == "Backfill not found"
+
     def test_invalid_id(self, test_client):
         response = test_client.put("/backfills/invalid_id/cancel")
         assert response.status_code == 422
@@ -1527,7 +1651,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         response = unauthenticated_test_client.put(f"/backfills/{backfill.id}/pause")
         assert response.status_code == 401
 
-    def test_pause_backfill_403(self, session, unauthorized_test_client):
+    def test_pause_backfill_404_when_the_dag_is_unreadable(self, session, unauthorized_test_client):
         (dag,) = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
@@ -1535,7 +1659,28 @@ class TestPauseBackfill(TestBackfillEndpoint):
         session.add(backfill)
         session.commit()
         response = unauthorized_test_client.put(f"/backfills/{backfill.id}/pause")
+        assert response.status_code == 404
+
+    def test_pause_backfill_403(self, session, dag_reader_headers, test_client):
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(backfill)
+        session.commit()
+        response = test_client.put(f"/backfills/{backfill.id}/pause", headers=dag_reader_headers)
         assert response.status_code == 403
+
+    def test_pause_backfill_unknown_id_is_not_authorized_by_a_body_dag_id(
+        self, session, dag_reader_headers, test_client
+    ):
+        (dag,) = self._create_dag_models()
+        session.commit()
+        response = test_client.put(
+            f"/backfills/{231984098}/pause", json={"dag_id": dag.dag_id}, headers=dag_reader_headers
+        )
+        assert response.status_code == 404
+        assert response.json().get("detail") == "Backfill not found"
 
     def test_invalid_id(self, test_client):
         response = test_client.put("/backfills/invalid_id/pause")
@@ -1575,6 +1720,11 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
         check_last_log(session, dag_id=None, event="unpause_backfill", logical_date=None)
+
+    def test_unpause_backfill_not_found(self, test_client):
+        response = test_client.put("/backfills/999999/unpause")
+        assert response.status_code == 404
+        assert response.json().get("detail") == "Backfill not found"
 
     def test_invalid_id(self, test_client):
         response = test_client.put("/backfills/invalid_id/unpause")

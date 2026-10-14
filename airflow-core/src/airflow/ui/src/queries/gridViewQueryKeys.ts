@@ -20,7 +20,10 @@ import {
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
   UseDagServiceGetLatestRunInfoKeyFn,
+  UseGridServiceGetDagStructureKeyFn,
   UseGridServiceGetGridRunsKeyFn,
+  UseGridServiceGetLoopHistoryKeyFn,
+  UseGridServiceGetLoopSummaryKeyFn,
   useTaskInstanceServiceGetExtraLinksKey,
   useTaskInstanceServiceGetLogKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
@@ -30,6 +33,10 @@ import {
 export const gridQueryKeys = (dagId: string) =>
   [
     UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+    UseGridServiceGetLoopSummaryKeyFn({ dagId, groupId: "", runId: "" }, [{ dagId }]),
+    UseGridServiceGetLoopHistoryKeyFn({ dagId, groupId: "" }, [{ dagId }]),
+    // Structure is topology only, so it's invalidated on run changes here rather than polled.
+    UseGridServiceGetDagStructureKeyFn({ dagId }, [{ dagId }]),
     UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
     UseDagServiceGetLatestRunInfoKeyFn({ dagId }, [{ dagId }]),
     UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),

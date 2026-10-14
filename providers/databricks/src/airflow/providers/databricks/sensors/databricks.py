@@ -69,14 +69,11 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         include_airflow_query_tags: bool = True,
         **kwargs,
     ):
-        # Handle the scenario where either both statement and statement_id are set/not set
-        if statement and statement_id:
-            raise AirflowException("Cannot provide both statement and statement_id.")
-        if not statement and not statement_id:
-            raise AirflowException("One of either statement or statement_id must be provided.")
+        if statement is not None and statement_id is not None:
+            raise ValueError("Provide exactly one of statement or statement_id.")
 
         if not warehouse_id:
-            raise AirflowException("warehouse_id must be provided.")
+            raise ValueError("warehouse_id must be provided.")
 
         super().__init__(**kwargs)
 
@@ -112,6 +109,11 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         )
 
     def execute(self, context: Context):
+        # Both fields are templated, so "neither resolves to a value" is only knowable
+        # after rendering — __init__ cannot catch it. The both-provided case is a pure
+        # provision error and is checked there instead.
+        if not self.statement and not self.statement_id:
+            raise ValueError("One of either statement or statement_id must be provided.")
         if not self.statement_id:
             # Otherwise, we'll go ahead and "submit" the statement
             tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)

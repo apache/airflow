@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Internal helpers shared across the InfluxDB provider."""
+
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def _convert_dataframe_to_records(dataframe: pd.DataFrame) -> list[dict[str, Any]]:
+    """Convert a query result DataFrame into a JSON-serializable list of dictionaries."""
+    return json.loads(dataframe.to_json(orient="records", date_format="iso"))
+
+
+def _first_cell_is_truthy(dataframe: pd.DataFrame) -> bool:
+    """Return whether the first cell meets the sensor condition."""
+    import pandas as pd
+
+    if dataframe.empty or dataframe.shape[1] == 0:
+        return False
+
+    value = dataframe.iat[0, 0]
+    if not pd.api.types.is_scalar(value):
+        raise TypeError("The first query result cell must be a scalar value")
+    if pd.isna(value):
+        return False
+
+    return value not in (0, "0", "", None)

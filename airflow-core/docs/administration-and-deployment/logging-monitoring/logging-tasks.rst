@@ -150,7 +150,7 @@ the example below.
     version                | 2.9.0.dev0
     executor               | LocalExecutor
     task_logging_handler   | airflow.utils.log.file_task_handler.FileTaskHandler
-    sql_alchemy_conn       | postgresql+psycopg2://postgres:airflow@postgres/airflow
+    sql_alchemy_conn       | postgresql+psycopg://postgres:airflow@postgres/airflow
     dags_folder            | /files/dags
     plugins_folder         | /root/airflow/plugins
     base_log_folder        | /root/airflow/logs
@@ -176,7 +176,7 @@ Serving logs from workers and triggerer
 Most task handlers send logs upon completion of a task. In order to view logs in real time, Airflow starts an HTTP server to serve the logs in the following cases:
 
 - If ``LocalExecutor`` is used, then when ``airflow scheduler`` is running.
-- If ``CeleryExecutor`` is used, then when ``airflow worker`` is running.
+- If ``CeleryExecutor`` is used, then when ``airflow celery worker`` is running.
 
 In triggerer, logs are served unless the service is started with option ``--skip-serve-logs``.
 

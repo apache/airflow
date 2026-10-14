@@ -27,12 +27,102 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+.. warning::
+  The ``no_host_key_check`` connection extra now defaults to ``false``. A connection to a host that has
+  no entry in the known hosts file is refused unless host key verification is disabled explicitly or a
+  ``host_key`` is supplied in the connection's extra field.
+
+  Deployments that relied on the previous default can keep the earlier behaviour by adding the host key
+  to the known hosts file, supplying ``host_key`` on the connection, setting the ``no_host_key_check``
+  connection extra to ``true``, or -- when building ``SSHHook``/``SFTPHook`` directly rather than from a
+  connection -- passing the new ``no_host_key_check=True`` constructor argument. The constructor argument
+  takes precedence over the connection extra.
+
+  The previously undocumented ``ignore_hostkey_verification`` extra is now honoured as a deprecated alias
+  for ``no_host_key_check`` and emits a ``DeprecationWarning``. It had no effect before: connections that
+  set it were relying on the old permissive default rather than on the setting itself.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``Bump minimum paramiko to 4.0.0; DSA/DSS private keys and ssh-dss host keys are no longer supported (#54079)``
+* ``Verify SSH host keys by default in SSH and SFTP hooks (#73419)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SSH commands failing when the task holds over 1024 file descriptors (#74211)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Fix DeadlockImminentError when a connection is resolved inside an async task (#71890)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+6.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SSHRemoteJobOperator cleanup failing with custom remote_base_dir (#69885)``
+* ``Quote remote job paths in posix ssh command builders (#70091)``
+* ``Keep SSH remote job running when its PTY session hangs up (#70573)``
+* ``Fix template-field validation timing in ssh provider operators (#70315)``
+
+Misc
+~~~~
+
+* ``Support Paramiko 5 (#69712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky test_command_timeout_fail in SSH provider (#65864)``
+   * ``Make SSH remote-job kill test diagnosable and stop it reddening main (#70562)``
+
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Bump minimum paramiko to 4.0.0; DSA/DSS private keys and ssh-dss host keys are no longer supported (#69669)``
 
   Paramiko 4.0 removed DSS/DSA support; see `paramiko changelog <https://www.paramiko.org/changelog.html>`__ for upstream details. If you use a DSA private key in an SSH connection, generate a new key (for example ``ssh-keygen -t ed25519`` or ``-t rsa``), install the public key on the server, and point your Airflow connection at the new key file or ``private_key`` extra. If you pin the remote host with a ``host_key`` extra in ``ssh-dss`` form, obtain the server's current RSA, ECDSA, or Ed25519 host key and replace the value. The same constraints apply to SFTP connections that rely on paramiko via the SSH provider.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SSHRemoteJobOperator still orphaning the remote job on cancellation (#69490)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 
 5.0.4
 .....

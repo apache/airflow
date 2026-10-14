@@ -24,21 +24,26 @@ import { FiBarChart } from "react-icons/fi";
 import { MetricSection } from "./MetricSection";
 
 type DagRunMetricsProps = {
+  readonly countsAreLowerBounds: boolean;
   readonly dagRunStates: DAGRunStates;
   readonly endDate?: string;
   readonly startDate: string;
-  readonly stateCountLimit: number;
 };
 
 const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success", "failed"];
 
-export const DagRunMetrics = ({ dagRunStates, endDate, startDate, stateCountLimit }: DagRunMetricsProps) => {
+export const DagRunMetrics = ({
+  countsAreLowerBounds,
+  dagRunStates,
+  endDate,
+  startDate,
+}: DagRunMetricsProps) => {
   const { t: translate } = useTranslation();
   const total = Object.values(dagRunStates).reduce((sum, count) => sum + count, 0);
-  // When any state hit the API's STATE_COUNT_CAP, the summed total is only a
-  // lower bound, so per-state percentages computed from it are wrong (#67336).
-  // Suppress percentages for the whole group in that case.
-  const isTotalTruncated = Object.values(dagRunStates).some((count) => count >= stateCountLimit);
+  // The total is only a lower bound when the counts are, so percentages would be wrong.
+  const isTotalTruncated = countsAreLowerBounds;
+  // "0+" would be meaningless.
+  const isLowerBound = (count: number) => countsAreLowerBounds && count > 0;
 
   return (
     <Box borderRadius={5} borderWidth={1} p={4}>
@@ -50,7 +55,7 @@ export const DagRunMetrics = ({ dagRunStates, endDate, startDate, stateCountLimi
       <Stack gap={4}>
         {DAGRUN_STATES.map((state) => (
           <MetricSection
-            capped={dagRunStates[state] >= stateCountLimit}
+            capped={isLowerBound(dagRunStates[state])}
             endDate={endDate}
             isTotalTruncated={isTotalTruncated}
             key={state}

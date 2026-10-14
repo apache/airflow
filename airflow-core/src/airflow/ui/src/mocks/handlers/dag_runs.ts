@@ -56,13 +56,49 @@ const dagRunInRange = {
   triggering_user_name: "admin",
 };
 
+const dagRunTaggedDag = {
+  conf: null,
+  dag_display_name: "tagged_dag",
+  dag_id: "tagged_dag",
+  dag_run_id: "run_tagged_dag",
+  dag_versions: [],
+  data_interval_end: null,
+  data_interval_start: null,
+  duration: 1.0,
+  end_date: "2025-01-15T00:00:01Z",
+  logical_date: "2025-01-15T00:00:00Z",
+  partition_key: null,
+  run_after: "2025-01-15T00:00:00Z",
+  run_type: "manual",
+  start_date: "2025-01-15T00:00:00Z",
+  state: "success",
+  triggering_user_name: "admin",
+};
+
+const dagRunMultiTaggedDag = {
+  ...dagRunTaggedDag,
+  dag_display_name: "multi_tagged_dag",
+  dag_id: "multi_tagged_dag",
+  dag_run_id: "run_multi_tagged_dag",
+};
+
+// Maps dag_id to the tags its Dag is annotated with, so the "tags" query
+// param can be simulated without a real Dags table backing the mock.
+const dagIdTags: Record<string, Array<string>> = {
+  multi_tagged_dag: ["example_tag", "other_tag"],
+  tagged_dag: ["example_tag"],
+  test_dag: [],
+};
+
 export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/:dagId/dagRuns", ({ request }) => {
     const url = new URL(request.url);
     const logicalDateGte = url.searchParams.get("logical_date_gte");
     const logicalDateLte = url.searchParams.get("logical_date_lte");
+    const tags = url.searchParams.getAll("tags");
+    const tagsMatchMode = url.searchParams.get("tags_match_mode");
 
-    const allRuns = [dagRunBeforeFilter, dagRunInRange];
+    const allRuns = [dagRunBeforeFilter, dagRunInRange, dagRunTaggedDag, dagRunMultiTaggedDag];
 
     const filtered = allRuns.filter((run) => {
       const logicalDate = new Date(run.logical_date);
@@ -72,6 +108,17 @@ export const handlers: Array<HttpHandler> = [
       }
       if (logicalDateLte !== null && logicalDate > new Date(logicalDateLte)) {
         return false;
+      }
+      if (tags.length > 0) {
+        const runTags = dagIdTags[run.dag_id] ?? [];
+        const matches =
+          tagsMatchMode === "all"
+            ? tags.every((tag) => runTags.includes(tag))
+            : tags.some((tag) => runTags.includes(tag));
+
+        if (!matches) {
+          return false;
+        }
       }
 
       return true;

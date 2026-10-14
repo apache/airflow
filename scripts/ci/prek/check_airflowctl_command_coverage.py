@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -53,7 +53,7 @@ EXCLUDED_COMMANDS = {
     "assets delete-dag-queued-events",
     "assets delete-queued-event",
     "assets delete-queued-events",
-    "assets get-by-alias",
+    "assets get-alias",
     "assets get-dag-queued-event",
     "assets get-dag-queued-events",
     "assets get-queued-events",

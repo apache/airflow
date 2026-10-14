@@ -50,6 +50,17 @@ To get an Agent Engine you can use
     :start-after: [START how_to_cloud_vertex_ai_get_agent_engine_operator]
     :end-before: [END how_to_cloud_vertex_ai_get_agent_engine_operator]
 
+To query a Reasoning Engine synchronously you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.RunReasoningEngineQueryOperator`.
+The operator calls the public ``query_reasoning_engine`` GAPIC method and returns
+the serialized response without using Google Cloud Storage.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_run_reasoning_engine_query_operator]
+    :end-before: [END how_to_cloud_vertex_ai_run_reasoning_engine_query_operator]
+
 To run a query job on an Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.RunQueryJobOperator`.
 The operator uses the public ``run_query_job`` SDK method. The ``config`` parameter
@@ -71,6 +82,30 @@ The same operation can be performed in the deferrable mode.
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_run_query_job_operator_deferrable]
     :end-before: [END how_to_cloud_vertex_ai_run_query_job_operator_deferrable]
+
+To let an agent running under Common AI's ``AgentOperator`` consult an Agent Engine as one of
+its tools, use
+:class:`~airflow.providers.google.cloud.hooks.vertex_ai.agent_engine.AgentEngineHook`.
+It implements the Common AI managed-agent contract over ``query_reasoning_engine``, so
+``hook.agent(resource_name)`` can be passed to a ``ManagedAgentToolset`` or combined with agents
+on other clouds in a ``FailoverManagedAgentClient``. The hook needs the ``common.ai`` extra of
+this provider, which installs ``apache-airflow-providers-common-ai`` and therefore requires
+Airflow 3. The agent is the engine's full resource name,
+``projects/P/locations/L/reasoningEngines/ID``, so one hook reaches engines in several projects
+and regions. A prompt is sent under ``input`` to the engine's ``query`` method; ``input_key`` and
+``class_method`` in ``vendor_options`` change that per request. A mapping output with a string ``output`` field is the answer text, and
+any other output is returned as JSON. Query *jobs* remain the domain of ``RunQueryJobOperator``,
+which can defer.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
+    from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook
+
+    analyst = AgentEngineHook(gcp_conn_id="google_cloud_default").agent(
+        "projects/my-project/locations/us-central1/reasoningEngines/1234567890"
+    )
+    toolset = ManagedAgentToolset(analyst, tool_name="ask_analyst", description="Answers revenue questions.")
 
 To update an Agent Engine you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.UpdateAgentEngineOperator`.

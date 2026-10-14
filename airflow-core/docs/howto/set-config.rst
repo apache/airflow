@@ -103,9 +103,9 @@ The following config options support this ``_cmd`` and ``_secret`` version:
 * ``broker_url`` in ``[celery]`` section
 * ``flower_basic_auth`` in ``[celery]`` section
 * ``result_backend`` in ``[celery]`` section
-* ``password`` in ``[atlas]`` section
 * ``smtp_password`` in ``[smtp]`` section
 * ``secret_key`` in ``[api]`` section
+* ``jwt_secret`` in ``[api_auth]`` section
 
 The ``_cmd`` config options can also be set using a corresponding environment variable
 the same way the usual config options can. For example:
@@ -181,7 +181,7 @@ Some Airflow configuration is configured via local setting, because they require
 code that is executed when Airflow is initialized. Usually it is mentioned in the detailed documentation
 where you can configure such local settings - This is usually done in the ``airflow_local_settings.py`` file.
 
-You should create a ``airflow_local_settings.py`` file and put it in a directory in ``sys.path`` or
+You should create an ``airflow_local_settings.py`` file and put it in a directory in ``sys.path`` or
 in the ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` to ``sys.path`` when
 Airflow is initialized)
 Starting from Airflow 2.10.1, the $AIRFLOW_HOME/dags folder is no longer included in sys.path at initialization, so any local settings in that folder will not be imported. Ensure that airflow_local_settings.py is located in a path that is part of sys.path during initialization, like $AIRFLOW_HOME/config.

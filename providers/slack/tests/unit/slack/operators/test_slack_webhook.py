@@ -69,6 +69,7 @@ class TestSlackWebhookOperator:
             "channel",
             "username",
             "proxy",
+            "slack_webhook_conn_id",
         )
         assert operator.template_fields == template_fields
 

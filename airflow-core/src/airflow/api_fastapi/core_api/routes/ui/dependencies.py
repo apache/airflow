@@ -41,6 +41,7 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
     "/dependencies",
     responses=create_openapi_http_exception_doc(
         [
+            status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -69,12 +70,12 @@ def get_dependencies(
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with id {asset_id} was not found")
         return BaseGraphResponse(**data)
 
-    data = get_scheduling_dependencies(readable_dags_filter.value)
+    data = get_scheduling_dependencies(readable_dags_filter.value, session)
 
     if node_id is not None:
         try:
             data = extract_single_connected_component(node_id, data["nodes"], data["edges"])
         except ValueError as e:
-            raise HTTPException(404, str(e))
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
 
     return BaseGraphResponse(**data)

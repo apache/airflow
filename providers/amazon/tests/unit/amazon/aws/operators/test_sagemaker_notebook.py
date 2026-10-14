@@ -96,6 +96,25 @@ class TestSagemakerCreateNotebookOperator:
         mock_hook_conn.get_waiter.assert_not_called()
 
     @mock.patch.object(SageMakerHook, "conn")
+    def test_create_notebook_formats_tags_at_execute_time(self, mock_hook_conn):
+        operator = SageMakerCreateNotebookOperator(
+            task_id="task_test",
+            instance_name=INSTANCE_NAME,
+            instance_type=INSTANCE_TYPE,
+            role_arn=ROLE_ARN,
+            wait_for_completion=False,
+            create_instance_kwargs={"tags": {"team": "data"}},
+        )
+
+        assert operator.create_instance_kwargs == {"tags": {"team": "data"}}
+
+        operator.execute(None)
+
+        call_kwargs = mock_hook_conn.create_notebook_instance.call_args.kwargs
+        assert call_kwargs["tags"] == [{"Key": "team", "Value": "data"}]
+        assert operator.create_instance_kwargs == {"tags": {"team": "data"}}
+
+    @mock.patch.object(SageMakerHook, "conn")
     def test_create_notebook_wait_for_completion(self, mock_hook_conn):
         operator = SageMakerCreateNotebookOperator(
             task_id="task_test",

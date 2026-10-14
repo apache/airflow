@@ -35,13 +35,13 @@ from airflow.providers.common.ai.utils.validation import (
     validate_prompt,
 )
 from airflow.providers.common.compat.sdk import (
+    SET_DURING_EXECUTION,
     DecoratedOperator,
     TaskDecorator,
     context_merge,
     determine_kwargs,
     task_decorator_factory,
 )
-from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -97,7 +97,7 @@ class _LLMDecoratedOperator(DecoratedOperator, LLMOperator):
             self.prompt,
             decorator_name="@task.llm",
             feature_name="require_approval",
-            feature_enabled=self.require_approval,
+            feature_enabled=self._may_review,
         )
 
         self.render_template_fields(context)

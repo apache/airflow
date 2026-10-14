@@ -41,6 +41,9 @@ class RedshiftDataTrigger(BaseTrigger):
     :param poll_interval:  polling period in seconds to check for the status
     :param aws_conn_id: AWS connection ID for redshift
     :param region_name: aws region to use
+    :param cancel_on_kill: If True (default), cancel the running Redshift statement when the user
+        kills the deferred task (mark failed, clear, or mark success). Requires a version of
+        ``apache-airflow`` with ``BaseTrigger.on_kill()`` support; on older versions it is inert.
     """
 
     def __init__(
@@ -52,6 +55,7 @@ class RedshiftDataTrigger(BaseTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        cancel_on_kill: bool = True,
     ):
         super().__init__()
         self.statement_id = statement_id
@@ -62,6 +66,7 @@ class RedshiftDataTrigger(BaseTrigger):
         self.region_name = region_name
         self.verify = verify
         self.botocore_config = botocore_config
+        self.cancel_on_kill = cancel_on_kill
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize RedshiftDataTrigger arguments and classpath."""
@@ -75,6 +80,7 @@ class RedshiftDataTrigger(BaseTrigger):
                 "region_name": self.region_name,
                 "verify": self.verify,
                 "botocore_config": self.botocore_config,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
@@ -86,6 +92,31 @@ class RedshiftDataTrigger(BaseTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+    async def on_kill(self) -> None:
+        """Cancel the running Redshift statement when the user kills the deferred task."""
+        # The triggerer invokes on_kill only on a user action (mark failed/success or clear), never on
+        # triggerer restart, redistribution, timeout, or normal completion, so cancelling here is safe.
+        if not self.cancel_on_kill or not self.statement_id:
+            return
+        self.log.info("Cancelling Redshift statement %s.", self.statement_id)
+        try:
+            async with await self.hook.get_async_conn() as client:
+                response = await client.cancel_statement(Id=self.statement_id)
+            # CancelStatement returns Status=False when Redshift declined the cancel (typically the
+            # statement already finished); surface that instead of claiming a successful cancel.
+            if response.get("Status"):
+                self.log.info("Redshift statement %s cancelled.", self.statement_id)
+            else:
+                self.log.warning(
+                    "Redshift declined to cancel statement %s; it may have already finished.",
+                    self.statement_id,
+                )
+        except Exception:
+            self.log.exception(
+                "Failed to cancel Redshift statement %s. The query may still be running.",
+                self.statement_id,
+            )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:

@@ -22,9 +22,11 @@ package org.apache.airflow.sdk.execution
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import org.apache.airflow.sdk.ApiError
-import org.apache.airflow.sdk.Bundle
+import org.apache.airflow.sdk.TaskStateStore
 import org.apache.airflow.sdk.execution.comm.GetVariable
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TaskInstance
@@ -34,9 +36,12 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.msgpack.core.MessagePack
+import org.msgpack.core.buffer.ArrayBufferInput
 import java.io.ByteArrayOutputStream
+import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import org.apache.airflow.sdk.Client as PublicClient
@@ -86,7 +91,10 @@ class CommsTest {
   @DisplayName("Should serialize all fields")
   fun shouldEncodeSucceedTask() {
     val endDate = OffsetDateTime.of(2024, 12, 1, 1, 0, 0, 0, ZoneOffset.UTC)
-    val bytes = CoordinatorComm.encode(OutgoingFrame(3, TaskResult.success(endDate = endDate)))
+    val bytes =
+      CoordinatorComm
+        .encode(OutgoingFrame(3, TaskResult.success(endDate = endDate)))
+        .fold(ByteArray(0)) { acc, buffer -> acc + buffer.toByteArray() }
     val actual = bytes.toHexString(HexFormat { bytes { byteSeparator = " " } })
 
     val expected =
@@ -99,7 +107,10 @@ class CommsTest {
     Assertions.assertEquals(expected, actual)
   }
 
-  private fun responseFrame(id: Int): ByteArray {
+  private fun responseFrame(
+    id: Int,
+    key: String = "return_value",
+  ): ByteArray {
     val out = ByteArrayOutputStream()
     MessagePack.newDefaultPacker(out).use { packer ->
       packer.packArrayHeader(3)
@@ -108,7 +119,7 @@ class CommsTest {
       packer.packString("type")
       packer.packString("XComResult")
       packer.packString("key")
-      packer.packString("return_value")
+      packer.packString(key)
       packer.packString("value")
       packer.packInt(1)
       packer.packNil()
@@ -116,27 +127,285 @@ class CommsTest {
     return out.toByteArray()
   }
 
-  @Test
-  @DisplayName("Should reject a response whose id does not match the request")
-  fun rejectsResponseWhoseIdDoesNotMatchRequest() {
+  private fun unknownTypeFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(1)
+      packer.packString("type")
+      packer.packString("SomeFutureMessage")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  private fun okResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("OKResponse")
+      packer.packString("ok")
+      packer.packBoolean(true)
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  // The supervisor answers a request that yields no result with a bare `[id]` frame.
+  private fun emptyResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(1)
+      packer.packInt(id)
+    }
+    return out.toByteArray()
+  }
+
+  private fun errorResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("status_code")
+      packer.packInt(500)
+    }
+    return out.toByteArray()
+  }
+
+  private fun notFoundResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("error")
+      packer.packString("TASK_STORE_NOT_FOUND")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("key")
+      packer.packString("job_id")
+    }
+    return out.toByteArray()
+  }
+
+  private fun taskStateStoreResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("TaskStateStoreResult")
+      packer.packString("value")
+      packer.packString("job-42")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  private fun readRequest(fromClient: ByteChannel): RawFrame =
+    runBlocking {
+      val prefix = fromClient.readByteArray(4)
+      val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+      Frame.decodeRaw(ArrayBufferInput(payload))
+    }
+
+  /**
+   * Run one call on the public client against a fake supervisor that answers
+   * its single request with [response]. Returns the raw request body as sent
+   * on the wire and the exception the call threw, if any.
+   */
+  private fun roundTrip(
+    response: (Int) -> ByteArray,
+    details: StartupDetails = StartupDetails(),
+    call: (PublicClient) -> Unit,
+  ): Pair<Map<*, *>, Throwable?> {
     val toClient = ByteChannel(autoFlush = true)
     val fromClient = ByteChannel(autoFlush = true)
-    val comm = CoordinatorComm(Bundle(emptyList()), toClient, fromClient)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val client = PublicClient(details, CoordinatorClient(comm))
 
-    val error =
-      Assertions.assertThrows(ApiError::class.java) {
+    val requests = ConcurrentLinkedQueue<RawFrame>()
+    val server =
+      Thread {
+        val request = readRequest(fromClient)
+        requests.add(request)
+        runBlocking { toClient.writeFrame(response(request.id)) }
+      }
+    server.start()
+    val failure = runCatching { call(client) }.exceptionOrNull()
+    server.join()
+    comm.close()
+
+    return (requests.single().rawBody as Map<*, *>) to failure
+  }
+
+  /**
+   * Like [roundTrip], but on the transport client, which is where the calls a
+   * trigger or a decider makes live.
+   */
+  private fun <T> transportRoundTrip(
+    response: (Int) -> ByteArray,
+    call: (CoordinatorClient) -> T,
+  ): Triple<Map<*, *>, T?, Throwable?> {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val client = CoordinatorClient(comm)
+
+    val requests = ConcurrentLinkedQueue<RawFrame>()
+    val server =
+      Thread {
+        val request = readRequest(fromClient)
+        requests.add(request)
+        runBlocking { toClient.writeFrame(response(request.id)) }
+      }
+    server.start()
+    val outcome = runCatching { call(client) }
+    server.join()
+    comm.close()
+
+    return Triple(requests.single().rawBody as Map<*, *>, outcome.getOrNull(), outcome.exceptionOrNull())
+  }
+
+  private fun dagRunExistsResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("ErrorResponse")
+      packer.packString("error")
+      packer.packString("DAGRUN_ALREADY_EXISTS")
+      packer.packString("detail")
+      packer.packMapHeader(1)
+      packer.packString("dag_id")
+      packer.packString("downstream")
+    }
+    return out.toByteArray()
+  }
+
+  private fun dagRunStateResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("DagRunStateResult")
+      packer.packString("state")
+      packer.packString("running")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  private fun dagResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("DagResult")
+      packer.packString("dag_id")
+      packer.packString("downstream")
+      packer.packString("is_paused")
+      packer.packBoolean(true)
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
+    writeByteArray(Frame.lengthPrefix(payload.size.toUInt()))
+    writeByteArray(payload)
+  }
+
+  private suspend fun ByteChannel.readOneRequest() {
+    val prefix = readByteArray(4)
+    readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+  }
+
+  @Test
+  @DisplayName("Should discard a frame with no matching waiter and still deliver the correct response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun discardsUnmatchedFrameAndDeliversCorrectResponse() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    val result =
+      runBlocking {
+        // A frame whose id (99) matches no in-flight request.
+        // The dispatcher must drop the stray frame and still hand id 0 to its waiter.
+        toClient.writeFrame(responseFrame(99, key = "stray"))
+        toClient.writeFrame(responseFrame(0, key = "return_value"))
+        comm.communicate<XComResult>(GetVariable().also { it.key = "k" })
+      }
+
+    Assertions.assertEquals("return_value", result.key)
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should keep many requests in flight and match out-of-order responses")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun allowsMultipleInFlightRequestsAnsweredOutOfOrder() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val n = 10
+
+    // Collect every request before answering any, then reply in reverse order.
+    val server =
+      Thread {
         runBlocking {
-          // The first request is sent with id 0. The 99 doesn't match 0.
-          val payload = responseFrame(99)
-          toClient.writeByteArray(Frame.lengthPrefix(payload.size))
-          toClient.writeByteArray(payload)
-          comm.communicate<XComResult>(GetVariable().also { it.key = "k" })
+          val ids =
+            (0 until n).map {
+              val prefix = fromClient.readByteArray(4)
+              val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+              CoordinatorComm.decode(payload).id
+            }
+          ids.reversed().forEach { toClient.writeFrame(responseFrame(it)) }
         }
       }
-    Assertions.assertTrue(
-      error.message!!.contains("does not match"),
-      "expected an id-mismatch error, got: ${error.message}",
-    )
+    server.start()
+
+    val errors = ConcurrentLinkedQueue<Throwable>()
+    val results = ConcurrentLinkedQueue<XComResult>()
+    val workers =
+      (1..n).map {
+        Thread {
+          try {
+            results.add(runBlocking { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) })
+          } catch (e: Throwable) {
+            errors.add(e)
+          }
+        }
+      }
+    workers.forEach { it.start() }
+    workers.forEach { it.join() }
+    server.join()
+
+    Assertions.assertTrue(errors.isEmpty(), "concurrent in-flight calls failed: $errors")
+    Assertions.assertEquals(n, results.size)
+    comm.close()
   }
 
   @Test
@@ -145,7 +414,7 @@ class CommsTest {
   fun publicClientSurvivesConcurrentThreadCalls() {
     val toClient = ByteChannel(autoFlush = true)
     val fromClient = ByteChannel(autoFlush = true)
-    val comm = CoordinatorComm(Bundle(emptyList()), toClient, fromClient)
+    val comm = CoordinatorComm(toClient, fromClient)
     val details =
       StartupDetails().also {
         it.ti =
@@ -162,10 +431,8 @@ class CommsTest {
         runBlocking {
           repeat(n) {
             val prefix = fromClient.readByteArray(4)
-            val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix))
-            val response = responseFrame(CoordinatorComm.decode(payload).id)
-            toClient.writeByteArray(Frame.lengthPrefix(response.size))
-            toClient.writeByteArray(response)
+            val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+            toClient.writeFrame(responseFrame(CoordinatorComm.decode(payload).id))
           }
         }
       }
@@ -189,5 +456,325 @@ class CommsTest {
 
     Assertions.assertTrue(errors.isEmpty(), "concurrent public-client calls failed: $errors")
     Assertions.assertEquals(n, results.size)
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("triggerDagRun takes the OKResponse the supervisor answers a trigger with")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun triggerDagRunAcceptsOkResponse() {
+    val (body, alreadyExists, failure) =
+      transportRoundTrip(::okResponseFrame) {
+        it.triggerDagRun(
+          dagId = "downstream",
+          runId = "manual__2026-09-30T00:00:00+00:00",
+          logicalDate = OffsetDateTime.parse("2026-09-30T00:00:00Z"),
+          runAfter = null,
+          conf = mapOf("rows" to 2),
+          resetDagRun = false,
+          note = null,
+        )
+      }
+
+    Assertions.assertNull(failure, "triggerDagRun should return normally on an OKResponse, got $failure")
+    Assertions.assertEquals(false, alreadyExists)
+    Assertions.assertEquals("TriggerDagRun", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+    Assertions.assertEquals("manual__2026-09-30T00:00:00+00:00", body["run_id"])
+    // MessagePack packs a small integer as a byte, so the conf is compared by how it reads.
+    Assertions.assertEquals("{rows=2}", body["conf"].toString())
+  }
+
+  @Test
+  @DisplayName("triggerDagRun reports an existing run rather than failing")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun triggerDagRunReportsAnExistingRun() {
+    val (_, alreadyExists, failure) =
+      transportRoundTrip(::dagRunExistsResponseFrame) {
+        it.triggerDagRun("downstream", "run", null, null, null, false, null)
+      }
+
+    Assertions.assertNull(failure, "an existing run is a value, not an error, got $failure")
+    Assertions.assertEquals(true, alreadyExists)
+  }
+
+  @Test
+  @DisplayName("getDagRunState reads the state out of a DagRunStateResult")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getDagRunStateReadsTheState() {
+    val (body, state, failure) =
+      transportRoundTrip(::dagRunStateResultFrame) { it.getDagRunState("downstream", "run") }
+
+    Assertions.assertNull(failure, "getDagRunState should return normally, got $failure")
+    Assertions.assertEquals("running", state)
+    Assertions.assertEquals("GetDagRunState", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+    Assertions.assertEquals("run", body["run_id"])
+  }
+
+  @Test
+  @DisplayName("isDagPaused reads is_paused out of a DagResult")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun isDagPausedReadsTheFlag() {
+    val (body, paused, failure) = transportRoundTrip(::dagResultFrame) { it.isDagPaused("downstream") }
+
+    Assertions.assertNull(failure, "isDagPaused should return normally, got $failure")
+    Assertions.assertEquals(true, paused)
+    Assertions.assertEquals("GetDag", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+  }
+
+  @Test
+  @DisplayName("setVariable keeps a null description on the wire so the supervisor accepts the request")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setVariableKeepsNullDescriptionOnTheWire() {
+    val (body, failure) = roundTrip(::emptyResponseFrame) { it.setVariable("k", "v") }
+
+    Assertions.assertNull(failure, "setVariable should return normally on an empty response, got $failure")
+    Assertions.assertEquals("PutVariable", body["type"])
+    Assertions.assertEquals("k", body["key"])
+    Assertions.assertEquals("v", body["value"])
+    Assertions.assertTrue(body.containsKey("description"), "description must be sent even when null: $body")
+    Assertions.assertNull(body["description"])
+  }
+
+  @Test
+  @DisplayName("setVariable sends the description when one is given")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setVariableSendsDescription() {
+    val (body, failure) = roundTrip(::emptyResponseFrame) { it.setVariable("k", "v", "why") }
+
+    Assertions.assertNull(failure, "setVariable should return normally on an empty response, got $failure")
+    Assertions.assertEquals("why", body["description"])
+  }
+
+  @Test
+  @DisplayName("deleteVariable sends the key and accepts the supervisor's OK response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteVariableAcceptsOkResponse() {
+    val (body, failure) = roundTrip(::okResponseFrame) { it.deleteVariable("k") }
+
+    Assertions.assertNull(failure, "deleteVariable should return normally on OKResponse, got $failure")
+    Assertions.assertEquals("DeleteVariable", body["type"])
+    Assertions.assertEquals("k", body["key"])
+  }
+
+  @Test
+  @DisplayName("deleteVariable raises ApiError when the supervisor reports an error")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun deleteVariableRaisesApiErrorOnErrorResponse() {
+    val (_, failure) = roundTrip(::errorResponseFrame) { it.deleteVariable("k") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
+  }
+
+  private val tiId: UUID = UUID.fromString("0199a5d6-1c2e-7c6a-9c1e-7a2f7f0d1e42")
+
+  private fun currentTaskInstance() = StartupDetails().also { it.ti = TaskInstance().also { ti -> ti.id = tiId } }
+
+  @Test
+  @DisplayName("taskStateStore.get sends the task instance ID and key and unwraps the stored value")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreGetUnwrapsResult() {
+    var value: Any? = null
+    val (body, failure) = roundTrip(::taskStateStoreResultFrame, currentTaskInstance()) { value = it.taskStateStore.get("job_id") }
+
+    Assertions.assertNull(failure, "get should return normally on TaskStateStoreResult, got $failure")
+    Assertions.assertEquals("GetTaskStateStore", body["type"])
+    Assertions.assertEquals(tiId.toString(), body["ti_id"])
+    Assertions.assertEquals("job_id", body["key"])
+    Assertions.assertEquals("job-42", value)
+  }
+
+  @Test
+  @DisplayName("taskStateStore.get returns null on TASK_STORE_NOT_FOUND instead of raising")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreGetReturnsNullWhenNotFound() {
+    var value: Any? = "unset"
+    val (_, failure) = roundTrip(::notFoundResponseFrame, currentTaskInstance()) { value = it.taskStateStore.get("job_id") }
+
+    Assertions.assertNull(failure, "get should return normally on TASK_STORE_NOT_FOUND, got $failure")
+    Assertions.assertNull(value)
+  }
+
+  @Test
+  @DisplayName("taskStateStore.get raises ApiError for any other error response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreGetRaisesApiErrorOnOtherErrors() {
+    val (_, failure) = roundTrip(::errorResponseFrame, currentTaskInstance()) { it.taskStateStore.get("job_id") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
+  }
+
+  @Test
+  @DisplayName("taskStateStore.set keeps a null expires_at on the wire so the supervisor accepts the request")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreSetKeepsNullExpiresAtOnTheWire() {
+    val (body, failure) =
+      roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.set("job_id", 42, TaskStateStore.NEVER_EXPIRE) }
+
+    Assertions.assertNull(failure, "set should return normally on OKResponse, got $failure")
+    Assertions.assertEquals("SetTaskStateStore", body["type"])
+    Assertions.assertEquals(tiId.toString(), body["ti_id"])
+    Assertions.assertEquals("job_id", body["key"])
+    Assertions.assertEquals(42L, body["value"])
+    Assertions.assertTrue(body.containsKey("expires_at"), "expires_at must be sent even when null: $body")
+    Assertions.assertNull(body["expires_at"])
+  }
+
+  @Test
+  @DisplayName("taskStateStore.set sends expires_at as an ISO-8601 timestamp when a retention is given")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreSetSendsIsoExpiresAt() {
+    val (body, failure) =
+      roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.set("job_id", 42, Duration.ofHours(6)) }
+
+    Assertions.assertNull(failure, "set should return normally on OKResponse, got $failure")
+    val expiresAt = OffsetDateTime.parse(body["expires_at"] as String)
+    Assertions.assertEquals(ZoneOffset.UTC, expiresAt.offset)
+    Assertions.assertTrue(expiresAt.isAfter(OffsetDateTime.now(ZoneOffset.UTC).plusHours(5)), "expires_at $expiresAt")
+  }
+
+  @Test
+  @DisplayName("taskStateStore.delete and clear send the task instance ID and accept the supervisor's OK response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreDeleteAndClearAcceptOkResponse() {
+    val (deleteBody, deleteFailure) = roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.delete("job_id") }
+    val (clearBody, clearFailure) = roundTrip(::okResponseFrame, currentTaskInstance()) { it.taskStateStore.clear() }
+
+    Assertions.assertNull(deleteFailure, "delete should return normally on OKResponse, got $deleteFailure")
+    Assertions.assertEquals("DeleteTaskStateStore", deleteBody["type"])
+    Assertions.assertEquals(tiId.toString(), deleteBody["ti_id"])
+    Assertions.assertEquals("job_id", deleteBody["key"])
+
+    Assertions.assertNull(clearFailure, "clear should return normally on OKResponse, got $clearFailure")
+    Assertions.assertEquals("ClearTaskStateStore", clearBody["type"])
+    Assertions.assertEquals(tiId.toString(), clearBody["ti_id"])
+  }
+
+  @Test
+  @DisplayName("skipDownstreamTasks sends the task IDs to skip and accepts the supervisor's empty response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun skipDownstreamTasksSendsTaskIds() {
+    val (body, failure) =
+      roundTrip(::emptyResponseFrame) { it.impl.skipDownstreamTasks(listOf("report_empty", "audit")) }
+
+    Assertions.assertNull(failure, "skipDownstreamTasks should return normally on an empty response, got $failure")
+    Assertions.assertEquals("SkipDownstreamTasks", body["type"])
+    Assertions.assertEquals(listOf("report_empty", "audit"), body["tasks"])
+  }
+
+  @Test
+  @DisplayName("skipDownstreamTasks sends nothing when there is nothing to skip")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun skipDownstreamTasksSendsNothingForEmptyList() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    CoordinatorClient(comm).skipDownstreamTasks(emptyList())
+
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(fromClient.isClosedForRead, "no frame should have been written")
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should fail a pending call when the coordinator socket closes")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun failsPendingCallWhenSocketCloses() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    Assertions.assertThrows(ApiError::class.java) {
+      runBlocking {
+        val call = async { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+        // No response is ever written; closing the read side must surface an
+        // error to the waiting caller instead of hanging forever.
+        toClient.flushAndClose()
+        call.await()
+      }
+    }
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should fail a call that is still in flight when the comm is closed")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun closeFailsInFlightCall() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    Assertions.assertThrows(ApiError::class.java) {
+      runBlocking {
+        val call = async { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+        fromClient.readOneRequest()
+        // The waiter awaits in the caller's own scope, so closing the comm should make it stop waiting.
+        comm.close()
+        call.await()
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Should fail only the request whose response cannot be decoded")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun undecodableResponseFailsOnlyItsOwnRequest() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    runBlocking {
+      supervisorScope {
+        // Start the calls one at a time so their ids are known: 0, then 1.
+        val undecodable = async { comm.communicate<XComResult>(GetVariable().also { it.key = "a" }) }
+        fromClient.readOneRequest()
+        val healthy = async { comm.communicate<XComResult>(GetVariable().also { it.key = "b" }) }
+        fromClient.readOneRequest()
+
+        toClient.writeFrame(unknownTypeFrame(0))
+        toClient.writeFrame(responseFrame(1))
+
+        Assertions.assertInstanceOf(
+          ApiError::class.java,
+          runCatching { undecodable.await() }.exceptionOrNull(),
+          "a response naming an unknown type should fail its own request",
+        )
+        // The dispatcher survived the bad frame, so the other call still lands.
+        Assertions.assertEquals("return_value", healthy.await().key)
+      }
+    }
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should keep the original cause when a malformed frame stops the dispatcher")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun malformedFramePreservesOriginalCause() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    val failure =
+      runBlocking {
+        supervisorScope {
+          val call = async { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+          fromClient.readOneRequest()
+          // Msgpack nil where the frame envelope belongs: without an id there is no
+          // request to attribute the failure to, so every waiter goes down with it.
+          toClient.writeFrame(byteArrayOf(0xc0.toByte()))
+          runCatching { call.await() }.exceptionOrNull()
+        }
+      }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
+    val causes = generateSequence(failure) { it.cause }.toList()
+    Assertions.assertTrue(
+      causes.any { it !is ApiError },
+      "the underlying decode failure should be preserved, got: $causes",
+    )
+    comm.close()
   }
 }

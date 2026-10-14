@@ -87,6 +87,41 @@ More information
 See Google Cloud Storage Documentation to `create a new ACL entry for a bucket
 <https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_.
 
+.. _howto/operator:GCSBucketAddIamBindingOperator:
+
+GCSBucketAddIamBindingOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Adds a member to an IAM role binding on the specified bucket. Unlike ACL operators,
+this operator works with uniform bucket-level access.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketAddIamBindingOperator`
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_export_gcs_permissions]
+    :end-before: [END howto_operator_cloudsql_export_gcs_permissions]
+
+Templating
+""""""""""
+
+.. literalinclude:: /../../google/src/airflow/providers/google/cloud/operators/gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcs_bucket_add_iam_binding_template_fields]
+    :end-before: [END gcs_bucket_add_iam_binding_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Storage documentation to `set and manage IAM policies on buckets
+<https://cloud.google.com/storage/docs/access-control/using-iam-permissions>`_.
+
 .. _howto/operator:GCSObjectCreateAclEntryOperator:
 
 GCSObjectCreateAclEntryOperator

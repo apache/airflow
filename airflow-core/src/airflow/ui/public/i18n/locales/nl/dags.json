@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} van {{total}} assets geupdatet",
+  "assetSchedule": "{{count, number}} van {{total, number}} assets geupdatet",
   "dagActions": {
     "delete": {
       "button": "Verwijder Dag",
@@ -26,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Geen taken gevonden.",
-      "title": "Beïnvloede taken: {{count}}"
+      "title": "Beïnvloede taken: {{count, number}}"
     },
     "clear": {
       "button": "Wis {{type}}",

@@ -26,10 +26,6 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint")
 }
 
-repositories {
-    mavenCentral()
-}
-
 // The versions below are kept in sync with the other build files by a pre-commit hook.
 // See: scripts/ci/prek/check_java_sdk_version_in_sync.py
 java {

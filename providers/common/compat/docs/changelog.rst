@@ -25,6 +25,101 @@
 Changelog
 ---------
 
+1.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Add get_async_extra_dejson to the common.compat connection helpers (#74147)``
+* ``Support Airflow 2.11 in the Common AI provider (#73991)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Persist 'retry_reason' not just for retries but even when a task fails (#73027)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Test get_async_extra_dejson against the real supervisor comms (#74166)``
+   * ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+1.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add ChainRetryPolicy to common.compat for Airflow 3.3 (#73553)``
+* ``Add REPARSE_ALL permission for reparsing files with no registered Dag (#73274)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BaseBranchOperator import on Airflow 2 without standard provider (#73140)``
+
+Misc
+~~~~
+
+* ``Add missing tests for common.compat.standard operators and triggers (#73262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+1.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add common.compat alias for BaseEventTrigger (#72140)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix lineage entities sharing mutable defaults across instances (#72509)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add missing unit tests for common.compat lineage entities (#72506)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+1.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Gate audit log rows not tied to a Dag on a dedicated AccessView (#70759)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Honor async hook subclass overrides in get_async_connection (#69140)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 1.16.0
 ......
 
@@ -412,7 +507,7 @@ Misc
 .....
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 1.4.0
 .....

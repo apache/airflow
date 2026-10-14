@@ -52,13 +52,15 @@ from airflow.sdk.execution_time.supervisor import (
     SOCKET_CLEANUP_TIMEOUT,
     WatchedSubprocess,
     _ensure_client,
+    _import_task_runner_before_fork,
     _make_process_nondumpable,
 )
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from pydantic import BaseModel
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.client import Client
 
@@ -254,6 +256,7 @@ class CallbackSubprocess(WatchedSubprocess):
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
 
+        _import_task_runner_before_fork()
         return super().start(
             id=UUID(id) if not isinstance(id, UUID) else id,
             client=client,
@@ -432,6 +435,9 @@ def supervise_callback(
             logger, log_file_descriptor = _configure_logging(log_path, client)
         else:
             logger = structlog.get_logger(logger_name="callback").bind()
+
+        # Swap the single-use callback token for an execution token before any context read.
+        client.callbacks.run(UUID(id))
 
         try:
             process = CallbackSubprocess.start(

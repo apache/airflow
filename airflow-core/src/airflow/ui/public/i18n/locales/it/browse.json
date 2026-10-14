@@ -8,8 +8,7 @@
     },
     "filters": {
       "eventType": "Tipo di Evento"
-    },
-    "title": "Registro di Controllo (Logs)"
+    }
   },
   "xcom": {
     "columns": {

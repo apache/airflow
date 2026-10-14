@@ -44,7 +44,7 @@ Login
 Password
     Specify the snowflake password. For public key authentication, the passphrase for the private key.
     For OAuth, the OAuth Client Secret. For Programmatic Access Token (PAT) authentication, specify
-    the PAT token value.
+    the PAT token value and set ``authenticator`` to ``programmatic_access_token``.
 
 Schema (optional)
     Specify the snowflake schema to be used.
@@ -61,8 +61,9 @@ Extra (optional)
     * ``authenticator``: To connect using OAuth set this parameter ``oauth``. To connect without a stored secret using
       `Workload Identity Federation <https://docs.snowflake.com/en/user-guide/workload-identity-federation>`_,
       set it to ``WORKLOAD_IDENTITY`` and also set ``workload_identity_provider`` (see below). For Programmatic Access
-      Token (PAT) authentication, no special authenticator is required — simply set the PAT token as
-      the Password field. See `Snowflake PAT documentation <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_.
+      Token (PAT) authentication, set it to ``programmatic_access_token`` and put the PAT token in the
+      Password field. The same connection works for ``SnowflakeHook``, ``SnowflakeSqlApiHook``,
+      ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type. See `Snowflake PAT documentation <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_.
     * ``workload_identity_provider``: The cloud whose workload identity is used as the Snowflake credential
       when ``authenticator`` is ``WORKLOAD_IDENTITY``. One of ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. With
       Workload Identity Federation no long-lived secret (password, key-pair or PAT) is stored; the workload's
@@ -138,7 +139,7 @@ JSON format example with Programmatic Access Token (PAT)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To authenticate using a `Programmatic Access Token <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_,
-set the PAT token as the password with no special authenticator required:
+set the PAT token as the password and set ``authenticator`` to ``programmatic_access_token``:
 
 .. code-block:: bash
 
@@ -147,6 +148,7 @@ set the PAT token as the password with no special authenticator required:
         "login": "user",
         "password": "<programmatic_access_token>",
         "extra": {
+            "authenticator": "programmatic_access_token",
             "account": "account",
             "database": "database",
             "warehouse": "snow-warehouse",

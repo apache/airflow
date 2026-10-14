@@ -26,6 +26,57 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Misc
+~~~~
+
+* ``Remove the redundant get_ui_field_behaviour override from AlibabaBaseHook (#72087)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OSSRemoteLogIO.from_config and register oss remote logging scheme (#70682)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix no-op assertion in MaxCompute run_sql test (#69406)``
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 3.3.9
 .....
 

@@ -56,7 +56,6 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^(?P<job_name>.*)_start$",
     r"^(?P<job_name>.*)_end$",
     r"^(?P<job_name>.*)_heartbeat_failure$",
-    r"^local_task_job.task_exit\.(?P<job_id>.*)\.(?P<dag_id>.*)\.(?P<task_id>.*)\.(?P<return_code>.*)$",
     r"^operator_failures_(?P<operator_name>.*)$",
     r"^operator_successes_(?P<operator_name>.*)$",
     r"^ti.start.(?P<dag_id>.*)\.(?P<task_id>.*)$",

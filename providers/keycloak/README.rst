@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-keycloak``
 
-Release: ``0.8.1``
+Release: ``0.11.1``
 
 
 ``Keycloak Provider``
@@ -36,7 +36,7 @@ This is a provider package for ``keycloak`` provider. All classes for this provi
 are in ``airflow.providers.keycloak`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-keycloak/0.8.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-keycloak/0.11.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-keycloak``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -54,9 +54,9 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.18.0``
 ``python-keycloak``                         ``>=5.0.0``
 ==========================================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-keycloak/0.8.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-keycloak/0.11.1/changelog.html>`_.

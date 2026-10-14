@@ -16,14 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import tomllib
 from collections.abc import Iterable
 from pathlib import Path
+from unittest import mock
 
 import pytest
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
+from airflow_breeze.utils import packages
 from airflow_breeze.utils.packages import (
     PipRequirements,
+    _process_line_with_next_version_comment,
     apply_version_suffix_to_non_provider_pyproject_tomls,
     apply_version_suffix_to_provider_pyproject_toml,
     convert_cross_package_dependencies_to_table,
@@ -124,12 +130,12 @@ def test_get_removed_providers():
 
 def test_get_suspended_provider_ids():
     # Modify it every time we suspend/resume provider
-    assert get_suspended_provider_ids() == ["apache.beam"]
+    assert get_suspended_provider_ids() == []
 
 
 def test_get_suspended_provider_folders():
     # Modify it every time we suspend/resume provider
-    assert get_suspended_provider_folders() == ["apache/beam"]
+    assert get_suspended_provider_folders() == []
 
 
 @pytest.mark.parametrize(
@@ -270,6 +276,30 @@ def test_get_min_airflow_version(provider_id: str, min_version: str):
     assert get_min_airflow_version(provider_id) == min_version
 
 
+def test_patch_exclusion_in_generated_provider_metadata(monkeypatch):
+    details = get_provider_details("asana")._replace(excluded_python_versions=["3.11.0", "3.14"])
+    monkeypatch.setattr(packages, "get_provider_details", lambda provider_id: details)
+
+    requirements = (
+        packages.get_python_requires("asana"),
+        get_provider_jinja_context("asana", current_release_version="1.0.0", version_suffix="")[
+            "REQUIRES_PYTHON"
+        ],
+    )
+    for requirement in requirements:
+        assert "!=3.11.0.*" in requirement
+        specifier = SpecifierSet(requirement)
+        assert Version("3.11.0") not in specifier
+        assert Version("3.11.0.post1") not in specifier
+        assert Version("3.11.1") in specifier
+        assert Version("3.12.0") in specifier
+        assert Version("3.14.1") not in specifier
+
+    context = get_provider_jinja_context("asana", current_release_version="1.0.0", version_suffix="")
+    assert "3.11" in context["SUPPORTED_PYTHON_VERSIONS"]
+    assert "3.14" not in context["SUPPORTED_PYTHON_VERSIONS"]
+
+
 @pytest.mark.parametrize(
     ("cross_provider_deps", "suspended_ids", "requirements", "expected"),
     [
@@ -376,6 +406,7 @@ def test_get_provider_info_dict():
     assert len(provider_info_dict["connection-types"]) > 3
     assert len(provider_info_dict["notifications"]) > 2
     assert len(provider_info_dict["secrets-backends"]) > 1
+    assert len(provider_info_dict["email-backends"]) > 0
     assert len(provider_info_dict["logging"]) > 1
     assert len(provider_info_dict["config"].keys()) > 1
     assert len(provider_info_dict["executors"]) > 0
@@ -463,10 +494,6 @@ def test_apply_version_suffix_to_provider_pyproject_toml(
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of provider.
     """
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     from unittest.mock import patch
 
     # Get the original provider details
@@ -553,10 +580,6 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of non-provider.
     """
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     distribution_paths = [AIRFLOW_ROOT_PATH / distribution for distribution in distributions]
     original_pyproject_toml_paths = [path / "pyproject.toml" for path in distribution_paths]
     original_contents = [path.read_text() for path in original_pyproject_toml_paths]
@@ -587,3 +610,37 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
         _check_dependencies_modified_properly(
             original_toml, modified_toml, version_suffix, floored_version_suffix
         )
+
+
+@pytest.mark.parametrize(
+    ("existing_tags", "expected_line", "expected_modified"),
+    [
+        pytest.param("", '    "apache-airflow-providers-common-compat>=1.20.0",', True, id="unreleased"),
+        pytest.param(
+            "providers-common-compat/1.20.0\n",
+            '    "apache-airflow-providers-common-compat>=1.19.0",  # use next version',
+            False,
+            id="released",
+        ),
+        pytest.param(
+            "providers-common-compat/1.20.0rc1\nproviders-common-compat/1.20.0rc2\n",
+            '    "apache-airflow-providers-common-compat>=1.20.0",',
+            True,
+            id="rc-only",
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.packages._get_provider_version_from_package_name", autospec=True)
+@mock.patch("airflow_breeze.utils.packages.run_command", autospec=True)
+def test_process_line_with_next_version_comment(
+    mock_run_command, mock_get_version, existing_tags, expected_line, expected_modified
+):
+    mock_get_version.return_value = "1.20.0"
+    mock_run_command.return_value.stdout = existing_tags
+    line = '    "apache-airflow-providers-common-compat>=1.19.0",  # use next version'
+    pyproject_file = AIRFLOW_ROOT_PATH / "providers" / "anthropic" / "pyproject.toml"
+
+    result = _process_line_with_next_version_comment(line, pyproject_file, {})
+
+    assert result == (expected_line, expected_modified)
+    assert mock_run_command.call_args.args[0] == ["git", "tag", "--list", "providers-common-compat/1.20.0*"]

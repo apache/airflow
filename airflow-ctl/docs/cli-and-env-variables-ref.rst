@@ -44,7 +44,7 @@ Environment Variables
 
     The token used to authenticate with the Airflow API. This is only
     required if you are using the Airflow API and have not set up
-    authentication using a different method. If username and password hasn't been used.
+    authentication using a different method, such as a username and password.
 
 .. envvar:: AIRFLOW_CLI_ENVIRONMENT
 
@@ -78,3 +78,10 @@ Environment Variables
     The maximum amount of time to wait between API retries in seconds.
     This is only used if you are using the Airflow API and have not set up
     authentication using a different method. The default value is 10 seconds.
+
+.. note::
+
+    A value for any of the three retry variables above that is not a whole number, or that is
+    out of range (below 1 for :envvar:`AIRFLOW_CLI_API_RETRIES`, negative for the two wait
+    variables), is reported on standard error and the default is used instead. Setting a
+    variable to an empty string is treated the same as leaving it unset.

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import timedelta
 
 import pytest
 
@@ -128,6 +129,27 @@ class TestSensors:
         )
 
         assert sensor.timeout == 600
+
+    def test_await_message_trigger_function_forwards_timeout_to_deferral(self):
+        """The timeout must be forwarded to every deferral, not silently ignored."""
+        sensor = AwaitMessageTriggerFunctionSensor(
+            kafka_config_id="kafka_d",
+            topics=["test"],
+            task_id="test",
+            apply_function=_return_true,
+            event_triggered_function=_return_true,
+            timeout=600,
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            sensor.execute(context={})
+        assert exc_info.value.timeout == timedelta(seconds=600)
+
+        # The sensor re-defers after every processed event, so the timeout must be
+        # applied to that deferral as well.
+        with pytest.raises(TaskDeferred) as exc_info:
+            sensor.execute_complete(context={})
+        assert exc_info.value.timeout == timedelta(seconds=600)
 
     def test_await_message_trigger_function_with_soft_fail_parameter(self):
         """Test that AwaitMessageTriggerFunctionSensor accepts soft_fail parameter."""

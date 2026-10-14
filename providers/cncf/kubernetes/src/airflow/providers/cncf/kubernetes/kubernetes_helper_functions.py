@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 import tenacity
+from aiohttp import ClientConnectionError
 from kubernetes.client.rest import ApiException as SyncApiException
 from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from slugify import slugify
@@ -31,6 +32,7 @@ from sqlalchemy import select
 from urllib3.exceptions import HTTPError
 
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
@@ -60,13 +62,21 @@ API_RETRY_WAIT_MAX = conf.getfloat("workers", "api_retry_wait_max", fallback=15)
 _default_wait = tenacity.wait_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
 
 TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
+# Connection-level failures (socket reset, DNS blip, read timeout) worth retrying — the api server
+# never saw the request, or its reply was lost. Covers both kube clients: urllib3 (sync) and aiohttp
+# (async). Shared so this decorator and the KubernetesExecutor agree on what counts as transient.
+TRANSIENT_CONNECTION_ERRORS: tuple[type[BaseException], ...] = (
+    HTTPError,
+    ClientConnectionError,
+    KubernetesApiException,
+)
 
 
 def _should_retry_api(exc: BaseException) -> bool:
     """Retry on selected ApiException status codes, plus plain HTTP/timeout errors."""
     if isinstance(exc, (SyncApiException, AsyncApiException)):
         return exc.status in TRANSIENT_STATUS_CODES
-    return isinstance(exc, (HTTPError, KubernetesApiException))
+    return isinstance(exc, TRANSIENT_CONNECTION_ERRORS)
 
 
 class WaitRetryAfterOrExponential(tenacity.wait.wait_base):
@@ -178,7 +188,7 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
             raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
 
-        task_instance_run_id = session.scalar(
+        query = (
             select(TaskInstance.run_id)
             .join(TaskInstance.dag_run)
             .where(
@@ -187,6 +197,9 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
                 getattr(DagRun, logical_date_key) == logical_date,
             )
         )
+        if AIRFLOW_V_3_4_PLUS:
+            query = query.where(TaskInstance.working_set.is_(True))
+        task_instance_run_id = session.scalar(query)
     else:
         task_instance_run_id = annotation_run_id
 

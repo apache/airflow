@@ -21,19 +21,27 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
+
+import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
+
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
-import { renderDuration } from "src/utils";
+
+import { useShowTeam } from "src/hooks/useShowTeam";
+import { formatNumber, useDurationFormat } from "src/utils";
 
 export const Details = () => {
-  const { t: translate } = useTranslation(["common", "dag"]);
+  const { i18n, t: translate } = useTranslation(["common", "dag"]);
+  const { renderDuration } = useDurationFormat();
   const { dagId = "" } = useParams();
 
   const { data: dag } = useDagServiceGetDagDetails({
     dagId,
   });
+
+  const showTeam = useShowTeam(dag?.team_name);
 
   return (
     <Box p={2}>
@@ -53,6 +61,14 @@ export const Details = () => {
                 </HStack>
               </Table.Cell>
             </Table.Row>
+            {showTeam ? (
+              <Table.Row data-testid="team-row">
+                <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
+                <Table.Cell>
+                  <TeamName teamName={dag.team_name} />
+                </Table.Cell>
+              </Table.Row>
+            ) : undefined}
             <Table.Row data-testid="description-row">
               <Table.Cell>{translate("dagDetails.description")}</Table.Cell>
               <Table.Cell>{dag.description}</Table.Cell>
@@ -111,15 +127,17 @@ export const Details = () => {
             </Table.Row>
             <Table.Row data-testid="max-active-runs-row">
               <Table.Cell>{translate("dagDetails.maxActiveRuns")}</Table.Cell>
-              <Table.Cell>{dag.max_active_runs}</Table.Cell>
+              <Table.Cell>
+                {dag.max_active_runs === null ? undefined : formatNumber(dag.max_active_runs, i18n.language)}
+              </Table.Cell>
             </Table.Row>
             <Table.Row data-testid="max-active-tasks-row">
               <Table.Cell>{translate("dagDetails.maxActiveTasks")}</Table.Cell>
-              <Table.Cell>{dag.max_active_tasks}</Table.Cell>
+              <Table.Cell>{formatNumber(dag.max_active_tasks, i18n.language)}</Table.Cell>
             </Table.Row>
             <Table.Row data-testid="max-consecutive-failed-dag-runs-row">
               <Table.Cell>{translate("dagDetails.maxConsecutiveFailedDagRuns")}</Table.Cell>
-              <Table.Cell>{dag.max_consecutive_failed_dag_runs}</Table.Cell>
+              <Table.Cell>{formatNumber(dag.max_consecutive_failed_dag_runs, i18n.language)}</Table.Cell>
             </Table.Row>
             <Table.Row data-testid="catchup-row">
               <Table.Cell>{translate("dagDetails.catchup")}</Table.Cell>

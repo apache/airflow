@@ -831,7 +831,7 @@ class S3Hook(AwsBaseHook):
             if current_num_objects >= min_objects:
                 success_message = (
                     f"SUCCESS: Sensor found {current_num_objects} objects at {path}. "
-                    "Waited at least {inactivity_period} seconds, with no new objects uploaded."
+                    f"Waited at least {inactivity_period} seconds, with no new objects uploaded."
                 )
                 self.log.info(success_message)
                 return {
@@ -1510,7 +1510,13 @@ class S3Hook(AwsBaseHook):
             for retry in range(max_retries):
                 bucket_keys = self.list_keys(bucket_name=bucket_name)
                 if not bucket_keys:
-                    break
+                    try:
+                        self.conn.delete_bucket(Bucket=bucket_name)
+                        return
+                    except ClientError as e:
+                        if e.response["Error"]["Code"] != "BucketNotEmpty":
+                            raise
+                        continue
                 if retry:  # Avoid first loop
                     time.sleep(500)
 

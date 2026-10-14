@@ -24,9 +24,7 @@ See:
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
-
-from typing_extensions import NotRequired, Required
+from typing import Literal, NotRequired, Required, TypedDict
 
 EmbedType = Literal["rich"]
 
