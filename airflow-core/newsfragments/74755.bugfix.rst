@@ -1,0 +1,1 @@
+Enforce ``execution_timeout`` on stub tasks that run in a language SDK (Go, Java, TypeScript). The Execution API now returns the timeout in the task run context and the supervisor arms its deadline from it, so an overrunning stub task is stopped like a Python task.
