@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
 
 import type { GridNodeResponse } from "openapi/requests/types.gen";
 
-import { loopsForNode } from "./useIsLoopGroup";
+import { loopsForNode, membersOfGroup } from "./useIsLoopGroup";
 import { selectActivePass, type LoopOption } from "./useLoopFilterOptions";
 
 const node = (id: string, extra: Partial<GridNodeResponse> = {}): GridNodeResponse =>
@@ -90,5 +90,20 @@ describe("selectActivePass", () => {
     const params = new URLSearchParams("loop_id=other&iteration=0");
 
     expect(selectActivePass(OPTIONS, params)?.iteration).toBe(2);
+  });
+});
+
+describe("membersOfGroup", () => {
+  it("collects a group's tasks even when they are not named after it", () => {
+    // prefix_group_id=False: "improve" is inside "refine" without carrying its name.
+    expect(membersOfGroup(STRUCTURE, "refine")).toEqual(new Set(["refine", "improve", "evaluate"]));
+  });
+
+  it("reaches a group nested inside another", () => {
+    expect(membersOfGroup(STRUCTURE, "batch")).toEqual(new Set(["batch", "batch.member"]));
+  });
+
+  it("gives nothing for a group that is not there", () => {
+    expect(membersOfGroup(STRUCTURE, "absent")).toEqual(new Set());
   });
 });

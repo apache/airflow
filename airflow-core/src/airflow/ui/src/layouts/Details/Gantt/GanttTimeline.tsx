@@ -40,6 +40,7 @@ import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
+import { useGroupMembers } from "src/queries/useIsLoopGroup";
 import { useDurationFormat } from "src/utils";
 
 import {
@@ -126,6 +127,9 @@ export const GanttTimeline = ({
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
   const { colorMode = "light" } = useColorMode();
+  // Read from the structure rather than the id: a group declared with prefix_group_id=False
+  // does not name its children after itself.
+  const groupMembers = useGroupMembers(selectedGroupId);
   // The pass the page is pinned to, named either as a filter or as a region coordinate. Bars
   // from that pass are outlined the way the grid outlines the instance you are looking at.
   const pinnedPass =
@@ -309,10 +313,7 @@ export const GanttTimeline = ({
             // single row, while a task group is every task it holds, so the whole pass lights up.
             // Group ids are dotted paths, so a member is named for the group enclosing it.
             const inPinnedScope =
-              selectedTaskId === undefined
-                ? selectedGroupId !== undefined &&
-                  (taskId === selectedGroupId || taskId.startsWith(`${selectedGroupId}.`))
-                : taskId === selectedTaskId;
+              selectedTaskId === undefined ? groupMembers.has(taskId) : taskId === selectedTaskId;
             const gridSummary = summaryByTaskId.get(taskId);
 
             return (

@@ -59,6 +59,12 @@ vi.mock("react-router-dom", async (importOriginal) => {
   };
 });
 
+// Group membership is read from the Dag structure, which this test does not stand up.
+vi.mock("src/queries/useIsLoopGroup", () => ({
+  useGroupMembers: (groupId?: string) =>
+    groupId === "refine" ? new Set(["refine", "refine.improve", "refine.evaluate"]) : new Set<string>(),
+}));
+
 const TestWrapper = ({ children }: PropsWithChildren) => <Wrapper>{children}</Wrapper>;
 
 // Shared time range: 10:00 → 10:10 UTC on 2024-03-14
@@ -549,7 +555,7 @@ describe("GanttTimeline segment bars", () => {
     );
 
     const [first, second] = [...document.querySelectorAll("[data-pinned-pass]")];
-    const styleOf = (node: Element) => globalThis.getComputedStyle(node as HTMLElement);
+    const styleOf = (node: Element) => globalThis.getComputedStyle(node);
 
     // The run is ringed at its ends and along its length, but not down the seam between the
     // two states, which is inside the thing being highlighted rather than its edge.

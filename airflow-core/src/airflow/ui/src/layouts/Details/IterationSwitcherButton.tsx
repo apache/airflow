@@ -79,6 +79,10 @@ export const IterationSwitcherButton = ({ children, includeWholeLoop = false, op
     // the pass against the server instead of being sent to a row that may not exist.
     next.delete(SearchParamsKeys.REGION_ID);
     next.delete(SearchParamsKeys.REGION_INDEX);
+    // A page of one pass says nothing about where the next one starts, so paging restarts
+    // rather than carrying a cursor into a different set of rows.
+    next.delete(SearchParamsKeys.CURSOR);
+    next.delete(SearchParamsKeys.OFFSET);
     setSearchParams(next);
     setOpen(false);
   };

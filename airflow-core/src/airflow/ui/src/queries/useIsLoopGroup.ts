@@ -61,6 +61,42 @@ export const loopsForNode = (nodes: Array<GridNodeResponse> | undefined, nodeId?
   return nodeId === undefined ? declared : (enclosing ?? []);
 };
 
+/**
+ * Every task id inside `groupId`, including the group itself.
+ *
+ * Read from the structure rather than the id, because a group declared with
+ * `prefix_group_id=False` does not name its children after itself.
+ */
+export const membersOfGroup = (nodes: Array<GridNodeResponse> | undefined, groupId: string): Set<string> => {
+  const members = new Set<string>();
+  const collect = (node: GridNodeResponse) => {
+    members.add(node.id);
+    for (const child of node.children ?? []) {
+      collect(child);
+    }
+  };
+  const find = (list: Array<GridNodeResponse> | undefined): boolean =>
+    (list ?? []).some((node) => {
+      if (node.id === groupId) {
+        collect(node);
+
+        return true;
+      }
+
+      return find(node.children ?? undefined);
+    });
+
+  find(nodes);
+
+  return members;
+};
+
+export const useGroupMembers = (groupId?: string): Set<string> => {
+  const { data } = useGridStructure({ limit: 1 });
+
+  return groupId === undefined ? new Set<string>() : membersOfGroup(data, groupId);
+};
+
 export const useLoopGroupIds = (nodeId?: string): Array<string> => {
   const { data } = useGridStructure({ limit: 1 });
 

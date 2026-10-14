@@ -18,7 +18,7 @@
  */
 import { useEffect, useRef } from "react";
 
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useGridServiceGetLoopSummary } from "openapi/queries";
 
@@ -39,6 +39,7 @@ export const useLoopSummary = ({
 }) => {
   const refetchInterval = useAutoRefresh({ dagId });
   const [searchParams] = useSearchParams();
+  const { taskId } = useParams();
   const isLoopGroup = useIsLoopGroup(groupId);
   const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
     enabled: Boolean(dagId) && Boolean(runId),
@@ -51,7 +52,11 @@ export const useLoopSummary = ({
     {
       dagId,
       groupId,
-      loopRegionId: searchParams.get(SearchParamsKeys.REGION_ID) ?? undefined,
+      // Only a group page's region names a loop invocation. A task instance page carries its
+      // own row's region, and summarising a run by one of those is rejected -- an expansion or
+      // a pass a clear forked is not a family root -- so the server picks the invocation there.
+      loopRegionId:
+        taskId === undefined ? (searchParams.get(SearchParamsKeys.REGION_ID) ?? undefined) : undefined,
       runId,
     },
     undefined,
