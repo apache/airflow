@@ -69,7 +69,7 @@ jobs:
               '(constraints(?:-source-providers|-no-providers)?)-(true|false)$');
             for (const input of artifacts) {
               const match = inputName.exec(input.name);
-              if (!match || match[1] === '3.10') continue;
+              if (!match) continue;
               const [, python, mode, useUv] = match;
               const image = artifacts.find(a => a.name === `ci-image-save-v3-linux_amd64-${python}-main`);
               if (input.expired || !image || image.expired) {

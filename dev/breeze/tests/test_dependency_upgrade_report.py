@@ -76,7 +76,6 @@ def source_artifacts():
             "expired": False,
         },
         {"id": 2, "name": "ci-image-save-v3-linux_amd64-3.14-main", "expired": False},
-        {"id": 3, "name": "dependency-report-inputs-3.10-constraints-true", "expired": False},
     ]
 
 

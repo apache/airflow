@@ -378,9 +378,9 @@ and other run types retain their existing explanation behavior.
 After the canary completes, `dependency-upgrade-report.yml` runs the detailed explanations
 independently, including when tests failed but the report inputs were saved. It checks out
 the original source SHA and downloads the original image and saved constraints by artifact
-ID from that run. It never substitutes the latest branch image or constraints. Python 3.10
-remains summary-only. PyPI release metadata is fetched when the report executes, so the
-available upgrade targets can change between the summary and the explanations.
+ID from that run. It never substitutes the latest branch image or constraints. PyPI release
+metadata is fetched when the report executes, so the available upgrade targets can change
+between the summary and the explanations.
 
 The workflow has read-only repository permissions and runs only on `workflow_run`, which
 cannot write to the default branch's GitHub Actions cache. Reports use the saved image artifact.
