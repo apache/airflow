@@ -38,7 +38,7 @@ from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
-    _jwt_generator,
+    create_jwt_generator,
     create_task_execution_api_app,
 )
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
@@ -87,7 +87,7 @@ def test_server_and_in_process_apps_isolate_auth(in_process_first, monkeypatch):
         assert response.status_code == 200
         assert response.json() == {"key": "execution_api_hosting", "value": "shared-value"}
         assert server.get("/execution/variables/execution_api_hosting").status_code == 401
-        token = _jwt_generator().generate({"sub": "00000000-0000-0000-0000-000000000000"})
+        token = create_jwt_generator().generate({"sub": "00000000-0000-0000-0000-000000000000"})
         authenticated_response = server.get(
             "/execution/variables/execution_api_hosting", headers={"Authorization": f"Bearer {token}"}
         )
