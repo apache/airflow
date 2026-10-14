@@ -33,13 +33,14 @@ from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
     _guess_best_bundle_for_fileloc,
-    _load_bundle_config_snapshot,
     get_configured_bundle_names,
+    get_configured_bundle_team_names,
 )
 from airflow.dag_processing.bundles.source import (
     ConfigDagBundleSource,
     DagBundleMetadata,
     DagBundleSource,
+    _load_bundle_config_snapshot,
 )
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
@@ -219,7 +220,7 @@ def test_get_configured_bundle_team_names_excludes_example_bundles(load_examples
             ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
         }
     ):
-        assert DagBundlesManager().get_configured_bundle_team_names() == {
+        assert get_configured_bundle_team_names() == {
             "team-bundle": "team-a",
             "unscoped-bundle": None,
         }
@@ -228,6 +229,7 @@ def test_get_configured_bundle_team_names_excludes_example_bundles(load_examples
 @conf_vars(
     {
         ("core", "load_examples"): "False",
+        ("core", "multi_team"): "True",
         ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
     }
 )
@@ -241,7 +243,43 @@ def test_get_configured_bundle_names():
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
 def test_get_configured_bundle_team_names_without_config():
-    assert DagBundlesManager().get_configured_bundle_team_names() == {}
+    assert get_configured_bundle_team_names() == {}
+
+
+@pytest.mark.parametrize(
+    ("load_examples", "metadata", "expected_names"),
+    [
+        ("False", [DagBundleMetadata(name="custom-bundle", team_name="custom-team")], {"custom-bundle"}),
+        (
+            "True",
+            [DagBundleMetadata(name="custom-bundle", team_name="custom-team")],
+            {"custom-bundle", "example_dags"},
+        ),
+        ("True", [], set()),
+    ],
+)
+@conf_vars({("core", "multi_team"): "True", ("dag_processor", "dag_bundle_config_list"): "[]"})
+@mock.patch(
+    "airflow.dag_processing.bundles.manager._discover_example_dag_bundle_paths",
+    autospec=True,
+    return_value={"example_dags": "/examples"},
+)
+@mock.patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
+def test_metadata_helpers_use_custom_source_without_constructing_bundles(
+    mock_load, _mock_examples, load_examples, metadata, expected_names
+):
+    source = mock.create_autospec(DagBundleSource, instance=True)
+    source.get_configured_bundle_metadata.return_value = metadata
+    mock_load.return_value = source
+
+    with conf_vars({("core", "load_examples"): load_examples}):
+        names = get_configured_bundle_names()
+        teams = get_configured_bundle_team_names()
+
+    assert isinstance(names, frozenset)
+    assert names == expected_names
+    assert teams == ({"custom-bundle": "custom-team"} if metadata else {})
+    source.get_bundle.assert_not_called()
 
 
 def test_get_bundle():

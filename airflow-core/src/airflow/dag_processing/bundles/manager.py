@@ -56,6 +56,16 @@ _example_dag_bundle_name = "example_dags"
 _REASSIGN_BATCH_SIZE = 1000
 
 
+def get_configured_bundle_names() -> frozenset[str]:
+    """Get configured Dag bundle names without constructing their bundles."""
+    return frozenset(DagBundlesManager().get_all_bundle_names())
+
+
+def get_configured_bundle_team_names() -> dict[str, str | None]:
+    """Get the teams owning explicitly configured Dag bundles."""
+    return DagBundlesManager().get_configured_bundle_team_names()
+
+
 def _discover_example_dag_bundle_paths() -> dict[str, str]:
     """Return the example Dag bundle names and paths available in this installation."""
     from airflow import example_dags

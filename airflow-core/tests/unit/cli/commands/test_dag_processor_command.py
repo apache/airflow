@@ -24,6 +24,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_command
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.bundles.source import DagBundleMetadata, DagBundleSource
 
 from tests_common.test_utils.config import conf_vars
@@ -45,7 +46,7 @@ def dag_bundles_with_teams():
     with (
         conf_vars({("core", "multi_team"): "True"}),
         mock.patch.object(
-            dag_processor_command.DagBundlesManager,
+            dag_processor_command,
             "get_configured_bundle_team_names",
             autospec=True,
             return_value=dict(BUNDLE_TEAMS),
@@ -99,7 +100,7 @@ class TestDagProcessorCommand:
         assert dag_processor_command._get_team_names(bundle_names) == expected_team_names
 
     @conf_vars({("core", "multi_team"): "True"})
-    @mock.patch.object(dag_processor_command.DagBundlesManager, "_load_bundle_source", autospec=True)
+    @mock.patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
     def test_get_team_names_uses_custom_source_metadata(self, mock_load):
         source = mock.create_autospec(DagBundleSource, instance=True)
         source.get_configured_bundle_metadata.return_value = [
@@ -112,7 +113,7 @@ class TestDagProcessorCommand:
 
     @conf_vars({("core", "multi_team"): "False"})
     @mock.patch.object(
-        dag_processor_command.DagBundlesManager,
+        dag_processor_command,
         "get_configured_bundle_team_names",
         autospec=True,
         return_value=dict(BUNDLE_TEAMS),
