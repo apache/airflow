@@ -1286,10 +1286,11 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         them, and its indexed view of the store under ``task_state_store``: the keys
         ``context_update_for_unmapped`` sets for a mapped task instance, and the store next to
         them, so that a template and ``execute`` read the same values. Without params of its
-        own, the parent's processed params, copied by ``clone_context``, are this task's. The one place these keys are listed: :meth:`IndexedTaskRunner.indexed_context`
-        builds the context the task runs in from it, and ``IterableOperator._create_indexed_task`` the
-        one its templates are rendered against. ``outlet_events`` is swapped when given, for the
-        run; before it, nothing is emitted and the parent's accessor stays.
+        own, the parent's processed params, copied by ``clone_context``, are this task's. The one
+        place these keys are listed: :meth:`IndexedTaskRunner.indexed_context` builds the context
+        the task runs in from it, and ``IterableOperator._create_indexed_task`` the one its
+        templates are rendered against. ``outlet_events`` is swapped when given, for the run;
+        before it, nothing is emitted and the parent's accessor stays.
         """
         indexed: Context = {
             **clone_context(context),
@@ -1458,8 +1459,8 @@ class IndexedTaskRunner(LoggingMixin):
         context with this runner's own outlet events, remembered on the runner and made the
         current context for the duration of the block, so user code reads the indexed task's
         unmapped operator under ``context["task"]``, not the IterableOperator. The parent's
-        context is left untouched: ``context_update_for_unmapped`` sets ``ti.task`` on whatever
-        ``ti`` it finds, which must be this task's, not the parent's.
+        context is left untouched: every indexed task shares it, so each one reads and changes a
+        copy of its own.
         """
         indexed_context = self.task_instance.context_for(context, outlet_events=self.outlet_events)
         self._context = indexed_context
