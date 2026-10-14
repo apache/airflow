@@ -169,8 +169,8 @@ Where it fits in this provider
        ``llm_conn_id`` (or ``model_id``) at one is the only change, as long as there are two
        or more downstream tasks -- a one-option pick is refused. Describe each branch in
        ``branches`` and set a
-       ``decision_policy`` so an unsure pick goes to a person instead of branching; see
-       :doc:`operators/llm_branch`.
+       ``decision_policy`` (experimental, see :ref:`howto/stability`) so an unsure pick goes
+       to a person instead of branching; see :doc:`operators/llm_branch`.
    * - :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` /
        :class:`~airflow.providers.common.ai.operators.agent.AgentOperator` with a typed
        ``output_type``
@@ -214,6 +214,8 @@ and :class:`~airflow.providers.common.ai.operators.llm.LLMOperator` take a
 ``decision_policy`` whose ``min_confidence`` sends an unsure answer to a person, or fails
 the task, before anything downstream runs on it, and record the confidence, the
 probabilities and the bar in the ``decision`` XCom (see :doc:`operators/llm_branch`).
+``decision_policy`` and the per-option ``BranchOption.min_confidence`` are experimental;
+see :ref:`howto/stability`.
 :doc:`ClassifierRetryPolicy <retry_policies>` takes the same ``min_confidence`` and hands an
 unsure answer to ``fallback_policy``, then its deterministic fallback rules. In the branch operator and the retry policy, a
 per-option bar lets the choice whose wrong pick costs most demand more certainty than the rest.
