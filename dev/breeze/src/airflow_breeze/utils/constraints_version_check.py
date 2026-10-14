@@ -347,13 +347,19 @@ def constraints_version_check(
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             downloaded_file = Path(temp_dir) / "constraints.txt"
-            download_constraints_file(
+            if not download_constraints_file(
                 constraints_reference=constraints_commit or DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
                 python_version=python,
                 airflow_constraints_mode=airflow_constraints_mode,
                 github_token=github_token,
                 output_file=downloaded_file,
-            )
+            ):
+                console_print(
+                    f"[warning]No '{airflow_constraints_mode}' constraints for Python {python} found on branch "
+                    f"{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}. This is expected for a newly added Python version "
+                    f"until its constraints are first committed to that branch. Skipping the version check."
+                )
+                return
             constraints = downloaded_file.read_text()
         if save_constraints_to:
             save_constraints(constraints, constraints_commit, save_constraints_to)
