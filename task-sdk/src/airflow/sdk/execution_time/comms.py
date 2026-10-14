@@ -216,6 +216,73 @@ class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, 
     error: dict[str, Any] | None = None
 
 
+class _LoopQueue:
+    """
+    The calls of one event loop to the supervisor, taking the channel one at a time.
+
+    Entered with ``async with`` around one request, it waits for the loop's ``asyncio.Lock``, so only
+    one thread of the loop's default executor waits for the channel. A lock no call waited for holds
+    no reference to its loop, and calls one after another keep reusing it. ``asyncio.Lock`` binds to
+    its loop on its first wait, though, and would then keep the loop alive as the key that finds this
+    queue: a queue a call waited for leaves its :class:`_LoopQueues` with its last call. It refers to
+    its loop weakly itself, so as not to keep it either.
+    """
+
+    __slots__ = ("_callers", "_contended", "_lock", "_loop", "_queues")
+
+    def __init__(self, queues: _LoopQueues, loop: asyncio.AbstractEventLoop) -> None:
+        self._queues = queues
+        self._loop = weakref.ref(loop)
+        self._lock = asyncio.Lock()
+        self._callers = 0
+        self._contended = False
+
+    async def __aenter__(self) -> None:
+        if self._callers:
+            # Another call of this loop holds or waits for the lock, so this one waits for it.
+            self._contended = True
+        self._callers += 1
+        try:
+            await self._lock.acquire()
+        except BaseException:
+            self._leave()
+            raise
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        self._lock.release()
+        self._leave()
+
+    def _leave(self) -> None:
+        self._callers -= 1
+        if not self._callers and self._contended and (loop := self._loop()) is not None:
+            self._queues.forget(loop)
+
+
+class _LoopQueues:
+    """One :class:`_LoopQueue` per event loop that calls the supervisor, dropped with its loop."""
+
+    __slots__ = ("_queues",)
+
+    def __init__(self) -> None:
+        self._queues: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, _LoopQueue] = (
+            weakref.WeakKeyDictionary()
+        )
+
+    def __len__(self) -> int:
+        return len(self._queues)
+
+    def for_loop(self, loop: asyncio.AbstractEventLoop) -> _LoopQueue:
+        """Return the queue of ``loop``'s calls; only that loop's coroutines ask for it."""
+        queue = self._queues.get(loop)
+        if queue is None:
+            queue = self._queues[loop] = _LoopQueue(self, loop)
+        return queue
+
+    def forget(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Drop ``loop``'s queue, whose lock now refers to the loop and would keep it alive."""
+        self._queues.pop(loop, None)
+
+
 @attrs.define()
 class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     """Handle communication between the task in this process and the supervisor parent process."""
@@ -241,14 +308,11 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # thread was in the middle of a request. The RLock records its owner when it is taken, so no
     # moment is left where the thread holds the lock but is not yet known as its holder.
     _thread_lock: threading.RLock = attrs.field(factory=threading.RLock, repr=False)
-    # One per event loop: an asyncio.Lock binds to the loop that first waits on it, and asend() can
-    # be called from several at once (a sync indexed task running asyncio.run() while the iteration's loop
-    # has calls in flight). Each loop queues its calls on its own lock, so only one thread of its
-    # default executor waits for the channel; _thread_lock orders the loops. A loop that is gone
-    # drops its lock with it.
-    _async_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = attrs.field(
-        factory=weakref.WeakKeyDictionary, repr=False
-    )
+    # One queue per event loop: asend() can be called from several at once (a sync indexed task
+    # running asyncio.run() while the iteration's loop has calls in flight), and an asyncio.Lock binds
+    # to the loop that first waits on it. Each loop queues its own calls, so only one thread of its
+    # default executor waits for the channel; _thread_lock orders the loops.
+    _loop_queues: _LoopQueues = attrs.field(factory=_LoopQueues, repr=False)
     # Whether the thread holding _thread_lock is between writing a request and reading its
     # response. Only that thread can read it as True once it holds the lock itself.
     _exchanging: bool = attrs.field(default=False, repr=False, init=False)
@@ -344,10 +408,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         frame_bytes = self._make_frame(msg).as_bytes()
 
         loop = asyncio.get_running_loop()
-        async_lock = self._async_locks.get(loop)
-        if async_lock is None:
-            async_lock = self._async_locks.setdefault(loop, asyncio.Lock())
-        async with async_lock:
+        async with self._loop_queues.for_loop(loop):
             abandoned = threading.Event()
             try:
                 return await loop.run_in_executor(None, self._locked_exchange, msg, frame_bytes, abandoned)

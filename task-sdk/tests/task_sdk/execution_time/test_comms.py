@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import signal
 import threading
 import uuid
+import weakref
 from unittest import mock
 
 import msgspec
@@ -671,6 +673,28 @@ class TestCommsDecoder:
 
         assert asyncio.run(two_calls("first loop")) == ["first loop 1", "first loop 2"]
         assert asyncio.run(two_calls("second loop")) == ["second loop 1", "second loop 2"]
+
+    def test_a_closed_loop_whose_calls_waited_for_each_other_is_not_kept(self, socket_pair):
+        """
+        Calls that waited for each other on one event loop leave that loop referenced by its lock. Once
+        its last call is answered the decoder lets the loop go, so a sync indexed task running
+        ``asyncio.run()`` per index does not keep every closed loop until the task ends.
+        """
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        threading.Thread(target=self._serve, args=(w, 6, 0.01), daemon=True).start()
+        loops: list[weakref.ref] = []
+
+        async def two_calls():
+            loops.append(weakref.ref(asyncio.get_running_loop()))
+            await asyncio.gather(decoder.asend(GetVariable(key="a")), decoder.asend(GetVariable(key="b")))
+
+        for _ in range(3):
+            asyncio.run(two_calls())
+        gc.collect()
+
+        assert [loop() for loop in loops] == [None, None, None]
+        assert len(decoder._loop_queues) == 0
 
     def test_send_from_the_paused_loop_waits_for_an_asend_in_flight(self, socket_pair):
         """
