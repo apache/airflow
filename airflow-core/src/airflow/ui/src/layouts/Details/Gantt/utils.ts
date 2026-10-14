@@ -344,6 +344,16 @@ export const getGanttSegmentTo = ({
     searchParams.set(SearchParamsKeys.REGION_INDEX, item.regionIndex.toString());
   }
 
+  // The coordinate addresses the row; the loop and pass are what the breadcrumb and the filter
+  // read, so a bar carries both and clicking one lands on the pass it was drawn for.
+  if (item.loopIteration !== null && item.loopIteration !== undefined) {
+    searchParams.set(SearchParamsKeys.LOOP_ID, item.loopIteration.loop_id);
+    searchParams.set(SearchParamsKeys.ITERATION, item.loopIteration.iteration.toString());
+  } else {
+    searchParams.delete(SearchParamsKeys.LOOP_ID);
+    searchParams.delete(SearchParamsKeys.ITERATION);
+  }
+
   if (tryNumber !== undefined && tryNumber < (maxTryByKey.get(getGanttTryKey(item)) ?? 1)) {
     searchParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber.toString());
   }
