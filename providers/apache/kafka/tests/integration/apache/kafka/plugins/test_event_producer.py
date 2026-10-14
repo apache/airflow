@@ -118,7 +118,9 @@ class TestEventProducer:
             cls._admin.delete_topic([cls.DAGRUN_TOPIC, cls.TASK_INSTANCE_TOPIC])
             time.sleep(2)  # let the broker finish the async delete
         except Exception as exc:
-            log.warning("teardown: failed to delete topics %r, %r: %s", cls.DAGRUN_TOPIC, cls.TASK_INSTANCE_TOPIC, exc)
+            log.warning(
+                "teardown: failed to delete topics %r, %r: %s", cls.DAGRUN_TOPIC, cls.TASK_INSTANCE_TOPIC, exc
+            )
 
     @pytest.fixture
     def start_components(self):
