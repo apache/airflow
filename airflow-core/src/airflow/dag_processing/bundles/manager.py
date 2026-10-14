@@ -87,7 +87,7 @@ def _discover_example_dag_bundle_paths() -> dict[str, str]:
             module = importlib.import_module(module_name)
             module_paths = list(getattr(module, "__path__", []))
         except Exception:
-            log.exception("Could not load provider module %s for example Dag discovery", module_name)
+            log.exception("Could not load provider module %s for example DAG discovery", module_name)
             continue
 
         for module_path in module_paths:
