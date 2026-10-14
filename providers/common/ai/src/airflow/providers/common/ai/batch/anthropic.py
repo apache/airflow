@@ -81,8 +81,9 @@ def _utf8_size(payload: Any) -> int:
     encoder settles the size (``anthropic/_utils/_json.py``): ``ensure_ascii=False``,
     ``separators=(",", ":")``, then UTF-8. The ``json.dumps`` defaults would charge a
     CJK character the six bytes of its ``\uXXXX`` escape rather than the three it
-    occupies, plus two bytes of whitespace per separator. The ``{"requests": [...]}``
-    framing around the requests is not counted.
+    occupies, plus a byte of whitespace per separator. The ``{"requests": [...]}``
+    framing the requests sit in belongs to the batch, not to one request, so the
+    caller adds it.
     """
     return len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
 
@@ -239,9 +240,12 @@ class AnthropicBatchAdapter(BatchAdapter):
             max_tokens=max_tokens,
             request_params=request_params,
         )
-        total_bytes = 0
+        # The requests reach Anthropic as one ``{"requests": [...]}`` body, so the limit is
+        # charged the framing and the comma joining each pair as well, the way ``openai.py``
+        # is charged a newline per JSONL line.
+        total_bytes = len('{"requests":[]}')
         for index, item in enumerate(built):
-            total_bytes += _utf8_size(item)
+            total_bytes += _utf8_size(item) + (1 if index else 0)
             if total_bytes > self.max_payload_bytes:
                 raise LLMBatchLimitExceededError(
                     f"Anthropic batch accepts a payload of at most {self.max_payload_bytes} bytes; "

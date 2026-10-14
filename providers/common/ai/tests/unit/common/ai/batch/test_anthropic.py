@@ -269,15 +269,14 @@ class TestSubmitRequestShape:
 
 def _inline_payload_bytes(client) -> int:
     """
-    Return the bytes the SDK's own encoder produces for the built requests.
+    Return the bytes the SDK's own encoder produces for the whole ``batches.create`` body.
 
     Deriving the expectation from the encoder rather than repeating ``_utf8_size``'s
     expression keeps it independent of the code under test, and turns these tests into
-    a tripwire for an SDK that changes how it serializes a request. The per-request sum
-    ignores the constant ``{"requests": [...]}`` framing, as ``validate_requests`` does.
+    a tripwire for an SDK that changes how it serializes a batch.
     """
     built = client.messages.batches.created[0]["requests"]
-    return sum(len(openapi_dumps(item)) for item in built)
+    return len(openapi_dumps({"requests": built}))
 
 
 class TestPayloadSizeEstimate:
