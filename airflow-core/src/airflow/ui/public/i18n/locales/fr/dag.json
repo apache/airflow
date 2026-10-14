@@ -310,9 +310,9 @@
     "record_one": "Enregistrement",
     "record_other": "Enregistrements",
     "selectPrompt": "Sélectionnez deux versions pour voir ce qui a changé entre elles.",
-    "summary_many": "{{count, number}} changements · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
-    "summary_one": "{{count, number}} changement · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} changements · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
+    "summary_many": "{{count, number}} changements",
+    "summary_one": "{{count, number}} changement",
+    "summary_other": "{{count, number}} changements",
     "target": "Comparer avec",
     "truncated": {
       "description": "Les changements aux chemins non affichés ont été supprimés pour rester dans la limite, donc le nombre est une borne inférieure.",

@@ -31,12 +31,12 @@ Modal (hosted)
 :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` runs each
 sandbox in Modal, provisioned over the API. Of the backends that ship with the
 provider, **this is the managed one to use in production**, and with
-:ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
-Kubernetes: nothing has to be installed on the worker, model-written code never
-executes on the worker host, and Modal reclaims a sandbox at its own lifetime
-whether or not the worker survives. It needs the ``modal`` extra and Modal
-credentials, from a ``modal`` connection or the worker environment, as under
-:ref:`Quick start <sandbox-quick-start>`.
+:ref:`OpenSandbox <sandbox-backend-opensandbox>`, :ref:`Boat <sandbox-backend-boat>` and
+:ref:`Islo <sandbox-backend-islo>` one of the four that run on Kubernetes: nothing has to
+be installed on the worker, model-written code never executes on the worker host, and Modal reclaims
+a sandbox at its own lifetime whether or not the worker survives. It needs the
+``modal`` extra and Modal credentials, from a ``modal`` connection or the worker
+environment, as under :ref:`Quick start <sandbox-quick-start>`.
 
 Constructor parameters:
 
@@ -185,6 +185,92 @@ them.
 that is a symlink replaces the link with a regular file and leaves the original
 target untouched, where a shell redirect would follow the link.
 
+.. _sandbox-backend-islo:
+
+Islo (hosted microVM)
+---------------------
+
+:class:`~airflow.providers.common.ai.sandbox.islo.IsloSandboxBackend` runs each
+sandbox in an `islo.dev <https://islo.dev>`__ microVM, provisioned over the API.
+Like Modal and unlike ``sbx``, the worker only speaks HTTP: it needs no local
+daemon and no host virtualization, so it runs from a containerized worker and on
+Kubernetes.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[islo]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import IsloSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(IsloSandboxBackend())
+
+Credentials are ambient. On first use the SDK reads ``ISLO_API_KEY``, and optionally
+``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from the worker environment. Modal's
+``modal`` connection comes from the Modal provider; an ``islo`` connection type waits
+for an Islo provider.
+
+Constructor parameters:
+
+- ``image``, ``vcpus``, ``memory_mb``: image and sizing. ``None`` (default) uses
+  the server default for each. The server default image is Debian based, and any
+  Debian or Ubuntu based image, including ``python:*-slim``, has the GNU ``find``,
+  ``stat`` and ``tail`` the file operations need; Alpine and other busybox images
+  do not.
+- ``pause_after_idle``: Seconds without a command or file operation after which
+  the server pauses the microVM and stops charging for its compute. Default
+  ``600``; ``None`` disables it.
+- ``auto_resume``: ``"on_activity"`` (default) resumes a paused sandbox on the
+  next tool call, so a long think between calls costs a resume rather than the
+  run; ``"never"`` leaves it paused, and the backend then treats a paused sandbox
+  as unusable.
+- ``delete_after``: Seconds after **creation** at which the server deletes the
+  sandbox, whether or not it is in use. Default ``86400``; ``None`` disables it.
+  This is the backstop for a worker killed mid-run; it is not renewed while the
+  sandbox is busy, so keep it longer than the longest run you expect.
+
+``SandboxSpec.env`` becomes the process environment of every command, and
+``block_network`` maps to the API's ``internet_enabled``. Four things Islo cannot
+do are refused at ``create`` rather than silently dropped: ``allow_egress_to`` and
+``allow_egress_to_cidrs`` (the API turns outbound access on or off, with no
+per-host or per-address rule), a ``PATH`` entry in ``env`` (the runner sets
+``PATH`` for every command itself), and ``owner`` (this backend keeps no
+per-sandbox metadata, so it cannot be attached to from another task).
+
+File reads, writes and exports move file contents through Islo's native
+streaming APIs. Everything else runs through a shell wrapper in the sandbox, so
+the image needs ``sh``, ``mkdir`` and ``rm`` for the wrapper, ``tail`` to bound
+command output, ``dirname`` to create a written file's parent directory,
+``stat`` to size an over-budget read and to check a file before it is exported,
+``realpath`` to resolve a relative export path (the download API takes absolute
+paths only), and GNU ``find`` for directory listings. The compute API caps each output stream
+at 1 MiB and keeps the tail. The backend captures each stream to a scratch file in
+the sandbox and returns only its last ``max_output_bytes`` -- where a traceback
+and the exit status live -- so the worker sees a window sized to the caller's
+budget, a budget above the server cap is clamped to it, and total output is
+bounded by the sandbox's own ephemeral disk rather than by worker memory.
+
+The backend enforces the command deadline itself, because the API's
+``timeout_secs`` is accepted but not enforced, and times it from the API's answer
+to the start request, so a slow start does not use it up. Polling rides out
+transient API errors until the deadline. If the command is still running when
+the deadline passes, the backend deletes the microVM and reports the command as
+timed out with ``sandbox_terminated`` set, so the toolset provisions a fresh
+sandbox for the next call. A deletion the API refused is logged rather than
+failing the task, and ``delete_after`` reclaims the microVM later; with
+``delete_after=None`` nothing does, and the warning says so. If the API was still
+failing at the deadline, nothing is known about the command, so the task fails
+instead and Airflow's retry takes over.
+
+A missing file, a directory passed as a file, a relative path, and a write onto a
+directory or under a pseudo-filesystem such as ``/proc`` or ``/sys`` come back to
+the model as a recoverable error it can correct, once the backend has confirmed
+the sandbox itself is still usable.
+
 .. _sandbox-backend-opensandbox:
 
 OpenSandbox (self-hosted remote)
@@ -222,10 +308,19 @@ network policy; ``allow_egress_to`` becomes explicit allow rules. With
 deployment without the egress sidecar can still run an intentionally open
 sandbox. Deny/allowlist policy requires the sidecar, so the backend reads the
 enforced policy back after creation and destroys the sandbox if it does not
-match the requested spec. ``allow_egress_to_cidrs`` is refused: OpenSandbox only
-enforces CIDR targets in ``dns+nft`` mode, and the Python SDK does not expose
-that enforcement mode on policy read-back, so this backend cannot prove the
-address-layer restriction is active.
+match the requested spec. ``allow_egress_to_cidrs`` is refused; this backend does
+not translate address ranges into OpenSandbox rules.
+
+The read-back also checks the mode the sidecar enforces the policy in, set by
+``[egress] mode`` in the server configuration. Only ``dns+nft`` drops connections at
+the address layer. In ``dns`` mode, the server's default, the sidecar filters name
+resolution and nothing else, so a deny-all sandbox could still connect to any
+numeric address, including a DNS-over-HTTPS resolver that would look up any name for
+it, and a sandbox with an allowlist could connect to addresses outside the list. The
+backend destroys the sandbox and fails the task on any mode but ``dns+nft``, so set
+``mode = "dns+nft"`` on a server that runs sandboxes with a deny-all policy or an
+allowlist, or pass ``SandboxSpec(block_network=False)`` for a sandbox that may reach
+the network.
 
 Every sandbox carries ``created-by: airflow`` metadata and an
 ``airflow-sandbox-*`` name for attribution and cleanup. The server enforces a
@@ -247,6 +342,136 @@ Constructor parameters:
 The runtime remains a deployment choice. The default Docker runtime shares the
 host kernel; choose a stronger runtime such as Kata when your threat model needs
 a VM boundary.
+
+.. _sandbox-backend-boat:
+
+Boat (hosted)
+-------------
+
+:class:`~airflow.providers.common.ai.sandbox.boat.BoatSandboxBackend` runs each
+sandbox on `Boat <https://docs.boat.dev/quickstart>`__, the hosted cloud-computer
+API formerly called Ascii Box. The Airflow worker needs only network access and
+an API key: no local daemon, Docker socket, KVM or nested virtualization, so it
+runs from a containerized worker and on Kubernetes.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[boat]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import BoatSandboxBackend, SandboxSpec
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(
+        BoatSandboxBackend(),
+        spec=SandboxSpec(block_network=False),
+    )
+
+Credentials can come from a generic Airflow connection, resolved lazily on first
+use:
+
+.. code-block:: python
+
+    SandboxToolset(
+        BoatSandboxBackend(boat_conn_id="boat_default"),
+        spec=SandboxSpec(block_network=False),
+    )
+
+The connection ``password`` is the Boat API key and is required. ``host``, when
+set, is the full API base URL, such as ``https://boat.dev/api/v1``, which is also
+the default. It must start with ``https://`` or ``http://``: a bare domain such as
+``boat.dev``, which is what Airflow's connection URI form leaves in ``host``, is
+refused, since the API key would otherwise be sent to it over plain HTTP. With
+``boat_conn_id=None``, the default, the backend reads ``BOAT_API_KEY`` (required)
+and optional ``BOAT_BASE_URL`` from the worker environment instead, and
+``BOAT_BASE_URL`` must carry the scheme too.
+
+Constructor parameters:
+
+- ``org``: the Boat wallet each sandbox is billed to, by organization id or name,
+  or ``"personal"``. Default ``"personal"``, which bills your own account whatever
+  its active wallet is. See the warning below before naming an organization.
+- ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
+- ``ttl_seconds``: server-side TTL after which Boat stops the sandbox, a whole
+  number of seconds up to ``2592000`` (30 days). Default ``3600``.
+- ``ready_timeout``: provisioning deadline in seconds, from the create request
+  until the sandbox is ready. Default ``300``.
+- ``request_timeout``: HTTP timeout in seconds for an API call that answers at
+  once, such as the create request, a status check or a delete, and the time
+  added to the operation's own for a call that waits on one: a command's
+  deadline, or 120 seconds for a file write. Default ``30``.
+
+A create request that times out, fails in transport, or gets a server error may
+still have started a sandbox, so it is sent again with the same idempotency key,
+and Boat answers with the sandbox the first request created rather than starting
+a second one. While Boat is still creating that sandbox, it answers the resent
+request with 409 ``idempotency_in_progress``, and the backend sends it again two
+seconds after each such answer until ``ready_timeout`` runs out. Each resend gets
+what is left of ``ready_timeout`` plus ``request_timeout``, so provisioning takes
+at most their sum, and a sandbox a resend finds too late to become ready in time
+is deleted rather than left running until its TTL. If a resend fails any other
+way, or Boat is still creating the sandbox when ``ready_timeout`` runs out, the
+backend never receives the sandbox's id, so any sandbox the first request started
+keeps a server-assigned name and runs until Boat stops it at ``ttl_seconds``.
+
+Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of your Boat
+account's stored environment variables, secret files or credentials, and cannot
+act on your account or your other sandboxes.
+
+.. warning::
+
+    Boat gives every member of an organization use of a ``noEnv`` sandbox billed
+    to that organization: they can open it and run commands in it, so they can
+    read and write anything in it, including the ``SandboxSpec.env`` values each
+    command receives. Pass ``org`` only when everyone in that organization may see
+    what the agent works on.
+
+``SandboxSpec.env`` is passed when the sandbox is created and also exported at
+the start of every command, so each value is sent again with every command
+request. **Boat cannot enforce a deny-all network policy, a per-domain egress
+allowlist, or a CIDR egress allowlist**, so the backend refuses
+``block_network=True``, ``allow_egress_to``, and ``allow_egress_to_cidrs``
+rather than silently provisioning something weaker than the spec asked for.
+Since ``block_network`` defaults to ``True``, that includes a bare
+``SandboxSpec()``: pass ``SandboxSpec(block_network=False)`` to state that open
+egress is acceptable, or use Modal when it is not.
+
+Writes use Boat's native file API, which accepts only paths that resolve under
+``/home/user`` (where relative paths land) or ``/tmp``. The parent directory is
+created first with ``mkdir -p`` in the guest, so a ``write_file`` anywhere else
+fails with ``mkdir``'s own error when the guest user cannot create the parent
+directory, and with Boat's ``invalid_path`` error when that directory exists or
+could be created. Either way the model gets it back as a tool error it can
+retry. Reads deliberately keep the inherited bounded shell implementation, so
+``max_bytes`` is enforced inside the guest before file contents reach worker
+memory.
+
+That path rule binds only ``write_file``; it is not a jail. Commands run as the
+guest user ``user``, which `Boat documents <https://docs.boat.dev/machines>`__ as
+having root through ``sudo`` with no password, so a command the model writes can
+read and write anywhere in the sandbox filesystem. The sandbox also has a public
+IPv4 or IPv6 address, and its firewall is inside the guest: Boat's
+`hosting guide <https://docs.boat.dev/hosting>`__ opens a port to the internet
+with ``ufw``, which a command can do too. The sandbox boundary is what contains
+that.
+
+A command's deadline is enforced inside the sandbox by GNU coreutils
+``timeout``, which sends ``SIGTERM`` and then ``SIGKILL`` five seconds later, so
+a command that runs out of time returns the tail of what it printed, and the
+sandbox and its files survive. Boat's own deadline is set 15 seconds past that
+one, and Boat's API caps it at 600 seconds, so any command that asks for more
+than 585 seconds gets 585, and the result reports that deadline to the model.
+Only when Boat's own deadline ends the call, because the one in the guest did
+not, is the sandbox torn down, as is a sandbox that never becomes ready. A file
+read, listing, or write that Boat's deadline ends that way fails the task, since
+there is no sandbox left for the model to retry against. If the worker dies
+first, the server-side TTL stops the sandbox. Sandboxes are created without
+snapshots, so stopping one erases its disk rather than keeping it for an
+operator to remove, and with monitoring off, so Boat keeps no history of the
+commands, their output, or the environment variables exported into them.
 
 .. _sandbox-backend-sbx:
 
@@ -301,25 +526,31 @@ do not change. Four behaviours do, so read them before assuming the same Dag
 behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
-  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server enforces.
+  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server enforces;
+  Boat sizes by ``machine_type``; Islo uses the server default unless you set ``vcpus``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
   into; OpenSandbox enforces it in an egress sidecar, and the backend reads the
-  enforced policy back rather than trusting the create request. ``allow_egress_to_cidrs``
-  is enforced at the address layer on Modal, refused on ``sbx``, and refused by
-  OpenSandbox because its SDK cannot prove that the sidecar is running in the
-  ``dns+nft`` mode required for CIDR enforcement.
-- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files;
-  Modal and a server-enforced OpenSandbox timeout preserve the sandbox and files.
-  OpenSandbox destroys it only if the command event stream itself stalls past the
-  client-side grace period.
+  enforced policy and the sidecar's mode back rather than trusting the create
+  request, refusing a sidecar that filters only name resolution (``dns``) rather
+  than connections (``dns+nft``). ``allow_egress_to_cidrs`` is enforced at the
+  address layer on Modal and refused on ``sbx``, OpenSandbox and Islo. Islo has no
+  per-host form and refuses the spec; Boat has no form of egress control at all and
+  refuses every network restriction. Both refuse rather than provision something
+  weaker.
+- **Command timeouts.** A timeout destroys an ``sbx`` or Islo sandbox and its files;
+  Modal, Boat and a server-enforced OpenSandbox timeout preserve the sandbox and
+  files. OpenSandbox destroys it only if the command event stream itself stalls
+  past the client-side grace period, and Boat only if its own deadline, set past
+  the one in the guest, ends the call.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  replaces it on Modal and OpenSandbox.
+  Boat, which write the target and leave the link in place, and replaces the link
+  with a regular file on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
   agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
-  that created it and cannot be reached from another task, and OpenSandbox has no
-  per-sandbox metadata the ownership rules could be kept in, so both refuse
-  ``SandboxSpec.owner`` and the toolset refuses ``attach_to`` for them.
+  that created it and cannot be reached from another task, and OpenSandbox, Boat and
+  Islo have no per-sandbox metadata the ownership rules could be kept in, so all four
+  refuse ``SandboxSpec.owner`` and the toolset refuses ``attach_to`` for them.
 
 .. _sandbox-byo:
 
@@ -337,8 +568,8 @@ commands. The default ``export_file``, behind ``SandboxToolset(exports=...)``,
 copies a file in 4 MiB slices, one command each, and needs ``stat``, ``tail``,
 ``head`` and ``base64`` in the guest. It relies on ``run_command`` returning each
 slice's output intact, or setting ``stdout_truncated`` when it could not. Override
-it when the vendor can stream a download, as the ``sbx`` and OpenSandbox backends do. Override the others
-only when the vendor has a native file API:
+it when the vendor can stream a download, as the ``sbx``, OpenSandbox and Islo
+backends do. Override the others only when the vendor has a native file API:
 
 .. code-block:: python
 

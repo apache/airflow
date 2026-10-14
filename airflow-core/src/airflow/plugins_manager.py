@@ -174,11 +174,12 @@ _APPLIES_TO_ROOTS: dict[str, frozenset[str]] = {
     "nav": frozenset(),
     "base": frozenset(),
     "dashboard": frozenset(),
-    "asset": frozenset(),
+    "asset": frozenset({"asset"}),
 }
 
 # Which record an unqualified path is rooted at -- the entity the destination is about.
 _APPLIES_TO_ENTITY_ROOT: dict[str, str] = {
+    "asset": "asset",
     "dag": "dag",
     "dag_overview": "dag",
     "dag_run": "dag_run",
@@ -187,7 +188,7 @@ _APPLIES_TO_ENTITY_ROOT: dict[str, str] = {
     "task_instance": "task_instance",
 }
 
-_APPLIES_TO_ROOT_NAMES = frozenset({"dag", "dag_run", "task", "task_instance"})
+_APPLIES_TO_ROOT_NAMES = frozenset({"asset", "dag", "dag_run", "task", "task_instance"})
 
 
 def _applies_to_path_root(path: str, destination: str) -> str | None:
@@ -220,12 +221,14 @@ def _applies_to_root_models() -> dict[str, Any]:
     These are the models the UI actually fetches for the ``applies_to`` context -- keep them in
     step with ``AppliesToContext`` in ``src/utils/pluginAppliesTo.ts``.
     """
+    from airflow.api_fastapi.core_api.datamodels.assets import AssetResponse
     from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
     from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
     from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
     from airflow.api_fastapi.core_api.datamodels.tasks import TaskResponse
 
     return {
+        "asset": AssetResponse,
         "dag": DAGResponse,
         "dag_run": DAGRunResponse,
         "task": TaskResponse,

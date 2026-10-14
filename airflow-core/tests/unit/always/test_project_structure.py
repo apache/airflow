@@ -86,7 +86,6 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/extensions/test_init_manifest_files.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_security.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_views.py",
-            "providers/fab/tests/unit/fab/www/extensions/test_init_wsgi_middlewares.py",
             "providers/fab/tests/unit/fab/www/security/test_permissions.py",
             "providers/fab/tests/unit/fab/www/test_airflow_flask_app.py",
             "providers/fab/tests/unit/fab/www/test_security_appless.py",
