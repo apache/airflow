@@ -146,6 +146,12 @@ class DataFusionToolset(AirflowToolset):
         budget, its ``retries``, as pydantic-ai's own toolsets do.
     """
 
+    tool_name_conflict_hint: str = (
+        "Pass a distinct `tool_prefix=...` to this toolset so its tool names and "
+        "model-facing hints are renamed together; wrapping it in `PrefixedToolset` "
+        "renames only the tools."
+    )
+
     def __init__(
         self,
         datasource_configs: list[DataSourceConfig],
@@ -178,7 +184,7 @@ class DataFusionToolset(AirflowToolset):
         prefix = f"_{self._tool_prefix}" if self._tool_prefix else ""
         return f"sql_datafusion_{suffix}{prefix}"
 
-    def _tool_name(self, base: str) -> str:
+    def _build_tool_name(self, base: str) -> str:
         return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
 
     def _get_engine(self) -> DataFusionEngine:
