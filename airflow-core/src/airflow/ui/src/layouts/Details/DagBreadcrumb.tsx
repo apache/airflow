@@ -279,15 +279,29 @@ export const DagBreadcrumb = () => {
     }
   }
 
-  if (mapIndex !== "-1") {
-    crumbs.push({
-      caption: translate("mapIndex"),
-      hasState: true,
-      key: "mapIndex",
-      state: mappedTaskInstance?.state,
-      to: `/dags/${dagId}/runs/${runId ?? ""}/tasks/${taskId ?? ""}/mapped/${mapIndex}`,
-      value: mappedTaskInstance?.rendered_map_index ?? mapIndex,
-    });
+  // The map index level stays on the bar for the whole of an expanded task, standing on "all
+  // instances" when none is picked, so the switch between instances is in the same place whether
+  // you are looking at one of them or at the summary of all of them.
+  if (hasExpandedInstances && runId !== undefined && taskId !== undefined) {
+    const mappedPath = `/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped`;
+
+    crumbs.push(
+      mapIndex === "-1"
+        ? {
+            caption: translate("mapIndex"),
+            key: "mapIndex",
+            to: mappedPath,
+            value: translate("dag:allMapIndexes"),
+          }
+        : {
+            caption: translate("mapIndex"),
+            hasState: true,
+            key: "mapIndex",
+            state: mappedTaskInstance?.state,
+            to: `${mappedPath}/${mapIndex}`,
+            value: mappedTaskInstance?.rendered_map_index ?? mapIndex,
+          },
+    );
   }
 
   return (
