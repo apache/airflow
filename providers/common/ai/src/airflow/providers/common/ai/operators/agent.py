@@ -300,7 +300,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     :param system_prompt: System-level instructions for the agent.
     :param output_type: Expected output type. Default ``str``. A single type
         (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
-        union (``A | B``). For a ``BaseModel`` subclass, the model instance is
+        union (``A | B``). A list of types (``[str, int]``) is also accepted and treated
+        as alternatives (a union). For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
         directly. The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
@@ -529,7 +530,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type | UnionType = str,
+        output_type: type | UnionType | Sequence[type] = str,
         toolsets: list[AbstractToolset] | None = None,
         capabilities: list[AgentCapability[Any]] | None = None,
         enable_tool_logging: bool = True,
