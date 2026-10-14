@@ -29,7 +29,8 @@ had the same name and the same fingerprint. The name says what kind of step it w
 fingerprint, computed by the framework adapter, says what it was asked (the message
 history, the tool arguments). The first mismatch means the run took a different path
 from the previous attempt, so that step and every step after it run live. So does
-everything the previous attempt did after a step that raised.
+everything the previous attempt did after a step that raised, and, when the previous
+attempt failed on the model's answers, everything from the model's last request on.
 
 A :class:`DurableJournal` belongs to one task attempt. Each agent run in it is a
 :class:`DurableRun`, numbered in the order the runs start, with positions of its own,
@@ -206,8 +207,14 @@ class DurableRun:
         self._peeked: dict[int, dict[str, Any] | None] = {}
         # Exceptions steps raised this attempt, with the next position when each was raised.
         self._raised: list[tuple[BaseException, int]] = []
-        # The furthest position this attempt recorded a step at.
+        # The furthest position this attempt recorded a step at, and every position it recorded.
         self._last_saved = -1
+        self._saved: set[int] = set()
+        # The position of the last model step this attempt claimed.
+        self._last_model_position: int | None = None
+        # Read with the rest of the run's entry: whether the previous attempt failed because
+        # of the model's answers, which changes why the retry runs live from ``_diverge_from``.
+        self._model_at_fault = False
 
     @property
     def position(self) -> int:
@@ -222,6 +229,7 @@ class DurableRun:
         diverge_from, high_water = meta.get("diverge_from"), meta.get("high_water")
         self._diverge_from = diverge_from if isinstance(diverge_from, int) else None
         self._high_water = high_water if isinstance(high_water, int) else 0
+        self._model_at_fault = meta.get("model_at_fault") is True
 
     def peek(self, position: int) -> dict[str, Any] | None:
         """
@@ -256,9 +264,19 @@ class DurableRun:
         position = self._position
         self._position += 1
         step = JournalStep(self, position, name, kind, fingerprint, replayable=replayable)
+        if kind == "model":
+            self._last_model_position = position
         self._load_meta()
         if not self.diverged and self._diverge_from is not None and position >= self._diverge_from:
-            self._diverge(position, name, reason="the previous attempt failed before reaching this step")
+            self._diverge(
+                position,
+                name,
+                reason=(
+                    "the model's answers from this step on failed the previous attempt, so it is asked again"
+                    if self._model_at_fault
+                    else "the previous attempt failed before reaching this step"
+                ),
+            )
         entry = self.peek(position) if replayable else None
         self._peeked.pop(position, None)
         previous_replayed, self._previous_replayed = self._previous_replayed, False
@@ -303,26 +321,57 @@ class DurableRun:
     def save(self, position: int, entry: dict[str, Any]) -> bool:
         """Store ``entry`` at ``position``; ``False`` when the storage skipped it."""
         self._last_saved = max(self._last_saved, position)
-        return self.journal.storage.save_step(build_step_key(self.key, position), entry)
+        if not self.journal.storage.save_step(build_step_key(self.key, position), entry):
+            return False
+        self._saved.add(position)
+        return True
 
-    def fail(self, error: BaseException) -> None:
+    def fail(self, error: BaseException, *, model_at_fault: bool = False) -> None:
         """
         Record that the run failed with ``error``, so a retry does not replay its error path.
 
         Steps the run started before the step that raised ``error`` (tool calls running
         alongside it, say) still replay on retry; everything from then on, including what
         error handling recorded, runs again.
+
+        :param model_at_fault: The run failed because of what the model answered rather than
+            in a step, such as the framework giving up after the model's answers failed its
+            checks too many times. Those answers were recorded and would replay into the same
+            failure on every retry, so the retry asks the model again from its last request.
+            Ignored when a step raised ``error``: that step decides where the retry runs live.
         """
         failed_at = self._position
+        raised_in_step = False
         cause: BaseException | None = error
         while cause is not None:
-            failed_at = min([failed_at, *(position for raised, position in self._raised if raised is cause)])
+            positions = [position for raised, position in self._raised if raised is cause]
+            raised_in_step = raised_in_step or bool(positions)
+            failed_at = min([failed_at, *positions])
             cause = cause.__cause__ or cause.__context__
         self._load_meta()
         # An attempt that was still replaying an earlier one when it failed, and recorded
         # nothing from the failure on, leaves that earlier attempt's steps as they were.
         diverge_from = failed_at if self.diverged or self._last_saved >= failed_at else self._diverge_from
-        meta = {"diverge_from": diverge_from, "high_water": max(self._high_water, self._position)}
+        rerun_model = False
+        if model_at_fault and not raised_in_step and (last_model := self._last_model_position) is not None:
+            # Unlike a step that raised, the failure is known to come after every recorded step,
+            # so this holds even for an attempt that was still replaying.
+            if diverge_from is None or last_model <= diverge_from:
+                diverge_from, rerun_model = last_model, True
+        previous = self._diverge_from
+        if (
+            previous is not None
+            and previous not in self._saved
+            and (diverge_from is None or previous < diverge_from)
+        ):
+            # The entry at the previous attempt's point is still that attempt's, as this one
+            # recorded nothing over it (the step there raised, say), so a retry must not replay it.
+            diverge_from, rerun_model = previous, self._model_at_fault
+        meta = {
+            "diverge_from": diverge_from,
+            "high_water": max(self._high_water, self._position),
+            "model_at_fault": rerun_model,
+        }
         self.journal.storage.save_step(build_run_meta_key(self.key), meta)
 
     def cleanup(self) -> None:

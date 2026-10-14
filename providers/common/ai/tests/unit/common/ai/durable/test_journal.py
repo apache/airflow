@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.common.ai.durable import journal as journal_module
-from airflow.providers.common.ai.durable.base import build_step_key
+from airflow.providers.common.ai.durable.base import build_run_meta_key, build_step_key
 from airflow.providers.common.ai.durable.journal import (
     DurableJournal,
     current_journal,
@@ -201,6 +201,94 @@ class TestFailures:
         retry = DurableJournal(memory_storage).start_run()
 
         assert await retry.run("a", kind="tool", fingerprint="a", body=lambda: ok("live")) == "recorded"
+
+    @pytest.mark.asyncio
+    async def test_a_failure_the_model_caused_reruns_its_last_request(self, memory_storage):
+        """The model's recorded answers would replay into the same failure, so it is asked again."""
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("bad query"))
+        await first.run("query", kind="tool", fingerprint="q1", body=lambda: ok("retry: no column"))
+        await first.run("model", kind="model", fingerprint="m2", body=lambda: ok("bad query again"))
+        await first.run("query", kind="tool", fingerprint="q2", body=lambda: ok("retry: no column"))
+        first.fail(RuntimeError("exceeded max retries"), model_at_fault=True)
+
+        retry = DurableJournal(memory_storage).start_run()
+        results = [
+            await retry.run("model", kind="model", fingerprint="m1", body=lambda: ok("live")),
+            await retry.run("query", kind="tool", fingerprint="q1", body=lambda: ok("live")),
+            await retry.run("model", kind="model", fingerprint="m2", body=lambda: ok("good query")),
+            await retry.run("query", kind="tool", fingerprint="q2", body=lambda: ok("3 rows")),
+        ]
+
+        assert results == ["bad query", "retry: no column", "good query", "3 rows"]
+        assert dict(retry.journal.stats.replayed) == {"model": 1, "tool": 1}
+
+    def test_a_failure_the_model_caused_is_noted_for_the_retrys_log(self, memory_storage):
+        first = DurableJournal(memory_storage).start_run()
+        first.claim("model", kind="model", fingerprint="m1").record("bad query")
+
+        first.fail(RuntimeError("exceeded max retries"), model_at_fault=True)
+
+        meta = memory_storage.load_step(build_run_meta_key(first.key))
+        assert (meta["diverge_from"], meta["model_at_fault"]) == (0, True)
+
+    @pytest.mark.asyncio
+    async def test_a_failure_the_model_caused_while_replaying_reruns_its_last_request(self, memory_storage):
+        """Otherwise an attempt that replayed everything would leave the next one replaying it too."""
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("bad"))
+        await first.run("query", kind="tool", fingerprint="q1", body=lambda: ok("retry"))
+        first.fail(RuntimeError("worker died"))
+        second = DurableJournal(memory_storage).start_run()
+        await second.run("model", kind="model", fingerprint="m1", body=lambda: ok("live"))
+        await second.run("query", kind="tool", fingerprint="q1", body=lambda: ok("live"))
+        second.fail(RuntimeError("exceeded max retries"), model_at_fault=True)
+
+        third = DurableJournal(memory_storage).start_run()
+        answer = await third.run("model", kind="model", fingerprint="m1", body=lambda: ok("asked again"))
+
+        assert answer == "asked again"
+
+    @pytest.mark.asyncio
+    async def test_a_model_request_asked_again_that_raises_is_asked_again_on_the_next_retry(
+        self, memory_storage
+    ):
+        """The rejected answer is still recorded at that position, so it must not replay."""
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("bad query"))
+        await first.run("query", kind="tool", fingerprint="q1", body=lambda: ok("retry: no column"))
+        first.fail(RuntimeError("exceeded max retries"), model_at_fault=True)
+        second = DurableJournal(memory_storage).start_run()
+        rate_limited = RuntimeError("429")
+        with pytest.raises(RuntimeError):
+            await second.run("model", kind="model", fingerprint="m1", body=lambda: raise_(rate_limited))
+        second.fail(rate_limited)
+
+        third = DurableJournal(memory_storage).start_run()
+        answer = await third.run("model", kind="model", fingerprint="m1", body=lambda: ok("good query"))
+
+        assert answer == "good query"
+
+    @pytest.mark.asyncio
+    async def test_a_step_that_raised_the_error_decides_even_when_the_model_is_blamed(self, memory_storage):
+        """An agent a tool runs can give up on its own model; the outer model's answer was fine."""
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("call both tools"))
+        error = RuntimeError("nested agent exceeded max retries")
+        nested = first.claim("nested_agent", kind="tool", fingerprint="n")
+        sibling = first.claim("charge_card", kind="tool", fingerprint="c")
+        nested.fail(error)
+        sibling.record("charged")
+        first.fail(error, model_at_fault=True)
+
+        retry = DurableJournal(memory_storage).start_run()
+        model = await retry.run("model", kind="model", fingerprint="m1", body=lambda: ok("asked again"))
+        await retry.run("nested_agent", kind="tool", fingerprint="n", body=lambda: ok("ok"))
+        charge = await retry.run(
+            "charge_card", kind="tool", fingerprint="c", body=lambda: ok("charged twice")
+        )
+
+        assert (model, charge) == ("call both tools", "charged")
 
     @pytest.mark.asyncio
     async def test_a_step_without_a_fingerprint_does_not_replay_after_a_live_step(self, memory_storage):

@@ -59,18 +59,35 @@ XCom unchanged, so downstream tasks can type-hint the class and use attribute ac
     :start-after: [START howto_operator_llm_structured]
     :end-before: [END howto_operator_llm_structured]
 
-Agent parameters
-----------------
+Model settings and output retries
+---------------------------------
 
-Pass additional keyword arguments to the pydantic-ai ``Agent`` constructor
-via ``agent_params``: for example ``retries``, ``model_settings``, or ``tools``.
-See the `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__ for
-the full list of supported parameters.
+Set ``model_settings`` to pass Pydantic AI
+`ModelSettings <https://ai.pydantic.dev/api/settings/>`__ to the model call, such as
+``temperature`` or ``max_tokens``. Set ``output_retries`` to choose how many times the
+model is asked again when its output fails validation against ``output_type``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
-    :start-after: [START howto_operator_llm_agent_params]
-    :end-before: [END howto_operator_llm_agent_params]
+    :start-after: [START howto_operator_llm_model_settings]
+    :end-before: [END howto_operator_llm_model_settings]
+
+No tool runs in the task: ``LLMOperator`` accepts no function tools, toolsets or
+capabilities, so ``model_settings`` cannot register one. A provider-hosted tool that a
+provider's own setting turns on, such as ``openai_native_tools`` for OpenAI's web search,
+runs on the provider's side. For a model that calls your tools, use
+:ref:`AgentOperator <howto/operator:agent>`.
+
+Moving from ``agent_params``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Common AI 1.0 removes ``agent_params`` from ``LLMOperator``, the operators built on it and
+their ``@task.llm*`` decorators. Passing it fails when the Dag is parsed. Move each key:
+
+- ``agent_params={"model_settings": {...}}`` becomes ``model_settings={...}``.
+- ``agent_params={"retries": n}`` becomes ``output_retries=n``.
+- ``tools``, ``toolsets``, ``capabilities`` or ``spec_file`` in ``agent_params``: use
+  ``AgentOperator`` or ``@task.agent``, which keep ``agent_params``.
 
 .. _howto/operator:llm_usage_limits:
 
@@ -81,8 +98,8 @@ Set ``usage_limits`` to a
 `pydantic-ai UsageLimits <https://ai.pydantic.dev/api/usage/#pydantic_ai.usage.UsageLimits>`__
 to fail the task when the run exceeds a configured budget: request count,
 input/output tokens, or tool calls. The check happens inside pydantic-ai's
-run loop, so the limit applies even when ``retries`` triggers multiple model
-calls within a single task.
+run loop, so the limit applies even when ``output_retries`` asks the model again
+within a single attempt.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
@@ -263,8 +280,10 @@ Parameters
   the operator to return the output without a person, from 0 to 1; no reported
   confidence counts as uncertain. ``on_uncertain`` is ``"review"`` (default) or
   ``"fail"``. Default ``None``: no gate.
-- ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
-  constructor (e.g. ``retries``, ``model_settings``, ``tools``). Supports Jinja templating.
+- ``model_settings``: Pydantic AI ``ModelSettings`` for the model call, such as
+  ``temperature`` or ``max_tokens``. Supports Jinja templating.
+- ``output_retries``: How many times the model is asked again when its output fails
+  validation. Default ``None`` (Pydantic AI's default).
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` enforced on the run, or a
   ``dict`` of the same fields (templated via Jinja, then coerced per field type).
   Fails the task when token / request / tool-call budgets are exceeded, or when a

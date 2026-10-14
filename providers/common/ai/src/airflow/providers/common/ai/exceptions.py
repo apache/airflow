@@ -23,6 +23,16 @@ class HITLMaxIterationsError(AirflowException):
     """Raised when the HITL review loop exhausts max iterations without approval or rejection."""
 
 
+class ToolRunnerMaxIterationsError(RuntimeError):
+    """
+    Raised when an Anthropic tool runner reaches ``max_iterations`` while the model is still calling tools.
+
+    The runner's last message asks for tools and holds no answer. Airflow's default retry
+    behaviour retries it like any other exception, and a fresh attempt may finish within
+    the limit.
+    """
+
+
 class ToolApprovalError(RuntimeError):
     """
     Raised when a run paused for tool approval cannot resume safely.
@@ -34,11 +44,12 @@ class ToolApprovalError(RuntimeError):
 
 class ToolApprovalAlreadyRequestedError(AirflowFailException):
     """
-    Raised when a task instance asks for a second tool approval.
+    Raised on Airflow 3.3 when a task instance asks for a second tool approval.
 
-    Airflow keeps one approval request per task instance, across retries and clears, and a
-    second request would show the reviewer the first one's details. The task fails without
-    retrying, since a retry would ask again.
+    Airflow 3.3 keeps one approval request per task instance, across retries and clears, and
+    a second request would show the reviewer the first one's details. The task fails without
+    retrying, since a retry would ask again. Airflow 3.4 replaces a repeat request's details,
+    so there the run pauses again instead.
     """
 
 

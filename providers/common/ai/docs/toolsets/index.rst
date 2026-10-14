@@ -69,8 +69,8 @@ with is resolved in the worker and is not part of any of that.
 
 Two controls work on every toolset. ``.approval_required()`` pauses the task before a
 matching call runs, until a person approves or rejects it on the **Required Actions**
-page. It needs Airflow 3.3 or later, pauses a task instance at most once per Dag run,
-and does not combine with ``durable=True`` or a ``SandboxToolset`` that provisions its
+page. It needs Airflow 3.3 or later, pauses at every step that calls a matching tool on
+Airflow 3.4 and later (once per Dag run on 3.3), and does not combine with ``durable=True`` or a ``SandboxToolset`` that provisions its
 own sandbox (:doc:`../tool_approval` lists every limit). ``.filtered()`` drops tools
 from what the model is offered, as the :ref:`MCP guide <howto/toolset:mcp-filtered>`
 shows.
@@ -294,9 +294,9 @@ used to allow exactly one correction whatever ``retries`` said, so an agent that
 ``retries`` now applies it to them too: ``retries=0`` fails the run on the first bad
 query, and a large integer ``retries`` meant for output validation also lets a failing
 database be queried that many times. Pass ``max_retries=1`` to a toolset to keep the old
-behaviour. Outside a pydantic-ai agent (the LangChain, Strands and Google ADK bridges)
-there is no agent budget, so each tool gets one correction unless its toolset sets
-``max_retries``.
+behaviour. Outside a pydantic-ai agent (the LangChain, Strands, Google ADK and Anthropic
+tool runner bridges) there is no agent budget, so each tool gets one correction unless its
+toolset sets ``max_retries``.
 
 Layering
 --------

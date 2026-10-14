@@ -80,8 +80,18 @@ const ClearTaskInstanceConfirmationDialog = ({
     }
   }, [isFetching, data, open, taskCurrentState, preventRunningTask, onConfirm, onClose]);
 
+  // This dialog opens as the clear dialog closes beneath it, and that close would dismiss it
+  // twice over: removing a dialog layer dismisses the layers stacked above it, and the clear
+  // dialog hands focus back to its trigger outside this one. Either drops the clear before
+  // the dry run settles. Outside clicks and Escape still close it.
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
+    <Dialog.Root
+      lazyMount
+      onFocusOutside={(event) => event.preventDefault()}
+      onOpenChange={onClose}
+      onRequestDismiss={(event) => event.preventDefault()}
+      open={open}
+    >
       <Dialog.Content backdrop>
         {isFetching ? (
           <VStack align="center" gap={3} justify="center" py={8}>

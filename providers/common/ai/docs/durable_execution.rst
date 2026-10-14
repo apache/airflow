@@ -20,11 +20,6 @@
 Durable execution
 =================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 An agent task makes several model calls and tool calls. When it fails partway (a
 network error, a timeout, a provider outage), a plain Airflow retry runs every one of
 them again: the model calls are paid for twice and the tools' side effects happen
@@ -156,6 +151,20 @@ other capabilities. Tool calls already running alongside the failed one still re
 step that raised and that the run recovered from, such as a tool error the model was
 told about, does not stop the steps after it from replaying.
 
+A run can also fail on the model's answers rather than in a step: pydantic-ai raises
+``UnexpectedModelBehavior`` when the model keeps giving answers a tool rejects with
+``ModelRetry``, or output that fails validation, past its retry limit. Those answers are
+recorded, so replaying them would only reach the same error. The retry instead replays
+the steps before the model's last request and asks the model again from there. The
+earlier rejected answers still count against the retry limit, so each Airflow retry gives
+the model one more answer, with the rejections it already got in its history. Tool calls
+the last answer made run again if the model asks for them again, including calls that
+succeeded alongside the one that was rejected. The task log names the step:
+
+.. code-block:: text
+
+    Durable: the run took a different path from the previous attempt; this step and every step after it run again position=2 step=analyst__model.request reason=the model's answers from this step on failed the previous attempt, so it is asked again
+
 Some steps have no request to fingerprint: another capability's
 ``@durable_operation``, or tool discovery. Such a step replays on its name, and only when
 the step before it also replayed.
@@ -241,7 +250,8 @@ Durable execution records what a tool returned. A replayed tool's code does not 
 side effect it had (a file written, a message sent) is not repeated.
 A tool that fails *before* its result is recorded runs again on retry, so a tool that
 sent an email and then raised sends it again. The same holds when the worker dies
-between a tool's side effect and the write of its result. Make tools with side effects
+between a tool's side effect and the write of its result, and for the tool calls of a
+model answer that the retry asks for again after the model ran out of retries. Make tools with side effects
 idempotent: check whether the work already happened, or let a database constraint
 reject the duplicate.
 

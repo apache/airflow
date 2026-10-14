@@ -25,6 +25,7 @@ from airflow.providers.common.ai.exceptions import (
     LLMFileAnalysisMultimodalRequiredError,
     LLMFileAnalysisUnsupportedFormatError,
     ManagedAgentInvocationError,
+    ToolRunnerMaxIterationsError,
 )
 from airflow.providers.common.compat.sdk import AirflowException
 
@@ -35,6 +36,7 @@ EXCEPTION_CASES = [
     (LLMFileAnalysisLimitExceededError, LLMFileAnalysisError),
     (LLMFileAnalysisMultimodalRequiredError, LLMFileAnalysisUnsupportedFormatError),
     (ManagedAgentInvocationError, RuntimeError),
+    (ToolRunnerMaxIterationsError, RuntimeError),
 ]
 
 

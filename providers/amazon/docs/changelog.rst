@@ -26,19 +26,21 @@
 Changelog
 ---------
 
+9.38.0
+......
+
 .. warning::
   ``S3DagBundle`` now appends ``/`` to non-empty directory prefixes when downloading Dags.
   For a configured prefix of ``dags``, listing requests now use ``dags/``. IAM policies
   that restrict ``s3:prefix`` by exact value must permit the directory prefix with its
   trailing slash. Empty prefixes and prefixes that already end in ``/`` are unchanged.
 
-9.38.0
-......
-
 Features
 ~~~~~~~~
 
-* ``Bind the AWS auth manager SAML response to the browser that started the login (#73698)``
+* ``Add EmrServerlessGetSessionEndpointOperator to Amazon provider (#70766)``
+* ``Add a document_classifier_deletable waiter for Amazon Comprehend (#74125)``
+* ``Bind the AWS auth manager SAML response to the browser that started the login (#73698, #74529)``
 * ``Carry task attempt UUIDs through remote executor providers (#73917)``
 * ``Add a vendor-neutral managed-agent hook contract to Common AI (#73532)``
 * ``Add DuckDB support to the Amazon provider (#73301)``
@@ -49,6 +51,8 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix deprecated provider lookup in Amazon AWS hooks (#74480)``
+* ``Respect 'waiter_delay' & 'waiter_max_attempts' in EKS delete operators (#74000)``
 * ``Document that DuckDB extension installs need a HOME directory (#74301)``
 * ``Keep S3 Dag bundle downloads within the configured directory (#73756)``
 * ``Distinguish credential failures from AWS waiter exhaustion (#73870)``
@@ -68,12 +72,16 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Add documentation and example Dag for 'ExasolToS3Operator' (#73940)``
 * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
 * ``Fix docstring cross-references that Sphinx 9 cannot resolve (#74169)``
 * ``Document override semantics for EcsRunTaskOperator (#73860)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Pin loop definitions and carry region coordinates through task execution (#74345)``
+   * ``Start a real login in the AWS auth manager example Dag (#74431)``
+   * ``Prepare providers release 2026-10-06 (#74429)``
    * ``Verify SSH host keys by default in SSH and SFTP hooks (#73419)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``

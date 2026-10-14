@@ -66,6 +66,14 @@ An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pyd
     types. Chains are also not resolved recursively, so a fallback connection may not
     declare its own ``fallback_conn_ids``; list every vendor directly on the primary.
 
+``Connection '...' has type '...', but a Pydantic AI hook needs one of [...]``
+    The connection named by ``llm_conn_id`` is not a ``pydanticai`` connection type. This
+    is easy to hit by picking a similarly named type such as ``openai`` when the OpenAI
+    provider is installed. Change the connection type to ``pydanticai``, put the API key
+    in the **API Key** field (the password) and the model, for example ``openai:gpt-5``,
+    in **Model**. For Azure, Bedrock or Vertex use the matching ``pydanticai_azure``,
+    ``pydanticai_bedrock`` or ``pydanticai_vertex`` type instead; see :doc:`model_providers`.
+
 .. _troubleshooting-conn-type-rename:
 
 A connection of type ``pydanticai-azure``, ``pydanticai-bedrock`` or ``pydanticai-vertex`` no longer resolves

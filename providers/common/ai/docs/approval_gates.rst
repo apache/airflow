@@ -105,6 +105,8 @@ user row id as a string, not the username.  This needs Airflow 3.1+.  On Airflow
 clearing the task re-runs it against the existing review row, so a changed
 list does not take effect.
 
+.. _approval-gates:uncertain:
+
 Reviewing uncertain output
 --------------------------
 

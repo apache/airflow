@@ -37,7 +37,13 @@ from pydantic_ai.durable_exec import (
     ToolsetCallToolId,
     ToolsetValidateToolArgumentsId,
 )
-from pydantic_ai.exceptions import ApprovalRequired, CallDeferred, ModelRetry, ToolFailed
+from pydantic_ai.exceptions import (
+    ApprovalRequired,
+    CallDeferred,
+    ModelRetry,
+    ToolFailed,
+    UnexpectedModelBehavior,
+)
 from pydantic_ai.messages import ModelResponse, ToolReturn
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import DynamicToolset, FunctionToolset
@@ -227,7 +233,10 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
             with _active_run(_ActiveRun(durable_run, ledger)):
                 result = await super().wrap_run(ctx, handler=handler)
         except BaseException as error:
-            durable_run.fail(error)
+            # pydantic-ai raises UnexpectedModelBehavior when the model's answers fail its checks
+            # too often (a tool's ModelRetry, output validation): the answers are recorded, so a
+            # retry has to ask the model again rather than replay them into the same error.
+            durable_run.fail(error, model_at_fault=isinstance(error, UnexpectedModelBehavior))
             raise
         finally:
             ledger.settle()

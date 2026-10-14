@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1969,6 +1969,7 @@ dependencies = [
     { name = "dill" },
     { name = "fastapi", extra = ["standard-no-fastapi-cloud-cli"] },
     { name = "httpx" },
+    { name = "httpx2" },
     { name = "importlib-metadata" },
     { name = "isoduration" },
     { name = "itsdangerous" },
@@ -2105,6 +2106,7 @@ requires-dist = [
     { name = "greenlet", marker = "python_full_version < '3.14' and extra == 'async'", specifier = ">=3.1.0" },
     { name = "gunicorn", marker = "extra == 'gunicorn'", specifier = ">=23.0.0,!=25.1.0" },
     { name = "httpx", specifier = ">=0.25.0" },
+    { name = "httpx2", specifier = ">=2.0.0" },
     { name = "importlib-metadata", marker = "python_full_version < '3.12'", specifier = ">=6.5" },
     { name = "importlib-metadata", marker = "python_full_version >= '3.12'", specifier = ">=7.0" },
     { name = "isoduration", specifier = ">=20.11.0" },
@@ -4621,6 +4623,11 @@ openai = [
 opensandbox = [
     { name = "opensandbox" },
 ]
+openshell = [
+    { name = "grpcio" },
+    { name = "openshell" },
+    { name = "protobuf" },
+]
 parquet = [
     { name = "pyarrow" },
 ]
@@ -4654,6 +4661,7 @@ dev = [
     { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
     { name = "boat-sdk" },
+    { name = "grpcio" },
     { name = "islo" },
     { name = "langchain" },
     { name = "llama-index-core" },
@@ -4661,6 +4669,8 @@ dev = [
     { name = "llama-index-llms-openai" },
     { name = "openai" },
     { name = "opensandbox" },
+    { name = "openshell" },
+    { name = "protobuf" },
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
     { name = "sqlglot" },
@@ -4671,7 +4681,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.0.0" },
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.1.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'common-sql'", editable = "providers/common/sql" },
@@ -4684,6 +4694,7 @@ requires-dist = [
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
+    { name = "grpcio", marker = "extra == 'openshell'", specifier = ">=1.78.0" },
     { name = "islo", marker = "extra == 'islo'", specifier = ">=0.3.19" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
@@ -4692,6 +4703,8 @@ requires-dist = [
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.2" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0" },
     { name = "opensandbox", marker = "extra == 'opensandbox'", specifier = ">=1.1.0" },
+    { name = "openshell", marker = "extra == 'openshell'", specifier = ">=0.1.2,<0.2" },
+    { name = "protobuf", marker = "extra == 'openshell'", specifier = ">=6.31.1" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.24.0" },
@@ -4709,11 +4722,11 @@ requires-dist = [
     { name = "structlog", specifier = ">=24.2.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "code-mode", "shields", "skills", "islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "openshell", "code-mode", "shields", "skills", "islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "anthropic", specifier = ">=1.0.0" },
+    { name = "anthropic", specifier = ">=1.1.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
@@ -4724,6 +4737,7 @@ dev = [
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "boat-sdk", specifier = ">=1.9.3" },
+    { name = "grpcio", specifier = ">=1.78.0" },
     { name = "islo", specifier = ">=0.3.19" },
     { name = "langchain", specifier = ">=1.0.0" },
     { name = "llama-index-core", specifier = ">=0.14.5" },
@@ -4731,6 +4745,8 @@ dev = [
     { name = "llama-index-llms-openai", specifier = ">=0.6.8" },
     { name = "openai", specifier = ">=2.47.0" },
     { name = "opensandbox", specifier = ">=1.1.0" },
+    { name = "openshell", specifier = ">=0.1.2,<0.2" },
+    { name = "protobuf", specifier = ">=6.31.1" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.36.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
@@ -9338,7 +9354,7 @@ dependencies = [
     { name = "colorlog" },
     { name = "fsspec" },
     { name = "greenback" },
-    { name = "httpx" },
+    { name = "httpx2" },
     { name = "importlib-metadata", marker = "python_full_version < '3.12'" },
     { name = "isoduration" },
     { name = "jinja2" },
@@ -9357,6 +9373,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "structlog" },
     { name = "tenacity" },
+    { name = "truststore" },
     { name = "typing-extensions" },
 ]
 
@@ -9417,7 +9434,7 @@ requires-dist = [
     { name = "datadog", marker = "extra == 'datadog'", specifier = ">=0.50.0" },
     { name = "fsspec", specifier = ">=2023.10.0" },
     { name = "greenback", specifier = ">=1.2.1" },
-    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "httpx2", specifier = ">=2.0.0" },
     { name = "importlib-metadata", marker = "python_full_version < '3.12'", specifier = ">=6.5" },
     { name = "isoduration", specifier = ">=20.11.0" },
     { name = "jinja2", specifier = ">=3.1.5" },
@@ -9446,6 +9463,7 @@ requires-dist = [
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
     { name = "structlog", specifier = ">=26.1.0" },
     { name = "tenacity", specifier = ">=8.3.0" },
+    { name = "truststore", specifier = ">=0.10.0" },
     { name = "typing-extensions", specifier = ">=4.14.1" },
 ]
 provides-extras = ["all", "datadog", "otel", "sentry", "statsd"]
@@ -18380,6 +18398,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/82/9e/e77844cb2d625ca32331bfdd28930113b3778399c01dd5f1c350ceb55e65/opensearch_py-3.2.0.tar.gz", hash = "sha256:f40fb3a295275422df2ad6d9459f667af94472d5a9e567072e9ecf163eb22613", size = 259927, upload-time = "2026-04-27T18:17:50.467Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/63/7abb96bf2e3619acbd27de99e60619bfacfb7c55b68c4792a258e6d92871/opensearch_py-3.2.0-py3-none-any.whl", hash = "sha256:721a0d3b13fbed9e82278aed748285cf63a1855354ab7e73e3d4992d1b93418b", size = 387286, upload-time = "2026-04-27T18:17:48.658Z" },
+]
+
+[[package]]
+name = "openshell"
+version = "0.1.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cloudpickle" },
+    { name = "googleapis-common-protos" },
+    { name = "grpcio" },
+    { name = "httpx" },
+    { name = "protobuf" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/32/abced5a8175714c36c93bdd0937e019989301f2cb3a9e51c42422bfae7b8/openshell-0.1.3-py3-none-any.whl", hash = "sha256:d1eaa6abcd714e2f19d4a8ecbc2079bebeb7b56d81e9f8d3f5a9b5165ed1956c", size = 131882, upload-time = "2026-10-09T15:23:07.155Z" },
 ]
 
 [[package]]

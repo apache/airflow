@@ -17,7 +17,7 @@
 """
 Make the OpenTelemetry spans of an agent framework other than Pydantic AI part of the task.
 
-.. note:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
+.. note:: Experimental; see :ref:`howto/stability`.
 """
 
 from __future__ import annotations
