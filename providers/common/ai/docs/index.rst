@@ -32,6 +32,8 @@ Start here
 
 - :doc:`why_common_ai`: what this provider handles that an agent in a plain ``@task``
   leaves to you, and when a plain task is enough.
+- :doc:`features`: what the provider can do, with the page, extra, minimum Airflow
+  version and stability of each feature.
 - :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
 - :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
 - :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
@@ -107,6 +109,7 @@ waits for the result, use that vendor's provider.
     :hidden:
     :caption: Guides
 
+    Feature map <features>
     What you can build <use_cases/index>
     Connections <connections/index>
     Models and providers <model_providers>
@@ -114,7 +117,6 @@ waits for the result, use that vendor's provider.
     Operators and decorators <operators/index>
     Toolsets <toolsets/index>
     Agent frameworks <frameworks/index>
-    LLM and agent features <features>
     Document and RAG pipelines <rag_pipelines>
     Reliability and operations <operations>
 
