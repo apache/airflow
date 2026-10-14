@@ -4906,3 +4906,79 @@ class TestKeepsFailureToItsItem:
     def test_the_step_keeps_its_name_and_docstring(self):
         assert self.Steps.step.__name__ == "step"
         assert self.Steps.step.__doc__ == "Raise ``raised`` when given, else return the outcome."
+
+
+class TestIterateOverALoopTask:
+    """What the input of an iterated task holds when it iterates over the output of a task in a loop."""
+
+    @staticmethod
+    def _input_of(iterate_inside_the_loop: bool):
+        """The iterated task and the XComArg of its input, over ``body.produce`` of a two-pass loop."""
+        from airflow.sdk import task, task_group
+        from airflow.sdk.definitions._internal.loop import create_loop
+
+        @task
+        def consume(value):
+            return value
+
+        @task_group
+        def body():
+            @task
+            def produce():
+                return [1, 2]
+
+            produced = produce()
+            if iterate_inside_the_loop:
+                consume.iterate(value=produced)
+
+        with DAG("iterate_loop_output", schedule=None) as dag:
+            create_loop(body, max_iterations=2)
+            if not iterate_inside_the_loop:
+                consume.iterate(value=dag.get_task("body.produce").output)
+
+        iterated = dag.get_task("body.consume" if iterate_inside_the_loop else "consume")
+        assert isinstance(iterated, IterableOperator)
+        return iterated, iterated.expand_input.value["value"]
+
+    def test_inside_the_loop_it_reads_the_pass_it_runs_in(self):
+        """The producer's value of the same pass, so each index is one of that pass's items."""
+        iterated, xcom_arg = self._input_of(iterate_inside_the_loop=True)
+
+        assert xcom_arg._resolve_map_indexes(SimpleNamespace(task=iterated)) is None
+
+    def test_outside_the_loop_it_reads_every_pass(self):
+        """
+        Every pass's value of the loop task, as any task outside the loop reads it: each index is
+        one whole pass's value, not one of the producer's items.
+        """
+        iterated, xcom_arg = self._input_of(iterate_inside_the_loop=False)
+
+        assert isinstance(xcom_arg._resolve_map_indexes(SimpleNamespace(task=iterated)), LazyXComSequence)
+
+    def test_each_pass_checkpoints_under_its_own_task_instance(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        A pass of a loop is a task instance of its own, and an indexed task checkpoints under the one
+        it runs in: the API server keys the task state by that task instance's pass, so the next pass
+        finds no checkpoint of this one and runs every index again.
+        """
+        from airflow.sdk.execution_time.comms import SetTaskStateStore
+
+        iterated, _ = self._input_of(iterate_inside_the_loop=True)
+        written = []
+
+        async def asend(message):
+            if isinstance(message, SetTaskStateStore):
+                written.append(message.ti_id)
+
+        mock_supervisor_comms.asend.side_effect = asend
+        passes = [create_runtime_ti(task=iterated) for _ in range(2)]
+        for ti in passes:
+            indexed = run_of(iterated, ti.get_template_context()).unmapper.unmap(
+                0, {"op_kwargs": {"value": 1}}
+            )
+            asyncio.run(indexed.aset_state(IndexedTaskState(status=TaskInstanceState.SUCCESS)))
+
+        assert written == [ti.id for ti in passes]
+        assert written[0] != written[1]

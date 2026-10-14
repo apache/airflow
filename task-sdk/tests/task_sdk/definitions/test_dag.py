@@ -817,6 +817,56 @@ def test_validate_accepts_expansion_over_a_loop_task_in_the_same_loop():
     dag.validate()
 
 
+def test_validate_accepts_iteration_over_a_loop_task_in_the_same_loop():
+    @task_group
+    def body():
+        @task
+        def produce():
+            return [1, 2]
+
+        _consume.iterate(value=produce())
+
+    with DAG("iterate_inside_loop", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+
+    dag.validate()
+
+
+def _iterate_task_outside(dag):
+    _consume.iterate(value=dag.get_task("produce_body.produce").output)
+
+
+def _iterate_in_another_loop(dag):
+    @task_group
+    def other_body():
+        _consume.iterate(value=dag.get_task("produce_body.produce").output)
+
+    create_loop(other_body, max_iterations=2)
+
+
+@pytest.mark.parametrize(
+    ("build_consumer", "consumer_id"),
+    [
+        pytest.param(_iterate_task_outside, "_consume", id="iterated-task"),
+        pytest.param(_iterate_in_another_loop, "other_body._consume", id="other-loop"),
+    ],
+)
+def test_validate_accepts_iteration_over_a_loop_task_from_outside_the_loop(build_consumer, consumer_id):
+    """
+    An iterated task outside the loop is not a mapped task, so the parse-time check leaves it alone.
+
+    It waits for the loop's gate, as any task outside a loop that reads a loop task does, and at
+    runtime reads every pass's value of the loop task (see test_iterableoperator.py).
+    """
+    with DAG("iterate_loop_output", schedule=None) as dag:
+        create_loop(produce_body, max_iterations=2)
+        build_consumer(dag)
+
+    dag.validate()
+
+    assert dag.get_task(consumer_id).upstream_task_ids == {"produce_body.__loop_gate"}
+
+
 class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
