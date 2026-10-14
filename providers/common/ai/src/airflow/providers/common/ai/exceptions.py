@@ -34,11 +34,12 @@ class ToolApprovalError(RuntimeError):
 
 class ToolApprovalAlreadyRequestedError(AirflowFailException):
     """
-    Raised when a task instance asks for a second tool approval.
+    Raised on Airflow 3.3 when a task instance asks for a second tool approval.
 
-    Airflow keeps one approval request per task instance, across retries and clears, and a
-    second request would show the reviewer the first one's details. The task fails without
-    retrying, since a retry would ask again.
+    Airflow 3.3 keeps one approval request per task instance, across retries and clears, and
+    a second request would show the reviewer the first one's details. The task fails without
+    retrying, since a retry would ask again. Airflow 3.4 replaces a repeat request's details,
+    so there the run pauses again instead.
     """
 
 

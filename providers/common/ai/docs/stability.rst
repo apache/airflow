@@ -50,8 +50,21 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        always dumped to a dict. ``decision_policy`` is experimental; see below.
    * - ``@task.agent`` and :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - Runs an agent with the model from ``llm_conn_id`` and the given toolsets, and
-       returns its output under the same rules as ``@task.llm``. ``durable``,
-       code mode and per-tool approval are experimental; see below.
+       returns its output under the same rules as ``@task.llm``. ``durable`` and
+       code mode are experimental; see below.
+   * - Per-tool approval on ``AgentOperator`` (:doc:`tool_approval`)
+     - On Airflow 3.3 and later, a call to a tool marked with Pydantic AI's approval API
+       (``approval_required(...)`` on a toolset, or ``requires_approval=True`` on a
+       function tool) pauses the task before the tool runs. **Approve** runs the call and
+       the agent carries on; **Reject** tells the agent the call was denied and it carries
+       on without it. ``tool_approval_timeout``, ``on_tool_approval_timeout`` (``"fail"``
+       by default, or ``"deny"``) and ``tool_approval_assigned_users`` keep their meaning.
+       On Airflow 3.4 and later, every later step that calls a marked tool pauses again;
+       on Airflow 3.3 a task instance can ask once per Dag run. With ``durable=True``,
+       ``enable_hitl_review=True`` or a ``SandboxToolset`` that provisions its own sandbox,
+       and on Airflow versions before 3.3, a call to such a tool fails the task; under a
+       ``CodeMode`` capability, a call from ``run_code`` does not run and is reported back
+       to the model.
    * - ``message_history`` on ``AgentOperator``
      - Seeds the run with the given conversation, as a list of messages or its JSON form,
        and publishes the finished conversation under the ``message_history`` XCom key so a
@@ -182,11 +195,6 @@ Everything this provider ships that is not in the table above is experimental.
    * - ``durable=True`` on ``AgentOperator`` (:doc:`durable_execution`)
      - Which tool results are replayed on retry will change, so that a tool can declare
        whether its result may be reused.
-   * - Per-tool approval on ``AgentOperator`` (``tool_approval_timeout``,
-       ``on_tool_approval_timeout`` and ``tool_approval_assigned_users``;
-       :doc:`tool_approval`)
-     - A task instance can pause for approval only once per Dag run, so an agent that
-       needs a second approval later in the run fails. Lifting that limit is planned.
    * - Code mode (:doc:`code_mode`) and the ``shields`` extra (used in
        :doc:`capabilities`)
      - Thin integrations of ``pydantic-ai-harness`` and ``pydantic-ai-shields``, which are

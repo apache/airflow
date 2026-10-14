@@ -69,8 +69,8 @@ with is resolved in the worker and is not part of any of that.
 
 Two controls work on every toolset. ``.approval_required()`` pauses the task before a
 matching call runs, until a person approves or rejects it on the **Required Actions**
-page. It needs Airflow 3.3 or later, pauses a task instance at most once per Dag run,
-and does not combine with ``durable=True`` or a ``SandboxToolset`` that provisions its
+page. It needs Airflow 3.3 or later, pauses at every step that calls a matching tool on
+Airflow 3.4 and later (once per Dag run on 3.3), and does not combine with ``durable=True`` or a ``SandboxToolset`` that provisions its
 own sandbox (:doc:`../tool_approval` lists every limit). ``.filtered()`` drops tools
 from what the model is offered, as the :ref:`MCP guide <howto/toolset:mcp-filtered>`
 shows.

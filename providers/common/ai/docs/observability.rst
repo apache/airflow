@@ -79,8 +79,8 @@ How it works
   With ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial
   model run, not the human-feedback regenerations. A run that resumes after a
   tool approval (see :doc:`tool_approval`) continues as
-  ``<task-instance id>-resumed``, which is the ``run_id`` the operator pushes;
-  ``usage`` covers both parts.
+  ``<task-instance id>-resumed-<n>`` after pause ``n``, which is the ``run_id``
+  the operator pushes; ``usage`` covers every part.
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
   identity keys without ``airflow.task_instance.id``.

@@ -211,8 +211,8 @@ reflection-based adapter, so the work is choosing the method list.
   :ref:`defense-layer table <toolset-defense-layers>` states this outright. Choose
   methods whose worst case you accept, not methods you intend to constrain later.
   To expose a method that changes something and have a person approve the call
-  first, wrap the toolset with ``.approval_required()``. A task instance can pause
-  for approval once per Dag run; see :doc:`../tool_approval`.
+  first, wrap the toolset with ``.approval_required()``. On Airflow 3.3 a task
+  instance can pause for approval only once per Dag run; see :doc:`../tool_approval`.
 - Its calls act as barriers. The tools are registered with ``sequential=True``
   and each hook method runs in a worker thread, one blocking hook call at a time
   in the task process, so a slow call holds up every other tool the model emitted
