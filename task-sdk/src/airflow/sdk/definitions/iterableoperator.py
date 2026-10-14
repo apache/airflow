@@ -29,6 +29,7 @@ from functools import cached_property, partial, wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
+from airflow.sdk._shared.serialization import CLASSNAME, DATA
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
@@ -76,6 +77,10 @@ Outcome = TypeVar("Outcome")
 # callable at all, so the fingerprint digests their items instead, once per run (see
 # IterableOperator._digest_items).
 EAGER_SEQUENCES = (str, bytes, list, tuple)
+
+# How serde names a set and a frozenset it writes: their members come out in iteration order, which
+# for strings depends on the process's hash seed (see IterableOperator._to_canonical_json).
+SET_CLASSNAMES = frozenset({"builtins.set", "builtins.frozenset"})
 
 # The trigger rules under which one skipped upstream task instance skips a task, whatever the other
 # upstream task instances did (see TriggerRuleDep). A skipped iteration has the same effect on a
@@ -1400,8 +1405,8 @@ class IterableOperator(BaseOperator):
         else:
             await executor.run_sync(report)
 
-    @staticmethod
-    def _compute_fingerprint(mapped_kwargs: Mapping[str, Any]) -> str | None:
+    @classmethod
+    def _compute_fingerprint(cls, mapped_kwargs: Mapping[str, Any]) -> str | None:
         """
         Digest one indexed task's input, stored on its checkpoint to tell whether it still applies.
 
@@ -1411,10 +1416,41 @@ class IterableOperator(BaseOperator):
         An input serde cannot serialize has no digest, and its checkpoint is honoured by index alone.
         """
         try:
-            serialized = json.dumps(serialize(mapped_kwargs), sort_keys=True)
+            serialized = cls._to_canonical_json(mapped_kwargs)
         except (TypeError, ValueError, AttributeError, RecursionError):
             return None
         return hashlib.sha256(serialized.encode()).hexdigest()
+
+    @classmethod
+    def _to_canonical_json(cls, value: Any) -> str:
+        """
+        Serialize ``value`` to JSON that reads the same in every process, for a digest.
+
+        ``sort_keys`` orders the keys of every mapping, but serde writes a set's members in iteration
+        order, which for strings depends on the hash seed: a retry in another pod or on a restarted
+        worker would digest the same input differently and run every index again. The members of
+        every set are put in a fixed order as well, only when the JSON names one: a value without a
+        set comes out as plain ``json.dumps(serialize(value), sort_keys=True)``, at the cost of one
+        substring search, and the digests of earlier checkpoints still match. Raises what serde
+        raises.
+        """
+        serialized = serialize(value)
+        text = json.dumps(serialized, sort_keys=True)
+        if not any(classname in text for classname in SET_CLASSNAMES):
+            return text
+        return json.dumps(cls._sort_set_members(serialized), sort_keys=True)
+
+    @classmethod
+    def _sort_set_members(cls, serialized: Any) -> Any:
+        """Return serde's output with the members of every set, at any depth, in a fixed order."""
+        if isinstance(serialized, list):
+            return [cls._sort_set_members(member) for member in serialized]
+        if not isinstance(serialized, dict):
+            return serialized
+        result = {key: cls._sort_set_members(member) for key, member in serialized.items()}
+        if result.get(CLASSNAME) in SET_CLASSNAMES:
+            result[DATA] = sorted(result[DATA], key=partial(json.dumps, sort_keys=True))
+        return result
 
     def _collect_partial_inputs_from_upstream(self, unmapped_task: BaseOperator) -> dict[str, Any]:
         """
@@ -1456,7 +1492,7 @@ class IterableOperator(BaseOperator):
         digest = hashlib.sha256()
         try:
             for item in items:
-                digest.update(json.dumps(serialize(item), sort_keys=True).encode())
+                digest.update(self._to_canonical_json(item).encode())
                 digest.update(b"\n")
                 if self._state.stop_requested():
                     return None

@@ -18,6 +18,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import os
+import subprocess
+import sys
 import threading
 import time
 from collections.abc import Iterator
@@ -83,6 +87,7 @@ from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
 )
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.serde import serialize
 
 from tests_common.test_utils.mock_context import mock_context as _mock_context_base
 
@@ -1193,6 +1198,38 @@ class TestIterableOperator:
             {"a": 2}
         )
         assert IterableOperator._compute_fingerprint({"a": object()}) is None
+
+    def test_fingerprint_of_a_set_is_the_same_in_every_process(self):
+        """
+        serde writes a set's members in iteration order, which for strings follows the hash seed: a
+        retry on a restarted worker must still digest the same input to the same fingerprint.
+        """
+        script = (
+            "from airflow.sdk.definitions.iterableoperator import IterableOperator\n"
+            "print(IterableOperator._compute_fingerprint({'tags': {'alpha', 'beta', 'gamma', 'delta'}, "
+            "'nested': [frozenset({'x', 'y', 'z'})]}))\n"
+        )
+        digests = {
+            subprocess.run(
+                [sys.executable, "-c", script],
+                env={**os.environ, "PYTHONHASHSEED": seed},
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            for seed in ("1", "2", "3")
+        }
+
+        assert len(digests) == 1
+        assert digests.pop() == IterableOperator._compute_fingerprint(
+            {"tags": {"delta", "gamma", "beta", "alpha"}, "nested": [frozenset({"z", "y", "x"})]}
+        )
+
+    def test_canonical_json_of_a_value_without_a_set_is_serdes_own(self):
+        """Only sets are reordered, so a checkpoint written before keeps its fingerprint."""
+        value = {"b": [3, 1, 2], "a": ("x", {"k": None}), "c": "text"}
+
+        assert IterableOperator._to_canonical_json(value) == json.dumps(serialize(value), sort_keys=True)
 
     def test_execute_does_not_leak_unmapped_operator_into_parent_context(self):
         """
