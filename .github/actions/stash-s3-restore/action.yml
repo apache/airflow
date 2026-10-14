@@ -40,9 +40,9 @@ inputs:
     required: false
     default: ''
   bucket:
-    description: 'S3 bucket holding the stashes (the RunsOn stack cache bucket).'
+    description: 'S3 bucket holding the stashes. Defaults to the running RunsOn stack cache bucket.'
     required: false
-    default: 'runs-on-shahar1-s3bucketcache-bnadailbcwed'
+    default: ''
   only-current-branch:
     description: 'Compatibility only — ignored (exact-key match).'
     required: false
@@ -64,9 +64,12 @@ runs:
         STASH_KEY: ${{ inputs.key }}
         STASH_BUCKET: ${{ inputs.bucket }}
         FAIL_ON_DOWNLOAD: ${{ inputs.fail-on-download }}
-        AWS_DEFAULT_REGION: us-east-2
       run: |
         set -uo pipefail
+        # RunsOn exports its stack's cache bucket and region into every job, so the
+        # stash follows whichever stack picked up the job (fork or upstream).
+        STASH_BUCKET="${STASH_BUCKET:-${RUNS_ON_S3_BUCKET_CACHE:?not running on a RunsOn runner}}"
+        export AWS_DEFAULT_REGION="${RUNS_ON_AWS_REGION:?not running on a RunsOn runner}"
         payload="${RUNNER_TEMP:-/tmp}/stash-restore-$$.tar.gz"
         object="cache/airflow-stash/${STASH_KEY}.tar.gz"
         # Probe existence first so a normal cold-cache miss doesn't dump an

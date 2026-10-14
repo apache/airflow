@@ -34,9 +34,9 @@ inputs:
     description: 'File, directory, or glob to archive and upload.'
     required: true
   bucket:
-    description: 'S3 bucket to store the stash in (the RunsOn stack cache bucket).'
+    description: 'S3 bucket to store the stash in. Defaults to the running RunsOn stack cache bucket.'
     required: false
-    default: 'runs-on-shahar1-s3bucketcache-bnadailbcwed'
+    default: ''
   if-no-files-found:
     description: "'error' to fail when path matches nothing, otherwise 'warn'."
     required: false
@@ -54,9 +54,11 @@ runs:
         STASH_PATH: ${{ inputs.path }}
         STASH_BUCKET: ${{ inputs.bucket }}
         IF_NO_FILES_FOUND: ${{ inputs.if-no-files-found }}
-        AWS_DEFAULT_REGION: us-east-2
       run: |
         set -euo pipefail
+        # See stash-s3-restore: bucket and region come from the RunsOn stack running the job.
+        STASH_BUCKET="${STASH_BUCKET:-${RUNS_ON_S3_BUCKET_CACHE:?not running on a RunsOn runner}}"
+        export AWS_DEFAULT_REGION="${RUNS_ON_AWS_REGION:?not running on a RunsOn runner}"
         shopt -s nullglob
         # Expand globs in the path, then keep only entries that actually exist.
         # shellcheck disable=SC2206
