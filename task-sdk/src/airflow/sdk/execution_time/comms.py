@@ -397,9 +397,9 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         Send a request to the parent without blocking.
 
-        The running loop's own lock orders its coroutines; the request itself runs in a worker
-        thread, which takes ``_thread_lock``, writes the request, reads its response and releases
-        the lock, and that lock orders the loops.
+        The running loop's :class:`_LoopQueue` orders its coroutines; the request itself runs in a
+        worker thread, which takes ``_thread_lock``, writes the request, reads its response and
+        releases the lock, and that lock orders the loops.
         Cancelling the await cancels the future, not that thread: a request not sent yet is
         dropped, one already sent has its response drained before the thread lets go of the
         channel, so the next request never reads a response that was not its own, nor finds the
