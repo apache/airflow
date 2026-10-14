@@ -18,22 +18,19 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import json
 import os
 import threading
 import time
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from functools import cached_property, partial, wraps
+from functools import partial, wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
-from airflow.sdk._shared.serialization import CLASSNAME, DATA
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.fingerprint import InputFingerprint
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -56,7 +53,6 @@ from airflow.sdk.execution_time.task_runner import (
     IndexedTaskState,
     _push_xcom_if_needed,
 )
-from airflow.sdk.serde import serialize
 
 if TYPE_CHECKING:
     import jinja2
@@ -70,22 +66,6 @@ if TYPE_CHECKING:
 
 # The outcome an indexed task's step returns, kept as it is by keeps_failure_to_its_indexed_task.
 Outcome = TypeVar("Outcome")
-
-# The sequences an XComArg in a partial kwarg renders to that hold their items. Any other sequence is
-# lazy: an iterated upstream's XComIterable or a mapped upstream's LazyXComSequence, read one XCom per
-# item, or the _MapResult, _ZipResult and _ConcatResult that .map(), .zip() and .concat() wrap around an
-# upstream. serde keeps only a handle of some, fetches the whole of others and cannot serialize a .map()
-# callable at all, so the fingerprint digests their items instead, once per run (see
-# IterableOperator._digest_items).
-EAGER_SEQUENCES = (str, bytes, list, tuple)
-
-# What an item of a lazy upstream value that cannot be read or serialized is digested as, with the name of
-# the exception's type, so that the other items still count (see IterableOperator._digest_items).
-UNREADABLE_ITEM = "__unreadable_item__"
-
-# How serde names a set and a frozenset it writes: their members come out in iteration order, which
-# for strings depends on the process's hash seed (see IterableOperator._to_canonical_json).
-SET_CLASSNAMES = frozenset({"builtins.set", "builtins.frozenset"})
 
 # The trigger rules under which one skipped upstream task instance skips a task, whatever the other
 # upstream task instances did (see TriggerRuleDep). A skipped iteration has the same effect on a
@@ -263,15 +243,10 @@ class IterationState:
         self._kill_threads: list[threading.Thread] = []
         #: The input resolved for this task instance, once ``aresolve`` returned.
         self.resolved: Resolved | None = None
-        #: The digest of each lazy upstream value a partial kwarg holds, by its path, taken once per
-        #: run by whichever indexed task asks first; see upstream_digest.
-        self._upstream_digests: dict[str, str | None] = {}
-        self._upstream_digests_lock = threading.Lock()
-        #: The canonical JSON of the partial kwargs an upstream provides, the same for every index,
-        #: taken once per run by whichever indexed task asks first; see upstream_inputs_json. A
-        #: lock of its own: taking it asks upstream_digest, which holds the one above.
-        self._upstream_inputs: str | None | ArgNotSet = NOTSET
-        self._upstream_inputs_lock = threading.Lock()
+        #: The input fingerprint of this run, made by the first indexed task that asks; see
+        #: input_fingerprint.
+        self._input_fingerprint: InputFingerprint | None = None
+        self._input_fingerprint_lock = threading.Lock()
         #: Whether the operator the task iterates pushes its results, as built for an indexed task:
         #: an operator may set ``do_xcom_push`` in its own ``__init__``, not only through
         #: ``partial()``. The same for every indexed task; True until one is built.
@@ -332,29 +307,17 @@ class IterationState:
         for thread in list(self._kill_threads):
             thread.join(max(0.0, deadline - time.monotonic()))
 
-    def upstream_digest(self, path: str, digest: Callable[[], str | None]) -> str | None:
+    def input_fingerprint(self, make: Callable[[], InputFingerprint]) -> InputFingerprint:
         """
-        Return the digest of the lazy upstream value at ``path``, taken with ``digest`` once per run.
+        Return this run's input fingerprint, made with ``make`` by the first indexed task that asks.
 
-        Indexed tasks are created in worker threads, so the first one to ask reads the upstream while
-        the others wait for its digest instead of reading the upstream again.
+        One per run, as it keeps what is the same for every index of the run; indexed tasks are
+        created in worker threads, so the lock makes sure they all get the same one.
         """
-        with self._upstream_digests_lock:
-            if path not in self._upstream_digests:
-                self._upstream_digests[path] = digest()
-            return self._upstream_digests[path]
-
-    def upstream_inputs_json(self, take: Callable[[], str | None]) -> str | None:
-        """
-        Return the canonical JSON of the partial kwargs from an upstream, taken with ``take`` once per run.
-
-        They are the same for every index, so the first indexed task to ask serializes them and the
-        others reuse its text instead of serializing them again.
-        """
-        with self._upstream_inputs_lock:
-            if isinstance(self._upstream_inputs, ArgNotSet):
-                self._upstream_inputs = take()
-            return self._upstream_inputs
+        with self._input_fingerprint_lock:
+            if self._input_fingerprint is None:
+                self._input_fingerprint = make()
+            return self._input_fingerprint
 
     def stop_requested(self) -> bool:
         """Whether :meth:`request_stop` was called; passed to the executor as its ``stop``."""
@@ -1427,180 +1390,6 @@ class IterableOperator(BaseOperator):
         else:
             await executor.run_sync(report)
 
-    @classmethod
-    def _compute_fingerprint(
-        cls, mapped_kwargs: Mapping[str, Any], upstream_inputs: str | None = ""
-    ) -> str | None:
-        """
-        Digest one indexed task's input, stored on its checkpoint to tell whether it still applies.
-
-        A retry may run on another input than the attempt that wrote the checkpoints: the upstream was
-        cleared together with this task and produced other values. An index then no longer means the
-        same work, and replaying its result would hand downstream a value computed from the old value.
-        An input serde cannot serialize has no digest, and its checkpoint is honoured by index alone.
-
-        :param upstream_inputs: the canonical JSON of the partial kwargs an upstream provides, the
-            same for every index (see :meth:`_canonical_upstream_inputs`): ``""`` when there are
-            none, which leaves the digest that of ``mapped_kwargs`` alone, None when serde cannot
-            serialize them.
-        """
-        if upstream_inputs is None:
-            return None
-        try:
-            serialized = cls._to_canonical_json(mapped_kwargs)
-        except (TypeError, ValueError, AttributeError, RecursionError):
-            return None
-        if upstream_inputs:
-            serialized = f"{serialized}\n{upstream_inputs}"
-        return hashlib.sha256(serialized.encode()).hexdigest()
-
-    def _canonical_upstream_inputs(self, unmapped_task: BaseOperator) -> str | None:
-        """
-        Serialize the partial kwargs an upstream provides for :meth:`_compute_fingerprint`, once per run.
-
-        ``""`` when no partial kwarg comes from an upstream, None when serde cannot serialize one.
-        """
-        inputs = self._collect_partial_inputs_from_upstream(unmapped_task)
-        if not inputs:
-            return ""
-        try:
-            return self._to_canonical_json(inputs)
-        except (TypeError, ValueError, AttributeError, RecursionError):
-            return None
-
-    @classmethod
-    def _to_canonical_json(cls, value: Any) -> str:
-        """
-        Serialize ``value`` to JSON that reads the same in every process, for a digest.
-
-        ``sort_keys`` orders the keys of every mapping, but serde writes a set's members in iteration
-        order, which for strings depends on the hash seed: a retry in another pod or on a restarted
-        worker would digest the same input differently and run every index again. The members of
-        every set are put in a fixed order as well, only when the JSON names one: a value without a
-        set comes out as plain ``json.dumps(serialize(value), sort_keys=True)``, at the cost of one
-        substring search, and the digests of earlier checkpoints still match. Raises what serde
-        raises.
-        """
-        serialized = serialize(value)
-        text = json.dumps(serialized, sort_keys=True)
-        if not any(classname in text for classname in SET_CLASSNAMES):
-            return text
-        return json.dumps(cls._sort_set_members(serialized), sort_keys=True)
-
-    @classmethod
-    def _sort_set_members(cls, serialized: Any) -> Any:
-        """Return serde's output with the members of every set, at any depth, in a fixed order."""
-        if isinstance(serialized, list):
-            return [cls._sort_set_members(member) for member in serialized]
-        if not isinstance(serialized, dict):
-            return serialized
-        result = {key: cls._sort_set_members(member) for key, member in serialized.items()}
-        if result.get(CLASSNAME) in SET_CLASSNAMES:
-            result[DATA] = sorted(result[DATA], key=partial(json.dumps, sort_keys=True))
-        return result
-
-    def _collect_partial_inputs_from_upstream(self, unmapped_task: BaseOperator) -> dict[str, Any]:
-        """
-        Collect the rendered values of the partial kwargs an upstream task provides.
-
-        They belong in the fingerprint next to the iterated kwargs: clearing the upstream together with
-        this task can change them while the input stays the same, and a checkpoint written with the old
-        value must not be replayed. Only XComArg values count, read back from the unmapped operator
-        once rendered, wherever they sit in a partial kwarg: at the top level, or at any depth of the
-        mappings, lists and tuples it holds, such as a ``@task``'s ``op_kwargs`` and ``op_args``. Other
-        templated values are left out on purpose: one like ``{{ ti.try_number }}`` changes with every
-        attempt and would make every checkpoint look stale.
-        """
-        inputs: dict[str, Any] = {}
-        for key, value in self._partial_kwargs_from_upstream.items():
-            self._collect_upstream_values(key, value, getattr(unmapped_task, key, None), inputs)
-        return inputs
-
-    def _digest_items(self, path: str, items: Sequence[Any]) -> str | None:
-        """
-        Digest the items of the lazy upstream value at ``path``, read one at a time by position.
-
-        Each item is serialized on its own and fed to the hash followed by a newline, which JSON never
-        leaves unescaped inside a value, so no item is held longer than it takes to digest it. Two
-        upstream runs of the same length but other items give other digests. Reading the items of a
-        ``.map()`` runs its callables on each of them, as the indexed task does when it reads them.
-
-        An item that cannot be read or serialized (a callable that raises for it) is digested as a
-        fixed marker naming the exception type, and the others still count: a cleared upstream that
-        produced other values changes the digest even when that item fails on both attempts. It must
-        not fail every indexed task either, which may never read that item. A warning names the path,
-        since the indexed tasks then run again, or not, for a reason found in the upstream.
-
-        :meth:`IterationState.stop_requested` is asked before every read, as the executor asks it
-        before every pull: a kill that lands while a large upstream is read ends the read at the
-        next item, and the value gets no digest. No indexed task runs after the kill to use it.
-        """
-        if self._state.stop_requested():
-            return None
-        digest = hashlib.sha256()
-        failed: list[int] = []
-        for position in range(len(items)):
-            try:
-                text = self._to_canonical_json(items[position])
-            except Exception as e:
-                failed.append(position)
-                text = json.dumps({UNREADABLE_ITEM: type(e).__qualname__})
-            digest.update(text.encode())
-            digest.update(b"\n")
-            if self._state.stop_requested():
-                return None
-        if failed:
-            self.log.warning(
-                "Could not read %d of the %d items of %s for the input fingerprint (first at position "
-                "%d); they count as unreadable, so the indexed tasks may run again or replay their "
-                "checkpoints for a reason found in that upstream",
-                len(failed),
-                len(items),
-                path,
-                failed[0],
-            )
-        return digest.hexdigest()
-
-    @cached_property
-    def _partial_kwargs_from_upstream(self) -> dict[str, Any]:
-        """The partial kwargs holding an XComArg at any depth: the same for every index, so found once."""
-        return {
-            key: value
-            for key, value in self.partial_kwargs.items()
-            if any(XComArg.iter_xcom_references(value))
-        }
-
-    def _collect_upstream_values(
-        self, path: str, declared: Any, rendered: Any, inputs: dict[str, Any]
-    ) -> None:
-        """
-        Record under its path the rendered value of every XComArg in ``declared``, at any depth.
-
-        ``declared`` is a partial kwarg as written in the DAG and ``rendered`` the same value once
-        rendered, walked side by side: a mapping by key (``op_kwargs.cfg.x``), a list or tuple by
-        position (``op_args[0]``). A part rendered into another shape than it was declared in is
-        recorded as None. A lazy sequence, any but :data:`EAGER_SEQUENCES`, is recorded as the digest
-        of its items, taken once per run (see :meth:`IterationState.upstream_digest`).
-        """
-        if isinstance(declared, XComArg):
-            inputs[path] = (
-                self._state.upstream_digest(path, partial(self._digest_items, path, rendered))
-                if isinstance(rendered, Sequence) and not isinstance(rendered, EAGER_SEQUENCES)
-                else rendered
-            )
-        elif isinstance(declared, Mapping):
-            for name, nested in declared.items():
-                value = rendered.get(name) if isinstance(rendered, Mapping) else None
-                self._collect_upstream_values(f"{path}.{name}", nested, value, inputs)
-        elif isinstance(declared, (list, tuple)):
-            for position, nested in enumerate(declared):
-                value = (
-                    rendered[position]
-                    if isinstance(rendered, (list, tuple)) and position < len(rendered)
-                    else None
-                )
-                self._collect_upstream_values(f"{path}[{position}]", nested, value, inputs)
-
     def _create_indexed_task(
         self,
         context: Context,
@@ -1629,11 +1418,12 @@ class IterableOperator(BaseOperator):
         # and store view), not the parent's: a template must read the same values as execute() does.
         self._render_unmapped_operator(indexed_ti.context_for(context), unmapped_task, jinja_env)
         # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
-        # Those are the same for every index and serialized once per run.
-        indexed_ti.input_fingerprint = self._compute_fingerprint(
-            mapped_kwargs,
-            self._state.upstream_inputs_json(partial(self._canonical_upstream_inputs, unmapped_task)),
+        fingerprint = self._state.input_fingerprint(
+            partial(
+                InputFingerprint, self.partial_kwargs, stop_requested=self._state.stop_requested, log=self.log
+            )
         )
+        indexed_ti.input_fingerprint = fingerprint.of(mapped_kwargs, unmapped_task)
         return indexed_ti
 
     def execute(self, context: Context):

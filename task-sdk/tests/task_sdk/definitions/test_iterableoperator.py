@@ -28,7 +28,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from functools import partial
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, call, create_autospec, patch
@@ -56,6 +55,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     ListOfDictsExpandInput,
     Resolved,
 )
+from airflow.sdk.definitions._internal.fingerprint import InputFingerprint
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.iterableoperator import (
     Checkpoints,
@@ -113,6 +113,13 @@ class RefusingConstructor:
 
     def __post_init__(self):
         raise TypeError("the constructor refuses this value")
+
+
+def fingerprint_of_a_run(iterable_op: IterableOperator) -> InputFingerprint:
+    """The input fingerprint one run of ``iterable_op`` uses, with the run's stop flag and logger."""
+    return InputFingerprint(
+        iterable_op.partial_kwargs, stop_requested=iterable_op._state.stop_requested, log=iterable_op.log
+    )
 
 
 class MockTaskStateStoreAccessor:
@@ -1023,7 +1030,7 @@ class TestIterableOperator:
                 store._data["_iterable_0"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS,
                     result="from_checkpoint",
-                    fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
+                    fingerprint=InputFingerprint.digest({"arg1": 1}),
                 ).serialize()
                 store._data["_iterable_1"] = IndexedTaskState(
                     status=TaskInstanceState.UP_FOR_RETRY
@@ -1055,7 +1062,7 @@ class TestIterableOperator:
                 store._data["_iterable_0"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS,
                     result="from_checkpoint",
-                    fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
+                    fingerprint=InputFingerprint.digest({"arg1": 1}),
                 ).serialize()
                 original_aget = store.aget
 
@@ -1106,7 +1113,7 @@ class TestIterableOperator:
                 store._data["_iterable_0"] = {
                     **IndexedTaskState(
                         status=TaskInstanceState.SUCCESS,
-                        fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
+                        fingerprint=InputFingerprint.digest({"arg1": 1}),
                     ).serialize(),
                     "result": {CLASSNAME: classname, VERSION: version, DATA: data},
                 }
@@ -1143,7 +1150,7 @@ class TestIterableOperator:
                 store._data["_iterable_0"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS,
                     result="from_checkpoint",
-                    fingerprint=IterableOperator._compute_fingerprint({"arg1": 1}),
+                    fingerprint=InputFingerprint.digest({"arg1": 1}),
                 ).serialize()
 
                 with patch.object(IterableOperator, "axcom_push", axcom_push_failing_the_first_item):
@@ -1175,30 +1182,26 @@ class TestIterableOperator:
                 store._data["_iterable_0"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS,
                     result="from_the_old_item",
-                    fingerprint=IterableOperator._compute_fingerprint({"arg1": "old"}),
+                    fingerprint=InputFingerprint.digest({"arg1": "old"}),
                 ).serialize()
                 store._data["_iterable_1"] = IndexedTaskState(
                     status=TaskInstanceState.SUCCESS,
                     result="from_checkpoint",
-                    fingerprint=IterableOperator._compute_fingerprint({"arg1": 2}),
+                    fingerprint=InputFingerprint.digest({"arg1": 2}),
                 ).serialize()
 
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == [("new", None, None), "from_checkpoint"]
-                assert store["_iterable_0"]["fingerprint"] == IterableOperator._compute_fingerprint(
-                    {"arg1": "new"}
-                )
+                assert store["_iterable_0"]["fingerprint"] == InputFingerprint.digest({"arg1": "new"})
 
     def test_fingerprint(self):
         """The digest follows the content, not the key order, and gives up on what serde cannot serialize."""
-        assert IterableOperator._compute_fingerprint(
-            {"a": 1, "b": [1, 2]}
-        ) == IterableOperator._compute_fingerprint({"b": [1, 2], "a": 1})
-        assert IterableOperator._compute_fingerprint({"a": 1}) != IterableOperator._compute_fingerprint(
-            {"a": 2}
+        assert InputFingerprint.digest({"a": 1, "b": [1, 2]}) == InputFingerprint.digest(
+            {"b": [1, 2], "a": 1}
         )
-        assert IterableOperator._compute_fingerprint({"a": object()}) is None
+        assert InputFingerprint.digest({"a": 1}) != InputFingerprint.digest({"a": 2})
+        assert InputFingerprint.digest({"a": object()}) is None
 
     def test_fingerprint_of_a_set_is_the_same_in_every_process(self):
         """
@@ -1206,8 +1209,8 @@ class TestIterableOperator:
         retry on a restarted worker must still digest the same input to the same fingerprint.
         """
         script = (
-            "from airflow.sdk.definitions.iterableoperator import IterableOperator\n"
-            "print(IterableOperator._compute_fingerprint({'tags': {'alpha', 'beta', 'gamma', 'delta'}, "
+            "from airflow.sdk.definitions._internal.fingerprint import InputFingerprint\n"
+            "print(InputFingerprint.digest({'tags': {'alpha', 'beta', 'gamma', 'delta'}, "
             "'nested': [frozenset({'x', 'y', 'z'})]}))\n"
         )
         digests = {
@@ -1222,7 +1225,7 @@ class TestIterableOperator:
         }
 
         assert len(digests) == 1
-        assert digests.pop() == IterableOperator._compute_fingerprint(
+        assert digests.pop() == InputFingerprint.digest(
             {"tags": {"delta", "gamma", "beta", "alpha"}, "nested": [frozenset({"z", "y", "x"})]}
         )
 
@@ -1232,32 +1235,43 @@ class TestIterableOperator:
             iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
         iterable_op.partial_kwargs = {"arg2": make_xcom_arg(None)}
         rendered = SimpleNamespace(arg2=[{"id": i} for i in range(5)])
-        take = partial(iterable_op._canonical_upstream_inputs, rendered)
+        fingerprint = fingerprint_of_a_run(iterable_op)
 
         with patch.object(
-            IterableOperator, "_to_canonical_json", wraps=IterableOperator._to_canonical_json
+            InputFingerprint, "to_canonical_json", wraps=InputFingerprint.to_canonical_json
         ) as to_canonical_json:
-            texts = {iterable_op._state.upstream_inputs_json(take) for _ in range(3)}
+            texts = {fingerprint.upstream_json(rendered) for _ in range(3)}
 
         assert to_canonical_json.call_count == 1
-        assert texts == {IterableOperator._to_canonical_json({"arg2": rendered.arg2})}
+        assert texts == {InputFingerprint.to_canonical_json({"arg2": rendered.arg2})}
 
     def test_fingerprint_follows_the_upstream_inputs(self):
         """Other upstream inputs give another fingerprint; none leaves the input's own digest as it was."""
-        own = IterableOperator._compute_fingerprint({"arg1": 1})
+        own = InputFingerprint.digest({"arg1": 1})
 
-        assert IterableOperator._compute_fingerprint({"arg1": 1}, "") == own
-        assert IterableOperator._compute_fingerprint({"arg1": 1}, '{"arg2": [1]}') != own
-        assert IterableOperator._compute_fingerprint(
-            {"arg1": 1}, '{"arg2": [1]}'
-        ) != IterableOperator._compute_fingerprint({"arg1": 1}, '{"arg2": [2]}')
-        assert IterableOperator._compute_fingerprint({"arg1": 1}, None) is None
+        assert InputFingerprint.digest({"arg1": 1}, "") == own
+        assert InputFingerprint.digest({"arg1": 1}, '{"arg2": [1]}') != own
+        assert InputFingerprint.digest({"arg1": 1}, '{"arg2": [1]}') != InputFingerprint.digest(
+            {"arg1": 1}, '{"arg2": [2]}'
+        )
+        assert InputFingerprint.digest({"arg1": 1}, None) is None
+
+    def test_an_upstream_input_serde_cannot_serialize_leaves_no_fingerprint(self):
+        """Like an input of its own serde refuses, the checkpoint is then honoured by index alone."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
+        iterable_op.partial_kwargs = {"arg2": make_xcom_arg(None)}
+        rendered = SimpleNamespace(arg2=object())
+        fingerprint = fingerprint_of_a_run(iterable_op)
+
+        assert fingerprint.upstream_json(rendered) is None
+        assert fingerprint.of({"arg1": "a"}, rendered) is None
 
     def test_canonical_json_of_a_value_without_a_set_is_serdes_own(self):
         """Only sets are reordered, so a checkpoint written before keeps its fingerprint."""
         value = {"b": [3, 1, 2], "a": ("x", {"k": None}), "c": "text"}
 
-        assert IterableOperator._to_canonical_json(value) == json.dumps(serialize(value), sort_keys=True)
+        assert InputFingerprint.to_canonical_json(value) == json.dumps(serialize(value), sort_keys=True)
 
     def test_execute_does_not_leak_unmapped_operator_into_parent_context(self):
         """
@@ -2064,8 +2078,8 @@ class TestIterableOperator:
                 checkpoint = context["task_state_store"]["_iterable_0"]
 
         assert checkpoint["status"] == "up_for_retry"
-        assert IterableOperator._compute_fingerprint(failing) is not None
-        assert checkpoint["fingerprint"] == IterableOperator._compute_fingerprint(failing)
+        assert InputFingerprint.digest(failing) is not None
+        assert checkpoint["fingerprint"] == InputFingerprint.digest(failing)
         assert checkpoint["try_number"] == 3
 
     def test_parent_timeout_runs_the_retry_callback_while_retries_are_left(self):
@@ -4258,7 +4272,7 @@ class TestFingerprintCoversPartialInputsFromUpstream:
             "retries": 2,
         }
 
-        inputs = iterable_op._collect_partial_inputs_from_upstream(rendered)
+        inputs = fingerprint_of_a_run(iterable_op).upstream_inputs(rendered)
 
         assert inputs == {
             "arg2": "rendered-arg2",
@@ -4318,12 +4332,10 @@ class TestFingerprintCoversPartialInputsFromUpstream:
             patch.object(type(lazy), "__getitem__", read_item),
             patch.object(type(lazy), "__len__", lambda self: len(items[0])),
         ):
-            first_run = [
-                iterable_op._collect_partial_inputs_from_upstream(rendered)["arg2"] for _ in range(3)
-            ]
-            iterable_op._state = IterationState()
+            fingerprint = fingerprint_of_a_run(iterable_op)
+            first_run = [fingerprint.upstream_inputs(rendered)["arg2"] for _ in range(3)]
             items[0] = [1, 3]
-            second_run = iterable_op._collect_partial_inputs_from_upstream(rendered)["arg2"]
+            second_run = fingerprint_of_a_run(iterable_op).upstream_inputs(rendered)["arg2"]
 
         assert len(reads) == 2
         assert len(set(first_run)) == 1
@@ -4336,7 +4348,7 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
         iterable_op.partial_kwargs = {"arg2": make_xcom_arg(None)}
-        return iterable_op._collect_partial_inputs_from_upstream(SimpleNamespace(arg2=rendered_value))["arg2"]
+        return fingerprint_of_a_run(iterable_op).upstream_inputs(SimpleNamespace(arg2=rendered_value))["arg2"]
 
     COMPOSITIONS = {
         "map": lambda upstream: _MapResult(upstream, [lambda item: item * 10]),
@@ -4389,7 +4401,7 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         if killed_while_reading is None:
             iterable_op._state.request_stop()
         with patch.object(XComIterable, "__getitem__", read_item):
-            recorded = iterable_op._collect_partial_inputs_from_upstream(SimpleNamespace(arg2=upstream))
+            recorded = fingerprint_of_a_run(iterable_op).upstream_inputs(SimpleNamespace(arg2=upstream))
 
         assert recorded["arg2"] is None
         assert reads == expected_reads
