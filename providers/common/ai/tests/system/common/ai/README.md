@@ -99,3 +99,20 @@ the one sandbox when the run ends, and requests open egress
 A 15-minute server-side TTL stops the sandbox if worker-side teardown cannot run; the
 backend creates it without snapshots or monitoring, so stopping it erases its disk and Boat
 keeps no history of its commands.
+
+## OpenShell
+
+Install the OpenShell extra, register the gateway the way the
+`openshell` CLI does, under `$XDG_CONFIG_HOME/openshell/gateways/<name>/` (`metadata.json`
+plus `mtls/ca.crt`, `mtls/tls.crt` and `mtls/tls.key`), and run:
+
+```console
+pip install "apache-airflow-providers-common-ai[openshell]"
+export OPENSHELL_GATEWAY="<name>"
+pytest --system providers/common/ai/tests/system/common/ai/example_sandbox_toolset_openshell.py
+```
+
+The test uses the default deny-all policy and a `python:3.12-slim` sandbox, and checks
+that a timed-out command leaves no process behind and that egress is refused. OpenShell
+has no server-side sandbox lifetime, so a test killed mid-run leaves its sandbox, labelled
+`created-by=airflow`, for you to delete.

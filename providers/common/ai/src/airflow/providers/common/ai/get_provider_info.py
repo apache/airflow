@@ -83,6 +83,11 @@ def get_provider_info():
                 "tags": ["software"],
             },
             {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
+            {
+                "integration-name": "NVIDIA OpenShell",
+                "external-doc-url": "https://github.com/NVIDIA/OpenShell",
+                "tags": ["software"],
+            },
         ],
         "hooks": [
             {
