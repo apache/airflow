@@ -54,6 +54,9 @@ from airflowctl.exceptions import (
     AirflowCtlNotFoundException,
 )
 
+UUID_A = "0199f0a8-0000-7000-8000-000000000001"
+UUID_B = "0199f0a8-0000-7000-8000-000000000002"
+
 
 @pytest.fixture
 def no_op_method():
@@ -882,30 +885,59 @@ class TestCliConfigMethods:
         assert "--output" in args_by_flag
 
     @pytest.mark.parametrize(
-        ("raw_task_ids", "expected_task_ids"),
+        ("field", "raw_value", "expected_value"),
         [
-            ("task_1", ["task_1"]),
-            ("task_1,task_2", ["task_1", "task_2"]),
-            (" task_1 , task_2 ,", ["task_1", "task_2"]),
-            ('["task_1", ["mapped_task", 0]]', ["task_1", ["mapped_task", 0]]),
-            (None, None),
+            ("task_ids", "task_1", ["task_1"]),
+            ("task_ids", "task_1,task_2", ["task_1", "task_2"]),
+            ("task_ids", " task_1 , task_2 ,", ["task_1", "task_2"]),
+            ("task_ids", '["task_1", ["mapped_task", 0]]', ["task_1", ["mapped_task", 0]]),
+            ("task_ids", None, None),
+            ("task_instance_ids", f"{UUID_A},{UUID_B}", [UUID_A, UUID_B]),
+            ("task_instance_ids", f'["{UUID_A}"]', [UUID_A]),
+            ("task_instance_ids", None, None),
+            ("whole_expansion_ids", f" {UUID_A} , {UUID_B} ,", [UUID_A, UUID_B]),
+            ("whole_expansion_ids", f'["{UUID_A}"]', [UUID_A]),
+            ("whole_expansion_ids", None, None),
         ],
     )
-    def test_apply_datamodel_defaults_clear_task_instances_task_ids(self, raw_task_ids, expected_task_ids):
-        """Test _apply_datamodel_defaults parses --task-ids strings for ClearTaskInstancesBody."""
+    def test_apply_datamodel_defaults_clear_task_instances_list_fields(
+        self, field, raw_value, expected_value
+    ):
+        """Test _apply_datamodel_defaults parses list option strings for ClearTaskInstancesBody."""
         command_factory = CommandFactory()
         result = command_factory._apply_datamodel_defaults(
-            ClearTaskInstancesBody, {"task_ids": raw_task_ids, "dry_run": True}
+            ClearTaskInstancesBody, {field: raw_value, "dry_run": True}
         )
 
-        assert result["task_ids"] == expected_task_ids
+        assert result[field] == expected_value
         assert result["dry_run"] is True
 
-    def test_apply_datamodel_defaults_clear_task_instances_invalid_json_task_ids(self):
-        """Test _apply_datamodel_defaults rejects malformed JSON lists passed to --task-ids."""
+    @pytest.mark.parametrize(
+        ("field", "flag"),
+        [
+            ("task_ids", "--task-ids"),
+            ("task_instance_ids", "--task-instance-ids"),
+            ("whole_expansion_ids", "--whole-expansion-ids"),
+        ],
+    )
+    def test_apply_datamodel_defaults_clear_task_instances_invalid_json_list_fields(self, field, flag):
+        """Test _apply_datamodel_defaults rejects malformed JSON lists passed to list options."""
         command_factory = CommandFactory()
-        with pytest.raises(SystemExit, match="Invalid JSON list for --task-ids"):
-            command_factory._apply_datamodel_defaults(ClearTaskInstancesBody, {"task_ids": '["oops'})
+        with pytest.raises(SystemExit, match=f"Invalid JSON list for {flag}"):
+            command_factory._apply_datamodel_defaults(ClearTaskInstancesBody, {field: '["oops'})
+
+    def test_clear_task_instances_body_accepts_parsed_list_fields(self):
+        """Test the parsed --task-instance-ids and --whole-expansion-ids values validate."""
+        command_factory = CommandFactory()
+        params = command_factory._apply_datamodel_defaults(
+            ClearTaskInstancesBody,
+            {"task_instance_ids": f"{UUID_A},{UUID_B}", "whole_expansion_ids": UUID_A},
+        )
+
+        body = ClearTaskInstancesBody.model_validate(params)
+
+        assert [str(ti_id) for ti_id in body.task_instance_ids.root] == [UUID_A, UUID_B]
+        assert [str(ti_id) for ti_id in body.whole_expansion_ids] == [UUID_A]
 
     @pytest.mark.parametrize(
         ("group_name", "subcommand_name", "expected_help"),

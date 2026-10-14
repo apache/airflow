@@ -105,6 +105,7 @@ waits for the result, use that vendor's provider.
     What you can build <use_cases/index>
     Connections <connections/index>
     Models and providers <model_providers>
+    Supported services <supported_services>
     Operators and decorators <operators/index>
     Toolsets <toolsets/index>
     Agent frameworks <frameworks/index>
@@ -180,7 +181,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.21.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
-``pydantic-ai-slim``                        ``>=2.33.0``
+``pydantic-ai-slim``                        ``>=2.36.0``
 ``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 
@@ -219,17 +220,19 @@ Install them when installing from PyPI. For example:
 ===============  =======================================================================================================================================
 Extra            Dependencies
 ===============  =======================================================================================================================================
-``anthropic``    ``pydantic-ai-slim[anthropic]>=2.33.0``, ``anthropic>=1.0.0``
-``bedrock``      ``pydantic-ai-slim[bedrock]>=2.33.0``
-``google``       ``pydantic-ai-slim[google]>=2.33.0``
-``openai``       ``pydantic-ai-slim[openai]>=2.33.0``, ``openai>=2.47.0``
+``anthropic``    ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.0.0``
+``bedrock``      ``pydantic-ai-slim[bedrock]>=2.36.0``
+``google``       ``pydantic-ai-slim[google]>=2.36.0``
+``openai``       ``pydantic-ai-slim[openai]>=2.36.0``, ``openai>=2.47.0``
 ``typesafe``     ``typesafe-sdk>=0.6.0``
-``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
+``mcp``          ``pydantic-ai-slim[mcp]>=2.36.0``
 ``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
+``boat``         ``boat-sdk>=1.9.3``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.24.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
 ``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
+``islo``         ``islo>=0.3.19``
 ``avro``         ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``      ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
 ``sql``          ``apache-airflow-providers-common-sql>=2.2.0``, ``sqlglot>=30.0.0``

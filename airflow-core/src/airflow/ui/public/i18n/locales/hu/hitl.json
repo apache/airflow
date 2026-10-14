@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "Szükséges művelet",
   "requiredAction_other": "Szükséges műveletek",
-  "requiredActionCount_one": "Szükséges teendők ({{count}})",
-  "requiredActionCount_other": "Szükséges teendők ({{count}})",
+  "requiredActionCount_one": "Szükséges teendők ({{count, number}})",
+  "requiredActionCount_other": "Szükséges teendők ({{count, number}})",
   "requiredActionState": "Szükséges művelet állapota",
   "response": {
     "created": "Válasz létrehozva: ",

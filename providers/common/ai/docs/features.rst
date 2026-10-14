@@ -26,6 +26,8 @@ you use. Each is a parameter on the operator or decorator.
 - :doc:`structured_output`: ``output_type`` returns a typed Pydantic object through XCom
   instead of a string.
 - :doc:`message_history`: ``message_history`` carries a conversation across agent runs.
+- :doc:`memory`: pydantic-ai-harness ``Memory`` gives an agent notes it writes in one Dag
+  run and reads in the next.
 - :doc:`capabilities`: ``capabilities=`` adds pydantic-ai capabilities such as ``Thinking`` and
   ``WebSearch``, and ``pydantic-ai-shields`` guardrails, to an agent.
 - :doc:`code_mode`: the ``CodeMode`` capability lets the model call several tools from one
@@ -50,6 +52,7 @@ Making retries cheap with ``durable=True`` is a reliability feature and lives un
 
     Structured output <structured_output>
     Message history <message_history>
+    Agent memory <memory>
     Capabilities and guardrails <capabilities>
     Code mode <code_mode>
     Approve outputs <approval_gates>

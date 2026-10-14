@@ -32,7 +32,7 @@ import kotlin.Throws
  *
  * Create a [DagDef] directly and register [TaskDef]s with [addTask].
  *
- * The [Builder.Dag] annotation should generally be preferred in user code,
+ * The [Airflow.Dag] annotation should generally be preferred in user code,
  * where the annotation processor generates the wiring for you. Only use this
  * class directly if you need to do low-level plumbing:
  *
@@ -42,13 +42,17 @@ import kotlin.Throws
  * extract.before(dag.task("load", Load.class));
  * ```
  *
- * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
- *    dashes, dots, or underscores; must be unique within a [Bundle].
+ * Dag and task IDs are validated authoritatively by the Airflow server. This
+ * class accepts any ID; IDs the server would reject are reported as
+ * best-effort build-time warnings by the Gradle plugin's `checkAirflowBundle`
+ * task, which runs [BundleInspector] against the assembled [Bundle].
  *
- * @see Builder.Dag
+ * @param id Dag identifier; must be unique within a [Bundle].
+ *
+ * @see Airflow.Dag
  */
 class DagDef(
-  val id: String, // TODO: charset check?
+  val id: String,
 ) {
   internal val tasks = linkedMapOf<String, TaskDef>()
   internal val dagConfig = linkedMapOf<String, Any>()
@@ -423,7 +427,7 @@ private val EMPTY_GROUP_EDGES = GroupEdges()
  *    declared input cannot be bound, so that a mis-declared input fails while
  *    the [Bundle] is built rather than mid-run.
  *
- * @see Builder.Task
+ * @see Airflow.Task
  */
 class TaskDef(
   val id: String,
@@ -496,7 +500,7 @@ class TaskDef(
 /**
  * A single unit of work executed by Airflow.
  *
- * Prefer using the [Builder.Task] annotation with [Builder.Dag] to have the
+ * Prefer using the [Airflow.Task] annotation with [Airflow.Dag] to have the
  * annotation processor generate an implementation for you. Only use this
  * interface if you need to do low-level plumbing.
  *
@@ -507,8 +511,8 @@ class TaskDef(
  * Implement [InputTask] instead for a task the Python Dag file calls with
  * TaskFlow arguments; the SDK then resolves those arguments and injects them.
  *
- * @see Builder.Dag
- * @see Builder.Task
+ * @see Airflow.Dag
+ * @see Airflow.Task
  * @see InputTask
  */
 interface Task {

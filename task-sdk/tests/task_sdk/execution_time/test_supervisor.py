@@ -274,6 +274,42 @@ class TestSupervisor:
             with expectation:
                 supervise_task(**kw)
 
+    def test_supervise_task_logs_config_hint_on_connection_error(self, mocker, tmp_path):
+        """Test that a connection failure reaching the Execution API is surfaced in the task
+        log, naming the responsible config, and still propagates."""
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+        server = "http://nonexistent-api-server:8080/execution/"
+        coordinator = mocker.Mock(spec=BaseCoordinator)
+        coordinator.execute_task.side_effect = httpx.ConnectError("Name or service not known")
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.get_coordinator_manager", autospec=True
+        ).return_value.for_queue.return_value = coordinator
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}), pytest.raises(httpx.ConnectError):
+            supervise_task(
+                ti=ti,
+                dag_rel_path="c.py",
+                token="",
+                server=server,
+                client=mocker.Mock(spec=sdk_client.Client),
+                bundle_info=BundleInfo(name="my-bundle", version=None),
+                log_path="attempt=1.log",
+            )
+
+        entries = [json.loads(line) for line in (tmp_path / "attempt=1.log").read_text().splitlines()]
+        assert [(e["level"], e["event"]) for e in entries] == [("info", "::endgroup::"), ("error", mock.ANY)]
+        assert "execution_api_server_url" in entries[1]["event"]
+        assert "base_url" in entries[1]["event"]
+        assert entries[1]["server"] == server
+
 
 def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
     error = ServerResponseError.from_response(
@@ -980,7 +1016,10 @@ class TestWatchedSubprocess:
         assert proc.wait() == 0
         spy_agency.assert_spy_not_called(heartbeat_spy)
 
-    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
+    @pytest.mark.parametrize("log_to_file", [False, True])
+    def test_run_simple_dag(
+        self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start, tmp_path, log_to_file
+    ):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
@@ -1007,8 +1046,15 @@ class TestWatchedSubprocess:
                 dry_run=True,
                 client=client_with_ti_start,
                 bundle_info=bundle_info,
+                log_path=str(tmp_path / "task.log") if log_to_file else None,
             )
             assert exit_code == 0, captured_logs
+
+        if log_to_file:
+            records = [json.loads(line) for line in (tmp_path / "task.log").read_text().splitlines()]
+            greeting = next(record for record in records if record.get("event") == "Hello World hello!")
+            assert greeting["ti_id"] == str(ti.id)
+            return
 
         # We should have a log from the task!
         assert {
@@ -2431,6 +2477,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value="test_value"),
         ),
         expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
@@ -2443,6 +2490,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", 2, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value="test_value"),
         ),
         expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
@@ -2453,6 +2501,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
@@ -2469,6 +2518,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, True),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
@@ -2491,7 +2541,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 None,
             ),
-            kwargs={"dag_result": False, "mapped_length": None},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom",
@@ -2515,7 +2568,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 2,
             ),
-            kwargs={"dag_result": False, "mapped_length": None},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_map_index",
@@ -2540,7 +2596,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 2,
             ),
-            kwargs={"dag_result": False, "mapped_length": 3},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": 3,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_map_index_and_mapped_length",
@@ -2564,7 +2623,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 None,
             ),
-            kwargs={"dag_result": True, "mapped_length": None},
+            kwargs={
+                "dag_result": True,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_dag_result",
@@ -3444,6 +3506,8 @@ REQUEST_TEST_CASES = [
                 "task_id": "test_task",
                 "dag_id": "test_dag",
                 "run_id": "prev_run",
+                "region_id": None,
+                "region_index": None,
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
                 "start_date": timezone.parse("2024-01-14T12:05:00Z"),
                 "end_date": timezone.parse("2024-01-14T12:10:00Z"),
@@ -3558,6 +3622,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_item",
             args=("test_dag", "test_run", "test_task", "test_key", 0),
+            kwargs={"previous_iteration": False},
             response=XComSequenceIndexResult(root="test_value"),
         ),
         test_id="get_xcom_seq_item",
@@ -3574,6 +3639,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_item",
             args=("test_dag", "test_run", "test_task", "test_key", 2),
+            kwargs={"previous_iteration": False},
             response=ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
         ),
         test_id="get_xcom_seq_item_not_found",
@@ -3593,6 +3659,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_slice",
             args=("test_dag", "test_run", "test_task", "test_key", None, None, None, False),
+            kwargs={"previous_iteration": False},
             response=XComSequenceSliceResult(root=["foo", "bar"]),
         ),
         test_id="get_xcom_seq_slice",
@@ -3655,6 +3722,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.head",
             args=("test_dag", "test_run", "test_task", "test_key"),
+            kwargs={"previous_iteration": False},
             response=XComCountResponse(len=5),
         ),
         test_id="get_xcom_count",
@@ -5748,6 +5816,60 @@ def test_activity_start_opts_into_fork_exec(monkeypatch, mocker, task_uses_exec,
 
     assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
     assert base_start.call_args.kwargs["target"] is target
+
+
+@pytest.mark.parametrize(
+    ("task_uses_exec", "target", "expected_calls"),
+    [
+        pytest.param(False, supervisor._subprocess_main, ["import task runner", "fork"], id="bare-fork"),
+        pytest.param(True, supervisor._subprocess_main, ["fork"], id="exec"),
+        pytest.param(False, lambda: None, ["fork"], id="test-target"),
+    ],
+)
+def test_activity_start_imports_task_runner_before_bare_fork(
+    monkeypatch, mocker, task_uses_exec, target, expected_calls
+):
+    """A forked task process inherits the task runner from the supervisor; a spawned one imports its own."""
+    calls = []
+
+    def fork(*args, **kwargs):
+        calls.append("fork")
+        return MagicMock(spec=ActivitySubprocess)
+
+    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    mocker.patch.object(
+        supervisor,
+        "_import_task_runner_before_fork",
+        autospec=True,
+        side_effect=lambda: calls.append("import task runner"),
+    )
+    mocker.patch.object(supervisor.WatchedSubprocess, "start", autospec=True, side_effect=fork)
+
+    ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        client=MagicMock(spec=sdk_client.Client),
+        target=target,
+        logger=MagicMock(),
+    )
+
+    assert calls == expected_calls
+
+
+def test_import_task_runner_before_fork_leaves_import_errors_to_the_child(monkeypatch):
+    """A task runner that fails to import is reported by the child, which imports it again."""
+    monkeypatch.setitem(sys.modules, "airflow.sdk.execution_time.task_runner", None)
+
+    supervisor._import_task_runner_before_fork()
 
 
 class TestTaskProcessUsesExec:

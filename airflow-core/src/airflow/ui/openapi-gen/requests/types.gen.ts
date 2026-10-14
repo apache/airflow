@@ -78,6 +78,7 @@ export type AssetEventResponse = {
     source_dag_id?: string | null;
     source_run_id?: string | null;
     source_map_index: number;
+    source_task_instance_id?: string | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
@@ -193,6 +194,10 @@ export type AssetStateStoreLastUpdatedBy = {
     run_id?: string | null;
     task_id?: string | null;
     map_index?: number | null;
+    task_instance_id?: string | null;
+    region_id?: string;
+    region_index?: number;
+    try_number?: number | null;
 };
 
 /**
@@ -589,6 +594,8 @@ export type BulkResponse = {
  */
 export type BulkTaskInstanceBody = {
     new_state?: TaskInstanceState | null;
+    region_id?: string | null;
+    region_index?: number | null;
     note?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -764,6 +771,18 @@ export type ClearTaskInstancesBody = {
      * Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.
      */
     task_group_id?: string | null;
+    /**
+     * Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.
+     */
+    task_instance_ids?: Array<(string)> | null;
+    /**
+     * Selected execution IDs whose entire mapped expansion should be cleared.
+     */
+    whole_expansion_ids?: Array<(string)>;
+    /**
+     * Clear later iterations when the selection includes a loop gate.
+     */
+    include_later_loop_iterations?: boolean;
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -1536,7 +1555,7 @@ export type DagVersionResponse = {
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
  */
-export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
+export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value' | 'task group cycle';
 
 /**
  * How much of a component's work has a live instance covering it.
@@ -1574,6 +1593,7 @@ export type EventLogCollectionResponse = {
 export type EventLogResponse = {
     event_log_id: number;
     when: string;
+    task_instance_id?: string | null;
     dag_id: string | null;
     task_id: string | null;
     run_id: string | null;
@@ -1809,6 +1829,14 @@ export type LastAssetEventResponse = {
 };
 
 /**
+ * A task execution's position in an enclosing loop.
+ */
+export type LoopIterationResponse = {
+    loop_id: string;
+    iteration: number;
+};
+
+/**
  * Materialize asset request.
  */
 export type MaterializeAssetBody = {
@@ -1842,6 +1870,8 @@ export type NewTaskResponse = {
  */
 export type PatchTaskInstanceBody = {
     new_state?: TaskInstanceState | null;
+    region_id?: string | null;
+    region_index?: number | null;
     note?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -2130,10 +2160,14 @@ export type TaskInstanceHistoryCollectionResponse = {
  * TaskInstanceHistory serializer for responses.
  */
 export type TaskInstanceHistoryResponse = {
+    id: string;
     task_id: string;
     dag_id: string;
     dag_run_id: string;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
+    loop_iteration?: LoopIterationResponse | null;
     start_date: string | null;
     end_date: string | null;
     duration: number | null;
@@ -2156,6 +2190,7 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    note?: string | null;
     /**
      * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
      */
@@ -2171,6 +2206,10 @@ export type TaskInstanceResponse = {
     dag_id: string;
     dag_run_id: string;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
+    in_loop: boolean;
+    loop_iteration?: LoopIterationResponse | null;
     logical_date: string | null;
     run_after: string;
     start_date: string | null;
@@ -2423,6 +2462,10 @@ export type UpdateHITLDetailPayload = {
     params_input?: {
         [key: string]: unknown;
     };
+    /**
+     * The ``created_at`` of the request this response answers, exactly as the GET endpoint returned it. When the task has since replaced its request (it asked again after a resume, retry or clear), the response is refused with 409 instead of answering a request the user did not see. Leave it out to answer whatever request is waiting.
+     */
+    request_created_at?: string | null;
 };
 
 export type ValidationError = {
@@ -2487,6 +2530,8 @@ export type XComCreateBody = {
     key: string;
     value: unknown;
     map_index?: number;
+    region_id?: string | null;
+    region_index?: number | null;
 };
 
 /**
@@ -2497,6 +2542,8 @@ export type XComResponse = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
@@ -2514,6 +2561,8 @@ export type XComResponseNative = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
@@ -2532,6 +2581,8 @@ export type XComResponseString = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
@@ -2548,6 +2599,8 @@ export type XComResponseString = {
 export type XComUpdateBody = {
     value: unknown;
     map_index?: number;
+    region_id?: string | null;
+    region_index?: number | null;
 };
 
 /**
@@ -2914,6 +2967,49 @@ export type EdgeResponse = {
 };
 
 /**
+ * A page of task executions with their region ancestry.
+ */
+export type ExecutionCollectionResponse = {
+    task_instances: Array<ExecutionTaskResponse>;
+    regions: Array<ExecutionRegionResponse>;
+    total_entries: number;
+};
+
+/**
+ * Immutable region structure for interpreting task coordinates.
+ */
+export type ExecutionRegionResponse = {
+    id: string;
+    node_id: string;
+    parent_region_id: string | null;
+    parent_region_index: number | null;
+    forked_from_region_id: string | null;
+    resumes_from_index: number;
+};
+
+/**
+ * A task try together with the coordinates that address it exactly.
+ */
+export type ExecutionTaskResponse = {
+    id: string;
+    dag_id: string;
+    dag_run_id: string;
+    task_id: string;
+    task_display_name: string;
+    region_id?: string;
+    region_index?: number;
+    map_index: number;
+    try_number: number;
+    state: TaskInstanceState | null;
+    start_date: string | null;
+    end_date: string | null;
+    duration: number | null;
+    dag_version_id: string | null;
+    operator: string | null;
+    note?: string | null;
+};
+
+/**
  * Define a menu item that can be added to the menu by auth managers or plugins.
  */
 export type ExtraMenuItem = {
@@ -2934,6 +3030,11 @@ export type GanttResponse = {
  * Task instance data for Gantt chart.
  */
 export type GanttTaskInstance = {
+    id: string;
+    region_id?: string;
+    region_index?: number;
+    loop_iteration?: LoopIterationResponse | null;
+    map_index: number;
     task_id: string;
     task_display_name: string;
     try_number: number;
@@ -2970,6 +3071,10 @@ export type GridNodeResponse = {
     label: string;
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
+    is_loop?: boolean | null;
+    loop_max_iterations?: number | null;
+    loop_exit_task_id?: string | null;
+    loop_exit_criteria_doc?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     doc_md?: string | null;
 };
@@ -3025,6 +3130,70 @@ export type LightGridTaskInstanceSummary = {
     max_end_date: string | null;
     dag_version_number?: number | null;
     has_note?: boolean;
+    loop_iterations_count?: number | null;
+};
+
+/**
+ * Loop invocations across recent DAG runs.
+ */
+export type LoopHistoryResponse = {
+    dag_id: string;
+    group_id: string;
+    runs: Array<LoopRunSummary>;
+};
+
+/**
+ * One invocation of a loop in a Dag run.
+ */
+export type LoopInvocationResponse = {
+    region_id: string;
+};
+
+/**
+ * Execution state for one existing iteration.
+ */
+export type LoopIterationSummary = {
+    index: number;
+    state?: TaskInstanceState | null;
+    start_date?: string | null;
+    end_date?: string | null;
+};
+
+/**
+ * A loop invocation in a recent DAG run.
+ */
+export type LoopRunSummary = {
+    run_id: string;
+    run_after: string;
+    logical_date?: string | null;
+    max_iterations: number;
+    iterations_ran: number;
+    status: 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+    reason?: 'cap_reached' | 'iteration_failed' | null;
+    loop_region_id?: string | null;
+};
+
+export type status = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+
+/**
+ * Runtime state of one loop invocation.
+ */
+export type LoopSummaryResponse = {
+    dag_id: string;
+    run_id: string;
+    group_id: string;
+    max_iterations: number;
+    iterations_ran: number;
+    status: 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+    stopped_at_iteration?: number | null;
+    failed_at_iteration?: number | null;
+    exit_criteria_doc?: string | null;
+    exit_criteria_name?: string | null;
+    reason?: 'cap_reached' | 'iteration_failed' | null;
+    reason_task_id?: string | null;
+    loop_region_id?: string | null;
+    loop_regions?: Array<LoopInvocationResponse>;
+    iterations: Array<LoopIterationSummary>;
 };
 
 /**
@@ -3078,6 +3247,10 @@ export type NodeResponse = {
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
+    is_loop?: boolean | null;
+    loop_max_iterations?: number | null;
+    loop_exit_task_id?: string | null;
+    loop_exit_criteria_doc?: string | null;
     tooltip?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
@@ -3340,6 +3513,7 @@ export type GetAssetEventsData = {
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
     sourceTaskId?: string | null;
+    sourceTaskInstanceId?: string | null;
     timestampGt?: string | null;
     timestampGte?: string | null;
     timestampLt?: string | null;
@@ -3824,6 +3998,19 @@ export type GetDagRunStatsData = {
 
 export type GetDagRunStatsResponse = DagRunStatsResponse;
 
+export type GetExecutionData = {
+    dagId: string;
+    dagRunId: string;
+    limit?: number;
+    offset?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
+    taskId?: string | null;
+    tryNumber?: number | null;
+};
+
+export type GetExecutionResponse = ExecutionCollectionResponse;
+
 export type GetDagVersionDiffData = {
     /**
      * Version to compare from.
@@ -4208,6 +4395,8 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     ownerPrefixPattern?: string | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     runId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4226,6 +4415,7 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    taskInstanceId?: string | null;
     teams?: Array<(string)>;
     tryNumber?: number | null;
 };
@@ -4236,6 +4426,8 @@ export type GetExtraLinksData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     tryNumber?: number | null;
 };
@@ -4245,6 +4437,8 @@ export type GetExtraLinksResponse = ExtraLinkCollectionResponse;
 export type GetTaskInstanceData = {
     dagId: string;
     dagRunId: string;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4254,6 +4448,8 @@ export type PatchTaskInstanceData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4265,6 +4461,8 @@ export type DeleteTaskInstanceData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4320,6 +4518,8 @@ export type GetMappedTaskInstancesData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     queueNamePrefixPattern?: string | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `rendered_map_index_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
@@ -4352,6 +4552,8 @@ export type GetTaskInstanceDependenciesByMapIndexData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4361,6 +4563,8 @@ export type GetTaskInstanceDependenciesData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4370,6 +4574,8 @@ export type GetTaskInstanceTriesData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4379,6 +4585,8 @@ export type GetMappedTaskInstanceTriesData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4388,6 +4596,8 @@ export type GetMappedTaskInstanceData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4397,6 +4607,8 @@ export type PatchTaskInstanceByMapIndexData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4428,11 +4640,13 @@ export type GetTaskInstancesData = {
     endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
+    iteration?: number | null;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    loopId?: string | null;
     mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
@@ -4466,6 +4680,8 @@ export type GetTaskInstancesData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     queueNamePrefixPattern?: string | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `rendered_map_index_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
@@ -4535,6 +4751,8 @@ export type GetTaskInstanceTryDetailsData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     taskTryNumber: number;
 };
@@ -4545,6 +4763,8 @@ export type GetMappedTaskInstanceTryDetailsData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     taskTryNumber: number;
 };
@@ -4562,6 +4782,8 @@ export type PatchTaskGroupInstancesData = {
     dagId: string;
     dagRunId: string;
     groupId: string;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     updateMask?: Array<(string)> | null;
 };
@@ -4572,6 +4794,8 @@ export type PatchTaskGroupInstancesDryRunData = {
     dagId: string;
     dagRunId: string;
     groupId: string;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
 };
 
@@ -4581,6 +4805,8 @@ export type PatchTaskInstanceDryRunByMapIndexData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4592,6 +4818,8 @@ export type PatchTaskInstanceDryRunData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4605,6 +4833,8 @@ export type GetLogData = {
     dagRunId: string;
     fullContent?: boolean;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     token?: string | null;
     tryNumber: number;
@@ -4616,6 +4846,8 @@ export type GetExternalLogUrlData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     tryNumber: number;
 };
@@ -4626,6 +4858,8 @@ export type UpdateHitlDetailData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: UpdateHITLDetailPayload;
     taskId: string;
 };
@@ -4636,6 +4870,8 @@ export type GetHitlDetailData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4645,6 +4881,8 @@ export type GetHitlDetailTryDetailData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     tryNumber: number | null;
 };
@@ -4677,6 +4915,8 @@ export type GetHitlDetailsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
      */
     orderBy?: Array<(string)>;
+    regionId?: string | null;
+    regionIndex?: number | null;
     respondedByUserId?: Array<(string)>;
     respondedByUserName?: Array<(string)>;
     responseReceived?: boolean | null;
@@ -4867,6 +5107,8 @@ export type ListTaskStateStoreData = {
     limit?: number;
     mapIndex?: number;
     offset?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4877,6 +5119,8 @@ export type ClearTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4887,6 +5131,8 @@ export type GetTaskStateStoreData = {
     dagRunId: string;
     key: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4897,6 +5143,8 @@ export type SetTaskStateStoreData = {
     dagRunId: string;
     key: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: TaskStateStoreBody;
     taskId: string;
 };
@@ -4908,6 +5156,8 @@ export type PatchTaskStateStoreData = {
     dagRunId: string;
     key: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: TaskStateStorePatchBody;
     taskId: string;
 };
@@ -4919,6 +5169,8 @@ export type DeleteTaskStateStoreData = {
     dagRunId: string;
     key: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4929,6 +5181,8 @@ export type GetXcomEntryData = {
     dagRunId: string;
     deserialize?: boolean;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     stringify?: boolean;
     taskId: string;
     xcomKey: string;
@@ -4950,6 +5204,8 @@ export type DeleteXcomEntryData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     xcomKey: string;
 };
@@ -4976,9 +5232,11 @@ export type GetXcomEntriesData = {
     mapIndexFilter?: number | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, region_id, region_index, timestamp, run_after`
      */
     orderBy?: Array<(string)>;
+    regionId?: string | null;
+    regionIndex?: number | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -5150,6 +5408,7 @@ export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
 
 export type GetPendingPartitionedDagRunData = {
     dagId: string;
+    partitionedDagRunId?: number | null;
     partitionKey: string;
 };
 
@@ -5296,6 +5555,23 @@ export type GetGridTiSummariesStreamData = {
 };
 
 export type GetGridTiSummariesStreamResponse = string;
+
+export type GetLoopSummaryData = {
+    dagId: string;
+    groupId: string;
+    loopRegionId?: string | null;
+    runId: string;
+};
+
+export type GetLoopSummaryResponse = LoopSummaryResponse;
+
+export type GetLoopHistoryData = {
+    dagId: string;
+    groupId: string;
+    limit?: number;
+};
+
+export type GetLoopHistoryResponse = LoopHistoryResponse;
 
 export type GetGanttDataData = {
     dagId: string;
@@ -6502,6 +6778,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -6605,6 +6885,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DagRunStatsResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/execution': {
+        get: {
+            req: GetExecutionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ExecutionCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -7302,6 +7605,10 @@ export type $OpenApiTs = {
                  */
                 200: EventLogCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7325,6 +7632,10 @@ export type $OpenApiTs = {
                  */
                 200: ExtraLinkCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7336,6 +7647,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7352,6 +7667,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7363,6 +7682,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7410,6 +7733,10 @@ export type $OpenApiTs = {
                  */
                 200: unknown;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7421,6 +7748,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7436,6 +7767,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7464,6 +7799,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskDependencyCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7475,6 +7814,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7491,6 +7834,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskDependencyCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7502,6 +7849,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7518,6 +7869,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceHistoryCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7529,6 +7884,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7545,6 +7904,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceHistoryCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7556,6 +7919,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7572,6 +7939,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7583,6 +7954,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7711,6 +8086,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceHistoryResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7722,6 +8101,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7738,6 +8121,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceHistoryResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7749,6 +8136,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7851,6 +8242,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7881,6 +8276,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7913,6 +8312,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7944,6 +8347,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7974,6 +8381,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8023,6 +8434,10 @@ export type $OpenApiTs = {
                  */
                 200: HITLDetail;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -8034,6 +8449,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8050,6 +8469,10 @@ export type $OpenApiTs = {
                  */
                 200: HITLDetailHistory;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -8061,6 +8484,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8076,6 +8503,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetailCollection;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -8524,6 +8955,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskStateStoreCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -8531,6 +8966,14 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8545,6 +8988,10 @@ export type $OpenApiTs = {
                  */
                 204: void;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -8556,6 +9003,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8572,6 +9023,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskStateStoreResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -8583,6 +9038,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8613,6 +9072,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8626,6 +9089,10 @@ export type $OpenApiTs = {
                  */
                 200: unknown;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -8637,6 +9104,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8651,6 +9122,10 @@ export type $OpenApiTs = {
                  */
                 204: void;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -8662,6 +9137,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8694,6 +9173,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8723,6 +9206,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8751,6 +9238,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -9420,6 +9911,44 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/grid/loop/{dag_id}/{run_id}/{group_id}': {
+        get: {
+            req: GetLoopSummaryData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: LoopSummaryResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Unprocessable Entity
+                 */
+                422: HTTPExceptionResponse;
+            };
+        };
+    };
+    '/ui/grid/loop-history/{dag_id}/{group_id}': {
+        get: {
+            req: GetLoopHistoryData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: LoopHistoryResponse;
                 /**
                  * Not Found
                  */

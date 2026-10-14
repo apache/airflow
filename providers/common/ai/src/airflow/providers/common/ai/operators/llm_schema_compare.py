@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -349,8 +348,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             **self.agent_params,
         )
         self.log.info("Running LLM schema comparison...")
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
         output_result = output.model_dump()
@@ -370,6 +368,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             )
             self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 
+        self._clear_usage_budget(context)
         return output_result
 
     def execute_complete(
@@ -379,10 +378,11 @@ class LLMSchemaCompareOperator(LLMOperator):
         event: dict[str, Any],
         decision: dict[str, Any] | None = None,
     ) -> Any:
-        output = super().execute_complete(context, generated_output, event, decision)
-        if isinstance(output, dict):
-            return output
-        try:
-            return SchemaCompareResult.model_validate_json(output).model_dump()
-        except ValidationError as e:
-            raise ValueError(f"Reviewed output is not a valid SchemaCompareResult: {e}") from e
+        output = self._complete_review(context, generated_output, event, decision)
+        if not isinstance(output, dict):
+            try:
+                output = SchemaCompareResult.model_validate_json(output).model_dump()
+            except ValidationError as e:
+                raise ValueError(f"Reviewed output is not a valid SchemaCompareResult: {e}") from e
+        self._clear_usage_budget(context)
+        return output

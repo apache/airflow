@@ -154,6 +154,12 @@ describe("public API", () => {
     expectTypeOf<keyof Bundle>().toEqualTypeOf<"register" | "serve" | "getTaskHandler">();
   });
 
+  it("leaves the human-in-the-loop factories to the hitl subpath", () => {
+    for (const name of ["approval", "hitl", "humanInput"]) {
+      expect(name in sdk).toBe(false);
+    }
+  });
+
   it("does not export the removed registerTask surface or the coordinator itself", () => {
     for (const name of [
       "registerTask",

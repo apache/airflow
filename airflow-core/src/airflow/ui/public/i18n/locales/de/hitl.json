@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "Erforderliche Interaktion",
   "requiredAction_other": "Erforderliche Interaktionen",
-  "requiredActionCount_one": "{{count}} offene Interaktion",
-  "requiredActionCount_other": "{{count}} offene Interaktionen",
+  "requiredActionCount_one": "{{count, number}} offene Interaktion",
+  "requiredActionCount_other": "{{count, number}} offene Interaktionen",
   "requiredActionState": "Status der Interaktion",
   "response": {
     "created": "Antwort erstellt um ",
@@ -29,10 +29,10 @@
       "selectRequiredAction": "Wählen Sie eine erforderliche Interaktion aus, um Details anzuzeigen"
     },
     "list": {
-      "completedRequiredActions": "Abgeschlossene erforderliche Interaktionen ({{count}})",
+      "completedRequiredActions": "Abgeschlossene erforderliche Interaktionen ({{count, number}})",
       "loadError": "Erforderliche Interaktionen konnten nicht geladen werden",
       "loadingActions": "Erforderliche Interaktionen werden geladen ...",
-      "pendingRequiredActions": "Ausstehende erforderliche Interaktionen ({{count}})"
+      "pendingRequiredActions": "Ausstehende erforderliche Interaktionen ({{count, number}})"
     },
     "openReviewDrawer": "Prüfbereich öffnen",
     "pageLimitHint": "Hier werden nur die ersten Interaktionen angezeigt. Verwenden Sie \"$t(review.viewAll)\", um alle anzuzeigen.",
