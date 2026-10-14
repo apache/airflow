@@ -30,13 +30,14 @@ const {
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
-  LOGICAL_DATE_RANGE: LOGICAL_DATE_RANGE_PARAM,
+  EXECUTOR: EXECUTOR_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
   RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
+  RUN_AFTER_RANGE: RUN_AFTER_RANGE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   TASK_STATE: STATE_PARAM,
   TEAMS: TEAMS_PARAM,
@@ -48,7 +49,7 @@ export const TaskInstancesFilter = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const paramKeys: Array<FilterableSearchParamsKeys> = [
     NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
-    LOGICAL_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
+    RUN_AFTER_RANGE_PARAM as FilterableSearchParamsKeys,
     ASSET_EVENT_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
     DURATION_GTE_PARAM as FilterableSearchParamsKeys,
     DURATION_LTE_PARAM as FilterableSearchParamsKeys,
@@ -58,6 +59,7 @@ export const TaskInstancesFilter = () => {
     DAG_VERSION_PARAM as FilterableSearchParamsKeys,
     OPERATOR_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
     POOL_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
+    EXECUTOR_PARAM as FilterableSearchParamsKeys,
     QUEUE_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
     STATE_PARAM as FilterableSearchParamsKeys,
   ];

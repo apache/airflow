@@ -149,6 +149,7 @@
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
     "endTime": "End Time",
+    "executorPlaceholder": "Select executors…",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
     "maxActiveRunsFrom": "Max Active Runs From",

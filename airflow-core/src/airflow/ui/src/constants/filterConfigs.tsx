@@ -28,6 +28,7 @@ import {
   MdCode,
   MdComputer,
   MdDateRange,
+  MdErrorOutline,
   MdHistory,
   MdHourglassEmpty,
   MdPause,
@@ -110,6 +111,15 @@ export const useFilterConfigs = () => {
   }));
 
   const filterConfigMap = {
+    [SearchParamsKeys.ACTIVE]: {
+      icon: <MdPlayArrow />,
+      label: translate("components:backfill.status"),
+      options: [
+        { label: translate("components:backfill.running"), value: "true" },
+        { label: translate("components:backfill.completed"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.END_DATE,
       icon: <MdDateRange />,
@@ -222,6 +232,14 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.EXECUTOR]: {
+      icon: <MdBuild />,
+      isCreatable: true,
+      label: translate("common:taskInstance.executor"),
+      options: [],
+      placeholder: translate("common:filters.executorPlaceholder"),
+      type: FilterTypes.MULTISELECT,
+    },
     [SearchParamsKeys.EXECUTOR_CLASS]: {
       hotkeyDisabled: true,
       icon: <MdBuild />,
@@ -256,6 +274,15 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.HAS_EVENTS]: {
       icon: <MdCheckCircle />,
       label: translate("assets:filters.hasEvents"),
+      options: [
+        { label: translate("common:yes"), value: "true" },
+        { label: translate("common:no"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.HAS_IMPORT_ERRORS]: {
+      icon: <MdErrorOutline />,
+      label: translate("dags:filters.hasImportErrors"),
       options: [
         { label: translate("common:yes"), value: "true" },
         { label: translate("common:no"), value: "false" },
@@ -359,6 +386,12 @@ export const useFilterConfigs = () => {
       options: [],
       placeholder: translate("common:table.ownerPlaceholder"),
       type: FilterTypes.MULTISELECT,
+    },
+    [SearchParamsKeys.PARTITION_KEY]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("common:dagRun.partitionKey"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.PARTITION_KEY_PATTERN]: {
       hotkeyDisabled: true,
@@ -475,6 +508,18 @@ export const useFilterConfigs = () => {
         value: option.value,
       })),
       type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.SOURCE_MAP_INDEX]: {
+      icon: <LuBrackets />,
+      label: translate("common:mapIndex"),
+      min: -1,
+      type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.SOURCE_RUN_ID]: {
+      hotkeyDisabled: true,
+      icon: <FiBarChart />,
+      label: translate("common:runId"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.START_DATE_RANGE]: {
       endKey: SearchParamsKeys.START_DATE_LTE,
