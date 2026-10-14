@@ -277,7 +277,7 @@ def get_callback_logs(
     # triggerer callbacks to ``triggerer_callbacks/...`` (see ``TriggerLoggingFactory``).
     callback_path = f"{dag_id}/{dag_run_id}/{callback_id}"
     log_stream = read_logs_at_paths(
-        [f"executor_callbacks/{callback_path}", f"triggerer_callbacks/{callback_path}"]
+        [f"executor_callbacks/{callback_path}", f"triggerer_callbacks/{callback_path}/callback.log"]
     )
 
     if accept == Mimetype.NDJSON:

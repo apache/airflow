@@ -865,7 +865,7 @@ def test_create_workload_sets_up_logging_for_callback_trigger(jobless_supervisor
 
     assert workload is not None
     factory = jobless_supervisor.logger_cache[trigger.id]
-    assert factory.log_path == f"triggerer_callbacks/test_dag/manual__2024-01-01/{callback_id}"
+    assert factory.log_path == f"triggerer_callbacks/test_dag/manual__2024-01-01/{callback_id}/callback.log"
     assert factory.ti is None
 
 

@@ -729,10 +729,20 @@ class TestGetCallbackLogs:
         return str(deadline.callback_id)
 
     @pytest.mark.parametrize("accept", ["application/json", "application/x-ndjson"])
-    def test_returns_logs_from_local_storage(self, test_client, missed_callback_id, tmp_path, accept):
-        log_dir = tmp_path / "executor_callbacks" / DAG_ID / RUN_MISSED
-        log_dir.mkdir(parents=True)
-        (log_dir / missed_callback_id).write_text("callback ran\n")
+    @pytest.mark.parametrize(
+        "log_file",
+        [
+            "executor_callbacks/{dag_id}/{run_id}/{cb_id}",
+            "triggerer_callbacks/{dag_id}/{run_id}/{cb_id}/callback.log",
+        ],
+        ids=["executor", "triggerer"],
+    )
+    def test_returns_logs_from_local_storage(
+        self, test_client, missed_callback_id, tmp_path, accept, log_file
+    ):
+        log_path = tmp_path / log_file.format(dag_id=DAG_ID, run_id=RUN_MISSED, cb_id=missed_callback_id)
+        log_path.parent.mkdir(parents=True)
+        log_path.write_text("callback ran\n")
 
         with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
             response = test_client.get(

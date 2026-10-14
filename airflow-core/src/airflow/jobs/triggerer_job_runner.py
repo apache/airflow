@@ -864,8 +864,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 dag_run_data = context.get("dag_run") or {}
                 dag_id = callback_data.get("dag_id") or dag_run_data.get("dag_id") or "unknown"
                 run_id = dag_run_data.get("dag_run_id") or "unknown"
+                # One directory per callback: with delete_local_logs, remote handlers delete the
+                # log file's parent directory after upload, which must not hold other callbacks' logs.
                 self.logger_cache[trigger.id] = TriggerLoggingFactory(
-                    log_path=f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}",
+                    log_path=f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}/callback.log",
                 )
 
             return workloads.RunTrigger(
