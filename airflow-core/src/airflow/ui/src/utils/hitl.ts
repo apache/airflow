@@ -25,6 +25,8 @@ import type { ParamSchema, ParamSpec, ParamsSpec } from "src/queries/useDagParam
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
   params_input?: Record<string, unknown>;
+  // The created_at of the request the form was loaded for; the server refuses a stale answer.
+  request_created_at?: string;
 };
 
 // A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
