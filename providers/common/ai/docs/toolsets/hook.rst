@@ -85,12 +85,6 @@ the ID from values the Dag controls, not from ``params`` or ``dag_run.conf`` (se
 Fix arguments the model must not choose
 ---------------------------------------
 
-.. note::
-
-    Experimental: ``pinned_arguments`` can change or be removed in a minor release of this
-    provider.
-    See :ref:`howto/stability`.
-
 Exposing a method lets the model pick every argument it takes. When some of them are
 the Dag author's decision, such as which bucket a storage hook reads, pin them:
 

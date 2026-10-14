@@ -20,11 +20,6 @@
 Files on object storage: ``ObjectStorageToolset``
 =================================================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 Give an agent the files under one location in S3, GCS, Azure Blob Storage or any other
 store Airflow's :class:`~airflow.sdk.ObjectStoragePath` can open, and let it find and
 read what it needs: a month's reports, the config files of a failing job, the first

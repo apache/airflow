@@ -63,6 +63,44 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        descriptions in ``branches``, as strings or as ``BranchOption(description=...)``,
        are sent to the model with the options. ``decision_policy`` and
        ``BranchOption.min_confidence`` are experimental; see below.
+   * - ``@task.llm_sql`` and
+       :class:`~airflow.providers.common.ai.operators.llm_sql.LLMSQLQueryOperator`
+     - Generates SQL from the prompt and returns it without running it. With
+       ``validate_sql=True``, the default, the task fails unless the output is a single
+       statement that parses for ``dialect`` and is one of ``allowed_sql_types``
+       (``SELECT``, ``UNION``, ``INTERSECT`` and ``EXCEPT`` by default); with the default
+       types, a write nested inside the statement fails it too. A reviewer's edit under
+       ``allow_modifications=True`` is checked the same way. ``db_conn_id`` with
+       ``table_names``, ``schema_context`` or ``datasource_config`` give the model the
+       schema.
+   * - ``@task.llm_file_analysis`` and
+       :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
+     - Reads the file at ``file_path``, or up to ``max_files`` files under a prefix,
+       without changing them, and sends their content to the model with the prompt in one
+       request: CSV, Parquet and Avro sampled to ``sample_rows`` rows, and all text cut to
+       ``max_text_chars``. Input over ``max_file_size_bytes`` or ``max_total_size_bytes``
+       fails the task before the model is called, and so does an image or PDF unless
+       ``multi_modal=True``, which attaches it.
+   * - ``@task.llm_schema_compare`` and
+       :class:`~airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator`
+     - Introspects the schemas of ``data_sources`` and of ``table_names`` on each of
+       ``db_conn_ids``, either or both, and returns a
+       :class:`~airflow.providers.common.ai.operators.llm_schema_compare.SchemaCompareResult`
+       as a dict: ``compatible``, ``summary`` and the ``mismatches``, each with a
+       ``severity`` of ``critical``, ``warning`` or ``info``. ``context_strategy="basic"``
+       sends columns only; ``"full"``, the default, adds keys and indexes for database
+       sources.
+   * - ``@task.llm_batch`` and
+       :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`
+     - Submits ``requests`` to the batch API that the ``model_id`` prefix selects, writes
+       one JSONL row per request under ``result_path`` and returns the manifest
+       (``schema_version: 1``) described in :doc:`operators/llm_batch`, never the results
+       themselves. A retry or clear that renders the same ``result_path`` re-attaches to
+       the batch already submitted while the requests, model, connection, system prompt,
+       ``max_tokens``, ``request_params`` and output schema are unchanged, unless that
+       batch was cancelled or failed. On Airflow 3.3 and later, clearing a deferred task
+       cancels its batch while ``cancel_on_kill=True``, the default. Adding a batch engine
+       through ``BatchAdapter`` is experimental; see below.
    * - :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook` and its
        connection types
      - The connection fields documented for each type in :doc:`connections/pydantic_ai`,
@@ -80,13 +118,29 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Exposes exactly the hook methods in ``allowed_methods``, each named
        ``<tool_prefix>_<method>`` when ``tool_prefix`` is set, which must be a valid Python
        identifier, and raises an error when the toolset is created
-       if a listed method does not exist on the hook. ``pinned_arguments`` is
-       experimental; see below.
+       if a listed method does not exist on the hook. Arguments in ``pinned_arguments``
+       are left out of the schema the model sees and passed to every allowed method; a
+       call that supplies one is refused, and the toolset raises an error when it is
+       created if an allowed method does not take a pinned argument by that name.
+   * - :class:`~airflow.providers.common.ai.toolsets.object_storage.ObjectStorageToolset`
+     - Exposes ``list_files``, ``get_file_info`` and ``read_file`` for the files under the
+       root path, read-only. Paths from the model are relative to the root: absolute
+       paths, paths with a scheme and paths that climb out of the root are refused. A file
+       the model cannot read, such as a binary file or one larger than ``max_read_bytes``,
+       comes back to it as a message instead of failing the task.
    * - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` and
        :class:`~airflow.providers.common.ai.hooks.mcp.MCPHook`
      - Exposes the tools of the MCP server configured by ``mcp_conn_id``, each named
        ``<tool_prefix>_<name>`` when ``tool_prefix`` is set. The connection fields for each
        transport keep their meaning.
+   * - The framework-neutral tool interface (:mod:`airflow.providers.common.ai.tools`):
+       ``AirflowTool``, ``ToolResult``, ``ToolCallError``, ``ToolProvider``,
+       ``collect_tools`` and the ``airflow_tools()`` method of the toolsets
+     - An ``AirflowTool`` keeps its ``name``, ``description``, JSON Schema ``parameters``
+       and async ``function``, and ``call()`` masks secrets in what it returns. A
+       ``ToolResult`` with ``is_error=True`` is a failure the model can correct;
+       ``ToolCallError`` fails the run. ``collect_tools`` raises ``ValueError`` when two
+       tools share a name. An adapter for another agent framework can build on this.
    * - :class:`~airflow.providers.common.ai.policies.retry.LLMRetryPolicy`
      - Returns a retry decision from a model's reading of the exception. Values registered
        as secrets are masked in the exception text before it reaches the model, unless
@@ -113,48 +167,53 @@ Everything this provider ships that is not in the table above is experimental.
      - Why it is experimental
    * - :class:`~airflow.providers.common.ai.policies.retry.ClassifierRetryPolicy`
        (:doc:`decision_models`)
-     - The confidence threshold, the fallback order and the behaviour when the classifier
-       is unavailable are still settling.
+     - What it does when the classifier is unsure or unavailable is changing.
    * - :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`, and
        ``min_confidence`` on
        :class:`~airflow.providers.common.ai.policies.decision.BranchOption`
        (:doc:`approval_gates`)
-     - New. The threshold semantics and the recorded decision may change as they are
-       used.
-   * - ``@task.llm_batch`` and batch adapters (:doc:`operators/llm_batch`)
-     - Submission, re-attachment on retry, cancellation and handling of partial results
-       are still settling, and ``BatchAdapter`` has no implementation outside this
-       provider yet.
+     - Whether the confidence gate keeps this shape or becomes part of a wider decision
+       policy is still open.
+   * - Batch engines from other packages: ``BatchAdapter``, ``register_adapter()`` and the
+       ``airflow.providers.common.ai.batch_adapters`` entry point
+       (:doc:`operators/llm_batch`)
+     - No package outside this provider implements the contract yet, so it has not been
+       tested by a second implementation.
    * - ``durable=True`` on ``AgentOperator`` (:doc:`durable_execution`)
      - Which tool results are replayed on retry will change, so that a tool can declare
        whether its result may be reused.
    * - Per-tool approval on ``AgentOperator`` (``tool_approval_timeout``,
        ``on_tool_approval_timeout`` and ``tool_approval_assigned_users``;
        :doc:`tool_approval`)
-     - New, and needs Airflow 3.3. How a paused run resumes may change.
-   * - Code mode (:doc:`code_mode`), the Agent Skills toolset
-       (:doc:`toolsets/skills`) and the ``shields`` extra (used in :doc:`capabilities`)
-     - Thin integrations of packages outside this provider whose APIs are still
-       changing: ``pydantic-ai-harness``, ``pydantic-ai-skills`` and
-       ``pydantic-ai-shields``.
+     - A task instance can pause for approval only once per Dag run, so an agent that
+       needs a second approval later in the run fails. Lifting that limit is planned.
+   * - Code mode (:doc:`code_mode`) and the ``shields`` extra (used in
+       :doc:`capabilities`)
+     - Thin integrations of ``pydantic-ai-harness`` and ``pydantic-ai-shields``, which are
+       before their 1.0 releases.
+   * - The Agent Skills toolset (:doc:`toolsets/skills`)
+     - It may move from ``pydantic-ai-skills`` to the on-demand loading Pydantic AI now has
+       itself (`pydantic/pydantic-ai#5230 <https://github.com/pydantic/pydantic-ai/pull/5230>`__).
    * - :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` and its
        backends (:doc:`sandbox/index`)
-     - The sandbox runtime belongs to the backend; ownership and cleanup across worker
-       failures are still being designed.
+     - ``durable=True`` cannot be used with it yet, the ``sbx`` backend leaves its sandbox
+       behind when the worker is killed, and the backend contract is still gaining
+       capabilities, such as attaching to a sandbox another task owns.
    * - LangChain and LlamaIndex hooks and the LangChain tool bridge
        (:doc:`hooks/langchain`, :doc:`toolsets/langchain`, :doc:`hooks/llamaindex`)
      - Each follows the API of a framework that changes often.
    * - The retrieval operators: ``DocumentLoaderOperator``,
        ``LlamaIndexEmbeddingOperator`` and ``LlamaIndexRetrievalOperator``
        (:doc:`rag_pipelines`)
-     - New. The shape of the pipeline, from loading documents through embedding to
-       retrieval, has not settled.
+     - Whether retrieval pipelines belong in this provider, which bridges Airflow to agent
+       frameworks rather than replacing them, is still open.
    * - :class:`~airflow.providers.common.ai.toolsets.datafusion.DataFusionToolset`
        (:doc:`toolsets/datafusion`)
      - Runs on the DataFusion engine of ``common.sql``, which pins ``datafusion`` below 52
        and follows its API.
    * - Managed agent toolsets (:doc:`toolsets/managed_agent`)
-     - A contract for vendor providers that no vendor implements yet.
+     - The amazon and google providers implement the contract. The managed-agent operators
+       of the other vendor providers are still being brought onto it, which can change it.
    * - OpenTelemetry spans (``[common.ai] otel_export_enabled`` and
        ``capture_content``; :doc:`observability`)
      - Span names and attributes come from Pydantic AI's instrumentation and the
@@ -163,25 +222,10 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`toolsets/logging`)
      - The wrapper ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
        may change.
-   * - ``@task.llm_schema_compare``, ``@task.llm_file_analysis`` and ``@task.llm_sql``
-       (:doc:`operators/llm_schema_compare`, :doc:`operators/llm_file_analysis`,
-       :doc:`operators/llm_sql`)
-     - Each adds its own input handling to ``@task.llm``: schema introspection, file
-       sampling, or SQL validation. Their options are still settling.
-   * - The framework-neutral tools (:mod:`airflow.providers.common.ai.tools`), including
-       the ``airflow_tools()`` method of the toolsets, the Strands plugin and the ADK
-       toolset (:doc:`frameworks/index`)
-     - Written against Strands 1.56 and ADK 2.9.1. CI does not run the tests of the two
-       adapters, because both frameworks exclude dependency versions that Airflow's
-       development environment uses.
-   * - :class:`~airflow.providers.common.ai.toolsets.object_storage.ObjectStorageToolset`
-       (:doc:`toolsets/object_storage`)
-     - New; its tools and read limits may change after first use.
-   * - ``pinned_arguments`` on
-       :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`
-       (:doc:`toolsets/hook`)
-     - New; how a pinned argument is matched to each method's parameters may change after
-       first use.
+   * - The Strands plugin, the ADK toolset and Strands checkpoint resume
+       (:doc:`frameworks/index`)
+     - Written against Strands 1.56 and ADK 2.9.1, which change often. Strands marks its
+       own checkpointing experimental.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)
