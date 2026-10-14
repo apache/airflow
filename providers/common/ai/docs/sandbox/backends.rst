@@ -246,7 +246,8 @@ streaming APIs. Everything else runs through a shell wrapper in the sandbox, so
 the image needs ``sh``, ``mkdir`` and ``rm`` for the wrapper, ``tail`` to bound
 command output, ``dirname`` to create a written file's parent directory,
 ``stat`` to size an over-budget read and to check a file before it is exported,
-and GNU ``find`` for directory listings. The compute API caps each output stream
+``realpath`` to resolve a relative export path (the download API takes absolute
+paths only), and GNU ``find`` for directory listings. The compute API caps each output stream
 at 1 MiB and keeps the tail. The backend captures each stream to a scratch file in
 the sandbox and returns only its last ``max_output_bytes`` -- where a traceback
 and the exit status live -- so the worker sees a window sized to the caller's

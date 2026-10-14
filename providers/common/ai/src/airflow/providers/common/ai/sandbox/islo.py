@@ -26,6 +26,8 @@ import time
 from contextlib import closing, contextmanager, suppress
 from typing import TYPE_CHECKING, Any, Literal, NoReturn
 
+import httpx
+
 from airflow.providers.common.ai.sandbox.base import (
     SandboxBackend,
     SandboxError,
@@ -38,11 +40,14 @@ from airflow.providers.common.ai.sandbox.base import (
     _validate_positive_finite,
 )
 
+# ``islo`` is the optional ``[islo]`` extra and the package exports this backend
+# eagerly, so the SDK is imported where it is first used, never at module level.
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
     from typing import BinaryIO
 
     from islo import Islo
+    from islo.core.request_options import RequestOptions
     from islo.types import ExecResponse, ExecResultResponse, SandboxResponse
 
     from airflow.providers.common.ai.sandbox.base import SandboxSpec
@@ -130,6 +135,15 @@ def _translate_islo_errors(operation: str) -> Iterator[None]:
         if isinstance(e, ApiError):
             status = f" (HTTP {e.status_code})" if e.status_code is not None else ""
             raise SandboxTerminalError(f"Islo could not {operation}{status}.") from e
+        if isinstance(e, httpx.HTTPStatusError):
+            # The SDK exchanges ISLO_API_KEY for a token with a bare ``httpx`` call
+            # whose failures arrive here rather than as an ``ApiError``.
+            code = e.response.status_code
+            if code in (401, 403):
+                raise SandboxTerminalError(
+                    f"Islo rejected ISLO_API_KEY (HTTP {code}) when asked to {operation}."
+                ) from e
+            raise SandboxTerminalError(f"Islo could not {operation} (HTTP {code}).") from e
         raise SandboxTerminalError(f"Islo could not {operation}: {type(e).__name__}.") from e
 
 
@@ -153,21 +167,33 @@ def _api_error_message(error: Exception) -> str:
 
 def _is_transient_error(error: Exception) -> bool:
     """Whether a failed call says nothing about the command: a 5xx, a 429, or no response at all."""
-    import httpx
     from islo.core.api_error import ApiError
 
     if isinstance(error, ApiError):
         return error.status_code is None or error.status_code == 429 or error.status_code >= 500
+    if isinstance(error, httpx.HTTPStatusError):
+        # A token refresh that failed the same way, before the call itself was sent.
+        code = error.response.status_code
+        return code == 429 or code >= 500
     return isinstance(error, httpx.TransportError)
 
 
 def _is_undelivered_start(error: Exception) -> bool:
-    """Whether a failed start proves the command never ran: no connection was made, or a 429 refused it."""
-    import httpx
+    """
+    Whether a failed start proves the command never ran.
+
+    That is: no connection was made, a 429 refused it, or the token exchange that
+    runs before it failed with a 429 or 5xx.
+    """
     from islo.core.api_error import ApiError
 
     if isinstance(error, ApiError):
         return error.status_code == 429
+    if isinstance(error, httpx.HTTPStatusError):
+        # The token refresh runs before the start is sent, so its 429 or 5xx means
+        # the command was never asked for. A 401 or 403 stays terminal.
+        code = error.response.status_code
+        return code == 429 or code >= 500
     return isinstance(error, httpx.ConnectError)
 
 
@@ -218,7 +244,8 @@ class IsloSandboxBackend(SandboxBackend):
     so the image needs ``sh``, ``mkdir`` and ``rm`` for the wrapper, ``tail`` to
     bound command output, ``dirname`` to create a written file's parent
     directory, ``stat`` to size an over-budget read and to check a file before it
-    is exported, and GNU ``find`` for directory listings. The server default
+    is exported, ``realpath`` to resolve a relative export path, and GNU ``find``
+    for directory listings. The server default
     image and any Debian or Ubuntu based image provide them. Each command's
     output is captured to a scratch file in the sandbox and only its last
     ``max_output_bytes`` are returned, so the worker sees a bounded tail while
@@ -296,13 +323,13 @@ class IsloSandboxBackend(SandboxBackend):
     @staticmethod
     def _request_options(
         *, timeout: float, chunk_size: int | None = None, max_retries: int | None = None
-    ) -> dict[str, int]:
+    ) -> RequestOptions:
         # ``max_retries`` is left to the SDK's default unless asked for: passing
         # 0 switches off its retries of dropped connections and of 5xx, 408, 409
         # and 429 answers. Starting a command is the exception: that POST carries no
         # idempotency key, so a resend after a lost response or a 5xx would run the
         # agent's command a second time.
-        options = {"timeout_in_seconds": max(1, math.ceil(timeout))}
+        options: RequestOptions = {"timeout_in_seconds": max(1, math.ceil(timeout))}
         if chunk_size is not None:
             options["chunk_size"] = chunk_size
         if max_retries is not None:
@@ -632,16 +659,29 @@ class IsloSandboxBackend(SandboxBackend):
         """
         _validate_positive_finite(max_bytes, "max_bytes")
         deadline = _export_deadline(max_bytes)
+        quoted = shlex.quote(path)
         check = self.run_command(
             sandbox,
-            f"{self._export_checks(shlex.quote(path), max_bytes)} {self._print_export_size()}",
+            f"{self._export_checks(quoted, max_bytes)} {self._print_export_size()}",
             timeout=_FILE_OP_TIMEOUT,
             max_output_bytes=_HELPER_OUTPUT_CAP,
         )
         self._raise_for_export_status(path, check, max_bytes)
         size = self._parse_export_size(check.stdout)
+        source = path
+        if not path.startswith("/"):
+            # An export path may be relative to the sandbox's working directory, as it
+            # is for the checks above, but the download API answers a relative path
+            # with a 400. The export runs after the agent has finished, so that 400
+            # would fail the task rather than reach the model: resolve the path in
+            # the guest instead, so the checks and the download see one file.
+            # Only realpath's own newline is dropped: whitespace at the end of a
+            # file name is part of the name.
+            source = self._run_helper(
+                sandbox, f"realpath -e -- {quoted}", operation=f"resolve {path!r}"
+            ).stdout.removesuffix("\n")
         written = 0
-        with closing(self._download(sandbox, path, max_bytes=max_bytes, operation="export")) as chunks:
+        with closing(self._download(sandbox, source, max_bytes=max_bytes, operation="export")) as chunks:
             for chunk in chunks:
                 _check_export_deadline(path, deadline, max_bytes)
                 written += len(chunk)

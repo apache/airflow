@@ -22,6 +22,7 @@ import os
 import signal
 import subprocess
 import time
+from contextlib import suppress
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -62,6 +63,14 @@ def _exec_result(status="completed", exit_code=0, stdout="", stderr="", truncate
 
 def _sandbox_info(name="box-1", status="running", deleted_at=None):
     return SimpleNamespace(name=name, status=status, deleted_at=deleted_at)
+
+
+def _token_error(status_code):
+    """How the SDK's ``ISLO_API_KEY`` token exchange fails: a bare ``httpx`` error, not an ``ApiError``."""
+    request = httpx.Request("POST", "https://api.islo.dev/auth/token")
+    return httpx.HTTPStatusError(
+        "token exchange failed", request=request, response=httpx.Response(status_code, request=request)
+    )
 
 
 def _export_check(size):
@@ -113,6 +122,13 @@ class TestCredentials:
             IsloSandboxBackend()._get_client()
 
         islo.assert_not_called()
+
+    def test_a_rejected_api_key_names_the_variable_and_status(self):
+        backend, client = _backend_with_client()
+        client.sandboxes.create_sandbox.side_effect = _token_error(401)
+
+        with pytest.raises(SandboxTerminalError, match=r"Islo rejected ISLO_API_KEY \(HTTP 401\)"):
+            backend.create()
 
     def test_missing_sdk_error_is_actionable(self):
         real_import = builtins.__import__
@@ -267,16 +283,12 @@ class TestCreate:
 
         client.sandboxes.delete_sandbox.assert_called_once()
 
-    def test_spec_env_is_forwarded_so_it_is_never_silently_dropped(self):
+    def test_an_empty_spec_env_sends_no_env(self):
         backend, client = _backend_with_client()
 
-        backend.create(spec=SandboxSpec(env={"TOKEN": "value", "OTHER": "2"}))
+        backend.create(spec=SandboxSpec(env={}))
 
-        # base.py treats dropping a SandboxSpec field as a contract violation.
-        assert client.sandboxes.create_sandbox.call_args.kwargs["env"] == {
-            "TOKEN": "value",
-            "OTHER": "2",
-        }
+        assert "env" not in client.sandboxes.create_sandbox.call_args.kwargs
 
 
 class TestRunCommand:
@@ -397,6 +409,32 @@ class TestRunCommand:
         assert len(posts) == 2
         assert result.stdout == "ok\n"
         sleep.assert_called_once_with(1.0)
+
+    @pytest.mark.parametrize("status_code", [429, 503])
+    def test_a_start_whose_token_refresh_failed_transiently_is_resent(self, status_code):
+        # The token refresh runs before the start is sent, so the command never ran.
+        backend, client = _backend_with_client()
+        client.sandboxes.exec_in_sandbox.side_effect = [
+            _token_error(status_code),
+            SimpleNamespace(exec_id="exec-1"),
+        ]
+
+        with mock.patch(f"{_MODULE}.time.sleep", autospec=True):
+            result = backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+        assert client.sandboxes.exec_in_sandbox.call_count == 2
+        assert result.exit_code == 0
+
+    @pytest.mark.parametrize("status_code", [401, 403])
+    def test_a_start_with_a_rejected_key_is_not_resent(self, status_code):
+        backend, client = _backend_with_client()
+        client.sandboxes.exec_in_sandbox.side_effect = _token_error(status_code)
+
+        with mock.patch(f"{_MODULE}.time.sleep", autospec=True):
+            with pytest.raises(SandboxTerminalError, match=rf"rejected ISLO_API_KEY \(HTTP {status_code}\)"):
+                backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+
+        assert client.sandboxes.exec_in_sandbox.call_count == 1
 
     def test_a_start_that_keeps_failing_to_connect_gives_up(self):
         backend, client = _backend_with_client()
@@ -574,6 +612,7 @@ class TestRunCommand:
             ApiError(status_code=502),
             httpx.ReadError("connection reset"),
             ApiError(status_code=None),
+            _token_error(503),
             _exec_result(stdout="done\n"),
         ]
 
@@ -584,13 +623,29 @@ class TestRunCommand:
         assert not result.timed_out
         client.sandboxes.delete_sandbox.assert_not_called()
 
-    @pytest.mark.parametrize("error", [ApiError(status_code=404), RuntimeError("bad client state")])
-    def test_a_non_transient_poll_error_is_terminal(self, error):
+    @pytest.mark.parametrize(
+        ("error", "message"),
+        [
+            (ApiError(status_code=404), "poll a sandbox command"),
+            (RuntimeError("bad client state"), "poll a sandbox command"),
+            (_token_error(401), r"rejected ISLO_API_KEY \(HTTP 401\)"),
+            (_token_error(403), r"rejected ISLO_API_KEY \(HTTP 403\)"),
+            (_token_error(400), r"poll a sandbox command \(HTTP 400\)"),
+        ],
+        ids=["404", "client-error", "rejected-key", "forbidden-key", "token-4xx"],
+    )
+    def test_a_non_transient_poll_error_is_terminal_at_once(self, error, message):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.side_effect = error
+        # A misclassified error would be ridden out to this result, so the test fails
+        # fast instead of spinning to the deadline.
+        client.sandboxes.get_exec_result.side_effect = [error, _exec_result()]
 
-        with pytest.raises(SandboxTerminalError, match="poll a sandbox command"):
-            backend.run_command("box", "x", timeout=5, max_output_bytes=1024)
+        with mock.patch("time.sleep", autospec=True):
+            with pytest.raises(SandboxTerminalError, match=message):
+                backend.run_command("box", "x", timeout=60, max_output_bytes=1024)
+
+        # Raised on the first poll, not ridden out to the deadline.
+        assert client.sandboxes.get_exec_result.call_count == 1
 
     def test_transient_errors_lasting_past_the_deadline_are_terminal_not_a_timeout(self):
         backend, client = _backend_with_client()
@@ -832,10 +887,14 @@ class TestFileOperations:
 
         assert backend.list_directory("box", "/w") == [("a.txt", False), ("new\nline", True)]
 
-    @mock.patch(f"{_MODULE}._HELPER_OUTPUT_CAP", 16)
+    @mock.patch(f"{_MODULE}._HELPER_OUTPUT_CAP", 20)
     def test_a_listing_cut_at_the_head_drops_only_the_leading_record(self):
         backend, client = _backend_with_client()
-        client.sandboxes.get_exec_result.return_value = _exec_result(stdout="f aaaa\0d bbbb\0d cccc\0")
+        # The 20-byte tail starts at " name\0", a fragment that would parse as an
+        # entry called "name" if the leading record were kept.
+        client.sandboxes.get_exec_result.return_value = _exec_result(
+            stdout="f old file name\0d bbbb\0d cccc\0"
+        )
 
         assert backend.list_directory("box", "/w") == [("bbbb", True), ("cccc", True)]
 
@@ -899,6 +958,30 @@ class TestExportFile:
             request_options={"timeout_in_seconds": 120, "chunk_size": 65536},
         )
         client.sandboxes.exec_in_sandbox.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("relative", "quoted"),
+        [("report.csv", "report.csv"), ("report.csv ", "'report.csv '")],
+        ids=["plain", "trailing-space"],
+    )
+    def test_a_relative_path_is_resolved_in_the_guest_before_it_is_downloaded(self, relative, quoted):
+        backend, client = _backend_with_client()
+        client.sandboxes.get_exec_result.side_effect = [
+            _export_check(4),
+            _exec_result(stdout=f"/workspace/{relative}\n"),
+        ]
+        client.sandboxes.download_file.return_value = iter([b"abcd"])
+        dest = io.BytesIO()
+
+        written = backend.export_file("box", relative, dest, max_bytes=100)
+
+        # The download API answers a relative path with a 400, so only the resolved
+        # absolute path may reach it, and whitespace that is part of the name stays.
+        assert written == 4
+        assert dest.getvalue() == b"abcd"
+        resolve = client.sandboxes.exec_in_sandbox.call_args_list[1].kwargs["command"][4]
+        assert resolve == f"realpath -e -- {quoted}"
+        assert client.sandboxes.download_file.call_args.kwargs["path"] == f"/workspace/{relative}"
 
     @pytest.mark.parametrize(
         ("exit_code", "stderr", "error", "message"),
@@ -1082,12 +1165,15 @@ class TestCommandWrapper:
         # and past the deadline the backend destroys the sandbox -- so the agent
         # would lose its files over a command that already finished.
         start = time.monotonic()
-        result = _run_wrapper("sleep 20 & echo started", 1024)
+        result = _run_wrapper("sleep 20 & echo $! >&2; echo started", 1024)
         elapsed = time.monotonic() - start
-
-        assert result.stdout == "started\n"
-        assert result.returncode == 0
-        assert elapsed < 5.0
+        try:
+            assert result.stdout == "started\n"
+            assert result.returncode == 0
+            assert elapsed < 5.0
+        finally:
+            with suppress(ProcessLookupError):
+                os.kill(int(result.stderr.strip()), signal.SIGTERM)
 
     def test_a_long_lived_daemon_does_not_hold_the_command_open(self):
         start = time.monotonic()
@@ -1097,15 +1183,26 @@ class TestCommandWrapper:
             assert result.stdout == "server-started\n"
             assert elapsed < 5.0
         finally:
-            os.kill(int(result.stderr.strip()), signal.SIGTERM)
+            with suppress(ProcessLookupError):
+                os.kill(int(result.stderr.strip()), signal.SIGTERM)
 
     def test_does_not_change_the_permissions_of_what_the_agent_creates(self, tmp_path):
-        result = _run_wrapper(f"cd {tmp_path} && touch a_file && mkdir a_dir && ls -ld a_dir a_file", 4096)
+        script = "touch a_file && mkdir a_dir && stat -c '%a %n' a_dir a_file 2>/dev/null || stat -f '%Lp %N' a_dir a_file"
+        (tmp_path / "wrapped").mkdir()
+        (tmp_path / "bare").mkdir()
 
-        # A umask left in force for the agent's command would make these 700/600.
-        assert result.returncode == 0
-        modes = [line.split()[0] for line in result.stdout.strip().splitlines()]
-        assert all(mode.startswith(("drwxr-xr-x", "-rw-r--r--")) for mode in modes), result.stdout
+        wrapped = _run_wrapper(f"cd {tmp_path / 'wrapped'} && {script}", 4096)
+        bare = subprocess.run(
+            ["sh", "-c", f"cd {tmp_path / 'bare'} && {script}"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        # A umask left in force for the agent's command would tighten these; the
+        # baseline is the host's own umask, so the test holds whatever that is.
+        assert wrapped.returncode == 0
+        assert wrapped.stdout == bare.stdout
 
     def test_the_scratch_directory_is_private_while_in_use_and_gone_after(self, tmp_path):
         scratch_root = tmp_path
