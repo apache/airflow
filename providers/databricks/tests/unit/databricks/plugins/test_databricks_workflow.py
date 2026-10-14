@@ -434,6 +434,9 @@ class TestDatabricksWorkflowPluginAirflow3:
             assert resp.status_code == 200
             assert "<form" in resp.text
             assert 'method="post"' in resp.text
+            # The repair needs an explicit submit: no script can post the form on its own.
+            assert "<script" not in resp.text
+            assert 'class="cancel" href="/dags/my_dag/runs/run1"' in resp.text
             mock_repair.assert_not_called()
             mock_clear.assert_not_called()
         finally:
