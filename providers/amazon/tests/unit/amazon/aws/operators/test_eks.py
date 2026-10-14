@@ -1421,6 +1421,20 @@ def test_eks_operators_remain_available_without_pod_exec():
 
 
 class TestEksPodExecOperator:
+    @pytest.mark.parametrize("parameter", ["in_cluster", "config_file", "cluster_context"])
+    @pytest.mark.parametrize("value", [None, "custom-value"])
+    def test_rejects_managed_kubernetes_parameters(self, parameter, value):
+        with pytest.raises(
+            ValueError, match=f"The {parameter} is not an allowed parameter for the EksPodExecOperator"
+        ):
+            EksPodExecOperator(
+                task_id="run_command",
+                cluster_name=CLUSTER_NAME,
+                pod_name="existing-pod",
+                command=["echo", "hello"],
+                **{parameter: value},
+            )
+
     @staticmethod
     def configure_eks_auth(eks_hook_mock):
         eks_hook = eks_hook_mock.return_value
