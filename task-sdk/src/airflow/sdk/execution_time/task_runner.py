@@ -1964,26 +1964,29 @@ def _handle_current_task_failed(
     Handle a failed task: evaluate the retry policy (if any) and decide the next state.
 
     This is the entry point every failure path routes through. When the policy
-    returns FAIL the task is marked as failed immediately, bypassing the normal
-    retry-count check.  When it returns RETRY with a custom delay, that delay is
-    forwarded in the ``RetryTask`` message.  When it returns RESCHEDULE within its
-    bounds, the task goes to ``up_for_reschedule`` without using a retry; past its
-    bounds, the standard logic runs with the reason saying why.  For DEFAULT (or when
-    no policy is configured), the standard ``_finalize_task_failure`` logic runs.
+    returns FAIL or SKIP the task ends in that state immediately, bypassing the
+    normal retry-count check.  When it returns RETRY with a custom delay, that
+    delay is forwarded in the ``RetryTask`` message.  When it returns RESCHEDULE
+    within its bounds, the task goes to ``up_for_reschedule`` without using a retry;
+    past its bounds, the standard logic runs with the reason saying why.  For DEFAULT
+    (or when no policy is configured), the standard ``_finalize_task_failure`` logic runs.
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
     decision = _evaluate_retry_policy(ti, exception, log, context)
-    if decision is not None and decision.action == RetryAction.FAIL:
+    if decision is not None and decision.action in (RetryAction.FAIL, RetryAction.SKIP):
+        terminal: Literal[TaskInstanceState.FAILED, TaskInstanceState.SKIPPED] = (
+            TaskInstanceState.SKIPPED if decision.action == RetryAction.SKIP else TaskInstanceState.FAILED
+        )
         ti.end_date = datetime.now(tz=UTC)
         return (
             TaskState(
-                state=TaskInstanceState.FAILED,
+                state=terminal,
                 end_date=ti.end_date,
                 rendered_map_index=ti.rendered_map_index,
                 retry_reason=decision.reason[:500] if decision.reason is not None else None,
             ),
-            TaskInstanceState.FAILED,
+            terminal,
         )
     if decision is not None and decision.action == RetryAction.RETRY:
         return _finalize_task_failure(
