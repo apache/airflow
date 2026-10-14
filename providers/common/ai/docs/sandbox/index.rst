@@ -409,7 +409,7 @@ whatever it wants inside the pod that also holds your credentials.
      - Only what ``SandboxSpec.env`` names, which is nothing by default
 
 Running an agent in a pod *and* giving it a sandbox is the setup a Kubernetes
-deployment usually wants, with Modal, OpenSandbox or OpenShell as the backend.
+deployment usually wants, with Modal or OpenSandbox as the backend.
 
 When to choose it
 -----------------

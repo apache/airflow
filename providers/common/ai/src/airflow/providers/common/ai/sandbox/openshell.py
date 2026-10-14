@@ -42,6 +42,8 @@ from airflow.providers.common.ai.sandbox.base import (
     _validate_positive_finite,
 )
 
+# The OpenShell SDK and its protobufs are imported inside the methods that use them:
+# sandbox/__init__.py imports this module eagerly, and ``openshell`` is an optional extra.
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping, Sequence
 
@@ -128,6 +130,10 @@ _TIMEOUT_STATUS = 124
 # line with a per-call nonce it reads from the first line of stdin, which reaches
 # neither the command's argv, its environment nor the staged script.
 _STAGING_STATUS = 125
+# Every variable the wrapper sets starts with this, and SandboxSpec.env may not:
+# a shell keeps a variable it inherited exported when it assigns it, so a spec key
+# naming a wrapper variable would hand its value, the nonce included, to the command.
+_WRAPPER_VAR_PREFIX = "_airflow_"
 _STAGING_FAILED = "airflow-exec: could not stage the command in /tmp"
 # The same for "the image has no setsid", which no command can fix from inside.
 _NO_SETSID_STATUS = 127
@@ -163,67 +169,74 @@ _SYSTEM_PATH = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 # A command that starts its own session (setsid, a daemonizing server) leaves
 # this one and is not killed on timeout, and one that keeps forking faster than
 # the sweep can outlast it.
-_RUN_WRAPPER = rf"""t=$1 c=$2 o=$PATH
-read -r q
+_RUN_WRAPPER = rf"""_airflow_t=$1 _airflow_c=$2 _airflow_o=$PATH
+read -r _airflow_q
 {_SYSTEM_PATH}
-d=$(mktemp -d /tmp/.airflow-exec.XXXXXX) && cat >"$d/c" || {{ rm -rf "$d"; echo "{_STAGING_FAILED} $q" >&2; exit {_STAGING_STATUS}; }}
-f=0
-trap f=1 ALRM
-trap f=2 HUP INT TERM
-z=$(command -v setsid) || {{ rm -rf "$d"; echo "{_NO_SETSID} $q" >&2; exit {_NO_SETSID_STATUS}; }}
-PATH=$o "$z" /bin/sh "$d/c" </dev/null >"$d/o" 2>"$d/e" &
-p=$!
+_airflow_d=$(mktemp -d /tmp/.airflow-exec.XXXXXX) && cat >"$_airflow_d/c" || {{ rm -rf "$_airflow_d"; echo "{_STAGING_FAILED} $_airflow_q" >&2; exit {_STAGING_STATUS}; }}
+_airflow_f=0
+trap _airflow_f=1 ALRM
+trap _airflow_f=2 HUP INT TERM
+_airflow_z=$(command -v setsid) || {{ rm -rf "$_airflow_d"; echo "{_NO_SETSID} $_airflow_q" >&2; exit {_NO_SETSID_STATUS}; }}
+PATH=$_airflow_o "$_airflow_z" /bin/sh "$_airflow_d/c" </dev/null >"$_airflow_d/o" 2>"$_airflow_d/e" &
+_airflow_p=$!
 (
-  read u _ </proc/uptime
-  e=$((${{u%.*}}${{u#*.}} + t * 100))
-  while [ "${{u%.*}}${{u#*.}}" -lt "$e" ]; do
+  read _airflow_u _ </proc/uptime
+  _airflow_e=$((${{_airflow_u%.*}}${{_airflow_u#*.}} + _airflow_t * 100))
+  while [ "${{_airflow_u%.*}}${{_airflow_u#*.}}" -lt "$_airflow_e" ]; do
     sleep 1
     [ -d "/proc/$$" ] || exit 0
-    read u _ </proc/uptime
+    read _airflow_u _ </proc/uptime
   done
   kill -ALRM $$
 ) </dev/null >/dev/null 2>&1 &
-w=$!
-wait "$p"
-r=$?
-[ "$f" = 0 ] && trap '' ALRM
-if [ "$f" != 0 ]; then
-  n=0
-  while [ "$n" -lt 50 ]; do
-    k=0
-    for x in /proc/[0-9]*/stat; do
-      s=
-      while read -r l; do s="$s $l"; done 2>/dev/null <"$x" || continue
-      s=${{s#*) }}
-      case $s in *")"*) s=${{s##*) }} ;; esac
-      set -- $s
-      [ "$4" = "$p" ] || continue
-      x=${{x#/proc/}}
-      kill -KILL "${{x%/stat}}" 2>/dev/null && k=1
+_airflow_w=$!
+wait "$_airflow_p"
+_airflow_r=$?
+[ "$_airflow_f" = 0 ] && trap '' ALRM
+if [ "$_airflow_f" != 0 ]; then
+  _airflow_n=0
+  while [ "$_airflow_n" -lt 50 ]; do
+    _airflow_k=0
+    for _airflow_x in /proc/[0-9]*/stat; do
+      _airflow_s=
+      while read -r _airflow_l; do _airflow_s="$_airflow_s $_airflow_l"; done 2>/dev/null <"$_airflow_x" || continue
+      _airflow_s=${{_airflow_s#*) }}
+      case $_airflow_s in *")"*) _airflow_s=${{_airflow_s##*) }} ;; esac
+      set -- $_airflow_s
+      [ "$4" = "$_airflow_p" ] || continue
+      _airflow_x=${{_airflow_x#/proc/}}
+      kill -KILL "${{_airflow_x%/stat}}" 2>/dev/null && _airflow_k=1
     done
-    [ "$k" = 0 ] && break
-    n=$((n + 1))
+    [ "$_airflow_k" = 0 ] && break
+    _airflow_n=$((_airflow_n + 1))
   done
-  wait "$p" 2>/dev/null
+  wait "$_airflow_p" 2>/dev/null
 fi
-kill -KILL "$w" 2>/dev/null
-tail -c "$((c + 1))" "$d/o"
-tail -c "$((c + 1))" "$d/e" >&2
-rm -rf "$d"
-[ "$f" = 1 ] && exit {_TIMEOUT_STATUS}
-[ "$f" = 2 ] && exit 143
-exit "$r"
+kill -KILL "$_airflow_w" 2>/dev/null
+tail -c "$((_airflow_c + 1))" "$_airflow_d/o"
+tail -c "$((_airflow_c + 1))" "$_airflow_d/e" >&2
+rm -rf "$_airflow_d"
+[ "$_airflow_f" = 1 ] && exit {_TIMEOUT_STATUS}
+[ "$_airflow_f" = 2 ] && exit 143
+exit "$_airflow_r"
 """
+# File operations run without the command wrapper, so nothing kills them in the
+# guest when the call times out. Opening a named pipe blocks until another process
+# opens its other end, which would leave the operation waiting forever, so the
+# scripts refuse one before opening it.
+_NAMED_PIPE_STATUS = SandboxBackend._NOT_REGULAR_FILE_STATUS
+_REFUSE_NAMED_PIPE = f'[ -p "$1" ] && exit {_NAMED_PIPE_STATUS}'
 # read_file: the base class's script with the content sent raw instead of as
 # base64, so a binary file arrives intact and the transfer is half the size.
 _READ_SCRIPT = f"""{_SYSTEM_PATH}
 sz=$(stat -Lc %s -- "$1" 2>/dev/null) || exit {SandboxBackend._MISSING_PATH_STATUS}
 [ -d "$1" ] && exit {SandboxBackend._IS_DIRECTORY_STATUS}
+{_REFUSE_NAMED_PIPE}
 printf '%s\\n' "$sz"
 exec head -c "$2" -- "$1"
 """
-_WRITE_FIRST_SCRIPT = f'{_SYSTEM_PATH}\nmkdir -p -- "$(dirname -- "$1")" && cat >"$1"\n'
-_WRITE_NEXT_SCRIPT = f'{_SYSTEM_PATH}\ncat >>"$1"\n'
+_WRITE_FIRST_SCRIPT = f'{_SYSTEM_PATH}\n{_REFUSE_NAMED_PIPE}\nmkdir -p -- "$(dirname -- "$1")" && cat >"$1"\n'
+_WRITE_NEXT_SCRIPT = f'{_SYSTEM_PATH}\n{_REFUSE_NAMED_PIPE}\ncat >>"$1"\n'
 
 
 def _wrapper_line(message: str, nonce: str) -> bytes:
@@ -246,12 +259,16 @@ def _status_name(error: BaseException) -> str | None:
     return getattr(status, "name", None)
 
 
+def _status_details(error: BaseException) -> str:
+    details = getattr(error, "details", None)
+    return (details() or "") if callable(details) else ""
+
+
 def _describe_error(error: BaseException) -> str:
     status = _status_name(error)
     if status is None:
         return f"{type(error).__name__}: {error}"
-    details = getattr(error, "details", None)
-    text = details() if callable(details) else ""
+    text = _status_details(error)
     return f"{status}: {text}" if text else status
 
 
@@ -495,7 +512,7 @@ class OpenShellSandboxBackend(SandboxBackend):
     backend reads the effective policy back and destroys the sandbox unless it
     is exactly what was asked for, comes from the sandbox rather than a
     gateway-wide override, and cannot be widened by auto-approved proposals.
-    The same check runs before and after every command, because a gateway
+    The same check runs before and after every command and file operation, because a gateway
     administrator, an approved draft or a global policy can widen a running
     sandbox; a change fails the task. What it cannot see is the network the
     gateway runs on: on Kubernetes the NetworkPolicy that keeps a sandbox pod
@@ -629,6 +646,11 @@ class OpenShellSandboxBackend(SandboxBackend):
                     "proxy variables and replaces the CA bundle variables with its own TLS-terminating "
                     "CA in every command, and reserves OPENSHELL_*. Remove it from the spec."
                 )
+            if key.startswith(_WRAPPER_VAR_PREFIX):
+                raise SandboxTerminalError(
+                    f"SandboxSpec.env sets {key}, but names starting with {_WRAPPER_VAR_PREFIX} are "
+                    "reserved for the shell wrapper the backend runs every command in. Rename it."
+                )
             env[key] = value
         return hosts, env
 
@@ -662,8 +684,7 @@ class OpenShellSandboxBackend(SandboxBackend):
     def create(self, *, spec: SandboxSpec | None = None) -> str:
         hosts, env = self._check_spec(spec)
         client = self._get_client()
-        with _translate_openshell_errors("create a sandbox"):
-            request = self._build_spec(hosts, env)
+        request = self._build_spec(hosts, env)
         name = _new_openshell_name()
         try:
             with _translate_openshell_errors("create a sandbox"):
@@ -791,7 +812,7 @@ class OpenShellSandboxBackend(SandboxBackend):
         argv: list[str],
         *,
         stdin: bytes,
-        deadline: float,
+        timeout: float,
         stdout: _BoundedTail | _BoundedHead,
         stderr: _BoundedTail,
     ) -> _ExecOutcome:
@@ -799,8 +820,8 @@ class OpenShellSandboxBackend(SandboxBackend):
         Run ``argv`` once, streaming both outputs into the given bounded buffers.
 
         Streams the gateway's events directly: the SDK's ``exec_stream`` keeps every
-        chunk in memory until the command exits. Raises :class:`_ExecHung` past
-        ``deadline``, :class:`SandboxError` when the gateway could not open its relay
+        chunk in memory until the command exits. Raises :class:`_ExecHung` after
+        ``timeout`` seconds, :class:`SandboxError` when the gateway could not open its relay
         to start the command, and :class:`_GatewayDropped` when the stream ends early
         after the request left, where the command may or may not have run.
         """
@@ -820,7 +841,7 @@ class OpenShellSandboxBackend(SandboxBackend):
         started = time.monotonic()
         stream = None
         try:
-            stream = client._stub.ExecSandbox(request, timeout=deadline)
+            stream = client._stub.ExecSandbox(request, timeout=timeout)
             for event in stream:
                 kind = event.WhichOneof("payload")
                 if kind == "stdout":
@@ -832,10 +853,9 @@ class OpenShellSandboxBackend(SandboxBackend):
         except Exception as e:
             status = _status_name(e)
             if status == "DEADLINE_EXCEEDED":
-                if time.monotonic() - started >= deadline - _EARLY_DEADLINE_MARGIN:
+                if time.monotonic() - started >= timeout - _EARLY_DEADLINE_MARGIN:
                     raise _ExecHung from e
-                details = getattr(e, "details", None)
-                if callable(details) and details() == _RELAY_OPEN_TIMED_OUT:
+                if _status_details(e) == _RELAY_OPEN_TIMED_OUT:
                     raise SandboxError(
                         f"The command was not run: the OpenShell gateway could not reach sandbox {sandbox} "
                         f"to start it ({_describe_error(e)}). Run it again."
@@ -864,7 +884,7 @@ class OpenShellSandboxBackend(SandboxBackend):
         argv: list[str],
         *,
         stdin: bytes,
-        deadline: float,
+        timeout: float,
         stdout: _BoundedTail | _BoundedHead,
         stderr: _BoundedTail,
     ) -> _ExecOutcome:
@@ -880,12 +900,12 @@ class OpenShellSandboxBackend(SandboxBackend):
         """
         try:
             try:
-                return self._exec(sandbox, argv, stdin=stdin, deadline=deadline, stdout=stdout, stderr=stderr)
+                return self._exec(sandbox, argv, stdin=stdin, timeout=timeout, stdout=stdout, stderr=stderr)
             except SandboxTerminalError as e:
                 if _status_name(e.__cause__ or e) != "FAILED_PRECONDITION":
                     raise
                 self._wait_until_ready(sandbox, deadline=time.monotonic() + self._ready_timeout)
-                return self._exec(sandbox, argv, stdin=stdin, deadline=deadline, stdout=stdout, stderr=stderr)
+                return self._exec(sandbox, argv, stdin=stdin, timeout=timeout, stdout=stdout, stderr=stderr)
         except _GatewayDropped as e:
             self._wait_until_ready(sandbox, deadline=time.monotonic() + _GATEWAY_RECOVERY)
             raise SandboxError(
@@ -920,7 +940,7 @@ class OpenShellSandboxBackend(SandboxBackend):
                 sandbox,
                 ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", str(seconds), str(int(max_output_bytes))],
                 stdin=f"{nonce}\n".encode() + payload,
-                deadline=seconds + _EXEC_GRACE,
+                timeout=seconds + _EXEC_GRACE,
                 stdout=stdout,
                 stderr=stderr,
             )
@@ -956,6 +976,14 @@ class OpenShellSandboxBackend(SandboxBackend):
         # gateway stopped relaying; either way the command may still be running, and
         # OpenShell does not stop an exec whose caller went away, so only destroying
         # the sandbox ends it.
+        log.warning(
+            "OpenShell sandbox %s reported nothing for %gs, its command budget of %ds plus %gs; "
+            "destroying it to stop the command",
+            sandbox,
+            seconds + _EXEC_GRACE,
+            seconds,
+            _EXEC_GRACE,
+        )
         self._destroy_or_warn(sandbox, after="a command timed out")
         return SandboxExecResult(
             exit_code=-1,
@@ -987,7 +1015,7 @@ class OpenShellSandboxBackend(SandboxBackend):
                 sandbox,
                 ["/bin/sh", "-c", script, "airflow-file", *args],
                 stdin=stdin,
-                deadline=_FILE_OP_TIMEOUT,
+                timeout=_FILE_OP_TIMEOUT,
                 stdout=head,
                 stderr=_BoundedTail(_FILE_OP_OUTPUT_CAP),
             )
@@ -995,16 +1023,23 @@ class OpenShellSandboxBackend(SandboxBackend):
             raise SandboxError(
                 f"The file operation did not finish within {_FILE_OP_TIMEOUT:g} seconds."
             ) from e
+        if outcome.exit_code == _NAMED_PIPE_STATUS:
+            raise SandboxError(
+                f"{args[0]!r} is a named pipe, which would block until another process opens its "
+                "other end. Use run_command to read or write it."
+            )
         return outcome, head.get_bytes()
 
     def read_file(self, sandbox: str, path: str, *, max_bytes: int) -> bytes:
         """Read a file as raw bytes, stopping one byte past ``max_bytes`` inside the guest."""
         _validate_positive_finite(max_bytes, "max_bytes")
         self._check_path(path)
+        self._check_egress(sandbox)
         # The size line is at most 20 digits and a newline; the rest is the content.
         outcome, raw = self._run_file_op(
             sandbox, _READ_SCRIPT, path, str(max_bytes + 1), stdout_cap=max_bytes + 1 + 32
         )
+        self._check_egress(sandbox)
         if outcome.exit_code == self._MISSING_PATH_STATUS:
             raise SandboxError(f"{path!r} does not exist in the sandbox, or is not readable.")
         if outcome.exit_code == self._IS_DIRECTORY_STATUS:
@@ -1031,14 +1066,16 @@ class OpenShellSandboxBackend(SandboxBackend):
         atomically: a failure part way leaves the chunks written so far.
         """
         self._check_path(path)
-        chunks = [
-            content[i : i + _WRITE_CHUNK_BYTES] for i in range(0, len(content), _WRITE_CHUNK_BYTES)
-        ] or [b""]
-        for index, chunk in enumerate(chunks):
-            script = _WRITE_FIRST_SCRIPT if index == 0 else _WRITE_NEXT_SCRIPT
+        self._check_egress(sandbox)
+        # One empty chunk for empty content, so the file is still created. Sliced as it
+        # is sent, so only one chunk is copied out of ``content`` at a time.
+        for start in range(0, max(len(content), 1), _WRITE_CHUNK_BYTES):
+            script = _WRITE_FIRST_SCRIPT if start == 0 else _WRITE_NEXT_SCRIPT
+            chunk = content[start : start + _WRITE_CHUNK_BYTES]
             outcome, _ = self._run_file_op(sandbox, script, path, stdin=chunk)
             if outcome.exit_code:
                 raise SandboxError(outcome.stderr.get_text().strip() or f"Could not write {path!r}.")
+        self._check_egress(sandbox)
 
     def list_directory(self, sandbox: str, path: str) -> list[tuple[str, bool]]:
         """List as the base class does, but refuse a listing cut short at the output cap."""
@@ -1048,6 +1085,15 @@ class OpenShellSandboxBackend(SandboxBackend):
             timeout=_FILE_OP_TIMEOUT,
             max_output_bytes=_FILE_OP_OUTPUT_CAP,
         )
+        if result.sandbox_terminated:
+            # The toolset only replaces a sandbox after a command, so a listing that lost
+            # it has to fail the task rather than leave the toolset holding a deleted one.
+            raise SandboxTerminalError(
+                f"The OpenShell gateway stopped answering while listing {path!r}, so sandbox "
+                f"{sandbox} was destroyed to stop the listing."
+            )
+        if result.timed_out:
+            raise SandboxError(f"Listing {path!r} did not finish within {_FILE_OP_TIMEOUT:g} seconds.")
         if result.exit_code:
             raise SandboxError(result.stderr.strip() or f"Could not list {path!r}.")
         if result.stdout_truncated:

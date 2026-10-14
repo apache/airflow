@@ -58,7 +58,11 @@ an open sandbox. On OpenSandbox the default and ``allow_egress_to`` become a pol
 for the server's egress sidecar, and the backend destroys the sandbox and fails the task unless that
 sidecar runs in ``dns+nft`` mode, the one that drops connections to unlisted
 addresses rather than only name resolution (see
-:ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`). ``allow_egress_to``
+:ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`). On OpenShell they become
+a policy the sandbox runtime enforces, which the backend reads back before and after
+every operation; a name lookup there is answered with a synthetic address instead of
+failing, though no query leaves the sandbox (see
+:ref:`the OpenShell backend <sandbox-backend-openshell>`). ``allow_egress_to``
 names hosts the sandbox may reach, and ``sbx`` and Modal refuse it until you have
 said something that makes it enforceable:
 ``sbx`` applies it as a per-sandbox rule on top of that ``deny-all`` host policy,
@@ -68,12 +72,13 @@ opted into with ``egress_enforcement="sni"`` (see
 :ref:`the Modal backend <sandbox-backend-modal>` for exactly what it does and does
 not stop). ``allow_egress_to_cidrs`` names address ranges instead, and on Modal it
 is enforced on the destination address for any port, so it needs no opt-in; it is
-the mode for one service at a fixed public IPv4 address, and ``sbx`` refuses it. A
+the mode for one service at a fixed public IPv4 address, and ``sbx`` and OpenShell refuse it. A
 private address is unreachable from a hosted sandbox whether or not it is listed.
 The two lists can be set together, and traffic matching either is allowed, which
 weakens the address list on port 443.
 ``block_network=False`` opens outbound access; on Modal the cloud metadata
-endpoint and private address ranges stay unreachable even then.
+endpoint and private address ranges stay unreachable even then. OpenShell refuses
+it, because every egress rule there names a host and its ports.
 
 **Packages.** A default sandbox has the Python standard library and no network,
 so an agent that reaches for ``pip install`` gets a DNS failure in a few seconds.

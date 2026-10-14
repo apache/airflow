@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import builtins
+import contextlib
 import copy
 import errno
 import os
@@ -371,6 +372,14 @@ class TestSpecRefusals:
 
         with pytest.raises(SandboxTerminalError, match=f"sets {key}"):
             backend.create(spec=SandboxSpec(env={key: "value"}))
+
+        client.create.assert_not_called()
+
+    def test_env_named_like_a_wrapper_variable_is_refused(self):
+        backend, client = _backend()
+
+        with pytest.raises(SandboxTerminalError, match="sets _airflow_q.*reserved for the shell wrapper"):
+            backend.create(spec=SandboxSpec(env={"_airflow_q": "value"}))
 
         client.create.assert_not_called()
 
@@ -831,6 +840,8 @@ class TestRunCommand:
 
         assert result.stdout == "ok\n"
         assert client._stub.ExecSandbox.call_count == 2
+        # Polled until ready before the retry: once while provisioning, once ready.
+        assert client._stub.GetSandbox.call_count == 2
         assert _exec_request(client, 0).request_id != _exec_request(client, 1).request_id
 
     def test_a_gateway_drop_during_the_not_ready_retry_is_reported_not_leaked(self):
@@ -1004,6 +1015,7 @@ class TestFiles:
         [
             (66, b"", "does not exist"),
             (67, b"", "is a directory"),
+            (68, b"", "is a named pipe"),
             (1, b"head: cannot open '/dev/zero' for reading: Permission denied\n", "Permission denied"),
         ],
     )
@@ -1059,6 +1071,26 @@ class TestFiles:
 
         assert not isinstance(error.value, SandboxTerminalError)
 
+    @pytest.mark.parametrize("operation", _PATH_OPERATIONS)
+    def test_file_operations_check_the_policy_before_and_after(self, operation):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _result(0, b"4\ndata")
+
+        operation(backend, "/tmp/x")
+
+        assert client._stub.GetSandboxConfig.call_count == 2
+
+    @pytest.mark.parametrize("operation", _PATH_OPERATIONS)
+    def test_a_gateway_wide_policy_before_a_file_operation_is_terminal_and_nothing_runs(self, operation):
+        backend, client = _backend()
+        client._stub.GetSandboxConfig.return_value = _config(source=sandbox_pb2.POLICY_SOURCE_GLOBAL)
+
+        with pytest.raises(SandboxTerminalError, match="gateway-wide policy"):
+            operation(backend, "/tmp/x")
+
+        client._stub.ExecSandbox.assert_not_called()
+        client.delete.assert_called_once_with("box", workspace="default", allow_missing=True)
+
     @pytest.mark.parametrize(
         ("path", "message"),
         [
@@ -1112,6 +1144,34 @@ class TestFiles:
 
         with pytest.raises(SandboxError, match="too many entries"):
             backend.list_directory("box", "/sandbox")
+
+    def test_a_listing_the_gateway_stops_relaying_is_terminal(self, clock, caplog):
+        backend, client = _backend()
+        client._stub.ExecSandbox.side_effect = _deadline_exceeded(clock)
+
+        with pytest.raises(SandboxTerminalError, match="stopped answering while listing '/sandbox'"):
+            backend.list_directory("box", "/sandbox")
+
+        client.delete.assert_called_once_with("box", workspace="default", allow_missing=True)
+        assert (
+            "OpenShell sandbox box reported nothing for 150s, its command budget of 120s plus 30s; "
+            "destroying it to stop the command"
+        ) in caplog.messages
+
+    def test_a_listing_that_runs_out_of_time_is_recoverable(self, clock):
+        backend, client = _backend()
+
+        def timed_out(request, timeout):
+            clock.now += 120.5
+            return _result(124)
+
+        client._stub.ExecSandbox.side_effect = timed_out
+
+        with pytest.raises(SandboxError, match="did not finish within 120 seconds") as error:
+            backend.list_directory("box", "/sandbox")
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        client.delete.assert_not_called()
 
 
 class TestDestroy:
@@ -1208,10 +1268,38 @@ class TestRunWrapper:
         started = time.monotonic()
         result = self._run("sleep 301 & (sleep 302; echo x) & sleep 303", seconds=2)
 
-        assert result.returncode == 124
-        assert time.monotonic() - started < 10
+        elapsed = time.monotonic() - started
         time.sleep(0.5)
-        assert not any(self._pids(f"sleep {n}") for n in (301, 302, 303))
+        survivors = [pid for n in (301, 302, 303) for pid in self._pids(f"sleep {n}")]
+        for pid in survivors:
+            os.kill(pid, signal.SIGKILL)
+        assert result.returncode == 124
+        assert elapsed < 10
+        assert not survivors
+
+    def test_the_timeout_rescans_for_children_forked_during_the_sweep(self):
+        # One pass over /proc misses a child forked after the pass listed it. Each watcher
+        # forks one sleep as soon as the canary, started first, is killed, while the pass is
+        # still working through the 200 fillers started before the watchers; only a sweep that
+        # scans again finds those sleeps. Each watcher forks once, so the rescan always ends.
+        command = (
+            "sleep 312 & c=$!\n"
+            "for i in $(seq 200); do sleep 313 & done\n"
+            "for i in $(seq 8); do (\n"
+            '  while read -r s </proc/$c/stat; do case $s in *") Z "*) break ;; esac; done 2>/dev/null\n'
+            "  sleep 311 &\n"
+            ") & done\n"
+            "wait"
+        )
+        result = self._run(command, seconds=2)
+
+        time.sleep(0.5)
+        survivors = [pid for n in (311, 312, 313) for pid in self._pids(f"sleep {n}")]
+        for pid in survivors:
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(pid, signal.SIGKILL)
+        assert result.returncode == 124
+        assert not survivors
 
     @pytest.mark.parametrize(
         "name", [pytest.param("a) b c", id="a-parenthesis"), pytest.param("a\nb", id="a-newline")]
@@ -1297,6 +1385,43 @@ class TestRunWrapper:
         # The wrapper's own argv was read, so its nonce would have been too.
         assert _STAGING_FAILED.encode() in result.stdout
         assert self._NONCE.encode() not in result.stdout
+
+    def test_spec_env_named_like_a_shell_variable_does_not_receive_the_nonce(self):
+        # A shell keeps an inherited variable exported when it assigns it, so a wrapper
+        # variable sharing a name with the spec's env would pass its value to the command.
+        env = {**os.environ, **{name: "from-the-spec" for name in "cdefklnopqrstuwxz"}}
+
+        result = subprocess.run(
+            ["/bin/sh", "-c", _RUN_WRAPPER, "airflow-exec", "5", "100000"],
+            input=f"{self._NONCE}\nenv".encode(),
+            capture_output=True,
+            env=env,
+            timeout=25,
+            check=False,
+        )
+
+        assert result.returncode == 0
+        assert b"q=from-the-spec" in result.stdout
+        assert self._NONCE.encode() not in result.stdout
+
+    @pytest.mark.parametrize(
+        "operation",
+        [
+            pytest.param(lambda backend, path: backend.read_file("box", path, max_bytes=10), id="read"),
+            pytest.param(lambda backend, path: backend.write_file("box", path, b"data"), id="write"),
+        ],
+    )
+    def test_a_named_pipe_is_refused_rather_than_waited_on(self, tmp_path, operation):
+        fifo = tmp_path / "pipe"
+        os.mkfifo(fifo)
+        backend = self._backend_on_local_shell()
+        started = time.monotonic()
+
+        with pytest.raises(SandboxError, match="is a named pipe") as error:
+            operation(backend, str(fifo))
+
+        assert not isinstance(error.value, SandboxTerminalError)
+        assert time.monotonic() - started < 5
 
     @pytest.mark.parametrize(
         ("line", "status"),

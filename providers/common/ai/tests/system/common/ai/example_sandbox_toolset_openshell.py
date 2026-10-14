@@ -50,6 +50,7 @@ CONNECT = (
 def example_sandbox_toolset_openshell():
     @task
     def run_sandbox_agent() -> str:
+        # Keep task-only dependencies out of the Dag-parsing process.
         from pydantic_ai import Agent
         from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
         from pydantic_ai.models.function import AgentInfo, FunctionModel

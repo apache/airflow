@@ -271,6 +271,14 @@ has only a loopback network interface, and a per-sandbox supervisor opens every
 outbound connection on its behalf, against a policy the backend writes and reads back. Airflow workers
 only need gRPC access to the gateway.
 
+Choose it over :ref:`OpenSandbox <sandbox-backend-opensandbox>` when you want the
+sandbox runtime itself to enforce deny-all and the hostname allowlist, rather than
+an egress sidecar that has to run in the right mode. It is Apache-2.0 and runs on a
+single machine with no account, so it is also the self-hosted backend to try first
+on a laptop. For a production gateway on Kubernetes, prefer OpenSandbox or Modal:
+this backend has been verified on OpenShell's Docker driver only, which OpenShell
+scopes to local development and single-machine gateways.
+
 Install the SDK extra:
 
 .. code-block:: bash
@@ -332,7 +340,7 @@ policy, keeps Landlock at ``hard_requirement``, and has neither
 ``proposal_approval_mode=auto`` nor agent policy proposals enabled at any scope.
 Auto-approval is refused because OpenShell turns a denied connection into a
 proposed allow rule and, in that mode, approves it without review. The same
-check runs before and after every command, because an administrator, an approved
+check runs before and after every command and file operation, because an administrator, an approved
 draft or a gateway-wide policy can widen a running sandbox; a change destroys the
 sandbox and fails the task. That detects a widening, it does not prevent one: a
 command already running when the policy changes can use it. The check sees
@@ -349,8 +357,10 @@ its ports, so an open network cannot be expressed), ``allow_egress_to_cidrs``
 other proxy variables from every command and replaces ``SSL_CERT_FILE``,
 ``REQUESTS_CA_BUNDLE``, ``CURL_CA_BUNDLE``, ``GIT_SSL_CAINFO``,
 ``NODE_EXTRA_CA_CERTS`` and ``DENO_CERT`` with its own, without an error, and
-reserves ``OPENSHELL_*``. Everything else in ``SandboxSpec.env``, ``PATH``
-included, reaches commands as given, since they run without a login shell.
+reserves ``OPENSHELL_*``. Keys starting with ``_airflow_`` are refused too, because the
+command wrapper below names its own shell variables that way. Everything else in
+``SandboxSpec.env``, ``PATH`` included, reaches commands as given, since they run
+without a login shell.
 
 **Commands.** OpenShell's own exec timeout reports exit 124 and leaves the
 command running, so the backend runs each command through a small shell wrapper
@@ -379,7 +389,9 @@ until its budget runs out, and the model is told it may still be running.
 **Files.** ``write_file`` sends content on stdin in chunks of 768 KiB, since the
 gateway limits one command argument to 32 KiB and one request to 1 MiB; a larger
 write is not atomic, and it follows a symlink like a shell redirect. ``read_file``
-transfers raw bytes, capped inside the guest. The image needs ``setsid`` (from
+transfers raw bytes, capped inside the guest. Both refuse a named pipe, since
+opening one waits for another process and nothing would end the wait in the
+sandbox; ``run_command`` with a timeout can still read or write one. The image needs ``setsid`` (from
 util-linux) and GNU coreutils and findutils, which ``python:*-slim`` and other
 Debian or Ubuntu based images have; an image without ``setsid`` fails the task at
 its first command. The gateway's own default image has no ``python3``, which is
