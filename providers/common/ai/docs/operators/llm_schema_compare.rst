@@ -189,8 +189,10 @@ Parameters
   severity definitions. Passing a value **replaces** the default, so concatenate
   with ``DEFAULT_SYSTEM_PROMPT`` to extend it (see
   :ref:`Customizing the System Prompt <howto/operator:llm_schema_compare>` above).
-- ``agent_params``: Additional keyword arguments passed to the pydantic-ai
-  ``Agent`` constructor.
+- ``model_settings``: Pydantic AI ``ModelSettings`` for the model call, such as
+  ``temperature`` or ``max_tokens``. Supports Jinja templating.
+- ``output_retries``: How many times the model is asked again when its output fails
+  validation. Default ``None`` (Pydantic AI's default).
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
   the same fields) enforced on the run; the task fails when a budget is exceeded.
   Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.

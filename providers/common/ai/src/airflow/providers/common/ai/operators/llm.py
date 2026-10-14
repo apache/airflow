@@ -65,6 +65,7 @@ if TYPE_CHECKING:
 
     from pydantic_ai import Agent
     from pydantic_ai.agent import AgentRunResult
+    from pydantic_ai.settings import ModelSettings
     from pydantic_ai.usage import UsageLimits
 
     from airflow.sdk import Context
@@ -91,6 +92,11 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     The Pydantic class must be defined at module scope: classes nested inside
     a function or ``@dag``-decorated body cannot be deserialized from XCom.
 
+    No tool runs in the task: the operator accepts no function tools, toolsets or
+    capabilities, makes one model call (repeated only when the output fails validation)
+    and returns its output. For an agent that calls tools, use
+    :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
+
     Once ``_clear_usage_budget`` has run, nothing may fail the attempt (raising
     ``DownstreamTasksSkipped`` to signal success is fine): a failure would be retried
     with a fresh budget. This applies to subclasses that override ``execute`` or
@@ -114,10 +120,12 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         returned to XCom unchanged so downstream tasks can type-hint it
         directly. The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
-        See `pydantic-ai Agent docs <https://ai.pydantic.dev/api/agent/>`__
-        for the full list.
+    :param model_settings: Pydantic AI :class:`~pydantic_ai.settings.ModelSettings`
+        for the model call, such as ``temperature`` or ``max_tokens``, including
+        provider-specific settings. ``None`` (default) uses the model's defaults.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation against ``output_type``. ``None`` (default) uses Pydantic AI's
+        default.
     :param usage_limits: Optional pydantic-ai
         :class:`~pydantic_ai.usage.UsageLimits` enforced on the run, or a dict
         of the same fields (e.g.
@@ -198,7 +206,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         "model_id",
         "fallback_conn_ids",
         "system_prompt",
-        "agent_params",
+        "model_settings",
         "usage_limits",
     )
 
@@ -211,7 +219,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
         output_type: type | UnionType = str,
-        agent_params: dict[str, Any] | None = None,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
@@ -241,7 +250,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         # for deserialization (its worker-side DAG walk); otherwise, or when the
         # user opts in, dump to a dict so the value is deserializable anywhere.
         self._serialize_model_output = serialize_output or not _CORE_WALKER
-        self.agent_params = agent_params or {}
+        self.model_settings = model_settings
+        self.output_retries = output_retries
         # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
         if on_approval_timeout not in ("fail", *LLMApprovalMixin.TIMEOUT_DEFAULTS):
@@ -305,6 +315,21 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
+    def _create_agent(self, *, output_type: Any, instructions: str) -> Agent[object, Any]:
+        """
+        Build the agent for this operator's model call.
+
+        The only way any LLM operator builds its agent. Only ``model_settings`` and
+        ``output_retries`` reach it, so no function tool, toolset or capability is ever
+        registered; an agent with tools is what ``AgentOperator`` is for.
+        """
+        return self.llm_hook.create_agent(
+            output_type=output_type,
+            instructions=instructions,
+            model_settings=self.model_settings,
+            retries=self.output_retries,
+        )
+
     def execute(self, context: Context) -> Any:
         if self._may_review:
             self.validate_approval_prompt()  # type: ignore[misc]
@@ -312,9 +337,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
-        agent: Agent[object, Any] = self.llm_hook.create_agent(
-            output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
-        )
+        agent = self._create_agent(output_type=self.output_type, instructions=self.system_prompt)
         result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 

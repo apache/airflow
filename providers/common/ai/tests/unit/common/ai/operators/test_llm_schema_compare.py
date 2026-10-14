@@ -166,11 +166,11 @@ class TestLLMSchemaCompareOperator:
             data_sources=[ds, _make_ds_config(conn_id="ds2")],
             context_strategy="basic",
             system_prompt="additional instructions",
-            agent_params={"temperature": 0.5},
+            model_settings={"temperature": 0.5},
         )
         assert op.context_strategy == "basic"
         assert op.system_prompt == "additional instructions"
-        assert op.agent_params == {"temperature": 0.5}
+        assert op.model_settings == {"temperature": 0.5}
 
     @mock.patch("airflow.providers.common.ai.operators.llm_schema_compare.BaseHook")
     def test_get_db_hook_success(self, mock_base_hook):
@@ -272,7 +272,7 @@ class TestLLMSchemaCompareOperator:
             llm_conn_id="llm_conn",
             db_conn_ids=["postgres_default", "snowflake_default"],
             table_names=["orders"],
-            agent_params={"param": "value"},
+            model_settings={"temperature": 0},
         )
 
         mock_llm_hook = mock.Mock()
@@ -290,7 +290,8 @@ class TestLLMSchemaCompareOperator:
         mock_llm_hook.create_agent.assert_called_once_with(
             output_type=SchemaCompareResult,
             instructions="system_prompt",
-            param="value",
+            model_settings={"temperature": 0},
+            retries=None,
         )
         mock_agent.run_sync.assert_called_once_with(
             "user_prompt", usage_limits=None, cancellation_token=mock.ANY
