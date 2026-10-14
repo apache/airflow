@@ -22,7 +22,7 @@ description: |
   AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 state: ready
-lifecycle: incubation
+lifecycle: production
 source-date-epoch: 1791328846
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
