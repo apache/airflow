@@ -418,6 +418,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return None
             serdag.load_op_links = False
             return serdag.dag
+        except DBAPIError:
+            raise
         except Exception:
             self.log.exception("Failed to deserialize DAG '%s'", dag_id)
             return None
@@ -2837,14 +2839,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
-            # crash due to misconfigured dags. We should log any exception encountered
+            # crash due to misconfigured Dags. We should log non-database exceptions
             # and continue to the next serdag.
+            except DBAPIError:
+                # The owning transaction must roll back and re-query candidates with HA locks.
+                # Persistent per-Dag failure isolation remains tracked in
+                # https://github.com/apache/airflow/issues/59120.
+                raise
             except Exception:
                 self.log.exception("Failed creating DagRun", dag_id=dag_model.dag_id)
-                # todo: if you get a database error here, continuing does not work because
-                #  session needs rollback. you need either to make smaller transactions and
-                #  commit after every dag run or use savepoints.
-                #  https://github.com/apache/airflow/issues/59120
 
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()

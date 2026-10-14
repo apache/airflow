@@ -29,6 +29,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 from unittest import mock
@@ -39,8 +40,9 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import delete, func, inspect, select, update
+from sqlalchemy import delete, event, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -161,8 +163,9 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
+from airflow.utils.retries import MAX_DB_RETRIES
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
+from airflow.utils.sqlalchemy import CommitProhibitorGuard, prohibit_commit, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -6566,6 +6569,155 @@ class TestSchedulerJob:
         assert dr.state == State.QUEUED
         assert dr.start_date is None
         assert dr.creating_job_id == scheduler_job.id
+
+    @pytest.mark.parametrize("failure_point", ["deserialize", "create"])
+    @pytest.mark.parametrize("failures", [1, MAX_DB_RETRIES])
+    def test_create_dagruns_retries_original_db_error(self, failure_point, failures, dag_maker, session):
+        with dag_maker(dag_id="retry_db_error", schedule="@once", session=session):
+            EmptyOperator(task_id="task")
+
+        pool_name = "dagrun_retry_duplicate"
+        session.add(Pool(pool=pool_name, slots=1, include_deferred=False))
+        session.commit()
+        errors = []
+        calls = 0
+
+        target, method = (
+            (SerializedDagModel, "get")
+            if failure_point == "deserialize"
+            else (SerializedDAG, "create_dagrun")
+        )
+        original = getattr(target, method)
+
+        def fail_then_call(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            try:
+                if calls <= failures:
+                    kwargs["session"].add(Pool(pool=pool_name, slots=1, include_deferred=False))
+                    kwargs["session"].flush()
+                return original(*args, **kwargs)
+            except IntegrityError as error:
+                errors.append(error)
+                raise
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        with (
+            mock.patch.object(target, method, autospec=True, side_effect=fail_then_call),
+            prohibit_commit(session) as guard,
+        ):
+            if failures == MAX_DB_RETRIES:
+                with pytest.raises(IntegrityError) as raised:
+                    self.job_runner._create_dagruns_for_dags(guard, session)
+                assert raised.value is errors[-1]
+                assert session.is_active
+                assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+            else:
+                self.job_runner._create_dagruns_for_dags(guard, session)
+                runs = session.scalars(select(DagRun).where(DagRun.dag_id == "retry_db_error")).all()
+                assert len(runs) == 1
+                assert runs[0].state == DagRunState.QUEUED
+        assert calls == min(failures + 1, MAX_DB_RETRIES)
+        assert len(errors) == failures
+
+    @pytest.mark.backend("mysql")
+    @pytest.mark.parametrize("autoflush", [False, True])
+    def test_create_dagruns_recovers_from_mysql_deadlock(self, dag_maker, session, monkeypatch, autoflush):
+        """Retry the batch after an InnoDB deadlock during metadata flush."""
+        dag_ids = ["mysql_deadlock_a", "mysql_deadlock_b"]
+        dag_id = dag_ids[0]
+        parsing_dag_id = "mysql_deadlock_parsing"
+        for scheduled_dag_id in dag_ids:
+            with dag_maker(dag_id=scheduled_dag_id, schedule="@once", session=session):
+                EmptyOperator(task_id="task")
+        with dag_maker(dag_id=parsing_dag_id, schedule="@once", session=session):
+            EmptyOperator(task_id="task")
+        session.get(DagModel, parsing_dag_id).is_paused = True
+        pools = [f"deadlock_weight_{i}" for i in range(32)]
+        session.add_all(Pool(pool=name, slots=1, include_deferred=False) for name in pools)
+        session.commit()
+        monkeypatch.setattr(session, "autoflush", autoflush)
+
+        parsing_row_locked = Event()
+        scheduler_row_locked = Event()
+        deadlocks = []
+        locked_candidate_queries = []
+
+        def record_query(conn, cursor, statement, parameters, context, executemany):
+            if "FOR UPDATE" in statement.upper() and "dag.next_dagrun_create_after" in statement:
+                locked_candidate_queries.append(statement)
+
+        def concurrent_parser():
+            with settings.engine.begin() as connection:
+                connection.exec_driver_sql("SET SESSION innodb_lock_wait_timeout = 10")
+                # Give this transaction more undo work so InnoDB selects the scheduler as victim.
+                connection.execute(update(Pool).where(Pool.pool.in_(pools)).values(slots=2))
+                connection.execute(
+                    update(DagModel).where(DagModel.dag_id == parsing_dag_id).values(last_parse_duration=100)
+                )
+                parsing_row_locked.set()
+                assert scheduler_row_locked.wait(30)
+                connection.execute(
+                    update(DagModel).where(DagModel.dag_id == dag_id).values(last_parse_duration=100)
+                )
+
+        calls = 0
+        create_dagrun = SerializedDAG.create_dagrun
+
+        def create_with_pending_metadata(dag, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                kwargs["session"].get(DagModel, parsing_dag_id).last_parse_duration = 101
+                scheduler_row_locked.set()
+            try:
+                return create_dagrun(dag, **kwargs)
+            except DBAPIError as error:
+                deadlocks.append(error.orig.args[0])
+                parser.result(timeout=30)
+                raise
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        event.listen(settings.engine, "before_cursor_execute", record_query)
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                parser = executor.submit(concurrent_parser)
+                try:
+                    assert parsing_row_locked.wait(30)
+                    with (
+                        mock.patch.object(
+                            SerializedDAG,
+                            "create_dagrun",
+                            autospec=True,
+                            side_effect=create_with_pending_metadata,
+                        ),
+                        prohibit_commit(session) as guard,
+                    ):
+                        self.job_runner._create_dagruns_for_dags(guard, session)
+                finally:
+                    scheduler_row_locked.set()
+                    session.rollback()
+                parser.result(timeout=30)
+        finally:
+            event.remove(settings.engine, "before_cursor_execute", record_query)
+            with create_session() as cleanup:
+                cleanup.execute(delete(Pool).where(Pool.pool.in_(pools)))
+
+        assert deadlocks == [1213]
+        assert calls == 4
+        assert len(locked_candidate_queries) == 2
+        with create_session() as readback:
+            runs = readback.scalars(select(DagRun).where(DagRun.dag_id.in_(dag_ids))).all()
+            assert Counter(run.dag_id for run in runs) == Counter(dag_ids)
+            assert all(run.state == DagRunState.QUEUED for run in runs)
+            assert (
+                readback.scalar(select(DagModel.last_parse_duration).where(DagModel.dag_id == dag_id)) == 100
+            )
+            assert (
+                readback.scalar(select(DagModel.last_parse_duration).where(DagModel.dag_id == parsing_dag_id))
+                == 100
+            )
+            assert readback.scalar(select(func.count()).select_from(Pool).where(Pool.pool.in_(pools))) == 0
 
     @pytest.mark.need_serialized_dag
     @conf_vars({("scheduler", "batch_asset_events"): "True"})
