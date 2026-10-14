@@ -188,7 +188,7 @@ These configure ``@task.agent`` and ``AgentOperator``.
        OpenAI and Gemini cache on their own. On by default.
      - None
 
-Put a person in the loop
+Put a Human in the loop
 ------------------------
 
 .. list-table::
