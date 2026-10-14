@@ -146,9 +146,13 @@ Tested versions
      - 0.21.0 and later require ``openai>=3``, while Airflow's constraints file pins
        ``openai`` below 3, so installing with that file gives 0.20.
 
-These are the versions the adapter tests have been run against. CI does not run those
-tests: its environment has ``mcp`` 2.2 and OpenTelemetry 1.44, which Strands and ADK
-exclude. They run in an environment with the framework installed.
+These are the versions the adapter tests have been run against. Strands and ADK cap
+packages below the versions in Airflow's dependency lock, and current OpenAI Agents SDK
+releases need ``openai`` 3, so CI runs their adapter tests in a job of their own, one
+framework at a time. Pull requests test each framework against the versions in
+Airflow's CI image, which for the OpenAI Agents SDK means the newest release that accepts
+``openai`` 2.x; scheduled runs test each framework's newest release with its own
+dependency pins.
 
 Choosing a route
 ----------------
