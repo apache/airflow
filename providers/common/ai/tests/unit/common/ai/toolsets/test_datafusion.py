@@ -136,6 +136,12 @@ class TestDataFusionToolsetToolPrefix:
         assert json.loads(result) == ["sales"]
 
 
+class TestDataFusionToolsetNameConflictHint:
+    def test_hint_points_to_tool_prefix(self):
+        ts = DataFusionToolset([_make_mock_datasource_config()])
+        assert "tool_prefix" in ts.tool_name_conflict_hint
+
+
 class TestDataFusionToolsetToolPrefixModelFacingText:
     def test_get_schema_description_names_the_prefixed_tool(self):
         ts = DataFusionToolset([_make_mock_datasource_config()], tool_prefix="lake")
