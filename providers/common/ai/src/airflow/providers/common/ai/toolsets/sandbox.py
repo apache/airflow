@@ -381,7 +381,7 @@ class SandboxToolset(AirflowToolset):
         suffix = f"-{self._tool_prefix}" if self._tool_prefix else ""
         return f"sandbox-{self._backend.name}{suffix}"
 
-    def _tool_name(self, base: str) -> str:
+    def _build_tool_name(self, base: str) -> str:
         return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
 
     def _base_name(self, tool_name: str) -> str | None:
@@ -860,7 +860,7 @@ class SandboxToolset(AirflowToolset):
             # run_command additionally carries code_arg metadata so code mode
             # leaves it native instead of folding a shell surface into run_code.
             extra = code_arg_kwargs("command", "shell") if base == RUN_COMMAND else {}
-            name = self._tool_name(base)
+            name = self._build_tool_name(base)
             description = _DESCRIPTIONS[base]
             if base == RUN_COMMAND:
                 description = f"{description} {self._network_note}{self._export_note}"
