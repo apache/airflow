@@ -43,7 +43,12 @@ from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
 
 from airflow.api_fastapi.execution_api.routes import execution_api_router
-from airflow.api_fastapi.execution_api.security import get_selected_dag_bundle, require_dag_in_granted_bundle
+from airflow.api_fastapi.execution_api.routes.session_tokens import require_workload_identity
+from airflow.api_fastapi.execution_api.security import (
+    get_selected_dag_bundle,
+    require_auth,
+    require_dag_in_granted_bundle,
+)
 from airflow.dag_processing.processor import ToManager
 
 from tests_common.test_utils.api_fastapi import iter_api_routes
@@ -51,6 +56,8 @@ from tests_common.test_utils.api_fastapi import iter_api_routes
 # Routes that intentionally deviate from the default (execution-only) policy.
 # Any route NOT listed here must accept only {"execution"}.
 NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
+    # Bootstrap authenticates a deployment identity, never an Airflow runtime token.
+    "POST /dag-processor/session-token": set(),
     # The /run endpoint exchanges a workload token for a short-lived execution token.
     "PATCH /task-instances/{task_instance_id}/run": {"execution", "workload"},
     # Connection test routes run from a queued worker context (workload-only).
@@ -145,13 +152,21 @@ def _get_path_and_query_param_names(dependant: Dependant) -> set[str]:
 def _all_route_policies() -> dict[str, set[str]]:
     """Return a map of all API routes and their allowed token types."""
     return {
-        key: set(getattr(_get_original_route(route), "allowed_token_types", {"execution"}))
+        key: set()
+        if key == "POST /dag-processor/session-token"
+        else set(getattr(_get_original_route(route), "allowed_token_types", {"execution"}))
         for key, route in _get_api_routes().items()
     }
 
 
 class TestTokenScopeBoundaries:
     """Execution API routes must not silently gain or lose token type access."""
+
+    def test_session_bootstrap_requires_deployment_identity(self):
+        route = _get_api_routes()["POST /dag-processor/session-token"]
+        dependencies = _get_dependency_calls(route.dependant)
+        assert require_workload_identity in dependencies
+        assert require_auth not in dependencies
 
     def test_all_default_routes_are_execution_only(self):
         actual = _all_route_policies()

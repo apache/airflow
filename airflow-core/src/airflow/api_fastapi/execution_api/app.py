@@ -43,6 +43,7 @@ from airflow.api_fastapi.auth.tokens import (
 from airflow.api_fastapi.common.telemetry import NATIVE_TELEMETRY_DISABLED
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY, require_auth
+from airflow.api_fastapi.execution_api.workload_identity import create_dag_processor_identity_verifier
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -107,7 +108,9 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
         # Create an app scoped validator, so that we don't have to fetch it every time
         registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
 
-    yield
+    async with create_dag_processor_identity_verifier() as verifier:
+        app.state.dag_processor_identity_verifier = verifier
+        yield
 
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
@@ -140,6 +143,9 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 class JWTReissueMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
+
+        if getattr(request.state, "skip_execution_token_reissue", False):
+            return response
 
         refreshed_token: str | None = None
         token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
