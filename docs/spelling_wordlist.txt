@@ -29,6 +29,7 @@ afterall
 agentcore
 AgentDetails
 agentic
+AgentResult
 AgentVersionDetails
 ai
 aio
@@ -233,6 +234,7 @@ ccache
 cdc
 celltags
 centric
+Cerebras
 cfg
 cgi
 cgitb
@@ -288,6 +290,7 @@ Colour
 colour
 colours
 ColumnLineageDatasetFacet
+CombinedCapability
 CommandType
 comparator
 compat
@@ -326,6 +329,7 @@ contextmgr
 contrib
 convertToIri
 cooldown
+Copilot
 copyable
 coreutils
 CoreV
@@ -678,6 +682,7 @@ Filesystem
 filesystem
 filesystems
 filetype
+FilteredToolset
 finalStatus
 fips
 firebase
@@ -1155,6 +1160,7 @@ NCUs
 nd
 ndjson
 nearText
+Nebius
 neighbours
 neo
 Neo4j
@@ -1332,6 +1338,7 @@ preflight
 prek
 Preload
 preload
+PreparedToolset
 prepend
 prepended
 prepends
@@ -1495,6 +1502,7 @@ rollup
 rom
 romeoandjuliet
 rootcss
+routable
 rowid
 rpc
 rsa
@@ -1830,6 +1838,7 @@ triggerer
 triggerers
 trino
 trojan
+TrustedRouter
 truthy
 tsql
 tsv
@@ -1925,6 +1934,7 @@ Vectorizers
 vendored
 venv
 venvs
+Vercel
 Vertica
 vertica
 Vespa
@@ -1970,12 +1980,14 @@ winrm
 WIT
 workgroup
 workspaces
+WrapperToolset
 writeable
 wsman
 WTF
 wtf
 wtforms
 www
+xAI
 XCom
 Xcom
 xcom

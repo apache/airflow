@@ -6,6 +6,7 @@
     "title": "Zależności blokujące zaplanowanie zadania"
   },
   "calendar": {
+    "backfill": "Wypełnienie wsteczne",
     "daily": "Dziennie",
     "hourly": "Godzinowo",
     "legend": {
@@ -43,10 +44,10 @@
   "deadlineAlerts": {
     "completionRule": "Musi zakończyć się w ciągu {{interval}} od momentu: {{reference}}",
     "completionRuleDynamic": "Musi zakończyć się w zmiennym interwale liczonym od momentu: {{reference}}",
-    "count_few": "{{count}} terminy",
-    "count_many": "{{count}} terminów",
-    "count_one": "{{count}} termin",
-    "count_other": "{{count}} terminów",
+    "count_few": "{{count, number}} terminy",
+    "count_many": "{{count, number}} terminów",
+    "count_one": "{{count, number}} termin",
+    "count_other": "{{count, number}} terminów",
     "referenceType": {
       "AverageRuntimeDeadline": "średni czas wykonania",
       "DagRunLogicalDateDeadline": "data logiczna",
@@ -61,17 +62,17 @@
     "label": "Termin",
     "met": "Dotrzymany",
     "missed": "Niedotrzymany",
-    "missedCount_few": "{{count}} Niedotrzymane terminy",
-    "missedCount_many": "{{count}} Niedotrzymanych terminów",
-    "missedCount_one": "{{count}} Niedotrzymany termin",
-    "missedCount_other": "{{count}} Niedotrzymanych terminów",
-    "mixedCount": "Niedotrzymane: {{missedCount}}, Nadchodzące: {{upcomingCount}}",
+    "missedCount_few": "{{count, number}} Niedotrzymane terminy",
+    "missedCount_many": "{{count, number}} Niedotrzymanych terminów",
+    "missedCount_one": "{{count, number}} Niedotrzymany termin",
+    "missedCount_other": "{{count, number}} Niedotrzymanych terminów",
+    "mixedCount": "Niedotrzymane: {{missedCount, number}}, Nadchodzące: {{upcomingCount, number}}",
     "stillRunning": "Nadal w trakcie",
     "upcoming": "Nadchodzący",
-    "upcomingCount_few": "{{count}} Nadchodzące terminy",
-    "upcomingCount_many": "{{count}} Nadchodzących terminów",
-    "upcomingCount_one": "{{count}} Nadchodzący termin",
-    "upcomingCount_other": "{{count}} Nadchodzących terminów"
+    "upcomingCount_few": "{{count, number}} Nadchodzące terminy",
+    "upcomingCount_many": "{{count, number}} Nadchodzących terminów",
+    "upcomingCount_one": "{{count, number}} Nadchodzący termin",
+    "upcomingCount_other": "{{count, number}} Nadchodzących terminów"
   },
   "extraLinks": "Dodatkowe linki",
   "grid": {
@@ -101,12 +102,16 @@
     "info": "INFO",
     "noTryNumber": "Brak numeru próby",
     "search": {
-      "matchCount": "{{current}} z {{total}}",
+      "matchCount": "{{current, number}} z {{total, number}}",
       "noMatches": "Brak dopasowań",
       "placeholder": "Szukaj w logach..."
     },
     "settings": "Ustawienia logowania",
+    "tryNotStarted": "Ta próba jeszcze się nie rozpoczęła.",
+    "viewFailedTry": "Zobacz logi nieudanej próby {{tryNumber}}",
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
+    "viewPreviousTry": "Zobacz logi poprzedniej próby {{tryNumber}}",
+    "waitingToRetry": "Próba {{tryNumber}} czeka na ponowienie.",
     "warning": "WARNING"
   },
   "notFound": {
@@ -224,10 +229,10 @@
     "code": "Kod",
     "details": "Szczegóły",
     "logs": "Logi",
-    "mappedTaskInstances_few": "Instancje zadań [{{count}}]",
-    "mappedTaskInstances_many": "Instancji zadań [{{count}}]",
-    "mappedTaskInstances_one": "Instancja zadania [{{count}}]",
-    "mappedTaskInstances_other": "Instancje zadań [{{count}}]",
+    "mappedTaskInstances_few": "Instancje zadań [{{count, number}}]",
+    "mappedTaskInstances_many": "Instancji zadań [{{count, number}}]",
+    "mappedTaskInstances_one": "Instancja zadania [{{count, number}}]",
+    "mappedTaskInstances_other": "Instancje zadań [{{count, number}}]",
     "overview": "Przegląd",
     "renderedTemplates": "Wyrenderowane szablony",
     "requiredActions": "Wymagane akcje",
@@ -235,6 +240,7 @@
     "taskInstances": "Instancje zadań",
     "taskStateStore": "Magazyn stanu zadania",
     "tasks": "Zadania",
+    "versions": "Wersje",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -264,5 +270,71 @@
       "never": "Nigdy"
     },
     "title": "Magazyn stanu zadania"
+  },
+  "versions": {
+    "aboutThisComparison": "O tym porównaniu",
+    "base": "Porównaj od",
+    "categories": {
+      "asset": "Zasób",
+      "authorization": "Autoryzacja",
+      "callback": "Wywołanie zwrotne",
+      "deadline": "Termin",
+      "dependency": "Zależność",
+      "metadata": "Metadane",
+      "param": "Parametr",
+      "provenance": "Pochodzenie",
+      "schedule": "Harmonogram",
+      "task": "Zadanie",
+      "unknown": "Nieznana"
+    },
+    "codeAccess": "Wartości wymagają dostępu do kodu Daga",
+    "columns": {
+      "after": "Po",
+      "before": "Przed",
+      "category": "Kategoria",
+      "impact": "Wpływ",
+      "occurrences": "Wystąpienia",
+      "operation": "Operacja",
+      "path": "Ścieżka"
+    },
+    "heading": "Wersja {{base}} → wersja {{target}}",
+    "impacts": {
+      "authorization": "Autoryzacja",
+      "execution": "Wykonanie",
+      "metadata": "Metadane",
+      "provenance": "Pochodzenie",
+      "unknown": "Nieznany"
+    },
+    "maxChanges": "Maksymalna liczba zmian",
+    "maxChangesDefault": "Domyślna",
+    "noChanges": "Te wersje mają ten sam stan.",
+    "observedState": "Zaobserwowany stan",
+    "observedStateBoundary": "Porównuje aktualnie zapisany stan, a nie dane z chwili utworzenia. Porównanie kodu źródłowego nie jest dostępne dla wersji historycznych; aby porównać kod źródłowy, użyj zakładki Kod.",
+    "operations": {
+      "added": "Dodano",
+      "changed": "Zmieniono",
+      "removed": "Usunięto"
+    },
+    "record_few": "Rekordy",
+    "record_many": "Rekordów",
+    "record_one": "Rekord",
+    "record_other": "Rekordy",
+    "selectPrompt": "Wybierz dwie wersje, aby zobaczyć, co się między nimi zmieniło.",
+    "summary_few": "{{count, number}} zmiany · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "summary_many": "{{count, number}} zmian · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} zmiana · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count, number}} zmiany · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "target": "Porównaj z",
+    "truncated": {
+      "description": "Zmiany w niepokazanych ścieżkach zostały pominięte, aby zmieścić się w limicie, więc liczba zmian jest dolnym oszacowaniem.",
+      "title": "Nie zwrócono niektórych zmian"
+    },
+    "unavailable": {
+      "description": "Nie udało się porównać tych wersji. Przyczyna:",
+      "title": "Porównanie niedostępne",
+      "withoutReason": "Nie udało się porównać tych wersji."
+    },
+    "valuesHidden": "Wartości ukryte",
+    "valuesShown": "Wartości widoczne"
   }
 }

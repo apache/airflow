@@ -43,7 +43,7 @@ afterEach(() => {
 afterAll(() => server.close());
 
 describe("Dag Filters", () => {
-  it("passes an exact scheduling state from the URL to the API", async () => {
+  it("passes the draining scheduling state from the URL to the API", async () => {
     let requestedSchedulingState: string | null = null;
 
     server.use(
@@ -54,10 +54,11 @@ describe("Dag Filters", () => {
       }),
     );
 
-    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=draining"]} />);
 
-    await waitFor(() => expect(requestedSchedulingState).toBe("active"));
-    expect(await screen.findByTestId("scheduling_state-pill")).toHaveTextContent("schedulingState.active");
+    await waitFor(() => expect(requestedSchedulingState).toBe("draining"));
+    // Draining is a choice within the Paused state pill, not a pill of its own.
+    expect(await screen.findByTestId("paused-pill")).toHaveTextContent("draining.label");
   });
 
   it("Filter by selected run state, matching the latest run by default", async () => {
@@ -106,8 +107,11 @@ describe("Dag Filters", () => {
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
 
+    let refetchStarted = false;
+
     server.use(
       http.get("/ui/dags", async () => {
+        refetchStarted = true;
         await delay("infinite");
 
         return HttpResponse.json({ dags: [], total_entries: 0 });
@@ -120,7 +124,7 @@ describe("Dag Filters", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("run_state-pill")).toBeInTheDocument();
-      expect(screen.getByRole("progressbar")).toBeVisible();
+      expect(refetchStarted).toBe(true);
     });
 
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
@@ -392,5 +396,34 @@ describe("Dags table", () => {
     const cell = await screen.findByTestId(`table-cell-${columnId}`);
 
     await waitFor(() => expect(cell.firstElementChild).toHaveStyle({ whiteSpace: "nowrap" }));
+  });
+});
+
+describe("Dags display toggle", () => {
+  it("switches between card and table views", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    const cardList = await screen.findByTestId("card-list");
+
+    await waitFor(() =>
+      expect(within(cardList).getByText("tutorial_taskflow_api_success")).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId("table-list")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(/toggleTableView/iu));
+
+    const tableList = await screen.findByTestId("table-list");
+
+    expect(within(tableList).getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+    expect(screen.queryByTestId("card-list")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText(/toggleCardView/iu));
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("card-list")).getByText("tutorial_taskflow_api_success"),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId("table-list")).toBeNull();
   });
 });

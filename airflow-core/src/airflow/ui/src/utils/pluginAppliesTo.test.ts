@@ -19,6 +19,7 @@
 import { describe, expect, it } from "vitest";
 
 import type {
+  AssetResponse,
   DAGResponse,
   DAGRunResponse,
   ExternalViewResponse,
@@ -36,6 +37,9 @@ import {
 
 // These fixtures carry only the fields the tests address, so they are cast through `unknown`
 // rather than spelling out every field of the full response types.
+const makeAsset = (name: string, group: string): AssetResponse =>
+  ({ group, id: 1, name, uri: `s3://bucket/${name}` }) as unknown as AssetResponse;
+
 const makeDag = (dagId: string, tagNames: Array<string>): DAGResponse =>
   ({
     dag_id: dagId,
@@ -78,6 +82,7 @@ const makeView = (
 
 const dag = makeDag("etl_sales", ["ml", "prod"]);
 
+const assetContext: AppliesToContext = { asset: makeAsset("orders", "sales"), isLoading: false };
 const dagContext: AppliesToContext = { dag, isLoading: false };
 const dagRunContext: AppliesToContext = { dag, dagRun: makeDagRun("failed"), isLoading: false };
 const taskContext: AppliesToContext = {
@@ -167,6 +172,22 @@ describe("matchesAppliesTo — qualified paths", () => {
   });
 });
 
+describe("matchesAppliesTo — asset destinations", () => {
+  it("roots an unqualified path at the asset", () => {
+    expect(matchesAppliesTo(makeView({ group: ["sales"] }, "asset"), assetContext)).toBe(true);
+    expect(matchesAppliesTo(makeView({ group: ["finance"] }, "asset"), assetContext)).toBe(false);
+  });
+
+  it("reaches the asset by naming it", () => {
+    expect(matchesAppliesTo(makeView({ "asset.name": ["orders"] }, "asset"), assetContext)).toBe(true);
+    expect(matchesAppliesTo(makeView({ "asset.name": ["refunds"] }, "asset"), assetContext)).toBe(false);
+  });
+
+  it("skips an asset path on a page that has no asset", () => {
+    expect(matchesAppliesTo(makeView({ "asset.name": ["orders"] }, "dag"), dagContext)).toBe(true);
+  });
+});
+
 describe("matchesAppliesTo — the three verdicts", () => {
   it("skips a path whose root record the surface does not have", () => {
     // A task-instance path on a Dag page: unevaluable, so it must not fail the match.
@@ -242,9 +263,10 @@ describe("matchesAppliesTo — combining paths", () => {
     expect(matchesAppliesTo({ ...view, destination: "task_instance" }, taskInstanceContext)).toBe(true);
   });
 
-  // A task instance page resolves the task record too, and that record always carries the Dag's
-  // current definition -- which may differ from what this instance actually ran.
-  it("reads the page's own operator when the task has since been changed", () => {
+  // A task instance page resolves the task record too. `usePluginAppliesToContext` fetches it at
+  // the version the instance ran, so the two agree; this pins the matcher's half of that, that
+  // each unqualified path reads its own record.
+  it("reads the page's own operator when the records disagree", () => {
     const staleContext: AppliesToContext = {
       dag,
       dagRun: makeDagRun("failed"),

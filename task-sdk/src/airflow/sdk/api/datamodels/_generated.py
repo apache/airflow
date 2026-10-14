@@ -233,6 +233,18 @@ class IntermediateTIState(str, Enum):
     AWAITING_INPUT = "awaiting_input"
 
 
+class LoopContext(BaseModel):
+    """
+    Pinned loop definition and enclosing iteration for a task execution.
+    """
+
+    node_id: Annotated[str, Field(title="Node Id")]
+    index: Annotated[int, Field(ge=0, title="Index")]
+    max_iterations: Annotated[int, Field(gt=0, title="Max Iterations")]
+    terminal_task_id: Annotated[str, Field(title="Terminal Task Id")]
+    terminal_is_mapped: Annotated[bool, Field(title="Terminal Is Mapped")]
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -258,6 +270,8 @@ class PreviousTIResponse(BaseModel):
     state: Annotated[str | None, Field(title="State")] = None
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     duration: Annotated[float | None, Field(title="Duration")] = None
 
 
@@ -574,6 +588,8 @@ class TaskInstance(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
     queue: Annotated[str | None, Field(title="Queue")] = "default"
@@ -838,7 +854,11 @@ class TIRunContext(BaseModel):
     """
 
     dag_run: DagRun
+    loop: LoopContext | None = None
     task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
+    first_task_reschedule_start_date: Annotated[
+        AwareDatetime | None, Field(title="First Task Reschedule Start Date")
+    ] = None
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None

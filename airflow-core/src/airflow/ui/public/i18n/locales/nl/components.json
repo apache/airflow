@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 run zal getriggerd worden.",
-    "affected_other": "{{count}} Runs zullen getriggerd worden.",
+    "affected_other": "{{count, number}} Runs zullen getriggerd worden.",
     "affectedNone": "Geen Runs komen overeen met de geselecteerde criteria.",
     "allRuns": "Alle Runs",
     "backwards": "Run achterstevoren",
@@ -48,7 +48,7 @@
     "error_one": "1 fout",
     "errorAndWarning": "1 fout en {{warningText}}",
     "warning_one": "1 waarschuwing",
-    "warning_other": "{{count}} waarschuwingen"
+    "warning_other": "{{count, number}} waarschuwingen"
   },
   "dateRangeFilter": {
     "validation": {
@@ -60,16 +60,16 @@
   "durationChart": {
     "duration": "Duur (seconden)",
     "lastDagRun_one": "Laatste Dag Run",
-    "lastDagRun_other": "Laatste {{count}} Dag Runs",
+    "lastDagRun_other": "Laatste {{count, number}} Dag Runs",
     "lastTaskInstance_one": "Laatste taakinstantie",
-    "lastTaskInstance_other": "Laatste {{count}} taakinstanties",
+    "lastTaskInstance_other": "Laatste {{count, number}} taakinstanties",
     "queuedDuration": "Duur in de wachtrij",
     "runAfter": "Run na",
     "runDuration": "Run duur"
   },
   "fileUpload": {
-    "files_one": "{{count}} bestand",
-    "files_other": "{{count}} bestanden"
+    "files_one": "{{count, number}} bestand",
+    "files_other": "{{count, number}} bestanden"
   },
   "flexibleForm": {
     "durationPlaceholder": "Voer duur in ISO 8601 formaat in",
@@ -92,20 +92,20 @@
     "downloadImageError": "Mislukt om de afbeelding van de grafiek te downloaden.",
     "downloadImageErrorTitle": "Download mislukt",
     "otherDagRuns": "+Andere Dag Runs",
-    "taskCount_one": "{{count}} taak",
-    "taskCount_other": "{{count}} taken",
+    "taskCount_one": "{{count, number}} taak",
+    "taskCount_other": "{{count, number}} taken",
     "taskGroup": "Taakgroep",
     "zoomToTask": "Zoom naar geselecteerde taak"
   },
-  "limitedList": "+{{count}} meer",
-  "limitedList.allItems": "Alle {{count}} items:",
+  "limitedList": "+{{count, number}} meer",
+  "limitedList.allItems": "Alle {{count, number}} items:",
   "limitedList.allTags_one": "Alle labels (1)",
-  "limitedList.allTags_other": "Alle labels ({{count}})",
+  "limitedList.allTags_other": "Alle labels ({{count, number}})",
   "limitedList.clickToInteract": "Klik op een label om Dags te filteren",
-  "limitedList.clickToOpenFull": "Klik op \"+{{count}} meer\" om de volledige lijst te openen",
+  "limitedList.clickToOpenFull": "Klik op \"+{{count, number}} meer\" om de volledige lijst te openen",
   "limitedList.copyPasteText": "Je kunt de bovenstaande tekst kopiëren en plakken",
   "limitedList.showingItems_one": "Toont 1 item",
-  "limitedList.showingItems_other": "Toont {{count}} items",
+  "limitedList.showingItems_other": "Toont {{count, number}} items",
   "logs": {
     "file": "Bestand",
     "location": "regel {{line}} in {{name}}"

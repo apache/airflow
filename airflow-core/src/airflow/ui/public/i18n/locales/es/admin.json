@@ -25,7 +25,7 @@
     "connection_other": "Conexiones",
     "delete": {
       "deleteConnection_one": "Eliminar 1 conexión",
-      "deleteConnection_other": "Eliminar {{count}} conexiones",
+      "deleteConnection_other": "Eliminar {{count, number}} conexiones",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente conexión:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes conexiones:",
       "title": "Eliminar Conexión"
@@ -152,7 +152,7 @@
     },
     "delete": {
       "deleteVariable_one": "Eliminar 1 Variable",
-      "deleteVariable_other": "Eliminar {{count}} Variables",
+      "deleteVariable_other": "Eliminar {{count, number}} Variables",
       "firstConfirmMessage_one": "Estás a punto de eliminar la siguiente variable:",
       "firstConfirmMessage_other": "Estás a punto de eliminar las siguientes variables:",
       "title": "Eliminar Variable",

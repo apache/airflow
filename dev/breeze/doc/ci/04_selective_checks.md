@@ -468,13 +468,23 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     (`PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS`, currently `cncf.kubernetes`), the side-effect
     provider is added to the same `Providers[...]` test type, because the two share one pytest process on
     canary and the changed tests must pass after it
+* `TS SDK unit tests` (the vitest suite run by `pnpm test` in `ts-sdk/`, exposed as the
+  `run-ts-sdk-tests` output) run when `TS SDK files` change: anything under `ts-sdk/` except `.md`
+  files, `ts-sdk/api-docs/`, and `ts-sdk/docs/` (the docs toolchain's own package).
 * `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
   `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
-  Java test-fixture bundle (`airflow-e2e-tests/java-test-bundle/`), the Java e2e suite or its Docker
+  Java test-fixture and native-Dag bundles (`airflow-e2e-tests/java-test-bundle/`,
+  `airflow-e2e-tests/java-native-bundle/`), the Java e2e suite or its Docker
   files (`airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/`,
-  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), or the Java
-  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`) change. Like the
-  other deployed e2e suites, enabling them forces `PROD Image building`.
+  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), the Java
+  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`), or the native
+  Lang-SDK Dag parsing sources change. Those are the Dag processing files `importer_routing.py` and
+  `lang_sdk_processor.py`, `models/dagcode.py`, `serialization/serialized_objects.py`,
+  the Task SDK importers (`task-sdk/src/airflow/sdk/importers/`), the coordinator registry
+  (`task-sdk/src/airflow/sdk/execution_time/coordinator.py`), and `coordinators/_dag_importer.py`;
+  they trigger the TypeScript SDK E2E tests too. Shared Dag processing files such as `manager.py`
+  are left to `canary` runs. Like the other
+  deployed e2e suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -555,9 +565,10 @@ when some files are not changed. Those are the rules implemented:
     `scripts/ci/lang_sdk_serialization/`, because the check compares the SDK against those and
     none of them forces `full_tests_needed`
   * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
-    skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
-    wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is
-    the ts-sdk follow-up PR's job, not the schema author's)
+    skipped (it regenerates and diffs the generated ts-sdk file from the vendored schema). A
+    change to the supervisor wire schema on the Python side is not deferred to a follow-up PR:
+    `sync-ts-sdk-schemas` is triggered by that source, refreshes the vendored copy, and fails
+    on the PR that caused it, so the drift surfaces there rather than shipping unnoticed
   * `check-provider-yaml-valid` is skipped unless at least one of these changed:
     `All Providers Python files`, `All Providers Distribution Config files`
     (which includes `provider.yaml`, `pyproject.toml`, and `providers/.pre-commit-config.yaml`),
@@ -639,7 +650,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
 | run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
-| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
+| run-ts-sdk-tests                                        | Whether TypeScript SDK unit tests should be run — on `ts-sdk/` changes except Markdown, `api-docs/`, and `docs/` ("true"/"false") | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |

@@ -20,8 +20,9 @@
 
 // Codegen for the Airflow supervisor wire schema.
 //
-// Reads the canonical supervisor schema from Airflow's Task SDK and emits
-// `src/generated/supervisor.ts`.
+// Reads the vendored supervisor schema (`schema/supervisor-schema.json`, kept in
+// sync with Airflow's Task SDK by the `sync-ts-sdk-schemas` prek hook)
+// and emits `src/generated/supervisor.ts`.
 //
 // The input file is Airflow's canonical supervisor JSON Schema.
 // We wrap its top-level `$defs` into a synthetic schema so
@@ -36,7 +37,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
-const SCHEMA_PATH = join(ROOT, "../task-sdk/src/airflow/sdk/execution_time/schema/schema.json");
+const SCHEMA_PATH = join(ROOT, "schema/supervisor-schema.json");
 const OUT_PATH = join(ROOT, "src/generated/supervisor.ts");
 
 const HEADER = `/*!

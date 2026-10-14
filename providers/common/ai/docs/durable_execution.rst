@@ -40,7 +40,8 @@ retries there is nothing to replay.
 
 This page is about making an ``AgentOperator`` retry cheap. Deciding *whether* a task
 should retry at all is :doc:`retry_policies`; a retried ``LLMBatchOperator`` re-attaches
-to its running batch instead of resubmitting (:ref:`llm-batch-reattach`).
+to its running batch instead of resubmitting (:ref:`llm-batch-reattach`). To resume a
+Strands Agents agent on a retry, see :ref:`howto/frameworks:strands-durable`.
 
 **Configuration**
 

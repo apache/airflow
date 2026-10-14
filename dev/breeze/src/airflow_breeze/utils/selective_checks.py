@@ -197,6 +197,18 @@ class HashableDict(dict[T, list[str]]):
         return hash(frozenset(self))
 
 
+# Core and Task SDK sources specific to the native Lang-SDK Dag path: routing a file to a
+# coordinator, parsing it through the coordinator's runtime, validating the serialized Dag,
+# and reading its source. Shared Dag processing files are left to the canary run.
+LANG_SDK_NATIVE_DAG_PARSING_FILES = (
+    r"^airflow-core/src/airflow/dag_processing/(importer_routing|lang_sdk_processor)\.py$",
+    r"^airflow-core/src/airflow/models/dagcode\.py$",
+    r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+    r"^task-sdk/src/airflow/sdk/coordinators/_dag_importer\.py$",
+    r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
+    r"^task-sdk/src/airflow/sdk/importers/.*",
+)
+
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
@@ -263,11 +275,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
             r"^airflow-e2e-tests/java-test-bundle/.*",
+            r"^airflow-e2e-tests/java-native-bundle/.*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.GO_SDK_E2E_FILES: [
             # `.md` excluded — doc-only edits do not affect the Go build or e2e tests.
@@ -300,6 +314,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -540,10 +555,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.TS_SDK_FILES: [
             # Documentation entry points and `.md` files do not affect the generated
-            # supervisor schema. `ts-sdk/docs/package.json` and its lock file are excluded
-            # too — they pin the docs toolchain's own dependencies and do not affect the SDK
-            # build.
-            r"^ts-sdk/(?!api-docs/)(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
+            # supervisor schema or the unit tests. `ts-sdk/docs/` is excluded too — it is the
+            # docs toolchain's own package, with its own tests that vitest does not run.
+            r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1339,6 +1353,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
+    def run_ts_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_FILES)
+
+    @cached_property
     def run_ts_sdk_docs(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
 
@@ -1957,9 +1975,11 @@ class SelectiveChecks:
             # harness changed. Those last do not force full_tests_needed, so they need their own group.
             prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
-            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
-            # diffs it. Schema-only changes deliberately do not trigger it: regenerating the
-            # ts-sdk types is the ts-sdk follow-up PR's job, not the schema author's.
+            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
+            # and diffs it, so it is skipped when no ts-sdk/ files changed. A supervisor-schema
+            # change on the Python side is not deferred to a follow-up PR: sync-ts-sdk-schemas is
+            # triggered by that source, refreshes the vendored copy (a ts-sdk/ file), and fails on
+            # the PR that caused it, which is then what makes this check run.
             prek_hooks_to_skip.add("check-ts-sdk-supervisor-schema")
         if not (
             self._matching_files(

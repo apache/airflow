@@ -34,7 +34,6 @@ except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -128,7 +127,10 @@ class LLMSQLQueryOperator(LLMOperator):
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)  # SQL operator always returns str
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
+            )
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names
@@ -167,8 +169,7 @@ class LLMSQLQueryOperator(LLMOperator):
         agent = self.llm_hook.create_agent(
             output_type=str, instructions=full_system_prompt, **self.agent_params
         )
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
         if self.validate_sql:
@@ -179,6 +180,7 @@ class LLMSQLQueryOperator(LLMOperator):
         if self.require_approval:
             self.defer_for_approval(context, sql)  # type: ignore[misc]
 
+        self._clear_usage_budget(context)
         return sql
 
     def execute_complete(
@@ -189,9 +191,10 @@ class LLMSQLQueryOperator(LLMOperator):
         decision: dict[str, Any] | None = None,
     ) -> str:
         """Resume after human review, re-validating if the reviewer modified the SQL."""
-        output = super().execute_complete(context, generated_output, event, decision)
+        output = self._complete_review(context, generated_output, event, decision)
         if output != generated_output:
             _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+        self._clear_usage_budget(context)
         return output
 
     @staticmethod

@@ -70,7 +70,7 @@ export const useDags = ({
 }) => {
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
 
-  const { data, error, isFetching, isLoading } = useDagServiceGetDagsUi(
+  const { data, error, isLoading } = useDagServiceGetDagsUi(
     {
       ...(advancedSearch
         ? { dagDisplayNamePattern, dagIdPattern }
@@ -114,7 +114,6 @@ export const useDags = ({
   return {
     data,
     error,
-    isFetching,
     isLoading,
   };
 };

@@ -49,7 +49,7 @@ publishing {
                 name = "Apache Airflow Java SDK — Annotation Processor"
                 description =
                     "Annotation processor for the Apache Airflow Java SDK; " +
-                    "generates *Builder classes from @Builder.Dag-annotated sources."
+                    "generates *Builder classes from @Airflow.Dag-annotated sources."
             }
         }
     }
