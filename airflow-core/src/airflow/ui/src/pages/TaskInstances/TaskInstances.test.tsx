@@ -284,3 +284,39 @@ describe("TaskInstances", () => {
     );
   });
 });
+
+describe("TaskInstances date filters", () => {
+  beforeEach(() => {
+    mockParams = { dagId: "example_dag", runId: "manual__2026-06-07T00:00:00+00:00" };
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+  });
+
+  it("sends the run_after range from the URL", () => {
+    mockSearchParams = new URLSearchParams(
+      "run_after_gte=2026-06-01T00:00:00Z&run_after_lte=2026-06-30T00:00:00Z",
+    );
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runAfterGte: "2026-06-01T00:00:00Z",
+        runAfterLte: "2026-06-30T00:00:00Z",
+      }),
+      undefined,
+      expect.anything(),
+    );
+  });
+
+  it("still honours logical_date links even though the pill is gone", () => {
+    mockSearchParams = new URLSearchParams("logical_date_gte=2026-06-01T00:00:00Z");
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenCalledWith(
+      expect.objectContaining({ logicalDateGte: "2026-06-01T00:00:00Z" }),
+      undefined,
+      expect.anything(),
+    );
+  });
+});

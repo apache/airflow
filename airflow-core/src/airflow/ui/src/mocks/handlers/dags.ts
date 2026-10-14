@@ -137,20 +137,36 @@ export const drainingDag = {
   timetable_type: "NullTimetable",
 };
 
+// Failed to import, so the Dags list has something for the import-errors filter to single out.
+export const brokenDag = {
+  ...pausedDag,
+  dag_display_name: "broken_dag",
+  dag_id: "broken_dag",
+  has_import_errors: true,
+  is_paused: false,
+  tags: [{ dag_id: "broken_dag", name: "example" }],
+};
+
 export const defaultDags = [successDag, failedDag, pausedDag];
 
 const filterDags = ({
   dags,
+  hasImportErrors,
   paused,
   schedulingState,
   timetableTypes,
 }: {
-  dags: Array<(typeof defaultDags)[number] | typeof drainingDag>;
+  dags: Array<(typeof defaultDags)[number] | typeof brokenDag | typeof drainingDag>;
+  hasImportErrors: string | null;
   paused: string | null;
   schedulingState: string | null;
   timetableTypes: Array<string>;
 }) => {
   let allDags = dags;
+
+  if (hasImportErrors !== null) {
+    allDags = allDags.filter((dag) => dag.has_import_errors === (hasImportErrors === "true"));
+  }
 
   if (timetableTypes.length > 0) {
     allDags = allDags.filter((dag) => timetableTypes.includes(dag.timetable_type));
@@ -173,13 +189,14 @@ const filterDags = ({
  * enlarging the set every other suite renders.
  */
 export const dagsListHandler = (
-  dags: Array<(typeof defaultDags)[number] | typeof drainingDag> = defaultDags,
+  dags: Array<(typeof defaultDags)[number] | typeof brokenDag | typeof drainingDag> = defaultDags,
 ) =>
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
     const anyDagRunState = url.searchParams.get("dag_run_state");
     const orderBy = url.searchParams.get("order_by");
+    const hasImportErrors = url.searchParams.get("has_import_errors");
     const paused = url.searchParams.get("paused");
     const schedulingState = url.searchParams.get("scheduling_state");
     const timetableTypes = url.searchParams.getAll("timetable_type");
@@ -205,7 +222,7 @@ export const dagsListHandler = (
       });
     }
 
-    let filtered = filterDags({ dags, paused, schedulingState, timetableTypes });
+    let filtered = filterDags({ dags, hasImportErrors, paused, schedulingState, timetableTypes });
 
     if (orderBy === "last_run_run_after" || orderBy === "-last_run_run_after") {
       filtered = [failedDag, successDag, pausedDag, drainingDag].filter((dag) => filtered.includes(dag));
