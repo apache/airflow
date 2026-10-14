@@ -573,6 +573,31 @@ def _reject_other_teams_plugin_classes(
     return accepted
 
 
+def _reject_dags_with_unloadable_timetables(
+    bundle_name: str,
+    dags: Collection[LazyDeserializedDAG],
+    import_errors: dict[tuple[str, str], str],
+) -> list[LazyDeserializedDAG]:
+    """
+    Drop Dags whose timetable raises when rebuilt, recording an import error for each.
+
+    A custom timetable runs user code when it is deserialized, for example ``Variable.get`` in
+    ``__init__``. Checking here keeps one failing Dag from aborting the save of every Dag in its file.
+    """
+    accepted: list[LazyDeserializedDAG] = []
+    for dag in dags:
+        try:
+            dag.timetable
+        except Exception as e:
+            log.exception("Failed to load timetable of Dag", dag_id=dag.dag_id)
+            import_errors[(bundle_name, dag.relative_fileloc)] = (
+                f"Failed to load the timetable of Dag '{dag.dag_id}': {type(e).__name__}: {e}"
+            )
+            continue
+        accepted.append(dag)
+    return accepted
+
+
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
@@ -616,6 +641,7 @@ def update_dag_parsing_results_in_db(
         without an entry have their source read from ``fileloc``.
     """
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
     if len(accepted) != len(dags):
         # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
         rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}

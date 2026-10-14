@@ -84,6 +84,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions.deadline import AsyncCallback, BaseDeadlineReference, DeadlineAlert
 from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule, PartitionedAssetTimetable
 from airflow.sdk.importers import DagSourceCode
+from airflow.serialization.decoders import decode_timetable
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -1093,6 +1094,48 @@ class TestUpdateDagParsingResults:
         assert len(dag_import_error_listener.new) == 1
         assert len(dag_import_error_listener.existing) == 0
         assert dag_import_error_listener.new["abc.py"] == import_error.stacktrace
+
+    @patch.object(ParseImportError, "full_file_path")
+    @pytest.mark.usefixtures("clean_db")
+    def test_timetable_that_fails_to_load_is_an_import_error(
+        self, mock_full_path, session, testing_dag_bundle
+    ):
+        """
+        A timetable that raises when rebuilt (for example a custom timetable reading a missing Variable
+        in ``__init__``) is reported as an import error for its file, and only that Dag is skipped.
+        """
+        mock_full_path.return_value = "abc.py"
+        dags = []
+        for dag_id, cron in (("good_dag", "0 0 * * *"), ("bad_dag", "0 1 * * *")):
+            dag = DAG(dag_id=dag_id, schedule=CronTriggerTimetable(cron, timezone="UTC"))
+            dag.fileloc = dag.relative_fileloc = "abc.py"
+            dags.append(LazyDeserializedDAG.from_dag(dag))
+
+        def fail_for_bad_dag(var):
+            if var["__var"]["expression"] == "0 1 * * *":
+                raise RuntimeError("Variable something not found")
+            return decode_timetable(var)
+
+        import_errors: dict[tuple[str, str], str] = {}
+        with patch("airflow.serialization.serialized_objects.decode_timetable", side_effect=fail_for_bad_dag):
+            update_dag_parsing_results_in_db(
+                "testing",
+                None,
+                dags,
+                import_errors,
+                None,
+                set(),
+                session,
+                files_parsed={("testing", "abc.py")},
+            )
+
+        assert session.get(DagModel, ("good_dag",)) is not None
+        assert session.get(DagModel, ("bad_dag",)) is None
+        error = import_errors[("testing", "abc.py")]
+        assert "bad_dag" in error
+        assert "Variable something not found" in error
+        [stored] = session.scalars(select(ParseImportError)).all()
+        assert stored.filename == "abc.py"
 
     @patch.object(ParseImportError, "full_file_path")
     @mark_fab_auth_manager_test
