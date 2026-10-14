@@ -198,8 +198,8 @@ Two checks, neither of which requires waiting for a real outage:
 
 *Test the connection.* ``test_connection`` on the primary resolves every connection in the
 chain, so a fallback with a missing ``model`` or an unknown connection ID is reported by name
-there rather than discovered mid-incident. Credential fields a provider class rejects with a
-``TypeError`` fail the resolution with a ``ValueError`` naming the connection, the provider and
+there rather than discovered mid-incident. Fields a provider class cannot be built from (a
+``TypeError``) fail the resolution with a ``ValueError`` naming the connection, the provider and
 the fields passed, with the provider's ``TypeError`` text -- the hook never falls back to
 environment-variable auth, which would authenticate as a different identity -- and
 ``test_connection`` reports it as a failure. It does not call the provider, so a well-formed
