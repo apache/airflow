@@ -144,6 +144,12 @@ runs when ``common.ai`` Python source or test files, the ``common.ai`` ``pyproje
 ``common.sql`` source files or ``uv.lock`` change, and also whenever selective checks
 decide a full test run is needed.
 
+Outside canary runs the job holds every package already in the image at its installed
+version with ``--override``, so Strands' and ADK's own dependency caps are overridden, and
+it installs the newest framework release rather than the versions in the table above. It
+therefore does not show that those versions work in the environment a user gets; canary
+runs install the framework with its own dependency pins instead.
+
 Choosing a route
 ----------------
 

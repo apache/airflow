@@ -40,7 +40,7 @@ Changelog
   :ref:`howto/operator:llm`.
 
 .. note::
-  ``airflow.providers.common.ai.toolsets.logging.LoggingToolset`` (shipped in 0.10.0) is
+  ``airflow.providers.common.ai.toolsets.logging.LoggingToolset`` (public since 0.1.0) is
   removed from the public API, and importing it now raises ``ImportError``. ``AgentOperator``
   still logs tool calls through ``enable_tool_logging``. To log tool calls of an agent you
   build yourself, pass ``capabilities=[ToolLoggingCapability()]`` to the pydantic-ai ``Agent``
