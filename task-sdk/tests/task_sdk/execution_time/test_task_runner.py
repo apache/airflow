@@ -213,6 +213,13 @@ if TYPE_CHECKING:
 import time_machine
 
 
+@pytest.fixture(autouse=True)
+def _clear_structlog_contextvars():
+    # startup() binds TI identifiers for the life of the worker process; we need to clear them else other tests will be impacted.
+    yield
+    structlog.contextvars.clear_contextvars()
+
+
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     """Creates an inline dag and returns it based on dag_id and task."""
     dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
@@ -2534,6 +2541,45 @@ def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_su
     run(ti, ti.get_template_context(), log=mock.MagicMock())
 
     assert ti.rendered_map_index == "Hello! test_run"
+
+
+@pytest.mark.parametrize(
+    ("map_index_template", "expected"),
+    [
+        ("{{ ti.try_number }}", "1"),
+        ("index-{{ ti.try_number }}", "index-1"),
+        ("{{ '3.10' }}", "3.10"),
+    ],
+)
+@pytest.mark.parametrize("render_template_as_native_obj", [False, True])
+def test_execute_success_task_with_numeric_rendered_map_index(
+    create_runtime_ti,
+    mock_supervisor_comms,
+    map_index_template,
+    expected,
+    render_template_as_native_obj,
+):
+    """Test that numeric-looking map indices remain strings in both rendering modes."""
+
+    def test_function():
+        return "test function"
+
+    with DAG(
+        dag_id="dag_with_numeric_map_index_template",
+        schedule=None,
+        render_template_as_native_obj=render_template_as_native_obj,
+    ):
+        task = PythonOperator(
+            task_id="test_task",
+            python_callable=test_function,
+            map_index_template=map_index_template,
+        )
+
+    ti = create_runtime_ti(task)
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == expected
 
 
 def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):

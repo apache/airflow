@@ -29,6 +29,7 @@ afterall
 agentcore
 AgentDetails
 agentic
+AgentResult
 AgentVersionDetails
 ai
 aio
@@ -199,6 +200,8 @@ bitmask
 Bitnami
 bitshift
 bitwise
+Boat
+boat
 booktabs
 Bool
 bool
@@ -213,6 +216,7 @@ bugfix
 bugfixes
 buildType
 burstable
+busybox
 bytestring
 cacert
 Cadwyn
@@ -907,6 +911,7 @@ irreproducible
 IRSA
 isfile
 ish
+islo
 isn
 isort
 istio
@@ -1837,6 +1842,7 @@ triggerer
 triggerers
 trino
 trojan
+TrustedRouter
 truthy
 tsql
 tsv

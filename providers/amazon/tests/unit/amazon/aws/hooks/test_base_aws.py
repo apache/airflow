@@ -39,6 +39,7 @@ from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.models.connection import Connection
+from airflow.providers.amazon import __version__ as amazon_provider_version
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
@@ -345,6 +346,10 @@ class TestSessionFactory:
 
 
 class TestAwsBaseHook:
+    @pytest.mark.filterwarnings("error:ProvidersManager.hooks is deprecated")
+    def test_get_provider_version_without_deprecated_hooks(self):
+        assert AwsBaseHook._get_provider_version() == amazon_provider_version
+
     @mock_aws
     def test_get_client_type_set_in_class_attribute(self):
         client = boto3.client("emr", region_name="us-east-1")

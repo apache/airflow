@@ -79,9 +79,11 @@ if TYPE_CHECKING:
 DEFAULT_MODEL = "claude-opus-4-8"
 
 #: Platforms that serve the first-party-only endpoints (Message Batches, token
-#: counting, the Models API). Amazon Bedrock, Google Vertex AI and Microsoft
-#: Foundry do not serve these, so the hook fails fast rather than surfacing a
-#: raw ``404`` from the SDK.
+#: counting, the Models API and Managed Agents): ``anthropic`` for the
+#: first-party Anthropic API, and ``aws`` for Claude Platform on AWS, which is
+#: distinct from Amazon Bedrock. Google Vertex AI and Microsoft Foundry do not
+#: serve these either, so the hook fails fast rather than surfacing a raw
+#: ``404`` from the SDK.
 FIRST_PARTY_PLATFORMS = frozenset({"anthropic", "aws"})
 
 AnthropicClient = Anthropic | AnthropicBedrock | AnthropicVertex | AnthropicAWS | AnthropicFoundry

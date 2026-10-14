@@ -274,6 +274,42 @@ class TestSupervisor:
             with expectation:
                 supervise_task(**kw)
 
+    def test_supervise_task_logs_config_hint_on_connection_error(self, mocker, tmp_path):
+        """Test that a connection failure reaching the Execution API is surfaced in the task
+        log, naming the responsible config, and still propagates."""
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+        server = "http://nonexistent-api-server:8080/execution/"
+        coordinator = mocker.Mock(spec=BaseCoordinator)
+        coordinator.execute_task.side_effect = httpx.ConnectError("Name or service not known")
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.get_coordinator_manager", autospec=True
+        ).return_value.for_queue.return_value = coordinator
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}), pytest.raises(httpx.ConnectError):
+            supervise_task(
+                ti=ti,
+                dag_rel_path="c.py",
+                token="",
+                server=server,
+                client=mocker.Mock(spec=sdk_client.Client),
+                bundle_info=BundleInfo(name="my-bundle", version=None),
+                log_path="attempt=1.log",
+            )
+
+        entries = [json.loads(line) for line in (tmp_path / "attempt=1.log").read_text().splitlines()]
+        assert [(e["level"], e["event"]) for e in entries] == [("info", "::endgroup::"), ("error", mock.ANY)]
+        assert "execution_api_server_url" in entries[1]["event"]
+        assert "base_url" in entries[1]["event"]
+        assert entries[1]["server"] == server
+
 
 def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
     error = ServerResponseError.from_response(
@@ -5780,6 +5816,60 @@ def test_activity_start_opts_into_fork_exec(monkeypatch, mocker, task_uses_exec,
 
     assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
     assert base_start.call_args.kwargs["target"] is target
+
+
+@pytest.mark.parametrize(
+    ("task_uses_exec", "target", "expected_calls"),
+    [
+        pytest.param(False, supervisor._subprocess_main, ["import task runner", "fork"], id="bare-fork"),
+        pytest.param(True, supervisor._subprocess_main, ["fork"], id="exec"),
+        pytest.param(False, lambda: None, ["fork"], id="test-target"),
+    ],
+)
+def test_activity_start_imports_task_runner_before_bare_fork(
+    monkeypatch, mocker, task_uses_exec, target, expected_calls
+):
+    """A forked task process inherits the task runner from the supervisor; a spawned one imports its own."""
+    calls = []
+
+    def fork(*args, **kwargs):
+        calls.append("fork")
+        return MagicMock(spec=ActivitySubprocess)
+
+    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    mocker.patch.object(
+        supervisor,
+        "_import_task_runner_before_fork",
+        autospec=True,
+        side_effect=lambda: calls.append("import task runner"),
+    )
+    mocker.patch.object(supervisor.WatchedSubprocess, "start", autospec=True, side_effect=fork)
+
+    ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        client=MagicMock(spec=sdk_client.Client),
+        target=target,
+        logger=MagicMock(),
+    )
+
+    assert calls == expected_calls
+
+
+def test_import_task_runner_before_fork_leaves_import_errors_to_the_child(monkeypatch):
+    """A task runner that fails to import is reported by the child, which imports it again."""
+    monkeypatch.setitem(sys.modules, "airflow.sdk.execution_time.task_runner", None)
+
+    supervisor._import_task_runner_before_fork()
 
 
 class TestTaskProcessUsesExec:
