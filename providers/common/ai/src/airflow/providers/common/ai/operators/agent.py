@@ -1105,22 +1105,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # The reviewer can approve, reject, or ask for a new answer, but cannot edit the answer text.
             # So the approved answer is the last answer the agent returned, and there is no need to parse
             # it back from that text.
-            output = self._output_under_review
-            if isinstance(output, BaseModel) and (
-                self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
-            ):
-                # A downstream task can load a model from XCom only if the worker registered the model's
-                # class. The worker registers the classes that iter_pydantic_models finds in output_type.
-                # iter_pydantic_models finds no class in a list of output types, an output marker, an output
-                # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict. When
-                # iter_pydantic_models could not be imported, _serialize_model_output is always True, so the
-                # condition above never reaches the iter_pydantic_models call.
-                output = output.model_dump()
+            output = self._convert_output_for_xcom(self._output_under_review)
             self._clear_usage_budget(context)
             return output
 
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            output = output.model_dump()
+        output = self._convert_output_for_xcom(output)
 
         # Clean up the durable journal only after the run and every post-run step
         # that can still fail (the run-metadata and message-history XCom pushes
@@ -1130,6 +1119,20 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         if self._durable_journal is not None:
             self._durable_journal.cleanup()
         self._clear_usage_budget(context)
+        return output
+
+    def _convert_output_for_xcom(self, output: Any) -> Any:
+        """Return the value to push to XCom, as a dict if a downstream task could not load the model."""
+        if isinstance(output, BaseModel) and (
+            self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
+        ):
+            # A downstream task can load a model from XCom only if the worker registered the model's class.
+            # The worker registers the classes that iter_pydantic_models finds in output_type.
+            # iter_pydantic_models finds no class in a list of output types, an output marker, an output
+            # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict.
+            # When iter_pydantic_models could not be imported, _serialize_model_output is always True, so
+            # the condition above never reaches the iter_pydantic_models call.
+            return output.model_dump()
         return output
 
     def _pause_for_tool_approval(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> NoReturn:
