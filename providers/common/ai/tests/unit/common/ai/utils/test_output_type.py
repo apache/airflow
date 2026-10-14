@@ -36,6 +36,11 @@ class B(BaseModel):
     y: str
 
 
+class FromAttributesModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    x: int
+
+
 @dataclass
 class DataclassOutput:
     a: int
@@ -68,6 +73,17 @@ class DictOnlyBeforeValidator(BaseModel):
     def default_amount(cls, data):
         amount = data.get("amount", 0)
         return {**data, "amount": amount}
+
+
+class ValidatorWithOperationalError(BaseModel):
+    """A model whose validator fails for a reason that has nothing to do with the review text."""
+
+    amount: int
+
+    @model_validator(mode="before")
+    @classmethod
+    def look_up_amount(cls, data):
+        raise TimeoutError("lookup service did not answer")
 
 
 class ComputedForbidExtra(BaseModel):
@@ -219,12 +235,25 @@ class TestRehydratePydanticOutput:
 
     @pytest.mark.parametrize(
         ("raw", "detail"),
-        [('{"amount": "ten"}', "valid integer"), ('{"amount": 1,}', "trailing comma")],
-        ids=["invalid-field", "json-typo"],
+        [
+            ('{"amount": "ten"}', "valid integer"),
+            ('{"amount": 1,}', "trailing comma"),
+            ('["x"]', "has no attribute 'get'"),
+            ('"x"', "has no attribute 'get'"),
+            ("42", "has no attribute 'get'"),
+        ],
+        ids=["invalid-field", "json-typo", "json-array", "json-string", "json-number"],
     )
     def test_a_before_validator_failing_on_bare_text_reports_the_json_error(self, raw, detail):
         with pytest.raises(ReviewedOutputValidationError, match=detail):
             rehydrate_pydantic_output(DictOnlyBeforeValidator, raw, serialize_output=False)
+
+    @pytest.mark.parametrize("is_edited", [False, True], ids=["unedited", "edited"])
+    def test_a_validator_error_unrelated_to_the_text_propagates(self, is_edited):
+        with pytest.raises(TimeoutError, match="lookup service"):
+            rehydrate_pydantic_output(
+                ValidatorWithOperationalError, '{"amount": 1}', serialize_output=False, is_edited=is_edited
+            )
 
     def test_a_before_validator_failing_on_bare_text_leaves_an_unedited_output_unchanged(self):
         raw = '{"amount": "ten"}'
@@ -289,6 +318,7 @@ class TestRehydratePydanticOutput:
             (Point, '[1, "a",]', "trailing comma"),
             (Literal["a", "b"], "c", "Input should be 'a' or 'b'"),
             (A | int, "hello", "valid integer"),
+            (Literal["a", "b"] | A, '{"x": 1,}', "trailing comma"),
         ],
         ids=[
             "model-typo",
@@ -300,6 +330,7 @@ class TestRehydratePydanticOutput:
             "named-tuple-typo",
             "bare-text",
             "bare-text-for-a-model-or-int",
+            "json-typo-for-a-literal-or-model",
         ],
     )
     def test_error_reports_the_json_error_for_a_json_typo_and_the_text_error_otherwise(
@@ -307,3 +338,33 @@ class TestRehydratePydanticOutput:
     ):
         with pytest.raises(ReviewedOutputValidationError, match=detail):
             rehydrate_pydantic_output(output_type, raw, serialize_output=False)
+
+    @pytest.mark.parametrize(
+        "output_type",
+        [
+            A,
+            FromAttributesModel,
+            DataclassOutput,
+            dict[str, int],
+            list[int],
+            tuple[int, str],
+            set[int],
+            frozenset[int],
+            Point,
+        ],
+        ids=[
+            "model_type",
+            "model_attributes_type",
+            "dataclass_type",
+            "dict_type",
+            "list_type",
+            "tuple_type",
+            "set_type",
+            "frozen_set_type",
+            "arguments_type",
+        ],
+    )
+    def test_error_reports_the_json_error_for_plain_text_sent_to_a_structured_type(self, output_type):
+        # Each id is the error pydantic raises when the whole text meets the type; the JSON error says more.
+        with pytest.raises(ReviewedOutputValidationError, match="Invalid JSON"):
+            rehydrate_pydantic_output(output_type, "hello", serialize_output=False)

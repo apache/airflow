@@ -477,18 +477,59 @@ class TestDeferForApproval:
             )
 
     @pytest.mark.parametrize(
+        ("generated_output", "modified"),
+        [
+            ('{"title":"a","priority":0}', {"title": "a", "priority": 0}),
+            ('{"id":9007199254740993}', {"id": 9007199254740992}),
+            ('{"score":2.0}', {"score": 2}),
+            ('{"b":1,"10":2}', {"10": 2, "b": 1}),
+            ('{\n  "a": 1\n}', {"a": 1}),
+        ],
+        ids=["same", "int-rounded-by-javascript", "integral-float", "reordered-keys", "pretty-printed"],
+    )
+    def test_approved_with_untouched_object_from_the_form_returns_the_generated_output(
+        self, approval_op_with_modifications, generated_output, modified
+    ):
+        # The HITL form parses a JSON-object value into an object with JavaScript numbers.
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "editor"},
+            "params_input": {"output": modified},
+        }
+
+        result = approval_op_with_modifications.execute_complete(
+            {}, generated_output=generated_output, event=event
+        )
+
+        assert result == generated_output
+
+    def test_approved_with_a_bool_in_place_of_a_number_counts_as_an_edit(
+        self, approval_op_with_modifications
+    ):
+        # Python treats ``False == 0``, but the reviewer changed the value's JSON type.
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "editor"},
+            "params_input": {"output": {"amount": False}},
+        }
+
+        result = approval_op_with_modifications.execute_complete(
+            {}, generated_output='{"amount":0}', event=event
+        )
+
+        assert result == '{"amount":false}'
+
+    @pytest.mark.parametrize(
         ("modified", "expected"),
         [
-            ({"title": "a", "priority": 0}, '{"title":"a","priority":0}'),
             ({"title": "b", "priority": 3}, '{"title":"b","priority":3}'),
-            ({"title": "café"}, '{"title":"café"}'),
+            ({"title": "café", "priority": 0}, '{"title":"café","priority":0}'),
         ],
-        ids=["untouched", "edited", "non-ascii"],
+        ids=["edited", "non-ascii"],
     )
-    def test_approved_with_object_output_from_the_form_is_dumped_as_json(
+    def test_approved_with_edited_object_from_the_form_is_dumped_as_json(
         self, approval_op_with_modifications, modified, expected
     ):
-        # The HITL form parses a JSON-object value into an object, so a model output comes back as a dict.
         event = {
             "chosen_options": ["Approve"],
             "responded_by_user": {"id": "u1", "name": "editor"},

@@ -43,6 +43,40 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.hitl import HITLUser
 
 
+def _object_from_the_form_as_text(modified: dict[str, Any], generated_output: str) -> str:
+    """
+    Turn the object the HITL form sent back into review text, keeping ``generated_output`` if untouched.
+
+    The form round-trips the value through JavaScript, which rounds integers above 2**53, writes ``1.0``
+    as ``1`` and may reorder keys (so may the metadata database), so compare values the same way rather
+    than text; a re-dumped untouched object would otherwise read as an edit and could change a value.
+    """
+    try:
+        generated = json.loads(generated_output)
+    except ValueError:
+        generated = None
+    if _with_javascript_numbers(modified) == _with_javascript_numbers(generated):
+        return generated_output
+    return json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
+
+
+def _with_javascript_numbers(value: Any) -> Any:
+    """Map every number to a float, as ``JSON.parse`` does, so values compare as the browser sees them."""
+    if isinstance(value, bool):
+        # Tagged, because Python treats ``False == 0.0`` and ``True == 1.0`` as equal and JSON does not.
+        return ("bool", value)
+    if isinstance(value, int | float):
+        try:
+            return float(value)
+        except OverflowError:
+            return value
+    if isinstance(value, dict):
+        return {key: _with_javascript_numbers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_with_javascript_numbers(item) for item in value]
+    return value
+
+
 def normalize_assigned_users(value: Any, *, param: str) -> list[HITLUser]:
     """
     Return *value* as a list of ``{'id': str, 'name': str}`` users.
@@ -356,10 +390,9 @@ class LLMApprovalMixin:
                 # Compact so an unchanged selection compares equal to generated_output
                 modified = json.dumps(modified, separators=(",", ":"))
             elif isinstance(modified, dict):
-                # The HITL form parses a JSON-object value into an object before sending it back, so a
-                # model output arrives as a dict. Compact and non-ASCII-preserving, like pydantic's dump,
-                # so an untouched object still compares equal to generated_output.
-                modified = json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
+                # TODO: Drop once the HITL form stops parsing a string param that looks like JSON into an
+                # object (airflow-core ui/src/utils/hitl.ts); until then a model output comes back as a dict.
+                modified = _object_from_the_form_as_text(modified, generated_output)
             if modified is not None and not isinstance(modified, str):
                 # On the awaiting_input path nothing upstream schema-validates params_input
                 # (HITLTrigger did on the legacy path), so enforce the string contract here

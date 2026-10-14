@@ -31,6 +31,11 @@ from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 log = logging.getLogger(__name__)
 
 _MAX_SHOWN_CHARS = 200
+# What a value of the wrong shape raises on its way through ``output_type``. Pydantic wraps a validator's
+# ``ValueError``, but not the ``AttributeError``/``KeyError``/``IndexError`` of a ``mode="before"`` validator
+# that indexes its input (``data.get``) when the review text is not the shape it expects. Anything else,
+# such as a validator's network or timeout error, propagates instead of reading as a failed conversion.
+_CONVERSION_ERRORS = (ValidationError, ValueError, TypeError, AttributeError, KeyError, IndexError)
 # Errors pydantic raises when a whole string meets a structured type, so the JSON error says more.
 _CONTAINER_MISMATCH_TYPES = frozenset(
     {
@@ -103,13 +108,11 @@ def rehydrate_pydantic_output(
     # Output is dumped by field name, so accept a field name or a validation alias.
     try:
         rehydrated = adapter.validate_json(raw, by_alias=True, by_name=True)
-    except (ValidationError, ValueError, TypeError) as json_error:
+    except _CONVERSION_ERRORS as json_error:
         # Bare text is how a str-valued Literal, Enum or ``str | None`` output is carried through review.
         try:
             rehydrated = _validate_bare_text(adapter, raw)
-        # This retry feeds a string to validators that may only expect the type's own input (a
-        # ``mode="before"`` validator calling ``data.get``), so any failure here just means "not bare text".
-        except Exception as text_error:
+        except _CONVERSION_ERRORS as text_error:
             message = _build_failure_message(output_type, raw, json_error, text_error)
             if not is_edited:
                 log.warning("%s Returning the output unchanged.", message)
@@ -134,16 +137,17 @@ def _build_failure_message(output_type: Any, raw: str, json_error: Exception, te
     """Describe why ``raw`` does not match ``output_type``, reporting the text error for bare-text types."""
     type_name = output_type if get_origin(output_type) else getattr(output_type, "__name__", output_type)
     shown = raw if len(raw) <= _MAX_SHOWN_CHARS else f"{raw[:_MAX_SHOWN_CHARS]}..."
-    reported = text_error if _is_bare_text_failure(json_error, text_error) else json_error
+    reported = text_error if _is_bare_text_failure(raw, json_error, text_error) else json_error
     return (
         f"The reviewed output could not be converted to the output_type {type_name}. "
         f"Received {shown!r}. {reported}"
     )
 
 
-def _is_bare_text_failure(json_error: Exception, text_error: Exception) -> bool:
+def _is_bare_text_failure(raw: str, json_error: Exception, text_error: Exception) -> bool:
     """Tell a text that was never JSON from a JSON edit with a typo, which the JSON error explains best."""
-    if not isinstance(text_error, ValidationError):
+    # An object or array the reviewer typed is JSON with a typo, whatever the type also accepts as text.
+    if not isinstance(text_error, ValidationError) or raw.lstrip().startswith(("{", "[")):
         return False
     is_not_json = isinstance(json_error, ValidationError) and all(
         error["type"] == "json_invalid" for error in json_error.errors()
