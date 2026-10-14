@@ -176,6 +176,75 @@ class TestSQLToolsetToolPrefix:
         assert json.loads(result) == ["users"]
 
 
+def _call_prefixed(ts: SQLToolset, name: str, args: dict):
+    return asyncio.run(ts.call_tool(name, args, ctx=MagicMock(), tool=MagicMock()))
+
+
+class TestSQLToolsetToolPrefixModelFacingText:
+    """Text shown to the model names this toolset's own tools, not the bare base names."""
+
+    def test_get_schema_description_names_the_prefixed_tool(self):
+        tools = asyncio.run(SQLToolset("pg_default", tool_prefix="pg").get_tools(ctx=MagicMock()))
+        description = tools["pg_get_schema"].tool_def.description
+        assert "Call pg_get_schema again" in description
+
+    def test_get_schema_description_without_prefix_is_unchanged(self):
+        tools = asyncio.run(SQLToolset("pg_default").get_tools(ctx=MagicMock()))
+        assert "Call get_schema again" in tools["get_schema"].tool_def.description
+
+    def test_tool_failure_retry_names_the_prefixed_tools(self):
+        ts = SQLToolset("pg_default", tool_prefix="pg")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = RuntimeError("boom")
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _call_prefixed(ts, "pg_query", {"sql": "SELECT 1"})
+
+        assert "Use the pg_list_tables and pg_get_schema tools" in exc_info.value.message
+
+    @pytest.mark.parametrize(
+        ("sql", "expected"),
+        [
+            ("SELECT * FROM dblink('host=evil', 'SELECT 1') AS t(x int)", "use pg_list_tables to see them"),
+            ("SELECT * FROM secret_salaries", "Use pg_list_tables to see the allowed tables"),
+        ],
+        ids=["unverifiable_source", "disallowed_table"],
+    )
+    def test_allowed_tables_refusal_names_the_prefixed_tool(self, sql, expected):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], tool_prefix="pg")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.dialect_name = "postgresql"
+
+        with pytest.raises(ModelRetry) as exc_info:
+            _call_prefixed(ts, "pg_query", {"sql": sql})
+
+        assert expected in exc_info.value.message
+
+    @pytest.mark.parametrize(
+        ("table_schema", "args", "expected"),
+        [
+            (
+                [{"name": f"c{i}", "type": "INT"} for i in range(5)],
+                {"table_name": "users", "name_contains": "zzz"},
+                "Call pg_get_schema without name_contains",
+            ),
+            (
+                [{"name": f"c{i}", "type": "INT"} for i in range(300)],
+                {"table_name": "users"},
+                "Call pg_get_schema with a name_contains substring",
+            ),
+        ],
+        ids=["no_columns_match", "summary"],
+    )
+    def test_get_schema_hint_names_the_prefixed_tool(self, table_schema, args, expected):
+        ts = SQLToolset("pg_default", tool_prefix="pg")
+        ts._hook = _make_mock_db_hook(table_schema=table_schema)
+
+        hint = json.loads(_call_prefixed(ts, "pg_get_schema", args))["hint"]
+
+        assert expected in hint
+
+
 class TestSQLToolsetListTables:
     def test_returns_all_tables(self):
         ts = SQLToolset("pg_default")
