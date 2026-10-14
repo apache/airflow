@@ -139,9 +139,10 @@ Tested versions
 These are the versions the adapter tests have been run against. The main test matrix
 skips those tests: its environment has ``mcp`` 2.2 and OpenTelemetry 1.44, which Strands
 and ADK exclude. A separate CI job installs one framework at a time and runs them, on
-amd64 only, on the ``main`` branch only, and only when ``common.ai`` Python source or
-test files, the ``common.ai`` ``pyproject.toml``, ``common.sql`` source files or ``uv.lock``
-change.
+amd64 only, on the ``main`` branch only, and only when selective checks enable it: when ``common.ai``
+Python source or test files, the ``common.ai`` ``pyproject.toml``, ``common.sql`` source
+files or ``uv.lock`` change, or when a full test run is needed (push, scheduled and manual runs, the
+``full tests needed`` label, or a change to the CI environment files).
 
 Choosing a route
 ----------------
