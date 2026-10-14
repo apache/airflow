@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import functools
 import logging
 import math
@@ -50,7 +51,7 @@ from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import task_instance_to_runtime
-from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
+from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.executors import workloads
@@ -140,6 +141,9 @@ from airflow.utils.log.task_log_address import prepare_task_log_contexts, render
 from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
+    import httpx2
     from opentelemetry.util._decorator import _AgnosticContextManager
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -159,6 +163,23 @@ _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 _REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
+
+# Task instance of the trigger whose code is running, so its SDK requests act as that task instance; tasks
+# serving several triggers must not inherit it.
+_current_trigger_ti_id: contextvars.ContextVar[UUID | None] = contextvars.ContextVar(
+    "airflow_current_trigger_ti_id", default=None
+)
+
+# Task instance of the trigger whose request the supervisor is handling, sent to the API as
+# ``TRIGGER_TI_ID_HEADER``.
+_handling_trigger_ti_id: contextvars.ContextVar[UUID | None] = contextvars.ContextVar(
+    "airflow_handling_trigger_ti_id", default=None
+)
+
+
+def _add_trigger_ti_id_header(request: httpx2.Request) -> None:
+    if (ti_id := _handling_trigger_ti_id.get()) is not None:
+        request.headers[TRIGGER_TI_ID_HEADER] = str(ti_id)
 
 
 def _make_trigger_span(
@@ -581,10 +602,22 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """
         from airflow.sdk.api.client import Client
 
-        client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
+        triggerer_id = self.job.id if self.job is not None else None
+        in_process_api = InProcessExecutionAPI(triggerer_id=triggerer_id)
+        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
+        if triggerer_id is not None:
+            client.event_hooks["request"].append(_add_trigger_ti_id_header)
         return client
+
+    @contextmanager
+    def _request_scope(self, request: _RequestFrame) -> Iterator[None]:
+        token = _handling_trigger_ti_id.set(request.ti_id)
+        try:
+            yield
+        finally:
+            _handling_trigger_ti_id.reset(token)
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
 
@@ -1212,7 +1245,9 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
             # non-blocking for the foreign loop.
             cf = asyncio.run_coroutine_threadsafe(self.asend(msg), self._loop)
             return await asyncio.wrap_future(cf)
-        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
+        frame = _RequestFrame(
+            id=next(self.id_counter), body=msg.model_dump(), ti_id=_current_trigger_ti_id.get()
+        )
         future: asyncio.Future = current_loop.create_future()
         self._pending[frame.id] = future
         try:
@@ -1686,6 +1721,8 @@ class TriggerRunner:
             await greenback.ensure_portal()
 
         ti = trigger.task_instance
+        if ti is not None:
+            _current_trigger_ti_id.set(ti.id)
         bind_log_contextvars(
             trigger_id=trigger_id,
             ti_id=str(ti.id) if ti else None,
@@ -1727,8 +1764,15 @@ class TriggerRunner:
                         shared_key = None
 
                 if shared_key is not None and event_trigger is not None:
-                    shared_stream = self._shared_streams.subscribe(
-                        trigger_id=trigger_id, trigger=event_trigger, key=shared_key
+                    # subscribe() may start the group's poll task, which copies the current context but
+                    # serves several triggers.
+                    subscribe_ctx = contextvars.copy_context()
+                    subscribe_ctx.run(_current_trigger_ti_id.set, None)
+                    shared_stream = subscribe_ctx.run(
+                        self._shared_streams.subscribe,
+                        trigger_id=trigger_id,
+                        trigger=event_trigger,
+                        key=shared_key,
                     )
                     event_stream = event_trigger.filter_shared_stream(shared_stream)
                 else:
