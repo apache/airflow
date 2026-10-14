@@ -21,13 +21,17 @@
 
 Run model calls and tool-using agents as Airflow tasks. A task can classify, extract,
 summarize or route with any model vendor, or hand a model a set of tools built from your
-Airflow connections and let it work. Airflow supplies what a script does not: the API key
-comes from a connection, a failed call retries, a run can pause for a person to approve the
-output, the result lands in XCom for the next task, and the whole thing runs on a schedule.
+Airflow connections and let it work. The model comes from a
+connection too. The tools carry guardrails such as table allow-lists and secret masking, a
+retried agent can replay the calls it already made, and a run can pause for a person to
+approve an output or a tool call without holding a worker. :doc:`why_common_ai` compares
+this with a plain ``@task``.
 
 Start here
 ----------
 
+- :doc:`why_common_ai`: what this provider handles that an agent in a plain ``@task``
+  leaves to you, and when a plain task is enough.
 - :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
 - :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
 - :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
@@ -92,6 +96,7 @@ waits for the result, use that vendor's provider.
     :hidden:
     :caption: Getting started
 
+    Why Common AI <why_common_ai>
     Installation <installation>
     Quick start <quickstart>
     Core concepts <concepts>
