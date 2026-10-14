@@ -200,7 +200,7 @@ If a parent backend already implements an async hook, subclasses must account fo
 that implementation when changing deserialization behavior.
 
 The object-storage backend provides non-blocking network reads for the standard
-s3fs filesystem, with plain or gzip-compressed objects. Custom filesystems,
+s3fs filesystem, with plain objects or ``gzip`` compression. Custom filesystems,
 version-aware S3 reads, S3 local-expiry checking, and other compression formats
 retain the synchronous path. Older s3fs versions without the required read
 contract also retain that path. A subclass that overrides a synchronous read
