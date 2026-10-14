@@ -217,10 +217,12 @@ class OpenAIHook(BaseHook):
         """
         Return an ``AsyncOpenAI`` client, for use inside an async task or trigger.
 
-        Configured exactly as :meth:`get_conn` configures its client, but the connection is
-        resolved without any synchronous call to the Task SDK. ``get_connection`` and the
+        Configured exactly as :meth:`get_conn` configures its client. ``get_connection`` and the
         secret masking of ``extra_dejson`` send to the supervisor synchronously, which raises
-        ``DeadlockImminentError`` on an event loop with another async call in flight.
+        ``DeadlockImminentError`` on an event loop with another async call in flight. On
+        Airflow 3.3.2+ the connection is resolved without any synchronous call to the Task SDK.
+        On older versions, fetching the connection with ``aget_connection`` still masks its
+        secrets synchronously, so that guarantee does not hold there.
 
         Each call builds a new client. Close it when done, with ``async with`` or
         ``await client.close()``, to release its HTTP connections.
