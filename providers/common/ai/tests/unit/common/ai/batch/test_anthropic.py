@@ -281,15 +281,17 @@ def _inline_payload_bytes(client) -> int:
 
 class TestPayloadSizeEstimate:
     @pytest.mark.parametrize(
-        "prompt",
+        "prompts",
         [
-            pytest.param("abc", id="ascii"),
-            pytest.param("中文字", id="cjk"),
-            pytest.param("😀😀😀", id="non-bmp"),
+            pytest.param(["abc", "abcdef"], id="ascii"),
+            pytest.param(["中文字", "中文字串測試"], id="cjk"),
+            pytest.param(["😀😀😀", "😀😀😀😀😀"], id="non-bmp"),
         ],
     )
-    def test_estimate_matches_the_inline_payload_bytes(self, adapter, client, str_spec, prompt):
-        requests = [{"prompt": prompt}]
+    def test_estimate_matches_the_inline_payload_bytes(self, adapter, client, str_spec, prompts):
+        # Two requests of unequal length: with one, the running total reads the same as an
+        # overwrite, and the comma is never charged at all -- it starts at the second request.
+        requests = [{"prompt": prompt} for prompt in prompts]
         _submit(adapter, requests, str_spec)
         on_the_wire = _inline_payload_bytes(client)
 
