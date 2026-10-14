@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow_breeze.utils.constraints_version_check import (
+    constraints_version_check,
     explain_package_upgrade,
     get_release_cutoff,
     get_table_format,
@@ -236,3 +237,15 @@ def test_explain_package_upgrade_reads_baseline_for_downgrade_detection(
 
     assert "only by DOWNGRADING" in explanation
     assert "other-pkg: 5.0.0 -> 4.0.0" in explanation
+
+
+@mock.patch(f"{MODULE}.process_packages", autospec=True)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True, return_value=False)
+def test_missing_constraints_file_skips_the_check(mock_download, mock_overrides, mock_process):
+    # A newly added Python version has no constraints on the constraints branch until they are first committed.
+    constraints_version_check(python="3.15", airflow_constraints_mode="constraints", diff_mode="full")
+
+    mock_download.assert_called_once()
+    assert mock_download.call_args.kwargs["python_version"] == "3.15"
+    mock_process.assert_not_called()
