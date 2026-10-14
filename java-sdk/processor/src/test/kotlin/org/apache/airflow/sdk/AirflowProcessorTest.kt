@@ -30,7 +30,7 @@ import java.nio.file.Files
 import javax.tools.JavaFileObject
 
 private fun compile(source: String) =
-  Compiler.javac().withProcessors(BuilderProcessor()).compile(
+  Compiler.javac().withProcessors(AirflowProcessor()).compile(
     JavaFileObjects.forSourceString("org.apache.airflow.example.TestExample", source),
   )
 
@@ -41,7 +41,7 @@ private fun JavaFileObjectSubject.hasSourceEquivalentTo(
   JavaFileObjects.forSourceString(qual, source),
 )
 
-class BuilderTest {
+class AirflowProcessorTest {
   @Test
   @DisplayName("generate builder and task-reference twins for dag class")
   fun generateBuilderAndRefForDagClass() {
@@ -50,26 +50,26 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
 
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.Client;
         import org.apache.airflow.sdk.Context;
 
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public void t1() {}
 
-          @Builder.Task
+          @Airflow.Task
           public int t2(Client client) {
             return 7;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void t3(Context ctx, int value) {
             System.out.println(String.format("%s %s", ctx.ti, value));
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               t1();
@@ -178,15 +178,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.Client;
         import org.apache.airflow.sdk.Context;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public void t(long first, Client client, String second, Context ctx, Integer third) {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { t(lit(1L), lit("second"), lit(3)); }
           }
@@ -246,13 +246,13 @@ class BuilderTest {
         package org.apache.airflow.example;
         import java.util.List;
         import java.util.Map;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public void t(boolean flag, float fraction, Double boxed, List<String> tags, Map raw) {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { t(lit(true), lit(1f), lit(2.0), lit(List.of("a")), lit(Map.of())); }
           }
@@ -316,25 +316,25 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
         import java.util.List;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public String ps() { return "x"; }
 
-          @Builder.Task
+          @Airflow.Task
           public void pv() {}
 
-          @Builder.Task
+          @Airflow.Task
           public List<String> pl() { return null; }
 
-          @Builder.Task
+          @Airflow.Task
           public long pn() { return 1L; }
 
-          @Builder.Task
+          @Airflow.Task
           public void t(String text, Object anything, List<String> items, Long boxed) {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               t(ps(), pv(), pl(), pn());
@@ -402,14 +402,14 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag(id = "cfg", schedule = "@daily", tags = {"a", "b"}, catchup = true,
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag(id = "cfg", schedule = "@daily", tags = {"a", "b"}, catchup = true,
             startDate = "2026-01-01T00:00:00Z")
         public class TestExample {
-          @Builder.Task(retries = 2, queue = "q", retryDelay = "PT5M", retryExponentialBackoff = 1.5)
+          @Airflow.Task(retries = 2, queue = "q", retryDelay = "PT5M", retryExponentialBackoff = 1.5)
           public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               t1();
@@ -494,13 +494,13 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public void t(String args, int other) {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { t(lit("a"), lit(1)); }
           }
@@ -556,21 +556,21 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
         import java.util.List;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
           public static class ScoreInput implements TaskInput {
             public double threshold;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void flat(String client, int context) {}
 
-          @Builder.Task
+          @Airflow.Task
           public void named(ScoreInput context) {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { flat(lit("a"), lit(1)); named(lit(null)); }
           }
@@ -635,9 +635,9 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
           public static class BaseInput {
             private String secret;
@@ -647,7 +647,7 @@ class BuilderTest {
             public double threshold;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void t(ScoreInput input) {}
         }
       """,
@@ -665,9 +665,9 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
           public static class BaseInput {
             public String regionCode;
@@ -677,7 +677,7 @@ class BuilderTest {
             public String region_code;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void t(ScoreInput input) {}
         }
       """,
@@ -696,15 +696,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
           public static class ScoreInput implements TaskInput {
             public double threshold;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void t(ScoreInput input, int extra) {}
         }
       """,
@@ -722,15 +722,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
           public static class ScoreInput implements TaskInput {
             public double threshold;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void t(ScoreInput first, ScoreInput second) {}
         }
       """,
@@ -748,15 +748,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
           public static class ScoreInput implements TaskInput {
             double threshold;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void t(ScoreInput input) {}
         }
       """,
@@ -774,9 +774,9 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
           public static class ScoreInput implements TaskInput {
             public double threshold;
@@ -784,7 +784,7 @@ class BuilderTest {
             public ScoreInput(double threshold) { this.threshold = threshold; }
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void t(ScoreInput input) {}
         }
       """,
@@ -802,10 +802,10 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag(id = "foo")
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag(id = "foo")
         public class TestExample {
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -839,10 +839,10 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag(to = "Foo")
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag(to = "Foo")
         public class TestExample {
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -876,12 +876,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task(id = "foo") public void t1() {}
+          @Airflow.Task(id = "foo") public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               t1();
@@ -959,16 +959,16 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public String ps() { return "x"; }
 
-          @Builder.Task
+          @Airflow.Task
           public void t(int v) {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { t(ps()); }
           }
@@ -986,16 +986,16 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public double ratio() { return 2.7; }
 
-          @Builder.Task
+          @Airflow.Task
           public void load(long rows) {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { load(ratio()); }
           }
@@ -1013,18 +1013,18 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
         }
       """,
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "Dag class TestExample must declare a @Builder.Deps class implementing TestExampleDeps " +
+      "Dag class TestExample must declare an @Airflow.Deps class implementing TestExampleDeps " +
         "to declare its task graph; a class of task bodies for a Dag the Python file owns carries " +
-        "@Builder.TaskHandler instead",
+        "@Airflow.TaskHandler instead",
     )
   }
 
@@ -1035,17 +1035,17 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class One implements TestExampleDeps {
             void depends() { t1(); }
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Two implements TestExampleDeps {
             void depends() {}
           }
@@ -1054,7 +1054,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "Dag class TestExample declares more than one @Builder.Deps class: One, Two",
+      "Dag class TestExample declares more than one @Airflow.Deps class: One, Two",
     )
   }
 
@@ -1065,12 +1065,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           class Wiring implements TestExampleDeps {
             void depends() { t1(); }
           }
@@ -1079,7 +1079,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Deps class 'Wiring' must be static and non-private",
+      "@Airflow.Deps class 'Wiring' must be static and non-private",
     )
   }
 
@@ -1090,12 +1090,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void wireItUp() { t1(); }
           }
@@ -1104,7 +1104,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Deps class 'Wiring' must have a non-private, no-argument depends() method",
+      "@Airflow.Deps class 'Wiring' must have a non-private, no-argument depends() method",
     )
   }
 
@@ -1115,22 +1115,22 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements OtherDeps {
             void depends() { t1(); }
           }
         }
 
-        @Builder.Dag
+        @Airflow.Dag
         class Other {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements OtherDeps {
             void depends() { t1(); }
           }
@@ -1139,7 +1139,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Deps class 'Wiring' must implement TestExampleDeps, the wiring view of TestExample",
+      "@Airflow.Deps class 'Wiring' must implement TestExampleDeps, the wiring view of TestExample",
     )
   }
 
@@ -1150,12 +1150,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           abstract static class Wiring implements TestExampleDeps {
             void depends() { t1(); }
           }
@@ -1163,7 +1163,7 @@ class BuilderTest {
       """,
       )
     assertThat(compilation).failed()
-    assertThat(compilation).hadErrorContaining("@Builder.Deps 'Wiring' must be a concrete class")
+    assertThat(compilation).hadErrorContaining("@Airflow.Deps 'Wiring' must be a concrete class")
   }
 
   @Test
@@ -1173,12 +1173,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             Wiring(int unused) {}
             void depends() { t1(); }
@@ -1188,7 +1188,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Deps class 'Wiring' needs a non-private no-argument constructor",
+      "@Airflow.Deps class 'Wiring' needs a non-private no-argument constructor",
     )
   }
 
@@ -1199,12 +1199,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() throws java.io.IOException { t1(); }
           }
@@ -1213,7 +1213,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "depends() of @Builder.Deps class 'Wiring' must not throw checked exceptions: java.io.IOException",
+      "depends() of @Airflow.Deps class 'Wiring' must not throw checked exceptions: java.io.IOException",
     )
   }
 
@@ -1224,16 +1224,16 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void t1() {}
+          @Airflow.Task public void t1() {}
 
           static class Base implements TestExampleDeps {
             void depends() { t1(); }
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring extends Base implements TestExampleDeps {}
         }
       """,
@@ -1248,9 +1248,9 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         public class TestExample {
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring {
             void depends() {}
           }
@@ -1259,7 +1259,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Deps class 'Wiring' must be nested directly in a @Builder.Dag class",
+      "@Airflow.Deps class 'Wiring' must be nested directly in an @Airflow.Dag class",
     )
   }
 
@@ -1270,12 +1270,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task(id = "wire") public void depends() {}
+          @Airflow.Task(id = "wire") public void depends() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1285,7 +1285,7 @@ class BuilderTest {
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
       "Task method 'depends' clashes with a member of the wiring view; rename the method and keep " +
-        "the task id with @Builder.Task(id = \"wire\")",
+        "the task id with @Airflow.Task(id = \"wire\")",
     )
   }
 
@@ -1296,22 +1296,22 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void extract() {}
+          @Airflow.Task public void extract() {}
 
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Staging {
-            @Builder.Task public void stage() {}
+            @Airflow.Task public void stage() {}
 
-            @Builder.TaskGroup(id = "checks")
+            @Airflow.TaskGroup(id = "checks")
             static class Checks {
-              @Builder.Task public void nulls() {}
+              @Airflow.Task public void nulls() {}
             }
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               extract().before(staging());
@@ -1351,20 +1351,20 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class First {
-            @Builder.Task public void run() {}
+            @Airflow.Task public void run() {}
           }
 
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Second {
-            @Builder.Task public void run() {}
+            @Airflow.Task public void run() {}
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { first().run().before(second().run()); }
           }
@@ -1386,12 +1386,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup(id = "staging.checks")
+          @Airflow.TaskGroup(id = "staging.checks")
           static class Staging {
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
         }
       """,
@@ -1409,19 +1409,19 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           class Staging {
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
         }
       """,
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.TaskGroup class 'Staging' must be static and non-private",
+      "@Airflow.TaskGroup class 'Staging' must be static and non-private",
     )
   }
 
@@ -1432,17 +1432,17 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void staging() {}
+          @Airflow.Task public void staging() {}
 
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Staging {
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1463,18 +1463,18 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           abstract static class Staging {
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
         }
       """,
       )
     assertThat(compilation).failed()
-    assertThat(compilation).hadErrorContaining("@Builder.TaskGroup 'Staging' must be a concrete class")
+    assertThat(compilation).hadErrorContaining("@Airflow.TaskGroup 'Staging' must be a concrete class")
   }
 
   @Test
@@ -1484,21 +1484,21 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Staging {
             Staging(String name) {}
 
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
         }
       """,
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.TaskGroup class 'Staging' needs a non-private no-argument constructor",
+      "@Airflow.TaskGroup class 'Staging' needs a non-private no-argument constructor",
     )
   }
 
@@ -1509,15 +1509,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Staging {
-            @Builder.Task public void nodes() {}
+            @Airflow.Task public void nodes() {}
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1527,7 +1527,7 @@ class BuilderTest {
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
       "Task method 'nodes' clashes with a member of the wiring view; rename the method and keep the " +
-        "task id with @Builder.Task(id = \"nodes\")",
+        "task id with @Airflow.Task(id = \"nodes\")",
     )
   }
 
@@ -1538,15 +1538,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Staging {
-            @Builder.Task public void before() {}
+            @Airflow.Task public void before() {}
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1556,7 +1556,7 @@ class BuilderTest {
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
       "Task method 'before' clashes with a member of the wiring view; rename the method and keep the " +
-        "task id with @Builder.Task(id = \"before\")",
+        "task id with @Airflow.Task(id = \"before\")",
     )
   }
 
@@ -1567,20 +1567,20 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup(id = "checks")
+          @Airflow.TaskGroup(id = "checks")
           static class Alpha {
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
 
-          @Builder.TaskGroup(id = "checks")
+          @Airflow.TaskGroup(id = "checks")
           static class Beta {
-            @Builder.Task public void t2() {}
+            @Airflow.Task public void t2() {}
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1598,12 +1598,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task public void nodes() {}
+          @Airflow.Task public void nodes() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             public void depends() { nodes(); }
           }
@@ -1620,20 +1620,20 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Staging {
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
 
-          @Builder.TaskGroup(id = "lower")
+          @Airflow.TaskGroup(id = "lower")
           static class staging {
-            @Builder.Task public void t2() {}
+            @Airflow.Task public void t2() {}
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1653,12 +1653,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task(id = "staging.stage") public void stage() {}
+          @Airflow.Task(id = "staging.stage") public void stage() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             public void depends() { stage(); }
           }
@@ -1675,17 +1675,17 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task(id = "Staging") public void staged() {}
+          @Airflow.Task(id = "Staging") public void staged() {}
 
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Staging {
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1705,23 +1705,23 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.TaskGroup(id = "flat")
+          @Airflow.TaskGroup(id = "flat")
           static class A_B {
-            @Builder.Task public void c() {}
+            @Airflow.Task public void c() {}
           }
 
-          @Builder.TaskGroup(id = "outer")
+          @Airflow.TaskGroup(id = "outer")
           static class A {
-            @Builder.TaskGroup(id = "inner")
+            @Airflow.TaskGroup(id = "inner")
             static class B {
-              @Builder.Task public void c() {}
+              @Airflow.Task public void c() {}
             }
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1730,7 +1730,7 @@ class BuilderTest {
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "both generate the task class 'A_B_C'; rename one of them or an enclosing @Builder.TaskGroup class",
+      "both generate the task class 'A_B_C'; rename one of them or an enclosing @Airflow.TaskGroup class",
     )
   }
 
@@ -1741,19 +1741,19 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         public class TestExample {
-          @Builder.TaskGroup
+          @Airflow.TaskGroup
           static class Staging {
-            @Builder.Task public void t1() {}
+            @Airflow.Task public void t1() {}
           }
         }
       """,
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.TaskGroup class 'Staging' must be nested in a @Builder.Dag class or in another " +
-        "@Builder.TaskGroup class",
+      "@Airflow.TaskGroup class 'Staging' must be nested in an @Airflow.Dag class or in another " +
+        "@Airflow.TaskGroup class",
     )
   }
 
@@ -1764,9 +1764,9 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
-        public class TestExample { @Builder.Task(id = "foo") public void t1(String... client) {} }
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample { @Airflow.Task(id = "foo") public void t1(String... client) {} }
       """,
       )
     assertThat(compilation).failed()
@@ -1782,13 +1782,13 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task(id = "x")
+          @Airflow.Task(id = "x")
           public void t1() {}
 
-          @Builder.Task(id = "x")
+          @Airflow.Task(id = "x")
           public void t2() {}
         }
       """,
@@ -1804,13 +1804,13 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task(id = "a") public void extract() {}
-          @Builder.Task(id = "b") public void extract(String text) {}
+          @Airflow.Task(id = "a") public void extract() {}
+          @Airflow.Task(id = "b") public void extract(String text) {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -1821,7 +1821,7 @@ class BuilderTest {
     assertThat(compilation).hadErrorContaining(
       "Class TestExample overloads task method 'extract'; a method's name is the name of its " +
         "generated task class and of its wiring-view method, so rename one and keep its task id " +
-        "with @Builder.Task(id = \"b\")",
+        "with @Airflow.Task(id = \"b\")",
     )
   }
 
@@ -1832,10 +1832,10 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         public class TestExample {
-          @Builder.TaskHandler(dag = "etl", task = "a") public void score() {}
-          @Builder.TaskHandler(dag = "etl", task = "b") public void score(String text) {}
+          @Airflow.TaskHandler(dag = "etl", task = "a") public void score() {}
+          @Airflow.TaskHandler(dag = "etl", task = "b") public void score(String text) {}
         }
       """,
       )
@@ -1843,7 +1843,7 @@ class BuilderTest {
     assertThat(compilation).hadErrorContaining(
       "Class TestExample overloads task-handler method 'score'; a method's name is the name of its " +
         "generated task class, so rename one and keep its task id with " +
-        "@Builder.TaskHandler(task = \"b\")",
+        "@Airflow.TaskHandler(task = \"b\")",
     )
   }
 
@@ -1854,12 +1854,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task(retryDelay = "5 minutes") public void t() {}
+          @Airflow.Task(retryDelay = "5 minutes") public void t() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { t(); }
           }
@@ -1879,12 +1879,12 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag(tags = {"say \"hi\"", "back\\slash"})
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag(tags = {"say \"hi\"", "back\\slash"})
         public class TestExample {
-          @Builder.Task public void t() {}
+          @Airflow.Task public void t() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { t(); }
           }
@@ -1906,13 +1906,13 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task(id = "say \"hi\"") public void a() {}
-          @Builder.Task(id = "back\\slash") public void b() {}
+          @Airflow.Task(id = "say \"hi\"") public void a() {}
+          @Airflow.Task(id = "back\\slash") public void b() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               a();
@@ -1939,10 +1939,10 @@ class BuilderTest {
         package org.apache.airflow.example;
         import java.util.List;
         import org.apache.airflow.sdk.ArgName;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.Client;
         import org.apache.airflow.sdk.TaskInput;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
           public static class ScoreInput implements TaskInput {
             @ArgName("region_code") public String region;
@@ -1950,10 +1950,10 @@ class BuilderTest {
             public List<String> tags;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public double score(Client client, ScoreInput input) { return input.threshold; }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() { score(lit(null)); }
           }
@@ -2005,13 +2005,13 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.Client;
         public class TestExample {
-          @Builder.TaskHandler(dag = "etl", task = "score")
+          @Airflow.TaskHandler(dag = "etl", task = "score")
           public long score(Client client, long rows) { return rows; }
 
-          @Builder.TaskHandler(dag = "etl")
+          @Airflow.TaskHandler(dag = "etl")
           public void audit() {}
         }
       """,
@@ -2070,16 +2070,16 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         public class TestExample {
-          @Builder.TaskHandler(dag = "")
+          @Airflow.TaskHandler(dag = "")
           public void t() {}
         }
       """,
       )
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.TaskHandler on 't' must name the Dag the Python file declares",
+      "@Airflow.TaskHandler on 't' must name the Dag the Python file declares",
     )
   }
 
@@ -2090,10 +2090,10 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         public class TestExample {
           public static class Inner {
-            @Builder.TaskHandler(dag = "etl", task = "score")
+            @Airflow.TaskHandler(dag = "etl", task = "score")
             public long score(long rows) { return rows; }
           }
         }
@@ -2145,10 +2145,10 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         public class TestExample {
           public class Inner {
-            @Builder.TaskHandler(dag = "etl")
+            @Airflow.TaskHandler(dag = "etl")
             public void t() {}
           }
         }
@@ -2157,7 +2157,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "Nested class 'Inner' holding @Builder.TaskHandler methods must be static",
+      "Nested class 'Inner' holding @Airflow.TaskHandler methods must be static",
     )
   }
 
@@ -2169,19 +2169,19 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
 
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
 
-        @Builder.Dag(id = "etl")
+        @Airflow.Dag(id = "etl")
         public class TestExample {
-          @Builder.If(id = "has_rows")
+          @Airflow.If(id = "has_rows")
           public boolean hasRows() {
             return true;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void load() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               hasRows().Then(load());
@@ -2267,25 +2267,25 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
 
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
 
-        @Builder.Dag(id = "etl")
+        @Airflow.Dag(id = "etl")
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public void extract() {}
 
-          @Builder.If(id = "has_rows")
+          @Airflow.If(id = "has_rows")
           public boolean hasRows() {
             return true;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void load() {}
 
-          @Builder.Task
+          @Airflow.Task
           public void reportEmpty() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               extract().before(hasRows());
@@ -2308,23 +2308,23 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
 
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.Task;
 
-        @Builder.Dag(id = "etl")
+        @Airflow.Dag(id = "etl")
         public class TestExample {
-          @Builder.Switch(id = "pick_path")
+          @Airflow.Switch(id = "pick_path")
           public Class<? extends Task> pickPath() {
             return TestExampleBuilder.HandleLong.class;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void handleLong() {}
 
-          @Builder.Task
+          @Airflow.Task
           public void handleShort() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               pickPath().Case(handleLong());
@@ -2346,23 +2346,23 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
 
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.Task;
 
-        @Builder.Dag(id = "etl")
+        @Airflow.Dag(id = "etl")
         public class TestExample {
-          @Builder.Switch(id = "pick_path")
+          @Airflow.Switch(id = "pick_path")
           public Class<? extends Task> pickPath() {
             return TestExampleBuilder.HandleLong.class;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void handleLong() {}
 
-          @Builder.Task
+          @Airflow.Task
           public void handleShort() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               pickPath().Case(handleLong()).Case(handleShort());
@@ -2460,17 +2460,17 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
 
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TriggerDagRun;
 
-        @Builder.Dag(id = "etl")
+        @Airflow.Dag(id = "etl")
         public class TestExample {
-          @Builder.Task(id = "trigger_downstream", retries = 2)
+          @Airflow.Task(id = "trigger_downstream", retries = 2)
           public TriggerDagRun triggerDownstream() {
             return new TriggerDagRun("downstream_etl").config("wait_for_completion", true);
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               triggerDownstream();
@@ -2531,33 +2531,33 @@ class BuilderTest {
         """
         package org.apache.airflow.example;
 
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TriggerDagRun;
 
-        @Builder.Dag(id = "etl")
+        @Airflow.Dag(id = "etl")
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public long extract() {
             return 42L;
           }
 
-          @Builder.Task
+          @Airflow.Task
           public void load(long rows) {}
 
-          @Builder.Task
+          @Airflow.Task
           public void loadEmpty() {}
 
-          @Builder.If(id = "has_rows")
+          @Airflow.If(id = "has_rows")
           public boolean hasRows(long rows) {
             return rows > 0;
           }
 
-          @Builder.Task(id = "trigger_downstream")
+          @Airflow.Task(id = "trigger_downstream")
           public TriggerDagRun triggerDownstream() {
             return new TriggerDagRun("downstream_etl");
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               var extracted = extract();
@@ -2600,16 +2600,16 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TriggerDagRun;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public TriggerDagRun triggerDownstream(long rows) {
             return new TriggerDagRun("downstream_etl");
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -2619,7 +2619,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Task method 'triggerDownstream' returns a TriggerDagRun, so it runs when the Dag is " +
+      "@Airflow.Task method 'triggerDownstream' returns a TriggerDagRun, so it runs when the Dag is " +
         "built rather than when the task runs; it takes no parameters",
     )
   }
@@ -2631,16 +2631,16 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Airflow;
         import org.apache.airflow.sdk.TriggerDagRun;
-        @Builder.Dag
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public TriggerDagRun triggerDownstream() throws java.io.IOException {
             return new TriggerDagRun("downstream_etl");
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -2650,7 +2650,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Task method 'triggerDownstream' returns a TriggerDagRun, so it runs when the Dag is " +
+      "@Airflow.Task method 'triggerDownstream' returns a TriggerDagRun, so it runs when the Dag is " +
         "built, where a checked exception cannot be thrown; it must not throw: java.io.IOException",
     )
   }
@@ -2662,15 +2662,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Switch
+          @Airflow.Switch
           public String pickPath() {
             return "handleLong";
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -2680,7 +2680,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Switch method 'pickPath' returns java.lang.String, but a switch returns the class of the task it chose",
+      "@Airflow.Switch method 'pickPath' returns java.lang.String, but a switch returns the class of the task it chose",
     )
   }
 
@@ -2691,15 +2691,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Switch
+          @Airflow.Switch
           public Class<String> pickPath() {
             return String.class;
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -2709,7 +2709,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.Switch method 'pickPath' returns java.lang.Class<java.lang.String>, but a switch returns the class of the task it chose",
+      "@Airflow.Switch method 'pickPath' returns java.lang.Class<java.lang.String>, but a switch returns the class of the task it chose",
     )
   }
 
@@ -2720,15 +2720,15 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.If
+          @Airflow.If
           public String hasRows() {
             return "yes";
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -2738,7 +2738,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "@Builder.If method 'hasRows' returns java.lang.String, but a condition returns boolean",
+      "@Airflow.If method 'hasRows' returns java.lang.String, but a condition returns boolean",
     )
   }
 
@@ -2749,16 +2749,16 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
         public class TestExample {
-          @Builder.Task
-          @Builder.If
+          @Airflow.Task
+          @Airflow.If
           public boolean hasRows() {
             return true;
           }
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {}
           }
@@ -2768,7 +2768,7 @@ class BuilderTest {
 
     assertThat(compilation).failed()
     assertThat(compilation).hadErrorContaining(
-      "Method 'hasRows' carries @Builder.Task, @Builder.If; a task is declared by one of them alone",
+      "Method 'hasRows' carries @Airflow.Task, @Airflow.If; a task is declared by one of them alone",
     )
   }
 
@@ -2779,13 +2779,13 @@ class BuilderTest {
       compile(
         """
         package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Builder;
-        @Builder.Dag(id = "orders")
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag(id = "orders")
         public class TestExample {
-          @Builder.Task
+          @Airflow.Task
           public void t1() {}
 
-          @Builder.Deps
+          @Airflow.Deps
           static class Wiring implements TestExampleDeps {
             void depends() {
               t1();

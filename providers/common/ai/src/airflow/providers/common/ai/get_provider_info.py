@@ -81,6 +81,7 @@ def get_provider_info():
                 "external-doc-url": "https://open-sandbox.ai/",
                 "tags": ["software"],
             },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
         ],
         "hooks": [
             {
@@ -101,7 +102,11 @@ def get_provider_info():
             {
                 "name": "hitl_review",
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
-            }
+            },
+            {
+                "name": "ai_model_panel",
+                "plugin-class": "airflow.providers.common.ai.plugins.model_panel.ModelPanelPlugin",
+            },
         ],
         "config": {
             "common.ai": {
@@ -137,15 +142,39 @@ def get_provider_info():
                 "hook-name": "Pydantic AI",
                 "connection-type": "pydanticai",
                 "external-services": [
-                    "OpenAI",
+                    "Alibaba Cloud Model Studio",
                     "Anthropic",
-                    "Google",
                     "AWS Bedrock",
-                    "Groq",
-                    "Mistral AI",
+                    "AWS Bedrock Mantle",
+                    "Azure OpenAI",
+                    "Cerebras",
+                    "Cohere",
+                    "Crusoe",
                     "DeepSeek",
+                    "Fireworks AI",
+                    "GitHub Copilot",
+                    "Google Gemini",
+                    "Google Vertex AI",
+                    "Groq",
+                    "Heroku",
+                    "Hugging Face",
+                    "LiteLLM",
+                    "Mistral AI",
+                    "Moonshot AI",
+                    "Nebius",
                     "Ollama",
+                    "OpenAI",
+                    "OpenRouter",
+                    "OVHcloud",
+                    "Pydantic AI Gateway",
+                    "SambaNova",
+                    "Snowflake Cortex",
+                    "Together AI",
+                    "TypeSafe",
+                    "Vercel AI Gateway",
                     "vLLM",
+                    "xAI",
+                    "Z.AI",
                 ],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
@@ -328,6 +357,7 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.common.ai.hooks.mcp.MCPHook",
                 "hook-name": "MCP Server",
                 "connection-type": "mcp",
+                "external-services": ["Any MCP server (user-supplied endpoint)"],
                 "ui-field-behaviour": {
                     "hidden-fields": ["schema", "port", "login"],
                     "relabeling": {"password": "Auth Token"},

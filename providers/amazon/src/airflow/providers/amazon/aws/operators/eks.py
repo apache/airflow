@@ -835,7 +835,10 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
 
         if self.wait_for_completion:
             self.log.info("Waiting for cluster to delete.  This will take some time.")
-            self.hook.conn.get_waiter("cluster_deleted").wait(name=self.cluster_name)
+            self.hook.conn.get_waiter("cluster_deleted").wait(
+                name=self.cluster_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
 
     def delete_any_nodegroups(self) -> None:
         """
@@ -854,7 +857,10 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                         self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
             self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
-            self.hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
+            self.hook.get_waiter("all_nodegroups_deleted").wait(
+                clusterName=self.cluster_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
         self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
 
     def delete_any_fargate_profiles(self) -> None:
@@ -879,7 +885,9 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                             clusterName=self.cluster_name, fargateProfileName=profile
                         )
                 self.hook.conn.get_waiter("fargate_profile_deleted").wait(
-                    clusterName=self.cluster_name, fargateProfileName=profile
+                    clusterName=self.cluster_name,
+                    fargateProfileName=profile,
+                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
                 )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
@@ -976,7 +984,9 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
         elif self.wait_for_completion:
             self.log.info("Waiting for nodegroup to delete.  This will take some time.")
             self.hook.conn.get_waiter("nodegroup_deleted").wait(
-                clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
+                clusterName=self.cluster_name,
+                nodegroupName=self.nodegroup_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:

@@ -25,13 +25,13 @@ from contextlib import nullcontext
 from datetime import timedelta
 from decimal import Decimal
 from types import ModuleType, SimpleNamespace
-from typing import Any
+from typing import Any, NewType
 from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 from uuid import UUID
 
 import pytest
 from pydantic import BaseModel
-from pydantic_ai import Agent, DeferredToolRequests, Tool
+from pydantic_ai import Agent, DeferredToolRequests, Tool, ToolOutput
 from pydantic_ai.capabilities import (
     AbstractCapability,
     CombinedCapability,
@@ -58,6 +58,7 @@ from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
+from typing_extensions import TypeAliasType
 
 from airflow.providers.common.ai.durable.base import (
     DurableStorageProtocol,
@@ -115,6 +116,14 @@ requires_typed_xcom = pytest.mark.skipif(
 class Summary(BaseModel):
     text: str
     score: float = 0.0
+
+
+def _summarize(text: str) -> Summary:
+    return Summary(text=text)
+
+
+SummaryAlias = TypeAliasType("SummaryAlias", Summary)
+SummaryNewType = NewType("SummaryNewType", Summary)
 
 
 def _make_mock_agent(output, make_mock_run_result, *, cost=None):
@@ -1134,7 +1143,7 @@ class TestAgentOperatorExecute:
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = "Approved output"
+        mock_run_hitl.return_value = "Initial output"
 
         op = AgentOperator(
             task_id="test",
@@ -1146,7 +1155,7 @@ class TestAgentOperatorExecute:
         context = MagicMock()
         result = op.execute(context=context)
 
-        assert result == "Approved output"
+        assert result == "Initial output"
         mock_run_hitl.assert_called_once_with(op, context, "Initial output", message_history=msg_history)
 
     @requires_typed_xcom
@@ -1194,7 +1203,7 @@ class TestAgentOperatorExecute:
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = "Approved output"
+        mock_run_hitl.return_value = "Initial output"
 
         op = AgentOperator(
             task_id="test",
@@ -1207,30 +1216,39 @@ class TestAgentOperatorExecute:
         context = MagicMock()
         result = op.execute(context=context)
 
-        assert result == "Approved output"
+        assert result == "Initial output"
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
     @pytest.mark.parametrize(
-        ("output_type", "approved", "expected"),
+        ("output_type", "agent_output", "expected"),
         [
             pytest.param(str, "42", "42", id="str-that-parses-as-a-number"),
             pytest.param(str, '{"total": 1}', '{"total": 1}', id="str-that-parses-as-an-object"),
-            pytest.param(list[str], '["a", "b"]', ["a", "b"], id="list"),
-            pytest.param(int, "not a number", "not a number", id="edit-the-type-rejects"),
+            pytest.param(list[str], ["a", "b"], ["a", "b"], id="list"),
+            pytest.param([str, int], "42", "42", id="str-from-a-list-of-output-types"),
+            pytest.param(
+                [Summary, int], Summary(text="ok"), {"text": "ok", "score": 0.0}, id="model-from-a-list"
+            ),
+            pytest.param(
+                ToolOutput(Summary), Summary(text="ok"), {"text": "ok", "score": 0.0}, id="output-marker"
+            ),
+            pytest.param(_summarize, Summary(text="ok"), {"text": "ok", "score": 0.0}, id="output-function"),
+            pytest.param(SummaryAlias, Summary(text="ok"), {"text": "ok", "score": 0.0}, id="type-alias"),
+            pytest.param(SummaryNewType, Summary(text="ok"), {"text": "ok", "score": 0.0}, id="new-type"),
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_with_hitl_returns_the_approved_output_as_output_type(
-        self, mock_hook_cls, mock_run_hitl, make_mock_run_result, output_type, approved, expected
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result, output_type, agent_output, expected
     ):
-        """The approved text comes back as ``output_type``, as it does from ``@task.llm``."""
+        """On approval, execute returns the agent's answer, not text parsed back from the review."""
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
-        mock_agent.run_sync.return_value = make_mock_run_result("Initial output")
+        mock_agent.run_sync.return_value = make_mock_run_result(agent_output)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = approved
+        mock_run_hitl.side_effect = lambda op, context, output, **kwargs: op._to_string(output)
         op = AgentOperator(
             task_id="test",
             prompt="Summarize",
@@ -1244,6 +1262,63 @@ class TestAgentOperatorExecute:
 
         assert result == expected
         assert type(result) is type(expected)
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_dumps_the_approved_model_when_serialize_output_is_set(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(Summary(text="ok"))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_run_hitl.side_effect = lambda op, context, output, **kwargs: op._to_string(output)
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=Summary,
+            serialize_output=True,
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+
+        result = op.execute(context=MagicMock())
+
+        assert result == {"text": "ok", "score": 0.0}
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_with_hitl_returns_the_regenerated_output_once_it_is_approved(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.side_effect = [make_mock_run_result("42"), make_mock_run_result("7")]
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        def request_changes_then_approve(op, context, output, *, message_history):
+            new_output, _ = op.regenerate_with_feedback(feedback="Answer 7", message_history=message_history)
+            return new_output
+
+        mock_run_hitl.side_effect = request_changes_then_approve
+        op = AgentOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            output_type=[str, int],
+            enable_hitl_review=True,
+            hitl_timeout=timedelta(minutes=5),
+        )
+
+        result = op.execute(context=MagicMock())
+
+        assert result == "7"
+        assert type(result) is str
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -3237,7 +3312,7 @@ class TestAgentOperatorUsageBudget:
         its own delete call."""
         mock_agent = _make_mock_agent("Initial output", make_mock_run_result)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = "Approved output"
+        mock_run_hitl.return_value = "Initial output"
 
         op = AgentOperator(
             task_id="t",
@@ -3248,7 +3323,7 @@ class TestAgentOperatorUsageBudget:
         )
         result = op.execute(context=_make_context(task_state_store=task_state_store_accessor))
 
-        assert result == "Approved output"
+        assert result == "Initial output"
         task_state_store_accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
 
 

@@ -105,6 +105,7 @@ waits for the result, use that vendor's provider.
     What you can build <use_cases/index>
     Connections <connections/index>
     Models and providers <model_providers>
+    Supported services <supported_services>
     Operators and decorators <operators/index>
     Toolsets <toolsets/index>
     Agent frameworks <frameworks/index>
@@ -227,6 +228,7 @@ Extra            Dependencies
 ``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
 ``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
+``boat``         ``boat-sdk>=1.9.3``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.24.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
 ``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``

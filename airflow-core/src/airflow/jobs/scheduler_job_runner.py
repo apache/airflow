@@ -3382,7 +3382,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(
                 TI.dag_id == dag_run.dag_id,
                 TI.run_id == dag_run.run_id,
-                TI.state.in_(State.unfinished),
+                or_(TI.state.in_(State.unfinished), TI.state.is_(None)),
             )
             .values(dag_version_id=latest_dag_version.id),
             execution_options={"synchronize_session": False},
