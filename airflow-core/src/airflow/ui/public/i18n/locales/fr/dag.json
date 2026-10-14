@@ -299,7 +299,6 @@
     "maxChanges": "Changements max.",
     "maxChangesDefault": "Par défaut",
     "noChanges": "Ces versions ont le même état.",
-    "observedState": "État observé",
     "observedStateBoundary": "Compare l'état actuellement stocké, et non les preuves au moment de la création. La comparaison des sources n'est pas disponible pour les versions historiques ; utilisez l'onglet Code pour comparer les sources.",
     "operations": {
       "added": "Ajouté",
@@ -310,9 +309,9 @@
     "record_one": "Enregistrement",
     "record_other": "Enregistrements",
     "selectPrompt": "Sélectionnez deux versions pour voir ce qui a changé entre elles.",
-    "summary_many": "{{count, number}} changements · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
-    "summary_one": "{{count, number}} changement · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} changements · schéma sérialisé {{baseSchema}} → {{targetSchema}}",
+    "summary_many": "{{count, number}} changements",
+    "summary_one": "{{count, number}} changement",
+    "summary_other": "{{count, number}} changements",
     "target": "Comparer avec",
     "truncated": {
       "description": "Les changements aux chemins non affichés ont été supprimés pour rester dans la limite, donc le nombre est une borne inférieure.",
@@ -323,7 +322,6 @@
       "title": "Comparaison indisponible",
       "withoutReason": "Ces versions n'ont pas pu être comparées."
     },
-    "valuesHidden": "Valeurs masquées",
-    "valuesShown": "Valeurs affichées"
+    "valuesHidden": "Valeurs masquées"
   }
 }

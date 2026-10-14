@@ -99,7 +99,7 @@ export const HITLResponse = () => {
           taskInstance={taskInstance}
         />
       )}
-      <HITLResponseForm hitlDetail={hitlDetail} />
+      <HITLResponseForm hitlDetail={hitlDetail} key={hitlDetail.created_at} />
     </Box>
   );
 };

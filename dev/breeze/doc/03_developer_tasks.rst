@@ -251,18 +251,8 @@ To build documentation in Breeze, use the ``build-docs`` command:
 
 Results of the build can be found in the ``generated/_build`` folder.
 
-The documentation build consists of three steps:
-
-* verifying consistency of indexes
-* building documentation
-* spell checking
-
-You can choose only one stage of the two by providing ``--spellcheck-only`` or ``--docs-only`` after
-extra ``--`` flag.
-
-.. code-block:: bash
-
-    breeze build-docs --spellcheck-only
+Spelling is checked while the documentation is built, so a single build reports both build and
+spelling errors.
 
 This process can take some time, so in order to make it shorter you can filter by package, using package
 short ``provider id`` (might be multiple of them).

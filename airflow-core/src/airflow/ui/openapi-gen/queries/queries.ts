@@ -1379,9 +1379,9 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
 * @param data.dagRunId
 * @param data.regionId
 * @param data.regionIndex
+* @param data.loopId Task group id of a loop; matches every instance it produced.
+* @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
-* @param data.loopId
-* @param data.iteration
 * @param data.taskId
 * @param data.runAfterGte
 * @param data.runAfterGt
@@ -2192,13 +2192,15 @@ export const usePartitionedDagRunServiceGetPartitionedDagRuns = <TData = Common.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.partitionKey
+* @param data.partitionedDagRunId
 * @returns PartitionedDagRunDetailResponse Successful Response
 * @throws ApiError
 */
-export const usePartitionedDagRunServiceGetPendingPartitionedDagRun = <TData = Common.PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, partitionKey }: {
+export const usePartitionedDagRunServiceGetPendingPartitionedDagRun = <TData = Common.PartitionedDagRunServiceGetPendingPartitionedDagRunDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, partitionedDagRunId, partitionKey }: {
   dagId: string;
+  partitionedDagRunId?: number;
   partitionKey: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionKey }, queryKey), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionKey }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionedDagRunId, partitionKey }, queryKey), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionedDagRunId, partitionKey }) as TData, ...options });
 /**
 * Get Dependencies
 * Dependencies graph.

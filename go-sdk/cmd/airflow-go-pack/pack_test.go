@@ -445,6 +445,42 @@ func TestRunPack_PacksABundleWithOnlyNativeDags(t *testing.T) {
 	assert.Contains(t, stdout.String(), "task_handler_dags=0, native_dags=1")
 }
 
+// A bundle that generates its Dags at run time registers nothing at pack time.
+func TestRunPack_PacksABundleWithNoDags(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "generated")
+	require.NoError(t, os.WriteFile(exe, []byte("generated-binary-bytes"), 0o755))
+	source := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
+	meta := filepath.Join(dir, "airflow-metadata.json")
+	require.NoError(t, os.WriteFile(meta, []byte(
+		`{"airflow_bundle_metadata_version":"1.0",`+
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-06-16"},`+
+			`"dags":{}}`,
+	), 0o644))
+	out := filepath.Join(dir, "bundle")
+
+	var stdout, stderr bytes.Buffer
+	err := runPack(&stdout, &stderr, &packOptions{
+		executable:      exe,
+		source:          source,
+		airflowMetadata: meta,
+		output:          out,
+	})
+	require.NoError(t, err)
+
+	_, gotMeta, err := bundlefooter.Read(out)
+	require.NoError(t, err)
+	assert.Contains(t, string(gotMeta), `entrypoint_path: "main.go"`)
+	assert.Contains(t, string(gotMeta), `path: "main.go"`)
+	assert.Contains(
+		t,
+		stderr.String(),
+		"warning: no Dags or task handlers were registered at pack time",
+	)
+	assert.Contains(t, stdout.String(), "task_handler_dags=0, native_dags=0")
+}
+
 // --airflow-metadata also accepts a YAML manifest, not only the JSON the
 // binary prints.
 func TestRunPack_AcceptsYAMLMetadataFile(t *testing.T) {

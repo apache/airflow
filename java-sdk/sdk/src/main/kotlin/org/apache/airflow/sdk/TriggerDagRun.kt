@@ -60,7 +60,7 @@ private val TRIGGER_FIELDS: Map<String, Field> =
  *         .config("conf", Map.of("rows", 2)));
  * ```
  *
- * In an annotated Dag, a `@Builder.Task` method returns one instead; the
+ * In an annotated Dag, an `@Airflow.Task` method returns one instead; the
  * method runs when the Dag is built, not when the task runs.
  *
  * The task runs no Java code and takes no arguments. It pushes the triggered

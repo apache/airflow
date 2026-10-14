@@ -561,6 +561,14 @@ paths:
         schema:
           type: string
           title: Partition Key
+      - name: partitioned_dag_run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Partitioned Dag Run Id
       responses:
         '200':
           description: Successful Response
@@ -4871,6 +4879,17 @@ components:
           - type: integer
           - type: 'null'
           title: Loop Iterations Count
+        latest_region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Latest Region Id
+        latest_region_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Latest Region Index
       type: object
       required:
       - task_id
@@ -4931,6 +4950,10 @@ components:
         index:
           type: integer
           title: Index
+        task_count:
+          type: integer
+          title: Task Count
+          default: 0
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'

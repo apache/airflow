@@ -911,6 +911,7 @@ class DagWarningType(str, Enum):
     DUPLICATE_DAG_ID = "duplicate dag id"
     NON_EXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+    TASK_GROUP_CYCLE = "task group cycle"
 
 
 class DetailedHealthStatus(str, Enum):
@@ -1514,6 +1515,13 @@ class UpdateHITLDetailPayload(BaseModel):
 
     chosen_options: Annotated[list[str], Field(min_length=1, title="Chosen Options")]
     params_input: Annotated[dict[str, Any] | None, Field(title="Params Input")] = None
+    request_created_at: Annotated[
+        datetime | None,
+        Field(
+            description="The ``created_at`` of the request this response answers, exactly as the GET endpoint returned it. When the task has since replaced its request (it asked again after a resume, retry or clear), the response is refused with 409 instead of answering a request the user did not see. Leave it out to answer whatever request is waiting.",
+            title="Request Created At",
+        ),
+    ] = None
 
 
 class ValidationError(BaseModel):

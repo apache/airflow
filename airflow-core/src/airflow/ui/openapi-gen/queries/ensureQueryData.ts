@@ -1379,9 +1379,9 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (queryClien
 * @param data.dagRunId
 * @param data.regionId
 * @param data.regionIndex
+* @param data.loopId Task group id of a loop; matches every instance it produced.
+* @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
-* @param data.loopId
-* @param data.iteration
 * @param data.taskId
 * @param data.runAfterGte
 * @param data.runAfterGt
@@ -2192,13 +2192,15 @@ export const ensureUsePartitionedDagRunServiceGetPartitionedDagRunsData = (query
 * @param data The data for the request.
 * @param data.dagId
 * @param data.partitionKey
+* @param data.partitionedDagRunId
 * @returns PartitionedDagRunDetailResponse Successful Response
 * @throws ApiError
 */
-export const ensureUsePartitionedDagRunServiceGetPendingPartitionedDagRunData = (queryClient: QueryClient, { dagId, partitionKey }: {
+export const ensureUsePartitionedDagRunServiceGetPendingPartitionedDagRunData = (queryClient: QueryClient, { dagId, partitionedDagRunId, partitionKey }: {
   dagId: string;
+  partitionedDagRunId?: number;
   partitionKey: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionKey }), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionKey }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UsePartitionedDagRunServiceGetPendingPartitionedDagRunKeyFn({ dagId, partitionedDagRunId, partitionKey }), queryFn: () => PartitionedDagRunService.getPendingPartitionedDagRun({ dagId, partitionedDagRunId, partitionKey }) });
 /**
 * Get Dependencies
 * Dependencies graph.

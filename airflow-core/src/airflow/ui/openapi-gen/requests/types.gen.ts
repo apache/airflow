@@ -1555,7 +1555,7 @@ export type DagVersionResponse = {
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
  */
-export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
+export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value' | 'task group cycle';
 
 /**
  * How much of a component's work has a live instance covering it.
@@ -2462,6 +2462,10 @@ export type UpdateHITLDetailPayload = {
     params_input?: {
         [key: string]: unknown;
     };
+    /**
+     * The ``created_at`` of the request this response answers, exactly as the GET endpoint returned it. When the task has since replaced its request (it asked again after a resume, retry or clear), the response is refused with 409 instead of answering a request the user did not see. Leave it out to answer whatever request is waiting.
+     */
+    request_created_at?: string | null;
 };
 
 export type ValidationError = {
@@ -3127,6 +3131,8 @@ export type LightGridTaskInstanceSummary = {
     dag_version_number?: number | null;
     has_note?: boolean;
     loop_iterations_count?: number | null;
+    latest_region_id?: string | null;
+    latest_region_index?: number | null;
 };
 
 /**
@@ -3150,6 +3156,7 @@ export type LoopInvocationResponse = {
  */
 export type LoopIterationSummary = {
     index: number;
+    task_count?: number;
     state?: TaskInstanceState | null;
     start_date?: string | null;
     end_date?: string | null;
@@ -4636,12 +4643,18 @@ export type GetTaskInstancesData = {
     endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
+    /**
+     * Narrow ``loop_id`` to a single pass of that loop.
+     */
     iteration?: number | null;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    /**
+     * Task group id of a loop; matches every instance it produced.
+     */
     loopId?: string | null;
     mapIndex?: Array<(number)>;
     offset?: number;
@@ -5404,6 +5417,7 @@ export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
 
 export type GetPendingPartitionedDagRunData = {
     dagId: string;
+    partitionedDagRunId?: number | null;
     partitionKey: string;
 };
 

@@ -344,6 +344,35 @@ class TestGetGanttDataEndpoint:
         assert tis[TASK_ID_3]["scheduled_dttm"] is None
         assert tis[TASK_ID_3]["queued_dttm"] is None
 
+    def test_archived_attempts_stay_on_the_chart(self, test_client, dag_maker, session):
+        with dag_maker("gantt_cleared", serialized=True):
+            EmptyOperator(task_id="work")
+        dr = dag_maker.create_dagrun()
+        first = next(ti for ti in dr.task_instances if ti.task_id == "work")
+        first.try_number = 1
+        first.state = TaskInstanceState.SUCCESS
+        session.flush()
+        # Clearing keeps each attempt as its own row and leaves only the newest live, so the
+        # earlier try is only on the chart if archived rows are read.
+        first.archive(reason="cleared", session=session)
+        retry = TaskInstance(
+            task=dag_maker.serialized_dag.get_task("work"),
+            run_id=dr.run_id,
+            dag_version_id=first.dag_version_id,
+            region_id=first.region_id,
+            region_index=first.region_index,
+        )
+        retry.try_number = 2
+        retry.state = TaskInstanceState.SUCCESS
+        session.add(retry)
+        session.commit()
+
+        response = test_client.get(f"/gantt/{dr.dag_id}/{dr.run_id}")
+
+        assert response.status_code == 200, response.text
+        rows = [row for row in response.json()["task_instances"] if row["task_id"] == "work"]
+        assert {row["try_number"] for row in rows} == {1, 2}
+
     def test_loop_passes_keep_exact_identity(self, test_client, dag_maker, session):
         @task_group
         def body():

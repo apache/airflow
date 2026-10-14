@@ -80,16 +80,22 @@ No single layer is sufficient on its own. They work together.
      - What a tool returns, and the error text handed to the model so it can correct a
        call, pass through Airflow's secret masker first. A connection password that shows
        up in a database error or a hook's return value reaches the model, the model
-       provider and any trace as ``***``. ``AgentOperator`` applies this to the toolsets
-       you pass in ``toolsets``, in ``agent_params["toolsets"]`` and in a ``Toolset``
-       capability, including your own. The SQL, hook, object storage, DataFusion, MCP,
+       provider and any trace as ``***``. Every agent this provider builds applies this
+       to what each tool returns or raises while it runs, however the tool reaches the
+       agent: ``toolsets``, ``agent_params``, or any capability, including your own.
+       That covers ``AgentOperator``, the other LLM operators, an agent you build with
+       ``PydanticAIHook.create_agent``, and one you build with ``Agent(...)`` and give
+       ``MaskingCapability`` (see :doc:`frameworks/pydantic_ai`). The SQL, hook, object storage, DataFusion, MCP,
        sandbox and managed-agent toolsets apply it wherever they run, including in a Pydantic AI agent
        you build yourself.
      - Masks only secrets Airflow has registered, such as connection passwords and
        sensitive connection extras. A credential that exists only in the data itself is
-       not recognized. Not masked: prompts, model output, function tools passed as
-       ``agent_params["tools"]``, a ``Toolset`` capability built by a function, a
-       framework's own tools, and MCP servers a framework connects to itself. In a
+       not recognized. Not masked: prompts, model output, errors raised while validating
+       a tool's arguments or the agent's output, what an output function (``ToolOutput``
+       or a function ``output_type``) returns or raises, a result a capability returns
+       in place of running the tool, tools the model provider runs itself (native ``WebSearch``,
+       ``WebFetch`` or ``ImageGeneration``, and ``MCP(native=True)``), a framework's own
+       tools, and MCP servers a framework connects to itself. In a
        sandbox, the model writes the commands, so it can print a secret in a form the
        masker does not recognize; masking there guards against accidents only.
    * - **ObjectStorageToolset: one read-only root**
@@ -255,7 +261,7 @@ database user with the minimum privileges required.
     HookToolset(
         s3_hook,
         allowed_methods=["list_keys", "read_key"],
-        tool_name_prefix="s3_",
+        tool_prefix="s3",
     )
 
     # Bad: exposes delete and write operations
