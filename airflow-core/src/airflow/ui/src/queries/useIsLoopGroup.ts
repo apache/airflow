@@ -32,19 +32,37 @@ export const useLoopGroupNode = (groupId: string): GridNodeResponse | undefined 
 export const useIsLoopGroup = (groupId: string): boolean => Boolean(useLoopGroupNode(groupId)?.is_loop);
 
 /** Every loop declared in the Dag, so a filter can offer them by the name the author gave. */
-export const useLoopGroupIds = (): Array<string> => {
-  const { data } = useGridStructure({ limit: 1 });
-  const found: Array<string> = [];
-  const walk = (nodes: Array<GridNodeResponse> | undefined) => {
-    for (const node of nodes ?? []) {
-      if (node.is_loop === true) {
-        found.push(node.id);
+/**
+ * The loops enclosing `nodeId`, or every loop in the Dag when no node is named.
+ *
+ * Membership comes from the structure rather than the id, because a loop declared with
+ * `prefix_group_id=False` does not name its members after itself.
+ */
+export const loopsForNode = (nodes: Array<GridNodeResponse> | undefined, nodeId?: string): Array<string> => {
+  const declared: Array<string> = [];
+  let enclosing: Array<string> | undefined;
+  const walk = (list: Array<GridNodeResponse> | undefined, ancestors: Array<string>) => {
+    for (const node of list ?? []) {
+      const isLoop = node.is_loop === true;
+      const scope = isLoop ? [...ancestors, node.id] : ancestors;
+
+      if (isLoop) {
+        declared.push(node.id);
       }
-      walk(node.children ?? undefined);
+      if (node.id === nodeId) {
+        enclosing = scope;
+      }
+      walk(node.children ?? undefined, scope);
     }
   };
 
-  walk(data);
+  walk(nodes, []);
 
-  return found;
+  return nodeId === undefined ? declared : (enclosing ?? []);
+};
+
+export const useLoopGroupIds = (nodeId?: string): Array<string> => {
+  const { data } = useGridStructure({ limit: 1 });
+
+  return loopsForNode(data, nodeId);
 };

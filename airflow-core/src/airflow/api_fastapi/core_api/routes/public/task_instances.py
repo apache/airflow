@@ -113,7 +113,6 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
     UnmappedTaskScopeDep,
     add_public_map_index,
     loop_iteration_filter,
-    region_scope_filter,
     task_coordinate_response,
     task_coordinate_responses,
 )
@@ -688,17 +687,12 @@ def get_task_instances(
     if region_index is not None and region_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     if region_id is not None:
-        if dag_id == "~" or dag_run_id == "~":
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_id requires a specific Dag run")
-        query = query.where(
-            region_scope_filter(
-                dag_id=dag_id,
-                run_id=dag_run_id,
-                region_id=region_id,
-                region_index=region_index,
-                session=session,
-            )
-        )
+        # One meaning per filter: ``region_id`` names an exact region, and the logical scope of
+        # a loop pass -- its own region plus the expansions nested in it -- is what ``loop_id``
+        # and ``iteration`` are for.
+        query = query.where(TI.region_id == region_id)
+        if region_index is not None:
+            query = query.where(TI.region_index == region_index)
     if dag_run_id != "~":
         if dag_id == "~":
             raise HTTPException(

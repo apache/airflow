@@ -51,7 +51,6 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
 import { useLoopGroupIds } from "src/queries/useIsLoopGroup";
-import { loopsInScope } from "src/queries/useLoopFilterOptions";
 import { formatNumber, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -306,7 +305,7 @@ const taskInstanceColumns = ({
 export const TaskInstances = () => {
   const { i18n, t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
-  const declaredLoops = useLoopGroupIds();
+  const loopsHere = useLoopGroupIds(groupId ?? taskId);
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
   useDocumentTitle(dagId === undefined ? translate("common:taskInstance_other") : undefined);
@@ -341,10 +340,7 @@ export const TaskInstances = () => {
   // The filter now survives navigation, so a loop carried in from elsewhere is ignored unless
   // this page is actually inside it. A loop lives in one run, and the endpoint rejects the
   // filter without one, so the cross-run Task page drops it rather than asking for a 400.
-  const loopInScope =
-    loopFilter !== null &&
-    runId !== undefined &&
-    loopsInScope(declaredLoops, groupId ?? taskId).includes(loopFilter);
+  const loopInScope = loopFilter !== null && runId !== undefined && loopsHere.includes(loopFilter);
   const iterationFilter = searchParams.get(SearchParamsKeys.ITERATION);
   const parsedIteration = iterationFilter === null ? Number.NaN : Number.parseInt(iterationFilter, 10);
   const startDate = searchParams.get(START_DATE_PARAM);

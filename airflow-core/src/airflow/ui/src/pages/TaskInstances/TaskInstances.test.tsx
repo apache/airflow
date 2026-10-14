@@ -73,7 +73,10 @@ vi.mock("openapi/queries", async (importOriginal) => {
 // The loop filter now only applies where the page is inside that loop, so the table has to
 // know which loops the Dag declares.
 vi.mock("src/queries/useIsLoopGroup", () => ({
-  useLoopGroupIds: () => ["batch"],
+  // Membership comes from the structure now, so the mock answers per node rather than
+  // claiming every page is inside the loop.
+  useLoopGroupIds: (nodeId?: string) =>
+    nodeId === undefined || nodeId === "batch" || nodeId.startsWith("batch.") ? ["batch"] : [],
 }));
 
 vi.mock("./TaskInstancesFilter", () => ({

@@ -18,12 +18,14 @@
  */
 import { useQueries } from "@tanstack/react-query";
 
+import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { UseGridServiceGetLoopSummaryKeyFn } from "openapi/queries/common";
 import { GridService } from "openapi/requests/services.gen";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useLoopGroupIds } from "src/queries/useIsLoopGroup";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 // Loop ids are dotted task group paths, so "::" cannot occur inside one and can join the two
 // halves of an option value.
@@ -39,17 +41,6 @@ export const decodeLoopOption = (value: string): { iteration?: string; loopId: s
     ? { loopId: value }
     : { iteration: value.slice(index + SEPARATOR.length), loopId: value.slice(0, index) };
 };
-
-/**
- * The loops a page should offer: all of them, or just the one a task group is part of.
- *
- * On a group's own page only that group's loop is in view. A group id is a dotted path, so a
- * group nested inside a loop is prefixed by it and reports the loop that encloses it.
- */
-export const loopsInScope = (declaredLoops: Array<string>, groupId?: string): Array<string> =>
-  groupId === undefined
-    ? declaredLoops
-    : declaredLoops.filter((id) => id === groupId || groupId.startsWith(`${id}.`));
 
 /**
  * The pass a page is showing, given the loop's options and the url that addressed it.
@@ -117,8 +108,15 @@ export const useLoopFilterOptions = ({
   groupId?: string;
   runId?: string;
 }) => {
-  const loopGroupIds = loopsInScope(useLoopGroupIds(), groupId);
+  const loopGroupIds = useLoopGroupIds(groupId);
   const enabled = dagId !== undefined && runId !== undefined;
+  const refetchInterval = useAutoRefresh({ dagId });
+  const { data: dagRun } = useDagRunServiceGetDagRun(
+    { dagId: dagId ?? "", dagRunId: runId ?? "" },
+    undefined,
+    { enabled },
+  );
+  const isRunPending = isStatePending(dagRun?.state);
 
   return useQueries({
     combine: (results) => ({
@@ -164,6 +162,10 @@ export const useLoopFilterOptions = ({
         groupId: loopId,
         runId: runId ?? "",
       }),
+      // A running loop gains passes and changes their states, so the switcher, breadcrumb and
+      // filter options follow the run the way the loop summary does. Polling stops as soon as
+      // the run is terminal.
+      refetchInterval: isRunPending && refetchInterval,
       retry: false,
     })),
   });

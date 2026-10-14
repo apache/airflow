@@ -18,28 +18,45 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { loopsInScope } from "./useLoopFilterOptions";
+import type { GridNodeResponse } from "openapi/requests/types.gen";
 
-const declared = ["batch", "outer.refine"];
+import { loopsForNode } from "./useIsLoopGroup";
 
-describe("loopsInScope", () => {
-  it("offers every loop where no group is in view", () => {
-    expect(loopsInScope(declared)).toEqual(declared);
+const node = (id: string, extra: Partial<GridNodeResponse> = {}): GridNodeResponse =>
+  ({ children: null, id, is_loop: false, label: id, ...extra }) as GridNodeResponse;
+
+// A loop declared with prefix_group_id=False does not name its members after itself, so the
+// structure is the only thing that says what is inside it.
+const STRUCTURE = [
+  node("refine", {
+    children: [node("improve"), node("evaluate")],
+    is_loop: true,
+  }),
+  node("outer", {
+    children: [node("outer.plain"), node("batch", { children: [node("batch.member")], is_loop: true })],
+  }),
+  node("unrelated"),
+];
+
+describe("loopsForNode", () => {
+  it("lists every declared loop when no node is named", () => {
+    expect(loopsForNode(STRUCTURE)).toEqual(["refine", "batch"]);
   });
 
-  it("offers only the group's own loop on its page", () => {
-    expect(loopsInScope(declared, "batch")).toEqual(["batch"]);
+  it("finds the loop enclosing a member that is not named after it", () => {
+    expect(loopsForNode(STRUCTURE, "improve")).toEqual(["refine"]);
   });
 
-  it("reports the enclosing loop for a group nested inside one", () => {
-    expect(loopsInScope(declared, "outer.refine.body")).toEqual(["outer.refine"]);
+  it("treats a loop as being in its own scope", () => {
+    expect(loopsForNode(STRUCTURE, "refine")).toEqual(["refine"]);
   });
 
-  it("offers nothing for a group that no loop contains", () => {
-    expect(loopsInScope(declared, "unrelated")).toEqual([]);
+  it("finds a loop nested inside a plain group", () => {
+    expect(loopsForNode(STRUCTURE, "batch.member")).toEqual(["batch"]);
   });
 
-  it("does not treat a shared name prefix as containment", () => {
-    expect(loopsInScope(["batch"], "batching")).toEqual([]);
+  it("gives nothing for a node no loop encloses", () => {
+    expect(loopsForNode(STRUCTURE, "unrelated")).toEqual([]);
+    expect(loopsForNode(STRUCTURE, "outer.plain")).toEqual([]);
   });
 });

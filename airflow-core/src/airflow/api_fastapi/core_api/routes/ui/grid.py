@@ -467,11 +467,14 @@ def _build_ti_summaries(
     # the newest iteration of each invocation. Every iteration still feeds loop_iterations,
     # which is what reports how many ran.
     latest_iteration: dict[tuple[str, str, UUID], int] = {}
-    for ti, positions in positions_by_ti:
-        for loop_id, (family_id, iteration) in positions.items():
-            key = (ti.task_id, loop_id, family_id)
-            if iteration > latest_iteration.get(key, -1):
-                latest_iteration[key] = iteration
+    # Guarded because without loops ``positions_by_ti`` streams: walking it here would leave
+    # nothing for the summaries below, and there is no iteration to find anyway.
+    if loop_ids:
+        for ti, positions in positions_by_ti:
+            for loop_id, (family_id, iteration) in positions.items():
+                key = (ti.task_id, loop_id, family_id)
+                if iteration > latest_iteration.get(key, -1):
+                    latest_iteration[key] = iteration
     for ti, positions in positions_by_ti:
         summary = ti_details.get(ti.task_id)
         if summary is None:
