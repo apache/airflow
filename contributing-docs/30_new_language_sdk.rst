@@ -522,7 +522,7 @@ hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates its 
       |
       |  hook: update-java-sdk-readme-matrix
       |
-      +--> java-sdk/README.md            (contributor-facing)
+      +--> java-sdk/README.md            (user-facing landing page)
       +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
 
 The hook rewrites its targets and exits non-zero when either was stale, so a drifted table fails
