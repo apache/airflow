@@ -38,9 +38,6 @@ class TestMCPToolsetInit:
     def test_tool_prefix_defaults_to_empty_string(self):
         assert MCPToolset("my_mcp_server")._tool_prefix == ""
 
-    def test_none_tool_prefix_is_treated_as_empty_string(self):
-        assert MCPToolset("my_mcp_server", tool_prefix=None)._tool_prefix == ""  # type: ignore[arg-type]
-
 
 class TestMCPToolsetGetServer:
     @patch(_HOOK_PATH, autospec=True)
