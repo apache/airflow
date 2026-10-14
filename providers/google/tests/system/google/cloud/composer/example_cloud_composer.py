@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from google.api_core.exceptions import NotFound
@@ -310,7 +310,7 @@ with DAG(
         composer_external_dag_id="airflow_monitoring",
         composer_external_task_id="echo",
         allowed_states=["success"],
-        execution_range=timedelta(days=1),
+        execution_range=[datetime.now(tz=UTC) - timedelta(1), datetime.now(tz=UTC)],
     )
     # [END howto_sensor_external_task]
 
@@ -323,7 +323,7 @@ with DAG(
         composer_external_dag_id="airflow_monitoring",
         composer_external_task_id="echo",
         allowed_states=["success"],
-        execution_range=timedelta(days=1),
+        execution_range=[datetime.now(tz=UTC) - timedelta(1), datetime.now(tz=UTC)],
         deferrable=True,
     )
     # [END howto_sensor_external_task_deferrable_mode]
