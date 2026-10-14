@@ -166,6 +166,99 @@ class TestRetryRuleSerialization:
         data = rule.serialize()
         assert "retry_delay" not in data
         assert "reason" not in data
+        assert "max_reschedules" not in data
+        assert "reschedule_timeout" not in data
+
+    def test_reschedule_bounds_roundtrip(self):
+        rule = RetryRule(
+            exception=ConnectionError,
+            action=RetryAction.RESCHEDULE,
+            retry_delay=timedelta(minutes=10),
+            max_reschedules=12,
+            reschedule_timeout=timedelta(hours=4),
+        )
+
+        restored = RetryRule.deserialize(rule.serialize())
+
+        assert restored.action == RetryAction.RESCHEDULE
+        assert restored.retry_delay == timedelta(minutes=10)
+        assert restored.max_reschedules == 12
+        assert restored.reschedule_timeout == timedelta(hours=4)
+
+
+# ---------------------------------------------------------------------------
+# RESCHEDULE bounds
+# ---------------------------------------------------------------------------
+
+
+class TestRescheduleBounds:
+    def test_reschedule_factory_sets_the_bounds(self):
+        decision = RetryDecision.reschedule(
+            timedelta(minutes=10), max_reschedules=6, reschedule_timeout=timedelta(hours=1), reason="full"
+        )
+
+        assert decision == RetryDecision(
+            action=RetryAction.RESCHEDULE,
+            retry_delay=timedelta(minutes=10),
+            reason="full",
+            max_reschedules=6,
+            reschedule_timeout=timedelta(hours=1),
+        )
+
+    @pytest.mark.parametrize(
+        ("bounds", "match"),
+        [
+            pytest.param({}, "needs max_reschedules, reschedule_timeout, or both", id="unbounded"),
+            pytest.param({"max_reschedules": 0}, "max_reschedules must be at least 1", id="zero-reschedules"),
+            pytest.param(
+                {"reschedule_timeout": timedelta(0)}, "reschedule_timeout must be positive", id="zero-timeout"
+            ),
+        ],
+    )
+    def test_reschedule_needs_a_valid_bound(self, bounds, match):
+        with pytest.raises(ValueError, match=match):
+            RetryDecision.reschedule(**bounds)
+        with pytest.raises(ValueError, match=match):
+            RetryRule(exception=ConnectionError, action=RetryAction.RESCHEDULE, **bounds)
+
+    @pytest.mark.parametrize("action", [RetryAction.RETRY, RetryAction.FAIL, RetryAction.DEFAULT])
+    @pytest.mark.parametrize(
+        "bounds",
+        [{"max_reschedules": 3}, {"reschedule_timeout": timedelta(hours=1)}],
+        ids=["count", "timeout"],
+    )
+    def test_bounds_only_apply_to_reschedule(self, action, bounds):
+        with pytest.raises(ValueError, match="only apply to RetryAction.RESCHEDULE"):
+            RetryDecision(action=action, **bounds)
+        with pytest.raises(ValueError, match="only apply to RetryAction.RESCHEDULE"):
+            RetryRule(exception=ConnectionError, action=action, **bounds)
+
+    def test_exception_policy_default_cannot_reschedule(self):
+        with pytest.raises(ValueError, match="default cannot be RESCHEDULE"):
+            ExceptionRetryPolicy(rules=[], default=RetryAction.RESCHEDULE)
+
+    def test_exception_policy_passes_the_rule_bounds_on(self):
+        policy = ExceptionRetryPolicy(
+            rules=[
+                RetryRule(
+                    exception=ConnectionError,
+                    action=RetryAction.RESCHEDULE,
+                    retry_delay=timedelta(minutes=10),
+                    max_reschedules=6,
+                    reschedule_timeout=timedelta(hours=1),
+                    reason="cluster full",
+                )
+            ]
+        )
+
+        decision = policy.evaluate(ConnectionError("x"), try_number=1, max_tries=0)
+
+        assert decision == RetryDecision.reschedule(
+            timedelta(minutes=10),
+            max_reschedules=6,
+            reschedule_timeout=timedelta(hours=1),
+            reason="cluster full",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +323,7 @@ class TestExceptionRetryPolicy:
 
 
 class TestChainRetryPolicy:
-    """Policies in order; the first RETRY or FAIL wins; any DEFAULT means ask the next one."""
+    """Policies in order; the first decision other than DEFAULT wins; any DEFAULT means ask the next one."""
 
     FAIL_403 = ExceptionRetryPolicy(
         rules=[RetryRule(exception=PermissionError, action=RetryAction.FAIL, reason="never retry 403")]
@@ -431,6 +524,18 @@ class TestChainRetryPolicy:
 
         assert decision.retry_delay == timedelta(seconds=7)
         assert decision.reason == "Fixed: retry"
+
+    def test_reschedule_keeps_its_bounds(self):
+        decided = RetryDecision.reschedule(timedelta(minutes=10), max_reschedules=6, reason="cluster full")
+        policy = ChainRetryPolicy([self.FAIL_403, self._policy(decided)])
+
+        decision = policy.evaluate(ConnectionError("x"), try_number=1, max_tries=0)
+
+        assert decision == RetryDecision.reschedule(
+            timedelta(minutes=10),
+            max_reschedules=6,
+            reason="Fixed: cluster full (after ExceptionRetryPolicy: no decision)",
+        )
 
     def test_nested_chains_compose(self):
         inner = ChainRetryPolicy([self.FAIL_403])

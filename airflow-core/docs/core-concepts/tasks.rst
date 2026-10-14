@@ -81,7 +81,7 @@ The possible states for a Task Instance are:
 * ``skipped``: The task was skipped due to branching, LatestOnly, or similar, or was :ref:`marked as skipped manually <concepts:task-mark-as-skipped>`.
 * ``upstream_failed``: An upstream task failed and the :ref:`Trigger Rule <concepts:trigger-rules>` says we needed it
 * ``up_for_retry``: The task failed, but has retry attempts left and will be rescheduled.
-* ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` that is in ``reschedule`` mode
+* ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` in ``reschedule`` mode, or its :ref:`retry policy rescheduled it <concepts:retry-policies-reschedule>`, and will run again later
 * ``deferred``: The task has been :doc:`deferred to a trigger <../authoring-and-scheduling/deferring>`
 * ``awaiting_input``: The task is a :doc:`Human-in-the-loop <../tutorial/hitl>` task waiting for a human response. It is managed by the scheduler and uses neither a worker slot nor the triggerer.
 * ``removed``: The task has vanished from the Dag since the run started
@@ -218,12 +218,14 @@ The policy runs in the **task worker process** (never the scheduler) between cat
 exception and deciding the task's next state. Each policy decision is logged in the task
 logs as ``Retry policy decision action=<action> reason=<reason>``.
 
-When a task fails, the policy evaluates the exception and returns one of three actions:
+When a task fails, the policy evaluates the exception and returns one of four actions:
 
 * **RETRY** -- retry the task, optionally with a custom delay that overrides ``retry_delay``.
   The retry is still subject to the task's ``retries`` count -- a policy can fail earlier but
   cannot extend past the configured maximum.
 * **FAIL** -- fail immediately, skipping any remaining retries.
+* **RESCHEDULE** -- run the task again later without using a retry, within bounds the policy
+  sets. See :ref:`concepts:retry-policies-reschedule`.
 * **DEFAULT** -- fall through to the standard retry logic (``retries`` count and ``retry_delay``).
 
 Rules are evaluated in order; the first matching rule wins.
@@ -254,13 +256,82 @@ Composition with existing parameters
    * - Parameter
      - Behaviour when ``retry_policy`` is set
    * - ``retries``
-     - Still the maximum retry count. Policy can fail earlier but not exceed it.
+     - Still the maximum retry count. Policy can fail earlier but not exceed it. A
+       reschedule does not use a retry.
    * - ``retry_delay`` / ``retry_exponential_backoff`` / ``max_retry_delay``
      - Used when the policy returns DEFAULT or when ``RetryDecision.retry_delay`` is None.
+       A reschedule without its own delay waits ``retry_delay``, without backoff.
    * - ``on_retry_callback``
-     - Fires on all retries, including policy-driven retries.
+     - Fires on all retries, including policy-driven retries. Does not fire on a reschedule.
    * - ``AirflowFailException``
      - Always takes precedence. The policy is never consulted for this exception.
+
+.. _concepts:retry-policies-reschedule:
+
+Rescheduling without using a retry
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.5.0
+
+Some failures mean "not yet" rather than "this went wrong": the system the task drives is
+out of capacity, such as a Kubernetes namespace whose resource quota is full or a warehouse
+with no free slots. Retrying spends the task's ``retries`` on waiting, so a real failure
+later has none left, and ``on_retry_callback`` fires every time.
+
+**RESCHEDULE** puts the task in ``up_for_reschedule`` instead, the same state a sensor in
+``mode="reschedule"`` uses between pokes. The try number and ``retries`` are untouched and
+``on_retry_callback`` does not fire. It works with ``retries=0``.
+
+.. exampleinclude:: /../src/airflow/example_dags/example_retry_policy.py
+    :language: python
+    :start-after: [START retry_policy_reschedule]
+    :end-before: [END retry_policy_reschedule]
+
+A RESCHEDULE always has a bound, so a rule matching a broad exception cannot loop forever:
+
+* ``max_reschedules`` -- how many times the try may be rescheduled.
+* ``reschedule_timeout`` -- how long after the first reschedule the try may keep being
+  rescheduled.
+
+Set either or both; a RESCHEDULE without one raises ``ValueError`` when the rule or decision
+is created. Both count every reschedule of this try, including a sensor's pokes, so a retry
+starts them afresh. Once a bound is reached, the failure goes through the standard retry
+logic, and the task's ``retry_reason`` says which bound stopped it, for example
+``Reschedule limit reached (reschedule_timeout=4:00:00): Warehouse busy``. The reason of a
+RESCHEDULE that went ahead appears only in the task log.
+
+The decision to reschedule belongs to the task: the policy runs in the worker and sees only
+the exception the task raised. It is for an external system the task drives that is not ready
+yet, not for a disruption of the Airflow worker itself, such as a preempted worker pod.
+
+Telling "out of capacity" apart from a real failure often needs more than the exception type.
+A custom policy can look at the exception itself; for example, a Kubernetes API rejection for
+a full namespace quota:
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from kubernetes.client.exceptions import ApiException
+
+    from airflow.sdk import RetryDecision, RetryPolicy
+
+
+    class NamespaceQuotaPolicy(RetryPolicy):
+        """Wait for quota to free up instead of spending retries on it."""
+
+        def evaluate(self, exception, try_number, max_tries, context=None):
+            if (
+                isinstance(exception, ApiException)
+                and exception.status == 403
+                and "exceeded quota" in (exception.body or "")
+            ):
+                return RetryDecision.reschedule(
+                    timedelta(minutes=10),
+                    reschedule_timeout=timedelta(hours=4),
+                    reason="Namespace quota full",
+                )
+            return RetryDecision.default()
 
 Reusable policies
 ~~~~~~~~~~~~~~~~~
@@ -305,7 +376,7 @@ Chaining policies
 
 .. versionadded:: 3.4.0
 
-``ChainRetryPolicy`` consults policies in order. The first RETRY or FAIL wins; a
+``ChainRetryPolicy`` consults policies in order. The first RETRY, FAIL, or RESCHEDULE wins; a
 policy that returns DEFAULT has nothing to add and the next one is asked. When every
 policy returns DEFAULT, the task's own ``retries`` and ``retry_delay`` apply. Every
 policy sees the original task exception.

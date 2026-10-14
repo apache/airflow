@@ -181,7 +181,7 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        :data:`~airflow.providers.common.ai.policies.retry.DEFAULT_CATEGORIES`, whose seven
        names and their retry or fail split stay the same. When the model call fails, or
        ``min_confidence`` is set and the answer is under it or carries no confidence, the
-       policy uses the RETRY or FAIL of ``fallback_policy``, then ``fallback_rules``, then
+       policy uses the decision of ``fallback_policy``, then ``fallback_rules``, then
        the task's own retry settings. ``ErrorCategory.min_confidence`` overrides the
        policy's ``min_confidence`` for that one category. ``min_confidence`` only has an
        effect when the model reports a confidence, and that comes from the ``typesafe``

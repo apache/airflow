@@ -1703,6 +1703,157 @@ def test_exhausted_logs_about_retry_policy_decision(create_runtime_ti, mock_supe
     )
 
 
+class _CapacityError(Exception):
+    """Stands in for a cluster rejecting a pod because its resource quota is full."""
+
+
+class _NoCapacityTask(BaseOperator):
+    def execute(self, context):
+        raise _CapacityError("exceeded quota")
+
+
+def _reschedule_policy(**bounds):
+    return ExceptionRetryPolicy(
+        rules=[
+            RetryRule(
+                exception=_CapacityError,
+                action=RetryAction.RESCHEDULE,
+                retry_delay=timedelta(minutes=10),
+                reason="cluster full",
+                **bounds,
+            )
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("bounds", "task_reschedule_count", "first_rescheduled_ago"),
+    [
+        pytest.param({"max_reschedules": 3}, 0, None, id="first-failure"),
+        pytest.param({"max_reschedules": 3}, 2, timedelta(minutes=20), id="below-max-reschedules"),
+        pytest.param(
+            {"reschedule_timeout": timedelta(hours=1)}, 2, timedelta(minutes=20), id="within-timeout"
+        ),
+    ],
+)
+def test_retry_policy_reschedule_does_not_use_a_retry(
+    time_machine,
+    create_runtime_ti,
+    mock_supervisor_comms,
+    bounds,
+    task_reschedule_count,
+    first_rescheduled_ago,
+):
+    """RESCHEDULE within its bounds reschedules the try, even with no retries configured."""
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    task = _NoCapacityTask(task_id="no_capacity", retries=0, retry_policy=_reschedule_policy(**bounds))
+    ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
+    if first_rescheduled_ago is not None:
+        ti._ti_context_from_server.first_task_reschedule_start_date = now - first_rescheduled_ago
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert msg == RescheduleTask(reschedule_date=now + timedelta(minutes=10), end_date=now)
+
+
+def test_retry_policy_reschedule_without_delay_uses_the_task_retry_delay(
+    time_machine, create_runtime_ti, mock_supervisor_comms
+):
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    policy = ExceptionRetryPolicy(
+        rules=[RetryRule(exception=_CapacityError, action=RetryAction.RESCHEDULE, max_reschedules=3)]
+    )
+    task = _NoCapacityTask(task_id="no_capacity", retry_delay=timedelta(minutes=7), retry_policy=policy)
+    ti = create_runtime_ti(task=task)
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert msg.reschedule_date == now + timedelta(minutes=7)
+
+
+@pytest.mark.parametrize(
+    ("bounds", "task_reschedule_count", "first_rescheduled_ago", "limit"),
+    [
+        pytest.param(
+            {"max_reschedules": 3}, 3, timedelta(minutes=30), "max_reschedules=3", id="max-reschedules"
+        ),
+        pytest.param(
+            {"reschedule_timeout": timedelta(hours=1)},
+            5,
+            timedelta(hours=2),
+            "reschedule_timeout=1:00:00",
+            id="reschedule-timeout",
+        ),
+    ],
+)
+@pytest.mark.parametrize("retries", [pytest.param(1, id="retry-left"), pytest.param(0, id="no-retry-left")])
+def test_retry_policy_reschedule_past_its_bound_applies_the_standard_retry_logic(
+    time_machine,
+    create_runtime_ti,
+    mock_supervisor_comms,
+    bounds,
+    task_reschedule_count,
+    first_rescheduled_ago,
+    limit,
+    retries,
+):
+    """Past its bound the task retries on its own retry_delay, not the reschedule delay, or fails."""
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    task = _NoCapacityTask(task_id="no_capacity", retries=retries, retry_policy=_reschedule_policy(**bounds))
+    ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
+    ti._ti_context_from_server.first_task_reschedule_start_date = now - first_rescheduled_ago
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    reason = f"Reschedule limit reached ({limit}): cluster full"
+    if retries:
+        assert state == TaskInstanceState.UP_FOR_RETRY
+        assert msg == RetryTask(end_date=now, retry_reason=reason)
+    else:
+        assert state == TaskInstanceState.FAILED
+        assert msg == TaskState(state=TaskInstanceState.FAILED, end_date=now, retry_reason=reason)
+
+
+class _SensorStyleReschedule(BaseOperator):
+    def execute(self, context):
+        raise AirflowRescheduleException(reschedule_date=datetime(2026, 10, 14, 10, 0, tzinfo=UTC))
+
+
+@pytest.mark.parametrize(
+    ("task", "should_fail_closed"),
+    [
+        pytest.param(
+            _NoCapacityTask(task_id="no_capacity", retry_policy=_reschedule_policy(max_reschedules=3)),
+            True,
+            id="policy-reschedule-after-an-exception",
+        ),
+        pytest.param(_SensorStyleReschedule(task_id="poke"), False, id="task-raised-reschedule"),
+    ],
+)
+def test_run_fails_closed_when_a_policy_reschedule_cannot_be_reported(
+    create_runtime_ti, mock_supervisor_comms, task, should_fail_closed
+):
+    """A task that raised must not exit 0 (and so count as SUCCESS) because its reschedule was lost."""
+    runtime_ti = create_runtime_ti(task=task)
+
+    def send_side_effect(msg=None, **kwargs):
+        if isinstance(msg, RescheduleTask):
+            raise BrokenPipeError("supervisor IPC broken")
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = send_side_effect
+
+    state, _, _ = run(runtime_ti, runtime_ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert runtime_ti._terminal_state_send_failed is should_fail_closed
+
+
 def test_finalize_emits_endgroup(create_runtime_ti, mock_supervisor_comms):
     """finalize() closes the post-execute log group but does not open it."""
     task = BaseOperator(task_id="some_task")
