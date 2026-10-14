@@ -317,7 +317,11 @@ Parameters
   Default ``False`` -- only SELECT-family and read-only metadata
   (``DESCRIBE``/``SHOW``) statements are permitted. To have a person approve a
   ``query`` call before it runs, wrap the toolset with ``.approval_required()`` and
-  return ``tool_def.name == "query"`` from its function. Reads and writes both go
+  return ``tool_def.name == f"{prefix}_query"`` from its function, where ``prefix`` is
+  your ``tool_prefix`` (with none set, compare against ``"query"``). The function sees
+  the prefixed name, so a bare ``"query"`` comparison never matches once a prefix is
+  set and writes run without approval. Compare the full name with ``==``; do not use
+  ``endswith("query")``, which also matches ``check_query``. Reads and writes both go
   through ``query``, so every query pauses for a decision. On Airflow 3.3 a task
   instance can pause only once per Dag run, so there this fits an agent that runs one
   query, such as a single write; see :doc:`../tool_approval`.
@@ -331,7 +335,8 @@ Parameters
   Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
 - ``tool_prefix``: Optional prefix joined to each tool name with an underscore (e.g. ``"pg"`` produces ``"pg_query"``).
   Must be a valid Python identifier. Set it when one agent has another toolset with the
-  same tool names, since duplicate tool names are rejected.
+  same tool names, since duplicate tool names are rejected. A function passed to
+  ``.approval_required()`` sees these prefixed names; see ``allow_writes`` above.
 - ``max_retries``: How many times the model may correct a failed call to these
   tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
