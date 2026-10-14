@@ -1382,6 +1382,65 @@ class TestIterableOperator:
         assert seen[1] is not context["params"]
         assert context["params"] == {"d": "dag", "p": 1}
 
+    def test_params_an_operator_sets_in_its_init_are_its_own(self):
+        """
+        An operator that sets a param in its own ``__init__`` reads that value, as a mapped task
+        instance does under ``.expand()``, and the iterated task's params stay as declared.
+        """
+        from airflow.sdk.definitions.param import process_params
+
+        seen: dict[int, Any] = {}
+
+        class MockOwnParamOperator(BaseOperator):
+            def __init__(self, value=None, **kwargs):
+                super().__init__(**kwargs)
+                self.value = value
+                self.params["p"] = "own"
+
+            def execute(self, context):
+                seen[context["ti"].index] = context["params"]["p"]
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"value": 1}, {"value": 2}])
+            mapped_op = MockOwnParamOperator.partial(task_id="own_params", dag=dag, params={"p": 1})._expand(
+                expand_input, strict=True, register_with_dag=False
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                context["params"] = process_params(dag, iterable_op, None, suppress_exception=False)
+                iterable_op.execute(context=context)
+
+        assert seen == {0: "own", 1: "own"}
+        assert iterable_op.params["p"] == 1
+        assert mapped_op.params["p"] == 1
+
+    def test_a_param_an_indexed_task_changes_stays_its_own(self):
+        """A write to ``self.params`` in one indexed task's ``execute`` does not reach its siblings."""
+        seen: list[Any] = []
+
+        class MockChangingParamOperator(BaseOperator):
+            def __init__(self, value=None, **kwargs):
+                super().__init__(**kwargs)
+                self.value = value
+
+            def execute(self, context):
+                seen.append(self.params["p"])
+                self.params["p"] = f"changed by {self.value}"
+
+        with DAG("test_dag") as dag:
+            expand_input = ListOfDictsExpandInput([{"value": 1}, {"value": 2}, {"value": 3}])
+            mapped_op = MockChangingParamOperator.partial(
+                task_id="changing_params", dag=dag, params={"p": 1}, task_concurrency=1
+            )._expand(expand_input, strict=True, register_with_dag=False)
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+            with mock_context(task=iterable_op) as context:
+                iterable_op.execute(context=context)
+
+        assert seen == [1, 1, 1]
+        assert iterable_op.params["p"] == 1
+
     def test_execute_resolves_and_reads_the_expand_input_on_the_running_loop(self):
         """
         Regression test for the frozen IterableOperator: indexed task inputs were pulled from the main

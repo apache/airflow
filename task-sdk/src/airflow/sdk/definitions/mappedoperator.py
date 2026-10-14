@@ -853,15 +853,13 @@ class MappedOperator(AbstractOperator):
             )
 
         # If params appears in the mapped kwargs, we need to merge it into the
-        # partial params, overriding existing keys. Setting a value resolves it into the
-        # existing Param, which a shallow copy shares with this operator, so the params are
-        # copied deeply then: iterate() unmaps every index in one process, and one index's
-        # params would otherwise become the next one's.
+        # partial params, overriding existing keys. Always a deep copy: setting a value resolves it
+        # into the existing Param, which a shallow copy shares with this operator, and iterate()
+        # unmaps every index in one process, so a param one index's operator sets, in its __init__
+        # or its execute, would otherwise reach this operator and every other index.
+        params = copy.deepcopy(self.params)
         if "params" in mapped_kwargs:
-            params = copy.deepcopy(self.params)
             params.update(mapped_kwargs["params"])
-        else:
-            params = copy.copy(self.params)
 
         # Ordering is significant; mapped kwargs should override partial ones,
         # and the specially handled params should be respected.
