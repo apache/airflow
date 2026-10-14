@@ -6,6 +6,11 @@
       "warning": "실행 및 태스크를 포함하여 Dag와 관련된 모든 메타데이터가 제거됩니다."
     }
   },
+  "draining": {
+    "badgeTooltip": "진행 중인 Dag 실행이 모두 끝나면 이 Dag가 일시 중지됩니다.",
+    "label": "실행 완료 대기",
+    "tooltip": "{{dagDisplayName}}: 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다. 클릭하여 다시 활성화하세요."
+  },
   "favoriteDag": "Dag 즐겨찾기",
   "filters": {
     "allRunTypes": "모든 실행 유형",
@@ -117,15 +122,6 @@
   },
   "schedulingBanner": {
     "message": "이 Dag는 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다."
-  },
-  "schedulingState": {
-    "active": "활성",
-    "draining": "실행 완료 대기",
-    "drainingBadgeTooltip": "진행 중인 Dag 실행이 모두 끝나면 이 Dag가 일시 중지됩니다.",
-    "drainingTooltip": "{{dagDisplayName}}: 실행 완료 대기 중입니다. 진행 중인 Dag 실행이 모두 끝나면 일시 중지됩니다. 클릭하여 다시 활성화하세요.",
-    "label": "스케줄링 상태",
-    "paused": "일시 중지됨",
-    "placeholder": "스케줄링 상태 선택..."
   },
   "search": {
     "advanced": "고급 검색",

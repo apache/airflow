@@ -26,6 +26,33 @@ another framework, you do not have to move them to Pydantic AI to run them in Ai
 Run the agent in a ``@task`` as you do today, and use this provider for the parts that
 need Airflow: models and tools backed by Airflow connections.
 
+Why Pydantic AI
+---------------
+
+An Airflow deployment runs on whichever cloud and model vendor its team chose, and the
+same Dags often outlive that choice. The provider's own operators are built on Pydantic
+AI because it does not tie a Dag to either:
+
+- **No vendor or cloud to commit to.** The same operator reaches OpenAI, Anthropic,
+  Gemini, Vertex AI, Bedrock, Azure OpenAI, Mistral, Groq, DeepSeek and self-hosted
+  OpenAI-compatible servers such as Ollama and vLLM, through an Airflow connection.
+  Moving a Dag to another vendor is a connection change, not a code change. See
+  :doc:`../model_providers`.
+- **Typed output.** ``output_type`` makes the agent return a Pydantic model, so the
+  task downstream gets fields to read instead of text to parse. See
+  :doc:`../structured_output`.
+- **Tests that do not call a model.** A connection whose model is ``test`` runs the Dag
+  against Pydantic AI's ``TestModel``, and a unit test can script the model's replies.
+  Neither calls a model provider or spends tokens. See :doc:`../local_development`.
+- **A pause before a tool acts.** Pydantic AI's tool approval API is what lets
+  ``AgentOperator`` stop in front of a marked tool call until a person approves it. See
+  :doc:`../tool_approval`.
+
+Pydantic AI is the recommendation, not a requirement. For a new agent, start with
+``AgentOperator``, which gets the most from this provider. If your team has standardized
+on Strands, ADK or LangChain, keep that framework: the table below shows what this
+provider gives an agent written in each one.
+
 Supported frameworks
 --------------------
 
@@ -80,9 +107,9 @@ is Airflow's and which part stays yours.
      - No agent
      - ``[llamaindex]`` extra
 
-The Strands and ADK integrations, the framework-neutral tool interface under them, and
-the tracing helper are experimental: they can change or be removed in a minor release of
-this provider. See :ref:`howto/stability`.
+The Strands and ADK integrations and the tracing helper are experimental: they can change
+or be removed in a minor release of this provider. The framework-neutral tool interface
+under them is stable. See :ref:`howto/stability`.
 
 Tested versions
 ---------------

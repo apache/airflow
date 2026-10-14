@@ -14,25 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
-
-
-class TestDurableStepCounter:
-    def test_starts_at_zero(self):
-        counter = DurableStepCounter()
-        assert counter.next_step() == 0
-
-    def test_increments_monotonically(self):
-        counter = DurableStepCounter()
-        assert counter.next_step() == 0
-        assert counter.next_step() == 1
-        assert counter.next_step() == 2
-
-    def test_total_steps_tracks_count(self):
-        counter = DurableStepCounter()
-        assert counter.total_steps == 0
-        counter.next_step()
-        counter.next_step()
-        assert counter.total_steps == 2

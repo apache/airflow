@@ -28,12 +28,6 @@ The toolsets this provider ships, such as
 :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`, implement
 :class:`ToolProvider` and expose their tools through
 :meth:`ToolProvider.airflow_tools`.
-
-.. note::
-
-    Experimental: this interface can change or be removed in a minor release of this
-    provider.
-    See :ref:`howto/stability`.
 """
 
 from __future__ import annotations

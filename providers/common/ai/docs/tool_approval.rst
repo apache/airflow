@@ -20,11 +20,6 @@
 Approve an agent's tool calls
 =============================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 .. seealso::
     To approve, edit or reject an LLM operator's output instead, see :doc:`approval_gates`;
     to review an agent's final answer over several rounds, see :doc:`hitl_review`.
@@ -86,20 +81,33 @@ approval are decided together and the others run straight away, once.
 ``usage_limits`` covers both sides of the pause, so a ``cost_limit`` is not reset
 by it.
 
-One approval per task instance
-------------------------------
+An agent that needs approval more than once
+-------------------------------------------
 
-A task instance asks for approval at most once per Dag run, and that includes its
-retries and clears. Airflow keeps a single approval request per task instance,
-and a second request would show the reviewer the first one's tool call while
-asking about the new one. So when the agent asks again -- later in the same run,
-or in a retry after the first request -- the task fails with
-``ToolApprovalAlreadyRequestedError`` and does not retry.
+An agent usually decides its next call after it sees the result of the last one, so
+a refund agent may ask to refund one order, read the result, and then ask to refund
+another. On Airflow 3.4 and later, each step that calls a marked tool pauses the task
+again, and the reviewer sees only that step's calls. ``usage_limits`` counts across
+every pause, so a run that pauses many times can reach ``request_limit`` (50 by
+default) partway through, after earlier approved calls have run.
 
-Have the agent request the gated calls in one step, or give each irreversible
-action its own task. A task whose approved call ran and that then failed cannot
-ask again in the same Dag run; trigger a new run, and keep gated tools
-idempotent, since the approved call has already happened once.
+Each request is numbered in its subject, and the review form sends the number back
+with the answer in a hidden field. An answer from a form left open on an earlier
+request, such as a second reviewer who never reloaded the page, is not applied to the
+calls waiting now: the task asks about them again under a new number. An answer sent
+through the REST API without that field is applied to the waiting request.
+
+A retry or a clear asks again for the calls the new attempt makes, including ones a
+reviewer approved in an earlier attempt that then failed. The approved call already
+ran once, so keep gated tools idempotent.
+
+On Airflow 3.3 a task instance can ask only once per Dag run, retries and clears
+included. Airflow 3.3 keeps the first request's subject and body when the same task
+instance asks again, so a second request would show the reviewer the earlier call
+while asking about the new one. The task fails with
+``ToolApprovalAlreadyRequestedError`` instead, and does not retry. On 3.3, have the
+agent request the gated calls in one step, or give each irreversible action its own
+task.
 
 Timeouts and who decides
 ------------------------
@@ -141,8 +149,8 @@ Requirements and limits
   not supported; the task fails without retrying.
 - The conversation so far, including tool results, is kept in the task's
   :doc:`task state store <apache-airflow:core-concepts/task-state-store>` while
-  the task waits. It is deleted when the task resumes, whether the resumed run
-  succeeds or fails, and a later try deletes one left behind by a try that ended
+  the task waits. It is deleted when the resumed run succeeds or fails, and replaced
+  when it pauses again; a later try deletes one left behind by a try that ended
   while waiting. With a ``tool_approval_timeout``, it also expires a day after the
   timeout.
 - If a templated connection id (see :ref:`sql-toolset-templated-connection`) renders
@@ -150,6 +158,6 @@ Requirements and limits
   call against a connection the reviewer did not see. The check compares toolset
   ids, which name the connection for ``SQLToolset``, ``MCPToolset`` and
   ``HookToolset``; it does not notice an edit to the connection itself.
-- The resumed run gets its own pydantic-ai ``run_id``, ``<task-instance id>-resumed``.
-  The ``run_id`` XCom holds that id, and the ``usage`` XCom covers both sides of
-  the pause.
+- Each resumed run gets its own pydantic-ai ``run_id``,
+  ``<task-instance id>-resumed-<n>`` when it resumes from pause ``n``. The ``run_id`` XCom
+  holds the last one, and the ``usage`` XCom covers every part of the run.

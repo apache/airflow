@@ -30,10 +30,11 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
 from airflow.exceptions import TaskNotFound
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.task_coordinates import TaskCoordinateResolver
@@ -340,6 +341,41 @@ def test_outside_caller_reads_every_iteration_of_a_loop_task(client, outside_loo
         assert client.get(f"{url}/item/{offset - len(expected)}").json() == value
     assert client.get(f"{url}/item/{len(expected)}").status_code == 404
     assert client.get(url, params={"offset": -1}).json() == {"key": "key", "value": expected[-1]}
+
+
+@pytest.mark.parametrize("shape", LOOP_SEQUENCES)
+@pytest.mark.parametrize(
+    ("method", "suffix"), [("HEAD", ""), ("GET", "/slice"), ("GET", "/item/-1"), ("GET", "?offset=-1")]
+)
+def test_parsing_attempt_id_does_not_select_a_loop_iteration(
+    client, session, outside_loop_run, shape, method, suffix
+):
+    dr, _, _, steps, _ = outside_loop_run
+    token = ExecutionToken.model_validate(
+        {
+            "id": steps[0].id,
+            "claims": {
+                "scope": "dag_parse",
+                "exp": 2000000000,
+                "dag_bundles": [session.get(DagModel, dr.dag_id).bundle_name],
+                "job_id": 1,
+                "session_id": steps[0].id,
+                "relative_fileloc": "dag.py",
+            },
+        }
+    )
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: token
+    task_id, _ = LOOP_SEQUENCES[shape]
+    url = get_loop_url(dr, task_id)
+
+    response = client.request(method, f"{url}{suffix}")
+
+    assert response.status_code == 400
+    if method != "HEAD":
+        assert response.json()["detail"] == (
+            "A loop producer requires an explicit scope or a consumer inside the loop"
+        )
 
 
 def test_outside_task_that_uses_loop_outputs_waits_for_the_gate_and_reads_the_loop_task_xcom(
@@ -1079,6 +1115,34 @@ class TestXComsGetEndpoint:
             )
 
         assert response.status_code == expected_status, response.text
+
+    def test_parsing_attempt_id_is_not_treated_as_an_archived_task(
+        self, client, exec_app, create_task_instance, session
+    ):
+        attempt = create_task_instance(state=TaskInstanceState.RUNNING)
+        attempt.prepare_db_for_next_try(session)
+        session.commit()
+        token = ExecutionToken.model_validate(
+            {
+                "id": attempt.id,
+                "claims": {
+                    "scope": "dag_parse",
+                    "exp": 2000000000,
+                    "dag_bundles": [session.get(DagModel, attempt.dag_id).bundle_name],
+                    "job_id": 1,
+                    "session_id": attempt.id,
+                    "relative_fileloc": "dag.py",
+                },
+            }
+        )
+        exec_app.dependency_overrides[require_auth] = lambda: token
+
+        response = client.get(
+            f"/execution/xcoms/{attempt.dag_id}/{attempt.run_id}/{attempt.task_id}/missing_key"
+        )
+
+        assert response.status_code == 404
+        assert "XCom" in response.json()["detail"]["message"]
 
 
 class TestXComsSetEndpoint:

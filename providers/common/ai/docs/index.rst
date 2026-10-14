@@ -21,13 +21,17 @@
 
 Run model calls and tool-using agents as Airflow tasks. A task can classify, extract,
 summarize or route with any model vendor, or hand a model a set of tools built from your
-Airflow connections and let it work. Airflow supplies what a script does not: the API key
-comes from a connection, a failed call retries, a run can pause for a person to approve the
-output, the result lands in XCom for the next task, and the whole thing runs on a schedule.
+Airflow connections and let it work. The model comes from a
+connection too. The tools carry guardrails such as table allow-lists and secret masking, a
+retried agent can replay the calls it already made, and a run can pause for a person to
+approve an output or a tool call without holding a worker. :doc:`why_common_ai` compares
+this with a plain ``@task``.
 
 Start here
 ----------
 
+- :doc:`why_common_ai`: what this provider handles that an agent in a plain ``@task``
+  leaves to you, and when a plain task is enough.
 - :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
 - :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
 - :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
@@ -92,6 +96,7 @@ waits for the result, use that vendor's provider.
     :hidden:
     :caption: Getting started
 
+    Why Common AI <why_common_ai>
     Installation <installation>
     Quick start <quickstart>
     Core concepts <concepts>
@@ -181,7 +186,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.21.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
-``pydantic-ai-slim``                        ``>=2.33.0``
+``pydantic-ai-slim``                        ``>=2.36.0``
 ``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 
@@ -220,18 +225,20 @@ Install them when installing from PyPI. For example:
 ===============  =======================================================================================================================================
 Extra            Dependencies
 ===============  =======================================================================================================================================
-``anthropic``    ``pydantic-ai-slim[anthropic]>=2.33.0``, ``anthropic>=1.0.0``
-``bedrock``      ``pydantic-ai-slim[bedrock]>=2.33.0``
-``google``       ``pydantic-ai-slim[google]>=2.33.0``
-``openai``       ``pydantic-ai-slim[openai]>=2.33.0``, ``openai>=2.47.0``
+``anthropic``    ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.0.0``
+``bedrock``      ``pydantic-ai-slim[bedrock]>=2.36.0``
+``google``       ``pydantic-ai-slim[google]>=2.36.0``
+``openai``       ``pydantic-ai-slim[openai]>=2.36.0``, ``openai>=2.47.0``
 ``typesafe``     ``typesafe-sdk>=0.6.0``
-``mcp``          ``pydantic-ai-slim[mcp]>=2.33.0``
+``mcp``          ``pydantic-ai-slim[mcp]>=2.36.0``
 ``modal``        ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``  ``opensandbox>=1.1.0``
+``boat``         ``boat-sdk>=1.9.3``
 ``openshell``    ``openshell>=0.1.2,<0.2``, ``grpcio>=1.78.0``, ``protobuf>=6.31.1``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.24.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
 ``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
+``islo``         ``islo>=0.3.19``
 ``avro``         ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``      ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
 ``sql``          ``apache-airflow-providers-common-sql>=2.2.0``, ``sqlglot>=30.0.0``

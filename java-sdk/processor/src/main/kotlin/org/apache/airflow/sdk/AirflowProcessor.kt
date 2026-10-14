@@ -68,24 +68,24 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
 /**
  * @suppress
  *
- * Annotation processor for [Builder.Dag].
+ * Annotation processor for [Airflow.Dag].
  *
  * This is registered as a standard javac processor via
  * `META-INF/services/javax.annotation.processing.Processor`; not intended to be
  * instantiated or referenced directly.
  *
- * For each class annotated with [Builder.Dag], generates:
+ * For each class annotated with [Airflow.Dag], generates:
  *
- * - A `*Builder` class containing one inner class per [Builder.Task]-annotated
+ * - A `*Builder` class containing one inner class per [Airflow.Task]-annotated
  *   method (implementing [Task]), and a static `build()` that constructs the
- *   [DagDef], lowers every explicitly-written `@Builder.Dag` attribute into a
- *   `DagDef.config` call, then runs the class's [Builder.Deps] class and
+ *   [DagDef], lowers every explicitly-written `@Airflow.Dag` attribute into a
+ *   `DagDef.config` call, then runs the class's [Airflow.Deps] class and
  *   verifies it registered every task.
  * - A `*Deps` wiring-view interface whose methods mirror the task methods:
  *   injectable parameters ([Client],
  *   [Context]) are dropped, data parameters become [Arg]-typed inputs, and the
  *   return value becomes a [TaskRef]. Calling one registers the task with its
- *   explicitly-written `@Builder.Task` attributes lowered into `TaskDef.config`
+ *   explicitly-written `@Airflow.Task` attributes lowered into `TaskDef.config`
  *   calls; passing one call's handle to another wires the dependency edge and
  *   feeds the upstream's return-value XCom into the downstream's parameter,
  *   type-checked by javac through the [Arg] / [TaskRef] generics.
@@ -97,47 +97,47 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
  * forwarded to `client.setXCom`.
  */
 @SupportedAnnotationTypes(
-  "org.apache.airflow.sdk.Builder.Dag",
-  "org.apache.airflow.sdk.Builder.Task",
-  "org.apache.airflow.sdk.Builder.If",
-  "org.apache.airflow.sdk.Builder.Switch",
-  "org.apache.airflow.sdk.Builder.TaskGroup",
-  "org.apache.airflow.sdk.Builder.TaskHandler",
-  "org.apache.airflow.sdk.Builder.Deps",
+  "org.apache.airflow.sdk.Airflow.Dag",
+  "org.apache.airflow.sdk.Airflow.Task",
+  "org.apache.airflow.sdk.Airflow.If",
+  "org.apache.airflow.sdk.Airflow.Switch",
+  "org.apache.airflow.sdk.Airflow.TaskGroup",
+  "org.apache.airflow.sdk.Airflow.TaskHandler",
+  "org.apache.airflow.sdk.Airflow.Deps",
 )
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
-class BuilderProcessor : AbstractProcessor() {
+class AirflowProcessor : AbstractProcessor() {
   override fun process(
     annotations: Set<TypeElement>,
     roundEnv: RoundEnvironment,
   ): Boolean {
     if (annotations.isEmpty()) return false
-    roundEnv.getElementsAnnotatedWith(Builder.Deps::class.java).forEach { el ->
+    roundEnv.getElementsAnnotatedWith(Airflow.Deps::class.java).forEach { el ->
       val owner = el.enclosingElement
-      if (owner !is TypeElement || owner.getAnnotation(Builder.Dag::class.java) == null) {
+      if (owner !is TypeElement || owner.getAnnotation(Airflow.Dag::class.java) == null) {
         processingEnv.messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "@Builder.Deps class '${el.simpleName}' must be nested directly in a @Builder.Dag class",
+          "@Airflow.Deps class '${el.simpleName}' must be nested directly in an @Airflow.Dag class",
           el,
         )
       }
     }
-    roundEnv.getElementsAnnotatedWith(Builder.TaskGroup::class.java).forEach { el ->
+    roundEnv.getElementsAnnotatedWith(Airflow.TaskGroup::class.java).forEach { el ->
       val owner = el.enclosingElement
       val nested =
         owner is TypeElement &&
-          (owner.getAnnotation(Builder.Dag::class.java) != null || owner.getAnnotation(Builder.TaskGroup::class.java) != null)
+          (owner.getAnnotation(Airflow.Dag::class.java) != null || owner.getAnnotation(Airflow.TaskGroup::class.java) != null)
       if (!nested) {
         processingEnv.messager.printMessage(
           Diagnostic.Kind.ERROR,
-          "@Builder.TaskGroup class '${el.simpleName}' must be nested in a @Builder.Dag class or in " +
-            "another @Builder.TaskGroup class",
+          "@Airflow.TaskGroup class '${el.simpleName}' must be nested in an @Airflow.Dag class or in " +
+            "another @Airflow.TaskGroup class",
           el,
         )
       }
     }
     roundEnv
-      .getElementsAnnotatedWith(Builder.TaskHandler::class.java)
+      .getElementsAnnotatedWith(Airflow.TaskHandler::class.java)
       .mapNotNull { it.enclosingElement as? TypeElement }
       .distinct()
       .forEach { el ->
@@ -150,7 +150,7 @@ class BuilderProcessor : AbstractProcessor() {
           }.onFailure { e -> messager.printMessage(Diagnostic.Kind.ERROR, e.message ?: "Unknown error", el) }
         }
       }
-    roundEnv.getElementsAnnotatedWith(Builder.Dag::class.java).filterIsInstance<TypeElement>().forEach { el ->
+    roundEnv.getElementsAnnotatedWith(Airflow.Dag::class.java).filterIsInstance<TypeElement>().forEach { el ->
       with(processingEnv) {
         runCatching {
           val packageName = elementUtils.getPackageOf(el).qualifiedName.toString()
@@ -182,7 +182,7 @@ class BuilderProcessor : AbstractProcessor() {
   }
 
   /**
-   * Generates the registrar for a class of [Builder.TaskHandler] methods: one
+   * Generates the registrar for a class of [Airflow.TaskHandler] methods: one
    * [Task] implementation per handler, and a `registerInto` that binds each to
    * the Dag and task the annotation names.
    *
@@ -191,7 +191,7 @@ class BuilderProcessor : AbstractProcessor() {
    */
   private fun buildHandlers(el: TypeElement): TypeSpec {
     require(el.enclosingElement !is TypeElement || Modifier.STATIC in el.modifiers) {
-      "Nested class '${el.simpleName}' holding @Builder.TaskHandler methods must be static"
+      "Nested class '${el.simpleName}' holding @Airflow.TaskHandler methods must be static"
     }
     val registrar =
       TypeSpec
@@ -210,18 +210,18 @@ class BuilderProcessor : AbstractProcessor() {
     val names = mutableSetOf<String>()
     for (inner in el.enclosedElements) {
       if (inner !is ExecutableElement) continue
-      val handler = inner.getAnnotation(Builder.TaskHandler::class.java) ?: continue
+      val handler = inner.getAnnotation(Airflow.TaskHandler::class.java) ?: continue
       if (inner.isVarArgs) {
         throw IllegalArgumentException("Cannot create task from vararg function ${inner.simpleName}")
       }
       require(handler.dag.isNotBlank()) {
-        "@Builder.TaskHandler on '${inner.simpleName}' must name the Dag the Python file declares"
+        "@Airflow.TaskHandler on '${inner.simpleName}' must name the Dag the Python file declares"
       }
       val decl = TaskDeclaration(inner, handler.task.ifBlank { inner.simpleName.toString() }, collectDataParams(inner), el)
       require(names.add(inner.simpleName.toString())) {
         "Class ${el.simpleName} overloads task-handler method '${inner.simpleName}'; a method's name is " +
           "the name of its generated task class, so rename one and keep its task id with " +
-          "@Builder.TaskHandler(task = \"${decl.id}\")"
+          "@Airflow.TaskHandler(task = \"${decl.id}\")"
       }
       registrar.addType(buildTask(decl))
       registerInto.addStatement(
@@ -234,7 +234,7 @@ class BuilderProcessor : AbstractProcessor() {
     return registrar.addMethod(registerInto.build()).build()
   }
 
-  private fun dagAnnotation(el: TypeElement): Builder.Dag = el.getAnnotation(Builder.Dag::class.java)!!
+  private fun dagAnnotation(el: TypeElement): Airflow.Dag = el.getAnnotation(Airflow.Dag::class.java)!!
 
   private fun buildBuilder(
     el: TypeElement,
@@ -287,7 +287,7 @@ class BuilderProcessor : AbstractProcessor() {
    * injected arguments stripped, each data argument lifted to [Arg] and the
    * return lifted to [TaskRef].
    *
-   * It is an interface so the `@Builder.Deps` class can *implement* it and
+   * It is an interface so the `@Airflow.Deps` class can *implement* it and
    * keep its own `extends` free, and so the Dag class's real task methods --
    * which differ only in their injected arguments -- do not clash with it.
    */
@@ -405,7 +405,7 @@ class BuilderProcessor : AbstractProcessor() {
 
   /**
    * Emits `new TaskDef(id, <classRef>.class)` with the explicitly-written
-   * `@Builder.Task` attributes lowered into chained `.config` calls.
+   * `@Airflow.Task` attributes lowered into chained `.config` calls.
    */
   private fun taskDefCode(
     decl: TaskDeclaration,
@@ -465,12 +465,12 @@ class BuilderProcessor : AbstractProcessor() {
       checkDeciderReturn(kind, inner)
       if (kind == TaskKind.TRIGGER) {
         require(inner.parameters.isEmpty()) {
-          "@Builder.Task method '${inner.simpleName}' returns a TriggerDagRun, so it runs when the Dag " +
+          "@Airflow.Task method '${inner.simpleName}' returns a TriggerDagRun, so it runs when the Dag " +
             "is built rather than when the task runs; it takes no parameters"
         }
         val checked = inner.thrownTypes.filterNot { isUnchecked(it) }
         require(checked.isEmpty()) {
-          "@Builder.Task method '${inner.simpleName}' returns a TriggerDagRun, so it runs when the Dag " +
+          "@Airflow.Task method '${inner.simpleName}' returns a TriggerDagRun, so it runs when the Dag " +
             "is built, where a checked exception cannot be thrown; it must not throw: ${checked.joinToString()}"
         }
       }
@@ -486,7 +486,7 @@ class BuilderProcessor : AbstractProcessor() {
 
     val groups = mutableListOf<GroupDeclaration>()
     for (inner in el.enclosedElements.filterIsInstance<TypeElement>()) {
-      val ann = inner.getAnnotation(Builder.TaskGroup::class.java) ?: continue
+      val ann = inner.getAnnotation(Airflow.TaskGroup::class.java) ?: continue
       val localId = checkGroupClass(inner, ann)
       require(groups.none { it.id == localId }) {
         "Class ${el.simpleName} declares more than one task group '$localId'"
@@ -500,21 +500,21 @@ class BuilderProcessor : AbstractProcessor() {
   /** Checks that `new <group class>()` compiles and names a valid group, and returns its local ID. */
   private fun checkGroupClass(
     el: TypeElement,
-    ann: Builder.TaskGroup,
+    ann: Airflow.TaskGroup,
   ): String {
     val name = el.simpleName
     require(el.kind == ElementKind.CLASS && Modifier.ABSTRACT !in el.modifiers) {
-      "@Builder.TaskGroup '$name' must be a concrete class"
+      "@Airflow.TaskGroup '$name' must be a concrete class"
     }
     require(Modifier.STATIC in el.modifiers && Modifier.PRIVATE !in el.modifiers) {
-      "@Builder.TaskGroup class '$name' must be static and non-private"
+      "@Airflow.TaskGroup class '$name' must be static and non-private"
     }
     require(
       el.enclosedElements
         .filterIsInstance<ExecutableElement>()
         .any { it.kind == ElementKind.CONSTRUCTOR && it.parameters.isEmpty() && Modifier.PRIVATE !in it.modifiers },
     ) {
-      "@Builder.TaskGroup class '$name' needs a non-private no-argument constructor"
+      "@Airflow.TaskGroup class '$name' needs a non-private no-argument constructor"
     }
     val id = ann.id.ifBlank { name.toString() }
     require(GROUP_ID.matches(id)) {
@@ -524,7 +524,7 @@ class BuilderProcessor : AbstractProcessor() {
   }
 
   /**
-   * Finds and validates the class's `@Builder.Deps` wiring class, which
+   * Finds and validates the class's `@Airflow.Deps` wiring class, which
    * declares the Dag's task graph and is what makes it a Dag Java owns.
    *
    * The generated builder runs `new Wiring()::depends`, so everything that
@@ -537,34 +537,34 @@ class BuilderProcessor : AbstractProcessor() {
     val classes =
       el.enclosedElements
         .filterIsInstance<TypeElement>()
-        .filter { it.getAnnotation(Builder.Deps::class.java) != null }
+        .filter { it.getAnnotation(Airflow.Deps::class.java) != null }
     require(classes.isNotEmpty()) {
-      "Dag class ${el.simpleName} must declare a @Builder.Deps class implementing ${view.simpleName()} " +
+      "Dag class ${el.simpleName} must declare an @Airflow.Deps class implementing ${view.simpleName()} " +
         "to declare its task graph; a class of task bodies for a Dag the Python file owns carries " +
-        "@Builder.TaskHandler instead"
+        "@Airflow.TaskHandler instead"
     }
     val deps =
       classes.singleOrNull()
         ?: throw IllegalArgumentException(
-          "Dag class ${el.simpleName} declares more than one @Builder.Deps class: " +
+          "Dag class ${el.simpleName} declares more than one @Airflow.Deps class: " +
             classes.joinToString { it.simpleName.toString() },
         )
     val name = deps.simpleName
     require(deps.kind == ElementKind.CLASS && Modifier.ABSTRACT !in deps.modifiers) {
-      "@Builder.Deps '$name' must be a concrete class"
+      "@Airflow.Deps '$name' must be a concrete class"
     }
     require(Modifier.STATIC in deps.modifiers && Modifier.PRIVATE !in deps.modifiers) {
-      "@Builder.Deps class '$name' must be static and non-private"
+      "@Airflow.Deps class '$name' must be static and non-private"
     }
     require(deps.interfaces.any { it.isView(view) }) {
-      "@Builder.Deps class '$name' must implement ${view.simpleName()}, the wiring view of ${el.simpleName}"
+      "@Airflow.Deps class '$name' must implement ${view.simpleName()}, the wiring view of ${el.simpleName}"
     }
     require(
       deps.enclosedElements
         .filterIsInstance<ExecutableElement>()
         .any { it.kind == ElementKind.CONSTRUCTOR && it.parameters.isEmpty() && Modifier.PRIVATE !in it.modifiers },
     ) {
-      "@Builder.Deps class '$name' needs a non-private no-argument constructor"
+      "@Airflow.Deps class '$name' needs a non-private no-argument constructor"
     }
     val depends =
       processingEnv.elementUtils
@@ -572,11 +572,11 @@ class BuilderProcessor : AbstractProcessor() {
         .filterIsInstance<ExecutableElement>()
         .firstOrNull { it.isNoArgDepends() }
         ?: throw IllegalArgumentException(
-          "@Builder.Deps class '$name' must have a non-private, no-argument depends() method",
+          "@Airflow.Deps class '$name' must have a non-private, no-argument depends() method",
         )
     val checked = depends.thrownTypes.filterNot { isUnchecked(it) }
     require(checked.isEmpty()) {
-      "depends() of @Builder.Deps class '$name' must not throw checked exceptions: ${checked.joinToString()}"
+      "depends() of @Airflow.Deps class '$name' must not throw checked exceptions: ${checked.joinToString()}"
     }
     return deps
   }
@@ -602,7 +602,7 @@ class BuilderProcessor : AbstractProcessor() {
       byClassName.put(decl.className, decl)?.let { first ->
         throw IllegalArgumentException(
           "Task methods '${first.id}' and '${decl.id}' both generate the task class " +
-            "'${decl.className}'; rename one of them or an enclosing @Builder.TaskGroup class",
+            "'${decl.className}'; rename one of them or an enclosing @Airflow.TaskGroup class",
         )
       }
     }
@@ -630,7 +630,7 @@ class BuilderProcessor : AbstractProcessor() {
     scope.groups.forEach { group ->
       require(group.accessor !in reserved) {
         "Task group class '${group.element.simpleName}' clashes with a member of the wiring view; " +
-          "rename the class and keep the group id with @Builder.TaskGroup(id = \"${group.id}\")"
+          "rename the class and keep the group id with @Airflow.TaskGroup(id = \"${group.id}\")"
       }
       require(scope.tasks.none { it.method.simpleName.contentEquals(group.accessor) }) {
         "Task group class '${group.element.simpleName}' and task method '${group.accessor}' would both " +
@@ -749,12 +749,12 @@ class BuilderProcessor : AbstractProcessor() {
       TaskKind.TASK, TaskKind.TRIGGER -> return
       TaskKind.CONDITION ->
         require(returns.kind == TypeKind.BOOLEAN || with(processingEnv) { isType(returns, BOXED_BOOLEAN_TYPE) }) {
-          "@Builder.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
+          "@Airflow.If method '${method.simpleName}' returns $returns, but a condition returns boolean: " +
             "true runs the task named by Then, false the one named by Else"
         }
       TaskKind.SWITCH ->
         require(returnsTaskClass(returns)) {
-          "@Builder.Switch method '${method.simpleName}' returns $returns, but a switch returns the " +
+          "@Airflow.Switch method '${method.simpleName}' returns $returns, but a switch returns the " +
             "class of the task it chose, as Class<? extends Task>"
         }
     }
@@ -975,7 +975,7 @@ private class Scope(
   fun allGroups(): List<GroupDeclaration> = groups.flatMap { listOf(it) + it.scope.allGroups() }
 }
 
-/** One `@Builder.TaskGroup` class, and what it declares. */
+/** One `@Airflow.TaskGroup` class, and what it declares. */
 private class GroupDeclaration(
   val element: TypeElement,
   val id: String,
@@ -987,7 +987,7 @@ private class GroupDeclaration(
 }
 
 /**
- * One [Builder.Task]-annotated method with its resolved id and data parameters.
+ * One [Airflow.Task]-annotated method with its resolved id and data parameters.
  * [owner] is the class that declares it, which the generated body instantiates,
  * and [classPath] the task-group classes enclosing it.
  */
@@ -1043,7 +1043,7 @@ private val DEPS_TYPE = ClassName.get(Deps::class.java)
 private val GROUP_TYPE = DEPS_TYPE.nestedClass("TaskGroup")
 private val LIST_TYPE = ClassName.get(List::class.java)
 
-private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Builder.Dag"
+private const val DAG_ANNOTATION = "org.apache.airflow.sdk.Airflow.Dag"
 
 /**
  * What a declared task is, and the annotation that declares it. A decider
@@ -1058,10 +1058,10 @@ private enum class TaskKind(
   val taskInterface: ClassName,
   val refType: ClassName?,
 ) {
-  TASK("org.apache.airflow.sdk.Builder.Task", "@Builder.Task", "execute", TASK_TYPE, null),
-  TRIGGER("org.apache.airflow.sdk.Builder.Task", "@Builder.Task", "execute", TASK_TYPE, null),
-  CONDITION("org.apache.airflow.sdk.Builder.If", "@Builder.If", "decide", CONDITION_TASK_TYPE, CONDITION_REF_TYPE),
-  SWITCH("org.apache.airflow.sdk.Builder.Switch", "@Builder.Switch", "choose", SWITCH_TASK_TYPE, SWITCH_REF_TYPE),
+  TASK("org.apache.airflow.sdk.Airflow.Task", "@Airflow.Task", "execute", TASK_TYPE, null),
+  TRIGGER("org.apache.airflow.sdk.Airflow.Task", "@Airflow.Task", "execute", TASK_TYPE, null),
+  CONDITION("org.apache.airflow.sdk.Airflow.If", "@Airflow.If", "decide", CONDITION_TASK_TYPE, CONDITION_REF_TYPE),
+  SWITCH("org.apache.airflow.sdk.Airflow.Switch", "@Airflow.Switch", "choose", SWITCH_TASK_TYPE, SWITCH_REF_TYPE),
   ;
 
   companion object {

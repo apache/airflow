@@ -43,6 +43,7 @@ from sqlalchemy.sql import select
 from sqlalchemy.sql.dml import Update
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -75,11 +76,14 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
+    CurrentExecutionToken,
     CurrentTIToken,
+    DagInGrantedBundle,
     ExecutionAPIRoute,
+    ExecutionOrDagParseToken,
     get_team_name_for_ti,
     issue_execution_token,
     require_auth,
@@ -117,7 +121,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
 
-router = VersionedAPIRouter()
+router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
 
 ti_id_router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -184,6 +188,8 @@ def ti_run(
             TI.try_number,
             TI.max_tries,
             TI.start_date,
+            TI.queue,
+            TI.queued_dttm,
             TI.next_method,
             TI.hostname,
             TI.unixname,
@@ -225,6 +231,10 @@ def ti_run(
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
     previous_state = ti.state
+    # Set on a genuine QUEUED -> RUNNING transition so task.queued_duration is emitted once the
+    # DagRun is loaded below (its stats_tags supply the tags). A duplicate start request falls
+    # through the branch below without raising, so the flag keeps it from emitting twice.
+    emit_queued_duration = False
 
     if previous_state == TaskInstanceState.RESTARTING and (ti.hostname, ti.unixname, ti.pid) != (
         ti_run_payload.hostname,
@@ -274,6 +284,13 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
+        # One sample per queue wait, not per try: the scheduler refreshes queued_dttm on every
+        # queueing, so a retry and a resume from deferral each waited for a slot of their own.
+        # task.scheduled_duration skips retries (emit_state_change_metric returns early while
+        # end_date is set), so the two disagree on retries by design.
+        # queued_dttm is unset only for runs that skip the scheduler's queueing, e.g. dag.test().
+        emit_queued_duration = ti.queued_dttm is not None
+
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
         end_date=None,
@@ -290,11 +307,23 @@ def ti_run(
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
 
+        # stats_tags lazy-loads dag_model.tags when dag tags are emitted as metric tags, and ti_run
+        # runs once per task start -- load them up front as the scheduler loop does.
+        dag_tag_options = (
+            (joinedload(DR.dag_model).selectinload(DagModel.tags),)
+            if emit_queued_duration and conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
+            else ()
+        )
+
         dr = (
             session.scalars(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
-                .options(joinedload(DR.consumed_asset_events), *eager_load_teams(DR.dag_model))
+                .options(
+                    joinedload(DR.consumed_asset_events),
+                    *eager_load_teams(DR.dag_model),
+                    *dag_tag_options,
+                )
             )
             .unique()
             .one_or_none()
@@ -392,6 +421,17 @@ def ti_run(
     # JWTReissueMiddleware also writes Refreshed-API-Token but skips workload tokens, so we set it here for the workload→execution swap.
     if token.claims.scope == "workload":
         issue_execution_token(services, response, sub=str(task_instance_id))
+
+    if emit_queued_duration:
+        # Emitted last so a 5xx cannot double-count the wait: the SDK retries those, and the
+        # rollback returns the TI to QUEUED for the retry to sample it again. Only the session
+        # commit can still fail past this point.
+        # Tags mirror the sibling task.scheduled_duration, which emit_state_change_metric sends
+        # as {**ti.stats_tags, "queue": ti.queue}; stats_tags reads the team off the transient
+        # _team_name. stats.timing also emits the legacy dotted name from the metrics registry.
+        dr._team_name = dr.team_name
+        tags = {**dr.stats_tags, "task_id": ti.task_id, "queue": ti.queue}
+        stats.timing("task.queued_duration", timezone.utcnow() - ti.queued_dttm, tags=tags)
 
     return context
 
@@ -1462,6 +1502,7 @@ def _find_superseded_ids(
 @router.get(
     "/count",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_404_NOT_FOUND, "Task group not found"),
@@ -1529,6 +1570,7 @@ _MAX_PREVIOUS_TIS_SCANNED = 500
 @router.get(
     "/previous/{dag_id}/{task_id}",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [(status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot")]
     ),
@@ -1541,7 +1583,7 @@ def get_previous_task_instance(
     logical_date: Annotated[UtcDateTime | None, Query()] = None,
     map_index: Annotated[int, Query()] = -1,
     state: Annotated[TaskInstanceState | None, Query()] = None,
-    token: TIToken = CurrentTIToken,
+    token: ExecutionToken = CurrentExecutionToken,
 ) -> PreviousTIResponse | None:
     """
     Get the previous task instance matching the given criteria.
@@ -1584,7 +1626,7 @@ def get_previous_task_instance(
         if ti.region_id == SENTINEL_REGION_ID:
             break
         if iterations is None:
-            requester = session.get(TI, token.id)
+            requester = session.get(TI, token.id) if token.claims.scope == "execution" else None
             iterations = (
                 resolver.loop_iterations(requester)
                 if requester is not None and (requester.dag_id, requester.task_id) == (dag_id, task_id)
@@ -1645,6 +1687,7 @@ def _has_loop_iterations(resolver: TaskCoordinateResolver, ti: TI, iterations: l
 @router.get(
     "/states",
     status_code=status.HTTP_200_OK,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_404_NOT_FOUND, "Task group not found"),

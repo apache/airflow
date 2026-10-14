@@ -79,8 +79,8 @@ How it works
   With ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial
   model run, not the human-feedback regenerations. A run that resumes after a
   tool approval (see :doc:`tool_approval`) continues as
-  ``<task-instance id>-resumed``, which is the ``run_id`` the operator pushes;
-  ``usage`` covers both parts.
+  ``<task-instance id>-resumed-<n>`` after pause ``n``, which is the ``run_id``
+  the operator pushes; ``usage`` covers every part.
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
   identity keys without ``airflow.task_instance.id``.
@@ -103,6 +103,21 @@ How it works
   ``@task.llm`` additionally pushes the model name above. The other LLM
   operators still emit GenAI spans correlated to the task span by nesting, but
   without the identity attributes, the run join key, or the model name.
+* **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
+  task-instance page showing the resolved model name and the ``usage`` XCom above as a
+  readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
+  the ``applies_to`` operator scoping core added in that version to show up only for
+  ``LLMOperator`` / ``AgentOperator`` runs (and their ``@task.llm`` / ``@task.agent``
+  decorator forms) -- the match is on the exact operator name, so a subclass of either does
+  not get the tab automatically. Like the span-level cost above, the tab's number is a
+  best-effort ``genai-prices`` estimate, not provider-reported billing. With a custom XCom
+  backend that offloads large values to external storage (e.g. ``common.io`` with
+  ``xcom_objectstorage_threshold`` set low), the tab reads the stored reference rather than
+  the real value, since the public XCom endpoint it calls never runs the backend's
+  ``deserialize_value``: the model name badge would show the reference string (e.g. an
+  ``s3://...`` path) instead of the model, and ``usage`` would come back as that same
+  string rather than an object -- the tab treats a non-object ``usage`` as absent and
+  hides the stat boxes instead of rendering ``undefined`` in each one.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).

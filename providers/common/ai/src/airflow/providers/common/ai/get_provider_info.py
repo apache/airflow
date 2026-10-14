@@ -76,11 +76,13 @@ def get_provider_info():
                 "external-doc-url": "https://modal.com/docs/guide/sandbox",
                 "tags": ["service"],
             },
+            {"integration-name": "Islo", "external-doc-url": "https://docs.islo.dev/", "tags": ["service"]},
             {
                 "integration-name": "OpenSandbox",
                 "external-doc-url": "https://open-sandbox.ai/",
                 "tags": ["software"],
             },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
             {
                 "integration-name": "NVIDIA OpenShell",
                 "external-doc-url": "https://github.com/NVIDIA/OpenShell",
@@ -106,7 +108,11 @@ def get_provider_info():
             {
                 "name": "hitl_review",
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
-            }
+            },
+            {
+                "name": "ai_model_panel",
+                "plugin-class": "airflow.providers.common.ai.plugins.model_panel.ModelPanelPlugin",
+            },
         ],
         "config": {
             "common.ai": {
