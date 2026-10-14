@@ -511,7 +511,6 @@ class TestResume:
         assert "refunded order 1" in output
         assert "order 2 is outside policy" in output
 
-    @patch(REPEAT_SUPPORTED, True)
     @pytest.mark.parametrize(
         "stale_value",
         [
@@ -568,6 +567,7 @@ class TestResume:
 
         assert output == "refunded order 1 | refunded order 2"
 
+    @patch(REPEAT_SUPPORTED, True)
     def test_a_continuation_without_pause_number_resumes_as_the_first_pause(self):
         """A task paused by an earlier provider version has no ``pause_number`` in its kwargs; it
         resumes as pause 1, so a later pause is numbered 2 and its resume gets a fresh run_id."""
