@@ -32,7 +32,7 @@ from socket import socket, socketpair
 from typing import TYPE_CHECKING, Any, BinaryIO
 from unittest.mock import MagicMock, PropertyMock, patch
 
-import httpx
+import httpx2
 import jwt
 import pytest
 import structlog
@@ -2521,16 +2521,16 @@ class TestDagFileProcessorProcess:
         def handle(request):
             requests.append(request)
             if request.url.path.endswith("/jobs"):
-                return httpx.Response(201, json={"job_id": 1, "token": job_token, "expires_in": 300})
+                return httpx2.Response(201, json={"job_id": 1, "token": job_token, "expires_in": 300})
             if request.url.path.endswith("/parse-token"):
-                return httpx.Response(200, json={"token": parse_token, "expires_in": 300})
-            return httpx.Response(200, json={"key": "my_key", "value": "my_value"})
+                return httpx2.Response(200, json={"token": parse_token, "expires_in": 300})
+            return httpx2.Response(200, json={"key": "my_key", "value": "my_value"})
 
         with DagProcessorAPIClient(
             base_url="http://api/execution/",
             token_file=token_file,
             hostname="processor-1",
-            transport=httpx.MockTransport(handle),
+            transport=httpx2.MockTransport(handle),
         ) as client:
             client.register_job()
             proc.client = client

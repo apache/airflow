@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-import httpx
+import httpx2
 import pytest
 
 from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
@@ -93,8 +93,8 @@ def test_api_lifecycle_cleans_up_before_completion(complete, prepare, runner, cl
 
 
 def test_failed_registration_never_starts_parsing(runner, client):
-    client.register_job.side_effect = httpx.ConnectError("unavailable")
-    with pytest.raises(httpx.ConnectError):
+    client.register_job.side_effect = httpx2.ConnectError("unavailable")
+    with pytest.raises(httpx2.ConnectError):
         runner.run_with_api(client)
     runner.processor.run.assert_not_called()
     client.complete_job.assert_not_called()
@@ -138,14 +138,14 @@ def test_registration_waits_for_a_crashed_job_with_a_bounded_backoff(
 @pytest.mark.parametrize("reason", ["registration_conflict", "registration_retired", None])
 @mock.patch("airflow.jobs.dag_processor_job_runner.sleep", autospec=True)
 def test_registration_does_not_wait_on_other_conflicts(sleep, runner, client, reason):
-    error = httpx.HTTPStatusError(
+    error = httpx2.HTTPStatusError(
         "conflict",
-        request=httpx.Request("POST", "http://api/jobs"),
-        response=httpx.Response(409, json={"detail": {"reason": reason}}),
+        request=httpx2.Request("POST", "http://api/jobs"),
+        response=httpx2.Response(409, json={"detail": {"reason": reason}}),
     )
     client.register_job.side_effect = error
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(httpx2.HTTPStatusError):
         runner.run_with_api(client)
 
     sleep.assert_not_called()
@@ -164,8 +164,8 @@ def test_shutdown_listener_failure_does_not_prevent_completion(listeners, runner
 @pytest.mark.parametrize("parse_error", [None, ValueError("original error")])
 def test_completion_failure_preserves_the_original_error(runner, client, parse_error):
     runner.processor.run.side_effect = parse_error
-    client.complete_job.side_effect = httpx.ConnectError("completion unavailable")
-    with pytest.raises(type(parse_error) if parse_error else httpx.ConnectError) as raised:
+    client.complete_job.side_effect = httpx2.ConnectError("completion unavailable")
+    with pytest.raises(type(parse_error) if parse_error else httpx2.ConnectError) as raised:
         runner.run_with_api(client)
     if parse_error:
         assert raised.value is parse_error
@@ -215,12 +215,12 @@ def test_restart_stops_parsing_and_releases_children(runner, client, clock, rest
 @conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
 def test_heartbeat_failure_is_bounded(runner, client, clock, failure):
     error = (
-        httpx.ConnectError("unavailable")
+        httpx2.ConnectError("unavailable")
         if failure == "transport"
-        else httpx.HTTPStatusError(
+        else httpx2.HTTPStatusError(
             "refused",
-            request=httpx.Request("POST", "http://api/jobs/42/heartbeat"),
-            response=httpx.Response(failure),
+            request=httpx2.Request("POST", "http://api/jobs/42/heartbeat"),
+            response=httpx2.Response(failure),
         )
     )
     client.heartbeat.side_effect = error
@@ -232,7 +232,7 @@ def test_heartbeat_failure_is_bounded(runner, client, clock, failure):
         runner.processor.heartbeat()
 
     runner.processor.run.side_effect = run
-    with pytest.raises(httpx.HTTPStatusError if failure == 403 else DagProcessorHeartbeatTimeout):
+    with pytest.raises(httpx2.HTTPStatusError if failure == 403 else DagProcessorHeartbeatTimeout):
         runner.run_with_api(client)
     assert client.heartbeat.call_count == (1 if failure == 403 else 2)
 
@@ -240,9 +240,9 @@ def test_heartbeat_failure_is_bounded(runner, client, clock, failure):
 @conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
 def test_recovered_heartbeat_resets_the_lease(runner, client, clock):
     client.heartbeat.side_effect = [
-        httpx.ConnectError("offline"),
+        httpx2.ConnectError("offline"),
         JobState.RUNNING,
-        httpx.ConnectError("offline"),
+        httpx2.ConnectError("offline"),
     ]
 
     def run():
@@ -262,7 +262,7 @@ def test_recovered_heartbeat_resets_the_lease(runner, client, clock):
     }
 )
 def test_a_stall_past_the_health_threshold_keeps_the_lease(runner, client, clock):
-    client.heartbeat.side_effect = [httpx.ConnectError("offline"), JobState.RUNNING]
+    client.heartbeat.side_effect = [httpx2.ConnectError("offline"), JobState.RUNNING]
 
     def run():
         for tick in (120, 125):

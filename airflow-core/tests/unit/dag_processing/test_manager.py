@@ -38,7 +38,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
 
-import httpx
+import httpx2
 import jwt
 import msgspec
 import pytest
@@ -2198,11 +2198,11 @@ class TestDagFileProcessorManager:
     def test_rejected_publication_preserves_stale_detection(self, session, time_machine, failure):
         time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
         client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-        request = httpx.Request("POST", "http://api/jobs/1/parse-results")
+        request = httpx2.Request("POST", "http://api/jobs/1/parse-results")
         client.publish_parse_result.side_effect = (
-            httpx.ReadTimeout("Lost response", request=request)
+            httpx2.ReadTimeout("Lost response", request=request)
             if failure == "timeout"
-            else httpx.HTTPStatusError("Rejected", request=request, response=httpx.Response(failure))
+            else httpx2.HTTPStatusError("Rejected", request=request, response=httpx2.Response(failure))
         )
         manager = DagFileProcessorManager(max_runs=1, api_client=client)
         file = _get_file_infos(["dag.py"])[0]
@@ -2243,7 +2243,7 @@ class TestDagFileProcessorManager:
 
     def test_publication_retries_leave_the_loop_responsive(self, mocker):
         client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-        client.publish_parse_result.side_effect = [httpx.ReadTimeout("Lost acknowledgment"), None, None]
+        client.publish_parse_result.side_effect = [httpx2.ReadTimeout("Lost acknowledgment"), None, None]
         heartbeat_observations = []
         with selectors.DefaultSelector() as selector:
             manager = DagFileProcessorManager(
@@ -5528,7 +5528,7 @@ class TestDagFileProcessorManagerWithAPIClient:
     """With an API client, bundle code resolves its connections through it, for the bundle it belongs to."""
 
     @pytest.fixture
-    def api_requests(self) -> list[httpx.Request]:
+    def api_requests(self) -> list[httpx2.Request]:
         return []
 
     @pytest.fixture
@@ -5537,12 +5537,12 @@ class TestDagFileProcessorManagerWithAPIClient:
         token_file.write_text("session-token")
         job_token = jwt.encode({"iat": 0, "exp": 300, "scope": "dag_processor", "job_id": 1}, "secret")
 
-        def handle(request: httpx.Request) -> httpx.Response:
+        def handle(request: httpx2.Request) -> httpx2.Response:
             api_requests.append(request)
             if request.url.path.endswith("/jobs"):
-                return httpx.Response(201, json={"job_id": 1, "token": job_token, "expires_in": 300})
+                return httpx2.Response(201, json={"job_id": 1, "token": job_token, "expires_in": 300})
             if request.url.path.endswith("/bundles"):
-                return httpx.Response(
+                return httpx2.Response(
                     200,
                     json=[
                         {
@@ -5555,7 +5555,7 @@ class TestDagFileProcessorManagerWithAPIClient:
                         for bundle in API_CLIENT_BUNDLES
                     ],
                 )
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={
                     "conn_id": "bundle_conn",
@@ -5573,7 +5573,7 @@ class TestDagFileProcessorManagerWithAPIClient:
             base_url="http://api/execution/",
             token_file=token_file,
             hostname="processor-1",
-            transport=httpx.MockTransport(handle),
+            transport=httpx2.MockTransport(handle),
         ) as client:
             client.register_job()
             yield client
@@ -5605,7 +5605,7 @@ class TestDagFileProcessorManagerWithAPIClient:
         _load_bundle_config_snapshot.cache_clear()
 
     @staticmethod
-    def _get_connection_bundles(api_requests: list[httpx.Request]) -> list[str]:
+    def _get_connection_bundles(api_requests: list[httpx2.Request]) -> list[str]:
         return [
             request.headers["Airflow-Dag-Bundle"]
             for request in api_requests
@@ -5729,7 +5729,7 @@ class TestDagFileProcessorManagerWithAPIClient:
     def test_git_callback_connection_outage_is_deferred(self, get_bundle, get_connection, make_manager):
         git_bundle = pytest.importorskip("airflow.providers.git.bundles.git").GitDagBundle
         get_bundle.side_effect = lambda _, **kwargs: git_bundle(tracking_ref="main", **kwargs)
-        get_connection.side_effect = httpx.ConnectError("API unavailable")
+        get_connection.side_effect = httpx2.ConnectError("API unavailable")
         manager = make_manager()
         request = DagCallbackRequest(
             filepath="a.py", bundle_name="bundle_b", bundle_version="v1", dag_id="dag", run_id="run"
@@ -5770,10 +5770,10 @@ def test_callback_construction_failure_uses_bounded_retry(create, failure, stage
     )
     manager._callback_claims[id(request)] = work
     manager._deferred_api_callbacks.append(request)
-    response = httpx.Response(503, request=httpx.Request("GET", "http://api/connections/git"))
+    response = httpx2.Response(503, request=httpx2.Request("GET", "http://api/connections/git"))
     errors = {
-        "transport": httpx.ConnectError("API unavailable"),
-        "server": httpx.HTTPStatusError("API unavailable", request=response.request, response=response),
+        "transport": httpx2.ConnectError("API unavailable"),
+        "server": httpx2.HTTPStatusError("API unavailable", request=response.request, response=response),
         "retired": DagProcessorRegistrationRetired("retired"),
         "wrapped_retired": RuntimeError("provider wrapped a retired registration"),
     }
@@ -5818,7 +5818,7 @@ def test_callback_constructor_outage_allows_other_work_until_retry_expires(
 
     def get_bundle(*, name, version, version_data):
         if version == "unavailable":
-            raise httpx.ConnectError("Bundle connection lookup unavailable")
+            raise httpx2.ConnectError("Bundle connection lookup unavailable")
         return bundle
 
     create_bundle_manager.return_value.get_bundle.side_effect = get_bundle
@@ -5914,7 +5914,7 @@ def test_refresh_reads_one_fresh_catalog_per_pass(find_files, tmp_path):
         attempt_id=uuid7(), dispatch_sequence=3, expected_revision=states[0].revision, files=[]
     )
     manager._pending_inventories["a"] = (pending_body, set(), DagParseSource())
-    client.get_bundles.side_effect = httpx.ConnectError("API unavailable")
+    client.get_bundles.side_effect = httpx2.ConnectError("API unavailable")
     manager._refresh_dag_bundles(known_files)
     assert client.get_bundles.call_count == 3
     assert known_files["b"] == {file}
@@ -5930,8 +5930,8 @@ def test_api_inventory_failure_preserves_known_files(status_code):
     manager._pending_inventories["testing"] = (body, set(), DagParseSource())
     known_files = {"testing": set(_get_file_infos(["previous.py"]))}
     previous = known_files.copy()
-    response = httpx.Response(status_code, request=httpx.Request("POST", "http://api/inventory"))
-    client.publish_inventory.side_effect = httpx.HTTPStatusError(
+    response = httpx2.Response(status_code, request=httpx2.Request("POST", "http://api/inventory"))
+    client.publish_inventory.side_effect = httpx2.HTTPStatusError(
         "Unavailable", request=response.request, response=response
     )
     manager._publish_bundle_inventory("testing", known_files)
@@ -5961,8 +5961,8 @@ def test_requested_work_ack_retains_only_retryable_failures(status_code):
         id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
     )
     manager._pending_work_acks.append(("callbacks", work, False))
-    response = httpx.Response(status_code, request=httpx.Request("POST", "http://api/ack"))
-    client.acknowledge_work.side_effect = httpx.HTTPStatusError(
+    response = httpx2.Response(status_code, request=httpx2.Request("POST", "http://api/ack"))
+    client.acknowledge_work.side_effect = httpx2.HTTPStatusError(
         "Unavailable", request=response.request, response=response
     )
     manager._acknowledge_requested_work()
@@ -6183,14 +6183,14 @@ def test_priority_request_during_publication_retry_completes_after_refresh(creat
     manager._processors.pop(file)
     manager.handle_parsing_result(file, proc)
     if failure == "response_lost":
-        error = httpx.ReadError("Lost publication acknowledgment")
+        error = httpx2.ReadError("Lost publication acknowledgment")
     else:
-        response = httpx.Response(
+        response = httpx2.Response(
             409 if failure == "source_changed" else 503,
             json={"detail": {"reason": failure}},
-            request=httpx.Request("POST", "http://api/parse-results"),
+            request=httpx2.Request("POST", "http://api/parse-results"),
         )
-        error = httpx.HTTPStatusError("Publication failed", request=response.request, response=response)
+        error = httpx2.HTTPStatusError("Publication failed", request=response.request, response=response)
     client.publish_parse_result.side_effect = error
     manager._publish_pending_results()
     assert not manager._pending_work_acks
@@ -6245,8 +6245,8 @@ def test_publication_outcome_acknowledges_priority_claims(status_code, failed):
     )
     manager._pending_publications[file].body.attempt_id = manager._priority_claims[work.id].attempt_id
     if status_code:
-        response = httpx.Response(status_code, request=httpx.Request("POST", "http://api/parse-results"))
-        client.publish_parse_result.side_effect = httpx.HTTPStatusError(
+        response = httpx2.Response(status_code, request=httpx2.Request("POST", "http://api/parse-results"))
+        client.publish_parse_result.side_effect = httpx2.HTTPStatusError(
             "Rejected", request=response.request, response=response
         )
 
@@ -6265,12 +6265,12 @@ def test_publication_for_a_changed_source_refreshes_and_reparses():
         body=mock.create_autospec(DagParseResultBody, instance=True), stat=DagFileStat(), refresh_generation=0
     )
     manager._pending_publications[file].body.attempt_id = manager._priority_claims[work.id].attempt_id
-    response = httpx.Response(
+    response = httpx2.Response(
         409,
         json={"detail": {"reason": "source_changed"}},
-        request=httpx.Request("POST", "http://api/parse-results"),
+        request=httpx2.Request("POST", "http://api/parse-results"),
     )
-    client.publish_parse_result.side_effect = httpx.HTTPStatusError(
+    client.publish_parse_result.side_effect = httpx2.HTTPStatusError(
         "Rejected", request=response.request, response=response
     )
 
@@ -6287,7 +6287,7 @@ def test_publication_for_a_changed_source_refreshes_and_reparses():
 def test_api_team_lookup_failure_is_retried_without_stopping_the_processor():
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     client.get_bundles.side_effect = [
-        httpx.ConnectError("unavailable"),
+        httpx2.ConnectError("unavailable"),
         [
             DagBundleStateResponse(
                 name="testing", version=None, last_refreshed=None, revision=None, team_name="team_a"
@@ -6407,13 +6407,13 @@ def _make_pending_publication(
     )
 
 
-def _make_status_error(status_code: int, reason: str | None = None) -> httpx.HTTPStatusError:
-    response = httpx.Response(
+def _make_status_error(status_code: int, reason: str | None = None) -> httpx2.HTTPStatusError:
+    response = httpx2.Response(
         status_code,
         json={"detail": {"reason": reason}} if reason else None,
-        request=httpx.Request("POST", "http://api/parse-results"),
+        request=httpx2.Request("POST", "http://api/parse-results"),
     )
-    return httpx.HTTPStatusError("Rejected", request=response.request, response=response)
+    return httpx2.HTTPStatusError("Rejected", request=response.request, response=response)
 
 
 def test_publication_sends_every_ready_result_within_the_loop_budget():
@@ -6553,7 +6553,7 @@ def test_acknowledgments_are_sent_within_the_loop_budget():
     assert not manager._pending_work_acks
 
 
-@pytest.mark.parametrize("failure", [None, httpx.ConnectError("unavailable"), RuntimeError("closed")])
+@pytest.mark.parametrize("failure", [None, httpx2.ConnectError("unavailable"), RuntimeError("closed")])
 def test_shutdown_acknowledges_finished_work(failure):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     client.acknowledge_work.side_effect = failure

@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
-import httpx
+import httpx2
 import jwt
 import pytest
 import uvicorn
@@ -226,9 +226,9 @@ def test_rotation_stop_and_completion_over_http(
     }
 
 
-class LostAcknowledgmentTransport(httpx.BaseTransport):
+class LostAcknowledgmentTransport(httpx2.BaseTransport):
     def __init__(self):
-        self.transport = httpx.HTTPTransport()
+        self.transport = httpx2.HTTPTransport()
         self.lost = set()
 
     def handle_request(self, request):
@@ -241,7 +241,7 @@ class LostAcknowledgmentTransport(httpx.BaseTransport):
             self.lost.add(request.url.path)
             response.read()
             response.close()
-            raise httpx.ReadError("Lost acknowledgment after commit", request=request)
+            raise httpx2.ReadError("Lost acknowledgment after commit", request=request)
         return response
 
     def close(self):
@@ -263,13 +263,13 @@ def test_lost_registration_and_completion_responses_over_http(api_url, provision
             request=DagParseTokenBody(attempt_id=uuid7(), bundle_name="bundle-a", relative_fileloc="dag.py")
         )
         with processor.use_parse(context):
-            with pytest.raises(httpx.ReadError):
+            with pytest.raises(httpx2.ReadError):
                 processor.variables.get("parse-token-key")
             assert processor.variables.get("parse-token-key").value == "value"
-            with pytest.raises(httpx.HTTPStatusError) as error:
+            with pytest.raises(httpx2.HTTPStatusError) as error:
                 processor.post(f"jobs/{job_id}/heartbeat")
             assert error.value.response.status_code == 403
-            with pytest.raises(httpx.HTTPStatusError) as publication_error:
+            with pytest.raises(httpx2.HTTPStatusError) as publication_error:
                 processor.post(f"jobs/{job_id}/parse-results", json={})
             assert publication_error.value.response.status_code == 403
         body = DagParseResultBody(
@@ -281,7 +281,7 @@ def test_lost_registration_and_completion_responses_over_http(api_url, provision
             serialized_dags=[],
             source_codes={},
         )
-        with pytest.raises(httpx.ReadError):
+        with pytest.raises(httpx2.ReadError):
             processor.publish_parse_result(body)
         processor.heartbeat()
         receipt = processor.publish_parse_result(body)
@@ -307,7 +307,7 @@ def test_expired_credentials_fail_until_provisioning_resumes(clock, api_url, pro
         time_machine.shift(700)
         clock.return_value = 700
 
-        with pytest.raises(httpx.HTTPStatusError) as error:
+        with pytest.raises(httpx2.HTTPStatusError) as error:
             processor.heartbeat()
         assert error.value.response.status_code == 403
 
@@ -339,7 +339,7 @@ def test_changed_session_signals_restart_but_allows_drain_and_completion(
         assert session.get(Job, job_id).state == JobState.SUCCESS.value
 
 
-class CompletionFailureTransport(httpx.HTTPTransport):
+class CompletionFailureTransport(httpx2.HTTPTransport):
     def __init__(self, *, commit):
         super().__init__()
         self.commit = commit
@@ -351,7 +351,7 @@ class CompletionFailureTransport(httpx.HTTPTransport):
                 response = super().handle_request(request)
                 response.read()
                 response.close()
-            raise httpx.ReadError("Completion acknowledgment unavailable", request=request)
+            raise httpx2.ReadError("Completion acknowledgment unavailable", request=request)
         return super().handle_request(request)
 
 
@@ -367,7 +367,7 @@ def test_completion_recovery_after_token_expiry(
         base_url=api_url, token_file=token_file, hostname="processor-1", transport=transport
     ) as processor:
         job_id = processor.register_job()
-        with pytest.raises(httpx.ReadError):
+        with pytest.raises(httpx2.ReadError):
             processor.complete_job(TerminalJobState.SUCCESS)
         time_machine.shift(350)
         clock.return_value = 350

@@ -29,7 +29,7 @@ from typing import Any, Literal
 from urllib.parse import quote
 from uuid import UUID
 
-import httpx
+import httpx2
 import structlog
 from uuid6 import uuid7
 
@@ -84,10 +84,10 @@ class DagProcessorJobAlreadyRunning(RuntimeError):
     """The session's previous Job has not completed or stopped heartbeating yet."""
 
 
-def get_error_reason(error: httpx.HTTPStatusError) -> str | None:
+def get_error_reason(error: httpx2.HTTPStatusError) -> str | None:
     try:
         payload = error.response.json()
-    except (ValueError, httpx.ResponseNotRead):
+    except (ValueError, httpx2.ResponseNotRead):
         return None
     detail = payload.get("detail") if isinstance(payload, dict) else None
     return detail.get("reason") if isinstance(detail, dict) else None
@@ -186,8 +186,8 @@ class DagProcessorAPIClient(Client):
                 return context.token
             try:
                 self._exchange_parse_token(context, retry=False, timeout=self._get_bounded_timeout())
-            except (httpx.HTTPError, ValueError) as error:
-                if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
+            except (httpx2.HTTPError, ValueError) as error:
+                if isinstance(error, httpx2.HTTPStatusError) and error.response.status_code < 500:
                     raise
                 context.renew_at = monotonic() + 30
                 log.warning(
@@ -203,7 +203,7 @@ class DagProcessorAPIClient(Client):
         )
 
     def _exchange_parse_token(
-        self, context: DagParseContext, *, retry: bool, timeout: httpx.Timeout | None = None
+        self, context: DagParseContext, *, retry: bool, timeout: httpx2.Timeout | None = None
     ) -> str:
         self._ensure_job_token(retry=retry)
         started_at = monotonic()
@@ -222,7 +222,7 @@ class DagProcessorAPIClient(Client):
         context.renew_at = started_at + lifetime * 0.8
         return parsed.token
 
-    def _update_auth(self, response: httpx.Response) -> None:
+    def _update_auth(self, response: httpx2.Response) -> None:
         # Task-token refresh headers cannot replace a provisioned or Job-bound credential.
         pass
 
@@ -255,14 +255,14 @@ class DagProcessorAPIClient(Client):
         self._check_can_run()
         try:
             return self._register_job(retry=retry)
-        except httpx.HTTPStatusError as error:
+        except httpx2.HTTPStatusError as error:
             if error.response.status_code == 409 and get_error_reason(error) == "job_running":
                 raise DagProcessorJobAlreadyRunning(
                     "The previous Dag processor Job is still alive"
                 ) from error
             raise
 
-    def _register_job(self, *, retry: bool, timeout: httpx.Timeout | None = None) -> int:
+    def _register_job(self, *, retry: bool, timeout: httpx2.Timeout | None = None) -> int:
         if self.restart_required:
             raise DagProcessorRegistrationRetired(
                 "The Dag processor registration has ended; restart required"
@@ -283,7 +283,7 @@ class DagProcessorAPIClient(Client):
                     timeout=timeout or self.timeout,
                 )
                 break
-            except httpx.HTTPStatusError as error:
+            except httpx2.HTTPStatusError as error:
                 if error.response.status_code == 409 and get_error_reason(error) == "registration_retired":
                     self._restart_required = True
                     raise DagProcessorRegistrationRetired(
@@ -310,8 +310,8 @@ class DagProcessorAPIClient(Client):
         self._retry_renewal_at = 0.0
         return registered.job_id
 
-    def _get_bounded_timeout(self) -> httpx.Timeout:
-        return httpx.Timeout(
+    def _get_bounded_timeout(self) -> httpx2.Timeout:
+        return httpx2.Timeout(
             **{
                 key: min(value if value is not None else 1.0, 1.0)
                 for key, value in self.timeout.as_dict().items()
@@ -329,7 +329,7 @@ class DagProcessorAPIClient(Client):
             if self._read_session_token() != self._registered_with or monotonic() >= self._renew_at:
                 # Do not spend the runtime request's retry budget on an optional early renewal.
                 self._register_job(retry=False, timeout=self._get_bounded_timeout())
-        except (httpx.HTTPError, OSError, ValueError, DagProcessorRegistrationRetired) as error:
+        except (httpx2.HTTPError, OSError, ValueError, DagProcessorRegistrationRetired) as error:
             self._retry_renewal_at = monotonic() + 30
             log.warning(
                 "Unable to renew Dag processor Job token",
@@ -340,11 +340,11 @@ class DagProcessorAPIClient(Client):
         if monotonic() >= self._expires_at:
             self._register_job(retry=retry, timeout=None if retry else self._get_bounded_timeout())
 
-    def request(self, *args, retry: bool = True, **kwargs) -> httpx.Response:
+    def request(self, *args, retry: bool = True, **kwargs) -> httpx2.Response:
         """Use a parsing credential for subprocess requests, and the Job credential for manager work."""
         self._check_can_run()
         try:
-            headers = httpx.Headers(kwargs.get("headers"))
+            headers = httpx2.Headers(kwargs.get("headers"))
             if context := self._parse_context.get():
                 # Subprocess requests are answered on the manager's loop, which must keep heartbeating
                 # and supervising other parses, so each one gets a single short attempt.
@@ -360,7 +360,7 @@ class DagProcessorAPIClient(Client):
                 headers.setdefault("Content-Type", "application/json")
             kwargs["headers"] = headers
             return super().request(*args, retry=retry, **kwargs)
-        except httpx.HTTPStatusError as error:
+        except httpx2.HTTPStatusError as error:
             if error.response.status_code == 403 and get_error_reason(error) == "job_closed":
                 self._restart_required = True
                 raise DagProcessorRegistrationRetired(
@@ -466,7 +466,7 @@ class DagProcessorAPIClient(Client):
                     json=body.model_dump(mode="json"),
                     headers=_JOB_API_HEADERS,
                 )
-            except httpx.HTTPStatusError as error:
+            except httpx2.HTTPStatusError as error:
                 if (
                     retried_expiry
                     or error.response.status_code not in (401, 403)

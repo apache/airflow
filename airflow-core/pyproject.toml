@@ -103,8 +103,9 @@ dependencies = [
     # parsed with no field-count or field-size bound at all.
     "starlette>=1.3.1",
     "httpx>=0.25.0",
-    # Only for InProcessExecutionAPI's transports, which feed httpx2-based Task SDK clients.
-    # The rest of airflow-core is still on httpx; tracked at https://github.com/apache/airflow/issues/70522
+    # Only for code that talks to the httpx2-based Task SDK client: InProcessExecutionAPI's transports
+    # and the Dag processor's API client. The rest of airflow-core is still on httpx; tracked at
+    # https://github.com/apache/airflow/issues/70522
     "httpx2>=2.0.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
@@ -331,6 +332,21 @@ required-version = ">=0.11.8"
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}
 apache-airflow-devel-common = { workspace = true }
+
+[tool.ruff]
+extend = "../pyproject.toml"
+
+# Not yet migrated to httpx2; tracked at https://github.com/apache/airflow/issues/70522
+[tool.ruff.lint.extend-per-file-ignores]
+"src/airflow/api/client/local_client.py" = ["TID251"]
+"src/airflow/api_fastapi/auth/tokens.py" = ["TID251"]
+"src/airflow/example_dags/example_dag_decorator.py" = ["TID251"]
+"tests/unit/api_fastapi/auth/test_tokens.py" = ["TID251"]
+"tests/unit/api_fastapi/core_api/routes/public/test_dag_sources.py" = ["TID251"]
+"tests/unit/api_fastapi/execution_api/versions/head/test_hitl.py" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.extend-banned-api]
+"httpx".msg = "Use httpx2; httpx objects do not interoperate with the httpx2-based Task SDK client. See https://github.com/apache/airflow/issues/70522"
 
 [tool.airflow]
 shared_distributions = [

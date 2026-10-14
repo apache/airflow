@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 from uuid import UUID
 
 import attrs
-import httpx
+import httpx2
 import structlog
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import or_, select, update
@@ -402,7 +402,7 @@ class DagFileProcessorManager(LoggingMixin):
                     queried = {bundle.name: bundle.team_name for bundle in self.api_client.get_bundles()}
                 else:
                     queried = DagBundleModel.get_team_names(missing)
-            except httpx.HTTPError:
+            except httpx2.HTTPError:
                 # Team names only tag metrics, so parsing continues and the lookup is retried later.
                 self.log.warning("Unable to look up the teams of bundles %s; retrying later", missing)
             else:
@@ -815,7 +815,7 @@ class DagFileProcessorManager(LoggingMixin):
         bundles = {bundle.name: bundle for bundle in self._dag_bundles}
         try:
             work = self.api_client.claim_work("priority", list(bundles), available)
-        except httpx.HTTPError:
+        except httpx2.HTTPError:
             self.log.warning("Unable to claim priority parses; retrying on a later loop")
             return []
         files = []
@@ -908,7 +908,7 @@ class DagFileProcessorManager(LoggingMixin):
         bundles = [b.name for b in self._dag_bundles if not b.supports_versioning or b.is_initialized]
         try:
             work = self.api_client.claim_work("callbacks", bundles, available)
-        except httpx.HTTPError:
+        except httpx2.HTTPError:
             self.log.warning("Unable to claim callbacks; retrying on a later loop")
             return list(self._deferred_api_callbacks)
         for item in work:
@@ -929,11 +929,11 @@ class DagFileProcessorManager(LoggingMixin):
             kind, item, failed = self._pending_work_acks[0]
             try:
                 self.api_client.acknowledge_work(kind, item, failed=failed)
-            except httpx.HTTPStatusError as error:
+            except httpx2.HTTPStatusError as error:
                 if error.response.status_code != 409:
                     self.log.warning("Unable to acknowledge requested work; retaining the claim")
                     return
-            except httpx.RequestError:
+            except httpx2.RequestError:
                 self.log.warning("Unable to acknowledge requested work; retaining the claim")
                 return
             self._pending_work_acks.pop(0)
@@ -1174,7 +1174,7 @@ class DagFileProcessorManager(LoggingMixin):
         body, found_files, source = self._pending_inventories[bundle_name]
         try:
             receipt = self.api_client.publish_inventory(bundle_name, body)
-        except httpx.HTTPStatusError as error:
+        except httpx2.HTTPStatusError as error:
             if error.response.status_code == 409:
                 del self._pending_inventories[bundle_name]
                 self.request_bundle_refresh(bundle_name)
@@ -1182,7 +1182,7 @@ class DagFileProcessorManager(LoggingMixin):
                 raise
             self.log.warning("Inventory publication was rejected for %s", bundle_name)
             return
-        except httpx.RequestError:
+        except httpx2.RequestError:
             self.log.warning("Unable to publish inventory for %s; retaining it for retry", bundle_name)
             return
         del self._pending_inventories[bundle_name]
@@ -1236,7 +1236,7 @@ class DagFileProcessorManager(LoggingMixin):
                     for bundle in bundles
                 }
                 self._bundle_name_to_team_name = {bundle.name: bundle.team_name for bundle in bundles}
-            except httpx.HTTPError:
+            except httpx2.HTTPError:
                 self.log.warning("Unable to read the bundle catalog; retrying on a later refresh")
                 catalog = {}
 
@@ -1272,7 +1272,7 @@ class DagFileProcessorManager(LoggingMixin):
                         if catalog is not None
                         else self.get_bundle_state(bundle.name)
                     )
-                except httpx.HTTPError:
+                except httpx2.HTTPError:
                     self.log.warning("Unable to read metadata for bundle %s; retrying later", bundle.name)
                     continue
                 except Exception:
@@ -1870,7 +1870,7 @@ class DagFileProcessorManager(LoggingMixin):
             try:
                 self.api_client.publish_parse_result(pending.body)
             except Exception as error:
-                status_error = error if isinstance(error, httpx.HTTPStatusError) else None
+                status_error = error if isinstance(error, httpx2.HTTPStatusError) else None
                 reason = get_error_reason(status_error) if status_error is not None else None
                 if reason == "source_changed":
                     # Another processor's inventory moved the revision; refreshing fetches it.
@@ -1881,7 +1881,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self.request_bundle_refresh(file.bundle_name)
                     self._add_files_to_queue([file], mode="front")
                     return
-                retryable = isinstance(error, httpx.RequestError) or (
+                retryable = isinstance(error, httpx2.RequestError) or (
                     status_error is not None and status_error.response.status_code >= 500
                 )
                 if retryable and pending.attempts < conf.getint("workers", "execution_api_retries"):

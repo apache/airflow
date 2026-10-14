@@ -20,7 +20,7 @@ from __future__ import annotations
 from time import monotonic, sleep
 from typing import TYPE_CHECKING
 
-import httpx
+import httpx2
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
@@ -131,8 +131,8 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         self._next_api_heartbeat = now + self.job.heartrate
         try:
             state = client.heartbeat()
-        except httpx.HTTPError as error:
-            if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
+        except httpx2.HTTPError as error:
+            if isinstance(error, httpx2.HTTPStatusError) and error.response.status_code < 500:
                 raise
             stats.incr("dag_processor_heartbeat_failure", 1, 1)
             if monotonic() - self._last_api_heartbeat >= conf.getint(
