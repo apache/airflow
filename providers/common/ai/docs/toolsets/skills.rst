@@ -33,9 +33,10 @@ prompt until the model decides it needs one, so a large skill library costs few
 tokens until used (progressive disclosure).
 
 It is backed by the community `pydantic-ai-skills
-<https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT); native
-progressive disclosure is in flight upstream in `pydantic/pydantic-ai#5230
-<https://github.com/pydantic/pydantic-ai/pull/5230>`__. Install the optional
+<https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT). Pydantic AI now
+has on-demand loading of its own (`pydantic/pydantic-ai#5230
+<https://github.com/pydantic/pydantic-ai/pull/5230>`__), and this toolset may move to it.
+Install the optional
 extra to use it:
 
 .. code-block:: bash

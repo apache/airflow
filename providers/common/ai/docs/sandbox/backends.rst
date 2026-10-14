@@ -31,12 +31,12 @@ Modal (hosted)
 :class:`~airflow.providers.common.ai.sandbox.modal.ModalSandboxBackend` runs each
 sandbox in Modal, provisioned over the API. Of the backends that ship with the
 provider, **this is the managed one to use in production**, and with
-:ref:`OpenSandbox <sandbox-backend-opensandbox>` one of the two that run on
-Kubernetes: nothing has to be installed on the worker, model-written code never
-executes on the worker host, and Modal reclaims a sandbox at its own lifetime
-whether or not the worker survives. It needs the ``modal`` extra and Modal
-credentials, from a ``modal`` connection or the worker environment, as under
-:ref:`Quick start <sandbox-quick-start>`.
+:ref:`OpenSandbox <sandbox-backend-opensandbox>`, :ref:`OpenShell <sandbox-backend-openshell>`,
+:ref:`Boat <sandbox-backend-boat>` and :ref:`Islo <sandbox-backend-islo>` one of the five a
+worker on Kubernetes can use: nothing has to be installed on the worker, model-written code never executes on the worker host, and Modal reclaims
+a sandbox at its own lifetime whether or not the worker survives. It needs the
+``modal`` extra and Modal credentials, from a ``modal`` connection or the worker
+environment, as under :ref:`Quick start <sandbox-quick-start>`.
 
 Constructor parameters:
 
@@ -185,6 +185,92 @@ them.
 that is a symlink replaces the link with a regular file and leaves the original
 target untouched, where a shell redirect would follow the link.
 
+.. _sandbox-backend-islo:
+
+Islo (hosted microVM)
+---------------------
+
+:class:`~airflow.providers.common.ai.sandbox.islo.IsloSandboxBackend` runs each
+sandbox in an `islo.dev <https://islo.dev>`__ microVM, provisioned over the API.
+Like Modal and unlike ``sbx``, the worker only speaks HTTP: it needs no local
+daemon and no host virtualization, so it runs from a containerized worker and on
+Kubernetes.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[islo]"
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import IsloSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(IsloSandboxBackend())
+
+Credentials are ambient. On first use the SDK reads ``ISLO_API_KEY``, and optionally
+``ISLO_BASE_URL`` and ``ISLO_COMPUTE_URL``, from the worker environment. Modal's
+``modal`` connection comes from the Modal provider; an ``islo`` connection type waits
+for an Islo provider.
+
+Constructor parameters:
+
+- ``image``, ``vcpus``, ``memory_mb``: image and sizing. ``None`` (default) uses
+  the server default for each. The server default image is Debian based, and any
+  Debian or Ubuntu based image, including ``python:*-slim``, has the GNU ``find``,
+  ``stat`` and ``tail`` the file operations need; Alpine and other busybox images
+  do not.
+- ``pause_after_idle``: Seconds without a command or file operation after which
+  the server pauses the microVM and stops charging for its compute. Default
+  ``600``; ``None`` disables it.
+- ``auto_resume``: ``"on_activity"`` (default) resumes a paused sandbox on the
+  next tool call, so a long think between calls costs a resume rather than the
+  run; ``"never"`` leaves it paused, and the backend then treats a paused sandbox
+  as unusable.
+- ``delete_after``: Seconds after **creation** at which the server deletes the
+  sandbox, whether or not it is in use. Default ``86400``; ``None`` disables it.
+  This is the backstop for a worker killed mid-run; it is not renewed while the
+  sandbox is busy, so keep it longer than the longest run you expect.
+
+``SandboxSpec.env`` becomes the process environment of every command, and
+``block_network`` maps to the API's ``internet_enabled``. Four things Islo cannot
+do are refused at ``create`` rather than silently dropped: ``allow_egress_to`` and
+``allow_egress_to_cidrs`` (the API turns outbound access on or off, with no
+per-host or per-address rule), a ``PATH`` entry in ``env`` (the runner sets
+``PATH`` for every command itself), and ``owner`` (this backend keeps no
+per-sandbox metadata, so it cannot be attached to from another task).
+
+File reads, writes and exports move file contents through Islo's native
+streaming APIs. Everything else runs through a shell wrapper in the sandbox, so
+the image needs ``sh``, ``mkdir`` and ``rm`` for the wrapper, ``tail`` to bound
+command output, ``dirname`` to create a written file's parent directory,
+``stat`` to size an over-budget read and to check a file before it is exported,
+``realpath`` to resolve a relative export path (the download API takes absolute
+paths only), and GNU ``find`` for directory listings. The compute API caps each output stream
+at 1 MiB and keeps the tail. The backend captures each stream to a scratch file in
+the sandbox and returns only its last ``max_output_bytes`` -- where a traceback
+and the exit status live -- so the worker sees a window sized to the caller's
+budget, a budget above the server cap is clamped to it, and total output is
+bounded by the sandbox's own ephemeral disk rather than by worker memory.
+
+The backend enforces the command deadline itself, because the API's
+``timeout_secs`` is accepted but not enforced, and times it from the API's answer
+to the start request, so a slow start does not use it up. Polling rides out
+transient API errors until the deadline. If the command is still running when
+the deadline passes, the backend deletes the microVM and reports the command as
+timed out with ``sandbox_terminated`` set, so the toolset provisions a fresh
+sandbox for the next call. A deletion the API refused is logged rather than
+failing the task, and ``delete_after`` reclaims the microVM later; with
+``delete_after=None`` nothing does, and the warning says so. If the API was still
+failing at the deadline, nothing is known about the command, so the task fails
+instead and Airflow's retry takes over.
+
+A missing file, a directory passed as a file, a relative path, and a write onto a
+directory or under a pseudo-filesystem such as ``/proc`` or ``/sys`` come back to
+the model as a recoverable error it can correct, once the backend has confirmed
+the sandbox itself is still usable.
+
 .. _sandbox-backend-opensandbox:
 
 OpenSandbox (self-hosted remote)
@@ -256,6 +342,191 @@ Constructor parameters:
 The runtime remains a deployment choice. The default Docker runtime shares the
 host kernel; choose a stronger runtime such as Kata when your threat model needs
 a VM boundary.
+
+.. _sandbox-backend-openshell:
+
+OpenShell (self-hosted remote)
+------------------------------
+
+:class:`~airflow.providers.common.ai.sandbox.openshell.OpenShellSandboxBackend`
+runs sandboxes through an `NVIDIA OpenShell <https://github.com/NVIDIA/OpenShell>`__
+gateway, which runs each one on Docker, Podman or Kubernetes. Inside the
+container the workload is confined by Landlock and seccomp; on the Docker driver it
+has only a loopback network interface, and a per-sandbox supervisor opens every
+outbound connection on its behalf, against a policy the backend writes and reads back. Airflow workers
+only need gRPC access to the gateway.
+
+Choose it over :ref:`OpenSandbox <sandbox-backend-opensandbox>` when you want the
+sandbox runtime itself to enforce deny-all and the hostname allowlist, rather than
+an egress sidecar that has to run in the right mode. It is Apache-2.0 and runs on a
+single machine with no account, so it is also the self-hosted backend to try first
+on a laptop. For a production gateway on Kubernetes, prefer OpenSandbox or Modal:
+this backend has been verified on OpenShell's Docker driver only, which OpenShell
+scopes to local development and single-machine gateways.
+
+Install the SDK extra:
+
+.. code-block:: bash
+
+    pip install "apache-airflow-providers-common-ai[openshell]"
+
+**Credentials are ambient; there is no Airflow connection for this backend.**
+The gateway's endpoint, mTLS material and OIDC token live in the gateway
+registration that the ``openshell`` CLI keeps under
+``$XDG_CONFIG_HOME/openshell/gateways/<name>/`` (``~/.config`` by default), and
+the OpenShell SDK reads them from there itself: ``metadata.json`` with the
+endpoint, and ``mtls/ca.crt``, ``mtls/tls.crt`` and ``mtls/tls.key`` for mTLS,
+or the CLI's cached token for an OIDC gateway. The backend only names the
+registration. A worker without the CLI needs the same files, provisioned by the
+Deployment Manager:
+
+.. code-block:: json
+
+    {"name": "prod", "gateway_endpoint": "https://openshell.example.com:17670", "auth_mode": "mtls"}
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.sandbox import OpenShellSandboxBackend
+    from airflow.providers.common.ai.toolsets import SandboxToolset
+
+    SandboxToolset(OpenShellSandboxBackend(gateway="prod"))
+
+An OIDC registration must be writable and per worker. The SDK refreshes an
+expiring OIDC token itself and writes the new one back into the registration,
+so a registration mounted read-only, from a Kubernetes Secret or ConfigMap for
+example, fails the task at the first refresh, and copies of one registration on
+several workers share a refresh token that the first refresh can invalidate for
+the others. mTLS is the supported setup for workers that mount the registration
+read-only.
+
+Whoever holds that credential is inside the trust boundary. On a gateway
+without OIDC, an mTLS client is a gateway-wide administrator: it can change the
+policy and settings of every sandbox. ``openshell-gateway generate-certs`` issues
+a single client identity whose certificate does not expire for practical
+purposes, so use your own PKI, with expiry and rotation, for a worker credential.
+
+**Network policy.** A default ``SandboxSpec()`` sends a policy with no egress
+rule, which OpenShell enforces as no egress: a connection fails with
+``EACCES``, and a name lookup is answered by the supervisor with a synthetic
+``198.18.0.0/15`` address rather than failing, so no query leaves the sandbox
+although the tool description's "including DNS" wording reads stricter than the
+lookup behaves. ``allow_egress_to`` becomes one rule admitting each listed host
+on port 443 for any program in the sandbox; ports are part of every rule, so
+plain HTTP and other ports stay closed. HTTPS to a listed host is terminated by
+the supervisor, which injects its CA through ``SSL_CERT_FILE``,
+``REQUESTS_CA_BUNDLE`` and similar variables; a client with its own trust store
+(a JVM, a statically linked binary) has to be pointed at it. A leading ``*.``
+label is accepted on a name of three labels or more.
+
+The backend verifies the policy rather than trusting the request. After create
+it reads the effective policy back and destroys the sandbox unless it admits
+exactly the requested hosts, comes from the sandbox rather than a gateway-wide
+policy, keeps Landlock at ``hard_requirement``, and has neither
+``proposal_approval_mode=auto`` nor agent policy proposals enabled at any scope.
+Auto-approval is refused because OpenShell turns a denied connection into a
+proposed allow rule and, in that mode, approves it without review. The same
+check runs before every command and file operation and after each one that
+succeeds, because an administrator, an approved
+draft or a gateway-wide policy can widen a running sandbox; a change destroys the
+sandbox and fails the task. That detects a widening, it does not prevent one: a
+command already running when the policy changes can use it. The check sees
+OpenShell's policy, not the network under the gateway: on Kubernetes, a sandbox
+pod is kept behind its supervisor by a NetworkPolicy, which only a CNI that
+enforces NetworkPolicy upholds. Every denied connection also becomes a draft
+proposal in the gateway's approval inbox, even in manual mode, so operators see
+which destinations an agent tried.
+
+Refused at create: ``block_network=False`` (every OpenShell rule names a host and
+its ports, so an open network cannot be expressed), ``allow_egress_to_cidrs``
+(address rules admit TCP on listed ports only), ``SandboxSpec.owner``, and
+``SandboxSpec.env`` keys the supervisor owns: it removes ``HTTP_PROXY`` and the
+other proxy variables from every command and replaces ``SSL_CERT_FILE``,
+``REQUESTS_CA_BUNDLE``, ``CURL_CA_BUNDLE``, ``GIT_SSL_CAINFO``,
+``NODE_EXTRA_CA_CERTS`` and ``DENO_CERT`` with its own, without an error, and
+reserves ``OPENSHELL_*``. Keys starting with ``_airflow_`` are refused too, because the
+command wrapper below names its own shell variables that way. Everything else in
+``SandboxSpec.env``, ``PATH`` included, reaches commands as given, since they run
+without a login shell.
+
+**Commands.** OpenShell's own exec timeout reports exit 124 and leaves the
+command running, so the backend runs each command through a small shell wrapper
+in the sandbox. The command arrives on stdin and runs in a session of its own,
+with the command and its output spooled to ``/tmp``; one that cannot be written
+there, because ``/tmp`` is full for example, is not run and is reported as an
+error. When the budget runs out the wrapper kills the processes in that session,
+scanning again until a pass finds none to kill, at most 50 times, and returns the
+tail of each stream. A process the command left in the background keeps running
+after a command that finishes in time, and one that started a session of its own
+(``setsid``, a daemonizing server) escapes the kill on timeout, as can a command
+that keeps forking faster than the sweep. If the gateway stops relaying the
+command for longer than its budget plus 30 seconds, ``sandbox_terminated`` is
+reported and the backend asks the gateway to delete the sandbox; if that call
+fails too, it logs a warning and the sandbox is left for the reaper described
+below. Nothing crosses the stream
+until the command ends, so a proxy or load balancer in front of the gateway
+needs an idle timeout longer than the longest command budget plus 30 seconds. A
+command the gateway could not start, because its relay into the sandbox did not
+open, is reported to the model as not run. A gateway restart stops every process
+in its sandboxes. If the gateway brings the sandbox back, its files are kept and a
+command in flight is reported to the model as having an unknown outcome rather
+than retried; if it does not, the task fails. A dropped connection to a gateway
+that stays up is reported the same way, but does not stop the command: it runs
+until its budget runs out, and the model is told it may still be running.
+
+**Files.** ``write_file`` sends content on stdin in chunks of 768 KiB, since the
+gateway limits one command argument to 32 KiB and one request to 1 MiB; a larger
+write is not atomic, and it follows a symlink like a shell redirect. ``read_file``
+transfers raw bytes, capped inside the guest. Both refuse a named pipe, since
+opening one waits for another process and nothing would end the wait in the
+sandbox; ``run_command`` with a timeout can still read or write one. The image needs ``setsid`` (from
+util-linux), GNU coreutils and findutils, and a ``/bin/sh`` that is dash or bash,
+which ``python:*-slim`` and other Debian or Ubuntu based images have; an image
+without ``setsid`` fails the task at its first command. BusyBox ``ash``, the
+``/bin/sh`` of Alpine images, is not supported: the timeout sweep does not finish
+under it, so a command that runs out of time is not killed, and after its budget
+plus 30 seconds the backend asks the gateway to delete the sandbox instead. The gateway's own default image has no ``python3``, which is
+why the backend defaults to ``python:3.12-slim``.
+
+**Cleanup.** OpenShell has no server-side sandbox lifetime. ``destroy`` deletes
+the sandbox, but one whose worker died is kept until someone deletes it, even
+after its main process has ended. Sandboxes are named ``airflow-`` plus 11 hex
+characters, within OpenShell's 19-character limit, and labeled
+``created-by=airflow`` and ``airflow-created-at=<unix seconds>``, so a reaper can
+delete by age:
+
+.. code-block:: python
+
+    import time
+
+    from openshell import SandboxClient
+
+    client = SandboxClient.from_active_cluster(cluster="prod")
+    cutoff = time.time() - 6 * 3600
+    for sandbox in client.list_all(workspace="default", label_selector="created-by=airflow"):
+        if int(sandbox.labels.get("airflow-created-at", "0")) < cutoff:
+            client.delete(sandbox.name, workspace="default", allow_missing=True)
+
+Constructor parameters:
+
+- ``gateway``: the CLI gateway registration to use. ``None`` (default) uses
+  ``$OPENSHELL_GATEWAY``, then the CLI's active gateway.
+- ``workspace``: OpenShell workspace. Default ``"default"``.
+- ``image``: image used by the gateway. Default ``"python:3.12-slim"``.
+- ``cpu`` and ``memory``: resource limits as Kubernetes quantities. Defaults
+  ``"1"`` and ``"2Gi"``. ``nproc`` in the sandbox still reports the host's CPUs.
+- ``ready_timeout``: seconds to wait for a new sandbox. Default ``120``; a first
+  pull of a large image can take longer, so pre-pull it on the gateway host.
+- ``request_timeout``: seconds for each gateway call other than a command.
+  Default ``30``.
+
+The kernel the sandboxes run on needs Landlock ABI 3 or later (Linux 6.2+) and
+seccomp user notification, and the gateway needs Docker 28 or later, Podman 5, or
+a Kubernetes cluster with the Agent Sandbox controller. On macOS the gateway runs
+against the Linux VM of a Docker runtime such as OrbStack or colima. OpenShell scopes its Docker driver to
+local development and single-machine gateways. This backend has been verified with
+the Docker driver only; on Kubernetes, egress enforcement also depends on the
+cluster's CNI enforcing NetworkPolicy. The gateway sends anonymous
+telemetry unless it runs with ``OPENSHELL_TELEMETRY_ENABLED=false``.
 
 .. _sandbox-backend-boat:
 
@@ -440,30 +711,39 @@ do not change. Four behaviours do, so read them before assuming the same Dag
 behaves identically everywhere:
 
 - **CPU.** ``sbx`` gives a sandbox every host CPU; Modal defaults to a request of
-  0.125 of one, so set ``cpu``; OpenSandbox takes ``cpu`` as a limit the server enforces;
-  Boat sizes by ``machine_type``.
+  0.125 of one, so set ``cpu``; OpenSandbox and OpenShell take ``cpu`` as a limit the
+  server enforces; Boat sizes by ``machine_type``; Islo uses the server default unless
+  you set ``vcpus``.
 - **Egress allowlists.** ``sbx`` enforces ``allow_egress_to`` at the host policy
   layer; Modal matches TLS handshake names, which is weaker and has to be opted
   into; OpenSandbox enforces it in an egress sidecar, and the backend reads the
   enforced policy and the sidecar's mode back rather than trusting the create
   request, refusing a sidecar that filters only name resolution (``dns``) rather
-  than connections (``dns+nft``). ``allow_egress_to_cidrs`` is enforced at the
-  address layer on Modal and refused on ``sbx`` and OpenSandbox. Boat has no form of
-  egress control at all and refuses every network restriction rather than
-  provisioning something weaker.
-- **Command timeouts.** A timeout destroys an ``sbx`` sandbox and its files;
+  than connections (``dns+nft``); OpenShell enforces it in a per-sandbox supervisor
+  on port 443 only, and reads the effective policy back at create and around every
+  operation. ``allow_egress_to_cidrs`` is enforced at the address layer on Modal and
+  refused on ``sbx``, OpenSandbox, OpenShell and Islo; OpenShell's address rules admit
+  TCP on listed ports only, and it also refuses ``block_network=False``. Islo has no
+  per-host form and refuses the spec; Boat has no form of egress control at all and
+  refuses every network restriction. Both refuse rather than provision something
+  weaker.
+- **Command timeouts.** A timeout destroys an ``sbx`` or Islo sandbox and its files;
   Modal, Boat and a server-enforced OpenSandbox timeout preserve the sandbox and
   files. OpenSandbox destroys it only if the command event stream itself stalls
   past the client-side grace period, and Boat only if its own deadline, set past
-  the one in the guest, ends the call.
-- **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
-  Boat, which write the target and leave the link in place, and replaces the link
-  with a regular file on Modal and OpenSandbox.
+  the one in the guest, ends the call. OpenShell kills the command's session and
+  keeps the sandbox; if the gateway stops relaying the command, the backend asks it
+  to delete the sandbox, and only a delete that fails too leaves it for the reaper
+  described under :ref:`OpenShell <sandbox-backend-openshell>`.
+- **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx``, Boat
+  and OpenShell, which write the target and leave the link in place, and replaces
+  the link with a regular file on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an
   agent in another (:ref:`sandbox-attach`). An ``sbx`` microVM lives on the worker
-  that created it and cannot be reached from another task, and OpenSandbox and Boat
-  have no per-sandbox metadata the ownership rules could be kept in, so all three refuse
-  ``SandboxSpec.owner`` and the toolset refuses ``attach_to`` for them.
+  that created it and cannot be reached from another task, OpenSandbox, Boat and
+  Islo have no per-sandbox metadata the ownership rules could be kept in, and
+  OpenShell does not implement attaching yet, so all five refuse ``SandboxSpec.owner``
+  and the toolset refuses ``attach_to`` for them.
 
 .. _sandbox-byo:
 
@@ -481,8 +761,8 @@ commands. The default ``export_file``, behind ``SandboxToolset(exports=...)``,
 copies a file in 4 MiB slices, one command each, and needs ``stat``, ``tail``,
 ``head`` and ``base64`` in the guest. It relies on ``run_command`` returning each
 slice's output intact, or setting ``stdout_truncated`` when it could not. Override
-it when the vendor can stream a download, as the ``sbx`` and OpenSandbox backends do. Override the others
-only when the vendor has a native file API:
+it when the vendor can stream a download, as the ``sbx``, OpenSandbox and Islo
+backends do. Override the others only when the vendor has a native file API:
 
 .. code-block:: python
 

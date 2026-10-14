@@ -21,7 +21,9 @@ Provider fallback
 A single ``llm_conn_id`` gives a task one provider. When that provider is down, the task
 fails and retries into the same outage. ``fallback_conn_ids`` gives the connection an
 ordered list of other connections to try, so a provider outage moves to the next vendor
-inside the same task attempt.
+inside the same task attempt. The next vendor receives the run's message history and
+continues an agent run from where it stopped; :doc:`recovery` covers that, and what
+happens when every connection fails.
 
 Configure it on the connection
 ------------------------------
@@ -146,12 +148,13 @@ Costs to know before configuring a long chain
 ---------------------------------------------
 
 **The timeout multiplies.** pydantic-ai applies a ``ModelSettings`` timeout to each model
-in the chain, not to the chain as a whole. A 30-second timeout across three connections is
-a 90-second worst case for one call.
+in the chain, not to the chain as a whole, and the OpenAI and Anthropic SDKs retry a
+timed-out request twice before giving up on that model. A 30-second timeout across three
+such connections is therefore up to 270 seconds, plus backoff, for one call.
 
 **There is no circuit breaker.** Every call tries the primary first. During an outage each
-task instance pays the primary's timeout again before failing over, so 500 mapped tasks pay
-it 500 times. Keeping the primary's timeout short bounds both of these.
+task instance pays the primary's timeouts and retries again before failing over, so 500
+mapped tasks pay them 500 times. Keeping the primary's timeout short bounds both of these.
 
 **Chains are not resolved recursively.** If a connection listed as a fallback declares its
 own ``fallback_conn_ids``, resolution fails with an error rather than following it. List
@@ -162,10 +165,11 @@ connection.
 ``ModelAPIError`` family, which includes ``ModelHTTPError`` -- raised for any 4xx as well as
 5xx. A malformed prompt is the one error every connection in the chain shares: the same
 request body goes to each of them, so all reject it alike before the task finally sees the
-failure -- N requests, N timeouts, and N billable calls for a request that was never going to
-succeed. An expired key does not cost the same way -- it is per-connection, so the next
-connection in the chain presents its own credentials and, if they are still valid, answers
-normally; that is the chain doing its job, not a repeated failure. A misspelled model name is
+failure -- N requests for a request that was never going to succeed. Each rejection comes
+back at once, and the OpenAI and Anthropic SDKs do not retry a 400, so the cost is the
+requests themselves rather than N timeouts. An expired key does not cost the same way -- it
+is per-connection, so the next connection in the chain presents its own credentials and, if
+they are still valid, answers normally; that is the chain doing its job, not a repeated failure. A misspelled model name is
 shared across the chain only in the narrower case where the name is bare and every fallback it
 reaches configures no ``model`` of its own: a bare name that itself embeds a ``:`` (a vendor's
 native id) only forwards to a fallback on the *same* platform, and a name that already pins a

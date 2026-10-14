@@ -23,7 +23,7 @@ from contextlib import asynccontextmanager
 from unittest import mock
 from uuid import UUID
 
-import httpx
+import httpx2
 import pytest
 from fastapi import FastAPI, Request, status
 from fastapi.params import Security as SecurityParam
@@ -38,7 +38,7 @@ from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
-    _jwt_generator,
+    create_jwt_generator,
     create_task_execution_api_app,
 )
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
@@ -81,13 +81,13 @@ def test_server_and_in_process_apps_isolate_auth(in_process_first, monkeypatch):
 
     with (
         TestClient(server_app) as server,
-        httpx.Client(transport=api.transport, base_url="http://in-process.invalid") as local,
+        httpx2.Client(transport=api.transport, base_url="http://in-process.invalid") as local,
     ):
         response = local.get("/variables/execution_api_hosting")
         assert response.status_code == 200
         assert response.json() == {"key": "execution_api_hosting", "value": "shared-value"}
         assert server.get("/execution/variables/execution_api_hosting").status_code == 401
-        token = _jwt_generator().generate({"sub": "00000000-0000-0000-0000-000000000000"})
+        token = create_jwt_generator().generate({"sub": "00000000-0000-0000-0000-000000000000"})
         authenticated_response = server.get(
             "/execution/variables/execution_api_hosting", headers={"Authorization": f"Bearer {token}"}
         )
@@ -208,7 +208,7 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
 def test_in_process_execution_api_runs_without_jwt_secret():
     """The in-process API must not require ``api_auth/jwt_secret`` to be configured."""
     api = InProcessExecutionAPI()
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         response = client.get("http://localhost/health")
     assert response.status_code == 200
 
@@ -334,7 +334,7 @@ def test_in_process_shutdown_closes_connections_after_lifespan(in_process_db_app
 
     app.router.lifespan_context = lifespan
     api = InProcessExecutionAPI(app)
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         assert client.get("http://localhost/").json() == 1
     del client, api
     gc.collect()
@@ -348,7 +348,7 @@ def test_session_factory_remains_usable_after_in_process_shutdown(in_process_db_
     app, opened, closed = in_process_db_app
     engine, factory = settings.async_engine, settings.AsyncSession
     api = InProcessExecutionAPI(app)
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         assert client.get("http://localhost/").json() == 1
     del client, api
     gc.collect()

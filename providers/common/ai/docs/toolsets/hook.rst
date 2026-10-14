@@ -85,12 +85,6 @@ the ID from values the Dag controls, not from ``params`` or ``dag_run.conf`` (se
 Fix arguments the model must not choose
 ---------------------------------------
 
-.. note::
-
-    Experimental: ``pinned_arguments`` can change or be removed in a minor release of this
-    provider.
-    See :ref:`howto/stability`.
-
 Exposing a method lets the model pick every argument it takes. When some of them are
 the Dag author's decision, such as which bucket a storage hook reads, pin them:
 
@@ -217,8 +211,8 @@ reflection-based adapter, so the work is choosing the method list.
   :ref:`defense-layer table <toolset-defense-layers>` states this outright. Choose
   methods whose worst case you accept, not methods you intend to constrain later.
   To expose a method that changes something and have a person approve the call
-  first, wrap the toolset with ``.approval_required()``. A task instance can pause
-  for approval once per Dag run; see :doc:`../tool_approval`.
+  first, wrap the toolset with ``.approval_required()``. On Airflow 3.3 a task
+  instance can pause for approval only once per Dag run; see :doc:`../tool_approval`.
 - Its calls act as barriers. The tools are registered with ``sequential=True``
   and each hook method runs in a worker thread, one blocking hook call at a time
   in the task process, so a slow call holds up every other tool the model emitted
