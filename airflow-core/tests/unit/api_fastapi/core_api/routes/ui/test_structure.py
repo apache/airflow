@@ -22,9 +22,10 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dagbag import DBDagBag
@@ -596,6 +597,33 @@ class TestStructureDataEndpoint:
             response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
+
+    @pytest.mark.usefixtures("make_dags")
+    def test_outlet_references_are_not_joined_onto_the_serialized_dag_row(self, test_client):
+        """
+        Load the outlet asset references in their own query.
+
+        Joining them onto the serialized_dag row returns the whole serialized Dag once per
+        reference, so a large Dag with many outlets made this endpoint slow and memory-hungry.
+        """
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(settings.engine, "before_cursor_execute", record)
+        try:
+            response = test_client.get(
+                "/structure/structure_data", params={"dag_id": DAG_ID, "external_dependencies": True}
+            )
+        finally:
+            event.remove(settings.engine, "before_cursor_execute", record)
+
+        assert response.status_code == 200
+        serialized_dag_selects = [s for s in statements if "FROM serialized_dag" in s]
+        assert serialized_dag_selects
+        assert not any("task_outlet_asset_reference" in s for s in serialized_dag_selects)
+        assert any("FROM task_outlet_asset_reference" in s for s in statements)
 
     @pytest.mark.usefixtures("make_dags")
     def test_should_return_200_with_resolved_asset_alias_attached_to_the_corrrect_producing_task(

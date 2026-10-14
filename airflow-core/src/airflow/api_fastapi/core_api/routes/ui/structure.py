@@ -79,7 +79,9 @@ def structure_data(
         select(SerializedDagModel)
         .join(DagVersion)
         .where(SerializedDagModel.dag_id == dag_id, DagVersion.version_number == version_number)
-        .options(joinedload(SerializedDagModel.dag_model).joinedload(DagModel.task_outlet_asset_references)),
+        .options(
+            joinedload(SerializedDagModel.dag_model).selectinload(DagModel.task_outlet_asset_references)
+        ),
     )
     if serialized_dag is None:
         raise HTTPException(
