@@ -45,6 +45,10 @@ Airflow ships with two importers:
 Each :doc:`language SDK <../authoring-and-scheduling/language-sdks/index>` with a configured coordinator
 also registers an importer for its bundle format.
 
+Airflow also has a YAML Dag importer at **airflow.sdk.importers.yaml_importer.YamlDagImporter**. Unlike the
+two importers above, it is not enabled by default. Register it as shown under `Configuring importers`_.
+See :ref:`yaml-dags` for the document format.
+
 How Airflow uses importers
 --------------------------
 
@@ -78,7 +82,7 @@ with:
     [dag_processor]
     dag_importer_configs = [
         {
-          "classpath": "my_company.importers.YamlDagImporter",
+          "classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter",
           "extensions": [".yaml", ".yml"]
         }
       ]
