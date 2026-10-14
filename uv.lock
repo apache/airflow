@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -167,6 +167,7 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
+boat-sdk = "2026-10-11T00:00:00Z"
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 pydantic-ai-skills = "2026-07-16T00:00:00Z"
 typesafe-sdk = "2026-09-19T00:00:00Z"
@@ -1012,7 +1013,7 @@ all = [
     { name = "apache-airflow-providers-apache-pig" },
     { name = "apache-airflow-providers-apache-pinot" },
     { name = "apache-airflow-providers-apache-spark" },
-    { name = "apache-airflow-providers-apache-tinkerpop" },
+    { name = "apache-airflow-providers-apache-tinkerpop", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-apprise" },
     { name = "apache-airflow-providers-arangodb" },
     { name = "apache-airflow-providers-asana" },
@@ -1094,7 +1095,7 @@ all = [
     { name = "apache-airflow-providers-teradata" },
     { name = "apache-airflow-providers-trino" },
     { name = "apache-airflow-providers-vertica" },
-    { name = "apache-airflow-providers-vespa" },
+    { name = "apache-airflow-providers-vespa", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-weaviate" },
     { name = "apache-airflow-providers-yandex" },
     { name = "apache-airflow-providers-ydb" },
@@ -1172,7 +1173,7 @@ apache-spark = [
     { name = "apache-airflow-providers-apache-spark" },
 ]
 apache-tinkerpop = [
-    { name = "apache-airflow-providers-apache-tinkerpop" },
+    { name = "apache-airflow-providers-apache-tinkerpop", marker = "python_full_version != '3.14.*'" },
 ]
 apache-webhdfs = [
     { name = "apache-airflow-providers-apache-hdfs" },
@@ -1475,7 +1476,7 @@ vertica = [
     { name = "apache-airflow-providers-vertica" },
 ]
 vespa = [
-    { name = "apache-airflow-providers-vespa" },
+    { name = "apache-airflow-providers-vespa", marker = "python_full_version != '3.14.*'" },
 ]
 weaviate = [
     { name = "apache-airflow-providers-weaviate" },
@@ -1618,8 +1619,8 @@ requires-dist = [
     { name = "apache-airflow-providers-apache-pinot", marker = "extra == 'apache-pinot'", editable = "providers/apache/pinot" },
     { name = "apache-airflow-providers-apache-spark", marker = "extra == 'all'", editable = "providers/apache/spark" },
     { name = "apache-airflow-providers-apache-spark", marker = "extra == 'apache-spark'", editable = "providers/apache/spark" },
-    { name = "apache-airflow-providers-apache-tinkerpop", marker = "extra == 'all'", editable = "providers/apache/tinkerpop" },
-    { name = "apache-airflow-providers-apache-tinkerpop", marker = "extra == 'apache-tinkerpop'", editable = "providers/apache/tinkerpop" },
+    { name = "apache-airflow-providers-apache-tinkerpop", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/tinkerpop" },
+    { name = "apache-airflow-providers-apache-tinkerpop", marker = "python_full_version != '3.14.*' and extra == 'apache-tinkerpop'", editable = "providers/apache/tinkerpop" },
     { name = "apache-airflow-providers-apprise", marker = "extra == 'all'", editable = "providers/apprise" },
     { name = "apache-airflow-providers-apprise", marker = "extra == 'apprise'", editable = "providers/apprise" },
     { name = "apache-airflow-providers-arangodb", marker = "extra == 'all'", editable = "providers/arangodb" },
@@ -1787,8 +1788,8 @@ requires-dist = [
     { name = "apache-airflow-providers-trino", marker = "extra == 'trino'", editable = "providers/trino" },
     { name = "apache-airflow-providers-vertica", marker = "extra == 'all'", editable = "providers/vertica" },
     { name = "apache-airflow-providers-vertica", marker = "extra == 'vertica'", editable = "providers/vertica" },
-    { name = "apache-airflow-providers-vespa", marker = "extra == 'all'", editable = "providers/vespa" },
-    { name = "apache-airflow-providers-vespa", marker = "extra == 'vespa'", editable = "providers/vespa" },
+    { name = "apache-airflow-providers-vespa", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/vespa" },
+    { name = "apache-airflow-providers-vespa", marker = "python_full_version != '3.14.*' and extra == 'vespa'", editable = "providers/vespa" },
     { name = "apache-airflow-providers-weaviate", marker = "extra == 'all'", editable = "providers/weaviate" },
     { name = "apache-airflow-providers-weaviate", marker = "extra == 'weaviate'", editable = "providers/weaviate" },
     { name = "apache-airflow-providers-yandex", marker = "extra == 'all'", editable = "providers/yandex" },
@@ -4576,6 +4577,9 @@ avro = [
 bedrock = [
     { name = "pydantic-ai-slim", extra = ["bedrock"] },
 ]
+boat = [
+    { name = "boat-sdk" },
+]
 code-mode = [
     { name = "pydantic-ai-harness", extra = ["codemode"] },
 ]
@@ -4646,6 +4650,7 @@ dev = [
     { name = "apache-airflow-providers-modal" },
     { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
+    { name = "boat-sdk" },
     { name = "langchain" },
     { name = "llama-index-core" },
     { name = "llama-index-embeddings-openai" },
@@ -4671,6 +4676,7 @@ requires-dist = [
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
     { name = "apache-airflow-providers-modal", marker = "extra == 'modal'", editable = "providers/modal" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
+    { name = "boat-sdk", marker = "extra == 'boat'", specifier = ">=1.9.3" },
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
@@ -4698,7 +4704,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=24.2.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "code-mode", "shields", "skills", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4712,6 +4718,7 @@ dev = [
     { name = "apache-airflow-providers-modal", editable = "providers/modal" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "boat-sdk", specifier = ">=1.9.3" },
     { name = "langchain", specifier = ">=1.0.0" },
     { name = "llama-index-core", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", specifier = ">=0.6.0" },
@@ -9321,6 +9328,7 @@ dependencies = [
     { name = "asgiref" },
     { name = "attrs" },
     { name = "babel" },
+    { name = "cadwyn" },
     { name = "colorlog" },
     { name = "fsspec" },
     { name = "greenback" },
@@ -9340,6 +9348,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pygtrie" },
     { name = "python-dateutil" },
+    { name = "pyyaml" },
     { name = "structlog" },
     { name = "tenacity" },
     { name = "typing-extensions" },
@@ -9396,6 +9405,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=24.2.0,!=25.2.0" },
     { name = "babel", specifier = ">=2.17.0" },
+    { name = "cadwyn", specifier = ">=6.1.1" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "datadog", marker = "extra == 'all'", specifier = ">=0.50.0" },
     { name = "datadog", marker = "extra == 'datadog'", specifier = ">=0.50.0" },
@@ -9423,6 +9433,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">2.11.0" },
     { name = "pygtrie", specifier = ">=2.5.0" },
     { name = "python-dateutil", specifier = ">=2.7.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sentry-sdk", marker = "extra == 'all'", specifier = ">=2.30.0" },
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "statsd", marker = "extra == 'all'", specifier = ">=3.3.0" },
@@ -10689,6 +10700,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/21/28/9b3f50ce0e048515135495f198351908d99540d69bfdc8c1d15b73dc55ce/blinker-1.9.0.tar.gz", hash = "sha256:b4ce2265a7abece45e7cc896e98dbebe6cead56bcf805a3d23136d145f5445bf", size = 22460, upload-time = "2024-11-08T17:25:47.436Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/10/cb/f2ad4230dc2eb1a74edf38f1a38b9b52277f75bef262d8908e60d957e13c/blinker-1.9.0-py3-none-any.whl", hash = "sha256:ba0efaa9080b619ff2f3459d1d500c57bddea4a6b424b60a91141db6fd2f08bc", size = 8458, upload-time = "2024-11-08T17:25:46.184Z" },
+]
+
+[[package]]
+name = "boat-sdk"
+version = "1.9.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/90/7c/a843717209c5bcc1afff728bd03b1c2aeeefdf2b7f3214cff606dec4066e/boat_sdk-1.9.3.tar.gz", hash = "sha256:7a1256f290f2da73aab253747dc82c2cb3b3e30121a021d741bf3c83fb3e8ca0", size = 161207, upload-time = "2026-10-10T19:14:40.093Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5b/4d/53189efbc1dc899c4f3b84f76b61bfcf9f9231e208ff9e3a991263e3e546/boat_sdk-1.9.3-py3-none-any.whl", hash = "sha256:00b890cdd9180534893c7d6e4149e530bdb6383434c2c72275b814f058331c5d", size = 345784, upload-time = "2026-10-10T19:14:38.434Z" },
 ]
 
 [[package]]

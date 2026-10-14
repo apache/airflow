@@ -26,13 +26,12 @@ Create Date: 2026-09-29 12:00:00.000000
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql, sqlite
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
+from airflow.migrations.utils import sqlite_rebuilds
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 
 revision = "e7c2a91bd540"
@@ -97,25 +96,6 @@ _HITL_COLUMNS = (
     "chosen_options",
     "params_input",
 )
-
-
-# Unlike disable_sqlite_fkeys, a failed SQLite upgrade rolls back atomically and foreign_keys is always restored.
-@contextmanager
-def _sqlite_rebuilds():
-    if op.get_bind().dialect.name != "sqlite":
-        yield
-        return
-    if op.get_context().as_sql:
-        raise RuntimeError("SQLite offline SQL cannot render this migration's table rebuilds")
-    enabled = op.get_bind().exec_driver_sql("PRAGMA foreign_keys").scalar()
-    with op.get_context().autocommit_block():
-        op.execute("PRAGMA foreign_keys=OFF")
-    try:
-        with op.get_bind().begin_nested():
-            yield
-    finally:
-        with op.get_context().autocommit_block():
-            op.execute(f"PRAGMA foreign_keys={int(enabled)}")
 
 
 def _check_source():
@@ -190,7 +170,7 @@ def _redirect_legacy(table, constraint, target, *, onupdate=None, not_valid=Fals
 def upgrade():
     """Retain attempts and give legacy and new task data immutable UUID owners."""
     _check_source()
-    with _sqlite_rebuilds():
+    with sqlite_rebuilds(op):
         owner = op.create_table(
             "legacy_task_data_owner",
             sa.Column("dag_id", StringID(), nullable=False),
@@ -387,7 +367,7 @@ def downgrade():
         )
     ):
         raise RuntimeError("Cannot downgrade attempt ownership after legacy owners changed coordinates")
-    with _sqlite_rebuilds():
+    with sqlite_rebuilds(op):
         op.drop_table("rtif_v2")
         op.drop_table("xcom_v2")
         op.drop_index("ti_current_state", table_name="task_instance")

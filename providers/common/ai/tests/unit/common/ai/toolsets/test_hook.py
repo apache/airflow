@@ -17,27 +17,37 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import contextlib
+import json
 import re
 import threading
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai._run_context import RunContext
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_core import ValidationError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.toolsets.hook import (
+    _BASE64_PARAM_NOTE,
     HookToolset,
-    _build_json_schema_from_signature,
     _extract_description,
+    _introspect_signature,
     _parse_param_docs,
 )
 from airflow.providers.common.ai.utils.tool_definition import (
     _SUPPORTS_RETURN_SCHEMA,
     serialize_for_llm,
 )
+
+if TYPE_CHECKING:
+    from decimal import Decimal
 
 
 class _FakeHook:
@@ -62,6 +72,22 @@ class _FakeHook:
         self, endpoint: str | None = None, data: dict[str, object] | str | None = None, **kwargs: object
     ) -> dict[str, object]:
         return {"endpoint": endpoint, "data": data, **kwargs}
+
+    def upload_bytes(self, data: bytes, key: str) -> str:
+        """Upload raw bytes to storage.
+
+        :param data: Content to store.
+        :param key: Destination key.
+        """
+        return f"uploaded {len(data)} bytes to {key} (type={type(data).__name__})"
+
+    def upload_optional_bytes(self, data: bytes | None = None) -> str:
+        """Upload optional raw bytes to storage."""
+        return f"data type={type(data).__name__}"
+
+    def echo_bytes(self, data: bytes) -> bytes:
+        """Return the bytes it is given."""
+        return data
 
 
 class TestHookToolsetInit:
@@ -166,11 +192,51 @@ class TestHookToolsetGetTools:
         # prefix has a default, so it's not required
         assert "prefix" not in tool_def.parameters_json_schema.get("required", [])
 
-    def test_tool_name_prefix(self):
+    def test_tool_prefix(self):
         hook = _FakeHook()
-        ts = HookToolset(hook, allowed_methods=["list_keys"], tool_name_prefix="s3_")
+        ts = HookToolset(hook, allowed_methods=["list_keys"], tool_prefix="s3")
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         assert "s3_list_keys" in tools
+
+    @pytest.mark.parametrize("tool_prefix", ["my-hook", "1abc", "has space"])
+    def test_tool_prefix_must_be_identifier(self, tool_prefix):
+        with pytest.raises(ValueError, match="tool_prefix must be a valid Python identifier"):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix=tool_prefix)
+
+    @pytest.mark.parametrize(
+        ("tool_name_prefix", "expected"),
+        [("s3_", "s3_list_keys"), ("s3", "s3list_keys")],
+    )
+    def test_tool_name_prefix_is_a_deprecated_alias_concatenated_as_given(self, tool_name_prefix, expected):
+        hook = _FakeHook()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
+            ts = HookToolset(hook, allowed_methods=["list_keys"], tool_name_prefix=tool_name_prefix)
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert expected in tools
+
+    def test_tool_name_prefix_warning_suggests_migrated_value(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Use `tool_prefix='s3'` instead; HookToolset adds the '_' itself",
+        ):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_name_prefix="s3_")
+
+    def test_tool_prefix_and_tool_name_prefix_that_agree_still_warn(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix="s3", tool_name_prefix="s3_")
+
+    @pytest.mark.parametrize(
+        ("tool_prefix", "tool_name_prefix"),
+        [("a", "b_"), ("s3", "s3")],
+    )
+    def test_conflicting_prefixes_raise(self, tool_prefix, tool_name_prefix):
+        with pytest.raises(ValueError, match="tool_prefix.*tool_name_prefix"):
+            HookToolset(
+                _FakeHook(),
+                allowed_methods=["list_keys"],
+                tool_prefix=tool_prefix,
+                tool_name_prefix=tool_name_prefix,
+            )
 
     def test_description_from_docstring(self):
         hook = _FakeHook()
@@ -210,6 +276,24 @@ class TestHookToolsetGetTools:
         props = tools["list_keys"].tool_def.parameters_json_schema["properties"]
         assert "description" in props["bucket"]
         assert "S3 bucket" in props["bucket"]["description"]
+
+    def test_bytes_params_ask_for_base64_in_their_description(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["upload_bytes"])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+
+        props = tools["upload_bytes"].tool_def.parameters_json_schema["properties"]
+        assert props["data"] == {"type": "string", "description": f"Content to store. {_BASE64_PARAM_NOTE}"}
+        assert props["key"] == {"type": "string", "description": "Destination key."}
+
+    def test_base64_note_is_added_to_a_param_without_docs(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["upload_optional_bytes"])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+
+        props = tools["upload_optional_bytes"].tool_def.parameters_json_schema["properties"]
+        assert props["data"] == {
+            "anyOf": [{"type": "string"}, {"type": "null"}],
+            "description": _BASE64_PARAM_NOTE,
+        }
 
 
 class TestHookToolsetArgsValidator:
@@ -254,9 +338,17 @@ class TestHookToolsetCallTool:
         )
         assert "data/file1.txt" in result
 
-    def test_dispatches_with_prefix(self):
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_warning"),
+        [
+            ({"tool_prefix": "storage"}, None),
+            ({"tool_name_prefix": "storage_"}, AirflowProviderDeprecationWarning),
+        ],
+    )
+    def test_dispatches_with_prefix(self, kwargs, expected_warning):
         hook = _FakeHook()
-        ts = HookToolset(hook, allowed_methods=["read_file"], tool_name_prefix="storage_")
+        with pytest.warns(expected_warning) if expected_warning else contextlib.nullcontext():
+            ts = HookToolset(hook, allowed_methods=["read_file"], **kwargs)
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
 
         result = asyncio.run(
@@ -308,12 +400,184 @@ class TestHookToolsetCallTool:
         assert calls[0] != loop_thread
 
 
+class TestHookToolsetBytes:
+    @staticmethod
+    def _call(method_name, tool_args):
+        ts = HookToolset(_FakeHook(), allowed_methods=[method_name])
+        ctx = MagicMock(spec=RunContext)
+        tools = asyncio.run(ts.get_tools(ctx=ctx))
+        return asyncio.run(ts.call_tool(method_name, tool_args, ctx=ctx, tool=tools[method_name]))
+
+    @pytest.mark.parametrize(
+        ("method_name", "tool_args", "expected"),
+        [
+            pytest.param(
+                "upload_bytes",
+                {"data": "aGVsbG8gd29ybGQ=", "key": "greeting.txt"},
+                "uploaded 11 bytes to greeting.txt (type=bytes)",
+                id="bytes",
+            ),
+            pytest.param("upload_optional_bytes", {"data": "aGk="}, "data type=bytes", id="optional-bytes"),
+            pytest.param("upload_optional_bytes", {"data": None}, "data type=NoneType", id="explicit-null"),
+            pytest.param("upload_optional_bytes", {}, "data type=NoneType", id="omitted"),
+            pytest.param(
+                "upload_bytes",
+                {"data": "aGVs\nbG8=\n", "key": "k"},
+                "uploaded 5 bytes to k (type=bytes)",
+                id="line-wrapped",
+            ),
+        ],
+    )
+    def test_decodes_base64_for_bytes_params(self, method_name, tool_args, expected):
+        assert self._call(method_name, tool_args) == expected
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("hello world", id="text"),
+            pytest.param("abc", id="bad-padding"),
+            # Decodes to b"hello" when characters outside the alphabet are discarded.
+            pytest.param("aGVs*bG8=", id="outside-alphabet"),
+        ],
+    )
+    def test_an_undecodable_value_asks_the_model_to_retry(self, value):
+        with pytest.raises(ModelRetry, match="'data' must be base64-encoded"):
+            self._call("upload_bytes", {"data": value, "key": "greeting.txt"})
+
+    def test_binary_round_trips_byte_exact(self):
+        payload = b"\x89PNG\r\n\x1a\n\xff\x00"
+
+        result = self._call("echo_bytes", {"data": base64.b64encode(payload).decode("ascii")})
+
+        assert base64.b64decode(json.loads(result)["base64"]) == payload
+
+    def test_a_utf8_result_reaches_the_model_as_text(self):
+        result = self._call("echo_bytes", {"data": base64.b64encode("naïve,1\n".encode()).decode("ascii")})
+
+        assert result == "naïve,1\n"
+
+    def test_a_bad_value_is_corrected_by_the_model_in_a_real_run(self):
+        hook = _FakeHook()
+        ts = HookToolset(hook, allowed_methods=["upload_bytes"])
+        attempts = iter(
+            [{"data": "hello world", "key": "k"}, {"data": base64.b64encode(b"hello").decode(), "key": "k"}]
+        )
+
+        def model(messages, info):
+            retried = [p for m in messages for p in m.parts if isinstance(p, RetryPromptPart)]
+            returned = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            if returned:
+                return ModelResponse(parts=[TextPart(f"{retried[0].content} | {returned[0].content}")])
+            return ModelResponse(parts=[ToolCallPart("upload_bytes", next(attempts), tool_call_id="c")])
+
+        answer = Agent(FunctionModel(model), toolsets=[ts]).run_sync("upload").output
+
+        assert "'data' must be base64-encoded binary data" in answer
+        assert answer.endswith("uploaded 5 bytes to k (type=bytes)")
+
+    def test_an_approval_gate_is_never_asked_about_an_undecodable_value(self):
+        """A task instance can pause for approval only once, so the request must be one that can run."""
+        ts = HookToolset(_FakeHook(), allowed_methods=["upload_bytes"])
+        valid = {"data": base64.b64encode(b"hello").decode(), "key": "k"}
+        attempts = iter([{"data": "hello world", "key": "k"}, valid])
+
+        def model(messages, info):
+            return ModelResponse(parts=[ToolCallPart("upload_bytes", next(attempts), tool_call_id="c")])
+
+        agent = Agent(
+            FunctionModel(model), toolsets=[ts.approval_required()], output_type=[str, DeferredToolRequests]
+        )
+        output = agent.run_sync("upload").output
+
+        assert isinstance(output, DeferredToolRequests)
+        assert [call.args for call in output.approvals] == [valid]
+
+    def test_a_pinned_bytes_argument_is_passed_as_given(self):
+        ts = HookToolset(_FakeHook(), allowed_methods=["upload_bytes"], pinned_arguments={"data": b"raw"})
+        ctx = MagicMock(spec=RunContext)
+        tools = asyncio.run(ts.get_tools(ctx=ctx))
+
+        result = asyncio.run(ts.call_tool("upload_bytes", {"key": "k"}, ctx=ctx, tool=tools["upload_bytes"]))
+
+        assert result == "uploaded 3 bytes to k (type=bytes)"
+
+
+def _takes_bytes(value: bytes): ...
+
+
+def _takes_optional_bytes(value: bytes | None = None): ...
+
+
+def _takes_bytes_or_str(value: bytes | str): ...
+
+
+def _takes_list_of_bytes(value: list[bytes]): ...
+
+
+def _takes_str(value: str): ...
+
+
+def _takes_unannotated(value): ...
+
+
+class TestBytesParamDetection:
+    @pytest.mark.parametrize(
+        ("func", "is_bytes_param"),
+        [
+            pytest.param(_takes_bytes, True, id="bytes"),
+            pytest.param(_takes_optional_bytes, True, id="optional-bytes"),
+            pytest.param(_takes_bytes_or_str, False, id="bytes-or-str"),
+            pytest.param(_takes_list_of_bytes, False, id="list-of-bytes"),
+            pytest.param(_takes_str, False, id="str"),
+            pytest.param(_takes_unannotated, False, id="unannotated"),
+        ],
+    )
+    def test_only_bytes_and_optional_bytes_are_decoded(self, func, is_bytes_param):
+        hook = type("_Hook", (), {"method": staticmethod(func)})()
+        ts = HookToolset(hook, allowed_methods=["method"])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+        prop = tools["method"].tool_def.parameters_json_schema["properties"]["value"]
+
+        assert ("value" in _introspect_signature(func)[1]) is is_bytes_param
+        # A parameter described as base64 but never decoded would hand the hook the encoded text.
+        assert (_BASE64_PARAM_NOTE in prop.get("description", "")) is is_bytes_param
+
+    def test_var_args_are_never_decoded(self):
+        def fn(*chunks: bytes, **extra: bytes): ...
+
+        schema, bytes_params = _introspect_signature(fn)
+
+        assert bytes_params == frozenset()
+        assert schema["properties"] == {}
+
+    def test_an_unresolvable_annotation_does_not_hide_the_other_params(self):
+        # Like CloudKMSHook.encrypt, whose bytes parameters sit next to one annotated with a
+        # TYPE_CHECKING-only import.
+        def fn(data: bytes, precision: Decimal | None = None): ...
+
+        schema, bytes_params = _introspect_signature(fn)
+
+        assert bytes_params == {"data"}
+        assert schema["properties"]["data"]["type"] == "string"
+
+    def test_a_name_missing_from_an_imported_module_does_not_hide_the_other_params(self):
+        def fn(data: bytes, other=None): ...
+
+        # Raises AttributeError, not NameError, when evaluated: ``json`` is imported.
+        fn.__annotations__["other"] = "json.NoSuchType | None"
+
+        schema, bytes_params = _introspect_signature(fn)
+
+        assert bytes_params == {"data"}
+        assert schema["properties"]["other"] == {}
+
+
 class TestBuildJsonSchemaFromSignature:
     def test_basic_types(self):
         def fn(name: str, count: int, rate: float, active: bool):
             pass
 
-        schema = _build_json_schema_from_signature(fn)
+        schema, _ = _introspect_signature(fn)
         assert schema["properties"]["name"] == {"type": "string"}
         assert schema["properties"]["count"] == {"type": "integer"}
         assert schema["properties"]["rate"] == {"type": "number"}
@@ -324,7 +588,7 @@ class TestBuildJsonSchemaFromSignature:
         def fn(name: str, prefix: str | None = None):
             pass
 
-        schema = _build_json_schema_from_signature(fn)
+        schema, _ = _introspect_signature(fn)
         assert schema["required"] == ["name"]
         assert schema["properties"]["prefix"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
 
@@ -332,28 +596,28 @@ class TestBuildJsonSchemaFromSignature:
         def fn(data: dict[str, object] | str):
             pass
 
-        schema = _build_json_schema_from_signature(fn)
+        schema, _ = _introspect_signature(fn)
         assert schema["properties"]["data"] == {"anyOf": [{"type": "object"}, {"type": "string"}]}
 
     def test_list_type(self):
         def fn(items: list[str]):
             pass
 
-        schema = _build_json_schema_from_signature(fn)
+        schema, _ = _introspect_signature(fn)
         assert schema["properties"]["items"] == {"type": "array", "items": {"type": "string"}}
 
     def test_no_annotation_is_untyped(self):
         def fn(x):
             pass
 
-        schema = _build_json_schema_from_signature(fn)
+        schema, _ = _introspect_signature(fn)
         assert schema["properties"]["x"] == {}
 
     def test_kwargs_allow_additional_properties(self):
         def fn(x: int, **kwargs):
             pass
 
-        schema = _build_json_schema_from_signature(fn)
+        schema, _ = _introspect_signature(fn)
         assert schema["additionalProperties"] is True
 
     def test_skips_self_and_cls(self):
@@ -361,14 +625,14 @@ class TestBuildJsonSchemaFromSignature:
             def method(self, x: int):
                 pass
 
-        schema = _build_json_schema_from_signature(Foo().method)
+        schema, _ = _introspect_signature(Foo().method)
         assert "self" not in schema["properties"]
 
     def test_skips_var_args(self):
         def fn(x: int, *args, **kwargs):
             pass
 
-        schema = _build_json_schema_from_signature(fn)
+        schema, _ = _introspect_signature(fn)
         assert set(schema["properties"].keys()) == {"x"}
 
 
@@ -441,6 +705,24 @@ class TestSerializeForLlm:
         obj = object()
         result = serialize_for_llm(obj)
         assert "object" in result
+
+    def test_utf8_bytes_are_returned_as_text(self):
+        assert serialize_for_llm("café".encode()) == "café"
+
+    @pytest.mark.enable_redact
+    def test_utf8_bytes_are_masked(self, registered_secret):
+        assert serialize_for_llm(f"password={registered_secret}".encode()) == "password=***"
+
+    def test_non_utf8_bytes_are_returned_as_base64(self):
+        assert json.loads(serialize_for_llm(b"\x89PNG\xff")) == {"base64": "iVBOR/8="}
+
+    @pytest.mark.enable_redact
+    def test_non_utf8_bytes_are_masked_before_encoding(self, registered_secret):
+        payload = b"\xff" + registered_secret.encode()
+
+        encoded = json.loads(serialize_for_llm(payload))["base64"]
+
+        assert base64.b64decode(encoded) == b"\xff***"
 
 
 class _RecordingKwargsHook:

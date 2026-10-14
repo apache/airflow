@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 ejecución será activada.",
-    "affected_other": "Se activarán {{count}} ejecuciones.",
+    "affected_other": "Se activarán {{count, number}} ejecuciones.",
     "affectedNone": "No hay ejecuciones que coincidan con los criterios seleccionados.",
     "allRuns": "Todas las Ejecuciones",
     "backwards": "Ejecutar Hacia Atrás",
@@ -19,7 +19,7 @@
     "overrideExistingParams": "Sobrescribir parámetros en ejecuciones existentes",
     "partitionRange": "Rango de Particiones",
     "partitionsAffected_one": "Se aplicará backfill a 1 partición:",
-    "partitionsAffected_other": "Se aplicará backfill a {{count}} particiones:",
+    "partitionsAffected_other": "Se aplicará backfill a {{count, number}} particiones:",
     "partitionsNone": "No hay particiones que coincidan con el rango seleccionado.",
     "permissionDenied": "Ejecución en Seco Fallida: el usuario no tiene permiso para crear backfills.",
     "reprocessBehavior": "Comportamiento de Reprocesamiento",
@@ -59,7 +59,7 @@
     "error_one": "1 Error",
     "errorAndWarning": "1 Error y {{warningText}}",
     "warning_one": "1 Advertencia",
-    "warning_other": "{{count}} Advertencias"
+    "warning_other": "{{count, number}} Advertencias"
   },
   "dateRangeFilter": {
     "validation": {
@@ -71,17 +71,17 @@
   "durationChart": {
     "duration": "Duración (segundos)",
     "lastDagRun_one": "Última Ejecución de Dag",
-    "lastDagRun_other": "Últimas {{count}} Ejecuciones de Dag",
+    "lastDagRun_other": "Últimas {{count, number}} Ejecuciones de Dag",
     "lastTaskInstance_one": "Última Instancia de Tarea",
-    "lastTaskInstance_other": "Últimas {{count}} Instancias de Tarea",
+    "lastTaskInstance_other": "Últimas {{count, number}} Instancias de Tarea",
     "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Duración en Cola",
     "runAfter": "Ejecutar Después",
     "runDuration": "Duración de la Ejecución"
   },
   "fileUpload": {
-    "files_one": "{{count}} archivo",
-    "files_other": "{{count}} archivos"
+    "files_one": "{{count, number}} archivo",
+    "files_other": "{{count, number}} archivos"
   },
   "flexibleForm": {
     "durationPlaceholder": "Ingresa la duración en formato ISO 8601",
@@ -104,20 +104,20 @@
     "downloadImageError": "Error al descargar la imagen.",
     "downloadImageErrorTitle": "Descarga Fallida",
     "otherDagRuns": "+Otras Ejecuciones de Dag",
-    "taskCount_one": "{{count}} Tarea",
-    "taskCount_other": "{{count}} Tareas",
+    "taskCount_one": "{{count, number}} Tarea",
+    "taskCount_other": "{{count, number}} Tareas",
     "taskGroup": "Grupo de Tareas",
     "zoomToTask": "Zoom a la tarea seleccionada"
   },
-  "limitedList": "+{{count}} más",
-  "limitedList.allItems": "Todos los {{count}} elementos:",
+  "limitedList": "+{{count, number}} más",
+  "limitedList.allItems": "Todos los {{count, number}} elementos:",
   "limitedList.allTags_one": "Todas las Etiquetas (1)",
-  "limitedList.allTags_other": "Todas las Etiquetas ({{count}})",
+  "limitedList.allTags_other": "Todas las Etiquetas ({{count, number}})",
   "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar Dags",
-  "limitedList.clickToOpenFull": "Haz clic en \"+{{count}} más\" para ver la lista completa",
+  "limitedList.clickToOpenFull": "Haz clic en \"+{{count, number}} más\" para ver la lista completa",
   "limitedList.copyPasteText": "Puedes copiar y pegar el texto de arriba",
   "limitedList.showingItems_one": "Mostrando 1 elemento",
-  "limitedList.showingItems_other": "Mostrando {{count}} elementos",
+  "limitedList.showingItems_other": "Mostrando {{count, number}} elementos",
   "logs": {
     "file": "Archivo",
     "location": "línea {{line}} en {{name}}"

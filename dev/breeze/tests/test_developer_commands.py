@@ -97,15 +97,13 @@ class TestBuildDocsPythonVersion:
     def test_environment_python_does_not_change_the_docs_build(self, runner):
         # PYTHON_MAJOR_MINOR_VERSION is set on every job of the docs publishing workflow, so an
         # option reading it silently decided what the docs were built with.
-        mock_build, mock_shell = self._invoke(
-            runner, ["--docs-only"], env={"PYTHON_MAJOR_MINOR_VERSION": "3.12"}
-        )
+        mock_build, mock_shell = self._invoke(runner, [], env={"PYTHON_MAJOR_MINOR_VERSION": "3.12"})
 
         assert mock_build.call_args.kwargs["command_params"].python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
         assert mock_shell.call_args.args[0].python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 
     def test_python_option_is_rejected(self, runner):
-        result = runner.invoke(build_docs, ["--python", "3.12", "--docs-only"])
+        result = runner.invoke(build_docs, ["--python", "3.12"])
 
         assert result.exit_code != 0
         assert "no such option" in result.output.lower()

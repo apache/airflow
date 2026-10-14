@@ -28,7 +28,7 @@ import org.apache.airflow.sdk.TaskRef
 /**
  * @suppress
  *
- * The recorder behind a `@Builder.Deps` wiring class. Public so that
+ * The recorder behind an `@Airflow.Deps` wiring class. Public so that
  * processor-generated wiring views can call it; not user-facing API.
  *
  * A wiring view's methods are `default` methods on an interface, so they hold
@@ -75,7 +75,7 @@ object Refs {
     val missing = taskIds.filterNot { it in dag.tasks }
     require(missing.isEmpty()) {
       "Wiring for Dag '${dag.id}' did not register task(s) ${missing.joinToString { "'$it'" }}: " +
-        "every @Builder.Task method must be called in the @Builder.Deps class"
+        "every @Airflow.Task method must be called in the @Airflow.Deps class"
     }
     return dag
   }
@@ -126,7 +126,7 @@ object Refs {
       }
     val active =
       checkNotNull(recording.get()) {
-        "Task '${def.id}' was wired outside a @Builder.Deps class; the wiring view's methods " +
+        "Task '${def.id}' was wired outside an @Airflow.Deps class; the wiring view's methods " +
           "only record while the generated builder is running depends()"
       }
     active.byTaskId[def.id]?.let { existing ->
@@ -156,7 +156,7 @@ object Refs {
   fun group(id: String): TaskGroupRef {
     val active =
       checkNotNull(recording.get()) {
-        "Task group '$id' was looked up outside a @Builder.Deps class"
+        "Task group '$id' was looked up outside an @Airflow.Deps class"
       }
     return requireNotNull(active.dag.groups[id]) {
       "Dag '${active.dag.id}' has no task group '$id'"

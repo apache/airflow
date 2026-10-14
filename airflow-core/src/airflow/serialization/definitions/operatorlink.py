@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import attrs
 
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.xcom import XComModel, xcom_entity
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
@@ -43,12 +45,15 @@ class XComOperatorLink(LoggingMixin):
     name: str
     xcom_key: str
 
-    def get_link(self, operator: Operator, *, ti_key: TaskInstanceKey) -> str:
+    def get_link(
+        self, operator: Operator, *, ti_key: TaskInstanceKey, region_id: UUID = SENTINEL_REGION_ID
+    ) -> str:
         """
         Retrieve the link from the XComs.
 
         :param operator: The Airflow operator object this link is associated to.
         :param ti_key: TaskInstance ID to return link for.
+        :param region_id: Region owning the selected execution's link data.
         :return: link to external system, but by pulling it from XComs
         """
         self.log.info(
@@ -61,6 +66,7 @@ class XComOperatorLink(LoggingMixin):
                 dag_ids=ti_key.dag_id,
                 task_ids=ti_key.task_id,
                 map_indexes=ti_key.map_index,
+                region_id=region_id,
                 try_number=ti_key.try_number,
             )
             entity = xcom_entity(read)

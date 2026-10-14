@@ -172,6 +172,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_update_dag_run_note,
 )
 from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
+from airflow.sdk.log import _supervisor_comms
 
 try:
     from socket import send_fds
@@ -362,6 +363,19 @@ def _subprocess_main():
     from airflow.sdk.execution_time.task_runner import main
 
     main()
+
+
+def _import_task_runner_before_fork() -> None:
+    """
+    Import the task runner so that a child forked from this process inherits it.
+
+    Task and callback processes both import it, so importing it once here saves every forked child
+    from importing it again. It is not imported at module level because secrets lookups outside a
+    task import this module, and they must not load the task runtime.
+    """
+    # If it fails to import, the child imports it again and reports the error in its own log.
+    with suppress(ImportError):
+        import airflow.sdk.execution_time.task_runner  # noqa: F401
 
 
 def _reset_signals():
@@ -1669,6 +1683,8 @@ class ActivitySubprocess(WatchedSubprocess):
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
         use_exec = target is _subprocess_main and _task_process_uses_exec()
+        if target is _subprocess_main and not use_exec:
+            _import_task_runner_before_fork()
         proc: Self = super().start(
             id=what.id,
             client=client,
@@ -2213,7 +2229,10 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_get_task_breadcrumbs(
         self, msg: GetTaskBreadcrumbs, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
-        api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+        api_resp = self.client.task_instances.get_task_breakcrumbs(
+            dag_id=msg.dag_id,
+            run_id=msg.run_id,
+        )
         resp = TaskBreadcrumbsResult.from_api_response(api_resp)
         return resp, {}
 
@@ -2916,14 +2935,9 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     # 1. Check for client context (SUPERVISOR_COMMS)
-    try:
-        from airflow.sdk.execution_time import task_runner
-
-        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
-            # Client context: task runner with SUPERVISOR_COMMS
-            return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-    except (ImportError, AttributeError):
-        pass
+    if _supervisor_comms() is not None:
+        # Client context: task runner with SUPERVISOR_COMMS
+        return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
     # 2. Check for explicit server context
     if os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server":
@@ -3111,6 +3125,7 @@ def supervise_task(
         log_file_descriptor: BinaryIO | TextIO | None = None
         if log_path:
             logger, log_file_descriptor = _configure_logging(log_path, client)
+            logger = logger.bind(ti_id=str(ti.id))
 
         backends = ensure_secrets_backend_loaded()
         log.info(
@@ -3148,6 +3163,17 @@ def supervise_task(
                 logger=logger or structlog.get_logger(logger_name="task").bind(),
                 error=e,
             )
+        except httpx.RequestError as e:
+            if logger is not None:
+                logger.info("::endgroup::")
+                logger.error(
+                    "Could not reach the Execution API server. Verify the `[core] "
+                    "execution_api_server_url` (or `[api] base_url`) setting points at a reachable "
+                    "Airflow API server.",
+                    server=server,
+                    error=str(e),
+                )
+            raise
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()

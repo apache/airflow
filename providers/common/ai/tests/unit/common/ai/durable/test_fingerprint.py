@@ -136,6 +136,21 @@ class TestModelRequestFingerprint:
         assert fp1 is not None
         assert fp1 == fp2
 
+    def test_stable_across_deferred_capability_ids(self):
+        """
+        ``deferred_capability_ids`` is a set, which dumps in a different order in each process, and
+        a retry runs in a new one. The ids reach the model through the instructions instead.
+        """
+        fp1 = fingerprint_model_request(
+            "m", make_messages(), None, ModelRequestParameters(deferred_capability_ids={"search", "fetch"})
+        )
+        fp2 = fingerprint_model_request(
+            "m", make_messages(), None, ModelRequestParameters(deferred_capability_ids={"lookup"})
+        )
+
+        assert fp1 is not None
+        assert fp1 == fp2
+
     @pytest.mark.parametrize("tools_param", ["function_tools", "output_tools"])
     @pytest.mark.parametrize(
         "change",
