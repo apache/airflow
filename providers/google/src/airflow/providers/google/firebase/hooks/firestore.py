@@ -119,13 +119,26 @@ class CloudFirestoreHook(GoogleBaseHook):
         """
         service = self.get_conn()
         name = f"projects/{project_id}/databases/{database_id}"
-        response = (
-            service.projects().databases().operations().list(name=name).execute(num_retries=self.num_retries)
-        )
-        if not isinstance(response, dict):
-            return []
-        operations = response.get("operations", [])
-        return operations if isinstance(operations, list) else []
+        operations_resource = service.projects().databases().operations()
+        all_operations: list[dict[str, Any]] = []
+        page_token: str | None = None
+
+        while True:
+            list_kwargs: dict[str, Any] = {"name": name}
+            if page_token:
+                list_kwargs["pageToken"] = page_token
+            response = operations_resource.list(**list_kwargs).execute(num_retries=self.num_retries)
+            if not isinstance(response, dict):
+                break
+            operations = response.get("operations", [])
+            if isinstance(operations, list):
+                all_operations.extend(operations)
+            next_page_token = response.get("nextPageToken")
+            if not isinstance(next_page_token, str) or not next_page_token:
+                break
+            page_token = next_page_token
+
+        return all_operations
 
     @GoogleBaseHook.fallback_to_default_project_id
     def find_matching_export_operation(

@@ -140,12 +140,19 @@ class TestCloudFirestoreHookWithPassedProjectId:
     def test_list_operations(self, get_conn_mock):
         service_mock = get_conn_mock.return_value
         mock_list = service_mock.projects.return_value.databases.return_value.operations.return_value.list
-        mock_list.return_value.execute.return_value = {"operations": [TEST_OPERATION]}
+        second_operation = {"name": "operation-name-2"}
+        mock_list.return_value.execute.side_effect = [
+            {"operations": [TEST_OPERATION], "nextPageToken": "page-2"},
+            {"operations": [second_operation]},
+        ]
 
         ops = self.hook.list_operations(project_id=TEST_PROJECT_ID)
 
-        assert ops == [TEST_OPERATION]
-        mock_list.assert_called_once_with(name="projects/firestore--project-id/databases/(default)")
+        assert ops == [TEST_OPERATION, second_operation]
+        assert mock_list.call_args_list == [
+            mock.call(name="projects/firestore--project-id/databases/(default)"),
+            mock.call(name="projects/firestore--project-id/databases/(default)", pageToken="page-2"),
+        ]
 
     @pytest.mark.parametrize(
         ("body", "operations", "include_completed", "expected_name"),
