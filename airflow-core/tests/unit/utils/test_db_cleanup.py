@@ -761,6 +761,25 @@ class TestDBCleanup:
         )
         assert output_lines[-1] == "Finished Performing Delete from dag_run"
 
+    @patch("airflow.utils.db_cleanup._build_query", autospec=True)
+    def test_cleanup_progress_uses_schema_qualified_table_name(self, build_query_mock, capsys):
+        build_query_mock.return_value = select(literal(1))
+        orm_model = Table("log", MetaData(), schema="audit")
+
+        with create_session() as session:
+            _cleanup_table(
+                orm_model=orm_model,
+                recency_column=None,
+                keep_last=False,
+                keep_last_filters=None,
+                keep_last_group_by=None,
+                clean_before_timestamp=pendulum.DateTime(2022, 1, 1, tzinfo=UTC),
+                dry_run=True,
+                session=session,
+            )
+
+        assert "Found 1 row in table audit.log meeting deletion criteria." in capsys.readouterr().out
+
     def test_dag_version_cleanup_skips_versions_pinned_by_task_instance(self):
         """db clean must skip dag_version rows still referenced by a task instance.
 
