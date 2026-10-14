@@ -93,9 +93,8 @@ and a bucket of report files. What differs:
   environment. ``AgentOperator`` takes both from a connection, so moving to another vendor
   or adding a fallback is a connection change. See :doc:`model_providers`.
 - **A retry.** The plain task starts again from the beginning and pays for every call
-  again. ``durable=True`` replays the calls that finished and continues from there. It is
-  experimental, and before Airflow 3.3 it needs ``[common.ai] durable_cache_path`` set; see
-  :doc:`durable_execution`.
+  again. ``durable=True`` replays the calls that finished and continues from there. Before
+  Airflow 3.3 it needs ``[common.ai] durable_cache_path`` set; see :doc:`durable_execution`.
 - **Spend.** In the plain task, Pydantic AI's default limit of 50 model requests applies
   to each attempt on its own, so three attempts can make up to 150. With ``usage_limits``
   on Airflow 3.3 and later, one total covers all three attempts, and the task fails once
@@ -120,7 +119,7 @@ What a plain task leaves to you
     * - The task retries after the agent has already made model and tool calls.
       - ``durable=True`` on ``AgentOperator`` replays the calls that finished and runs
         the rest live. If the prompt, model or tools changed since the failed attempt,
-        the affected calls run again. Experimental.
+        the affected calls run again.
       - :doc:`durable_execution`
     * - A run must not spend past a limit, retries included.
       - ``usage_limits`` counts every attempt of the task instance together on

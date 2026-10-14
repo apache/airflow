@@ -50,8 +50,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        always dumped to a dict. ``decision_policy`` is experimental; see below.
    * - ``@task.agent`` and :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - Runs an agent with the model from ``llm_conn_id`` and the given toolsets, and
-       returns its output under the same rules as ``@task.llm``. ``durable`` and
-       code mode are experimental; see below.
+       returns its output under the same rules as ``@task.llm``. Code mode is
+       experimental; see below.
    * - Per-tool approval on ``AgentOperator`` (:doc:`tool_approval`)
      - On Airflow 3.3 and later, a call to a tool marked with Pydantic AI's approval API
        (``approval_required(...)`` on a toolset, or ``requires_approval=True`` on a
@@ -69,6 +69,19 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Seeds the run with the given conversation, as a list of messages or its JSON form,
        and publishes the finished conversation under the ``message_history`` XCom key so a
        later run can continue it. Cannot be combined with ``enable_hitl_review``.
+   * - ``durable=True`` on ``AgentOperator`` and ``@task.agent``, and
+       :class:`~airflow.providers.common.ai.durable.AirflowDurability`
+       (:doc:`durable_execution`)
+     - On a retry the agent runs from the start, and each model request and tool call an
+       earlier attempt recorded is replayed from the journal kept for the task instance,
+       without calling the model or running the tool again, as long as it matches the step
+       recorded at the same point; from the first step that differs, every step runs live.
+       The journal is kept in the task state store on Airflow 3.3 and later, and under
+       ``[common.ai] durable_cache_path`` before. With ``durable=True``, replayed steps
+       count nothing against ``usage_limits`` or in the ``usage`` XCom, the agent's
+       ``run_id`` stays the first attempt's, and the journal is deleted when the task
+       succeeds. In a plain ``@task``, ``AirflowDurability`` deletes a run's steps when
+       that run succeeds.
    * - ``@task.llm_branch`` and
        :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
      - The model picks among the task's direct downstream tasks, one by default or several
@@ -192,9 +205,6 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`operators/llm_batch`)
      - No package outside this provider implements the contract yet, so it has not been
        tested by a second implementation.
-   * - ``durable=True`` on ``AgentOperator`` (:doc:`durable_execution`)
-     - Which tool results are replayed on retry will change, so that a tool can declare
-       whether its result may be reused.
    * - Code mode (:doc:`code_mode`) and the ``shields`` extra (used in
        :doc:`capabilities`)
      - Thin integrations of ``pydantic-ai-harness`` and ``pydantic-ai-shields``, which are
