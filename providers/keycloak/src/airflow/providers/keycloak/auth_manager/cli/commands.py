@@ -336,16 +336,11 @@ def _get_default_permission_configs() -> list[dict]:
         KeycloakResource.VARIABLE,
         KeycloakResource.BACKFILL,
     }
-    op_read_resources = {
-        KeycloakResource.CONFIGURATION,
-        KeycloakResource.CONNECTION,
-        KeycloakResource.VARIABLE,
-    }
 
     permission_configs = []
 
     for resource in KeycloakResource:
-        if resource in {KeycloakResource.MENU, KeycloakResource.OP_VIEW}:
+        if resource == KeycloakResource.MENU:
             continue
         if resource in user_resources:
             write_roles = user_roles
@@ -354,13 +349,6 @@ def _get_default_permission_configs() -> list[dict]:
         else:
             write_roles = admin_roles
 
-        if resource == KeycloakResource.ADMIN_VIEW:
-            resource_read_roles = admin_roles
-        elif resource in op_read_resources:
-            resource_read_roles = op_roles
-        else:
-            resource_read_roles = read_roles
-
         permission_configs.extend(
             [
                 {
@@ -368,7 +356,7 @@ def _get_default_permission_configs() -> list[dict]:
                     "type": "scope-based",
                     "resources": [resource.value],
                     "scope_names": ["GET", "LIST"],
-                    "role_names": resource_read_roles,
+                    "role_names": read_roles,
                 },
                 {
                     "name": f"{resource.value}Write",
@@ -382,60 +370,11 @@ def _get_default_permission_configs() -> list[dict]:
 
     permission_configs.append(
         {
-            "name": "OpViewRead",
-            "type": "scope-based",
-            "resources": [KeycloakResource.OP_VIEW.value],
-            "scope_names": ["GET"],
-            "role_names": op_roles,
-        }
-    )
-
-    permission_configs.append(
-        {
             "name": "DefaultMenuAccess",
             "type": "scope-based",
-            "resources": [
-                item.value
-                for item in MenuItem
-                if item
-                not in {
-                    MenuItem.CONFIG,
-                    MenuItem.CONNECTIONS,
-                    MenuItem.VARIABLES,
-                    MenuItem.PLUGINS,
-                    MenuItem.PROVIDERS,
-                    MenuItem.AUDIT_LOG,
-                }
-            ],
+            "resources": [item.value for item in MenuItem],
             "scope_names": ["MENU"],
             "role_names": read_roles,
-        }
-    )
-
-    for name, menu_item in [
-        ("ConfigurationMenuAccess", MenuItem.CONFIG),
-        ("ConnectionMenuAccess", MenuItem.CONNECTIONS),
-        ("VariableMenuAccess", MenuItem.VARIABLES),
-        ("PluginMenuAccess", MenuItem.PLUGINS),
-        ("ProviderMenuAccess", MenuItem.PROVIDERS),
-    ]:
-        permission_configs.append(
-            {
-                "name": name,
-                "type": "scope-based",
-                "resources": [menu_item.value],
-                "scope_names": ["MENU"],
-                "role_names": op_roles,
-            }
-        )
-
-    permission_configs.append(
-        {
-            "name": "AuditLogMenuAccess",
-            "type": "scope-based",
-            "resources": [MenuItem.AUDIT_LOG.value],
-            "scope_names": ["MENU"],
-            "role_names": admin_roles,
         }
     )
 
