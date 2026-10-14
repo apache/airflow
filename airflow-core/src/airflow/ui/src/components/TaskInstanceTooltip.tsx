@@ -121,13 +121,18 @@ const TaskInstanceTooltip = ({
                   {translate("taskInstance.queuedWhen")}: <Time datetime={taskInstance.queued_when} />
                 </Text>
               ) : undefined}
+              {/* Outside the branches below, which key off the shape a caller passes: the chart
+                  reports min_start_date rather than start_date, so a try nested in that branch
+                  never reached it. Shown for a first try too, since clearing a loop pass
+                  regenerates the later ones as fresh executions that start at try 1 -- two
+                  neighbouring bars can both be a first try, and this is what tells them apart. */}
+              {typeof taskInstance.try_number === "number" && (
+                <Text>
+                  {translate("tryNumber")}: {taskInstance.try_number}
+                </Text>
+              )}
               {"start_date" in taskInstance ? (
                 <>
-                  {taskInstance.try_number > 1 && (
-                    <Text>
-                      {translate("tryNumber")}: {taskInstance.try_number}
-                    </Text>
-                  )}
                   <Text>
                     {translate("startDate")}: <Time datetime={taskInstance.start_date} />
                   </Text>
