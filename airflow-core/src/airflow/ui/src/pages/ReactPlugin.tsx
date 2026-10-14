@@ -37,8 +37,6 @@ import type {
 
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 
-import { ErrorPage } from "./Error";
-
 export type PluginProps = {
   asset?: AssetResponse;
   assetId?: string;
@@ -84,7 +82,10 @@ export const loadPlugin = (
       // eslint-disable-next-line no-console
       console.error("Component failed to load:", error);
 
-      return { default: ErrorPage };
+      // A plugin that will not load is a deployment problem, not this page's. Rendering an error
+      // page in its slot would bury whatever the user actually came for, so the slot stays empty
+      // and the console carries the reason.
+      return { default: () => null };
     });
 };
 

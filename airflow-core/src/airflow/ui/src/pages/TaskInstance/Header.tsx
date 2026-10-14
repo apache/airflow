@@ -18,13 +18,13 @@
  */
 import { useState } from "react";
 
-import { Box } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import { Alert } from "src/system-components";
+import { Tooltip } from "src/system-components";
 
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
@@ -69,7 +69,32 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
   const showTeam = useShowTeam(taskInstance.team_name);
 
+  // On the header, not the details tab, so it shows on every tab without duplicating the row.
+  const stateReasonDisplayed = stateReasonDisplay(taskInstance.state);
+  const stateReason = taskInstance.state_reason;
+
   const stats = [
+    // First, and a stat rather than a banner: it reports why this instance is in the state the
+    // header already shows, so it belongs with the rest of that instance's facts.
+    ...(stateReasonDisplayed === undefined || stateReason === null || stateReason === undefined
+      ? []
+      : [
+          {
+            label: translate(`taskInstance.stateReasonSummary.${stateReasonDisplayed.titleKey}`, {
+              totalTries: taskInstance.max_tries + 1,
+              tryNumber: taskInstance.try_number,
+            }),
+            value: (
+              // A reason can run to a whole traceback, so the stat shows its first line and the
+              // tooltip carries the rest.
+              <Tooltip content={stateReason}>
+                <Text data-testid="state-reason-stat" maxW="320px" truncate>
+                  {stateReason}
+                </Text>
+              </Tooltip>
+            ),
+          },
+        ]),
     { label: translate("task.operator"), value: taskInstance.operator_name },
     ...(taskInstance.map_index > -1
       ? [{ label: translate("mapIndex"), value: taskInstance.rendered_map_index }]
@@ -106,24 +131,8 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
   // Stable dialog state at header/page level
   const [clearOpen, setClearOpen] = useState(false);
 
-  // On the header, not the details tab, so it shows on every tab without duplicating the row.
-  const stateReasonDisplayed = stateReasonDisplay(taskInstance.state);
-  const stateReason = taskInstance.state_reason;
-
   return (
     <Box display="flex" flexDirection="column" gap={3}>
-      {stateReasonDisplayed === undefined || stateReason === null || stateReason === undefined ? undefined : (
-        <Alert
-          data-testid="state-reason-alert"
-          status={stateReasonDisplayed.status}
-          title={translate(`taskInstance.stateReasonSummary.${stateReasonDisplayed.titleKey}`, {
-            totalTries: taskInstance.max_tries + 1,
-            tryNumber: taskInstance.try_number,
-          })}
-        >
-          {stateReason}
-        </Alert>
-      )}
       <HeaderCard
         actions={
           <>

@@ -24,6 +24,7 @@ import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen
 
 import { RouterLink } from "src/system-components";
 
+import { BackfillInProgressBadge } from "src/components/BackfillInProgressBadge";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
@@ -73,7 +74,7 @@ export const Header = ({
         {
           label: translate("dagDetails.nextRun"),
           value: dag?.is_paused ? undefined : dag?.scheduling_state === "draining" ? (
-            <DrainingBadge />
+            <DrainingBadge dagId={dag.dag_id} />
           ) : Boolean(dag?.next_dagrun_run_after) ? (
             <DagRunInfo
               logicalDate={dag?.next_dagrun_logical_date}
@@ -150,7 +151,7 @@ export const Header = ({
         dag === undefined ? undefined : (
           <>
             <DeadlineAlertsBadge dagId={dag.dag_id} />
-            <NeedsReviewButtonWithModal dagId={dag.dag_id} />
+            <NeedsReviewButtonWithModal dagId={dag.dag_id} variant="chip" />
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
                 bg="bg"
@@ -162,9 +163,9 @@ export const Header = ({
               />
             )}
             <FavoriteDagButton bg="bg" dagId={dag.dag_id} isFavorite={dag.is_favorite} variant="outline" />
-            {isStale ? undefined : (
-              <ParseDagButton bg="bg" dagId={dag.dag_id} fileToken={dag.file_token} variant="outline" />
-            )}
+            {/* Deliberately shown while stale: a Dag that failed to parse or vanished from
+                its file is exactly when reparsing is worth offering. */}
+            <ParseDagButton bg="bg" dagId={dag.dag_id} fileToken={dag.file_token} variant="outline" />
             <DeleteDagButton
               bg="bg"
               dagDisplayName={dag.dag_display_name}
@@ -176,6 +177,7 @@ export const Header = ({
       }
       icon={<DagIcon />}
       stats={stats}
+      statusBadge={<BackfillInProgressBadge dagId={dagId ?? ""} />}
       title={dag?.dag_display_name ?? dagId}
       type="dag"
     />
