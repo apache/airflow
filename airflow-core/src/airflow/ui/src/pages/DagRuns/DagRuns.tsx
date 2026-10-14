@@ -241,6 +241,7 @@ const runColumns = ({
         <DeleteRunButton dagRun={row.original} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
     meta: {

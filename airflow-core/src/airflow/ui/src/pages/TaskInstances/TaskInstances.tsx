@@ -294,6 +294,7 @@ const taskInstanceColumns = ({
         <DeleteTaskInstanceButton taskInstance={row.original} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
     meta: {
