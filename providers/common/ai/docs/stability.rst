@@ -223,8 +223,9 @@ Everything this provider ships that is not in the table above is experimental.
      - Thin integrations of ``pydantic-ai-harness`` and ``pydantic-ai-shields``, which are
        before their 1.0 releases.
    * - The Agent Skills toolset (:doc:`toolsets/skills`)
-     - It may move from ``pydantic-ai-skills`` to the on-demand loading Pydantic AI now has
-       itself (`pydantic/pydantic-ai#5230 <https://github.com/pydantic/pydantic-ai/pull/5230>`__).
+     - It is built on ``pydantic-ai-skills``, a community package. Whether it moves to
+       ``pydantic-ai-harness``'s ``Skills`` once that loads skill resources and scripts is
+       still open.
    * - :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` and its
        backends (:doc:`sandbox/index`)
      - ``durable=True`` cannot be used with it yet, the ``sbx`` backend leaves its sandbox

@@ -135,6 +135,10 @@ checklist.
    * - :doc:`ManagedAgentToolset <toolsets/managed_agent>`
      - Sends a prompt to an agent on Bedrock AgentCore or Vertex AI Agent Engine.
      - The Amazon or Google provider's ``common.ai`` extra
+   * - :doc:`Progressive tool disclosure <toolsets/progressive_disclosure>`
+     - Hides a toolset's tools from the model until it searches for them, with
+       ``.defer_loading()`` on any toolset.
+     - None
 
 Control output and spend
 ------------------------

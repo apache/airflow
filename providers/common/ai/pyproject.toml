@@ -132,8 +132,9 @@ dependencies = [
 "shields" = ["pydantic-ai-shields>=0.3.4"]
 # Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset;
 # the git provider supplies GitHook + GitPython for cloning GitSkills with
-# credentials from a `git` connection. Native progressive disclosure is tracked
-# upstream in pydantic/pydantic-ai#5230; revisit this extra once that lands.
+# credentials from a `git` connection. pydantic-ai-harness's Skills capability is not
+# a replacement: it loads only SKILL.md instructions, with no skill resources and no
+# run_skill_script.
 "skills" = [
     "apache-airflow-providers-git>=0.4.0",
     "pydantic-ai-skills>=1.2.0",
