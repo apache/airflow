@@ -442,21 +442,55 @@ def _build_ti_summaries(
         if isinstance(group, SerializedLoopTaskGroup)
     }
     regions = DynamicRegion.load_for_run(dag_id, run_id, session=session) if loop_ids else {}
-    for ti in chain([first], rows):
+    streamed = chain([first], rows)
+    # Only a Dag with loops needs two passes over the rows, one to find each invocation's newest
+    # iteration and one to build the summaries. Without loops the stream is consumed once, so a
+    # run of any size is not held in memory to learn that none of it was looped.
+    positions_by_ti: Iterable[tuple[TaskInstance, dict[str, tuple[UUID, int]]]]
+    if loop_ids:
+        positions_by_ti = [
+            (
+                ti,
+                {
+                    loop_id: position
+                    for loop_id in loop_ids
+                    if (position := loop_position(regions, ti.region_id, ti.region_index, loop_id))
+                    is not None
+                },
+            )
+            for ti in streamed
+        ]
+    else:
+        positions_by_ti = ((ti, {}) for ti in streamed)
+    # A looped task has one row per iteration. Counting them all would report the work done
+    # across the whole loop rather than the state the task is in, so the state counts come from
+    # the newest iteration of each invocation. Every iteration still feeds loop_iterations,
+    # which is what reports how many ran.
+    latest_iteration: dict[tuple[str, str, UUID], int] = {}
+    # Guarded because without loops ``positions_by_ti`` streams: walking it here would leave
+    # nothing for the summaries below, and there is no iteration to find anyway.
+    if loop_ids:
+        for ti, positions in positions_by_ti:
+            for loop_id, (family_id, iteration) in positions.items():
+                key = (ti.task_id, loop_id, family_id)
+                if iteration > latest_iteration.get(key, -1):
+                    latest_iteration[key] = iteration
+    for ti, positions in positions_by_ti:
         summary = ti_details.get(ti.task_id)
         if summary is None:
             summary = ti_details[ti.task_id] = GridNodeAgg()
-        loop_positions = {}
-        for loop_id in loop_ids:
-            if position := loop_position(regions, ti.region_id, ti.region_index, loop_id):
-                loop_positions[loop_id] = position
         summary.add_ti(
             state=ti.state,
             start_date=ti.start_date,
             end_date=ti.end_date,
             dag_version_number=getattr(ti, "version_number", None),
             has_note=bool(getattr(ti, "has_note", False)),
-            loop_positions=loop_positions,
+            loop_positions=positions,
+            region=(ti.region_id, ti.region_index) if positions else None,
+            is_latest_pass=all(
+                iteration == latest_iteration[(ti.task_id, loop_id, family_id)]
+                for loop_id, (family_id, iteration) in positions.items()
+            ),
         )
 
     def get_node_summaries() -> Iterable[dict[str, Any]]:

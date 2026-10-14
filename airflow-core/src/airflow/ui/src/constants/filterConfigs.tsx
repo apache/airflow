@@ -30,6 +30,7 @@ import {
   MdDateRange,
   MdHistory,
   MdHourglassEmpty,
+  MdLoop,
   MdPause,
   MdPendingActions,
   MdPlayArrow,
@@ -43,9 +44,11 @@ import { useTeamsServiceListTeams } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 
 import type { FilterConfig } from "src/components/FilterBar";
+import { LoopFilter } from "src/components/FilterBar/filters/LoopFilter";
 import { RunStateFilter } from "src/components/FilterBar/filters/RunStateFilter";
 import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
 import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableTypeFilter";
+import { loopFromSearchParams, loopToSearchParams } from "src/components/FilterBar/filters/loopParams";
 import {
   runStateFromSearchParams,
   runStateToSearchParams,
@@ -301,6 +304,15 @@ export const useFilterConfigs = () => {
       label: translate("common:logicalDate"),
       startKey: SearchParamsKeys.LOGICAL_DATE_GTE,
       type: FilterTypes.DATERANGE,
+    },
+    [SearchParamsKeys.LOOP]: {
+      EditorComponent: LoopFilter,
+      fromSearchParams: loopFromSearchParams,
+      icon: <MdLoop />,
+      label: translate("common:filters.loop"),
+      placeholder: translate("common:filters.loopPlaceholder"),
+      toSearchParams: loopToSearchParams,
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.MAP_INDEX]: {
       icon: <LuBrackets />,

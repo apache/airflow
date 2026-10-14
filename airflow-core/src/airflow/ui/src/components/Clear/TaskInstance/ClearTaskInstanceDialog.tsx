@@ -374,18 +374,19 @@ const ClearTaskInstanceDialog = (props: Props) => {
     <>
       <Modal
         footerActions={
+          <Button
+            disabled={data.total_entries === 0 || keptTaskInstances.length === 0}
+            loading={isPending}
+            onClick={gateRequest === undefined ? confirmClear : onOpen}
+          >
+            <CgRedo /> {translate("modal.confirm")}
+          </Button>
+        }
+        footerOptions={
           <>
-            <Button
-              disabled={data.total_entries === 0 || keptTaskInstances.length === 0}
-              loading={isPending}
-              onClick={gateRequest === undefined ? confirmClear : onOpen}
-            >
-              <CgRedo /> {translate("modal.confirm")}
-            </Button>
             <Checkbox
               checked={keepTaskState}
               onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
-              style={{ marginRight: "auto" }}
             >
               {translate("dags:runAndTaskActions.options.keepTaskState")}
             </Checkbox>
