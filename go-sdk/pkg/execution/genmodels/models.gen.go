@@ -1740,6 +1740,22 @@ type VariableResponse struct {
 
 type TaskIds []string
 
+const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
+const TaskInstanceStateDeferred TaskInstanceState = "deferred"
+const TaskInstanceStateSkipped TaskInstanceState = "skipped"
+const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
+const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
+const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
+const TaskInstanceStateFailed TaskInstanceState = "failed"
+const TaskInstanceStateRestarting TaskInstanceState = "restarting"
+const TaskInstanceStateSuccess TaskInstanceState = "success"
+const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateQueued TaskInstanceState = "queued"
+const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
+const TaskInstanceStateRemoved TaskInstanceState = "removed"
+
+type TaskInstanceState string
+
 // Schema for TaskInstance model with minimal required fields needed for Runtime.
 type TaskInstance struct {
 	// ContextCarrier corresponds to the JSON schema field "context_carrier".
@@ -1778,22 +1794,6 @@ type TaskInstance struct {
 	// TryNumber corresponds to the JSON schema field "try_number".
 	TryNumber int `msgpack:"try_number"`
 }
-
-const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
-const TaskInstanceStateDeferred TaskInstanceState = "deferred"
-const TaskInstanceStateSkipped TaskInstanceState = "skipped"
-const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
-const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
-const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
-const TaskInstanceStateFailed TaskInstanceState = "failed"
-const TaskInstanceStateRestarting TaskInstanceState = "restarting"
-const TaskInstanceStateSuccess TaskInstanceState = "success"
-const TaskInstanceStateRunning TaskInstanceState = "running"
-const TaskInstanceStateQueued TaskInstanceState = "queued"
-const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
-const TaskInstanceStateRemoved TaskInstanceState = "removed"
-
-type TaskInstanceState string
 
 type TaskOutlets []AssetProfile
 
