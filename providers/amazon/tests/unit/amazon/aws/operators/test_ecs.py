@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -27,6 +28,7 @@ from botocore.exceptions import ClientError, WaiterError
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.operators.ecs import (
     EcsBaseOperator,
     EcsCreateClusterOperator,
@@ -630,6 +632,50 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         }
         with pytest.raises(AirflowSkipException, match="This task is not in success state"):
             self.ecs._check_success_task()
+
+    @pytest.mark.parametrize(
+        ("exit_code", "expected_exception"),
+        [(2, AirflowSkipException), (3, AirflowException)],
+    )
+    def test_check_success_task_missing_log_stream_preserves_exit_outcome(
+        self, exit_code, expected_exception
+    ):
+        self.ecs.arn = "arn"
+        self.ecs.skip_on_exit_code = [2]
+        self.ecs.task_log_fetcher = AwsTaskLogFetcher(
+            log_group="test_log_group",
+            log_stream_name="test_log_stream",
+            fetch_interval=timedelta(seconds=1),
+            logger=self.ecs.log,
+        )
+        with (
+            mock.patch.object(EcsBaseOperator, "client") as client_mock,
+            mock.patch.object(AwsLogsHook, "conn", new_callable=PropertyMock) as logs_conn_mock,
+        ):
+            client_mock.describe_tasks.return_value = {
+                "tasks": [
+                    {
+                        "containers": [
+                            {"name": "container-name", "lastStatus": "STOPPED", "exitCode": exit_code}
+                        ]
+                    }
+                ]
+            }
+            logs_conn_mock.return_value.get_log_events.side_effect = ClientError(
+                {"Error": {"Code": "ResourceNotFoundException", "Message": "Log stream not found"}},
+                "GetLogEvents",
+            )
+
+            with pytest.raises(expected_exception, match="This task is not in success state") as error:
+                self.ecs._check_success_task()
+
+            assert type(error.value) is expected_exception
+            logs_conn_mock.return_value.get_log_events.assert_called_once_with(
+                logGroupName="test_log_group",
+                logStreamName="test_log_stream",
+                startFromHead=False,
+                limit=self.ecs.number_logs_exception,
+            )
 
     @mock.patch.object(EcsBaseOperator, "client")
     def test_check_success_task_unmatched_exit_code_raises_airflow_exception(self, client_mock):
