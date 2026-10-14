@@ -436,7 +436,8 @@ task, a script the model writes, runs, and fixes from its own traceback.
   per-tool approval work only when the sandbox is task-owned: ``AgentOperator`` refuses
   HITL review beside a sandbox the toolset provisions itself, and a tool that requires
   approval there fails the task. :ref:`Lifecycle <sandbox-lifecycle>`.
-- **A run that outlives** ``sandbox_timeout`` **(``ttl_seconds`` on Boat) fails the task.**
+- **A run that outlives its sandbox's lifetime fails the task:** ``sandbox_timeout``,
+  or ``ttl_seconds`` on Boat.
   :ref:`Lifecycle <sandbox-lifecycle>`.
 - **Network rules are only as strong as the backend.** A backend that cannot enforce
   a network field raises rather than provisioning a looser sandbox, so a bare

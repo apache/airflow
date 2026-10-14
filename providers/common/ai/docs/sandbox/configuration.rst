@@ -393,9 +393,9 @@ sandbox to be certain the command stopped, and the result then says
 to start over. Any other failure that loses the sandbox is reported the same way.
 
 **A run that outlives its sandbox fails the task.** When ``sandbox_timeout``
-(``ttl_seconds`` on Boat) or ``idle_timeout`` passes mid-run, the next tool call reaches a sandbox that is gone,
-which is terminal. This is the normal end of any run longer than its sandbox's
-lifetime. For a sandbox the toolset provisions itself, human output review is
+(``ttl_seconds`` on Boat) or ``idle_timeout`` passes mid-run, the next tool call
+reaches a sandbox that is gone, which is terminal. This is the normal end of any
+run longer than its sandbox's lifetime. For a sandbox the toolset provisions itself, human output review is
 not part of the run: it starts after the agent has finished and the sandbox's
 teardown has been requested, so the toolset holds no sandbox and no files through
 a review pause. A sandbox another task owns keeps running through the review, and

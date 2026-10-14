@@ -196,6 +196,7 @@ def test_missing_sdk_error_is_actionable():
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
+        ({"org": " "}, "org"),
         ({"machine_type": "xlarge"}, "machine_type"),
         ({"ttl_seconds": 0}, "ttl_seconds"),
         ({"ttl_seconds": 0.5}, "whole number of seconds"),
@@ -450,7 +451,6 @@ class TestCreate:
         assert request.ttl_seconds == 120
         assert request.no_env is True
         assert request.snapshots is False
-        assert request.monitoring is False
         assert request.to_dict()["monitoring"] is False
         assert request.env == {"TOKEN": "value"}
         api.get_without_preload_content.assert_called_once_with("bx_created1", _request_timeout=30.0)
@@ -465,6 +465,35 @@ class TestCreate:
 
         request = api.create.call_args.kwargs["create_sandbox_request"]
         assert request.env is None
+
+    @pytest.mark.parametrize(
+        ("kwargs", "org"),
+        [
+            # Not the account's active wallet, which may be an organization whose
+            # members could then use the sandbox.
+            pytest.param({}, "personal", id="default"),
+            pytest.param({"org": " acme "}, "acme", id="named"),
+        ],
+    )
+    def test_the_sandbox_is_billed_to_the_chosen_wallet(self, kwargs, org):
+        backend, api = _backend_with_api(**kwargs)
+        api.create.return_value = _created("bx_created1")
+        api.get_without_preload_content.return_value = _sandbox_info("ready")
+
+        backend.create()
+
+        assert api.create.call_args.kwargs["create_sandbox_request"].to_dict()["org"] == org
+
+    def test_an_sdk_that_cannot_turn_monitoring_off_is_refused(self, monkeypatch):
+        # boat-sdk 1.9.2's request model: it has no monitoring field to send.
+        old_request = type("CreateSandboxRequest", (), {"model_fields": {"no_env": None, "snapshots": None}})
+        monkeypatch.setattr("boat_sdk.models.create_sandbox_request.CreateSandboxRequest", old_request)
+        backend, api = _backend_with_api()
+
+        with pytest.raises(SandboxTerminalError, match=r"boat-sdk>=1\.9\.3"):
+            backend.create()
+
+        api.create.assert_not_called()
 
     @pytest.mark.parametrize(
         ("polls", "match"),

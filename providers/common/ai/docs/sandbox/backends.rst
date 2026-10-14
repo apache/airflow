@@ -300,10 +300,14 @@ the default. It must start with ``https://`` or ``http://``: a bare domain such 
 ``boat.dev``, which is what Airflow's connection URI form leaves in ``host``, is
 refused, since the API key would otherwise be sent to it over plain HTTP. With
 ``boat_conn_id=None``, the default, the backend reads ``BOAT_API_KEY`` (required)
-and optional ``BOAT_BASE_URL`` from the worker environment instead.
+and optional ``BOAT_BASE_URL`` from the worker environment instead, and
+``BOAT_BASE_URL`` must carry the scheme too.
 
 Constructor parameters:
 
+- ``org``: the Boat wallet each sandbox is billed to, by organization id or name,
+  or ``"personal"``. Default ``"personal"``, which bills your own account whatever
+  its active wallet is. See the warning below before naming an organization.
 - ``machine_type``: ``"small"``, ``"default"`` or ``"large"``.
 - ``ttl_seconds``: server-side TTL after which Boat stops the sandbox, a whole
   number of seconds up to ``2592000`` (30 days). Default ``3600``.
@@ -330,6 +334,14 @@ keeps a server-assigned name and runs until Boat stops it at ``ttl_seconds``.
 Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of your Boat
 account's stored environment variables, secret files or credentials, and cannot
 act on your account or your other sandboxes.
+
+.. warning::
+
+    Boat gives every member of an organization use of a ``noEnv`` sandbox billed
+    to that organization: they can open it and run commands in it, so they can
+    read and write anything in it, including the ``SandboxSpec.env`` values each
+    command receives. Pass ``org`` only when everyone in that organization may see
+    what the agent works on.
 
 ``SandboxSpec.env`` is passed when the sandbox is created and also exported at
 the start of every command, so each value is sent again with every command

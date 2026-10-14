@@ -178,7 +178,8 @@ class BoatSandboxBackend(SandboxBackend):
     Credentials come from a generic Airflow connection, resolved on first use:
     its ``password`` is the Boat API key, and its ``host``, when set, the API
     base URL. Without a connection, the backend reads ``BOAT_API_KEY`` (required)
-    and optional ``BOAT_BASE_URL`` from the worker environment on first use.
+    and optional ``BOAT_BASE_URL`` (the full API base URL with its scheme) from the
+    worker environment on first use.
 
     Every sandbox is created with Boat's ``noEnv`` flag, so it gets none of the
     account's stored environment variables, secret files or credentials, and
@@ -208,6 +209,12 @@ class BoatSandboxBackend(SandboxBackend):
         URL with its scheme, such as ``https://boat.dev/api/v1``. ``None``
         (default) reads ``BOAT_API_KEY`` and optional ``BOAT_BASE_URL`` from the
         worker environment instead.
+    :param org: Boat wallet the sandbox is billed to, by organization id or name,
+        or ``"personal"`` for the account's own. Boat lets every member of an
+        organization open, run commands in, and read and write files in a
+        ``noEnv`` sandbox billed to it, so naming one puts them all inside the
+        sandbox's trust boundary. Default ``"personal"``, which also overrides the
+        account's active wallet.
     :param machine_type: Boat machine size: ``small``, ``default``, or ``large``.
         Default ``"default"``.
     :param ttl_seconds: Server-side TTL in seconds after which Boat stops the
@@ -233,11 +240,14 @@ class BoatSandboxBackend(SandboxBackend):
         self,
         *,
         boat_conn_id: str | None = None,
+        org: str = "personal",
         machine_type: str = "default",
         ttl_seconds: int = 3600,
         ready_timeout: float = 300.0,
         request_timeout: float = 30.0,
     ) -> None:
+        if not org.strip():
+            raise ValueError('org must name a Boat organization, or be "personal".')
         if machine_type not in _MACHINE_TYPES:
             raise ValueError(f"machine_type must be one of {sorted(_MACHINE_TYPES)}, got {machine_type!r}.")
         _validate_positive_finite(ttl_seconds, "ttl_seconds")
@@ -252,6 +262,7 @@ class BoatSandboxBackend(SandboxBackend):
         _validate_positive_finite(ready_timeout, "ready_timeout")
         _validate_positive_finite(request_timeout, "request_timeout")
         self._boat_conn_id = boat_conn_id
+        self._org = org.strip()
         self._machine_type = machine_type
         self._ttl_seconds = int(ttl_seconds)
         self._ready_timeout = ready_timeout
@@ -409,10 +420,17 @@ class BoatSandboxBackend(SandboxBackend):
         with _translate_boat_errors("create a sandbox"):
             from boat_sdk.models.create_sandbox_request import CreateSandboxRequest
 
+            # A boat-sdk older than 1.9.3 accepts monitoring=False and leaves it out of
+            # the request, so Boat would keep the history this backend promises it does not.
+            if "monitoring" not in CreateSandboxRequest.model_fields:
+                raise SandboxTerminalError(
+                    'The Boat backend needs boat-sdk>=1.9.3. Install "apache-airflow-providers-common-ai[boat]".'
+                )
             # The generated request models are typed by their wire aliases.
             request = CreateSandboxRequest(
                 type=self._machine_type,
                 ttlSeconds=self._ttl_seconds,
+                org=self._org,
                 noEnv=True,
                 # Nothing here resumes or forks a sandbox, so snapshots would only
                 # cost CPU and memory and keep a stopped sandbox's disk.
