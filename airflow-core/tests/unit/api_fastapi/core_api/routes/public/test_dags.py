@@ -1843,8 +1843,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="is_at_max_active_runs_running",
-                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1873,8 +1873,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="is_at_max_active_runs_queued",
-                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.QUEUED,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1897,8 +1897,8 @@ class TestDagDetails(TestDagEndpoint):
             DagRun(
                 dag_id=DAG2_ID,
                 run_id="is_at_max_active_runs_backfill_running",
-                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
-                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=timezone.utc),
+                logical_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=UTC),
+                start_date=datetime(2021, 6, 15, 4, 0, 0, tzinfo=UTC),
                 run_type=DagRunType.BACKFILL_JOB,
                 state=DagRunState.RUNNING,
                 triggered_by=DagRunTriggeredByType.TEST,
