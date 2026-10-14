@@ -925,6 +925,9 @@ class MappedOperator(AbstractOperator):
         for operator, _ in XComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield operator
 
+    def iter_expansion_sources(self) -> Iterator[AbstractOperator]:
+        return self.iter_mapped_dependencies()
+
     def render_template_fields(
         self,
         context: Context,

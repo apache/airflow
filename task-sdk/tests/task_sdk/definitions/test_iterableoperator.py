@@ -4909,7 +4909,7 @@ class TestKeepsFailureToItsItem:
 
 
 class TestIterateOverALoopTask:
-    """What the input of an iterated task holds when it iterates over the output of a task in a loop."""
+    """An iterated task over the output of a task in a loop, in the same loop: outside it, it is refused."""
 
     @staticmethod
     def _input_of(iterate_inside_the_loop: bool):
@@ -4946,14 +4946,17 @@ class TestIterateOverALoopTask:
 
         assert xcom_arg._resolve_map_indexes(SimpleNamespace(task=iterated)) is None
 
-    def test_outside_the_loop_it_reads_every_pass(self):
+    def test_it_expands_over_the_upstream_of_its_input_without_being_mapped_over_it(self):
         """
-        Every pass's value of the loop task, as any task outside the loop reads it: each index is
-        one whole pass's value, not one of the producer's items.
+        The loop check sees the upstream it iterates over; the scheduler does not count its items,
+        so it is no mapped dependency of the iterated task and gets no mapped dependant.
         """
-        iterated, xcom_arg = self._input_of(iterate_inside_the_loop=False)
+        iterated, _ = self._input_of(iterate_inside_the_loop=True)
+        produce = iterated.dag.get_task("body.produce")
 
-        assert isinstance(xcom_arg._resolve_map_indexes(SimpleNamespace(task=iterated)), LazyXComSequence)
+        assert list(iterated.iter_expansion_sources()) == [produce]
+        assert not hasattr(iterated, "iter_mapped_dependencies")
+        assert list(produce.iter_mapped_dependants()) == []
 
     def test_each_pass_checkpoints_under_its_own_task_instance(
         self, create_runtime_ti, mock_supervisor_comms

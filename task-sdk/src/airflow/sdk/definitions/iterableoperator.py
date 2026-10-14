@@ -22,7 +22,7 @@ import copy
 import os
 import threading
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial, wraps
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -58,6 +58,7 @@ from airflow.sdk.execution_time.task_runner import (
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions._internal.expandinput import ExpandInput, Resolved
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -1423,6 +1424,12 @@ class IterableOperator(BaseOperator):
 
     def _get_specified_expand_input(self) -> ExpandInput:
         return self.expand_input
+
+    def iter_expansion_sources(self) -> Iterator[AbstractOperator]:
+        # The upstream tasks of the input it iterates. Not reported as mapped dependencies: the
+        # iterated task is not mapped, and the scheduler must not count those upstream items.
+        for operator, _ in XComArg.iter_xcom_references(self.expand_input):
+            yield operator
 
     def _skip_downstream_of_a_partial_skip(self, context: Context, result: XComIterable | None) -> None:
         """
