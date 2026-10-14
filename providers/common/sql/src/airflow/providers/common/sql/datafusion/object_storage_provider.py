@@ -202,7 +202,7 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
             raise ObjectStoreCreationException(f"Failed to create Azure object store: {e}")
 
     def get_scheme(self) -> str:
-        """Return the scheme for Azure; ``normalize_uri`` rewrites abfs(s) URIs onto it."""
+        """Return the scheme for Azure; ``normalize_uri`` rewrites ``abfs(s)://`` URIs onto it."""
         return "az://"
 
 
