@@ -373,8 +373,9 @@ retry behaviour with no change to the Dag. Two things follow:
 
 * ``timeout`` stops bounding the whole classification call. pydantic-ai applies a
   ``ModelSettings`` timeout to each model in the chain, not to the chain as a whole, so a
-  30-second ``timeout`` across a three-connection chain is a 90-second worst case before the
-  policy falls back to ``fallback_rules``.
+  30-second ``timeout`` across a three-connection chain can take up to 90 seconds before the
+  policy falls back to ``fallback_rules``, or 270 when the connections use the OpenAI or
+  Anthropic SDK, which retry a timed-out request twice.
 * If every connection in the chain fails, the classification call raises
   ``pydantic_ai.exceptions.FallbackExceptionGroup``. ``evaluate()`` still degrades to
   ``fallback_rules`` correctly -- it catches the broad ``Exception``, and an exception group is
