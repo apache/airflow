@@ -23,6 +23,7 @@ from functools import cached_property
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
@@ -178,7 +179,7 @@ class MsSqlHook(DbApiHook):
         try:
             mssql_python = import_module("mssql_python")
         except ImportError as e:
-            raise ImportError(
+            raise AirflowOptionalProviderFeatureException(
                 "The 'mssql_python' dbapi_driver needs the mssql-python package. Install it with: "
                 "pip install 'apache-airflow-providers-microsoft-mssql[mssql-python]'"
             ) from e
