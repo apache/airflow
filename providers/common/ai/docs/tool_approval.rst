@@ -130,6 +130,76 @@ The arguments shown to the reviewer pass through Airflow's secrets masker first,
 so a value under a key such as ``api_key`` or ``password``, or a value already
 registered as a secret, is shown masked.
 
+.. _howto/tool_approval_judge:
+
+Let a decision model approve the routine calls
+----------------------------------------------
+
+Most refunds are routine, and a person who approves every one of them stops reading
+them. A :doc:`decision model <decision_models>` can answer "may this call run without
+a person?" for each one, and pydantic-ai's ``HandleDeferredToolCalls`` capability is
+the place to ask: its handler sees every call waiting for approval, with its
+validated arguments, before the task pauses. It approves the calls the model is sure
+about, denies the ones the model is sure should not run, and leaves the rest. The
+task pauses on whatever it leaves, exactly as above.
+
+A limit you can write down, such as "refunds over $50", needs no model: the
+``.approval_required()`` function above can check the arguments itself. The model
+earns its call on the question a rule cannot answer, whether the call fits the
+request: the right order, an amount the customer's problem supports, an action
+somebody asked for.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_tool_judge.py
+    :language: python
+    :start-after: [START howto_agent_tool_judge]
+    :end-before: [END howto_agent_tool_judge]
+
+What happens to each call:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - The model answers
+     - Confidence at or above ``MIN_CONFIDENCE``
+     - Below it, or none reported
+   * - ``allow``
+     - The call runs.
+     - A person decides.
+   * - ``deny``
+     - The call does not run; the agent is told, as after a Reject.
+     - A person decides.
+   * - ``review``
+     - A person decides.
+     - A person decides.
+   * - The model call raises
+     - A person decides.
+     - A person decides.
+
+Once a person approves, the call runs without the model being asked again. Once a
+call to a tool has been refused, by a person or by the model, later calls to that
+tool in the same run go to a person: the model does not see why the earlier call was
+refused, so it does not get to overrule that.
+
+**Keep hard limits in the tool.** A decision model reads a tool argument as data, not
+as an attempt to manipulate it, so an argument written to argue for its own approval
+can move the answer (see :doc:`decision_models`). ``within_order_total`` is the
+tool's ``args_validator``: it runs in the worker after the arguments validate and
+before the call is marked for approval, so a refund above the order total goes back
+to the agent without the model or a person being asked about it.
+
+**Set the bar from your own calls.** Run the handler over calls your agent actually
+makes, and raise ``MIN_CONFIDENCE`` until the calls it lets through are ones you
+would have approved. A model that hesitates sends more calls to a person, which
+costs time; one that is trusted too far costs whatever the tool does.
+
+The Required Actions page shows the call, not the model's answer; the handler logs
+the answer and its confidence to the task log, where the reviewer can look. A call the
+handler leaves for a person follows every rule on this page, including how often one
+task instance can ask in a Dag run. Where tool approval is not available, such a call
+fails the task. An exception the handler does not catch, such as a missing
+``decision_default`` connection, fails the task as well.
+
 Requirements and limits
 -----------------------
 
