@@ -79,6 +79,10 @@ Outcome = TypeVar("Outcome")
 # IterableOperator._digest_items).
 EAGER_SEQUENCES = (str, bytes, list, tuple)
 
+# What an item of a lazy upstream value that cannot be read or serialized is digested as, with the name of
+# the exception's type, so that the other items still count (see IterableOperator._digest_items).
+UNREADABLE_ITEM = "__unreadable_item__"
+
 # How serde names a set and a frozenset it writes: their members come out in iteration order, which
 # for strings depends on the process's hash seed (see IterableOperator._to_canonical_json).
 SET_CLASSNAMES = frozenset({"builtins.set", "builtins.frozenset"})
@@ -1512,19 +1516,20 @@ class IterableOperator(BaseOperator):
             self._collect_upstream_values(key, value, getattr(unmapped_task, key, None), inputs)
         return inputs
 
-    def _digest_items(self, items: Iterable[Any]) -> str | None:
+    def _digest_items(self, path: str, items: Sequence[Any]) -> str | None:
         """
-        Digest the items of a lazy upstream value, read one at a time.
+        Digest the items of the lazy upstream value at ``path``, read one at a time by position.
 
         Each item is serialized on its own and fed to the hash followed by a newline, which JSON never
         leaves unescaped inside a value, so no item is held longer than it takes to digest it. Two
         upstream runs of the same length but other items give other digests. Reading the items of a
         ``.map()`` runs its callables on each of them, as the indexed task does when it reads them.
 
-        A value whose items cannot all be read or serialized gets no digest: a callable that raises
-        for one item must not fail every indexed task, which may never read that item. A checkpoint
-        written with a digest then no longer matches, so its indexed task runs again rather than
-        replaying a result.
+        An item that cannot be read or serialized (a callable that raises for it) is digested as a
+        fixed marker naming the exception type, and the others still count: a cleared upstream that
+        produced other values changes the digest even when that item fails on both attempts. It must
+        not fail every indexed task either, which may never read that item. A warning names the path,
+        since the indexed tasks then run again, or not, for a reason found in the upstream.
 
         :meth:`IterationState.stop_requested` is asked before every read, as the executor asks it
         before every pull: a kill that lands while a large upstream is read ends the read at the
@@ -1533,14 +1538,27 @@ class IterableOperator(BaseOperator):
         if self._state.stop_requested():
             return None
         digest = hashlib.sha256()
-        try:
-            for item in items:
-                digest.update(self._to_canonical_json(item).encode())
-                digest.update(b"\n")
-                if self._state.stop_requested():
-                    return None
-        except Exception:
-            return None
+        failed: list[int] = []
+        for position in range(len(items)):
+            try:
+                text = self._to_canonical_json(items[position])
+            except Exception as e:
+                failed.append(position)
+                text = json.dumps({UNREADABLE_ITEM: type(e).__qualname__})
+            digest.update(text.encode())
+            digest.update(b"\n")
+            if self._state.stop_requested():
+                return None
+        if failed:
+            self.log.warning(
+                "Could not read %d of the %d items of %s for the input fingerprint (first at position "
+                "%d); they count as unreadable, so the indexed tasks may run again or replay their "
+                "checkpoints for a reason found in that upstream",
+                len(failed),
+                len(items),
+                path,
+                failed[0],
+            )
         return digest.hexdigest()
 
     @cached_property
@@ -1566,7 +1584,7 @@ class IterableOperator(BaseOperator):
         """
         if isinstance(declared, XComArg):
             inputs[path] = (
-                self._state.upstream_digest(path, partial(self._digest_items, rendered))
+                self._state.upstream_digest(path, partial(self._digest_items, path, rendered))
                 if isinstance(rendered, Sequence) and not isinstance(rendered, EAGER_SEQUENCES)
                 else rendered
             )

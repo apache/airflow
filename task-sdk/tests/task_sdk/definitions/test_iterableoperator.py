@@ -31,7 +31,7 @@ from datetime import UTC, datetime, timedelta
 from functools import partial
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, call, create_autospec, patch
 
 import jinja2
 import pytest
@@ -4223,12 +4223,12 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         first = XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=2)
         retry = XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=2)
         items = {id(first): [1, 2], id(retry): retry_items}
-        original_iter = XComIterable.__iter__
+        original_getitem = XComIterable.__getitem__
 
-        def upstream_items(self):
-            return iter(items[id(self)]) if id(self) in items else original_iter(self)
+        def upstream_item(self, index):
+            return items[id(self)][index] if id(self) in items else original_getitem(self, index)
 
-        with patch.object(XComIterable, "__iter__", upstream_items):
+        with patch.object(XComIterable, "__getitem__", upstream_item):
             runs, _ = self._run_twice(retry, arg2_first=first)
 
         assert ((2, 1) in runs) is runs_again
@@ -4245,16 +4245,20 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         reads = []
         items = [[1, 2]]
 
-        def read_items(self):
-            reads.append(1)
-            return iter(items[0])
+        def read_item(self, index):
+            if index == 0:
+                reads.append(1)
+            return items[0][index]
 
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(dag, ListOfDictsExpandInput([{"arg1": "a"}]))
         iterable_op.partial_kwargs = {"arg2": make_xcom_arg(None)}
         rendered = SimpleNamespace(arg2=lazy)
 
-        with patch.object(type(lazy), "__iter__", read_items):
+        with (
+            patch.object(type(lazy), "__getitem__", read_item),
+            patch.object(type(lazy), "__len__", lambda self: len(items[0])),
+        ):
             first_run = [
                 iterable_op._collect_partial_inputs_from_upstream(rendered)["arg2"] for _ in range(3)
             ]
@@ -4317,30 +4321,40 @@ class TestFingerprintCoversPartialInputsFromUpstream:
         upstream = XComIterable(task_id="upstream", dag_id="test_dag", run_id="run", length=100)
         reads = []
 
-        def read_items(self):
-            for index in range(100):
-                reads.append(index)
-                if index == killed_while_reading:
-                    iterable_op._state.request_stop()
-                yield index
+        def read_item(self, index):
+            reads.append(index)
+            if index == killed_while_reading:
+                iterable_op._state.request_stop()
+            return index
 
         if killed_while_reading is None:
             iterable_op._state.request_stop()
-        with patch.object(XComIterable, "__iter__", read_items):
+        with patch.object(XComIterable, "__getitem__", read_item):
             recorded = iterable_op._collect_partial_inputs_from_upstream(SimpleNamespace(arg2=upstream))
 
         assert recorded["arg2"] is None
         assert reads == expected_reads
 
-    def test_a_map_callable_raising_for_one_item_leaves_the_value_without_a_digest(self):
-        """The indexed tasks may never read that item, so the failure is not theirs: the value gets no digest."""
+    def test_a_map_callable_raising_for_one_item_still_counts_the_other_items(self):
+        """
+        The indexed tasks may never read that item, so its failure is not theirs: it counts as unreadable,
+        and the other items still decide the digest, with a warning naming the upstream.
+        """
 
         def refuse_two(item):
             if item == 2:
                 raise ValueError("cannot map 2")
             return item
 
-        assert self._recorded_for(_MapResult([1, 2], [refuse_two])) is None
+        log = Mock()
+        with patch.object(IterableOperator, "log", new_callable=PropertyMock, return_value=log):
+            digest = self._recorded_for(_MapResult([1, 2], [refuse_two]))
+
+        assert isinstance(digest, str)
+        assert self._recorded_for(_MapResult([1, 2], [refuse_two])) == digest
+        assert self._recorded_for(_MapResult([3, 2], [refuse_two])) != digest
+        log.warning.assert_called_once()
+        assert log.warning.call_args.args[1:] == (1, 2, "arg2", 1)
 
 
 CALLBACKS: list = []
