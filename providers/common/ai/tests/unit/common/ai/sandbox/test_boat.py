@@ -276,7 +276,8 @@ def test_a_retry_after_answer_is_not_slept_on_and_resent(status):
             pass
 
     with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        # A short poll interval, so shutdown() does not wait out the default half second.
+        threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
         with mock.patch.dict(
             "os.environ",
             {"BOAT_API_KEY": "k", "BOAT_BASE_URL": f"http://127.0.0.1:{server.server_address[1]}"},
@@ -378,6 +379,17 @@ class TestCredentials:
 
         api_client.assert_not_called()
 
+    @pytest.mark.parametrize("base_url", ["boat.dev/api/v1", "127.0.0.1:8080/api/v1"])
+    @mock.patch("boat_sdk.ApiClient", autospec=True)
+    def test_environment_base_url_without_a_scheme_is_terminal(self, api_client, base_url):
+        with mock.patch.dict("os.environ", {"BOAT_API_KEY": "env-key", "BOAT_BASE_URL": base_url}):
+            with pytest.raises(
+                SandboxTerminalError, match="BOAT_BASE_URL .* has no http:// or https:// scheme"
+            ):
+                BoatSandboxBackend()._get_api()
+
+        api_client.assert_not_called()
+
     @mock.patch("boat_sdk.api.boat_api.BoatApi", autospec=True)
     @mock.patch("boat_sdk.ApiClient", autospec=True)
     @mock.patch("boat_sdk.Configuration", autospec=True)
@@ -398,33 +410,32 @@ class TestCredentials:
 
 
 class TestCreate:
-    def test_refuses_an_owner_because_nothing_could_attach(self):
-        # The ownership rules ride on per-sandbox metadata the attaching side reads back,
-        # which this backend does not keep; refuse before anything is provisioned.
+    @pytest.mark.parametrize(
+        ("spec", "match"),
+        [
+            # The ownership rules ride on per-sandbox metadata the attaching side reads
+            # back, which this backend does not keep.
+            pytest.param(SandboxSpec(block_network=False, owner="dag/run"), "owner", id="owner"),
+            pytest.param(
+                SandboxSpec(allow_egress_to=["example.com"]), "per-domain egress allowlist", id="domains"
+            ),
+            pytest.param(
+                SandboxSpec(block_network=True), "cannot deny outbound network access", id="block_network"
+            ),
+            pytest.param(
+                SandboxSpec(block_network=False, allow_egress_to_cidrs=["203.0.113.0/24"]),
+                "CIDR egress allowlist",
+                id="cidrs",
+            ),
+        ],
+    )
+    def test_a_spec_it_cannot_carry_is_refused_before_provisioning(self, spec, match):
         backend, api = _backend_with_api()
 
-        with pytest.raises(SandboxTerminalError, match="owner"):
-            backend.create(spec=SandboxSpec(block_network=False, owner="dag/run"))
+        with pytest.raises(SandboxTerminalError, match=match):
+            backend.create(spec=spec)
 
         api.create.assert_not_called()
-
-    def test_refuses_a_per_domain_egress_allowlist(self):
-        backend, _ = _backend_with_api()
-
-        with pytest.raises(SandboxTerminalError, match="per-domain egress allowlist"):
-            backend.create(spec=SandboxSpec(allow_egress_to=["example.com"]))
-
-    def test_refuses_block_network(self):
-        backend, _ = _backend_with_api()
-
-        with pytest.raises(SandboxTerminalError, match="cannot deny outbound network access"):
-            backend.create(spec=SandboxSpec(block_network=True))
-
-    def test_refuses_cidr_egress_allowlist(self):
-        backend, _ = _backend_with_api()
-
-        with pytest.raises(SandboxTerminalError, match="CIDR egress allowlist"):
-            backend.create(spec=SandboxSpec(block_network=False, allow_egress_to_cidrs=["203.0.113.0/24"]))
 
     def test_spec_and_sizing_are_passed_at_creation(self):
         backend, api = _backend_with_api(machine_type="small", ttl_seconds=120)
@@ -439,6 +450,8 @@ class TestCreate:
         assert request.ttl_seconds == 120
         assert request.no_env is True
         assert request.snapshots is False
+        assert request.monitoring is False
+        assert request.to_dict()["monitoring"] is False
         assert request.env == {"TOKEN": "value"}
         api.get_without_preload_content.assert_called_once_with("bx_created1", _request_timeout=30.0)
         assert api.update.called
@@ -846,7 +859,7 @@ class TestRunCommand:
         assert getattr(result, stream) == expected
         assert getattr(result, f"{stream}_truncated") is truncated
 
-    def test_spec_environment_is_exported_after_shell_profile(self):
+    def test_spec_environment_is_exported_into_every_command(self):
         backend, api = _backend_with_api()
         api.create.return_value = _created("bx_env01")
         api.get_without_preload_content.return_value = _sandbox_info("ready")

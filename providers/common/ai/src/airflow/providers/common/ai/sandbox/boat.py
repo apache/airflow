@@ -112,7 +112,8 @@ def _may_have_lost_response(error: Exception) -> bool:
 
     if isinstance(error, ApiException):
         # Not status 0: with the client's Retry, a TLS failure arrives as urllib3's
-        # MaxRetryError, so boat-sdk's status 0 is only a request it could not build.
+        # MaxRetryError, so boat-sdk's status 0 is a request it could not build or an
+        # answer it could not parse, and a resend with the same key gets the same answer.
         return isinstance(error.status, int) and error.status >= 500
     return isinstance(error, HTTPError)
 
@@ -272,6 +273,7 @@ class BoatSandboxBackend(SandboxBackend):
                 if not api_key:
                     raise SandboxTerminalError("BOAT_API_KEY is not set.")
                 base_url = os.environ.get("BOAT_BASE_URL") or _DEFAULT_BASE_URL
+                source = "BOAT_BASE_URL"
             else:
                 conn = BaseHook.get_connection(self._boat_conn_id)
                 api_key = (conn.password or "").strip()
@@ -280,15 +282,15 @@ class BoatSandboxBackend(SandboxBackend):
                         f"Connection {self._boat_conn_id!r} has no password; set it to the Boat API key."
                     )
                 base_url = conn.host or _DEFAULT_BASE_URL
-                # A bare domain, which is what Airflow's connection URI form leaves in host,
-                # would make urllib3 send the API key to it over plain HTTP.
-                parts = urlsplit(base_url)
-                if parts.scheme not in ("https", "http") or not parts.netloc:
-                    raise SandboxTerminalError(
-                        f"Connection {self._boat_conn_id!r} host {conn.host!r} has no http:// or https:// "
-                        f"scheme; set it to the full Boat API base URL, such as {_DEFAULT_BASE_URL}, "
-                        "or leave it empty for that default."
-                    )
+                source = f"Connection {self._boat_conn_id!r} host"
+            # A bare domain, which is what Airflow's connection URI form leaves in host,
+            # would make urllib3 send the API key to it over plain HTTP.
+            parts = urlsplit(base_url)
+            if parts.scheme not in ("https", "http") or not parts.netloc:
+                raise SandboxTerminalError(
+                    f"{source} {base_url!r} has no http:// or https:// scheme; set it to the full "
+                    f"Boat API base URL, such as {_DEFAULT_BASE_URL}, or leave it empty for that default."
+                )
             # urllib3 would otherwise resend a request that stalled or failed up to three
             # times, each with the call's whole timeout, and sleep out a 413/429/503's
             # Retry-After between sends, so one call could outlast the deadline it was given.
@@ -415,6 +417,9 @@ class BoatSandboxBackend(SandboxBackend):
                 # Nothing here resumes or forks a sandbox, so snapshots would only
                 # cost CPU and memory and keep a stopped sandbox's disk.
                 snapshots=False,
+                # Monitoring keeps every command's text and output in Boat's history,
+                # and the command text carries the SandboxSpec.env exports.
+                monitoring=False,
                 env=env or None,
             )
         idempotency_key = uuid.uuid4().hex

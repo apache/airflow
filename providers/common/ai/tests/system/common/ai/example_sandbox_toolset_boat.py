@@ -48,6 +48,23 @@ def example_sandbox_toolset_boat():
         from airflow.providers.common.ai.sandbox import BoatSandboxBackend, SandboxSpec
         from airflow.providers.common.ai.toolsets import SandboxToolset
 
+        class RecordingBackend(BoatSandboxBackend):
+            """Remembers the sandboxes it created and destroyed, so teardown can be asserted."""
+
+            def __init__(self, **kwargs) -> None:
+                super().__init__(**kwargs)
+                self.created: list[str] = []
+                self.destroyed: list[str] = []
+
+            def create(self, *, spec=None) -> str:
+                sandbox = super().create(spec=spec)
+                self.created.append(sandbox)
+                return sandbox
+
+            def destroy(self, sandbox: str) -> None:
+                super().destroy(sandbox)
+                self.destroyed.append(sandbox)
+
         def model_function(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
             returns = [
                 part.content
@@ -114,7 +131,9 @@ def example_sandbox_toolset_boat():
             command_cases = [
                 ("echo comment-ok # trailing comment", "comment-ok"),
                 ("cat <<'EOF'\nheredoc-ok\nEOF", "heredoc-ok"),
-                ("sleep 20 & echo background-ok", "background-ok"),
+                # Longer than Boat's own 25 s deadline for this call, so a background
+                # process that held the call open would time it out and fail the step.
+                ("sleep 60 & echo background-ok", "background-ok"),
             ]
             for index, (command, expected) in enumerate(command_cases, start=4):
                 if len(returns) == index:
@@ -127,7 +146,7 @@ def example_sandbox_toolset_boat():
                             )
                         ]
                     )
-                if expected not in str(returns[index]):
+                if expected not in str(returns[index]) or "timed out" in str(returns[index]):
                     raise RuntimeError(f"Unexpected command result: {returns[index]!r}")
 
             if len(returns) == 7:
@@ -182,12 +201,13 @@ def example_sandbox_toolset_boat():
 
             return ModelResponse(parts=[TextPart(content="sandbox boundary e2e passed")])
 
+        backend = RecordingBackend(ttl_seconds=900)
         agent = Agent(
             FunctionModel(model_function),
             instructions="Use the sandbox tools as requested.",
             toolsets=[
                 SandboxToolset(
-                    BoatSandboxBackend(ttl_seconds=900),
+                    backend,
                     spec=SandboxSpec(
                         block_network=False,
                         env={"AIRFLOW_BOAT_E2E_ENV": ENV_MARKER},
@@ -198,6 +218,10 @@ def example_sandbox_toolset_boat():
         result = agent.run_sync("Run the sandbox boundary system test.")
         if result.output != "sandbox boundary e2e passed":
             raise RuntimeError(f"Unexpected agent output: {result.output!r}")
+        # One sandbox for the whole run, since the in-guest timeout never replaces it,
+        # and the toolset deleted it when the run ended.
+        if len(backend.created) != 1 or backend.created != backend.destroyed:
+            raise RuntimeError(f"created {backend.created} but destroyed {backend.destroyed}")
         return result.output
 
     run_sandbox_agent()

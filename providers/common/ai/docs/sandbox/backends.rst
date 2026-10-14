@@ -372,7 +372,8 @@ read, listing, or write that Boat's deadline ends that way fails the task, since
 there is no sandbox left for the model to retry against. If the worker dies
 first, the server-side TTL stops the sandbox. Sandboxes are created without
 snapshots, so stopping one erases its disk rather than keeping it for an
-operator to remove.
+operator to remove, and with monitoring off, so Boat keeps no history of the
+commands, their output, or the environment variables exported into them.
 
 .. _sandbox-backend-sbx:
 

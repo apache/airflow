@@ -81,7 +81,9 @@ The backend reads this key lazily in the worker process; it is not copied
 into `SandboxSpec.env` or exposed inside the sandbox. The test passes a separate non-secret marker
 through `SandboxSpec.env` and verifies it from a sandbox command, exercises successful and
 non-zero command exits plus write/read/list operations, checks that a command stopped by its
-in-guest deadline leaves the sandbox and its files in place, and requests open egress
+in-guest deadline leaves the sandbox and its files in place, checks that the toolset deletes
+the one sandbox when the run ends, and requests open egress
 (`SandboxSpec(block_network=False)`) because Boat cannot enforce a deny-all network policy.
 A 15-minute server-side TTL stops the sandbox if worker-side teardown cannot run; the
-backend creates it without snapshots, so stopping it erases its disk.
+backend creates it without snapshots or monitoring, so stopping it erases its disk and Boat
+keeps no history of its commands.

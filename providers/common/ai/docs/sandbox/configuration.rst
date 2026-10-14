@@ -105,7 +105,8 @@ limit.
 
 **Timeouts.** Three clocks apply. A command has a budget: ``default_command_timeout``
 (60 s) when the model does not ask, up to ``max_command_timeout`` (300 s) when it
-does. The sandbox has a lifetime: ``sandbox_timeout`` on Modal, 3600 s by default,
+does. The sandbox has a lifetime: ``sandbox_timeout`` on Modal and OpenSandbox,
+``ttl_seconds`` on Boat, 3600 s by default on each,
 and the clock runs through the model's thinking time between tool calls, so size it
 against the whole agent run. And Modal can reclaim an idle sandbox after
 ``idle_timeout``, which defaults to ``None`` because a gap for model generation
@@ -391,8 +392,8 @@ sandbox to be certain the command stopped, and the result then says
 ``[sandbox was replaced; files from earlier calls are gone]`` so the model knows
 to start over. Any other failure that loses the sandbox is reported the same way.
 
-**A run that outlives its sandbox fails the task.** When ``sandbox_timeout`` or
-``idle_timeout`` passes mid-run, the next tool call reaches a sandbox that is gone,
+**A run that outlives its sandbox fails the task.** When ``sandbox_timeout``
+(``ttl_seconds`` on Boat) or ``idle_timeout`` passes mid-run, the next tool call reaches a sandbox that is gone,
 which is terminal. This is the normal end of any run longer than its sandbox's
 lifetime. For a sandbox the toolset provisions itself, human output review is
 not part of the run: it starts after the agent has finished and the sandbox's

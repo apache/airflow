@@ -352,8 +352,8 @@ leaves its contents alone: the same four tools run in the sandbox.
    * - ``BoatSandboxBackend``
      - A full Linux VM that Boat provisions per sandbox.
      - Boat's infrastructure, off the worker.
-     - Stopped by Boat at ``ttl_seconds``. Sandboxes are created without snapshots,
-       so stopping one erases its disk.
+     - Stopped by Boat at ``ttl_seconds``. Sandboxes are created without snapshots
+       or monitoring, so stopping one erases its disk and Boat keeps no command history.
 
 When a run ends normally, the task calls the backend's ``destroy``. ``sbx`` runs its
 removal command and waits up to two minutes for it; Modal, OpenSandbox and Boat each send a
@@ -436,7 +436,7 @@ task, a script the model writes, runs, and fixes from its own traceback.
   per-tool approval work only when the sandbox is task-owned: ``AgentOperator`` refuses
   HITL review beside a sandbox the toolset provisions itself, and a tool that requires
   approval there fails the task. :ref:`Lifecycle <sandbox-lifecycle>`.
-- **A run that outlives** ``sandbox_timeout`` **fails the task.**
+- **A run that outlives** ``sandbox_timeout`` **(``ttl_seconds`` on Boat) fails the task.**
   :ref:`Lifecycle <sandbox-lifecycle>`.
 - **Network rules are only as strong as the backend.** A backend that cannot enforce
   a network field raises rather than provisioning a looser sandbox, so a bare
