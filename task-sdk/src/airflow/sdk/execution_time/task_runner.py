@@ -1804,12 +1804,10 @@ def run(
                 # not fail-closed: supervisor's final_state would misclassify
                 # them too, but exiting non-zero would map them to FAILED,
                 # which is strictly worse than the default. Those need a
-                # separate fix in supervisor's final_state. The exception is a
-                # retry policy's RESCHEDULE: the task raised, so FAILED beats a
-                # silent SUCCESS just as it does for UP_FOR_RETRY.
-                if state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY) or (
-                    state == TaskInstanceState.UP_FOR_RESCHEDULE and error is not None
-                ):
+                # separate fix in supervisor's final_state. Whenever the task
+                # raised, though, FAILED beats a silent SUCCESS, including when
+                # a retry policy turned the exception into a reschedule.
+                if error is not None or state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
                     ti._terminal_state_send_failed = True
 
     # Return the message to make unit tests easier too
@@ -2001,15 +1999,10 @@ def _reschedule_limit_reached(
     Both bounds count every reschedule of this try, whatever caused it (a sensor's pokes and a
     startup reschedule included), so a retry starts them afresh.
     """
-    from_server = ti._ti_context_from_server
-    count = _reschedule_count(ti)
-    if decision.max_reschedules is not None and count >= decision.max_reschedules:
+    if decision.max_reschedules is not None and _reschedule_count(ti) >= decision.max_reschedules:
         return f"max_reschedules={decision.max_reschedules}"
-    if decision.reschedule_timeout is not None and count:
-        if context is not None:
-            first = ti.get_first_reschedule_date(context)
-        else:
-            first = from_server.first_task_reschedule_start_date if from_server else None
+    if decision.reschedule_timeout is not None and context is not None:
+        first = ti.get_first_reschedule_date(context)
         if first is not None and datetime.now(tz=UTC) - first >= decision.reschedule_timeout:
             return f"reschedule_timeout={decision.reschedule_timeout}"
     return None

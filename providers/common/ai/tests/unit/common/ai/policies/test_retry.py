@@ -52,6 +52,10 @@ from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryPolicy, RetryRule
 from airflow.sdk.log import mask_secret
 
+requires_reschedule = pytest.mark.skipif(
+    not hasattr(RetryAction, "RESCHEDULE"), reason="RESCHEDULE needs Airflow 3.5+"
+)
+
 HOOK = "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook"
 
 
@@ -1135,7 +1139,7 @@ class TestOnUncertain:
         assert decision.retry_delay == timedelta(seconds=9)
         assert decision.reason == "escalated (model_error)"
 
-    @pytest.mark.skipif(not hasattr(RetryAction, "RESCHEDULE"), reason="RESCHEDULE needs Airflow 3.5+")
+    @requires_reschedule
     def test_reschedule_from_fallback_policy_keeps_its_bounds(self):
         inner = MagicMock(spec=LLMRetryPolicy)
         inner.evaluate.return_value = RetryDecision.reschedule(
@@ -1149,7 +1153,7 @@ class TestOnUncertain:
             timedelta(minutes=10), max_reschedules=6, reason="escalated (model_error); quota full"
         )
 
-    @pytest.mark.skipif(not hasattr(RetryAction, "RESCHEDULE"), reason="RESCHEDULE needs Airflow 3.5+")
+    @requires_reschedule
     def test_reschedule_from_fallback_rules_keeps_its_bounds(self):
         rule = RetryRule(
             exception=RuntimeError,

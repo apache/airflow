@@ -1712,13 +1712,13 @@ class _NoCapacityTask(BaseOperator):
         raise _CapacityError("exceeded quota")
 
 
-def _reschedule_policy(**bounds):
+def _reschedule_policy(retry_delay: timedelta | None = timedelta(minutes=10), **bounds):
     return ExceptionRetryPolicy(
         rules=[
             RetryRule(
                 exception=_CapacityError,
                 action=RetryAction.RESCHEDULE,
-                retry_delay=timedelta(minutes=10),
+                retry_delay=retry_delay,
                 reason="cluster full",
                 **bounds,
             )
@@ -1729,7 +1729,7 @@ def _reschedule_policy(**bounds):
 @pytest.mark.parametrize(
     ("bounds", "task_reschedule_count", "first_rescheduled_ago"),
     [
-        pytest.param({"max_reschedules": 3}, 0, None, id="first-failure"),
+        pytest.param({"max_reschedules": 3}, 0, timedelta(0), id="first-failure"),
         pytest.param({"max_reschedules": 3}, 2, timedelta(minutes=20), id="below-max-reschedules"),
         pytest.param(
             {"reschedule_timeout": timedelta(hours=1)}, 2, timedelta(minutes=20), id="within-timeout"
@@ -1749,8 +1749,7 @@ def test_retry_policy_reschedule_does_not_use_a_retry(
     time_machine.move_to(now, tick=False)
     task = _NoCapacityTask(task_id="no_capacity", retries=0, retry_policy=_reschedule_policy(**bounds))
     ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
-    if first_rescheduled_ago is not None:
-        ti._ti_context_from_server.first_task_reschedule_start_date = now - first_rescheduled_ago
+    ti._ti_context_from_server.first_task_reschedule_start_date = now - first_rescheduled_ago
 
     state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
 
@@ -1763,10 +1762,11 @@ def test_retry_policy_reschedule_without_delay_uses_the_task_retry_delay(
 ):
     now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
     time_machine.move_to(now, tick=False)
-    policy = ExceptionRetryPolicy(
-        rules=[RetryRule(exception=_CapacityError, action=RetryAction.RESCHEDULE, max_reschedules=3)]
+    task = _NoCapacityTask(
+        task_id="no_capacity",
+        retry_delay=timedelta(minutes=7),
+        retry_policy=_reschedule_policy(retry_delay=None, max_reschedules=3),
     )
-    task = _NoCapacityTask(task_id="no_capacity", retry_delay=timedelta(minutes=7), retry_policy=policy)
     ti = create_runtime_ti(task=task)
 
     state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
@@ -1790,7 +1790,23 @@ def test_retry_policy_reschedule_without_delay_uses_the_task_retry_delay(
         ),
     ],
 )
-@pytest.mark.parametrize("retries", [pytest.param(1, id="retry-left"), pytest.param(0, id="no-retry-left")])
+@pytest.mark.parametrize(
+    ("retries", "expected_state", "expected_msg"),
+    [
+        pytest.param(
+            1,
+            TaskInstanceState.UP_FOR_RETRY,
+            lambda now, reason: RetryTask(end_date=now, retry_reason=reason),
+            id="retry-left",
+        ),
+        pytest.param(
+            0,
+            TaskInstanceState.FAILED,
+            lambda now, reason: TaskState(state=TaskInstanceState.FAILED, end_date=now, retry_reason=reason),
+            id="no-retry-left",
+        ),
+    ],
+)
 def test_retry_policy_reschedule_past_its_bound_applies_the_standard_retry_logic(
     time_machine,
     create_runtime_ti,
@@ -1800,6 +1816,8 @@ def test_retry_policy_reschedule_past_its_bound_applies_the_standard_retry_logic
     first_rescheduled_ago,
     limit,
     retries,
+    expected_state,
+    expected_msg,
 ):
     """Past its bound the task retries on its own retry_delay, not the reschedule delay, or fails."""
     now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
@@ -1810,13 +1828,8 @@ def test_retry_policy_reschedule_past_its_bound_applies_the_standard_retry_logic
 
     state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
 
-    reason = f"Reschedule limit reached ({limit}): cluster full"
-    if retries:
-        assert state == TaskInstanceState.UP_FOR_RETRY
-        assert msg == RetryTask(end_date=now, retry_reason=reason)
-    else:
-        assert state == TaskInstanceState.FAILED
-        assert msg == TaskState(state=TaskInstanceState.FAILED, end_date=now, retry_reason=reason)
+    assert state == expected_state
+    assert msg == expected_msg(now, f"Reschedule limit reached ({limit}): cluster full")
 
 
 class _SensorStyleReschedule(BaseOperator):
