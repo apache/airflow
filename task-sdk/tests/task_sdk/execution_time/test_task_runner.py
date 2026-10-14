@@ -4328,10 +4328,8 @@ class TestEmailNotifications:
         mock_smtp_notifier.assert_not_called()
         log.exception.assert_called()
 
-    def test_default_from_email_is_none_for_smtp_notifier(self, create_runtime_ti, mock_supervisor_comms):
-        """When ``[email] from_email`` is not configured, SmtpNotifier receives from_email=None."""
-        from airflow.sdk.exceptions import AirflowFailException
-        from airflow.sdk.execution_time.task_runner import finalize, run
+    def test_default_from_email_for_smtp_notifier(self, create_runtime_ti, mock_supervisor_comms):
+        """When ``[email] from_email`` is not configured, SmtpNotifier falls back to 'airflow@airflow'."""
 
         class FailingOperator(BaseOperator):
             def execute(self, context):
@@ -4349,21 +4347,30 @@ class TestEmailNotifications:
 
         with conf_vars({("email", "from_email"): None}):
             with mock.patch(
-                "airflow.providers.smtp.notifications.smtp.SmtpNotifier", autospec=True
-            ) as mock_smtp_notifier:
+                "airflow.providers.smtp.notifications.smtp.SmtpHook", autospec=True
+            ) as mock_smtp_hook_cls:
+                mock_smtp_hook = mock_smtp_hook_cls.return_value.__enter__.return_value
+                mock_smtp_hook.from_email = None
                 state, _, error = run(runtime_ti, context, log)
                 finalize(runtime_ti, state, context, log, error)
 
-                mock_smtp_notifier.assert_called_once()
-                kwargs = mock_smtp_notifier.call_args.kwargs
-                assert kwargs["from_email"] is None
+                mock_smtp_hook.send_email_smtp.assert_called_once()
+                assert mock_smtp_hook.send_email_smtp.call_args.kwargs["from_email"] == "airflow@airflow"
 
     def test_default_from_email_is_none_for_custom_backend(self, create_runtime_ti, mock_supervisor_comms):
         """When ``[email] from_email`` is not configured, custom email_backend receives from_email=None."""
-        from airflow.sdk.exceptions import AirflowFailException
-        from airflow.sdk.execution_time.task_runner import finalize, run
+        sent_messages: list[dict[str, Any]] = []
 
-        backend = mock.create_autospec(_recording_email_backend)
+        def _custom_backend_with_own_default(to, subject, html_content, **kwargs):
+            sent_messages.append(
+                {
+                    "to": to,
+                    "raw_from_email": kwargs.get("from_email"),
+                    "resolved_from_email": kwargs.get("from_email") or "verified@example.com",
+                }
+            )
+
+        backend = mock.create_autospec(_recording_email_backend, side_effect=_custom_backend_with_own_default)
 
         class FailingOperator(BaseOperator):
             def execute(self, context):
@@ -4390,8 +4397,13 @@ class TestEmailNotifications:
                 finalize(runtime_ti, state, context, log, error)
 
                 backend.assert_called_once()
-                _, kwargs = backend.call_args
-                assert kwargs["from_email"] is None
+                assert sent_messages == [
+                    {
+                        "to": ["test@example.com"],
+                        "raw_from_email": None,
+                        "resolved_from_email": "verified@example.com",
+                    }
+                ]
 
     @pytest.mark.enable_redact
     def test_rendered_templates_mask_secrets(self, create_runtime_ti, mock_supervisor_comms):
