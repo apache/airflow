@@ -57,6 +57,7 @@ const handleDateRangeChange = (
 };
 
 export type FilterableSearchParamsKeys =
+  | SearchParamsKeys.ACTIVE
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
   | SearchParamsKeys.BUNDLE_VERSION
@@ -74,11 +75,13 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.END_DATE_RANGE
   | SearchParamsKeys.EVENT_DATE_RANGE
   | SearchParamsKeys.EVENT_TYPE
+  | SearchParamsKeys.EXECUTOR
   | SearchParamsKeys.EXECUTOR_CLASS
   | SearchParamsKeys.FAVORITE
   | SearchParamsKeys.FROM_RANGE
   | SearchParamsKeys.GROUP_PATTERN
   | SearchParamsKeys.HAS_EVENTS
+  | SearchParamsKeys.HAS_IMPORT_ERRORS
   | SearchParamsKeys.HOSTNAME
   | SearchParamsKeys.JOB_STATE
   | SearchParamsKeys.JOB_TYPE
@@ -93,6 +96,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.NEEDS_REVIEW
   | SearchParamsKeys.OPERATOR_NAME_PATTERN
   | SearchParamsKeys.OWNERS
+  | SearchParamsKeys.PARTITION_KEY
   | SearchParamsKeys.PARTITION_KEY_PATTERN
   | SearchParamsKeys.PAUSED
   | SearchParamsKeys.POOL_NAME_PATTERN
@@ -106,6 +110,8 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.RUN_ID_PATTERN
   | SearchParamsKeys.RUN_STATE
   | SearchParamsKeys.RUN_TYPE
+  | SearchParamsKeys.SOURCE_MAP_INDEX
+  | SearchParamsKeys.SOURCE_RUN_ID
   | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.STATE
   | SearchParamsKeys.SUBJECT_SEARCH

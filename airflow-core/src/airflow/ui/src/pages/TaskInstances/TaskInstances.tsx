@@ -77,6 +77,7 @@ const {
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
+  EXECUTOR: EXECUTOR_PARAM,
   LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
   LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
@@ -85,6 +86,8 @@ const {
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
   RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
+  RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
+  RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
@@ -332,6 +335,9 @@ export const TaskInstances = ({ extraFilter, iteration, loopGroupId }: TaskInsta
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE_PARAM);
   const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
+  const executors = searchParams.getAll(EXECUTOR_PARAM).filter((value) => value !== "");
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const inLoopRun = loopGroupId !== undefined && runId !== undefined;
@@ -401,6 +407,7 @@ export const TaskInstances = ({ extraFilter, iteration, loopGroupId }: TaskInsta
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
+      executor: executors.length > 0 ? executors : undefined,
       iteration:
         inLoopRun && iteration !== undefined && iteration !== ITERATION_ALL ? Number(iteration) : undefined,
       limit: pagination.pageSize,
@@ -408,6 +415,8 @@ export const TaskInstances = ({ extraFilter, iteration, loopGroupId }: TaskInsta
       logicalDateLte: logicalDateLte ?? undefined,
       loopId: runId === undefined ? undefined : loopGroupId,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
+      runAfterGte: runAfterGte ?? undefined,
+      runAfterLte: runAfterLte ?? undefined,
       ...operatorNameArg,
       orderBy,
       ...poolNameArg,
