@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any, TypedDict
 from unittest import mock
 
@@ -1062,6 +1063,49 @@ class TestEksDeleteFargateProfileOperator:
 
 
 class TestEksPodOperator:
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry", autospec=True
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute", autospec=True
+    )
+    @mock.patch.object(EksHook, "generate_config_file_with_credentials", autospec=True)
+    @pytest.mark.parametrize("method", ["execute", "trigger_reentry"])
+    @pytest.mark.parametrize("fails", [False, True])
+    def test_uses_shared_auth_context(self, generate_config, execute, reentry, method, fails):
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
+        generate_config.return_value = config_context
+        operator = EksPodOperator(
+            task_id="run_pod", cluster_name=CLUSTER_NAME, namespace="workloads", image="test-image"
+        )
+
+        def run_in_context(op, context, *args):
+            assert op.config_file == "/tmp/kubeconfig"
+            assert op._credentials_file_path == "/tmp/credentials"
+            config_context.__exit__.assert_not_called()
+            if fails:
+                raise RuntimeError("parent failed")
+            return "result"
+
+        parent = execute if method == "execute" else reentry
+        parent.side_effect = run_in_context
+        args = (
+            ({},)
+            if method == "execute"
+            else ({}, {"eks_cluster_name": "event-cluster", "namespace": "event-namespace"})
+        )
+        with pytest.raises(RuntimeError, match="parent failed") if fails else nullcontext():
+            assert getattr(operator, method)(*args) == "result"
+
+        generate_config.assert_called_once_with(
+            mock.ANY,
+            eks_cluster_name=CLUSTER_NAME if method == "execute" else "event-cluster",
+            pod_namespace="workloads" if method == "execute" else "event-namespace",
+        )
+        parent.assert_called_once_with(operator, *args)
+        config_context.__exit__.assert_called_once()
+
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook._secure_credential_context")
