@@ -28,7 +28,7 @@ You can create your own, custom operator by inheriting from the public SDK base 
 
 There are two methods that you need to override in your custom operator:
 
-* Constructor (``__init__``): Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
+* ``__init__``: Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
   You can specify the ``default_args`` in the Dag file. See :ref:`Default args <concepts-default-arguments>` for more details.
 
 * ``execute()``: The code to execute when the runner calls the operator. The method contains the
