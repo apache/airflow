@@ -863,6 +863,32 @@ class TestShouldHideValueForKey:
         assert expected_result == masker.should_hide_value_for_key(key)
 
     @pytest.mark.parametrize(
+        ("key", "expected_result"),
+        [
+            ("app_key", True),
+            ("certificate", True),
+            ("credential", True),
+            ("keytab", True),
+            ("kube_config", True),
+            ("KUBE_CONFIG", True),
+            ("oauth", True),
+            ("routing_key", True),
+            ("thumbprint", True),
+            ("write_key", True),
+            ("extra__kubernetes__kube_config", True),
+            ("kube_config_path", False),
+            ("extra__kubernetes__kube_config_path", False),
+            ("credential_config_file", False),
+            ("certificate_path", False),
+            ("service_principal_oauth", False),
+        ],
+    )
+    def test_hiding_whole_field_names(self, key, expected_result):
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker)
+        assert expected_result == masker.should_hide_value_for_key(key)
+
+    @pytest.mark.parametrize(
         ("sensitive_variable_fields", "key", "expected_result"),
         [
             ("key", "TRELLO_KEY", True),
