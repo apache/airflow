@@ -32,6 +32,7 @@ from anthropic import Anthropic, AsyncAnthropic, DefaultAsyncHttpxClient, Defaul
 from anthropic.types.beta import BetaTextBlock
 from pydantic_ai.exceptions import ModelRetry
 
+from airflow.providers.common.ai.exceptions import ToolRunnerMaxIterationsError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools.anthropic import AirflowTools, AsyncAirflowTools
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -116,18 +117,22 @@ class _ScriptedModel:
         )
 
 
-def _sync_runner(model: _ScriptedModel, tools: AirflowTools) -> BetaToolRunner:
+def _sync_runner(model: _ScriptedModel, tools: AirflowTools, **runner_options: Any) -> BetaToolRunner:
     client = Anthropic(api_key="test", http_client=DefaultHttpxClient(transport=httpx2.MockTransport(model)))
     return client.beta.messages.tool_runner(
-        model="claude-test", max_tokens=100, tools=tools.tools, messages=[{"role": "user", "content": "go"}]
+        model="claude-test",
+        max_tokens=100,
+        tools=tools.tools,
+        messages=[{"role": "user", "content": "go"}],
+        **runner_options,
     )
 
 
-def _drive_sync(model: _ScriptedModel, tools: AirflowTools) -> ParsedBetaMessage:
-    return tools.run(_sync_runner(model, tools))
+def _drive_sync(model: _ScriptedModel, tools: AirflowTools, **runner_options: Any) -> ParsedBetaMessage:
+    return tools.run(_sync_runner(model, tools, **runner_options))
 
 
-def _drive_async(model: _ScriptedModel, tools: AsyncAirflowTools) -> ParsedBetaMessage:
+def _drive_async(model: _ScriptedModel, tools: AsyncAirflowTools, **runner_options: Any) -> ParsedBetaMessage:
     async def run() -> ParsedBetaMessage:
         client = AsyncAnthropic(
             api_key="test", http_client=DefaultAsyncHttpxClient(transport=httpx2.MockTransport(model))
@@ -137,6 +142,7 @@ def _drive_async(model: _ScriptedModel, tools: AsyncAirflowTools) -> ParsedBetaM
             max_tokens=100,
             tools=tools.tools,
             messages=[{"role": "user", "content": "go"}],
+            **runner_options,
         )
         return await tools.run(runner)
 
@@ -165,8 +171,8 @@ def flavour(request):
 def run_agent(flavour):
     tools_class, drive = flavour
 
-    def run(model: _ScriptedModel, *sources) -> ParsedBetaMessage:
-        return drive(model, tools_class(*sources))
+    def run(model: _ScriptedModel, *sources, **runner_options: Any) -> ParsedBetaMessage:
+        return drive(model, tools_class(*sources), **runner_options)
 
     return run
 
@@ -275,6 +281,22 @@ class TestRun:
 
         assert ran == []
         assert len(model.requests) == model_requests
+
+    def test_a_run_that_reaches_max_iterations_while_calling_tools_fails(self, run_agent):
+        """The runner's last message is then a turn asking for tools, with no answer in it."""
+        model = _ScriptedModel("lookup", {"key": "a"}, calls=5)
+
+        with pytest.raises(ToolRunnerMaxIterationsError, match="reached max_iterations"):
+            run_agent(model, _tool(ToolResult("ran")), max_iterations=2)
+
+        assert len(model.requests) == 2
+
+    def test_a_run_that_answers_on_its_last_iteration_returns_the_answer(self, run_agent):
+        model = _ScriptedModel("lookup", {"key": "a"})
+
+        result = _answer(run_agent(model, _tool(ToolResult("ran")), max_iterations=2))
+
+        assert result["content"] == "ran"
 
     def test_calls_after_a_failure_in_the_same_turn_do_not_run(self, run_agent):
         """The turn's results are never sent, so a later call's side effects would be for nothing."""

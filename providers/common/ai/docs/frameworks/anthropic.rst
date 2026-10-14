@@ -64,7 +64,11 @@ Only ``AirflowTools`` and ``tools.run(runner)`` come from Airflow. The system pr
 model parameters and ``max_iterations`` are the runner's own, and so are tools you
 write with the SDK's ``@beta_tool`` decorator; pass those alongside Airflow's, as
 ``tools=[*tools.tools, my_tool]``. ``tools.run`` fails the task only for Airflow's tools:
-the runner still hands an exception from one of your own tools to the model.
+the runner still hands an exception from one of your own tools to the model. A run that
+reaches ``max_iterations`` while the model is still calling tools has no answer, so
+``tools.run`` raises
+:class:`~airflow.providers.common.ai.exceptions.ToolRunnerMaxIterationsError` and the
+task fails rather than returning an empty result.
 
 To reach Claude on Amazon Bedrock, Claude Platform on AWS, Google Vertex AI or Microsoft
 Foundry, build the

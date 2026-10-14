@@ -44,6 +44,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from airflow.providers.common.ai.exceptions import ToolRunnerMaxIterationsError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
@@ -103,7 +104,11 @@ class AirflowTools:
     :class:`~airflow.providers.common.ai.tools.ToolCallError` before the next model
     request, so the task fails and Airflow retries it. The runner on its own hands
     every exception back to the model, so drive it with :meth:`run` rather than
-    ``until_done()``. A runner created with ``stream=True`` is not supported.
+    ``until_done()``. A runner that reaches its ``max_iterations`` while the model is still
+    calling tools makes :meth:`run` raise
+    :class:`~airflow.providers.common.ai.exceptions.ToolRunnerMaxIterationsError`, since
+    its last message holds no answer. A runner created with ``stream=True`` is not
+    supported.
 
     For an ``AsyncAnthropic`` client, use :class:`AsyncAirflowTools`.
 
@@ -120,13 +125,15 @@ class AirflowTools:
         Drive ``runner`` to its final message.
 
         :raises ToolCallError: when a tool failed in a way the model cannot fix.
+        :raises ToolRunnerMaxIterationsError: when the runner reached ``max_iterations``
+            while the model was still calling tools.
         """
         with _run() as turn:
             for message in runner:
                 with turn(message.id):
                     if _runs_tools(message):
                         runner.generate_tool_call_response()
-        return runner.until_done()
+        return _answer(runner.until_done())
 
 
 class AsyncAirflowTools:
@@ -159,13 +166,15 @@ class AsyncAirflowTools:
         Drive ``runner`` to its final message.
 
         :raises ToolCallError: when a tool failed in a way the model cannot fix.
+        :raises ToolRunnerMaxIterationsError: when the runner reached ``max_iterations``
+            while the model was still calling tools.
         """
         with _run() as turn:
             async for message in runner:
                 with turn(message.id):
                     if _runs_tools(message):
                         await runner.generate_tool_call_response()
-        return await runner.until_done()
+        return _answer(await runner.until_done())
 
 
 def _runs_tools(message: BetaMessage) -> bool:
@@ -177,6 +186,21 @@ def _runs_tools(message: BetaMessage) -> bool:
     runs no tool calls for either, so neither may this.
     """
     return message.stop_reason == "tool_use"
+
+
+def _answer(message: ParsedBetaMessage[_OutputT]) -> ParsedBetaMessage[_OutputT]:
+    """
+    Return the runner's final message, unless the runner stopped mid-task.
+
+    The runner ends after a ``tool_use`` turn only when it reaches ``max_iterations``, and
+    that turn holds tool calls rather than an answer.
+    """
+    if _runs_tools(message):
+        raise ToolRunnerMaxIterationsError(
+            f"The tool runner reached max_iterations while the model was still calling tools "
+            f"(last turn {message.id}). Raise max_iterations, or give the model a narrower task."
+        )
+    return message
 
 
 @contextmanager
