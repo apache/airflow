@@ -201,7 +201,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         user id.  ``None`` (default) lets any user with the permission respond.
         On Airflow 3.1 to 3.3 the list is fixed when the review is first
         created; on 3.4+ a cleared or retried task replaces it.  Needs Airflow 3.1+.
-    :param decision_policy: A
+    :param decision_policy: Experimental. A
         :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`
         saying how confident the model has to be for the operator to return its answer by
         itself (``min_confidence``) and what happens otherwise (``on_uncertain``: ``"review"``
