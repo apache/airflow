@@ -158,9 +158,9 @@ class TestCustomDmsWaiters:
             pytest.param(["stopped"], id="stopped"),
             pytest.param(["ready"], id="ready"),
             pytest.param(["failed"], id="failed"),
+            pytest.param(["running"], id="running"),
+            pytest.param(["stopping"], id="stopping"),
             pytest.param(["modifying", "stopped"], id="modifying-then-stopped"),
-            pytest.param(["running", "stopped"], id="running-then-stopped"),
-            pytest.param(["stopping", "stopped"], id="stopping-then-stopped"),
         ],
     )
     def test_wait_for_replication_task_modified(self, mock_describe_replication_tasks, statuses):
