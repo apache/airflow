@@ -1720,6 +1720,9 @@ class ActivitySubprocess(WatchedSubprocess):
             ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=UTC))
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
+            if ti_context.execution_timeout is not None:
+                # A lang-SDK runtime never sends ``SetExecutionTimeout``, so arm the deadline from the server value.
+                self._arm_execution_timeout(ti_context.execution_timeout)
         except Exception as e:
             # On any error kill that subprocess!
             self.kill(signal.SIGKILL)
@@ -2125,9 +2128,12 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_set_execution_timeout(
         self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
-        self._execution_timeout_seconds = msg.timeout_seconds
-        self._execution_timeout_enforce_at = time.monotonic() + msg.timeout_seconds + KILLED_TASK_CLEANUP_TIME
+        self._arm_execution_timeout(msg.timeout_seconds)
         return None, {}
+
+    def _arm_execution_timeout(self, timeout_seconds: float) -> None:
+        self._execution_timeout_seconds = timeout_seconds
+        self._execution_timeout_enforce_at = time.monotonic() + timeout_seconds + KILLED_TASK_CLEANUP_TIME
 
     def _handle_set_rendered_fields(
         self, msg: SetRenderedFields, log: FilteringBoundLogger, req_id: int

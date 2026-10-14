@@ -111,3 +111,18 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
     )
+
+
+class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
+    """
+    Add the ``execution_timeout`` field carrying a stub task's timeout in seconds.
+
+    The supervisor-schema mirror of the execution API's ``AddExecutionTimeoutToTIRunContext``,
+    named apart so the two migrations are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("execution_timeout").didnt_exist,
+    )

@@ -491,6 +491,14 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
+    execution_timeout: float | None = None
+    """
+    The task's ``execution_timeout`` in seconds, for stub (foreign-runtime) tasks.
+
+    A lang-SDK runtime has no Dag file to read the timeout from, so the supervisor arms its deadline from
+    this value. ``None`` for regular tasks, which report their own timeout, and for stubs without one.
+    """
+
     multi_team: bool = False
     """
     Whether the deployment runs in multi-team mode.

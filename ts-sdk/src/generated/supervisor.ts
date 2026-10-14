@@ -265,6 +265,7 @@ export type TaskId1 = string;
 export type Name9 = string;
 export type Kind1 = "literal";
 export type FromDefault = boolean;
+export type ExecutionTimeout = number | null;
 export type MultiTeam = boolean;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
@@ -1060,6 +1061,7 @@ export interface TIRunContext {
   should_retry?: ShouldRetry;
   start_date?: StartDate2;
   arg_bindings?: ArgBindings;
+  execution_timeout?: ExecutionTimeout;
   multi_team?: MultiTeam;
 }
 /**

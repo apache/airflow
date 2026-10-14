@@ -1684,6 +1684,9 @@ type TIRunContext struct {
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
 
+	// ExecutionTimeout corresponds to the JSON schema field "execution_timeout".
+	ExecutionTimeout interface{} `msgpack:"execution_timeout,omitempty"`
+
 	// FirstTaskRescheduleStartDate corresponds to the JSON schema field
 	// "first_task_reschedule_start_date".
 	FirstTaskRescheduleStartDate interface{} `msgpack:"first_task_reschedule_start_date,omitempty"`

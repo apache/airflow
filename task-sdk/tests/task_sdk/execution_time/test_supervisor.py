@@ -1665,6 +1665,54 @@ class TestWatchedSubprocess:
         mock_kill.assert_called_once()
 
     @pytest.mark.parametrize(
+        ("server_timeout", "expected_timeout"),
+        [
+            pytest.param(30.0, 30.0, id="stub_task_with_timeout"),
+            pytest.param(None, None, id="no_timeout"),
+        ],
+    )
+    def test_execution_timeout_from_server_arms_deadline_at_startup(
+        self, mocker, server_timeout, expected_timeout
+    ):
+        """A lang-SDK runtime never sends SetExecutionTimeout, so the supervisor arms it from the run context."""
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        client = mocker.Mock()
+        client.task_instances.start.return_value = mocker.Mock(
+            should_retry=False, start_date=None, execution_timeout=server_timeout
+        )
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=client,
+        )
+        mocker.patch.object(ActivitySubprocess, "send_msg")
+
+        proc._on_child_started(
+            ti=TaskInstance(
+                id=TI_ID,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            dag_rel_path="d.py",
+            bundle_info=FAKE_BUNDLE,
+            sentry_integration="",
+        )
+
+        assert proc._execution_timeout_seconds == expected_timeout
+        if expected_timeout is None:
+            assert proc._execution_timeout_enforce_at is None
+        else:
+            assert proc._execution_timeout_enforce_at == 1.0 + expected_timeout + 5.0
+
+    @pytest.mark.parametrize(
         ("terminal_state", "exit_code"),
         [
             pytest.param(TaskInstanceState.FAILED, None, id="terminal_state_reported"),

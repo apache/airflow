@@ -1049,6 +1049,40 @@ class TestTIRunState:
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
 
+    def test_ti_run_returns_execution_timeout_for_stub_task_only(self, client, dag_maker):
+        """A stub task's execution_timeout is returned in seconds; other tasks report their own."""
+        with dag_maker("test_stub_execution_timeout_dag", serialized=True):
+
+            @task.stub(execution_timeout=timedelta(seconds=90))
+            def with_timeout(): ...
+
+            @task.stub
+            def without_timeout(): ...
+
+            @task(execution_timeout=timedelta(seconds=10))
+            def python_task(): ...
+
+            with_timeout()
+            without_timeout()
+            python_task()
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances()}
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(
+            f"/execution/task-instances/{tis['with_timeout'].id}/run", json=self.RUN_PAYLOAD
+        )
+        assert response.status_code == 200
+        assert response.json()["execution_timeout"] == 90.0
+
+        for task_id in ("without_timeout", "python_task"):
+            response = client.patch(f"/execution/task-instances/{tis[task_id].id}/run", json=self.RUN_PAYLOAD)
+            assert response.status_code == 200
+            assert "execution_timeout" not in response.json()
+
     @mock.patch(
         "airflow.api_fastapi.execution_api.routes.task_instances.get_arg_bindings",
         autospec=True,

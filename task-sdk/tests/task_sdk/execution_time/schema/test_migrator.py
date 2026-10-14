@@ -652,3 +652,55 @@ class TestRealBundleFirstTaskRescheduleStartDate:
     def test_head_version_keeps_field(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-10-30")
         assert out.ti_context.first_task_reschedule_start_date == self.FIRST_RESCHEDULE
+
+
+class TestRealBundleExecutionTimeout:
+    """Drive the *real* supervisor bundle through the ``execution_timeout`` migration."""
+
+    @pytest.fixture
+    def startup_details(self):
+        now = datetime.datetime.now(datetime.UTC)
+        return StartupDetails(
+            ti=TaskInstance(
+                id=uuid.uuid4(),
+                task_id="wait",
+                dag_id="d",
+                run_id="r",
+                try_number=1,
+                dag_version_id=uuid.uuid4(),
+            ),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="b", version=None),
+            start_date=now,
+            ti_context=TIRunContext(
+                dag_run=DagRun(
+                    dag_id="d",
+                    run_id="r",
+                    logical_date=now,
+                    data_interval_start=None,
+                    data_interval_end=None,
+                    start_date=now,
+                    end_date=None,
+                    run_type=DagRunType.MANUAL,
+                    state=DagRunState.RUNNING,
+                    run_after=now,
+                    consumed_asset_events=[],
+                    partition_key=None,
+                ),
+                max_tries=1,
+                execution_timeout=90.0,
+            ),
+            sentry_integration="",
+        )
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    def test_downgrade_strips_field_for_previous_version(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-06-16").model_dump()
+        assert "execution_timeout" not in out["ti_context"]
+
+    def test_head_version_keeps_field(self, real_migrator, startup_details):
+        out = real_migrator.downgrade(startup_details, "2026-10-30")
+        assert out.ti_context.execution_timeout == 90.0
