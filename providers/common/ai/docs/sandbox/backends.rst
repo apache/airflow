@@ -340,7 +340,8 @@ policy, keeps Landlock at ``hard_requirement``, and has neither
 ``proposal_approval_mode=auto`` nor agent policy proposals enabled at any scope.
 Auto-approval is refused because OpenShell turns a denied connection into a
 proposed allow rule and, in that mode, approves it without review. The same
-check runs before and after every command and file operation, because an administrator, an approved
+check runs before every command and file operation and after each one that
+completes, because an administrator, an approved
 draft or a gateway-wide policy can widen a running sandbox; a change destroys the
 sandbox and fails the task. That detects a widening, it does not prevent one: a
 command already running when the policy changes can use it. The check sees
@@ -374,8 +375,9 @@ after a command that finishes in time, and one that started a session of its own
 (``setsid``, a daemonizing server) escapes the kill on timeout, as can a command
 that keeps forking faster than the sweep. If the gateway stops relaying the
 command for longer than its budget plus 30 seconds, ``sandbox_terminated`` is
-reported, and the backend asks the gateway to delete the sandbox and logs a
-failure, for the reaper described below to clean up. Nothing crosses the stream
+reported and the backend asks the gateway to delete the sandbox; if that call
+fails too, it logs a warning and the sandbox is left for the reaper described
+below. Nothing crosses the stream
 until the command ends, so a proxy or load balancer in front of the gateway
 needs an idle timeout longer than the longest command budget plus 30 seconds. A
 command the gateway could not start, because its relay into the sandbox did not
@@ -392,9 +394,12 @@ write is not atomic, and it follows a symlink like a shell redirect. ``read_file
 transfers raw bytes, capped inside the guest. Both refuse a named pipe, since
 opening one waits for another process and nothing would end the wait in the
 sandbox; ``run_command`` with a timeout can still read or write one. The image needs ``setsid`` (from
-util-linux) and GNU coreutils and findutils, which ``python:*-slim`` and other
-Debian or Ubuntu based images have; an image without ``setsid`` fails the task at
-its first command. The gateway's own default image has no ``python3``, which is
+util-linux), GNU coreutils and findutils, and a ``/bin/sh`` that is dash or bash,
+which ``python:*-slim`` and other Debian or Ubuntu based images have; an image
+without ``setsid`` fails the task at its first command. BusyBox ``ash``, the
+``/bin/sh`` of Alpine images, is not supported: the timeout sweep does not finish
+under it, so a command that runs out of time ends with the sandbox destroyed after
+its budget plus 30 seconds instead of being killed. The gateway's own default image has no ``python3``, which is
 why the backend defaults to ``python:3.12-slim``.
 
 **Cleanup.** OpenShell has no server-side sandbox lifetime. ``destroy`` deletes
@@ -429,9 +434,10 @@ Constructor parameters:
 - ``request_timeout``: seconds for each gateway call other than a command.
   Default ``30``.
 
-The gateway host needs Linux with Landlock ABI 3 or later (kernel 6.2+) and
-seccomp user notification, and Docker 28 or later, Podman 5, or a Kubernetes
-cluster with the Agent Sandbox controller. OpenShell scopes its Docker driver to
+The kernel the sandboxes run on needs Landlock ABI 3 or later (Linux 6.2+) and
+seccomp user notification, and the gateway needs Docker 28 or later, Podman 5, or
+a Kubernetes cluster with the Agent Sandbox controller. On macOS the gateway runs
+against the Linux VM of a Docker runtime such as OrbStack or colima. OpenShell scopes its Docker driver to
 local development and single-machine gateways. This backend has been verified with
 the Docker driver only; on Kubernetes, egress enforcement also depends on the
 cluster's CNI enforcing NetworkPolicy. The gateway sends anonymous
@@ -507,8 +513,8 @@ behaves identically everywhere:
   OpenSandbox destroys it only if the command event stream itself stalls past the
   client-side grace period. OpenShell kills the command's session and keeps the
   sandbox. If the gateway stops relaying the command, the backend asks it to delete
-  the sandbox and logs a failure, for the reaper described under
-  :ref:`OpenShell <sandbox-backend-openshell>` to clean up.
+  the sandbox, and only a delete that fails too leaves it for the reaper described
+  under :ref:`OpenShell <sandbox-backend-openshell>`.
 - **Symlinks.** ``write_file`` through a symlink follows the link on ``sbx`` and
   OpenShell and replaces it on Modal and OpenSandbox.
 - **Attaching.** A Modal sandbox can be provisioned by one task and used by an

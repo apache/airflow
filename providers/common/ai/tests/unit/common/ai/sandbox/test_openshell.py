@@ -52,6 +52,7 @@ from airflow.providers.common.ai.sandbox.openshell import (
     _RUN_WRAPPER,
     _STAGING_FAILED,
     _SYSTEM_PATH,
+    _WRAPPER_VAR_PREFIX,
     OpenShellSandboxBackend,
     _BoundedTail,
     _wrapper_line,
@@ -374,6 +375,18 @@ class TestSpecRefusals:
             backend.create(spec=SandboxSpec(env={key: "value"}))
 
         client.create.assert_not_called()
+
+    def test_every_variable_the_wrapper_sets_has_the_reserved_prefix(self):
+        # A wrapper variable outside the prefix could share a name with a spec's env key,
+        # and the shell would hand its value to the command. PATH holds no secret, and _
+        # is read's throwaway field.
+        assigned = set(re.findall(r"\b([A-Za-z_]\w*)=", _RUN_WRAPPER))
+        assigned |= set(re.findall(r"\bfor (\w+) in\b", _RUN_WRAPPER))
+        for names in re.findall(r"\bread (?:-r )?(\w+(?: \w+)*)", _RUN_WRAPPER):
+            assigned |= set(names.split())
+        assert f"{_WRAPPER_VAR_PREFIX}q" in assigned  # the nonce, read from stdin
+
+        assert {name for name in assigned if not name.startswith(_WRAPPER_VAR_PREFIX)} == {"PATH", "_"}
 
     def test_env_named_like_a_wrapper_variable_is_refused(self):
         backend, client = _backend()
@@ -1081,6 +1094,21 @@ class TestFiles:
         assert client._stub.GetSandboxConfig.call_count == 2
 
     @pytest.mark.parametrize("operation", _PATH_OPERATIONS)
+    def test_a_policy_widened_during_a_file_operation_is_terminal(self, operation):
+        backend, client = _backend()
+        client._stub.ExecSandbox.return_value = _result(0, b"4\ndata")
+        client._stub.GetSandboxConfig.side_effect = [
+            _config(),
+            _config(source=sandbox_pb2.POLICY_SOURCE_GLOBAL),
+        ]
+
+        with pytest.raises(SandboxTerminalError, match="gateway-wide policy"):
+            operation(backend, "/tmp/x")
+
+        client._stub.ExecSandbox.assert_called_once()
+        client.delete.assert_called_once_with("box", workspace="default", allow_missing=True)
+
+    @pytest.mark.parametrize("operation", _PATH_OPERATIONS)
     def test_a_gateway_wide_policy_before_a_file_operation_is_terminal_and_nothing_runs(self, operation):
         backend, client = _backend()
         client._stub.GetSandboxConfig.return_value = _config(source=sandbox_pb2.POLICY_SOURCE_GLOBAL)
@@ -1404,13 +1432,7 @@ class TestRunWrapper:
         assert b"q=from-the-spec" in result.stdout
         assert self._NONCE.encode() not in result.stdout
 
-    @pytest.mark.parametrize(
-        "operation",
-        [
-            pytest.param(lambda backend, path: backend.read_file("box", path, max_bytes=10), id="read"),
-            pytest.param(lambda backend, path: backend.write_file("box", path, b"data"), id="write"),
-        ],
-    )
+    @pytest.mark.parametrize("operation", _PATH_OPERATIONS)
     def test_a_named_pipe_is_refused_rather_than_waited_on(self, tmp_path, operation):
         fifo = tmp_path / "pipe"
         os.mkfifo(fifo)

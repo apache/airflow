@@ -512,9 +512,9 @@ class OpenShellSandboxBackend(SandboxBackend):
     backend reads the effective policy back and destroys the sandbox unless it
     is exactly what was asked for, comes from the sandbox rather than a
     gateway-wide override, and cannot be widened by auto-approved proposals.
-    The same check runs before and after every command and file operation, because a gateway
-    administrator, an approved draft or a global policy can widen a running
-    sandbox; a change fails the task. What it cannot see is the network the
+    The same check runs before every command and file operation and after each
+    one that completes, because a gateway administrator, an approved draft or a
+    global policy can widen a running sandbox; a change fails the task. What it cannot see is the network the
     gateway runs on: on Kubernetes the NetworkPolicy that keeps a sandbox pod
     behind its supervisor is the cluster's to enforce.
 
@@ -524,7 +524,9 @@ class OpenShellSandboxBackend(SandboxBackend):
     spooled to the sandbox's ``/tmp`` and each stream is capped to
     ``max_output_bytes`` before it leaves the sandbox. ``allow_egress_to_cidrs``,
     an open network and ``SandboxSpec.owner`` are refused. The image needs
-    ``setsid`` and GNU coreutils and findutils; ``python:*-slim`` has them.
+    ``setsid``, GNU coreutils and findutils, and a ``/bin/sh`` that is dash or bash;
+    ``python:*-slim`` has them. BusyBox ``ash``, as in Alpine, is not supported:
+    the timeout sweep does not finish under it.
 
     :param gateway: Name of the OpenShell CLI gateway registration to use.
         ``None`` uses ``$OPENSHELL_GATEWAY``, then the CLI's active gateway.
@@ -1089,8 +1091,8 @@ class OpenShellSandboxBackend(SandboxBackend):
             # The toolset only replaces a sandbox after a command, so a listing that lost
             # it has to fail the task rather than leave the toolset holding a deleted one.
             raise SandboxTerminalError(
-                f"The OpenShell gateway stopped answering while listing {path!r}, so sandbox "
-                f"{sandbox} was destroyed to stop the listing."
+                f"The OpenShell gateway stopped answering while listing {path!r}, so the backend "
+                f"asked it to destroy sandbox {sandbox} to stop the listing."
             )
         if result.timed_out:
             raise SandboxError(f"Listing {path!r} did not finish within {_FILE_OP_TIMEOUT:g} seconds.")
