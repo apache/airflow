@@ -716,16 +716,50 @@ if AIRFLOW_V_3_1_1_PLUS:
         logger.info("Clearing %s task(s) and downstream after Databricks repair: %s", len(task_ids), to_clear)
         dag.clear(task_ids=list(to_clear), run_id=run_id, session=session)
 
-    def _repair_confirmation_page(dag_id: str, run_id: str, action: str, summary: str) -> HTMLResponse:
+    # Plain-CSS approximation of the Airflow UI, so the page does not look out of place next to it.
+    # No JavaScript: the repair runs only when the user submits the form.
+    _CONFIRMATION_PAGE_STYLE = """
+    :root { color-scheme: light dark; --bg: #f4f6f8; --card: #ffffff; --text: #1a202c;
+      --muted: #4a5568; --border: #e2e8f0; --primary: #017cee; --primary-hover: #0165c3; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0f1520; --card: #1a2230;
+      --text: #e2e8f0; --muted: #a0aec0; --border: #2d3748; --primary: #3b9cff;
+      --primary-hover: #63b0ff; } }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: var(--bg); color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .card { width: min(560px, calc(100vw - 32px)); background: var(--card);
+      border: 1px solid var(--border); border-radius: 12px; padding: 28px 32px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
+    h1 { font-size: 20px; margin: 0 0 20px; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 20px; }
+    dt { color: var(--muted); }
+    dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+    p { margin: 0 0 24px; }
+    .actions { display: flex; gap: 12px; justify-content: flex-end; align-items: center; }
+    button, .cancel { font: inherit; border-radius: 6px; padding: 8px 18px; cursor: pointer;
+      text-decoration: none; }
+    button { background: var(--primary); color: #fff; border: 1px solid var(--primary); }
+    button:hover { background: var(--primary-hover); }
+    .cancel { color: var(--text); border: 1px solid var(--border); }
+    .cancel:hover { background: var(--bg); }
+    """
+
+    def _repair_confirmation_page(
+        dag_id: str, run_id: str, action: str, summary: str, cancel_url: str
+    ) -> HTMLResponse:
         """Render the read-only confirmation page whose form issues the state-changing POST."""
         return HTMLResponse(
-            "<!doctype html><html><head><title>Repair Databricks workflow</title></head><body>"
-            "<h2>Repair Databricks workflow tasks</h2>"
-            f"<p>Dag <b>{escape(dag_id)}</b>, run <b>{escape(run_id)}</b>.</p>"
+            '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            f"<title>Repair Databricks workflow</title><style>{_CONFIRMATION_PAGE_STYLE}</style>"
+            '</head><body><main class="card">'
+            "<h1>Repair Databricks workflow tasks</h1>"
+            f"<dl><dt>Dag</dt><dd>{escape(dag_id)}</dd><dt>Run</dt><dd>{escape(run_id)}</dd></dl>"
             f"<p>{escape(summary)}</p>"
-            f'<form method="post" action="{escape(action)}">'
+            f'<form method="post" action="{escape(action)}" class="actions">'
+            f'<a class="cancel" href="{escape(cancel_url)}">Cancel</a>'
             '<button type="submit">Repair</button></form>'
-            "</body></html>"
+            "</main></body></html>"
         )
 
     @repair_app.get("/{dag_id}/{run_id}", dependencies=[Depends(_require_dag_run_edit)])
@@ -746,7 +780,7 @@ if AIRFLOW_V_3_1_1_PLUS:
         # echoing the request URL. SameSite=Lax on the auth cookie means a cross-site POST cannot
         # carry it, so moving the mutation to POST is what protects it from CSRF.
         action = _build_repair_url(dag_id, run_id, launch_task_id, repair_all=repair_all, task_id=task_id)
-        return _repair_confirmation_page(dag_id, run_id, action, summary)
+        return _repair_confirmation_page(dag_id, run_id, action, summary, _ui_run_path(dag_id, run_id))
 
     @repair_app.post("/{dag_id}/{run_id}", dependencies=[Depends(_require_dag_run_edit)])
     def repair_databricks_workflow(
