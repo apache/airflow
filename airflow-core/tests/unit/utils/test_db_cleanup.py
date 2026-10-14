@@ -699,7 +699,12 @@ class TestDBCleanup:
                 )
             model = config_dict["dag_run"].orm_model
             assert session.scalar(select(func.count()).select_from(model)) == 5
-            assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+            archives = [
+                name
+                for name in _get_archived_table_names(["dag_run"], session)
+                if name.startswith(f"{ARCHIVE_TABLE_PREFIX}dag_run__")
+            ]
+            assert len(archives) == expected_archives
 
         output = capsys.readouterr().out
         archive_statements = [sql for sql in statements if ARCHIVE_TABLE_PREFIX in sql]
