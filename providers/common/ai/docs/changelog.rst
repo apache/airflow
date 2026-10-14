@@ -183,8 +183,7 @@ Misc
   ``HookToolset`` no longer accepts the deprecated ``tool_name_prefix`` parameter. Pass
   ``tool_prefix`` instead: ``tool_name_prefix="s3_"`` becomes ``tool_prefix="s3"``, since
   ``HookToolset`` adds the underscore itself. ``MCPToolset``'s ``tool_prefix`` now defaults to
-  ``""`` like every other toolset's (``None`` is still accepted and treated as ``""``), and
-  so does ``MCPHook``'s.
+  ``""``, like every other toolset's and like ``MCPHook``'s.
   ``SQLToolset`` and ``DataFusionToolset`` gain a ``tool_prefix`` parameter with the same
   behaviour as ``HookToolset``'s.
 
