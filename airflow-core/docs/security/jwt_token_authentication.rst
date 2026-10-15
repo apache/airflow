@@ -692,6 +692,14 @@ without querying the database. Give each processor its own writable health file.
 manager fails liveness even while the API remains healthy; a transient API outage affects
 readiness without immediately failing liveness.
 
+For Helm, set the token-file option under ``config.dag_processor`` to select the local
+probe. The chart then replaces processor pods with the ``Recreate`` strategy, because pods
+that share a session token cannot run their Jobs side by side, and rejects more than one
+replica for the same reason. Disable the processor's migration-wait init container, provision the catalog
+separately, and remove server credentials from the pod. The Compose example selects the
+local probe when ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` is set. Neither the
+main chart release nor the quick-start Compose file removes shared credentials or adds
+database-denying network policies automatically; the isolated examples below do.
 Set ``CONNECTION_CHECK_MAX_COUNT=0`` in the processor container too: the standard image
 entrypoint otherwise checks the database before starting the command. Do not set
 ``_AIRFLOW_DB_MIGRATE`` or ``_AIRFLOW_WWW_USER_CREATE`` in that container.
@@ -709,6 +717,20 @@ Before starting the isolated processor, stop the trusted deployment's processor 
 being moved. If that processor must continue serving other bundles, restrict it with
 ``--bundle-name`` to those other bundles. This prevents conflicting inventory reconciliation
 and keeps Dag code for the moved bundles out of the database-credentialed processor.
+
+For Kubernetes, use the :download:`processor-only Helm values <dag-processor-api/helm-values.yaml>`
+in a **separate release and namespace**. These values disable other components and built-in
+server credential injection. Do not apply them to the release running the scheduler/API server.
+Create the ``dag-processor-session`` Secret containing ``processor.jwt`` and the
+``processor-dags`` PVC in that namespace, then configure the API service address and image.
+The processor service account has no mounted API token; a trusted provisioner updates the Secret.
+
+Apply the :download:`egress policy <dag-processor-api/network-policy.yaml>` in the processor
+namespace before starting its pods. It permits only DNS and the trusted API server. Adjust
+its namespace/pod selectors and ports to match the deployment. NetworkPolicy enforcement
+requires a supporting cluster network plugin; other policies selecting these pods must not
+grant broader egress. This example uses local Dag files. Remote bundles need additional,
+explicit egress to their source service.
 
 For Compose, use the :download:`standalone processor definition <dag-processor-api/docker-compose.yaml>`
 as its own project, rather than merging it with the quick-start file. It has no shared
