@@ -200,15 +200,14 @@ High Obtainability clusters have the following characteristics:
 * **Mandatory AutoZone**: HO clusters require AutoZone to dynamically select an optimal zone; do not specify a ``zone``.
 * **Cluster-wide flexible config**: Master and primary workers must both use flexible configurations (or
   ``num_workers=0`` for a single-node cluster).
-* **Mutual exclusivity**: Concrete machine types (e.g. ``master_machine_type``, ``worker_machine_type``),
-  disk parameters, accelerators, and instance flexibility policies cannot be mixed with flexible configs for
-  the same node group.
+* **Mutual exclusivity**: Concrete node group configurations (``master_config``,
+  ``worker_config``, ``secondary_worker_config``) cannot be mixed with flexible configs.
 * **Secondary workers**: In HO mode, secondary workers are configured via ``secondary_worker_flexible_config``.
 * **Allowed core counts**: Supported core counts per instance are 2, 4, 8, 16, and 32.
 * **Hardware classes**: Supported hardware classes are ``STANDARD`` and ``PERFORMANCE``
   (:class:`~airflow.providers.google.cloud.operators.dataproc.HardwareClass`).
 
-A High Obtainability cluster configuration can be generated using :class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`:
+A High Obtainability cluster configuration can be defined directly as a dictionary:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_high_obtainability.py
     :language: python

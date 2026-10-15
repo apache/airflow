@@ -38,7 +38,6 @@ from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
-    ClusterGenerator,
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
     DataprocSubmitJobOperator,
@@ -67,25 +66,26 @@ REGION = "us-central1"
 # [START how_to_cloud_dataproc_create_ho_cluster_config]
 # Note: no machine types, disk types or zone are specified. HO clusters are
 # cluster-wide: master and primary workers must both use a flexible config.
-HO_CLUSTER_CONFIG = ClusterGenerator(
-    project_id=PROJECT_ID,
-    master_flexible_config=FlexibleInstanceGroupConfig(
+HO_CLUSTER_CONFIG = {
+    "master_flexible_config": FlexibleInstanceGroupConfig(
         num_instances=1, core_count=4, hardware_class="STANDARD"
     ),
     # A plain dict with the same keys is accepted as well.
-    worker_flexible_config={
+    "worker_flexible_config": {
         "num_instances": 2,
         "core_count": 8,
         "hardware_class": "PERFORMANCE",
         "boot_disk_size_gb": 500,
     },
-    secondary_worker_flexible_config={
+    "secondary_worker_flexible_config": {
         "num_instances": 1,
         "core_count": 8,
         "hardware_class": "PERFORMANCE",
     },
-    image_version="2.2",
-).make()
+    "software_config": {
+        "image_version": "2.2",
+    },
+}
 # [END how_to_cloud_dataproc_create_ho_cluster_config]
 
 SPARK_PI_JOB = {
