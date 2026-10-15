@@ -60,8 +60,8 @@ record captures the decisions that shape it and the alternatives rejected.
 1. **One eligibility function, one configuration file.** ``fork_ci_gate.decide`` in breeze is
    a pure, standard-library-only function over the fields both the workflow event and the
    GraphQL API expose. Its configuration is ``.github/fork-ci-gate.toml`` in the repository:
-   an ``enabled`` switch, an ``enabled_since`` cut-off, ``close_after_days`` and the
-   exempted-organisation allowlist. A repository file rather than an Actions variable because
+   an ``enabled`` switch, an ``enabled_since`` cut-off, ``close_after_days``, the
+   exempted-organisation allowlist and the ``[pilot]`` table of volunteer contributors. A repository file rather than an Actions variable because
    ASF projects cannot self-serve variables and exemption changes deserve a reviewed pull
    request. The gate reads the file from the base branch so a pull request cannot alter its
    own eligibility. Two labels that only people with triage rights can set override the
@@ -90,7 +90,7 @@ record captures the decisions that shape it and the alternatives rejected.
    the two moments that need attention (workflows enabled, closed), publish the fork CI state
    as a commit status on the head SHA (red / yellow / green, linking to the run in the
    fork), close after seven days without fork CI activity, and close an external pull
-   request that tampered with the gate. Tampering is detected from what GitHub recorded, not
+   request (external or pilot) that tampered with the gate. Tampering is detected from what GitHub recorded, not
    from the pull request's tree: project CI ran for the head SHA (a non-skipped job other
    than ``gate`` in ``Tests (AMD)``, or a workflow not on the base branch) *and* the pull
    request changes files under ``.github/workflows/``. Both are required so that legitimate
@@ -114,11 +114,18 @@ record captures the decisions that shape it and the alternatives rejected.
    cannot be made private), fork ``main`` freshness, and the current branch. ``--fix`` runs
    the offered commands after confirmation.
 
-7. **Ship dormant, pilot by label.** Everything merges with ``enabled = false``. Committers
-   pilot the machinery on their own pull requests with ``use fork ci``. Switching on is one
-   pull request that sets ``enabled_since`` and ``enabled``. Rollback is the reverse. The backlog
-   reset in AIP-120 §9.1 is not implemented here; if adopted it is ``enabled_since`` moved
-   back in steps.
+7. **Ship dormant, pilot in two stages.** Everything merges with ``enabled = false``.
+   Committers first pilot the machinery on their own pull requests with ``use fork ci``.
+   Then volunteer external contributors opt in by adding their login and join instant to
+   ``[pilot]``, and every pull request they open afterwards is gated from its first run while
+   everyone else keeps project CI. This follows the dev list agreement to start with an
+   opt-in pilot. A per-login table was chosen over asking maintainers to label each
+   volunteer's pull requests because a label arrives after the first ``pull_request`` run
+   has already used project CI, and because the join instant keeps pull requests opened
+   before joining on project CI, so they can never be mistaken for gate tampering.
+   Switching on is one pull request that sets ``enabled_since`` and ``enabled`` and empties
+   ``[pilot]``. Rollback is the reverse. The backlog reset in AIP-120 §9.1 is not implemented
+   here; if adopted it is ``enabled_since`` moved back in steps.
 
 ## Consequences
 
@@ -130,6 +137,11 @@ record captures the decisions that shape it and the alternatives rejected.
   that never goes green is closed after a week with an invitation to reopen.
 - A committer or collaborator can move any single pull request between the two regimes with
   a label and a re-run, without touching configuration.
+- An external contributor can try the fork CI regime before it is mandatory by opening a
+  pull request that adds them to ``[pilot]``. Opting in can only take project CI away, so
+  such pull requests need only a check that the login is the author's own.
+- The reconciler runs even while ``enabled`` is false, because both pilots depend on it.
+  With no pilot entries and no ``use fork ci`` labels it finds nothing to do.
 - Maintainers see only pull requests that passed in the author's fork in the
   ``ready for maintainer review`` queue. Project CI jobs drop by the volume of gated pull
   requests, which shortens the shared queue for everyone.
