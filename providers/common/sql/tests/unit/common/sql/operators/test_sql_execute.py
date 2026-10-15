@@ -400,7 +400,7 @@ class TestSQLExecuteQueryOperatorDeferrable:
     def test_execute_complete_raises_on_error_event(self):
         op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True)
         with pytest.raises(RuntimeError, match="something went wrong"):
-            op.execute_complete(context={}, event={"status": "error", "message": "something went wrong"})
+            op.execute_complete(context={}, event={"status": "failure", "message": "something went wrong"})
 
     def test_execute_complete_returns_none_when_no_xcom_push(self):
         op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=False)

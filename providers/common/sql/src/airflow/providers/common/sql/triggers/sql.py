@@ -241,4 +241,4 @@ class SQLExecuteQueryTrigger(BaseTrigger):
 
         except Exception as e:
             self.log.error("status: error, message: %s", str(e))
-            yield TriggerEvent({"status": "error", "message": str(e)})
+            yield TriggerEvent({"status": "failure", "message": str(e)})

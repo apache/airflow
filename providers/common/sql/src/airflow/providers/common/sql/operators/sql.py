@@ -676,7 +676,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
         if event is None:
             raise RuntimeError("Unknown error in SQLExecuteQueryTrigger")
-        if event.get("status") == "error":
+        if event.get("status") == "failure":
             raise RuntimeError(event.get("message", "Unknown error in SQLExecuteQueryTrigger"))
         self.log.info("SQL query executed successfully.")
         results = event.get("results")
