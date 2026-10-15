@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.executors.eks.utils import (
@@ -27,6 +28,11 @@ from airflow.providers.amazon.aws.executors.eks.utils import (
     AllEksConfigKeys,
 )
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, conf
+
+if TYPE_CHECKING:
+    from kubernetes.client import models as k8s
+
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import KubernetesJob
 
 _CNCF_KUBERNETES_REQUIRED = "AwsEksExecutor requires apache-airflow-providers-cncf-kubernetes>=10.24.0"
 
@@ -71,6 +77,18 @@ class AwsEksExecutor(KubernetesExecutor):
     def start(self) -> None:
         """Call this when the Executor is run for the first time by the scheduler."""
         super().start()
+        if TYPE_CHECKING:
+            assert self.kube_scheduler
+        # Both pod creation paths build every worker pod here, so check the image before it is sent.
+        build_pod_request = self.kube_scheduler._build_pod_request
+
+        def _build_pod_request_with_image(job: KubernetesJob) -> k8s.V1Pod:
+            pod = build_pod_request(job)
+            self._check_worker_image(pod)
+            return pod
+
+        self.kube_scheduler._build_pod_request = _build_pod_request_with_image  # type: ignore[method-assign,assignment]
+
         check_health = conf.getboolean(
             CONFIG_GROUP_NAME,
             AllEksConfigKeys.CHECK_HEALTH_ON_STARTUP,
@@ -108,6 +126,25 @@ class AwsEksExecutor(KubernetesExecutor):
                 "cluster' in the AwsEksExecutor docs."
             ) from e
         self.log.info("EKS Executor health check has succeeded.")
+
+    def _check_worker_image(self, pod: k8s.V1Pod) -> None:
+        if pod.spec.containers and pod.spec.containers[0].image:
+            return
+        section = (
+            f"team {self.team_name}'s [kubernetes_executor]" if self.team_name else "[kubernetes_executor]"
+        )
+        annotations = pod.metadata.annotations or {}
+        # Raised as the 422 the API server would return, so KubernetesExecutor fails the task.
+        raise ApiException(
+            status=HTTPStatus.UNPROCESSABLE_ENTITY,
+            reason=(
+                f"Task {annotations.get('dag_id')}.{annotations.get('task_id')} has no worker image, so its "
+                "pod was not created. Set an image in one of three ways: on the base container of the pod "
+                f"template ({section} pod_template_file, or the task's executor_config pod_template_file), "
+                f"in the task's executor_config pod_override, or with {section} "
+                "worker_container_repository and worker_container_tag."
+            ),
+        )
 
     @staticmethod
     def _validate_eks_config() -> None:
