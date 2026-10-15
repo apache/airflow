@@ -204,11 +204,11 @@ class TestSmtpNotifier:
         assert f"{TRY_NUMBER} of 1" in content
 
     @pytest.mark.parametrize(
-        ("state", "expected_state", "expected_banner"),
+        ("state", "expected_state", "expected_accent"),
         [
-            pytest.param(TaskInstanceState.FAILED, "failed", "#dc2626", id="failed"),
-            pytest.param(TaskInstanceState.SUCCESS, "success", "#334155", id="success"),
-            pytest.param(None, "None", "#334155", id="no-state"),
+            pytest.param(TaskInstanceState.FAILED, "failed", "#ef4444", id="failed"),
+            pytest.param(TaskInstanceState.SUCCESS, "success", "#22c55e", id="success"),
+            pytest.param(None, "None", "#f59e0b", id="no-state"),
         ],
     )
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook", autospec=True)
@@ -219,7 +219,7 @@ class TestSmtpNotifier:
         mock_task_instance,
         state,
         expected_state,
-        expected_banner,
+        expected_accent,
     ):
         mock_ti = mock_task_instance(
             dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=TEST_RUN_ID, state=state
@@ -236,8 +236,8 @@ class TestSmtpNotifier:
         kwargs = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs
         assert kwargs["subject"] == f"{TEST_DAG_ID}.{TEST_TASK_ID} {expected_state} - Run {TEST_RUN_ID}"
         content = kwargs["html_content"]
-        assert f"Airflow task {expected_state}" in content
-        assert expected_banner in content
+        assert f"Task {expected_state}" in content
+        assert expected_accent in content
         for value in (TEST_DAG_ID, TEST_TASK_ID, TEST_RUN_ID):
             assert value in content
         assert f'href="{mock_ti.log_url}"' in content
@@ -258,8 +258,8 @@ class TestSmtpNotifier:
         notifier({"dag": create_dag_without_db(TEST_DAG_ID), "ti": mock_ti})
 
         content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
-        assert "Started:" not in content
-        assert "Ended:" not in content
+        assert ">Started<" not in content
+        assert ">Ended<" not in content
 
     @pytest.mark.parametrize(
         ("mark_success_url", "row_rendered"),
@@ -287,7 +287,7 @@ class TestSmtpNotifier:
         notifier({"dag": create_dag_without_db(TEST_DAG_ID), "ti": mock_ti})
 
         content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
-        assert ("Mark Success:" in content) is row_rendered
+        assert (">Mark Success<" in content) is row_rendered
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_nondefault_connection_extra(
