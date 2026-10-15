@@ -28,9 +28,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
-from airflow.providers.common.ai.utils.validation import (
-    validate_prompt,
-)
+from airflow.providers.common.ai.utils.validation import validate_prompt
 from airflow.providers.common.compat.sdk import (
     SET_DURING_EXECUTION,
     DecoratedOperator,
