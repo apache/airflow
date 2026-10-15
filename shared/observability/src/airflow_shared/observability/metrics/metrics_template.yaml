@@ -39,6 +39,24 @@ metrics:
     legacy_name: "-"
     name_variables: ["job_name"]
 
+  - name: "job_start"
+    description: "Number of started jobs."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "job_end"
+    description: "Number of ended jobs."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processor_heartbeat_failure"
+    description: "Number of failed Dag processor heartbeats through the Execution API."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "operator_failures"
     description: "Operator ``{operator_name}`` failures."
     type: "counter"
@@ -122,14 +140,6 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processing.results_discarded_on_refresh"
-    description: "Parse attempts discarded because bundle initialization or refresh overlapped the import.
-    Metric with bundle_name tagging, and team_name tagging in multi-team mode.
-    Repeated discards can indicate that refreshes are delaying parsing."
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
   - name: "dag_processing.processes"
     description: "Relative number of currently running Dag parsing processes (ie this delta is negative when,
     since the last metric was sent, processes have completed). Metric with file_path, bundle_name, and action
@@ -147,6 +157,14 @@ metrics:
 
   - name: "dag_processing.other_callback_count"
     description: "Number of non-SLA callbacks received"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.results_discarded_on_refresh"
+    description: "Parse attempts discarded because bundle initialization or refresh overlapped the import.
+    Metric with bundle_name tagging, and team_name tagging in multi-team mode.
+    Repeated discards can indicate that refreshes are delaying parsing."
     type: "counter"
     legacy_name: "-"
     name_variables: []
