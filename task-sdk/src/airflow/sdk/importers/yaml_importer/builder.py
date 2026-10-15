@@ -44,6 +44,7 @@ import re
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
+from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import DAG, BaseOperator, XComArg, literal, task as task_decorators
 from airflow.sdk._shared.module_loading import import_string
@@ -176,15 +177,15 @@ class DagBuilder:
             op_cls = import_string(task.uses)
 
         template_fields = set(getattr(op_cls, "template_fields", ()))
-        temporal = _temporal_fields(op_cls)
+        coercer = _FieldCoercer.for_target(op_cls)
         kwargs: dict[str, Any] = {}
         render_fields: list[str] = []
         off_template: list[str] = []
         for name, value in task.with_.items():
             needs_render, has_marker = _field_markers(value)
             lowered = self._lower(value, protect=needs_render)
-            if name in temporal and not has_marker:  # a literal date/ISO string for a datetime arg
-                lowered = _to_datetime(lowered)
+            if not has_marker:
+                lowered = coercer.coerce(name, lowered)
             kwargs[name] = lowered
             if has_marker and name not in template_fields:
                 off_template.append(name)
@@ -192,9 +193,10 @@ class DagBuilder:
                 render_fields.append(name)
         if off_template:
             raise YamlDagBuildError(
-                f"task {task.id_!r}: value grammar markers are only allowed on templated fields, not {off_template}"
+                f"task {task.id_!r}: value grammar markers are only allowed "
+                f"on templated fields, not {off_template}"
             )
-        if task.model_extra:  # Merge in task-level arguments (raw, never templated).
+        if task.model_extra:  # Merge in task-level arguments (never templated).
             kwargs.update(_coerce_temporal(task.model_extra, BaseOperator))
 
         return _restrict_template_fields(op_cls(task_id=task.id_, **kwargs), task.with_, render_fields)
@@ -349,69 +351,182 @@ def _reject_reserved_extra_keys(extras: Any) -> None:
 
 def _coerce_temporal(mapping: dict[str, Any], target: type) -> dict[str, Any]:
     """
-    Promote YAML-native dates and ISO date/datetime strings to datetimes.
+    Coerce scalars to datetime or time delta types expected by *target*.
 
-    Some fields on a Dag or operator are datetimes, but YAML has distinct date
-    and date-time formats, so a bare ``2024-01-01`` or a quoted ISO string would
-    otherwise reach the datetime field unconverted. A date becomes midnight; an
-    ISO string is parsed (which also helps JSON compatibility).
+    Coercion follows how each argument is typed in the argument list. A value
+    bound to ``datetime`` is promoted to a datetime; a YAML date becomes
+    midnight, an ISO string is parsed. A value bound to ``timedelta`` or
+    ``relativedelta`` is parsed from a duration string.
 
-    Only values bound to a *target* argument annotated as ``datetime`` are
-    coerced. A non-temporal argument is left untouched, so a string that merely
-    looks like a date keeps its type.
+    An argument of neither type is left untouched, so a string that merely looks
+    like a date or duration keeps its type.
     """
-    temporal = _temporal_fields(target)
-    return {key: _to_datetime(value) if key in temporal else value for key, value in mapping.items()}
+    coercer = _FieldCoercer.for_target(target)
+    return {key: coercer.coerce(key, value) for key, value in mapping.items()}
 
 
-def _to_datetime(value: Any) -> Any:
-    if isinstance(value, datetime.datetime):
-        return value
-    if isinstance(value, datetime.date):
-        return datetime.datetime.combine(value, datetime.time.min)
-    if isinstance(value, str):
+class _FieldCoercer(dict):
+    """
+    Maps an argument name to the coercion for its declared type.
+
+    This is built from a Dag or operator's constructor signature. An argument
+    with no known coercion is simply absent, and ``__missing__`` supplies an
+    identity no-op coercion.
+
+    A coercion is chosen by an argument's type annotation (by text matching, not
+    resolved, to reduce calculation cost). This is not theoratically perfect,
+    but should be plenty good enough in practice.
+    """
+
+    _TYPE_NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
+
+    # Datetime arguments, stdlib or pendulum.
+    _DATETIME_TYPE_NAMES = frozenset({"datetime", "DateTime"})
+    # Time-delta arguments, stdlib timedelta or dateutil relativedelta.
+    _DELTA_TYPE_NAMES = frozenset({"timedelta", "relativedelta"})
+
+    # ISO 8601 duration format.
+    _ISO_DURATION_RE = re.compile(
+        r"^P(?=[\dYMWDT])(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?"
+        r"(?:T(?=[\dHMS])(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$"
+    )
+
+    # Short-hand duration format (e.g. 5m, 1h).
+    _SHORT_DURATION_RE = re.compile(r"^(?=\d)(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$")
+
+    @classmethod
+    @functools.cache
+    def for_target(cls, target: type) -> _FieldCoercer:
+        """Build the coercer for *target*'s constructor arguments."""
+        coercer = cls()
         try:
-            return datetime.datetime.fromisoformat(value)
-        except ValueError:
+            params = inspect.signature(target).parameters
+        except (TypeError, ValueError):
+            return coercer
+        for name, param in params.items():
+            annotation = str(param.annotation)
+            if cls._is_datetime_annotation(annotation):
+                coercer[name] = cls._to_datetime
+            elif allowed := cls._is_delta_annotation(annotation):
+                coercer[name] = functools.partial(cls._to_delta, allowed=allowed)
+        return coercer
+
+    def __missing__(self, name: str) -> Callable[[Any], Any]:
+        return lambda value: value
+
+    def coerce(self, name: str, value: Any) -> Any:
+        """Coerce *value* for argument *name*."""
+        return self[name](value)
+
+    @classmethod
+    def _is_datetime_annotation(cls, annotation: str) -> bool:
+        """Check if *annotation* names a datetime type."""
+        names = (ref.rsplit(".", 1)[-1] for ref in cls._TYPE_NAME_RE.findall(annotation))
+        return any(name in cls._DATETIME_TYPE_NAMES for name in names)
+
+    @classmethod
+    def _to_datetime(cls, value: Any) -> Any:
+        if isinstance(value, datetime.datetime):
             return value
-    return value
+        if isinstance(value, datetime.date):
+            return datetime.datetime.combine(value, datetime.time.min)
+        if isinstance(value, str):
+            try:
+                return datetime.datetime.fromisoformat(value)
+            except ValueError:
+                return value
+        return value
 
+    @classmethod
+    def _is_delta_annotation(cls, annotation: str) -> frozenset[str]:
+        """Check if *annotation* names a duration delta type."""
+        names = (ref.rsplit(".", 1)[-1] for ref in cls._TYPE_NAME_RE.findall(annotation))
+        return frozenset(name for name in names if name in cls._DELTA_TYPE_NAMES)
 
-# Airflow annotates arguments with either stdlib datetime or pendulum DateTime.
-# Matched by name (see _temporal_fields) rather than resolved to avoid having
-# to evaluate dynamically.
-_TEMPORAL_TYPE_NAMES = frozenset({"datetime", "DateTime"})
-_TYPE_NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
+    @classmethod
+    def _to_delta(cls, value: Any, allowed: frozenset[str]) -> Any:
+        """
+        Parse a duration string into a ``timedelta`` or ``relativedelta``.
 
+        An ISO-8601 format duration (e.g. ``P1DT6H``, ``P1Y2M``) is accepted for
+        both stdlib timedelta and dateutil relativedelta arguments; a short form
+        (``5m``, ``1h30m``) is also accepted for timedelta. Years and months
+        need a relativedelta, so an ISO duration carrying them is left untouched
+        unless relativedelta is allowed.
 
-@functools.cache
-def _temporal_fields(target: type) -> frozenset[str]:
-    """
-    Names of *target*'s constructor arguments annotated as a datetime type.
+        A value that does not parse as a duration string is returned unchanged.
+        """
+        if not isinstance(value, str):
+            return value
+        if (parts := cls._parse_iso_duration(value)) is not None:
+            if parts["years"] or parts["months"]:
+                return cls._as_relativedelta(parts) if "relativedelta" in allowed else value
+            if "timedelta" in allowed:
+                return datetime.timedelta(
+                    weeks=parts["weeks"],
+                    days=parts["days"],
+                    hours=parts["hours"],
+                    minutes=parts["minutes"],
+                    seconds=parts["seconds"],
+                )
+            if "relativedelta" in allowed:
+                return cls._as_relativedelta(parts)
+            return value
+        if "timedelta" in allowed and (parts := cls._parse_short_duration(value)) is not None:
+            return datetime.timedelta(**parts)
+        return value
 
-    The annotation text is matched against the datetime type names Airflow uses;
-    it is never resolved, so one referring to a ``TYPE_CHECKING``-only name does
-    not need importing. The constructor signature is read -- not class
-    attributes -- so attrs field aliases and operator-specific arguments are
-    covered. This is not perfect (a datetime type reached under another alias is
-    missed); we'll fix edge cases as we go.
-    """
-    try:
-        params = inspect.signature(target).parameters
-    except (TypeError, ValueError):
-        return frozenset()
-    return frozenset(name for name, p in params.items() if _is_temporal_annotation(str(p.annotation)))
+    @classmethod
+    def _as_relativedelta(cls, parts: dict[str, int]) -> relativedelta:
+        """Build a relativedelta from duration component ints."""
+        return relativedelta(
+            years=parts["years"],
+            months=parts["months"],
+            weeks=parts["weeks"],
+            days=parts["days"],
+            hours=parts["hours"],
+            minutes=parts["minutes"],
+            seconds=parts["seconds"],
+        )
 
+    @classmethod
+    def _parse_iso_duration(cls, value: str) -> dict[str, int] | None:
+        """Parse an ISO-8601 duration into component ints."""
+        match = cls._ISO_DURATION_RE.match(value)
+        if match is None or not any(match.groups()):
+            return None
+        years, months, weeks, days, hours, minutes, seconds = match.groups()
+        return {
+            "years": int(years or 0),
+            "months": int(months or 0),
+            "weeks": int(weeks or 0),
+            "days": int(days or 0),
+            "hours": int(hours or 0),
+            "minutes": int(minutes or 0),
+            "seconds": int(seconds or 0),
+        }
 
-def _is_temporal_annotation(annotation: str) -> bool:
-    """Return True if *annotation* names a datetime type, ignoring any module prefix."""
-    return any(ref.rsplit(".", 1)[-1] in _TEMPORAL_TYPE_NAMES for ref in _TYPE_NAME_RE.findall(annotation))
+    @classmethod
+    def _parse_short_duration(cls, value: str) -> dict[str, int] | None:
+        """Parse a short duration (e.g. ``1h30m``) into timedelta kwargs."""
+        match = cls._SHORT_DURATION_RE.match(value)
+        if match is None or not any(match.groups()):
+            return None
+        weeks, days, hours, minutes, seconds = match.groups()
+        return {
+            "weeks": int(weeks or 0),
+            "days": int(days or 0),
+            "hours": int(hours or 0),
+            "minutes": int(minutes or 0),
+            "seconds": int(seconds or 0),
+        }
 
 
 def _build_schedule(schedule: Any) -> Any:
     """Build *schedule* into a schedule construct for :class:`DAG`."""
     if isinstance(schedule, TimetableSchedule):
-        return import_string(schedule.uses)(**schedule.with_)
+        timetable_cls = import_string(schedule.uses)
+        return timetable_cls(**_coerce_temporal(schedule.with_, timetable_cls))
     return schedule
 
 
