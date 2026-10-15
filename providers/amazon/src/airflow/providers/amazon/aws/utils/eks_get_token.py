@@ -19,6 +19,8 @@ from __future__ import annotations
 import argparse
 import base64
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
 import boto3
@@ -49,6 +51,22 @@ def get_parser():
     return parser
 
 
+@contextmanager
+def regional_sts_endpoints() -> Iterator[None]:
+    """Make STS clients created in this block use the regional endpoint, then restore the previous setting."""
+    previous = os.environ.get("AWS_STS_REGIONAL_ENDPOINTS")
+    os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("AWS_STS_REGIONAL_ENDPOINTS", None)
+        else:
+            os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = previous
+
+
+# The token is very picky that the STS endpoint is regional, which some regions do not default to.
+@regional_sts_endpoints()
 def fetch_access_token_for_cluster(
     eks_cluster_name: str, sts_url: str, region_name: str, session: boto3.Session | None = None
 ) -> str:
@@ -56,10 +74,6 @@ def fetch_access_token_for_cluster(
         # This will use the credentials from the caller set as the standard AWS env variables
         session = boto3.Session(region_name=region_name)
     eks_client = session.client("eks")
-    # This env variable is required so that we get a regionalized endpoint for STS in regions that
-    # otherwise default to global endpoints. The mechanism below to generate the token is very picky that
-    # the endpoint is regional.
-    os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
 
     credentials = session.get_credentials()
     if credentials is None:

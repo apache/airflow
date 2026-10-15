@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 from io import StringIO
 from unittest import mock
 
@@ -169,3 +170,26 @@ class TestGetEksToken:
 
         mock_session.assert_not_called()
         session.client.assert_called_once_with("eks")
+
+
+@pytest.mark.parametrize("previous", [None, "legacy"])
+def test_regional_sts_endpoints_restores_previous_value(monkeypatch, previous):
+    from airflow.providers.amazon.aws.utils.eks_get_token import regional_sts_endpoints
+
+    if previous is None:
+        monkeypatch.delenv("AWS_STS_REGIONAL_ENDPOINTS", raising=False)
+    else:
+        monkeypatch.setenv("AWS_STS_REGIONAL_ENDPOINTS", previous)
+
+    seen_inside = []
+
+    def fail_inside_block():
+        with regional_sts_endpoints():
+            seen_inside.append(os.environ["AWS_STS_REGIONAL_ENDPOINTS"])
+            raise RuntimeError
+
+    with pytest.raises(RuntimeError):
+        fail_inside_block()
+
+    assert seen_inside == ["regional"]
+    assert os.environ.get("AWS_STS_REGIONAL_ENDPOINTS") == previous

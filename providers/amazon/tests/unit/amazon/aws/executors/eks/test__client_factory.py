@@ -22,6 +22,7 @@ from base64 import b64encode
 from pathlib import Path
 from unittest import mock
 
+import boto3
 import pytest
 from kubernetes import client
 from kubernetes_asyncio import client as async_client
@@ -31,7 +32,10 @@ from airflow.providers.amazon.aws.executors.eks._client_factory import (
     _get_eks_async_kube_client,
     _get_eks_kube_client,
 )
-from airflow.providers.amazon.aws.utils.eks_get_token import TOKEN_EXPIRATION_MINUTES
+from airflow.providers.amazon.aws.utils.eks_get_token import (
+    TOKEN_EXPIRATION_MINUTES,
+    fetch_access_token_for_cluster,
+)
 
 from tests_common.test_utils.config import conf_vars
 
@@ -60,7 +64,12 @@ def mock_aws():
         eks_hook.get_session.return_value.region_name = "us-east-1"
         sts_hook_cls.return_value.conn_client_meta.endpoint_url = "https://sts.us-east-1.amazonaws.com"
         fetch_token.return_value = "k8s-aws-v1.token-1"
-        yield {"eks_hook_cls": eks_hook_cls, "eks_hook": eks_hook, "fetch_token": fetch_token}
+        yield {
+            "eks_hook_cls": eks_hook_cls,
+            "eks_hook": eks_hook,
+            "sts_hook_cls": sts_hook_cls,
+            "fetch_token": fetch_token,
+        }
 
 
 class TestGetEksKubeClient:
@@ -110,6 +119,24 @@ class TestGetEksKubeClient:
         assert args.args[0] == CLUSTER_NAME
         assert args.args[1].startswith("https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity")
         assert args.kwargs["session"] is mock_aws["eks_hook"].get_session.return_value
+        os.unlink(configuration.ssl_ca_cert)
+
+    def test_restores_callers_sts_regional_endpoints(self, mock_aws, monkeypatch):
+        monkeypatch.setenv("AWS_STS_REGIONAL_ENDPOINTS", "legacy")
+        seen_by_sts_hook = []
+        mock_aws["sts_hook_cls"].side_effect = lambda **_: (
+            seen_by_sts_hook.append(os.environ["AWS_STS_REGIONAL_ENDPOINTS"]) or mock.DEFAULT
+        )
+        mock_aws["eks_hook"].get_session.return_value = boto3.Session(
+            aws_access_key_id="testing", aws_secret_access_key="testing", region_name="us-east-1"
+        )
+        mock_aws["fetch_token"].side_effect = fetch_access_token_for_cluster
+
+        configuration = _get_eks_kube_client().api_client.configuration
+
+        assert seen_by_sts_hook == ["regional"]
+        assert os.environ["AWS_STS_REGIONAL_ENDPOINTS"] == "legacy"
+        assert configuration.auth_settings()["BearerToken"]["value"].startswith("Bearer k8s-aws-v1.")
         os.unlink(configuration.ssl_ca_cert)
 
     @pytest.mark.parametrize("status", ["CREATING", "DELETING", "FAILED"])
