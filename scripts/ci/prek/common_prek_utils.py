@@ -248,7 +248,7 @@ def insert_documentation(
         print(f"Header {header} not found in {file_path}")
         sys.exit(1)
     if new_content != old_content:
-        file_path.write_text(new_content)
+        file_path.write_text(new_content, encoding="utf-8")
         console.print(f"Updated {file_path} with {extra_information or 'generated documentation'}")
         return True
     return False
