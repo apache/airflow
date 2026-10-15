@@ -155,7 +155,14 @@ services:
     <<: *airflow-common
     command: dag-processor
     healthcheck:
-      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      test:
+        - CMD-SHELL
+        - >-
+          if [ -n "$${AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE:-}" ]; then
+            airflow dag-processor --check-health;
+          else
+            airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}";
+          fi
       interval: 30s
       timeout: 10s
       retries: 5
