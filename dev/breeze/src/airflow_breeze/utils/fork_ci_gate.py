@@ -45,6 +45,7 @@ LABEL_FORK_CI_REQUIRED = "fork ci required"
 LABEL_USE_PROJECT_CI = "use project ci"
 LABEL_USE_FORK_CI = "use fork ci"
 LABEL_READY_FOR_REVIEW = "ready for maintainer review"
+LABEL_NEEDS_PROJECT_CI = "needs project ci"
 
 DEFAULT_CLOSE_AFTER_DAYS = 7
 DEFAULT_ENABLED_SINCE = datetime(2026, 1, 1, tzinfo=UTC)
