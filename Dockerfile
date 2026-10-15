@@ -344,6 +344,23 @@ function restore_debian_base_files() {
     if [[ ! -e /etc/shells ]]; then
         printf '%s\n' "# /etc/shells: valid login shells" /bin/sh /bin/bash > /etc/shells
     fi
+    align_perl_base_with_perl
+}
+
+function align_perl_base_with_perl() {
+    # The hardened images ship their own build of perl-base, but the hardened apt repository does not
+    # always publish the matching perl - while it still publishes packages that depend on perl, such
+    # as git. Debian's perl depends on exactly its own perl-base version, so apt refuses to install
+    # git at all. Moving perl-base to the version of the perl apt can install keeps the two in step;
+    # when the repository does publish a matching perl, the versions already agree and this does nothing.
+    local perl_version
+    local perl_base_version
+    perl_version=$(apt-cache policy perl | awk '/Candidate:/ {print $2}')
+    perl_base_version=$(dpkg-query -W -f='${Version}' perl-base 2>/dev/null || true)
+    if [[ -n "${perl_version}" && "${perl_version}" != "(none)" && -n "${perl_base_version}" \
+            && "${perl_base_version}" != "${perl_version}" ]]; then
+        apt-get install -y --no-install-recommends --allow-downgrades "perl-base=${perl_version}"
+    fi
 }
 
 function install_debian_dev_dependencies() {
