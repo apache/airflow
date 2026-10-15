@@ -19,27 +19,12 @@
 import type { LoopSummaryResponse } from "openapi/requests/types.gen";
 
 /** Value of the iteration URL parameter that selects every iteration. */
-export const ITERATION_ALL = "all";
-
-/** The URL's iteration while the loop still has it, otherwise the newest iteration (or all when none ran). */
-export const getSelectedIteration = (param: string | null, summary: LoopSummaryResponse): string => {
-  if (
-    param !== null &&
-    (param === ITERATION_ALL || summary.iterations.some((iteration) => String(iteration.index) === param))
-  ) {
-    return param;
-  }
-  const latest = summary.iterations.at(-1)?.index;
-
-  return latest === undefined ? ITERATION_ALL : String(latest);
-};
-
 export const reasonSentence = (
   translate: (key: string, options?: Record<string, unknown>) => string,
   summary: LoopSummaryResponse,
 ): string => {
   const options = {
-    index: summary.stopped_at_iteration ?? summary.failed_at_iteration ?? 0,
+    index: summary.stopped_at_iteration ?? summary.failed_at_iteration,
     max: summary.max_iterations,
     ran: summary.iterations_ran,
     taskId: summary.reason_task_id,
