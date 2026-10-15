@@ -78,10 +78,10 @@ Maintenance operations such as ``OPTIMIZE``, ``VACUUM START``, and ``VACUUM END`
     )
 
 
-Waiting for a specific version
-------------------------------
+Waiting for a target version
+----------------------------
 
-To wait for an exact target Delta version, set ``target_version``:
+To wait until the table reaches or exceeds a target Delta version, set ``target_version``:
 
 .. code-block:: python
 
