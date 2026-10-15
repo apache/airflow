@@ -219,11 +219,9 @@ class FlexibleInstanceGroupConfig:
 
 
 def _to_flexible_config(
-    value: FlexibleInstanceGroupConfig | dict[str, Any] | None, name: str
-) -> FlexibleInstanceGroupConfig | None:
+    value: FlexibleInstanceGroupConfig | dict[str, Any], name: str
+) -> FlexibleInstanceGroupConfig:
     """Coerces a user supplied flexible config (dataclass or dict) to a dataclass."""
-    if value is None:
-        return None
     if isinstance(value, FlexibleInstanceGroupConfig):
         return value
     if isinstance(value, dict):
@@ -234,9 +232,7 @@ def _to_flexible_config(
                 f"Invalid {name}: {e}. Expected keys: num_instances, core_count,"
                 " hardware_class, boot_disk_size_gb."
             ) from e
-    raise ValueError(
-        f"{name} must be a FlexibleInstanceGroupConfig or a dict, got {type(value).__name__}."
-    )
+    raise ValueError(f"{name} must be a FlexibleInstanceGroupConfig or a dict, got {type(value).__name__}.")
 
 
 def flexible_scale_cluster_update(
@@ -278,8 +274,8 @@ def flexible_scale_cluster_update(
     config: dict[str, Any] = {}
     paths: list[str] = []
     if num_workers is not None:
-        if not isinstance(num_workers, int) or isinstance(num_workers, bool) or num_workers < 0:
-            raise ValueError("num_workers must be a non-negative integer.")
+        if not isinstance(num_workers, int) or isinstance(num_workers, bool) or num_workers <= 0:
+            raise ValueError("num_workers must be a positive integer.")
         config["worker_flexible_config"] = {"num_instances": num_workers}
         paths.append("config.worker_flexible_config.num_instances")
     if num_secondary_workers is not None:
@@ -309,13 +305,15 @@ def _get_num_instances(cluster: Any, path: str) -> int | None:
         elif isinstance(value, str):
             return None
         else:
+            if hasattr(type(value), "pb") and key not in value:
+                return None
             try:
                 value = getattr(value, key)
             except (AttributeError, KeyError):
                 return None
         if value is None:
             return None
-    return int(value) if isinstance(value, int) else None
+    return int(value) if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 @deprecated(
@@ -1058,8 +1056,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         if is_single_node:
             if worker_fc is not None:
                 raise ValueError(
-                    "worker_flexible_config can't be set for a single-node"
-                    " High Obtainability cluster."
+                    "worker_flexible_config can't be set for a single-node High Obtainability cluster."
                 )
             if secondary_worker_fc is not None:
                 raise ValueError(
@@ -2597,9 +2594,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
     # The only mutable fields of the flexible configs (``num_instances`` of the
     # primary and secondary workers); every other flexible field is create-time
     # only and the master node group cannot be resized.
-    _MUTABLE_FLEXIBLE_PATHS = frozenset(
-        flexible_path for _, flexible_path in _CONFLICTING_SCALING_PATHS
-    )
+    _MUTABLE_FLEXIBLE_PATHS = frozenset(flexible_path for _, flexible_path in _CONFLICTING_SCALING_PATHS)
 
     @classmethod
     def _validate_update_mask_paths(
@@ -2646,6 +2641,8 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
 
         for legacy_path, flexible_path in cls._CONFLICTING_SCALING_PATHS:
             if legacy_path not in paths or flexible_path not in paths:
+                continue
+            if isinstance(cluster, str) or cluster is None:
                 continue
             legacy_count = _get_num_instances(cluster, legacy_path)
             flexible_count = _get_num_instances(cluster, flexible_path)

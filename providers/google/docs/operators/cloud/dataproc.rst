@@ -198,8 +198,9 @@ cluster creation reliability.
 High Obtainability clusters have the following characteristics:
 
 * **Mandatory AutoZone**: HO clusters require AutoZone to dynamically select an optimal zone; do not specify a ``zone``.
-* **Cluster-wide flexible config**: Master and primary workers must both use flexible configurations (or
-  ``num_workers=0`` for a single-node cluster).
+* **Cluster-wide flexible config**: Master and primary workers must both use flexible configurations (or omit
+  ``worker_flexible_config`` and set ``dataproc:dataproc.allow.zero.workers`` to ``"true"`` in
+  ``software_config.properties`` for a single-node cluster).
 * **Mutual exclusivity**: Concrete node group configurations (``master_config``,
   ``worker_config``, ``secondary_worker_config``) cannot be mixed with flexible configs.
 * **Secondary workers**: In HO mode, secondary workers are configured via ``secondary_worker_flexible_config``.

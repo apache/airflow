@@ -22,12 +22,15 @@ from unittest import mock
 import pytest
 from google.cloud.dataproc_v1 import Cluster, ClusterStatus
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocCreateClusterOperator,
     DataprocUpdateClusterOperator,
     FlexibleInstanceGroupConfig,
     HardwareClass,
+    _get_num_instances,
+    _to_flexible_config,
     flexible_scale_cluster_update,
 )
 
@@ -128,14 +131,17 @@ class TestDataprocCreateClusterOperatorValidation:
         assert op.cluster_config["gce_cluster_config"]["zone_uri"].endswith("/zones/us-central1-a")
 
         # Verify ClusterGenerator still works as expected for standard clusters
-        gen_config = ClusterGenerator(
-            project_id=PROJECT_ID,
-            num_workers=2,
-            zone="us-central1-a",
-            master_machine_type="n2-standard-4",
-            worker_machine_type="n2-standard-8",
-            num_preemptible_workers=1,
-        ).make()
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match="The class .*ClusterGenerator.* is deprecated"
+        ):
+            gen_config = ClusterGenerator(
+                project_id=PROJECT_ID,
+                num_workers=2,
+                zone="us-central1-a",
+                master_machine_type="n2-standard-4",
+                worker_machine_type="n2-standard-8",
+                num_preemptible_workers=1,
+            ).make()
         assert gen_config["master_config"]["num_instances"] == 1
         assert gen_config["worker_config"]["num_instances"] == 2
         assert gen_config["secondary_worker_config"]["num_instances"] == 1
@@ -298,9 +304,7 @@ class TestDataprocCreateClusterOperatorValidation:
             )
 
     def test_ho_single_node_rejects_concrete_worker_config(self):
-        with pytest.raises(
-            ValueError, match=r"worker_config can't be set together with"
-        ):
+        with pytest.raises(ValueError, match=r"worker_config can't be set together with"):
             self._make(
                 master_flexible_config=MASTER_FLEX,
                 worker_config={"num_instances": 0},
@@ -338,6 +342,10 @@ class TestDataprocCreateClusterOperatorValidation:
                 worker_flexible_config={"num_instances": 1, "core_count": 6},
             )
 
+    def test_to_flexible_config_invalid_type(self):
+        with pytest.raises(ValueError, match="must be a FlexibleInstanceGroupConfig or a dict"):
+            _to_flexible_config(None, "worker_flexible_config")  # type: ignore[arg-type]
+
 
 class TestFlexibleScaleClusterUpdate:
     def test_primary_workers_only(self):
@@ -367,11 +375,18 @@ class TestFlexibleScaleClusterUpdate:
         with pytest.raises(ValueError, match="At least one"):
             flexible_scale_cluster_update()
 
-    def test_rejects_negative_counts(self):
-        with pytest.raises(ValueError, match="num_workers"):
+    def test_rejects_negative_and_zero_primary_worker_counts(self):
+        with pytest.raises(ValueError, match="num_workers must be a positive integer"):
             flexible_scale_cluster_update(num_workers=-1)
-        with pytest.raises(ValueError, match="num_secondary_workers"):
+        with pytest.raises(ValueError, match="num_workers must be a positive integer"):
+            flexible_scale_cluster_update(num_workers=0)
+        with pytest.raises(ValueError, match="num_secondary_workers must be a non-negative integer"):
             flexible_scale_cluster_update(num_secondary_workers=-1)
+
+    def test_accepts_zero_secondary_workers(self):
+        cluster, update_mask = flexible_scale_cluster_update(num_secondary_workers=0)
+        assert cluster == {"config": {"secondary_worker_flexible_config": {"num_instances": 0}}}
+        assert update_mask == {"paths": ["config.secondary_worker_flexible_config.num_instances"]}
 
     @pytest.mark.parametrize("invalid_val", [True, False, "5", 3.14])
     def test_rejects_boolean_and_non_integer_counts(self, invalid_val):
@@ -443,7 +458,7 @@ class TestDataprocUpdateClusterOperatorHighObtainability:
         cluster = Cluster({"config": {"worker_config": {"num_instances": 5}}})
         # A single path never needs the counts.
         self._make(cluster, ["config.worker_config.num_instances"])
-        # Both paths: the flexible count is unreadable (or 0) -> conflict.
+        # Both paths: the flexible count is unset (None) -> conflict.
         with pytest.raises(ValueError, match=r"[Cc]onflicting"):
             self._make(
                 cluster,
@@ -452,6 +467,22 @@ class TestDataprocUpdateClusterOperatorHighObtainability:
                     "config.worker_flexible_config.num_instances",
                 ],
             )
+        # When both paths are set on proto Cluster with matching counts -> accepts.
+        cluster_both = Cluster(
+            {
+                "config": {
+                    "worker_config": {"num_instances": 5},
+                    "worker_flexible_config": {"num_instances": 5},
+                }
+            }
+        )
+        self._make(
+            cluster_both,
+            [
+                "config.worker_config.num_instances",
+                "config.worker_flexible_config.num_instances",
+            ],
+        )
 
     def test_accepts_flexible_path_for_workers_and_legacy_for_secondary(self):
         # Different node groups may use different paths.
@@ -493,6 +524,44 @@ class TestDataprocUpdateClusterOperatorHighObtainability:
             update_mask="{{ var.json.update_mask }}",  # type: ignore[arg-type]
             graceful_decommission_timeout={"seconds": 0},
         )
+
+    def test_templated_cluster_skips_conflicting_paths_validation_at_parse_time(self):
+        DataprocUpdateClusterOperator(
+            task_id="scale_templated_cluster",
+            region=REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster="{{ var.json.cluster }}",
+            update_mask={
+                "paths": [
+                    "config.worker_config.num_instances",
+                    "config.worker_flexible_config.num_instances",
+                ]
+            },
+            graceful_decommission_timeout={"seconds": 0},
+        )
+
+    def test_get_num_instances_edge_cases(self):
+        # Boolean values return None instead of being coerced as ints
+        assert (
+            _get_num_instances(
+                {"config": {"worker_config": {"num_instances": True}}},
+                "config.worker_config.num_instances",
+            )
+            is None
+        )
+        assert (
+            _get_num_instances(
+                {"config": {"worker_config": {"num_instances": False}}},
+                "config.worker_config.num_instances",
+            )
+            is None
+        )
+        # Templated string returns None
+        assert _get_num_instances("{{ var.cluster }}", "config.worker_config.num_instances") is None
+        # Proto Cluster with unset flexible submessage returns None (not proto default 0)
+        proto_cluster = Cluster({"config": {"worker_config": {"num_instances": 5}}})
+        assert _get_num_instances(proto_cluster, "config.worker_flexible_config.num_instances") is None
+        assert _get_num_instances(proto_cluster, "config.worker_config.num_instances") == 5
 
     def test_accepts_field_mask_proto(self):
         from google.protobuf import field_mask_pb2
@@ -588,9 +657,7 @@ class TestExampleDag:
             / "dataproc"
             / "example_dataproc_cluster_high_obtainability.py"
         )
-        spec = importlib.util.spec_from_file_location(
-            "example_dataproc_cluster_high_obtainability", dag_path
-        )
+        spec = importlib.util.spec_from_file_location("example_dataproc_cluster_high_obtainability", dag_path)
         assert spec is not None
         assert spec.loader is not None
         example_dag_mod = importlib.util.module_from_spec(spec)
