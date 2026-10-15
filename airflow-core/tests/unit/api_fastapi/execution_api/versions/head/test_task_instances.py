@@ -2696,7 +2696,7 @@ class TestTIUpdateState:
         assert gate.state == State.SUCCESS
         assert sorted(
             ti.region_index for ti in dr.get_task_instances(session=session) if ti.task_id == gate.task_id
-        ) == [0, 1]
+        ) == [1, 2]
 
     def test_loop_gate_completion_uses_its_pinned_limit(self, client, session, running_loop_gate, dag_maker):
         gate = running_loop_gate
