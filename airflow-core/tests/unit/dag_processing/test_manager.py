@@ -5017,14 +5017,14 @@ class TestDagFileProcessorManager:
         errors: dict = {}
 
         update_dag_parsing_results_in_db(
-            "testing", None, dags, errors, 0.1, set(), session, files_parsed=files_parsed
+            "testing", None, dags, errors, 0.1, set(), session=session, files_parsed=files_parsed
         )
         session.commit()
         assert not errors, f"fixture Dags must serialize cleanly: {errors}"
 
         with _count_statements(session) as counts:
             update_dag_parsing_results_in_db(
-                "testing", None, counted, errors, 0.1, set(), session, files_parsed=files_parsed
+                "testing", None, counted, errors, 0.1, set(), session=session, files_parsed=files_parsed
             )
             session.flush()
         return counts
@@ -5057,14 +5057,14 @@ class TestDagFileProcessorManager:
         files_parsed = {("testing", rel_path)}
         recorded = {("testing", rel_path): "boom"}
         update_dag_parsing_results_in_db(
-            "testing", None, [], recorded, 0.1, set(), session, files_parsed=files_parsed
+            "testing", None, [], recorded, 0.1, set(), session=session, files_parsed=files_parsed
         )
         session.commit()
 
         again = {("testing", rel_path): "boom again"}
         with _count_statements(session) as counts:
             update_dag_parsing_results_in_db(
-                "testing", None, [], again, 0.1, set(), session, files_parsed=files_parsed
+                "testing", None, [], again, 0.1, set(), session=session, files_parsed=files_parsed
             )
             session.flush()
         return counts

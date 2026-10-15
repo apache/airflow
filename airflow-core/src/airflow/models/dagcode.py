@@ -85,7 +85,7 @@ class DagCode(Base):
     ):
         self.dag_version = dag_version
         self.fileloc = full_filepath
-        self.source_code = source_code or DagCode.code(self.dag_version.dag_id)
+        self.source_code = source_code if source_code is not None else DagCode.code(self.dag_version.dag_id)
         self.source_code_hash = self.dag_source_hash(self.source_code)
         self.dag_id = dag_version.dag_id
         self.language = language

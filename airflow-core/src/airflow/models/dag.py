@@ -414,6 +414,7 @@ class DagModel(Base):
     __table_args__ = (
         Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),
         Index("idx_dag_is_draining", is_draining, unique=False),
+        Index("idx_dag_bundle_stale", bundle_name, is_stale),
         CheckConstraint("NOT (is_paused AND is_draining)", name="dag_pause_state_valid"),
     )
 
