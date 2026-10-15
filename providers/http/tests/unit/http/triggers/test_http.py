@@ -391,36 +391,44 @@ class TestHttpEventTrigger:
         assert kwargs["json"] is None
         assert kwargs["params"] is None
 
+async def _single_positional_arg(resp):
+    return resp == "ok"
+
+
+async def _default_second_arg_not_overwritten(resp, threshold=5):
+    return resp == "ok" and threshold == 5
+
+
+async def _keyword_only_arg_not_passed_positionally(resp, *, strict=True):
+    return resp == "ok" and strict is True
+
+
+async def _explicit_asset_state_store_kwarg(resp, asset_state_store=None):
+    return resp == "ok" and asset_state_store == "sentinel_store"
+
+
+async def _var_keyword_kwargs(resp, **kwargs):
+    return resp == "ok" and kwargs.get("asset_state_store") == "sentinel_store"
+
+
+async def _positional_only_asset_state_store(resp, asset_state_store="default_val", /):
+    return resp == "ok" and asset_state_store == "default_val"
+
+
+class TestHttpEventTriggerResponseCheckCallableShapes:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "check",
         [
+            pytest.param(_single_positional_arg, id="single_positional_arg"),
+            pytest.param(_default_second_arg_not_overwritten, id="default_second_arg_not_overwritten"),
             pytest.param(
-                lambda resp: resp == "ok",
-                id="single_positional_arg",
-            ),
-            pytest.param(
-                lambda resp, threshold=5: resp == "ok" and threshold == 5,
-                id="default_second_arg_not_overwritten",
-            ),
-            pytest.param(
-                lambda resp, *, strict=True: resp == "ok" and strict is True,
+                _keyword_only_arg_not_passed_positionally,
                 id="keyword_only_arg_not_passed_positionally",
             ),
-            pytest.param(
-                lambda resp, asset_state_store=None: resp == "ok" and asset_state_store == "sentinel_store",
-                id="explicit_asset_state_store_kwarg",
-            ),
-            pytest.param(
-                lambda resp, **kwargs: resp == "ok" and kwargs.get("asset_state_store") == "sentinel_store",
-                id="var_keyword_kwargs",
-            ),
-            pytest.param(
-                eval(
-                    "lambda resp, asset_state_store='default_val', /: resp == 'ok' and asset_state_store == 'default_val'"
-                ),
-                id="positional_only_asset_state_store",
-            ),
+            pytest.param(_explicit_asset_state_store_kwarg, id="explicit_asset_state_store_kwarg"),
+            pytest.param(_var_keyword_kwargs, id="var_keyword_kwargs"),
+            pytest.param(_positional_only_asset_state_store, id="positional_only_asset_state_store"),
         ],
     )
     async def test_run_response_check_callable_shapes(self, event_trigger, check):

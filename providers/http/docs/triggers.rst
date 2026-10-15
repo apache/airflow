@@ -39,6 +39,7 @@ How It Works
 
 .. note::
    This trigger requires **Airflow >= 3.0** due to dependencies on ``AssetWatcher`` and event-driven scheduling infrastructure.
+   The ``asset_state_store`` deduplication and downstream task context access shown in the example below requires **Airflow >= 3.3**.
 
 Usage Example with AssetWatcher
 -------------------------------
@@ -112,7 +113,7 @@ Here's an example of using the ``HttpEventTrigger`` in an ``AssetWatcher`` to mo
 
     @dag(start_date=datetime.datetime(2024, 10, 1), schedule=asset, catchup=False)
     def check_airflow_releases():
-        @task()
+        @task(inlets=[asset])
         def print_airflow_release_info(**context):
             store = context.get("asset_state_store")
             release_name = store.get("release_name") if store else "Unknown"
