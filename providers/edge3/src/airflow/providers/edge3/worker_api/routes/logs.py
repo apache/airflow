@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
+import json
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
-from fastapi import Body, Depends, Query, status
+from fastapi import Body, Depends, HTTPException, Query, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
@@ -32,10 +33,14 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import TaskInstanceKey, conf
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
+from airflow.providers.edge3.models.types import is_callback_job
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import PushLogsBody, WorkerApiDocs
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
 
@@ -44,6 +49,8 @@ logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
 @provide_session
 def _logfile_path(task: TaskInstanceKey, task_instance_id: UUID | None = None, *, session=NEW_SESSION) -> str:
     """Elaborate the (relative) path and filename to expect from task execution."""
+    if is_callback_job(task.dag_id, task.task_id, task.run_id, task.try_number, task.map_index):
+        return _callback_logfile_path(task, session=session)
     if task_instance_id is None:
         stored_id = session.scalar(
             select(EdgeJobModel.task_instance_id).where(
@@ -74,6 +81,31 @@ def _logfile_path(task: TaskInstanceKey, task_instance_id: UUID | None = None, *
     return FileTaskHandler(".")._render_filename(ti, task.try_number)
 
 
+def _callback_logfile_path(task: TaskInstanceKey, *, session: Session) -> str:
+    """
+    Return a callback's ``log_path`` from the workload JSON in the callback's ``edge_job`` row.
+
+    Executor callbacks have no task instance row, so their log path cannot be rendered from a task
+    instance. When queuing this callback, the scheduler stored the workload JSON in the ``command``
+    column of the callback's ``edge_job`` row. The ``log_path`` in that JSON is a path relative to the
+    log folder, and the callback supervisor process writes the callback log at that path on the Edge
+    worker. Raise HTTP 404 if the ``edge_job`` row is missing or the JSON has no ``log_path``.
+    """
+    command = session.scalar(
+        select(EdgeJobModel.command).where(
+            EdgeJobModel.dag_id == task.dag_id,
+            EdgeJobModel.task_id == task.task_id,
+            EdgeJobModel.run_id == task.run_id,
+            EdgeJobModel.map_index == task.map_index,
+            EdgeJobModel.try_number == task.try_number,
+        )
+    )
+    log_path = json.loads(command).get("log_path") if command else None
+    if not log_path:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No log path found for callback {task.task_id}")
+    return log_path
+
+
 @logs_router.get(
     "/logfile_path/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}",
     dependencies=[Depends(jwt_token_authorization_rest)],
@@ -81,6 +113,7 @@ def _logfile_path(task: TaskInstanceKey, task_instance_id: UUID | None = None, *
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
         ]
     ),
 )
@@ -108,6 +141,7 @@ def logfile_path(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
         ]
     ),
 )
