@@ -3992,7 +3992,7 @@ class TestMappedTaskInstanceReceiveValue:
         dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
 
         show_task = dag_maker.serialized_dag.get_task("show")
-        with assert_queries_count(11, margin=2):
+        with assert_queries_count(10):
             mapped_tis, max_map_index = expand_mapped_task_instances(
                 show_task, dag_run.run_id, session=session
             )
