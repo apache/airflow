@@ -28,6 +28,7 @@ This should generally only be called by internal methods such as
 from __future__ import annotations
 
 import traceback
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
@@ -84,6 +85,15 @@ if TYPE_CHECKING:
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
+
+
+def is_source_discovery_failed(relative_fileloc: str | None, failed_sources: Collection[str]) -> bool:
+    """Check the source and its enclosing containers without matching sibling path prefixes."""
+    if relative_fileloc is None or not failed_sources:
+        return False
+    return relative_fileloc in failed_sources or any(
+        str(parent) in failed_sources for parent in PurePosixPath(relative_fileloc).parents
+    )
 
 
 def _create_orm_dags(
