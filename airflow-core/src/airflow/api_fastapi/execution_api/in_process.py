@@ -126,7 +126,7 @@ class InProcessExecutionAPI:
             """
             Pass ``PATH_INFO`` and ``SCRIPT_NAME`` on to a2wsgi in PEP 3333 form.
 
-            ``httpx.WSGITransport`` puts the percent-decoded URL path into the environ as a regular ``str``,
+            ``httpx2.WSGITransport`` puts the percent-decoded URL path into the environ as a regular ``str``,
             whereas PEP 3333 (and ``a2wsgi``, which follows it) expects UTF-8 bytes decoded as latin-1.
             Without this, any non-ASCII character in the path, such as a non-ASCII ``task_id``, fails with a
             ``UnicodeDecodeError`` or ``UnicodeEncodeError``.
