@@ -401,6 +401,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         object-storage XCom backend or trim old turns. Not supported together with
         ``enable_hitl_review`` (raises) -- the post-review transcript is not yet
         recoverable.
+    :param emit_message_history: When ``True``, push the post-run transcript to XCom
+        under the key ``message_history`` without seeding the run, so a single-turn
+        agent can record its transcript. ``message_history`` keeps pushing the
+        transcript on its own. Default ``False``. Not supported together with
+        ``enable_hitl_review`` (raises), for the same reason as ``message_history``.
 
     **HITL Review parameters** (requires the ``hitl_review`` plugin):
 
@@ -502,6 +507,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         durable: bool = False,
         cache_prompt: bool = True,
         message_history: list[ModelMessage] | str | bytes | None = None,
+        emit_message_history: bool = False,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
         max_hitl_iterations: int = 5,
@@ -532,6 +538,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
         self.message_history = message_history
+        self.emit_message_history = emit_message_history
 
         self.durable = durable
         self.cache_prompt = cache_prompt
@@ -575,6 +582,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # would silently drop the human-approved turns. Block until HITL can
             # surface the final message history.
             raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
+
+        if emit_message_history and enable_hitl_review:
+            raise ValueError("emit_message_history and enable_hitl_review=True cannot be used together.")
 
         if durable or enable_hitl_review:
             self._reject_sandbox_without_continuity(durable=durable, enable_hitl_review=enable_hitl_review)
@@ -1035,7 +1045,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         if self._usage_budget and (run_usage := self._run_usage) is not None:
             self._log_cumulative_usage(run_usage)
 
-        if self.message_history is not None:
+        if self.message_history is not None or self.emit_message_history:
             self._emit_message_history(context, result)
 
         output = result.output
@@ -1361,6 +1371,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
     def _emit_message_history(self, context: Context, result: Any) -> None:
         """Push the full post-run transcript to XCom for the next turn to resume."""
+        if not self.do_xcom_push:
+            return
         transcript = ModelMessagesTypeAdapter.dump_json(result.all_messages()).decode()
         context["task_instance"].xcom_push(key="message_history", value=transcript)
 
