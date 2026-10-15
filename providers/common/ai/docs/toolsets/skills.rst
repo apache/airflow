@@ -33,11 +33,11 @@ prompt until the model decides it needs one, so a large skill library costs few
 tokens until used (progressive disclosure).
 
 It is backed by the community `pydantic-ai-skills
-<https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT). Pydantic AI now
-has on-demand loading of its own (`pydantic/pydantic-ai#5230
-<https://github.com/pydantic/pydantic-ai/pull/5230>`__), and this toolset may move to it.
-Install the optional
-extra to use it:
+<https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT). ``pydantic-ai-harness``'s
+`Skills <https://github.com/pydantic/pydantic-ai-harness/tree/main/pydantic_ai_harness/skills>`__
+capability also loads Agent Skills, as on-demand capabilities, but only their ``SKILL.md``
+instructions: no resources and no ``run_skill_script``.
+Install the optional extra to use this toolset:
 
 .. code-block:: bash
 

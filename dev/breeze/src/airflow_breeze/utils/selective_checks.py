@@ -1925,7 +1925,6 @@ class SelectiveChecks:
     def skip_prek_hooks(self) -> str:
         prek_hooks_to_skip = set()
         prek_hooks_to_skip.add("identity")
-        prek_hooks_to_skip.add("update-uv-lock")
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             prek_hooks_to_skip.update(

@@ -214,10 +214,11 @@ adapters do.
 Blocking hook calls, such as a SQL query, run one at a time in the task's process, so an
 agent that calls two database tools at once gets its answers one after the other.
 
-Run a Strands or ADK agent inside
+Run a Strands, ADK or OpenAI Agents SDK agent inside
 :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing` to keep its
 spans tied to the task, and free of prompt text unless ``[common.ai] capture_content`` is
-on; see :doc:`../observability`.
+on; see :doc:`../observability`. For an OpenAI Agents SDK agent, also register
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor`.
 
 .. toctree::
     :hidden:
