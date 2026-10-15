@@ -3313,6 +3313,32 @@ dag_processor:
          - how often to refresh DAGs from those sources
          - how many files to parse concurrently
   options:
+    execution_api_token_file:
+      description: |
+        Path to a session token written by ``airflow dag-processor-token``. When set,
+        ``airflow dag-processor`` uses the authenticated Execution API for its Job lifecycle,
+        bundle metadata and secrets, parse-time requests, result publication, and callback
+        and priority-request delivery. The API URL comes from
+        ``[core] execution_api_server_url``. Each processor needs its own session token.
+
+        Provision the bundle catalog on a trusted host before starting the processor.
+        The processor does not need metadata database credentials, the Fernet key, or
+        API signing keys. Remove those credentials from its deployment and block database
+        network access to enforce isolation; setting this option does not remove them.
+        Leave unset to use the in-process API and database-backed Job lifecycle.
+      version_added: 3.5.0
+      type: string
+      default: ~
+      example: "/run/airflow/dag-processor.jwt"
+    health_check_file:
+      description: |
+        Local heartbeat file written by a Dag processor using the Execution API.
+        Use a separate writable file for each processor. ``airflow dag-processor --check-health``
+        checks its loop heartbeat; ``--check-ready`` also checks the last successful API heartbeat.
+      version_added: 3.5.0
+      type: string
+      default: "{AIRFLOW_HOME}/dag_processor_health.json"
+      example: ~
     dag_bundle_storage_path:
       description: |
         String path to folder where Airflow bundles can store files locally. Not templated.
@@ -3476,6 +3502,10 @@ dag_processor:
         dag processor is considered unhealthy.
         This is used by the health check in the **/health** endpoint and in ``airflow jobs check``
         CLI for DagProcessorJob.
+        For a Dag processor using the Execution API, the API server also reads this value to decide
+        whether a session's previous Job is still alive, and the processor reads it for its local
+        ``--check-health`` and ``--check-ready`` probes and to bound how long registration waits for
+        a previous Job to expire. Set the same value for the API server and the processor.
       version_added: 3.2.0
       type: integer
       example: ~
@@ -3484,7 +3514,15 @@ dag_processor:
       description: |
         Seconds a Dag processor using the Execution API may go without a recorded Job heartbeat.
         After this, the scheduler's next cleanup (every ``[scheduler] parsing_cleanup_interval``)
-        ends the Job and releases the callbacks and parse requests it claimed.
+        ends the Job and releases the callbacks and parse requests it claimed, and a processor that
+        could not reach the API stops. Processors do not heartbeat while initializing, refreshing,
+        or listing a single bundle, so set this above the longest of those operations; the local
+        health check must also tolerate them, through ``health_check_threshold`` and the probe's
+        failure budget. It also bounds how long a processor retries preparing the bundle
+        version of a claimed callback before acknowledging the callback as failed.
+        The scheduler reads this value to end Jobs and the processor reads it to stop, so set the
+        same value for both; changing it only in the processor's configuration has no effect on
+        when the scheduler ends the Job.
         A callback that ran before its acknowledgment was recorded can run again after the Job
         times out, repeating its side effects. Callbacks should tolerate repeated execution.
       version_added: 3.5.0
