@@ -838,8 +838,13 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - sh
   - -c
   - |
+    {{- if (get (.Values.config.dag_processor | default dict) "execution_api_token_file") }}
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow dag-processor --check-health
+    {{- else }}
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
     airflow jobs check --local --job-type DagProcessorJob
+    {{- end }}
 {{- end }}
 
 {{- define "registry_docker_config" }}
