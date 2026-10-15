@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 
-import { Box } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
@@ -75,6 +75,9 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     groupId: loopIteration?.loop_id ?? "",
     runId: taskInstance.dag_run_id,
   });
+  const decisionReason = loopSummary?.iterations.find(
+    (iteration) => iteration.index === loopIteration?.iteration,
+  )?.decision_reason;
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -90,6 +93,18 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           {
             label: translate("common:filters.iteration"),
             value: `${loopIteration.iteration}/${loopSummary?.iterations_ran ?? loopIteration.iteration}`,
+          },
+        ]),
+    ...(decisionReason === undefined
+      ? []
+      : [
+          {
+            label: translate("taskInstance.loopDecision"),
+            value: (
+              <Text maxWidth="md" overflowWrap="anywhere" whiteSpace="pre-line">
+                {decisionReason}
+              </Text>
+            ),
           },
         ]),
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },

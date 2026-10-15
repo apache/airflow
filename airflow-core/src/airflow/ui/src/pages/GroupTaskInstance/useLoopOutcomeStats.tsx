@@ -42,13 +42,23 @@ export const useLoopOutcomeStats = ({
     return [];
   }
 
+  // A running loop's newest pass has not decided yet, so an older pass's reason would misdescribe it.
+  const finalReason = summary.status === "running" ? undefined : summary.iterations.at(-1)?.decision_reason;
+
   return [
     {
       label: translate("loop.outcome"),
       value: (
-        <Text color={summary.status === "failed" ? "fg.error" : undefined}>
-          {reasonSentence(translate, summary)}
-        </Text>
+        <>
+          <Text color={summary.status === "failed" ? "fg.error" : undefined}>
+            {reasonSentence(translate, summary)}
+          </Text>
+          {finalReason === undefined ? undefined : (
+            <Text color="fg.muted" maxWidth="md" overflowWrap="anywhere" whiteSpace="pre-line">
+              {finalReason}
+            </Text>
+          )}
+        </>
       ),
     },
     {
