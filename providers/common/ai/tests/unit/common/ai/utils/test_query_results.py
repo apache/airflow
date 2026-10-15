@@ -24,6 +24,7 @@ import pytest
 
 from airflow.providers.common.ai.utils.query_results import (
     _SCHEMA_SAMPLE_SIZE,
+    build_get_schema_description,
     build_query_result,
     build_schema_result,
 )
@@ -334,3 +335,29 @@ class TestSchemaResult:
         assert data["sample_columns"] == []
         assert "type_histogram" not in data
         assert data["hint"]
+
+
+class TestSchemaToolName:
+    def test_description_names_the_given_tool(self):
+        assert "Call pg_get_schema again" in build_get_schema_description(tool_name="pg_get_schema")
+
+    def test_description_defaults_to_the_bare_name(self):
+        assert "Call get_schema again" in build_get_schema_description()
+
+    def test_hints_name_the_given_tool(self):
+        no_match = json.loads(
+            build_schema_result(
+                _cols(3),
+                max_columns=100,
+                max_result_bytes=65_536,
+                name_contains="zzz",
+                tool_name="pg_get_schema",
+            )
+        )
+        summary = json.loads(
+            build_schema_result(
+                _cols(250), max_columns=100, max_result_bytes=65_536, tool_name="pg_get_schema"
+            )
+        )
+        assert "Call pg_get_schema without name_contains" in no_match["hint"]
+        assert "Call pg_get_schema with a name_contains substring" in summary["hint"]

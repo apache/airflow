@@ -188,6 +188,31 @@ class TestRehydratePydanticOutput:
         assert type(result) is type(expected)
 
     @pytest.mark.parametrize(
+        ("output_type", "raw", "expected"),
+        [
+            ([str, int], '"x"', "x"),
+            ([int, float], "1.5", 1.5),
+            ((int, float), "2", 2),
+            ([A, int], '{"x": 7}', A(x=7)),
+        ],
+        ids=["str-int-string", "int-float", "tuple", "model-int"],
+    )
+    def test_validates_list_output_type_as_union(self, output_type, raw, expected):
+        assert rehydrate_pydantic_output(output_type, raw, serialize_output=False) == expected
+
+    @pytest.mark.parametrize(
+        "output_type",
+        [[], [ToolOutput(int), ToolOutput(str)]],
+        ids=["empty-list", "unsupported-operand"],
+    )
+    def test_returns_raw_when_list_cannot_be_unioned(self, output_type):
+        assert rehydrate_pydantic_output(output_type, "1", serialize_output=False) == "1"
+
+    def test_rejects_edit_matching_no_list_candidate(self):
+        with pytest.raises(ReviewedOutputValidationError):
+            rehydrate_pydantic_output([int, float], '"x"', serialize_output=False)
+
+    @pytest.mark.parametrize(
         "takes_an_order", [False, True], ids=["call-schema", "definitions-wrapped-schema"]
     )
     def test_returns_raw_for_output_function_without_calling_it(self, takes_an_order):
