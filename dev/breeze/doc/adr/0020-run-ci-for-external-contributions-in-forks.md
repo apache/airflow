@@ -20,7 +20,7 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-- [18. Run CI for external contributions in contributor forks](#18-run-ci-for-external-contributions-in-contributor-forks)
+- [20. Run CI for external contributions in contributor forks](#20-run-ci-for-external-contributions-in-contributor-forks)
   - [Status](#status)
   - [Context](#context)
   - [Decision](#decision)
@@ -28,7 +28,7 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# 18. Run CI for external contributions in contributor forks
+# 20. Run CI for external contributions in contributor forks
 
 Date: 2026-09-19
 
@@ -80,7 +80,9 @@ record captures the decisions that shape it and the alternatives rejected.
    cross-repository compare API against ``apache/airflow`` (merge-base semantics, no fork sync
    required), do not force the full matrix the way a ``push`` event does today, and never
    select self-hosted runners. Without this a fork push would run the whole matrix, ~220
-   minutes on 20 runners, for every push.
+   minutes on 20 runners, for every push. For the same reason the gate skips ``schedule``
+   events outside ``apache/airflow``: enabling the workflow in a fork also enables its cron,
+   which would otherwise run the full canary matrix there twice a day.
 
 4. **All pull request mutations come from one scheduled, idempotent reconciler.**
    ``breeze ci fork-ci-reconcile`` runs every 15 minutes, discovers newly opened gated pull
@@ -122,7 +124,8 @@ record captures the decisions that shape it and the alternatives rejected.
    opt-in pilot. A per-login table was chosen over asking maintainers to label each
    volunteer's pull requests because a label arrives after the first ``pull_request`` run
    has already used project CI, and because the join instant keeps pull requests opened
-   before joining on project CI, so they can never be mistaken for gate tampering.
+   before joining on project CI. A prek hook requires the join instant to be in the future
+   so that it falls after the merge of the opt-in pull request.
    Switching on is one pull request that sets ``enabled_since`` and ``enabled`` and empties
    ``[pilot]``. Rollback is the reverse. The backlog reset in AIP-120 §9.1 is not implemented
    here; if adopted it is ``enabled_since`` moved back in steps.
