@@ -344,8 +344,8 @@ class TestBaseReactAppPreload:
         with mock_plugin_manager(plugins=[BasePlugin(), TeamPlugin()]):
             assert base_react_app_bundle_urls() == ["/bar/main.js"]
 
-    @pytest.mark.parametrize("template", ["index.html", "dev/index.html"])
-    def test_index_preloads_each_bundle_after_the_base_tag(self, template):
+    @staticmethod
+    def _render(template: str, preload_bundle_urls: list[str]) -> str:
         app = FastAPI()
         templates = Jinja2Templates(directory=AIRFLOW_CORE_SOURCES_PATH / "airflow/ui")
 
@@ -354,10 +354,32 @@ class TestBaseReactAppPreload:
             return templates.TemplateResponse(
                 request,
                 template,
-                {"backend_server_base_url": "/prefix/", "preload_bundle_urls": ["/bar/main.js?a=1&b=2"]},
+                {"backend_server_base_url": "/prefix/", "preload_bundle_urls": preload_bundle_urls},
             )
 
-        html = TestClient(app).get("/").text
+        return TestClient(app).get("/").text
+
+    def test_lists_nothing_without_base_react_apps(self):
+        class NavPlugin(AirflowPlugin):
+            name = "nav_plugin"
+            react_apps = [{"name": "Page", "bundle_url": "/page/main.js", "destination": "nav"}]
+
+        with mock_plugin_manager(plugins=[NavPlugin()]):
+            assert base_react_app_bundle_urls() == []
+
+    @pytest.mark.parametrize("template", ["index.html", "dev/index.html"])
+    def test_index_preloads_each_bundle_after_the_base_tag(self, template):
+        html = self._render(template, ["/bar/main.js?a=1&b=2", "https://cdn.example.com/x.js"])
 
         assert '<link rel="modulepreload" href="/bar/main.js?a=1&amp;b=2" />' in html
+        assert '<link rel="modulepreload" href="https://cdn.example.com/x.js" />' in html
         assert html.index("<base ") < html.index('rel="modulepreload"')
+
+    @pytest.mark.parametrize("template", ["index.html", "dev/index.html"])
+    def test_index_has_no_preload_without_base_bundles(self, template):
+        assert "modulepreload" not in self._render(template, [])
+
+    def test_index_escapes_a_bundle_url(self):
+        html = self._render("index.html", ['/x.js" onload="alert(1)'])
+
+        assert 'onload="alert(1)"' not in html
