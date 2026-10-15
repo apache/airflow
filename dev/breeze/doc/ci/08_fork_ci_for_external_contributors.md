@@ -399,7 +399,11 @@ Each run performs two passes.
 the last 24 hours without the `fork ci required` label, plus any open pull request carrying
 `use fork ci` without `fork ci required`, fetching `authorAssociation`, `author.login`,
 `createdAt`, `headRepository`, `baseRefName` and `labels`. Each is classified with
-`fork_ci_gate.decide`; those with a gated reason get the label. The
+`fork_ci_gate.decide` against the gate configuration of its base branch, the one its gate job
+reads too: the default branch's comes from the reconciler's checkout, any other base branch's
+from the contents API once per run. Those with a gated reason get the label. A base branch with
+neither gate file is never gated, as its gate job runs project CI (`base_without_gate`), and
+one with only one of the two files is reported as unknown. The
 24-hour window overlaps many 15-minute cadences, so a lost scheduled run changes nothing. A
 pull request whose author later becomes a committer keeps the label until a maintainer
 removes it or adds `use project ci`; the reconciler does not un-gate on its own.
@@ -451,6 +455,7 @@ pull requests in that state, not by the total.
 | **green**: conclusion success and the pull request does not change CI-defining files | undraft\* | add | `success` (green), link to the run | update: ready for review, run link |
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | draft | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; reported to Slack once per commit |
 | setup_required or awaiting_push for `close_after_days` | unchanged | unchanged | unchanged | close with a new comment; reopening restarts the clock |
+| **ungated**: the base branch has no gate, for example after retargeting to an older release branch | undraft\* | unchanged | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
 | **gate_bypassed**: a recorded project CI run of the pull request's branch bypassed the gate (see "Gate tampering") | draft | remove | `error` (red), link to the project CI run that should not have happened | post a **new** comment explaining why, then close; takes precedence over every row above |
 
 \* only if the last convert-to-draft event on the pull request was by `github-actions[bot]`;
@@ -480,7 +485,14 @@ Rules that sit under the table:
 - **The close clock** starts at the `since` timestamp recorded for the current state and
   resets on any state change. Closing for inactivity records `closed` in the marker, so the
   first run after a reopen sees a state change from `closed` and starts a fresh clock rather
-  than closing the pull request again at once.
+  than closing the pull request again at once. Only a reopen recorded in the timeline after
+  the marker counts: an open pull request with a `closed` marker and no such reopen is one whose
+  closing comment or close failed, and the next run finishes the closure. The same holds for a
+  `gate_bypassed` marker, where only a reopen by someone other than the author counts, so the
+  closure is finished even after the offending run has left the tampering check's window.
+- **`fork ci required` goes last.** When a run removes the label (on release, or for an
+  ungated base branch), it does so after every other change, so a failure on the way leaves
+  the label in place and the next run retries the rest.
 
 ### Trusting a green fork run
 
@@ -491,10 +503,17 @@ changed files once (`GET /repos/apache/airflow/pulls/<n>/files`). If any is unde
 `dev/breeze/`, `scripts/ci/`, `scripts/docker/` or `scripts/in_container/`, is a
 `Dockerfile*` or a `.pre-commit-config.yaml`, or the list reaches GitHub's 3000-file cap so the
 rest cannot be seen, the state is `green_unverified` instead of `green`. The pull request stays
-a draft, the status is pending, and a maintainer is told on Slack to review the change and add
-`use project ci`. The decision is read back from the `Fork CI / Tests (AMD)` commit status on the
-head commit, which only `apache/airflow`'s own tokens can write, so it is made once per commit
-and cannot be forged through a comment.
+a draft, the status is pending, it is labelled `needs project ci` so maintainers can list these
+pull requests, and a maintainer is told on Slack to review the change and add `use project ci`.
+The reconciler removes `needs project ci` as soon as the state is anything else. A renamed file
+counts with both its old and its new path, so moving a workflow out of `.github/` is a change
+to `.github/` too.
+
+The decision is read back from the `Fork CI / Tests (AMD)` commit status on the head commit,
+which only `apache/airflow`'s own tokens can write, so it is made once per commit and cannot be
+forged through a comment. The changed files depend on the base branch as well, so a decision
+recorded before the pull request was last retargeted (a `BaseRefChangedEvent` in the timeline
+newer than the status) is made again, and the status is written again to date it.
 
 This is a guard against the cheapest way to fake a green run, not a guarantee. Any change can
 weaken the tests it ships with (a `conftest.py` that skips tests, for example), exactly as it
@@ -633,7 +652,10 @@ is caught, recorded and the loop continues. At the end of the run every recorded
 reconciler could not classify, plus every attention item, is turned into one Slack message
 written to `slack-message.json` with `channel: internal-airflow-ci-cd`, and the workflow
 posts it with `slackapi/slack-github-action` exactly as `ci-duration-monitor.yml` does. The
-output `has-alerts=true` gates the posting step.
+output `has-alerts=true` gates the posting step. Slack rejects a whole message with a section
+over 3000 characters or more than 50 blocks, so items are split across sections, each item is
+shortened to 500 characters, and sections past the 50th are replaced by a pointer to the run
+log, which always lists every item in full.
 
 Attention items are expected outcomes that a maintainer should still see: a pull request
 closed for gate tampering, and a pull request carrying both override labels. They are listed
@@ -669,14 +691,20 @@ budget stays observable.
 `.github/workflows/fork-ci-monitor.yml`:
 
 - `on: schedule: cron '*/15 * * * *'` and `workflow_dispatch` with a `dry-run` input.
-- `permissions: contents: read, pull-requests: write, statuses: write` with a justification
-  comment. Comments and labels on pull requests are covered by `pull-requests: write`; the
-  commit status needs `statuses: write`.
-- `runs-on: ubuntu-slim`, `timeout-minutes: 20`, `concurrency: fork-ci-monitor` with
-  `cancel-in-progress: false` so runs never overlap.
+- `permissions: actions: read, contents: read, pull-requests: write, statuses: write` with a
+  justification comment. Comments and labels on pull requests are covered by
+  `pull-requests: write`; the commit status needs `statuses: write`; the gate tampering check
+  lists runs and their jobs, which needs `actions: read` because every scope a `permissions`
+  block leaves out is `none`.
+- `runs-on: ubuntu-latest` (the breeze setup action frees disk space with `sudo` and `docker`,
+  which `ubuntu-slim` does not provide), `timeout-minutes: 20`, `concurrency: fork-ci-monitor`
+  with `cancel-in-progress: false` so runs never overlap.
 - Steps: checkout `main` with `persist-credentials: false`, `./.github/actions/breeze`,
   `breeze ci fork-ci-reconcile` with `GH_TOKEN`, then the Slack post step guarded by
-  `has-alerts`.
+  `has-alerts` and skipped on a dry run, whose alerts describe changes it did not make, and a
+  second Slack step that reports a run failing before it could write its message.
+- Every `gh` call times out after 120 seconds, and a rate limit is retried with backoff up to
+  four attempts, without waiting after the last one.
 
 The workflow does not exit early when `enabled` is false, because both pilots rely on it.
 With `enabled = false`, an empty `[pilot]` and no `use fork ci` labels, every pull request
