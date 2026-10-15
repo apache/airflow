@@ -24,7 +24,14 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import dateutil.relativedelta
 
 from airflow._shared.module_loading import import_string
-from airflow._shared.serialization import CLASSNAME
+from airflow._shared.serialization import (
+    CLASSNAME,
+    DATA,
+    OLD_DATA,
+    OLD_DICT,
+    OLD_TYPE,
+    OLD_TYPE_TO_FULL_QUALNAME,
+)
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -266,6 +273,43 @@ def _get_encoded_callback_kwargs(raw_kwargs: Any) -> dict[str, Any]:
     if not isinstance(kwargs, dict) or CLASSNAME in kwargs:
         raise ValueError("Deadline callback kwargs is not a mapping.")
     return kwargs
+
+
+_DISPLAY_SEQUENCE_CLASSNAMES = frozenset({"builtins.tuple", "builtins.set", "builtins.frozenset"})
+
+
+def format_encoded_value_for_display(value: Any) -> Any:
+    """
+    Return a readable form of a serde-encoded value, for logs, metric tags and reprs.
+
+    Nothing the value names is imported or instantiated: ``timedelta`` and the built-in
+    collections are shown by value, any other class as ``classname(data)``. Values that are
+    not encoded are returned unchanged.
+
+    :meta private:
+    """
+    if isinstance(value, list):
+        return [format_encoded_value_for_display(v) for v in value]
+    if not isinstance(value, dict):
+        return value
+    if OLD_TYPE in value and OLD_DATA in value:
+        if value[OLD_TYPE] == OLD_DICT:
+            return format_encoded_value_for_display(value[OLD_DATA])
+        classname = OLD_TYPE_TO_FULL_QUALNAME.get(value[OLD_TYPE], value[OLD_TYPE])
+        data = value[OLD_DATA]
+    elif CLASSNAME in value:
+        classname, data = value[CLASSNAME], value.get(DATA)
+    else:
+        return {str(k): format_encoded_value_for_display(v) for k, v in value.items()}
+
+    if classname == "datetime.timedelta" and isinstance(data, (int, float)) and not isinstance(data, bool):
+        try:
+            return str(datetime.timedelta(seconds=data))
+        except OverflowError:
+            pass
+    if classname in _DISPLAY_SEQUENCE_CLASSNAMES and isinstance(data, list):
+        return [format_encoded_value_for_display(v) for v in data]
+    return f"{classname}({format_encoded_value_for_display(data)})"
 
 
 def _decode_deadline_callback(raw_callback: Any) -> AsyncCallback | SyncCallback:

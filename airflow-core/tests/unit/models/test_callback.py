@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -191,6 +192,35 @@ class TestCallback:
             "kwargs": '{"email": "test@example.com"}',
             "dag_id": TEST_DAG_ID,
         }
+
+    @pytest.mark.parametrize(
+        "encoded_interval",
+        [
+            pytest.param(
+                {serde.CLASSNAME: "datetime.timedelta", serde.VERSION: 2, serde.DATA: 3600.0}, id="current"
+            ),
+            pytest.param({"__type": "timedelta", "__var": 3600.0}, id="legacy"),
+        ],
+    )
+    @pytest.mark.usefixtures("allow_tracked_kwarg")
+    def test_metric_tags_and_repr_show_kwargs_readably(self, encoded_interval):
+        kwargs = {
+            "interval": encoded_interval,
+            "pair": {serde.CLASSNAME: "builtins.tuple", serde.VERSION: 1, serde.DATA: [1, 2]},
+            "tracked": {serde.CLASSNAME: _TRACKED_KWARG_NAME, serde.VERSION: 0, serde.DATA: {}},
+        }
+        expected = {"interval": "1:00:00", "pair": [1, 2], "tracked": f"{_TRACKED_KWARG_NAME}({{}})"}
+        executor_callback = ExecutorCallback(
+            SyncCallback(sync_callback, kwargs=kwargs), fetch_method=CallbackFetchMethod.IMPORT_PATH
+        )
+        triggerer_callback = TriggererCallback(AsyncCallback(async_callback, kwargs=kwargs))
+
+        tags = executor_callback.get_metric_info(CallbackState.SUCCESS, "0")["tags"]
+
+        assert tags["kwargs"] == json.dumps(expected, sort_keys=True)
+        assert repr(executor_callback) == f"{executor_callback.data['path']}({expected}) on None executor"
+        assert repr(triggerer_callback) == f"{triggerer_callback.data['path']}({expected}) on a triggerer"
+        assert _TrackedKwarg.instantiated is False
 
     def test_get_metric_info_includes_queue(self):
         """``queue`` is stored in ``self.data`` for a queued AsyncCallback, so it flows into metric tags."""

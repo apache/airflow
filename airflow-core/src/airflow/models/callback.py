@@ -74,6 +74,12 @@ ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, Callback
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
 
 
+def _format_kwargs_for_display(kwargs: dict | None) -> Any:
+    from airflow.serialization.decoders import format_encoded_value_for_display
+
+    return format_encoded_value_for_display(kwargs) if kwargs else ""
+
+
 class CallbackType(str, Enum):
     """
     Types of Callbacks.
@@ -177,8 +183,12 @@ class Callback(Base, BaseWorkload):
         tags.pop(CALLBACK_KWARGS_ENCODING_KEY, None)
 
         if "kwargs" in tags:
+            from airflow.serialization.decoders import format_encoded_value_for_display
+
             # Remove the context (if exists) to keep the tags simple
-            tags["kwargs"] = {k: v for k, v in tags["kwargs"].items() if k != "context"}
+            tags["kwargs"] = format_encoded_value_for_display(
+                {k: v for k, v in tags["kwargs"].items() if k != "context"}
+            )
 
         # Metric backends (statsd, OpenTelemetry) require tag values to be primitives.
         # OTel's aggregation key is built via ``frozenset(attributes.items())``, which
@@ -245,7 +255,7 @@ class TriggererCallback(Callback):
         self.data |= callback_def.serialize()
 
     def __repr__(self):
-        return f"{self.data['path']}({self.data['kwargs'] or ''}) on a triggerer"
+        return f"{self.data['path']}({_format_kwargs_for_display(self.data['kwargs'])}) on a triggerer"
 
     def queue(self, *, session: Session) -> None:
         from airflow.models.trigger import Trigger
@@ -312,7 +322,10 @@ class ExecutorCallback(Callback):
         self.data[CALLBACK_KWARGS_ENCODING_KEY] = SERDE_KWARGS_ENCODING
 
     def __repr__(self):
-        return f"{self.data['path']}({self.data['kwargs'] or ''}) on {self.data.get('executor', 'default')} executor"
+        return (
+            f"{self.data['path']}({_format_kwargs_for_display(self.data['kwargs'])}) "
+            f"on {self.data.get('executor', 'default')} executor"
+        )
 
 
 class DagProcessorCallback(Callback):
