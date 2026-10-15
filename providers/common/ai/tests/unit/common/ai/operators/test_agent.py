@@ -1456,15 +1456,22 @@ class TestAgentOperatorCapabilities:
 
         assert op._supports_tool_approval() is True
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
     def test_capability_function_is_left_for_the_run_to_resolve(self, fake_harness):
+        def build(ctx):
+            raise AssertionError("resolved before the run started")
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[build])
+
+        assert op.capabilities == [build]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
+    def test_tool_approval_check_leaves_a_capability_function_for_the_run(self, fake_harness):
         def build(ctx):
             raise AssertionError("resolved before the run started")
 
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[build])
 
         assert op._supports_tool_approval() is True
-        assert op.capabilities == [build]
 
 
 @pytest.mark.skipif(

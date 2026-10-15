@@ -35,14 +35,12 @@ from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai_harness.code_mode import CodeMode
 
 from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
 
 from unit.common.ai.durable.test_capability import Calls, attempt, responses_so_far, tool_returns
-
-code_mode = pytest.importorskip("pydantic_ai_harness.code_mode")
-CodeMode = code_mode.CodeMode
 
 GATHER = "import asyncio\na, b = await asyncio.gather(fetch(name='a'), fetch(name='b'))\n[a, b]"
 
@@ -205,8 +203,9 @@ class TestEarlyExecution:
                 return
             yield {0: DeltaToolCall(name="run_code", json_args=args[:first_statement], tool_call_id="rc")}
             # Give an eager pump time to run the first statement before the call completes.
+            # Durable runs never start it, so they wait only long enough to show that.
             with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(a_started.wait(), timeout=1)
+                await asyncio.wait_for(a_started.wait(), timeout=0.5 if durable else 5)
             seen_mid_stream.append(calls["fetch:a"])
             yield {0: DeltaToolCall(json_args=args[first_statement:])}
 
