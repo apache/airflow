@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 from unittest.mock import create_autospec
 
@@ -605,7 +605,7 @@ class TestWasbHook:
             blob = mock.MagicMock(spec=BlobProperties)
             blob.name = name
             blob.size = size
-            blob.last_modified = last_modified or datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            blob.last_modified = last_modified or datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
             return blob
 
         container_name = "test_container"
