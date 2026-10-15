@@ -33,7 +33,8 @@ longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
 ``timestamp``/``run_id``/``conversation_id``, part-level ``timestamp``, the
-``capability_id`` of a tool from a capability without an ``id``) are excluded
+``capability_id`` of a tool from a capability without an ``id``, the timestamps of
+the nested calls code mode records on a ``run_code`` return) are excluded
 from the fingerprint, and set-valued request
 parameters are sorted or dropped.  Registered secrets in the message history are
 masked before hashing, as they are in the tool results the journal records.  Requests that cannot be serialized to JSON
@@ -84,23 +85,46 @@ def _content_settings(model_settings: ModelSettings | None) -> dict[str, Any] | 
     return content or None
 
 
+def _strip_part(part: Any) -> Any:
+    """
+    Drop a dumped part's timestamp, and those of the nested calls on a code mode return.
+
+    pydantic-ai-harness's ``CodeMode`` does not journal ``run_code`` itself: a retry runs the
+    snippet again, its nested tool calls replay, and the return it builds holds a fresh
+    ``ToolReturnPart`` per nested call under ``metadata["tool_returns"]``, each with a new
+    timestamp. The rest of ``metadata`` is kept, as pydantic-ai keeps routing state there.
+    """
+    if not isinstance(part, dict):
+        return part
+    cleaned = {k: v for k, v in part.items() if k != "timestamp"}
+    metadata = cleaned.get("metadata")
+    if (
+        cleaned.get("part_kind") == "tool-return"
+        and isinstance(metadata, dict)
+        and metadata.get("code_mode") is True
+        and isinstance(nested := metadata.get("tool_returns"), dict)
+    ):
+        cleaned["metadata"] = {
+            **metadata,
+            "tool_returns": {call_id: _strip_part(ret) for call_id, ret in nested.items()},
+        }
+    return cleaned
+
+
 def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Drop per-attempt fields from a dumped message list.
 
     Only the levels pydantic-ai regenerates are touched (message-level ids and
-    timestamps, part-level timestamps); user data such as tool arguments is
-    never recursed into, so an argument legitimately named ``run_id`` still
-    affects the fingerprint.
+    timestamps, part-level timestamps, code mode's nested-call timestamps); user
+    data such as tool arguments is never recursed into, so an argument legitimately
+    named ``run_id`` still affects the fingerprint.
     """
     stripped = []
     for message in messages_dump:
         cleaned = {k: v for k, v in message.items() if k not in _VOLATILE_MESSAGE_KEYS}
         if isinstance(cleaned.get("parts"), list):
-            cleaned["parts"] = [
-                {k: v for k, v in part.items() if k != "timestamp"} if isinstance(part, dict) else part
-                for part in cleaned["parts"]
-            ]
+            cleaned["parts"] = [_strip_part(part) for part in cleaned["parts"]]
         stripped.append(cleaned)
     return stripped
 
