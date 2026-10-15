@@ -28,11 +28,14 @@ Documented divergences:
 1. Header intro comment (different prose explaining what each file is for)
 2. Workflow ``name:`` — ``Tests (ARM)`` vs ``Tests (AMD)``
 3. Triggers — ARM = its own schedule + workflow_dispatch; AMD = its own
-   schedule (offset from ARM's cron) + pull_request + push (selective
-   tests on release-prep / providers branches) + workflow_dispatch.
-   ``release-branch-ci.yml`` dispatches the full runs of both on those
-   branches. Only AMD runs on PRs and pushes (ARM coverage stays
-   cron-driven via the canary and the dispatched release-branch runs).
+   schedule (offset from ARM's cron) + pull_request + push to every
+   branch + workflow_dispatch. ``release-branch-ci.yml`` dispatches the
+   full runs of both on release-prep / providers branches. Only AMD runs
+   on PRs and pushes (ARM coverage stays cron-driven via the canary and
+   the dispatched release-branch runs). AMD's push trigger is ``'**'``
+   so contributors get CI in their forks (AIP-120); in apache/airflow
+   its ``gate`` job runs selective tests only for pushes to the branches
+   in CANONICAL_PUSH_BRANCH_FILTERS (fork_ci_gate.py).
 4. ``concurrency.group`` prefix — ``ci-arm-`` vs ``ci-amd-``
 5. ``build-info`` outputs ``platform`` and ``runner-type`` — hardcoded per
    architecture (and the surrounding comment naming the "ARM/AMD copy")
@@ -44,6 +47,10 @@ Documented divergences:
    vs ``slack-state-tests-…-amd``, so the de-dup tracker in
    ``slack_notification_state.py`` keeps independent state for each
    platform on the same branch
+9. ``gate`` job and the ``needs: [gate]`` / ``if:`` lines of ``build-info``
+   — AMD only. The fork CI gate (AIP-120) decides whether project CI runs
+   for pull requests; ARM has no pull_request trigger and never runs in
+   forks.
 
 Anything else differing between the two files is a drift bug. To
 intentionally introduce a new divergence, update the rules in this script
@@ -138,15 +145,76 @@ AMD_ONLY_BLOCK = """  schedule:
       - airflow-ctl/v[0-9]+-[0-9]+-stable
     types: [opened, reopened, synchronize, ready_for_review]
   push:
-    # Pushes to release-prep / providers branches run only the tests needed by the changes since the
-    # last successful run of the branch (selected as for a PR). Full runs of these branches, on AMD
-    # and ARM, are dispatched by `release-branch-ci.yml`. `main` does not build on push; its full
-    # runs are the canary above.
+    # Every push triggers the workflow so that contributors get CI in their forks (AIP-120).
+    # In apache/airflow the `gate` job keeps the old behaviour: only pushes to the release-prep /
+    # providers branches in CANONICAL_PUSH_BRANCH_FILTERS (fork_ci_gate.py) run anything, and they
+    # run only the tests needed by the changes since the last successful run of the branch
+    # (selected as for a PR); other pushes produce a gate-only run. Full runs of these branches, on
+    # AMD and ARM, are dispatched by `release-branch-ci.yml`. `main` does not build on push; its
+    # full runs are the canary above.
     branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-      - chart/v[0-9]+-[0-9]+x-test
-      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - '**'
+"""
+
+# The fork CI gate job (AIP-120) and the dependency of `build-info` on it exist only in AMD.
+# The block is replaced by `AMD_ONLY_GATE_REPLACEMENT` so the rest of `build-info` still compares.
+AMD_ONLY_GATE_BLOCK = """  gate:
+    # Fork CI gate (AIP-120): decides whether project CI runs for this event. Configuration and
+    # code come from the base branch so a pull request cannot change its own eligibility. See
+    # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+    name: "Fork CI gate"
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 5
+    outputs:
+      project-ci: ${{ steps.gate.outputs.project-ci }}
+      reason: ${{ steps.gate.outputs.reason }}
+    steps:
+      - name: "Checkout gate configuration from the base branch"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.base_ref || github.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/fork-ci-gate.toml
+            dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+          sparse-checkout-cone-mode: false
+      - name: "Decide whether project CI runs"
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATE_CONFIG: .github/fork-ci-gate.toml
+          GATE_SCRIPT: dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
+          PR_EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        # A base branch with neither gate file predates the gate (the pull request adding it,
+        # or a release branch cut before it) and keeps running project CI. With only one of
+        # them present, the missing file fails the job instead of opening the gate.
+        run: |
+          if [[ ! -e "${GATE_CONFIG}" && ! -e "${GATE_SCRIPT}" ]]; then
+            echo "project-ci=true reason=base_without_gate"
+            echo "project-ci=true" >> "${GITHUB_OUTPUT}"
+            echo "reason=base_without_gate" >> "${GITHUB_OUTPUT}"
+            echo 'Project CI runs (fork CI gate reason: `base_without_gate`)' >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          python3 "${GATE_SCRIPT}"
+
+  build-info:
+    name: "Build info"
+    needs: [gate, check-run-needed]
+    if: >-
+      needs.gate.outputs.project-ci == 'true' &&
+      needs.check-run-needed.outputs.run-needed == 'true'
+"""
+AMD_ONLY_GATE_REPLACEMENT = """  build-info:
+    name: "Build info"
+    needs: [check-run-needed]
+    if: needs.check-run-needed.outputs.run-needed == 'true'
 """
 
 
@@ -201,13 +269,17 @@ def normalize(content: str, *, side: str) -> str:
             raise SystemExit(f"ci-arm.yml is missing its expected ARM-only trigger block:\n{ARM_ONLY_BLOCK}")
         if AMD_ONLY_BLOCK in content:
             raise SystemExit("ci-arm.yml contains the AMD-only trigger block — should not.")
+        if AMD_ONLY_GATE_BLOCK in content:
+            raise SystemExit("ci-arm.yml contains the AMD-only fork CI gate block — should not.")
         content = content.replace(ARM_ONLY_BLOCK, "")
     elif side == "amd":
         if AMD_ONLY_BLOCK not in content:
             raise SystemExit(f"ci-amd.yml is missing its expected AMD-only trigger block:\n{AMD_ONLY_BLOCK}")
         if ARM_ONLY_BLOCK in content:
             raise SystemExit("ci-amd.yml contains the ARM-only trigger block — should not.")
-        content = content.replace(AMD_ONLY_BLOCK, "")
+        if AMD_ONLY_GATE_BLOCK not in content:
+            raise SystemExit(f"ci-amd.yml is missing its expected fork CI gate block:\n{AMD_ONLY_GATE_BLOCK}")
+        content = content.replace(AMD_ONLY_BLOCK, "").replace(AMD_ONLY_GATE_BLOCK, AMD_ONLY_GATE_REPLACEMENT)
     else:
         raise ValueError(f"Unknown side: {side}")
 
