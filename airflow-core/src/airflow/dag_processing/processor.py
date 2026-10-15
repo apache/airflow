@@ -580,7 +580,11 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
 
 @attrs.frozen
 class DagParseSource:
-    """Bundle metadata captured for one import of the local source tree."""
+    """
+    Bundle metadata snapshot shared by parses of the same refreshed source tree.
+
+    ``version_data`` and its nested values must not be mutated after capture.
+    """
 
     bundle_version: str | None = None
     version_data: dict | None = None
