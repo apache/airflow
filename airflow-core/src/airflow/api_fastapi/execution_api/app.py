@@ -41,6 +41,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_signing_args,
 )
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
+from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -140,27 +141,25 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
         response: Response = await call_next(request)
 
         refreshed_token: str | None = None
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ", 1)[1]
+        token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
+        if token:
             try:
-                async with svcs.Container(request.app.state.svcs_registry) as services:
-                    validator: JWTValidator = await services.aget(JWTValidator)
-                    claims = await validator.avalidated_claims(token, {})
+                claims = token.claims.model_dump()
 
-                    # Only short-lived execution tokens are renewed here. Any other type has a
-                    # lifetime set by its issuer (workload and callback tokens outlive queue waits,
-                    # the dag_processor_session token is rotated by provisioning, and Job and parsing
-                    # tokens are renewed by re-registering and re-exchanging), so a new type must
-                    # not become renewable by default. Tokens without a scope are legacy execution tokens.
-                    if claims.get("scope", "execution") != "execution":
-                        return response
+                # Only short-lived execution tokens are renewed here. Any other type has a
+                # lifetime set by its issuer (workload and callback tokens outlive queue waits,
+                # the dag_processor_session token is rotated by provisioning, and Job and parsing
+                # tokens are renewed by re-registering and re-exchanging), so a new type must
+                # not become renewable by default. Tokens without a scope are legacy execution tokens.
+                if claims.get("scope", "execution") != "execution":
+                    return response
 
-                    now = int(time.time())
-                    token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
-                    refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
-                    valid_left = int(claims.get("exp", 0)) - now
-                    if valid_left <= refresh_when_less_than:
+                now = int(time.time())
+                token_lifetime = int(claims.get("exp", 0)) - int(claims.get("iat", 0))
+                refresh_when_less_than = max(int(token_lifetime * 0.20), 30)
+                valid_left = int(claims.get("exp", 0)) - now
+                if valid_left <= refresh_when_less_than:
+                    async with svcs.Container(request.app.state.svcs_registry) as services:
                         generator: JWTGenerator = await services.aget(JWTGenerator)
                         refreshed_token = generator.generate(claims)
             except Exception as err:

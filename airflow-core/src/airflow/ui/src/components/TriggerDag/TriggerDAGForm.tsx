@@ -37,7 +37,12 @@ import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
 import PausedDagOptions from "./PausedDagOptions";
 import RecentConfigSelect from "./RecentConfigSelect";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
-import { dataIntervalModeOptions, type DagRunTriggerParams, type PausedDagAction } from "./types";
+import {
+  dataIntervalModeOptions,
+  isDataIntervalMode,
+  type DagRunTriggerParams,
+  type PausedDagAction,
+} from "./types";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -209,7 +214,14 @@ const TriggerDAGForm = ({
                   control={control}
                   name="dataIntervalMode"
                   render={({ field }) => (
-                    <RadioCardRoot defaultValue={String(field.value)} onChange={field.onChange}>
+                    <RadioCardRoot
+                      onValueChange={(details) => {
+                        if (isDataIntervalMode(details.value)) {
+                          field.onChange(details.value);
+                        }
+                      }}
+                      value={field.value}
+                    >
                       <HStack align="stretch">
                         {dataIntervalModeOptions.map((mode) => (
                           <RadioCardItem

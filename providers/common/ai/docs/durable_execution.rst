@@ -193,6 +193,33 @@ In a plain ``@task``, which has no such moment, the capability deletes a run's j
 as soon as that run succeeds: after a failure, only the run that failed replays, and
 the agents that ran before it run again.
 
+.. _durable-code-mode:
+
+Code mode
+---------
+
+With pydantic-ai-harness's ``CodeMode`` (:doc:`code_mode`), the model sends Python to one
+``run_code`` tool, and the snippet calls the agent's tools as functions. ``run_code`` is
+not a step of its own: the retry runs each snippet again, and the tool calls the snippet
+makes replay from the journal one by one, so a snippet that called three tools is three
+recorded steps. When the snippet returns what it returned before, the model request after
+it replays too.
+
+A call the snippet makes replays only when the call at that position in the journal has
+the same tool, arguments and call id. Code mode numbers a snippet's calls in the order the
+snippet makes them, so when calls under ``asyncio.gather`` reach the journal in another
+order on the retry, the first call out of place and every step after it run live. A call
+never gets the result recorded for another one.
+
+The snippet's own code is not recorded. Whatever it does outside a tool call happens again
+on the retry, such as writing to a directory shared through ``mount`` or calling an
+``os_access`` handler, and if what it reads that way has changed, the tool calls it makes
+next differ and run live. Keep side effects in tools, whose results are recorded.
+
+``CodeMode``'s ``eager`` and ``speculate`` options start tool calls while the model is
+still writing the snippet. Both are off while the run is durable, so a retry runs the
+finished snippet the way the previous attempt did.
+
 What the task log shows
 -----------------------
 
@@ -271,9 +298,9 @@ the step, and a retry runs it again.
 Limitations
 -----------
 
-- ``durable=True`` cannot be combined with ``enable_hitl_review``, a pydantic-ai-harness
-  ``CodeMode`` capability, a ``SandboxToolset`` or tool approval. ``AgentOperator`` raises
-  ``ValueError`` for the first three when the Dag is parsed.
+- ``durable=True`` cannot be combined with ``enable_hitl_review``, a ``SandboxToolset``
+  or tool approval. ``AgentOperator`` raises ``ValueError`` for the first two when the Dag
+  is parsed.
 - A task instance that is retried across an upgrade of this provider from a version
   without ``AirflowDurability`` runs its steps live once: the journal keys changed.
 
