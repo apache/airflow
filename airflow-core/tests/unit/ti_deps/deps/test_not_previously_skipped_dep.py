@@ -25,6 +25,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from airflow.models import DagRun, TaskInstance
+from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import BranchPythonOperator
@@ -37,6 +38,7 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import (
     XCOM_SKIPMIXIN_SKIPPED,
     NotPreviouslySkippedDep,
 )
+from airflow.ti_deps.deps.prev_dagrun_dep import is_past_depends_met
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -882,3 +884,81 @@ def test_malformed_skipmixin_task_id_collection_is_ignored(session, dag_maker, s
     for task_id in ("op2", "op3"):
         assert dep.is_met(tis[task_id], session=session)
         assert tis[task_id].state != State.SKIPPED
+
+
+_PAST_DEPENDS_MET_VALUES = [
+    pytest.param(True, True, True, id="true"),
+    pytest.param(False, True, False, id="false"),
+    pytest.param(
+        '{"__classname__": "builtins.tuple", "__version__": 1, "__data__": [1]}', False, False, id="envelope"
+    ),
+]
+
+
+@pytest.mark.parametrize(("stored", "serialize", "met"), _PAST_DEPENDS_MET_VALUES)
+def test_wait_for_past_depends_before_skipping_reads_stored_value(session, dag_maker, stored, serialize, met):
+    """Only a stored literal ``True`` lets the task be skipped, and the value is never reconstructed."""
+    with dag_maker("test_past_depends_met_dag", schedule=None, session=session):
+        op1 = BranchPythonOperator(task_id="op1", python_callable=lambda: "op3")
+        op1 >> [EmptyOperator(task_id="op2"), EmptyOperator(task_id="op3")]
+
+    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    tis["op1"].state = State.SUCCESS
+    session.merge(tis["op1"])
+    for task_id, key, value, serialize_value in (
+        ("op1", XCOM_SKIPMIXIN_KEY, {XCOM_SKIPMIXIN_FOLLOWED: ["op3"]}, True),
+        ("op2", PAST_DEPENDS_MET, stored, serialize),
+    ):
+        XComModel.set(
+            key=key,
+            value=value,
+            serialize=serialize_value,
+            dag_id=dr.dag_id,
+            task_id=task_id,
+            run_id=dr.run_id,
+            session=session,
+        )
+    session.flush()
+
+    dep_context = DepContext(wait_for_past_depends_before_skipping=True)
+    with mock.patch("airflow.sdk.serde.deserialize", side_effect=AssertionError("must not construct")) as m:
+        statuses = list(NotPreviouslySkippedDep().get_dep_statuses(tis["op2"], dep_context, session=session))
+    m.assert_not_called()
+
+    assert len(statuses) == 1
+    assert not statuses[0].passed
+    if met:
+        assert tis["op2"].state == State.SKIPPED
+    else:
+        assert "past depends are not met" in statuses[0].reason
+        assert tis["op2"].state != State.SKIPPED
+
+
+@pytest.mark.parametrize(("stored", "serialize", "met"), _PAST_DEPENDS_MET_VALUES)
+def test_is_past_depends_met_for_mapped_task_instance(session, dag_maker, stored, serialize, met):
+    """A mapped task instance's read returns a sequence; it counts only a literal ``True`` in it."""
+    with dag_maker("test_past_depends_met_mapped_dag", schedule=None, session=session):
+
+        @task_group
+        def group(value):
+            EmptyOperator(task_id="child")
+
+        group.expand(value=[1, 2])
+
+    dr, tis = _create_run(dag_maker)
+    child = tis[("group.child", 0)]
+    XComModel.set(
+        key=PAST_DEPENDS_MET,
+        value=stored,
+        serialize=serialize,
+        dag_id=dr.dag_id,
+        task_id=child.task_id,
+        run_id=dr.run_id,
+        map_index=child.map_index,
+        session=session,
+    )
+    session.flush()
+
+    with mock.patch("airflow.sdk.serde.deserialize", side_effect=AssertionError("must not construct")):
+        assert is_past_depends_met(child, session=session) is met

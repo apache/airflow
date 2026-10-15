@@ -20,9 +20,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.models.xcom import XComModel, xcom_entity
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.ti_deps.deps.prev_dagrun_dep import is_past_depends_met
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -141,14 +141,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
         # ti should be skipped, set ti.state to SKIPPED and fail the rule so that the
         # ti does not execute.
         if dep_context.wait_for_past_depends_before_skipping:
-            past_depends_met = ti.xcom_pull(
-                task_ids=ti.task_id,
-                key=PAST_DEPENDS_MET,
-                session=session,
-                default=False,
-                full=False,
-            )
-            if not past_depends_met:
+            if not is_past_depends_met(ti, session=session):
                 yield self._failing_status(reason="Task should be skipped but the past depends are not met")
                 return
         ti.set_state(TaskInstanceState.SKIPPED, session=session)

@@ -26,9 +26,9 @@ from uuid import UUID
 
 from sqlalchemy import and_, func, or_, select
 
-from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.task.trigger_rule import TriggerRule as TR
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.ti_deps.deps.prev_dagrun_dep import is_past_depends_met
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -370,14 +370,7 @@ class TriggerRuleDep(BaseTIDep):
                     new_state == TaskInstanceState.SKIPPED
                     and dep_context.wait_for_past_depends_before_skipping
                 ):
-                    past_depends_met = ti.xcom_pull(
-                        task_ids=ti.task_id,
-                        key=PAST_DEPENDS_MET,
-                        session=session,
-                        default=False,
-                        full=False,
-                    )
-                    if not past_depends_met:
+                    if not is_past_depends_met(ti, session=session):
                         yield (
                             self._failing_status(
                                 reason="Task should be skipped but the past depends are not met"
@@ -535,14 +528,7 @@ class TriggerRuleDep(BaseTIDep):
                     new_state == TaskInstanceState.SKIPPED
                     and dep_context.wait_for_past_depends_before_skipping
                 ):
-                    past_depends_met = ti.xcom_pull(
-                        task_ids=ti.task_id,
-                        key=PAST_DEPENDS_MET,
-                        session=session,
-                        default=False,
-                        full=False,
-                    )
-                    if not past_depends_met:
+                    if not is_past_depends_met(ti, session=session):
                         yield self._failing_status(
                             reason="Task should be skipped but the past depends are not met"
                         )
