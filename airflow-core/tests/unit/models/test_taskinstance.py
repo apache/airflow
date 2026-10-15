@@ -5003,9 +5003,15 @@ def test_clear_task_instances_recalculates_custom_queued_deadlines(
     dag_maker, session, monkeypatch, timing, should_recalculate
 ):
     """Test that clearing tasks recalculates custom deadlines registered as queued-anchored."""
+    # An offset of its own, so the new deadline can only come from the reference's own evaluation
+    # and not from the queued_at the built-in reference would return.
+    offset = datetime.timedelta(minutes=30)
 
     class CustomReference(BaseDeadlineReference):
         evaluation_timing = timing
+
+        def _evaluate_with(self, *, session, dagrun):
+            return dagrun.queued_at + offset
 
     reference = encode_deadline_reference(CustomReference())
     # Decoding the alert to resolve its interval goes through the plugin registry, which is where
@@ -5042,7 +5048,7 @@ def test_clear_task_instances_recalculates_custom_queued_deadlines(
     session.add(deadline_alert)
     session.flush()
 
-    original_deadline_time = original_queued_at + interval
+    original_deadline_time = original_queued_at + offset + interval
     session.add(
         Deadline(
             dagrun_id=dag_run.id,
@@ -5061,7 +5067,7 @@ def test_clear_task_instances_recalculates_custom_queued_deadlines(
     deadline = session.scalar(select(Deadline).where(Deadline.dagrun_id == dag_run.id))
 
     if should_recalculate:
-        assert deadline.deadline_time == dag_run.queued_at + interval
+        assert deadline.deadline_time == dag_run.queued_at + offset + interval
     else:
         assert deadline.deadline_time == original_deadline_time
 
