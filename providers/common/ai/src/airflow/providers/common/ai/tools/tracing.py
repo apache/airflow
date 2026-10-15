@@ -34,9 +34,8 @@ from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from airflow.providers.common.ai.observability import (
-    _capture_content,
+    _content_capture_enabled,
     _live_tracer_provider,
-    _otel_export_enabled,
     build_run_identity_attributes,
 )
 from airflow.providers.common.compat.sdk import get_current_context
@@ -69,7 +68,7 @@ _CONTENT_OFF = {
 @contextmanager
 def agent_framework_tracing() -> Iterator[None]:
     """
-    Make the OpenTelemetry spans of a Strands or Google ADK agent part of the Airflow task.
+    Make the OpenTelemetry spans of a Strands, Google ADK or OpenAI Agents SDK agent part of the Airflow task.
 
     Build and run the agent inside the block::
 
@@ -96,7 +95,9 @@ def agent_framework_tracing() -> Iterator[None]:
 
     Where the spans go is up to the tracer provider: core tracing's exporter when
     ``[traces] otel_on`` is set, or the provider the framework's own telemetry setup
-    installs.
+    installs. The OpenAI Agents SDK does not use OpenTelemetry; register
+    :class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor` with it
+    to turn its traces into spans.
     """
     provider = _live_tracer_provider()
     if provider is not None and provider not in _providers_with_identity:
@@ -122,7 +123,7 @@ def agent_framework_tracing() -> Iterator[None]:
 
 def _content_switches() -> dict[str, str]:
     # The same rule as AgentOperator: content is captured only when both settings are on.
-    if _otel_export_enabled() and _capture_content():
+    if _content_capture_enabled():
         return {}
     switches = {name: value for name, value in _CONTENT_OFF.items() if name not in os.environ}
     opt_in = os.environ.get(_OPT_IN, "")
