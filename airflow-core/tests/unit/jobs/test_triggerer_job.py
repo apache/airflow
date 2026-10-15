@@ -2369,6 +2369,36 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
 
 
+def test_failure_from_triggerer_that_lost_the_trigger_leaves_task_deferred(
+    session, dag_maker, supervisor_builder
+):
+    trigger_orm = Trigger(classpath="fake.classpath", kwargs={})
+    session.add(trigger_orm)
+    session.flush()
+    with dag_maker(dag_id="test_reassigned_trigger", session=session):
+        EmptyOperator(task_id="dummy1")
+    task_instance = dag_maker.create_dagrun().task_instances[0]
+    task_instance.state = TaskInstanceState.DEFERRED
+    task_instance.trigger_id = trigger_orm.id
+    session.commit()
+    supervisor = supervisor_builder()
+    supervisor.load_triggers()
+    other_triggerer = Job()
+    session.add(other_triggerer)
+    session.flush()
+    session.execute(
+        update(Trigger).where(Trigger.id == trigger_orm.id).values(triggerer_id=other_triggerer.id)
+    )
+    session.commit()
+    supervisor.failed_triggers.append((trigger_orm.id, ["ModuleNotFoundError: No module named 'fake'\n"]))
+
+    supervisor.handle_failed_triggers()
+
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.DEFERRED
+    assert task_instance.trigger_id == trigger_orm.id
+
+
 class CustomTrigger(BaseTrigger):
     """Custom Trigger that will access one Variable and one Connection."""
 

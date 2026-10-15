@@ -840,7 +840,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
         """Record that a trigger failed."""
-        Trigger.submit_failure(trigger_id=trigger_id, exc=exc)
+        Trigger.submit_failure(
+            trigger_id=trigger_id, exc=exc, triggerer_id=self.job.id if self.job is not None else None
+        )
 
     def metric_tags(self) -> dict[str, str]:
         """
