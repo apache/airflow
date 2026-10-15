@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/react";
+import { Box, Flex, Grid, GridItem, HStack, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -48,7 +48,7 @@ type Props = {
   readonly stateCountLimit: number | undefined;
 };
 
-export const DagCard = ({
+const DagCardContent = ({
   dag,
   recentTasks,
   runStateCounts,
@@ -58,21 +58,11 @@ export const DagCard = ({
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
-  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>();
 
   const refetchInterval = useAutoRefresh({});
 
   return (
-    <Box
-      borderColor="border.emphasized"
-      borderRadius={8}
-      borderWidth={1}
-      data-testid="dag-card"
-      minHeight="140px"
-      onFocusCapture={showContent}
-      overflow="hidden"
-      ref={ref}
-    >
+    <>
       <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={1}>
         <HStack>
           <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
@@ -83,7 +73,7 @@ export const DagCard = ({
           <DagTags tags={dag.tags} />
         </HStack>
         <HStack data-testid="dag-card-actions" gap={1} minHeight="32px">
-          {isNearViewport ? <DagCardActions dag={dag} /> : undefined}
+          <DagCardActions dag={dag} />
         </HStack>
       </Flex>
       <Grid
@@ -95,17 +85,13 @@ export const DagCard = ({
       >
         <GridItem gridColumn={1} gridRow={1}>
           <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
-            {isNearViewport ? (
-              <Schedule
-                assetExpression={dag.asset_expression}
-                dagId={dag.dag_id}
-                timetableDescription={dag.timetable_description}
-                timetablePartitioned={dag.timetable_partitioned}
-                timetableSummary={dag.timetable_summary}
-              />
-            ) : (
-              <Text fontSize="sm">{dag.timetable_summary}</Text>
-            )}
+            <Schedule
+              assetExpression={dag.asset_expression}
+              dagId={dag.dag_id}
+              timetableDescription={dag.timetable_description}
+              timetablePartitioned={dag.timetable_partitioned}
+              timetableSummary={dag.timetable_summary}
+            />
           </Stat>
         </GridItem>
         <GridItem gridColumn={2} gridRow={1}>
@@ -153,35 +139,70 @@ export const DagCard = ({
           justifyContent="flex-end"
         >
           <Box minHeight="65px">
-            {isNearViewport ? <RecentRuns latestRuns={dag.latest_dag_runs} /> : undefined}
+            <RecentRuns latestRuns={dag.latest_dag_runs} />
           </Box>
         </GridItem>
         <GridItem alignSelf="end" gridColumn={1} gridRow={2}>
           <Box minHeight="22px">
-            {isNearViewport ? (
-              <DagRunStateCounts
-                counts={runStateCounts}
-                dagId={dag.dag_id}
-                isLoading={runStateCountsLoading}
-                stateCountLimit={stateCountLimit}
-              />
-            ) : undefined}
+            <DagRunStateCounts
+              counts={runStateCounts}
+              dagId={dag.dag_id}
+              isLoading={runStateCountsLoading}
+              stateCountLimit={stateCountLimit}
+            />
           </Box>
         </GridItem>
         {recentTasks.show ? (
           <GridItem alignSelf="end" gridColumn="2 / 4" gridRow={2}>
             <Box minHeight="22px">
-              {isNearViewport ? (
-                <RecentTaskStateCounts
-                  dagId={dag.dag_id}
-                  entry={recentTasks.entriesByDag[dag.dag_id]}
-                  isLoading={recentTasks.isLoading}
-                />
-              ) : undefined}
+              <RecentTaskStateCounts
+                dagId={dag.dag_id}
+                entry={recentTasks.entriesByDag[dag.dag_id]}
+                isLoading={recentTasks.isLoading}
+              />
             </Box>
           </GridItem>
         ) : undefined}
       </Grid>
+    </>
+  );
+};
+
+export const DagCard = ({
+  dag,
+  recentTasks,
+  runStateCounts,
+  runStateCountsLoading,
+  stateCountLimit,
+}: Props) => {
+  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>();
+
+  return (
+    <Box
+      borderColor="border.emphasized"
+      borderRadius={8}
+      borderWidth={1}
+      data-testid="dag-card"
+      minHeight="140px"
+      onFocusCapture={showContent}
+      overflow="hidden"
+      ref={ref}
+    >
+      {isNearViewport ? (
+        <DagCardContent
+          dag={dag}
+          recentTasks={recentTasks}
+          runStateCounts={runStateCounts}
+          runStateCountsLoading={runStateCountsLoading}
+          stateCountLimit={stateCountLimit}
+        />
+      ) : (
+        <Flex alignItems="center" bg="bg.muted" px={3} py={1}>
+          <RouterLink color="fg.info" data-testid="dag-id" fontWeight="bold" to={`/dags/${dag.dag_id}`}>
+            {dag.dag_display_name}
+          </RouterLink>
+        </Flex>
+      )}
     </Box>
   );
 };

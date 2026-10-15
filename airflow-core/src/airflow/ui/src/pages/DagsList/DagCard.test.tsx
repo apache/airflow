@@ -228,7 +228,7 @@ afterEach(() => {
 });
 
 describe("DagCard", () => {
-  it("renders its shell before mounting near-viewport controls", () => {
+  it("renders a lightweight placeholder before mounting near-viewport content", () => {
     dagCardObservers.length = 0;
     vi.stubGlobal("IntersectionObserver", MockDagCardIntersectionObserver);
     renderCard(mockDag, "pending");
@@ -236,7 +236,7 @@ describe("DagCard", () => {
     const card = screen.getByTestId("dag-card");
 
     expect(screen.getByTestId("dag-id")).toBeInTheDocument();
-    expect(screen.getByTestId("schedule")).toHaveTextContent(mockDag.timetable_summary);
+    expect(screen.queryByTestId("schedule")).not.toBeInTheDocument();
     expect(screen.queryByTestId("toggle-pause")).not.toBeInTheDocument();
     expect(screen.queryByTestId("recent-run")).not.toBeInTheDocument();
 
@@ -263,6 +263,7 @@ describe("DagCard", () => {
       );
     });
 
+    expect(screen.getByTestId("schedule")).toHaveTextContent(mockDag.timetable_summary);
     expect(screen.getByTestId("toggle-pause")).toBeInTheDocument();
     expect(screen.getAllByTestId("recent-run")).toHaveLength(mockDag.latest_dag_runs.length);
   });
