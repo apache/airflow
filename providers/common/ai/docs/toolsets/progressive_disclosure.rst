@@ -47,7 +47,9 @@ How the model finds a hidden tool depends on the model:
   context and searches them itself.
 - On every other model, the hidden tools are left out of the request. The model is
   offered one ``search_tools`` tool that matches keywords against tool names and
-  descriptions, and the tools it finds are sent with the next request.
+  descriptions, and the tools it finds are sent with the next request. Until then, each
+  request carries that one definition in place of the hidden ones, so the saving grows
+  with the number of tools hidden.
 
 Pydantic AI decides which models have native tool search from a list of model name
 prefixes in the installed version, so a model that list does not match gets the local
@@ -72,34 +74,6 @@ the tools to hide, and leave the rest in the request from the start:
 
 The names are the tool names the model sees, so they include ``tool_prefix``. A name that
 matches no tool is ignored without an error, so a misspelled name leaves that tool visible.
-
-What it saves
--------------
-
-These counts are the tokens in the tool definitions of the first model request, counted
-with ``tiktoken``'s ``o200k_base`` encoding on a model without native tool search. Each
-model provider counts tokens its own way, so its numbers differ somewhat.
-
-.. list-table::
-   :header-rows: 1
-   :widths: 52 16 16 16
-
-   * - Toolset
-     - All tools sent
-     - ``.defer_loading()``
-     - ``s3_list_keys`` and ``s3_read_key`` visible
-   * - The nine ``S3Hook`` methods above
-     - 1,059
-     - 163
-     - 694
-   * - 25 ``S3Hook`` methods, writes included
-     - 4,609
-     - 163
-     - 761
-
-The 163 tokens are ``search_tools`` itself, so the saving grows with the number of tools
-hidden. On a model with native tool search there is no ``search_tools``, and the
-provider keeps the deferred tools out of the model's context until they are found.
 
 What a run looks like
 ---------------------
@@ -160,14 +134,13 @@ A tool the model found is the same tool, called the same way:
 When it does not help
 ---------------------
 
-``SQLToolset`` has four tools whatever the database holds: 488 tokens of tool
-definitions, against 163 for ``search_tools`` in their place. Hiding them saves 325
-tokens a request and costs a search request in nearly every run, since the model needs
-the tools to answer anything. On a warehouse with hundreds of tables, ``list_tables``
+``SQLToolset`` has four tools whatever the database holds, and the model needs them to
+answer almost anything, so hiding them saves a few definitions and adds a search request
+to nearly every run. On a warehouse with hundreds of tables, ``list_tables``
 output grows with the table count; limit it with ``allowed_tables`` (see
 :ref:`sql-toolset-restricted`).
 
 ``AgentSkillsToolset`` has four tools, and its list of skills goes into the agent's
-instructions, which ``.defer_loading()`` does not touch. For 30 skills that list was
-2,129 tokens against 907 for the tools. The toolset already loads each skill's body only
-when the model asks for it.
+instructions, which ``.defer_loading()`` does not touch, so the part of its cost that grows
+with the number of skills stays. The toolset already loads each skill's body only when
+the model asks for it.
