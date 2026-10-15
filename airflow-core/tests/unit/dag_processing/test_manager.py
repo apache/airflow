@@ -1423,7 +1423,7 @@ class TestDagFileProcessorManager:
         assert serialized_dag_count == 1
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_in_inactive_bundles(self, session):
+    def test_deactivate_stale_dags_leaves_inactive_bundles_to_scheduler(self, session):
         """Dags whose bundle is no longer active should be marked stale even without a parse signal."""
         session.add(DagBundleModel(name="gone-bundle"))
         session.flush()
@@ -1460,7 +1460,7 @@ class TestDagFileProcessorManager:
                 )
             ).all()
         )
-        assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+        assert is_stale_by_dag == {"dag_in_inactive_bundle": False, "dag_in_active_bundle": False}
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_matches_dags_nested_in_a_container(self, session):
@@ -1486,7 +1486,7 @@ class TestDagFileProcessorManager:
         assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "nested_dag"))
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
+    def test_deactivate_stale_dags_leaves_null_bundle_to_scheduler(self, session):
         """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
 
         Their files were removed during the upgrade, so nothing will ever parse them and fill the
@@ -1523,7 +1523,7 @@ class TestDagFileProcessorManager:
         with mock.patch.object(session, "execute", side_effect=execute_with_null_bundle_name):
             manager.deactivate_stale_dags(last_parsed={}, session=session)
 
-        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
+        assert not session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_tolerates_null_relative_fileloc(self, session):
@@ -1595,9 +1595,6 @@ class TestDagFileProcessorManager:
 
         session.add(DagBundleModel(name="gone-bundle"))
         session.flush()
-        session.execute(
-            DagBundleModel.__table__.update().where(DagBundleModel.name == "gone-bundle").values(active=False)
-        )
         session.add(
             DagModel(
                 dag_id="dag_in_inactive_bundle",
@@ -1622,7 +1619,12 @@ class TestDagFileProcessorManager:
         mock_is_lock_not_available.return_value = True
 
         with mock.patch.object(session, "execute", side_effect=mock_execute):
-            manager.deactivate_stale_dags(last_parsed={})
+            manager.deactivate_stale_dags(
+                last_parsed={
+                    DagFileInfo(rel_path=Path("some_file.py"), bundle_name="gone-bundle"): timezone.utcnow()
+                    + timedelta(hours=1)
+                }
+            )
 
         assert "Lock not available when deactivating stale DAGs" in caplog.text
 
@@ -4460,29 +4462,6 @@ class TestDagFileProcessorManager:
                 manager.run()
             sync_mock.assert_not_called()
             assert [b.name for b in manager._dag_bundles] == ["testing"]
-
-    def test_purge_inactive_dag_warnings_delegates_to_dagwarning(self):
-        """Default `purge_inactive_dag_warnings` calls `DagWarning.purge_inactive_dag_warnings`."""
-        manager = DagFileProcessorManager(max_runs=1)
-        with mock.patch(
-            "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-        ) as purge_mock:
-            manager.purge_inactive_dag_warnings()
-        purge_mock.assert_called_once_with()
-
-    def test_run_parsing_loop_uses_overridable_purge(self, tmp_path, configure_testing_dag_bundle):
-        """`_run_parsing_loop` calls the overridable `purge_inactive_dag_warnings` seam."""
-        with configure_testing_dag_bundle(tmp_path):
-            manager = DagFileProcessorManager(max_runs=1)
-            with (
-                mock.patch.object(manager, "purge_inactive_dag_warnings") as purge_mock,
-                mock.patch(
-                    "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-                ) as direct_mock,
-            ):
-                manager.run()
-            purge_mock.assert_called()
-            direct_mock.assert_not_called()
 
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):
