@@ -74,6 +74,7 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         "impersonation_chain",
         "dataset_id",
         "table_id",
+        "gcp_conn_id",
     )
 
     def __init__(

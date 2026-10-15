@@ -18,10 +18,25 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
 
+    // The codegen scripts are plain ESM. Including them lets their tests infer
+    // real signatures rather than import an untyped module; tsconfig.build.json
+    // narrows `include` back to src, so none of this reaches the package.
+    "allowJs": true,
+
+    // `example/` imports the package by name, which would otherwise resolve to
+    // the built `dist/`. A test that reached into both would hold two copies of
+    // the SDK, whose classes are not each other's. vitest.config.ts carries the
+    // matching alias so the compiler and the runner agree.
+    "paths": {
+      "apache-airflow-ts-sdk": ["./src/index.ts"],
+      "apache-airflow-ts-sdk/coordinator": ["./src/coordinator/index.ts"],
+      "apache-airflow-ts-sdk/hitl": ["./src/hitl/index.ts"]
+    },
+
     "noEmit": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.mjs", "example/src/**/*.ts"]
 }

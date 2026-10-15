@@ -15,28 +15,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Cloud Monitoring (formerly: Stackdriver) links."""
+"""Deprecated aliases for :mod:`airflow.providers.google.cloud.links.cloud_monitoring`."""
 
 from __future__ import annotations
 
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.links.cloud_monitoring import (
+    CLOUD_MONITORING_BASE_LINK,
+    CLOUD_MONITORING_NOTIFICATIONS_LINK,
+    CLOUD_MONITORING_POLICIES_LINK,
+    CloudMonitoringNotificationsLink,
+    CloudMonitoringPoliciesLink,
+)
+from airflow.providers.google.common.deprecated import deprecated
 
-STACKDRIVER_BASE_LINK = "/monitoring/alerting"
-STACKDRIVER_NOTIFICATIONS_LINK = STACKDRIVER_BASE_LINK + "/notifications?project={project_id}"
-STACKDRIVER_POLICIES_LINK = STACKDRIVER_BASE_LINK + "/policies?project={project_id}"
+STACKDRIVER_BASE_LINK = CLOUD_MONITORING_BASE_LINK
+STACKDRIVER_NOTIFICATIONS_LINK = CLOUD_MONITORING_NOTIFICATIONS_LINK
+STACKDRIVER_POLICIES_LINK = CLOUD_MONITORING_POLICIES_LINK
 
 
-class StackdriverNotificationsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Monitoring (formerly: Stackdriver) Notifications Link."""
+@deprecated(
+    planned_removal_date="March 31, 2027",
+    use_instead="airflow.providers.google.cloud.links.cloud_monitoring.CloudMonitoringNotificationsLink",
+    category=AirflowProviderDeprecationWarning,
+)
+class StackdriverNotificationsLink(CloudMonitoringNotificationsLink):
+    """Deprecated. Use :class:`CloudMonitoringNotificationsLink`."""
 
-    name = "Cloud Monitoring Notifications"
-    key = "stackdriver_notifications"
-    format_str = STACKDRIVER_NOTIFICATIONS_LINK
 
-
-class StackdriverPoliciesLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Monitoring (formerly: Stackdriver) Policies Link."""
-
-    name = "Cloud Monitoring Policies"
-    key = "stackdriver_policies"
-    format_str = STACKDRIVER_POLICIES_LINK
+@deprecated(
+    planned_removal_date="March 31, 2027",
+    use_instead="airflow.providers.google.cloud.links.cloud_monitoring.CloudMonitoringPoliciesLink",
+    category=AirflowProviderDeprecationWarning,
+)
+class StackdriverPoliciesLink(CloudMonitoringPoliciesLink):
+    """Deprecated. Use :class:`CloudMonitoringPoliciesLink`."""

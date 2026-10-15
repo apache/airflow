@@ -88,19 +88,24 @@ Begin transaction
 To begin a new transaction use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreBeginTransactionOperator`
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/datastore/example_datastore_commit.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_begin_transaction]
-    :end-before: [END how_to_begin_transaction]
+.. code-block:: python
 
-An example of a transaction options required by the operator:
+    TRANSACTION_OPTIONS = {"readWrite": {}}
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/datastore/example_datastore_commit.py
-    :language: python
-    :dedent: 0
-    :start-after: [START how_to_transaction_def]
-    :end-before: [END how_to_transaction_def]
+    begin_transaction = CloudDatastoreBeginTransactionOperator(
+        task_id="begin_transaction",
+        transaction_options=TRANSACTION_OPTIONS,
+        project_id=PROJECT_ID,
+    )
+
+.. warning::
+
+    Datastore transactions expire after 270 seconds or after 60 seconds of inactivity.
+    Airflow does not guarantee that a downstream task will start before those limits.
+    Do not pass a transaction handle between tasks. Run all operations belonging to a
+    transaction within one task using
+    :class:`~airflow.providers.google.cloud.hooks.datastore.DatastoreHook` or a Datastore client.
+    See `Datastore transaction limits <https://cloud.google.com/datastore/docs/concepts/transactions>`__.
 
 .. _howto/operator:CloudDatastoreCommitOperator:
 
@@ -154,11 +159,16 @@ Roll back transaction
 To roll back a transaction
 use :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreRollbackOperator`
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/datastore/example_datastore_rollback.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_rollback_transaction]
-    :end-before: [END how_to_rollback_transaction]
+This low-level operator requires a transaction handle that is still active when task execution begins.
+Given such a handle, configure the operator as follows:
+
+.. code-block:: python
+
+    rollback_transaction = CloudDatastoreRollbackOperator(
+        task_id="rollback_transaction",
+        transaction=TRANSACTION_ID,
+        project_id=PROJECT_ID,
+    )
 
 .. _howto/operator:CloudDatastoreGetOperationOperator:
 

@@ -17,6 +17,9 @@
 ---
 services:
   airflow:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
     image: ${AIRFLOW_CI_IMAGE}
     pull_policy: never
     environment:
@@ -33,3 +36,9 @@ services:
       - /dev/urandom:/dev/random
     cap_add:
       - SYS_PTRACE
+
+networks:
+  default:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

@@ -30,6 +30,7 @@ import {
   MdDateRange,
   MdHistory,
   MdHourglassEmpty,
+  MdLoop,
   MdPause,
   MdPendingActions,
   MdPlayArrow,
@@ -43,8 +44,19 @@ import { useTeamsServiceListTeams } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 
 import type { FilterConfig } from "src/components/FilterBar";
+import { LoopFilter } from "src/components/FilterBar/filters/LoopFilter";
+import { RunStateFilter } from "src/components/FilterBar/filters/RunStateFilter";
 import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
 import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableTypeFilter";
+import { loopFromSearchParams, loopToSearchParams } from "src/components/FilterBar/filters/loopParams";
+import {
+  pausedStateFromSearchParams,
+  pausedStateToSearchParams,
+} from "src/components/FilterBar/filters/pausedStateParams";
+import {
+  runStateFromSearchParams,
+  runStateToSearchParams,
+} from "src/components/FilterBar/filters/runStateParams";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 
@@ -168,13 +180,6 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
-    [SearchParamsKeys.DAG_RUN_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("dags:filters.anyRunState"),
-      options: runStateOptions,
-      placeholder: translate("dags:filters.anyRunStatePlaceholder"),
-      type: FilterTypes.SELECT,
-    },
     [SearchParamsKeys.DAG_VERSION]: {
       hotkeyDisabled: true,
       icon: <MdHistory />,
@@ -251,6 +256,15 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.HAS_EVENTS]: {
+      icon: <MdCheckCircle />,
+      label: translate("assets:filters.hasEvents"),
+      options: [
+        { label: translate("common:yes"), value: "true" },
+        { label: translate("common:no"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.HOSTNAME]: {
       hotkeyDisabled: true,
       icon: <MdComputer />,
@@ -288,19 +302,21 @@ export const useFilterConfigs = () => {
       startKey: SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE,
       type: FilterTypes.DATERANGE,
     },
-    [SearchParamsKeys.LAST_DAG_RUN_STATE]: {
-      icon: <MdCheckCircle />,
-      label: translate("dags:filters.lastRunState"),
-      options: runStateOptions,
-      placeholder: translate("dags:filters.lastRunStatePlaceholder"),
-      type: FilterTypes.SELECT,
-    },
     [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
       endKey: SearchParamsKeys.LOGICAL_DATE_LTE,
       icon: <MdDateRange />,
       label: translate("common:logicalDate"),
       startKey: SearchParamsKeys.LOGICAL_DATE_GTE,
       type: FilterTypes.DATERANGE,
+    },
+    [SearchParamsKeys.LOOP]: {
+      EditorComponent: LoopFilter,
+      fromSearchParams: loopFromSearchParams,
+      icon: <MdLoop />,
+      label: translate("common:filters.loop"),
+      placeholder: translate("common:filters.loopPlaceholder"),
+      toSearchParams: loopToSearchParams,
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.MAP_INDEX]: {
       icon: <LuBrackets />,
@@ -364,13 +380,16 @@ export const useFilterConfigs = () => {
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.PAUSED]: {
+      fromSearchParams: pausedStateFromSearchParams,
       icon: <MdPause />,
       label: translate("dags:filters.pausedState"),
       options: [
-        { label: translate("dags:filters.paused.active"), value: "false" },
-        { label: translate("dags:filters.paused.paused"), value: "true" },
+        { label: translate("dags:filters.paused.active"), value: "not_paused" },
+        { label: translate("dags:draining.label"), value: "draining" },
+        { label: translate("dags:filters.paused.paused"), value: "paused" },
       ],
       placeholder: translate("dags:filters.pausedPlaceholder"),
+      toSearchParams: pausedStateToSearchParams,
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.POOL_NAME_PATTERN]: {
@@ -444,6 +463,16 @@ export const useFilterConfigs = () => {
       label: translate("common:runId"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.RUN_STATE]: {
+      EditorComponent: RunStateFilter,
+      fromSearchParams: runStateFromSearchParams,
+      icon: <MdCheckCircle />,
+      label: translate("dags:filters.runState"),
+      options: runStateOptions,
+      placeholder: translate("dags:filters.runStatePlaceholder"),
+      toSearchParams: runStateToSearchParams,
+      type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.RUN_TYPE]: {
       icon: <MdPlayArrow />,
@@ -523,7 +552,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.TO_RANGE]: {
       endKey: SearchParamsKeys.TO_DATE_LTE,
       icon: <MdDateRange />,
-      label: translate("common:table.from"),
+      label: translate("common:table.to"),
       startKey: SearchParamsKeys.TO_DATE_GTE,
       type: FilterTypes.DATERANGE,
     },

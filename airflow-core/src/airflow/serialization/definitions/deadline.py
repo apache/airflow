@@ -388,10 +388,14 @@ class SerializedVariableInterval:
 
     key: str
 
-    def resolve(self) -> timedelta:
+    def resolve(self, *, session: Session | None = None) -> timedelta:
+        """
+        Get the Airflow Variable and return it as a ``timedelta``.
 
+        :param session: Existing SQLAlchemy Session. Callers holding an open transaction must pass it.
+        """
         try:
-            value = Variable.get(self.key)
+            value = Variable.get(self.key, session=session)
         except KeyError as e:
             raise ValueError(f"VariableInterval '{self.key}' not found") from e
 
@@ -402,7 +406,14 @@ class SerializedVariableInterval:
                 f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
             ) from e
 
-        return timedelta(seconds=seconds)
+        try:
+            return timedelta(seconds=seconds)
+        except OverflowError as e:
+            # ``timedelta`` raises OverflowError, which is not a ValueError, so callers
+            # inspecting for a bad interval would otherwise miss it.
+            raise ValueError(
+                f"VariableInterval '{self.key}' is too large to be a valid interval: {seconds} seconds"
+            ) from e
 
 
 @attrs.define

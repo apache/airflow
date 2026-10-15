@@ -48,8 +48,8 @@ Pod Mutation Hook
 
 The Airflow local settings file (``airflow_local_settings.py``) can define a ``pod_mutation_hook`` function
 that has the ability to mutate pod objects before sending them to the Kubernetes client
-for scheduling. It receives a single argument as a reference to pod objects, and
-are expected to alter its attributes.
+for scheduling. It receives a single argument as a reference to the pod object, and
+is expected to alter its attributes.
 
 This could be used, for instance, to add sidecar or init containers
 to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.

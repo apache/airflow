@@ -42,7 +42,7 @@ class HiveToSambaOperator(BaseOperator):
         :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
     """
 
-    template_fields: Sequence[str] = ("hql", "destination_filepath")
+    template_fields: Sequence[str] = ("hql", "destination_filepath", "samba_conn_id", "hiveserver2_conn_id")
     template_ext: Sequence[str] = (
         ".hql",
         ".sql",

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from functools import cached_property
 
 from apprise import AppriseConfig, NotifyFormat, NotifyType
@@ -45,7 +45,7 @@ class AppriseNotifier(BaseNotifier):
     :param apprise_conn_id: connection that has Apprise configs setup
     """
 
-    template_fields = ("body", "title", "tag", "attach")
+    template_fields: Sequence[str] = ("body", "title", "tag", "attach", "apprise_conn_id")
 
     def __init__(
         self,

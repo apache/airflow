@@ -32,10 +32,8 @@ from importlib.util import find_spec
 from inspect import ismodule
 from io import StringIO
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, overload
 from urllib.parse import urlsplit
-
-from typing_extensions import overload
 
 from airflow._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,

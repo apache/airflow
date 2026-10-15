@@ -1,1 +1,0 @@
-CLI ``connections list`` and ``variables list`` now hide sensitive values by default. Use ``--show-values`` to display full details and ``--hide-sensitive`` to mask passwords, URIs, and extras.

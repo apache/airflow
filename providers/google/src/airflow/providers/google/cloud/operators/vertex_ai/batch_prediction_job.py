@@ -159,7 +159,18 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
     :param poll_interval: Interval size which defines how often job status is checked in deferrable mode.
     """
 
-    template_fields = ("region", "project_id", "model_name", "impersonation_chain", "job_display_name")
+    template_fields: Sequence[str] = (
+        "region",
+        "project_id",
+        "model_name",
+        "impersonation_chain",
+        "job_display_name",
+        "gcs_source",
+        "bigquery_source",
+        "gcs_destination_prefix",
+        "bigquery_destination_prefix",
+        "gcp_conn_id",
+    )
     operator_extra_links = (VertexAIBatchPredictionJobLink(),)
 
     def __init__(
@@ -338,7 +349,13 @@ class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "batch_prediction_job_id", "impersonation_chain")
+    template_fields = (
+        "region",
+        "project_id",
+        "batch_prediction_job_id",
+        "impersonation_chain",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -406,7 +423,7 @@ class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain", "gcp_conn_id")
     operator_extra_links = (VertexAIBatchPredictionJobLink(),)
 
     def __init__(
@@ -498,7 +515,7 @@ class ListBatchPredictionJobsOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain", "gcp_conn_id")
     operator_extra_links = (VertexAIBatchPredictionJobListLink(),)
 
     def __init__(

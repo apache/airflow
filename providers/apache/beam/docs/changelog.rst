@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+6.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Beam async hook launching pipelines through a shell (#72510)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix dataflow_config service_account for Beam Python and Go pipelines (#73236)``
+* ``Fix impersonation_chain and poll_sleep ignored by deferrable Beam Dataflow pipelines (#72146)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 6.2.4
 .....
 

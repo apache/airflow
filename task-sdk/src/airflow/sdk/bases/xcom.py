@@ -197,8 +197,7 @@ class BaseXCom:
         match the criteria, an arbitrary one is returned.
 
         :param ti_key: The TaskInstanceKey to look up the XCom for.
-        :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
+        :param key: A key for the XCom. Only XCom with this key will be returned.
         """
         return cls.get_one(
             key=key,
@@ -225,8 +224,7 @@ class BaseXCom:
         match the criteria, an arbitrary one is returned.
 
         :param ti_key: The TaskInstanceKey to look up the XCom for.
-        :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
+        :param key: A key for the XCom. Only XCom with this key will be returned.
         """
         return await cls.aget_one(
             key=key,
@@ -259,14 +257,12 @@ class BaseXCom:
             have a structured TaskInstance or TaskInstanceKey object available.
 
         :param run_id: Dag run ID for the task.
-        :param dag_id: Only pull XCom from this Dag. Pass *None* (default) to
-            remove the filter.
-        :param task_id: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param map_index: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
+        :param dag_id: Dag ID to pull the XCom from.
+        :param task_id: Task ID to pull the XCom from.
+        :param map_index: Map index of the task instance to pull the XCom from.
+            *None* (default) pulls the XCom of a non-mapped task, which has
+            map index ``-1``.
+        :param key: A key for the XCom. Only XCom with this key will be returned.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -295,6 +291,7 @@ class BaseXCom:
         run_id: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
+        _previous_iteration: bool = False,
     ) -> Any | None:
         """
         Retrieve an XCom value, optionally meeting certain criteria.
@@ -309,14 +306,12 @@ class BaseXCom:
             have a structured TaskInstance or TaskInstanceKey object available.
 
         :param run_id: Dag run ID for the task.
-        :param dag_id: Only pull XCom from this Dag. Pass *None* (default) to
-            remove the filter.
-        :param task_id: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param map_index: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
+        :param dag_id: Dag ID to pull the XCom from.
+        :param task_id: Task ID to pull the XCom from.
+        :param map_index: Map index of the task instance to pull the XCom from.
+            *None* (default) pulls the XCom of a non-mapped task, which has
+            map index ``-1``.
+        :param key: A key for the XCom. Only XCom with this key will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified Dag run is returned. If *True*, the latest matching XCom is
             returned regardless of the run it belongs to.
@@ -331,6 +326,7 @@ class BaseXCom:
                 run_id=run_id,
                 map_index=map_index,
                 include_prior_dates=include_prior_dates,
+                previous_iteration=_previous_iteration,
             ),
         )
 
@@ -373,14 +369,12 @@ class BaseXCom:
             have a structured TaskInstance or TaskInstanceKey object available.
 
         :param run_id: Dag run ID for the task.
-        :param dag_id: Only pull XCom from this Dag. Pass *None* (default) to
-            remove the filter.
-        :param task_id: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param map_index: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
+        :param dag_id: Dag ID to pull the XCom from.
+        :param task_id: Task ID to pull the XCom from.
+        :param map_index: Map index of the task instance to pull the XCom from.
+            *None* (default) pulls the XCom of a non-mapped task, which has
+            map index ``-1``.
+        :param key: A key for the XCom. Only XCom with this key will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified Dag run is returned. If *True*, the latest matching XCom is
             returned regardless of the run it belongs to.
@@ -562,7 +556,6 @@ class BaseXCom:
             run_id=run_id,
             map_index=map_index,
         )
-        cls.purge(xcom_result)
         SUPERVISOR_COMMS.send(
             DeleteXCom(
                 key=key,
@@ -572,3 +565,4 @@ class BaseXCom:
                 map_index=map_index,
             ),
         )
+        cls.purge(xcom_result)

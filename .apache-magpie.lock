@@ -1,0 +1,11 @@
+# .apache-magpie.lock — committed; the project's floor.
+
+method:       marketplace
+url:          apache/magpie
+min_version:  0.9.0.dev202609262258
+
+plugins:
+  - magpie-setup
+  - magpie-utilities
+  - magpie-agent-guard
+  - magpie-release-management

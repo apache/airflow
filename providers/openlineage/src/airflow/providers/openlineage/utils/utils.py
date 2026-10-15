@@ -20,11 +20,12 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Collection, Mapping
 from contextlib import suppress
 from functools import wraps
 from importlib import metadata
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 import attrs
 from openlineage.client.facet_v2 import (
@@ -74,6 +75,7 @@ from airflow.providers.openlineage.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
     get_base_airflow_version_tuple,
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -93,6 +95,7 @@ if TYPE_CHECKING:
 
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import JobFacet, RunFacet, processing_engine_run
+    from sqlalchemy.orm import Session
 
     from airflow.models.asset import AssetEvent
     from airflow.sdk.execution_time.secrets_masker import (
@@ -664,6 +667,10 @@ def get_dag_documentation(dag: DAG | SerializedDAG | None) -> tuple[str | None, 
     return None, None
 
 
+def get_task_instance_map_index(task_instance: TaskInstance | RuntimeTaskInstance) -> int:
+    return _require_task_instance_position(task_instance).map_index
+
+
 def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]:
     # check for -1 comes from SmartSensor compatibility with dynamic task mapping
     # this comes from Airflow code
@@ -671,8 +678,13 @@ def get_airflow_mapped_task_facet(task_instance: TaskInstance) -> dict[str, Any]
         "AirflowMappedTaskRunFacet is deprecated and will be removed. "
         "Use information from AirflowRunFacet instead."
     )
-    if hasattr(task_instance, "map_index") and getattr(task_instance, "map_index") != -1:
-        return {"airflow_mappedTask": AirflowMappedTaskRunFacet.from_task_instance(task_instance)}
+    if (map_index := get_task_instance_map_index(task_instance)) != -1 and task_instance.task is not None:
+        return {
+            "airflow_mappedTask": AirflowMappedTaskRunFacet(
+                mapIndex=map_index,
+                operatorClass=get_fully_qualified_class_name(task_instance.task),
+            )
+        }
     return {}
 
 
@@ -1117,15 +1129,17 @@ class TaskInstanceInfo(InfoJsonEncodable):
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
         "note": lambda ti: safe_getattr(ti, "note", None),  # From manual state changes only
-        "map_index": lambda ti: ti.map_index if getattr(ti, "map_index", -1) != -1 else None,
-        "rendered_map_index": lambda ti: (
-            getattr(ti, "rendered_map_index", None) if getattr(ti, "map_index", -1) != -1 else None
-        ),
         "dag_bundle_version": lambda ti: (
             ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
         ),
         "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
+
+    def _extend_fields(self) -> None:
+        map_index = get_task_instance_map_index(self.obj)
+        self.map_index = map_index if map_index != -1 else None
+        self.rendered_map_index = getattr(self.obj, "rendered_map_index", None) if map_index != -1 else None
+        self._fields.extend(("map_index", "rendered_map_index"))
 
 
 class AssetInfo(InfoJsonEncodable):
@@ -1466,6 +1480,112 @@ def is_dag_run_asset_triggered(
     return dag_run.run_type == DagRunType.DATASET_TRIGGERED  # type: ignore[attr-defined]  # This attr is available on AF2, but mypy can't see it
 
 
+@attrs.frozen
+class TaskInstancePosition:
+    """
+    Where a task instance runs: inside a loop body or not, and the map index users see.
+
+    A plain mapped task keeps the region of its own expansion, so its dag, task, try, logical date and
+    map index stay unique; inside a loop they repeat on every pass, so only the execution UUID identifies
+    the run.
+    """
+
+    in_loop: bool
+    map_index: int
+
+
+def _is_task_in_loop(task: Any) -> bool:
+    from airflow.sdk.definitions._internal.loop import LoopTaskGroup
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
+
+    group = getattr(task, "task_group", None)
+    while isinstance(group, (TaskGroup, SerializedTaskGroup)):
+        if isinstance(group, (LoopTaskGroup, SerializedLoopTaskGroup)):
+            return True
+        group = group.parent_group
+    return group is not None
+
+
+def _get_task_instance_position(
+    task_instance: TaskInstance | RuntimeTaskInstance,
+) -> TaskInstancePosition | None:
+    """Place a task instance from its own fields and task, or return None when only its stored region can tell."""
+    is_stored = isinstance(task_instance, TaskInstance)
+    if not AIRFLOW_V_3_4_PLUS:
+        return TaskInstancePosition(in_loop=False, map_index=getattr(task_instance, "map_index", -1))
+    map_index: int = getattr(task_instance, "region_index" if is_stored else "map_index", -1)
+    region_id = getattr(task_instance, "region_id", None)
+    if not isinstance(region_id, UUID) or region_id.int == 0:
+        return TaskInstancePosition(in_loop=False, map_index=map_index)
+    if (task := getattr(task_instance, "task", None)) is None:
+        return None
+    if is_stored and not task.get_needs_expansion():
+        map_index = -1
+    return TaskInstancePosition(in_loop=_is_task_in_loop(task), map_index=map_index)
+
+
+def _require_task_instance_position(
+    task_instance: TaskInstance | RuntimeTaskInstance,
+) -> TaskInstancePosition:
+    if (position := _get_task_instance_position(task_instance)) is None:
+        raise ValueError(
+            f"Task instance {task_instance.id} has no task attached, so only its stored region can place it; "
+            "use get_orm_task_instance_positions with the session it was loaded in"
+        )
+    return position
+
+
+def get_orm_task_instance_positions(
+    task_instances: Collection[TaskInstance], *, session: Session | None
+) -> dict[UUID, TaskInstancePosition]:
+    """
+    Place stored task instances, reading the regions of those without their task in one query.
+
+    Server side only: workers never hold a session, and an instance that needs its region read without one
+    raises instead of opening a connection.
+    """
+    positions: dict[UUID, TaskInstancePosition] = {}
+    unplaced: list[TaskInstance] = []
+    for task_instance in task_instances:
+        if (position := _get_task_instance_position(task_instance)) is None:
+            unplaced.append(task_instance)
+        else:
+            positions[task_instance.id] = position
+    if not unplaced:
+        return positions
+    if session is None:
+        raise ValueError("Placing a stored task instance without its task needs the session it was loaded in")
+
+    from sqlalchemy import select
+
+    from airflow.models.dynamic_region import DynamicRegion
+
+    regions = {
+        row.id: row
+        for row in session.execute(
+            select(DynamicRegion.id, DynamicRegion.node_id, DynamicRegion.parent_region_id).where(
+                DynamicRegion.id.in_({task_instance.region_id for task_instance in unplaced})
+            )
+        )
+    }
+    for task_instance in unplaced:
+        region = regions.get(task_instance.region_id)
+        if region is not None and region.node_id == task_instance.task_id:
+            positions[task_instance.id] = TaskInstancePosition(
+                in_loop=region.parent_region_id is not None, map_index=task_instance.region_index
+            )
+        else:
+            positions[task_instance.id] = TaskInstancePosition(in_loop=True, map_index=-1)
+    return positions
+
+
+def get_regional_task_instance_run_id(task_instance: TaskInstance | RuntimeTaskInstance) -> str | None:
+    if _require_task_instance_position(task_instance).in_loop:
+        return str(task_instance.id)
+    return None
+
+
 def build_task_instance_ol_run_id(
     dag_id: str,
     task_id: str,
@@ -1580,7 +1700,21 @@ def _get_eagerly_loaded_dagrun_consumed_asset_events(dag_id: str, dag_run_id: st
     return events
 
 
-def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str] | None:
+def _place_asset_event_sources(events: list[AssetEvent]) -> dict[UUID, TaskInstancePosition]:
+    """Place the source task instances of consumed asset events; only the scheduler builds these facets."""
+    sources = [ti for event in events if isinstance(ti := event.source_task_instance, TaskInstance)]
+    positions = {ti.id: position for ti in sources if (position := _get_task_instance_position(ti))}
+    if unplaced := [ti for ti in sources if ti.id not in positions]:
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            positions.update(get_orm_task_instance_positions(unplaced, session=session))
+    return positions
+
+
+def _extract_ol_info_from_asset_event(
+    asset_event: AssetEvent, positions: Mapping[UUID, TaskInstancePosition] | None = None
+) -> dict[str, str] | None:
     """
     Extract OpenLineage job information from an AssetEvent.
 
@@ -1597,12 +1731,16 @@ def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str]
         A dictionary containing `job_name`, `job_namespace`, and optionally
         `run_id`, or `None` if insufficient information is available.
     """
-    # First check for TaskInstance
-    if ti := asset_event.source_task_instance:
+    ti = asset_event.source_task_instance
+    if ti:
         result = {
             "job_name": get_job_name(ti),
             "job_namespace": conf.namespace(),
         }
+        position = (positions or {}).get(ti.id) or _require_task_instance_position(ti)
+        if position.in_loop:
+            result["run_id"] = str(ti.id)
+            return result
         source_dr = asset_event.source_dag_run
         if source_dr:
             logical_date = source_dr.logical_date  # Get logical date from DagRun for OL run_id generation
@@ -1614,7 +1752,7 @@ def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str]
                     task_id=ti.task_id,
                     try_number=ti.try_number,
                     logical_date=logical_date,
-                    map_index=ti.map_index,
+                    map_index=position.map_index,
                 )
         return result
 
@@ -1673,9 +1811,10 @@ def _get_ol_job_dependencies_from_asset_events(events: list[AssetEvent]) -> list
     # Multiple asset events from the same task instance should only create one dependency
     deduplicated_jobs: dict[tuple[str, str, str | None], dict[str, Any]] = {}
 
+    positions = _place_asset_event_sources(events)
     for asset_event in events:
         # Extract OpenLineage information
-        ol_info = _extract_ol_info_from_asset_event(asset_event)
+        ol_info = _extract_ol_info_from_asset_event(asset_event, positions)
 
         # Skip if we don't have minimum required info (job_name and namespace)
         if not ol_info:

@@ -1,0 +1,1 @@
+Add ``--limit`` option to ``airflow dags list-runs`` to cap output to the N most recent Dag runs after filters and sorting are applied, mirroring ``airflow dags list-jobs --limit``.

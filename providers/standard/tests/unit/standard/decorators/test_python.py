@@ -16,14 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import typing
 from collections import namedtuple
 from datetime import date
 
 import pytest
 
-from airflow.models.taskmap import TaskMap
 from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
 
 from tests_common.test_utils.taskinstance import get_template_context, render_template_fields
@@ -82,17 +80,6 @@ if typing.TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-PY38 = sys.version_info >= (3, 8)
-PY311 = sys.version_info >= (3, 11)
-
-
-@pytest.fixture(autouse=True)
-def clear_current_task_session():
-    try:
-        import airflow.utils.task_instance_session
-    except ModuleNotFoundError:
-        return
-    airflow.utils.task_instance_session.__current_task_instance_session = None
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
@@ -165,16 +152,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t1().operator.multiple_outputs is True
 
-    # We do not enable `from __future__ import annotations` for particular this test module,
-    # that mean `str | None` annotation would raise TypeError in Python 3.9 and below
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="PEP 604 is implemented in Python 3.10")
     def test_infer_multiple_outputs_pep_604_union_type(self):
         @task_decorator
         def t1() -> str | None:
-            # Before PEP 604 which are implemented in Python 3.10 `str | None`
-            # returns `types.UnionType` which are class and could be check in `issubclass()`.
-            # However in Python 3.10+ this construction returns object `typing.Union`
-            # which can not be used in `issubclass()`
+            # `str | None` evaluates to `types.UnionType`, which cannot be used in `issubclass()`.
             return "foo"
 
         assert t1().operator.multiple_outputs is False
@@ -842,6 +823,8 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
 def test_mapped_render_template_fields(dag_maker, session):
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
+    from tests_common.test_utils.mapping import push_mapped_length
+
     @task_decorator
     def fn(arg1, arg2): ...
 
@@ -852,18 +835,7 @@ def test_mapped_render_template_fields(dag_maker, session):
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
 
-    ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
-
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=1,
-            keys=None,
-        )
-    )
+    push_mapped_length(ti, ["{{ ds }}"], session=session)
     session.flush()
 
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
@@ -880,6 +852,7 @@ def test_mapped_render_template_fields(dag_maker, session):
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 def test_mapped_render_template_fields_af2(dag_maker, session):
+    from airflow.models.taskmap import TaskMap
     from airflow.utils.task_instance_session import set_current_task_instance_session
 
     @task_decorator

@@ -15,13 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 [build-system]
-requires = ["flit_core==4.0.2"]
+requires = ["flit_core==4.1.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-performance"
 version = "0.1.0"
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 description = "Performance testing utilities and DAGs for Apache Airflow"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "Apache-2.0"

@@ -31,6 +31,11 @@ class LangChainHook(BaseHook):
     """
     Bridge an Airflow connection to LangChain chat and embedding models.
 
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
     The hook resolves credentials (API key, optional base URL) from the Airflow
     connection and returns LangChain model objects via two universal entry-point
     functions:
@@ -41,19 +46,18 @@ class LangChainHook(BaseHook):
       embedding-model vendor based on the model identifier.
 
     Both identifiers use the ``provider:name`` format
-    (e.g. ``"openai:gpt-4o"``, ``"openai:text-embedding-3-small"``). Only
-    OpenAI-compatible providers (OpenAI itself, Anthropic, Groq, Mistral AI
-    chat, Ollama, DeepSeek, ...) work with this hook's ``api_key`` + optional
-    ``base_url`` credential surface. Providers with bespoke auth (AWS Bedrock,
-    Google Vertex AI / GenAI, Azure OpenAI, Cohere, HuggingFace) reject these
-    kwargs; per-vendor subclasses can be added later mirroring the pydantic-ai
-    pattern.
+    (e.g. ``"openai:gpt-5"``, ``"openai:text-embedding-3-small"``). The hook
+    forwards the connection's password as ``api_key`` and its host as
+    ``base_url``, so any provider whose LangChain class accepts those two
+    keyword arguments works (OpenAI, Anthropic, Groq, Mistral AI, Ollama,
+    DeepSeek, ...). Providers with bespoke auth (AWS Bedrock, Google Vertex AI /
+    GenAI, Azure OpenAI, Cohere, HuggingFace) reject these kwargs.
 
     Connection fields:
 
     * **password**: API key passed as ``api_key=`` to the model constructor.
     * **host**: Optional base URL passed as ``base_url=`` (custom endpoints, Ollama, vLLM).
-    * **extra** JSON: ``{"model": "openai:gpt-4o", "embed_model": "openai:text-embedding-3-small"}``
+    * **extra** JSON: ``{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}``
       -- default chat and embedding model identifiers.
 
     :param llm_conn_id: Airflow connection ID for the LLM provider. Falls back
@@ -63,11 +67,24 @@ class LangChainHook(BaseHook):
         the common case of one provider for both chat and embeddings stays a
         single hook instance.
     :param llm_model: Chat model identifier in ``provider:name`` format
-        (e.g. ``"openai:gpt-4o"``, ``"anthropic:claude-3-7-sonnet"``).
+        (e.g. ``"openai:gpt-5"``, ``"anthropic:claude-sonnet-5"``).
         Overrides ``extra["model"]`` on the connection.
     :param embed_model: Embedding model identifier in ``provider:name`` format
         (e.g. ``"openai:text-embedding-3-small"``). Overrides
-        ``extra["embed_model"]`` on the connection.
+        ``extra["embed_model"]`` on the connection. When ``embedding_kwargs``
+        supplies ``provider`` explicitly, use a model name without the provider
+        prefix.
+    :param embedding_kwargs: Additional keyword arguments to pass to the embedding
+        model constructor without filtering. Values can override hook-provided
+        settings, including the endpoint and credentials. In particular,
+        ``provider`` takes precedence over the provider inferred from
+        ``embed_model``. When ``provider`` is set, LangChain treats the entire
+        ``embed_model`` value as the model name rather than parsing a
+        ``provider:name`` identifier. The hook logs a warning when both forms are
+        supplied. Connection ``api_key`` and ``base_url`` values take precedence
+        over the same top-level keys, but the underlying integration may accept
+        alternative or nested options that take precedence. Only pass trusted
+        values.
     """
 
     conn_name_attr = "llm_conn_id"
@@ -81,6 +98,8 @@ class LangChainHook(BaseHook):
         embed_conn_id: str | None = None,
         llm_model: str | None = None,
         embed_model: str | None = None,
+        *,
+        embedding_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,6 +111,7 @@ class LangChainHook(BaseHook):
         self.embed_conn_id = embed_conn_id if embed_conn_id is not None else self.llm_conn_id
         self.llm_model = llm_model
         self.embed_model = embed_model
+        self.embedding_kwargs = embedding_kwargs or {}
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -101,7 +121,7 @@ class LangChainHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-4o", "embed_model": "openai:text-embedding-3-small"}',
+                "extra": '{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}',
             },
         }
 
@@ -170,7 +190,17 @@ class LangChainHook(BaseHook):
             extra_key="embed_model",
             kind="embedding",
         )
-        return init_embeddings(model_id, **self._connection_kwargs(conn))
+        connection_kwargs = self._connection_kwargs(conn)
+        overridden_keys = sorted(self.embedding_kwargs.keys() & connection_kwargs.keys())
+        if overridden_keys:
+            self.log.warning("Connection parameters override embedding_kwargs values: %s", overridden_keys)
+        if self.embedding_kwargs.get("provider") is not None and ":" in model_id:
+            self.log.warning(
+                "embedding_kwargs['provider'] takes precedence over the provider prefix in embed_model; "
+                "pass an unprefixed model name"
+            )
+        kwargs = {**self.embedding_kwargs, **connection_kwargs}
+        return init_embeddings(model_id, **kwargs)
 
     def test_connection(self) -> tuple[bool, str]:
         """

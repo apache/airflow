@@ -270,7 +270,7 @@ class TestGoogleDataprepHook:
         side_effect=[mock.MagicMock(), HTTPError()],
     )
     def test_get_job_group_status_retry_after_success(self, mock_get_request):
-        self.hook.run_job_group.retry.sleep = mock.Mock()
+        self.hook.get_job_group_status.retry.sleep = mock.Mock()
         self.hook.get_job_group_status(job_group_id=JOB_ID)
         assert mock_get_request.call_count == 1
 
@@ -285,7 +285,7 @@ class TestGoogleDataprepHook:
         ],
     )
     def test_get_job_group_status_four_errors(self, mock_get_request):
-        self.hook.run_job_group.retry.sleep = mock.Mock()
+        self.hook.get_job_group_status.retry.sleep = mock.Mock()
         self.hook.get_job_group_status(job_group_id=JOB_ID)
         assert mock_get_request.call_count == 5
 

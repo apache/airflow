@@ -240,6 +240,7 @@ The triage workflow uses the following labels and states:
 | `ready for maintainer review` | PR has passed Stage 1 and is queued for human review. Applied only after the skill has verified that no workflow runs are awaiting approval. |
 | `closed because of multiple quality violations` | PR was closed because the author has multiple open PRs with quality issues. |
 | `suspicious changes detected` | PR (and all open PRs by the same author) was closed because the diff contained suspicious patterns (secret exfiltration, malicious CI modifications, etc.). |
+| `closed because of open PR limit` | PR was closed in the one-time closure that introduced the [open PR limit](32_open_pull_request_limit.rst). Applied by `dev/close_prs_over_open_pr_limit.py`, never by the triage skill. If the author reopens the PR, triage it like any other. |
 | **Draft status** | PR was converted to draft because it does not meet quality criteria. The contributor is asked to fix the listed issues and mark the PR as "Ready for review" once done. |
 
 ## For contributors
@@ -268,3 +269,6 @@ Tips for getting through Stage 1 quickly:
    why the suggestion doesn't apply — click "Resolve conversation" yourself.
 6. **Disclose Gen-AI usage.** If you used Gen-AI tools, include the disclosure block
    from the [Gen-AI guidelines](05_pull_requests.rst#gen-ai-assisted-contributions).
+7. **Focus on a few PRs at a time.** Contributors without write access can have at most
+   5 open PRs at a time — see [Limit on open Pull Requests](32_open_pull_request_limit.rst).
+   Getting your open PRs through both stages is what frees up a slot for the next one.

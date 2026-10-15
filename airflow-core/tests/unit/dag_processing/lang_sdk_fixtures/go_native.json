@@ -1,0 +1,1680 @@
+{
+  "conformance_branch": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_branch",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "gate": [
+            "operator",
+            "gate"
+          ],
+          "join": [
+            "operator",
+            "join"
+          ],
+          "load": [
+            "operator",
+            "load"
+          ],
+          "lonely_gate": [
+            "operator",
+            "lonely_gate"
+          ],
+          "lonely_load": [
+            "operator",
+            "lonely_load"
+          ],
+          "read": [
+            "operator",
+            "read"
+          ],
+          "report_empty": [
+            "operator",
+            "report_empty"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "gate"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "read",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "read"
+              }
+            ],
+            "_can_skip_downstream": true,
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "load",
+              "report_empty"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "gate",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "join"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "load",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "join"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "report_empty",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_can_skip_downstream": true,
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "lonely_load"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "lonely_gate",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "lonely_load",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "join",
+            "task_type": "GoOperator",
+            "template_fields": [],
+            "trigger_rule": "none_failed_min_one_success"
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_continuous": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_continuous",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "max_active_runs": 1,
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "watch": [
+            "operator",
+            "watch"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "watch",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.ContinuousTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_cron": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "catchup": true,
+      "dag_dependencies": [],
+      "dag_display_name": "Conformance Cron",
+      "dag_id": "conformance_cron",
+      "dagrun_timeout": 300,
+      "deadline": null,
+      "description": "a Dag that sets everything",
+      "disable_bundle_versioning": true,
+      "doc_md": "# notes",
+      "edge_info": {},
+      "end_date": 1798759815,
+      "fileloc": "/bundles/app/etl",
+      "is_paused_upon_creation": true,
+      "max_active_runs": 3,
+      "max_active_tasks": 8,
+      "max_consecutive_failed_dag_runs": 2,
+      "params": [],
+      "relative_fileloc": "etl",
+      "render_template_as_native_obj": true,
+      "start_date": 1767225600,
+      "tags": [
+        "alpha",
+        "gamma"
+      ],
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "extract": [
+            "operator",
+            "extract"
+          ],
+          "transform": [
+            "operator",
+            "transform"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "depends_on_past": true,
+            "do_xcom_push": false,
+            "doc_md": "extracts things",
+            "downstream_task_ids": [
+              "transform"
+            ],
+            "end_date": 1795996800,
+            "execution_timeout": 120,
+            "executor": "LocalExecutor",
+            "ignore_first_depends_on_past": true,
+            "is_stub": true,
+            "language": "go",
+            "map_index_template": "{{ task.task_id }}",
+            "max_active_tis_per_dag": 3,
+            "max_active_tis_per_dagrun": 4,
+            "max_retry_delay": 900,
+            "owner": "data-team",
+            "pool": "tiny",
+            "pool_slots": 2,
+            "priority_weight": 5,
+            "queue": "typescript",
+            "retries": 2,
+            "retry_delay": 600,
+            "retry_exponential_backoff": 2,
+            "start_date": 1769904000,
+            "task_id": "extract",
+            "task_type": "GoOperator",
+            "template_fields": [],
+            "trigger_rule": "all_done",
+            "wait_for_downstream": true,
+            "wait_for_past_depends_before_skipping": true,
+            "weight_rule": "upstream"
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "extract"
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "transform",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+        "__var": {
+          "expression": "0 3 * * *",
+          "interval": 0,
+          "run_immediately": false,
+          "timezone": "UTC"
+        }
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_cron_seconds": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_cron_seconds",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "tick": [
+            "operator",
+            "tick"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "tick",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+        "__var": {
+          "expression": "30 3 * * MON-FRI 15",
+          "interval": 0,
+          "run_immediately": false,
+          "timezone": "UTC"
+        }
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_diamond": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_diamond",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "join": [
+            "operator",
+            "join"
+          ],
+          "left": [
+            "operator",
+            "left"
+          ],
+          "right": [
+            "operator",
+            "right"
+          ],
+          "root": [
+            "operator",
+            "root"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "left",
+              "right"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "root",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "root"
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "join"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "right",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "root"
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "join"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "left",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "right"
+              },
+              {
+                "kind": "xcom",
+                "name": "arg1",
+                "task_id": "left"
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "join",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+        "__var": {
+          "expression": "0 0 * * *",
+          "interval": 0,
+          "run_immediately": false,
+          "timezone": "UTC"
+        }
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_edge_labels": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_edge_labels",
+      "deadline": null,
+      "edge_info": {
+        "extract": {
+          "load": {
+            "label": "rows"
+          },
+          "transform.clean": {
+            "label": "to transform"
+          },
+          "transform.upstream_join_id": {
+            "label": "to transform"
+          }
+        },
+        "publish.downstream_join_id": {
+          "notify": {
+            "label": "to notify"
+          }
+        },
+        "transform.downstream_join_id": {
+          "publish.upstream_join_id": {
+            "label": "to publish"
+          }
+        }
+      },
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "extract": [
+            "operator",
+            "extract"
+          ],
+          "load": [
+            "operator",
+            "load"
+          ],
+          "notify": [
+            "operator",
+            "notify"
+          ],
+          "publish": [
+            "taskgroup",
+            {
+              "_group_id": "publish",
+              "children": {
+                "publish.push": [
+                  "operator",
+                  "publish.push"
+                ]
+              },
+              "downstream_group_ids": [],
+              "downstream_task_ids": [
+                "notify"
+              ],
+              "group_display_name": "",
+              "prefix_group_id": true,
+              "tooltip": "",
+              "ui_color": "CornflowerBlue",
+              "ui_fgcolor": "#000",
+              "upstream_group_ids": [
+                "transform"
+              ],
+              "upstream_task_ids": [
+                "transform.clean"
+              ]
+            }
+          ],
+          "transform": [
+            "taskgroup",
+            {
+              "_group_id": "transform",
+              "children": {
+                "transform.clean": [
+                  "operator",
+                  "transform.clean"
+                ]
+              },
+              "downstream_group_ids": [
+                "publish"
+              ],
+              "downstream_task_ids": [],
+              "group_display_name": "",
+              "prefix_group_id": true,
+              "tooltip": "",
+              "ui_color": "CornflowerBlue",
+              "ui_fgcolor": "#000",
+              "upstream_group_ids": [],
+              "upstream_task_ids": [
+                "extract"
+              ]
+            }
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "load",
+              "transform.clean"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "extract",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "publish.push"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "transform.clean",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "notify"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "publish.push",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "load",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "notify",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_group_options": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_group_options",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "checks": [
+            "taskgroup",
+            {
+              "_group_id": "checks",
+              "children": {
+                "nulls": [
+                  "operator",
+                  "nulls"
+                ]
+              },
+              "downstream_group_ids": [],
+              "downstream_task_ids": [],
+              "group_display_name": "",
+              "prefix_group_id": false,
+              "tooltip": "",
+              "ui_color": "CornflowerBlue",
+              "ui_fgcolor": "#000",
+              "upstream_group_ids": [],
+              "upstream_task_ids": []
+            }
+          ],
+          "transform": [
+            "taskgroup",
+            {
+              "_group_id": "transform",
+              "children": {
+                "transform.clean": [
+                  "operator",
+                  "transform.clean"
+                ]
+              },
+              "doc_md": "# transform",
+              "downstream_group_ids": [],
+              "downstream_task_ids": [],
+              "group_display_name": "Transform",
+              "prefix_group_id": true,
+              "tooltip": "cleans the rows",
+              "ui_color": "#f0f0f0",
+              "ui_fgcolor": "#101010",
+              "upstream_group_ids": [],
+              "upstream_task_ids": []
+            }
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "transform.clean",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "nulls",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_groups": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_groups",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "extract": [
+            "operator",
+            "extract"
+          ],
+          "load": [
+            "operator",
+            "load"
+          ],
+          "notify": [
+            "operator",
+            "notify"
+          ],
+          "publish": [
+            "taskgroup",
+            {
+              "_group_id": "publish",
+              "children": {
+                "publish.push": [
+                  "operator",
+                  "publish.push"
+                ]
+              },
+              "downstream_group_ids": [],
+              "downstream_task_ids": [
+                "load"
+              ],
+              "group_display_name": "",
+              "prefix_group_id": true,
+              "tooltip": "",
+              "ui_color": "CornflowerBlue",
+              "ui_fgcolor": "#000",
+              "upstream_group_ids": [
+                "staging"
+              ],
+              "upstream_task_ids": [
+                "staging.checks.nulls"
+              ]
+            }
+          ],
+          "staging": [
+            "taskgroup",
+            {
+              "_group_id": "staging",
+              "children": {
+                "staging.checks": [
+                  "taskgroup",
+                  {
+                    "_group_id": "checks",
+                    "children": {
+                      "staging.checks.nulls": [
+                        "operator",
+                        "staging.checks.nulls"
+                      ]
+                    },
+                    "downstream_group_ids": [],
+                    "downstream_task_ids": [],
+                    "group_display_name": "",
+                    "prefix_group_id": true,
+                    "tooltip": "",
+                    "ui_color": "CornflowerBlue",
+                    "ui_fgcolor": "#000",
+                    "upstream_group_ids": [],
+                    "upstream_task_ids": []
+                  }
+                ],
+                "staging.stage": [
+                  "operator",
+                  "staging.stage"
+                ]
+              },
+              "downstream_group_ids": [
+                "publish"
+              ],
+              "downstream_task_ids": [],
+              "group_display_name": "",
+              "prefix_group_id": true,
+              "tooltip": "",
+              "ui_color": "CornflowerBlue",
+              "ui_fgcolor": "#000",
+              "upstream_group_ids": [],
+              "upstream_task_ids": [
+                "extract"
+              ]
+            }
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "staging.stage"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "extract",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "staging.checks.nulls"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "staging.stage",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "staging.stage"
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "publish.push"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "staging.checks.nulls",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "load"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "publish.push",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "notify"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "load",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "notify",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_literal_inputs": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_literal_inputs",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "extract": [
+            "operator",
+            "extract"
+          ],
+          "load": [
+            "operator",
+            "load"
+          ],
+          "only_literals": [
+            "operator",
+            "only_literals"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "load"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "extract",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "literal",
+                "name": "arg0",
+                "value": "s3://bucket/out"
+              },
+              {
+                "kind": "literal",
+                "name": "arg1",
+                "value": 3
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "only_literals",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "extract"
+              },
+              {
+                "kind": "literal",
+                "name": "arg1",
+                "value": "s3://bucket/out"
+              },
+              {
+                "kind": "literal",
+                "name": "arg2",
+                "value": {
+                  "limit": 10,
+                  "nested": {
+                    "enabled": true
+                  },
+                  "ratio": 0.5,
+                  "tags": [
+                    "a",
+                    null
+                  ]
+                }
+              },
+              {
+                "kind": "literal",
+                "name": "arg3",
+                "value": null
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "load",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_minimal": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_minimal",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "solo": [
+            "operator",
+            "solo"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "solo",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.NullTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_nested_group_edges": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_nested_group_edges",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "extract": [
+            "operator",
+            "extract"
+          ],
+          "load": [
+            "operator",
+            "load"
+          ],
+          "outer": [
+            "taskgroup",
+            {
+              "_group_id": "outer",
+              "children": {
+                "outer.inner": [
+                  "taskgroup",
+                  {
+                    "_group_id": "inner",
+                    "children": {
+                      "outer.inner.i": [
+                        "operator",
+                        "outer.inner.i"
+                      ]
+                    },
+                    "downstream_group_ids": [],
+                    "downstream_task_ids": [
+                      "outer.t"
+                    ],
+                    "group_display_name": "",
+                    "prefix_group_id": true,
+                    "tooltip": "",
+                    "ui_color": "CornflowerBlue",
+                    "ui_fgcolor": "#000",
+                    "upstream_group_ids": [],
+                    "upstream_task_ids": []
+                  }
+                ],
+                "outer.spare": [
+                  "taskgroup",
+                  {
+                    "_group_id": "spare",
+                    "children": {},
+                    "downstream_group_ids": [],
+                    "downstream_task_ids": [
+                      "load"
+                    ],
+                    "group_display_name": "",
+                    "prefix_group_id": true,
+                    "tooltip": "",
+                    "ui_color": "CornflowerBlue",
+                    "ui_fgcolor": "#000",
+                    "upstream_group_ids": [],
+                    "upstream_task_ids": []
+                  }
+                ],
+                "outer.t": [
+                  "operator",
+                  "outer.t"
+                ]
+              },
+              "downstream_group_ids": [],
+              "downstream_task_ids": [],
+              "group_display_name": "",
+              "prefix_group_id": true,
+              "tooltip": "",
+              "ui_color": "CornflowerBlue",
+              "ui_fgcolor": "#000",
+              "upstream_group_ids": [],
+              "upstream_task_ids": [
+                "extract"
+              ]
+            }
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "outer.inner.i"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "extract",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "load"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "outer.t",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "outer.t"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "outer.inner.i",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "load",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_once": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_once",
+      "deadline": null,
+      "edge_info": {},
+      "fail_fast": true,
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "alpha": [
+            "operator",
+            "alpha"
+          ],
+          "beta": [
+            "operator",
+            "beta"
+          ],
+          "seed": [
+            "operator",
+            "seed"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "alpha",
+              "beta"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "seed",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "seed"
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "beta",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "seed"
+              }
+            ],
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "alpha",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_switch": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [],
+      "dag_id": "conformance_switch",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "long": [
+            "operator",
+            "long"
+          ],
+          "pick": [
+            "operator",
+            "pick"
+          ],
+          "read": [
+            "operator",
+            "read"
+          ],
+          "short": [
+            "operator",
+            "short"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "pick"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "read",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_arg_bindings": [
+              {
+                "kind": "xcom",
+                "name": "arg0",
+                "task_id": "read"
+              }
+            ],
+            "_can_skip_downstream": true,
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "downstream_task_ids": [
+              "long",
+              "short"
+            ],
+            "is_stub": true,
+            "language": "go",
+            "task_id": "pick",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "short",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_task_module": "airflow.sdk.coordinators.executable",
+            "is_stub": true,
+            "language": "go",
+            "task_id": "long",
+            "task_type": "GoOperator",
+            "template_fields": []
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  },
+  "conformance_trigger_dag_run": {
+    "__version": 3,
+    "dag": {
+      "allowed_run_types": null,
+      "dag_dependencies": [
+        {
+          "dependency_id": "trigger_all",
+          "dependency_type": "trigger",
+          "label": "trigger_all",
+          "source": "conformance_trigger_dag_run",
+          "target": "conformance_minimal"
+        },
+        {
+          "dependency_id": "trigger_default",
+          "dependency_type": "trigger",
+          "label": "trigger_default",
+          "source": "conformance_trigger_dag_run",
+          "target": "conformance_once"
+        }
+      ],
+      "dag_id": "conformance_trigger_dag_run",
+      "deadline": null,
+      "edge_info": {},
+      "fileloc": "/bundles/app/etl",
+      "params": [],
+      "relative_fileloc": "etl",
+      "task_group": {
+        "_group_id": null,
+        "children": {
+          "trigger_all": [
+            "operator",
+            "trigger_all"
+          ],
+          "trigger_default": [
+            "operator",
+            "trigger_default"
+          ]
+        },
+        "downstream_group_ids": [],
+        "downstream_task_ids": [],
+        "group_display_name": "",
+        "prefix_group_id": true,
+        "tooltip": "",
+        "ui_color": "CornflowerBlue",
+        "ui_fgcolor": "#000",
+        "upstream_group_ids": [],
+        "upstream_task_ids": []
+      },
+      "tasks": [
+        {
+          "__type": "operator",
+          "__var": {
+            "_operator_extra_links": {
+              "Triggered DAG": "_link_TriggerDagRunLink"
+            },
+            "_task_module": "airflow.providers.standard.operators.trigger_dagrun",
+            "conf": {
+              "nested": {
+                "tags": [
+                  "a",
+                  "b"
+                ]
+              },
+              "ratio": 0.5,
+              "rows": 2
+            },
+            "logical_date": "2026-09-30 00:00:00+00:00",
+            "skip_when_already_exists": true,
+            "task_id": "trigger_all",
+            "task_type": "TriggerDagRunOperator",
+            "template_fields": [
+              "trigger_dag_id",
+              "trigger_run_id",
+              "logical_date",
+              "conf",
+              "wait_for_completion",
+              "skip_when_already_exists"
+            ],
+            "template_fields_renderers": {
+              "conf": "py"
+            },
+            "trigger_dag_id": "conformance_minimal",
+            "trigger_run_id": "triggered_by_conformance",
+            "ui_color": "#ffefeb",
+            "wait_for_completion": true
+          }
+        },
+        {
+          "__type": "operator",
+          "__var": {
+            "_operator_extra_links": {
+              "Triggered DAG": "_link_TriggerDagRunLink"
+            },
+            "_task_module": "airflow.providers.standard.operators.trigger_dagrun",
+            "logical_date": "NOTSET",
+            "skip_when_already_exists": false,
+            "task_id": "trigger_default",
+            "task_type": "TriggerDagRunOperator",
+            "template_fields": [
+              "trigger_dag_id",
+              "trigger_run_id",
+              "logical_date",
+              "conf",
+              "wait_for_completion",
+              "skip_when_already_exists"
+            ],
+            "template_fields_renderers": {
+              "conf": "py"
+            },
+            "trigger_dag_id": "conformance_once",
+            "ui_color": "#ffefeb",
+            "wait_for_completion": false
+          }
+        }
+      ],
+      "timetable": {
+        "__type": "airflow.timetables.simple.OnceTimetable",
+        "__var": {}
+      },
+      "timezone": "UTC"
+    }
+  }
+}

@@ -30,6 +30,7 @@ import { RouterLink, ActionBar } from "src/system-components";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -49,7 +50,8 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
-import { useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import { useLoopGroupIds } from "src/queries/useIsLoopGroup";
+import { formatNumber, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
@@ -64,7 +66,7 @@ type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 // Matches the identifier the bulk task-instance endpoint echoes back in its
 // ``success`` / ``errors`` lists, so the bulk response can deselect rows directly.
 const getRowKey = (ti: TaskInstanceResponse) =>
-  `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]`;
+  ti.region_id === undefined ? `${ti.dag_id}.${ti.dag_run_id}.${ti.task_id}[${ti.map_index}]` : ti.id;
 
 const {
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
@@ -89,6 +91,7 @@ const {
 
 type ColumnProps = {
   readonly dagId?: string;
+  readonly hasLoopIteration: boolean;
   readonly runId?: string;
   readonly taskId?: string;
   readonly translate: TFunction;
@@ -96,11 +99,12 @@ type ColumnProps = {
 
 const taskInstanceColumns = ({
   dagId,
+  hasLoopIteration,
   multiTeam,
   runId,
   taskId,
   translate,
-}: ColumnProps & GetColumnsParams): Array<ColumnDef<TaskInstanceResponse>> => [
+}: ColumnProps & GetColumnsParams): Array<ColumnDef<DataTableFeatures, TaskInstanceResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox rowKey={getRowKey(row.original)} />,
@@ -140,6 +144,16 @@ const taskInstanceColumns = ({
             ),
           header: translate("dagRun_one"),
         },
+        {
+          accessorKey: "dag_run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+              <TruncatedText text={original.dag_run_id} />
+            </RouterLink>
+          ),
+          enableSorting: false,
+          header: translate("dagRunId"),
+        },
       ]),
   ...(Boolean(taskId)
     ? []
@@ -168,6 +182,27 @@ const taskInstanceColumns = ({
       ),
     header: translate("mapIndex"),
   },
+  ...(hasLoopIteration
+    ? [
+        {
+          accessorKey: "loop_iteration.loop_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => original.loop_iteration?.loop_id,
+          // The endpoint has no sort for the loop a row belongs to, only for the pass within it.
+          enableSorting: false,
+          header: translate("common:filters.loop"),
+          id: "loop",
+        },
+        {
+          accessorKey: "loop_iteration",
+          cell: ({ row: { original } }: TaskInstanceRow) => original.loop_iteration?.iteration,
+          // The endpoint has no sort for the pass: a row's own region index is its map slot
+          // once a mapped task runs inside a loop, and the enclosing pass is an ancestry walk
+          // rather than a column.
+          enableSorting: false,
+          header: translate("taskInstance.iteration"),
+        },
+      ]
+    : []),
   {
     accessorKey: "state",
     cell: ({
@@ -268,8 +303,9 @@ const taskInstanceColumns = ({
 ];
 
 export const TaskInstances = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
+  const loopsHere = useLoopGroupIds(groupId ?? taskId);
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
   useDocumentTitle(dagId === undefined ? translate("common:taskInstance_other") : undefined);
@@ -279,6 +315,7 @@ export const TaskInstances = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
+      dag_run_id: false,
       dag_version: false,
       end_date: false,
       executor: false,
@@ -299,6 +336,13 @@ export const TaskInstances = () => {
   const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
+  const loopFilter = searchParams.get(SearchParamsKeys.LOOP_ID);
+  // The filter now survives navigation, so a loop carried in from elsewhere is ignored unless
+  // this page is actually inside it. A loop lives in one run, and the endpoint rejects the
+  // filter without one, so the cross-run Task page drops it rather than asking for a 400.
+  const loopInScope = loopFilter !== null && runId !== undefined && loopsHere.includes(loopFilter);
+  const iterationFilter = searchParams.get(SearchParamsKeys.ITERATION);
+  const parsedIteration = iterationFilter === null ? Number.NaN : Number.parseInt(iterationFilter, 10);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const poolNamePattern = searchParams.get(POOL_NAME_PATTERN_PARAM);
@@ -365,9 +409,14 @@ export const TaskInstances = () => {
       durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
       durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
+      // The loop is named by the author; the server turns that into the regions behind it.
+      // A pass number is meaningless without the loop that counts it, and the endpoint rejects
+      // the pair outright, so a stale iteration left in the URL is dropped rather than sent.
+      iteration: loopInScope && Number.isInteger(parsedIteration) ? parsedIteration : undefined,
       limit: pagination.pageSize,
       logicalDateGte: logicalDateGte ?? undefined,
       logicalDateLte: logicalDateLte ?? undefined,
+      loopId: loopInScope ? loopFilter : undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       ...operatorNameArg,
       orderBy,
@@ -406,6 +455,9 @@ export const TaskInstances = () => {
 
   const columns = taskInstanceColumns({
     dagId,
+    hasLoopIteration: (data?.task_instances ?? []).some(
+      (ti) => ti.loop_iteration !== null && ti.loop_iteration !== undefined,
+    ),
     multiTeam: multiTeamEnabled,
     runId,
     taskId: Boolean(groupId) ? undefined : taskId,
@@ -436,7 +488,7 @@ export const TaskInstances = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearTaskInstancesButton

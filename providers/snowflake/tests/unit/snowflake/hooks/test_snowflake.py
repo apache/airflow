@@ -1218,7 +1218,10 @@ class TestPytestSnowflakeHook:
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1"]
         hook.get_connection = mock.MagicMock()
-        hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+            authority="auth", scheme="scheme", database="mydb"
+        )
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         ti = mock.MagicMock()
 
@@ -1230,6 +1233,8 @@ class TestPytestSnowflakeHook:
                 "query_source_namespace": "scheme://auth",
                 "task_instance": ti,
                 "query_for_extra_metadata": True,
+                "default_database": "mydb",
+                "default_schema": "myschema",
             }
         )
         assert result == OperatorLineage(
@@ -1243,7 +1248,10 @@ class TestPytestSnowflakeHook:
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
-        hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+            authority="auth", scheme="scheme", database="mydb"
+        )
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         ti = mock.MagicMock()
 
@@ -1255,6 +1263,8 @@ class TestPytestSnowflakeHook:
                 "query_source_namespace": "scheme://auth",
                 "task_instance": ti,
                 "query_for_extra_metadata": True,
+                "default_database": "mydb",
+                "default_schema": "myschema",
             }
         )
         assert result is None
@@ -1265,9 +1275,10 @@ class TestPytestSnowflakeHook:
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
         hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         expected_err = (
-            "OpenLineage provider version `1.99.0` is lower than required `2.5.0`, "
+            "OpenLineage provider version `1.99.0` is lower than required `2.16.0`, "
             "skipping function `emit_openlineage_events_for_snowflake_queries` execution"
         )
         with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
@@ -1915,3 +1926,110 @@ class TestPytestSnowflakeHook:
 
         assert "token" not in conn_params
         assert "token_file_path" not in conn_params
+
+    def test_get_conn_params_pat_authenticator_passes_password_as_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["password"] = "pat-value"
+        connection_kwargs["extra"]["authenticator"] = "programmatic_access_token"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["token"] == "pat-value"
+        assert conn_params["password"] == "pat-value"
+
+    def test_get_conn_params_default_authenticator_omits_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert conn_params["password"] == "pw"
+        assert "token" not in conn_params
+
+    def test_get_conn_params_pat_authenticator_without_password_omits_token(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["password"] = ""
+        connection_kwargs["extra"]["authenticator"] = "programmatic_access_token"
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
+
+        assert "token" not in conn_params
+
+
+class TestAccountIdentifierValidation:
+    """``account`` and ``region`` are interpolated into the Snowflake REST URLs.
+
+    Both are therefore restricted to the characters a Snowflake account or region
+    identifier is actually made of, so neither can carry URL-significant punctuation
+    into the address the request is sent to.
+    """
+
+    @staticmethod
+    def _identifier(account: str, region: str = "") -> str:
+        with mock.patch.object(
+            SnowflakeHook, "_get_conn_params", return_value={"account": account, "region": region}
+        ):
+            return SnowflakeHook(snowflake_conn_id="test_conn").account_identifier
+
+    @pytest.mark.parametrize(
+        ("account", "region", "expected"),
+        [
+            ("airflow", "", "https://airflow"),
+            ("airflow", "us-east-1", "https://airflow.us-east-1"),
+            ("my_org-my_account", "", "https://my_org-my_account"),
+            ("acct.us-east-1.aws", "", "https://acct.us-east-1.aws"),
+        ],
+    )
+    def test_identifiers_are_passed_through(self, account, region, expected):
+        assert self._identifier(account, region) == expected
+
+    @pytest.mark.parametrize(
+        "account",
+        [
+            "acct.example.com/x",
+            "acct/../other",
+            "acct?x=1",
+            "acct#fragment",
+            "acct:8080",
+            "acct@elsewhere",
+            "acct\\x",
+            "acct x",
+        ],
+    )
+    def test_account_outside_identifier_charset_is_rejected(self, account):
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            self._identifier(account)
+
+    @pytest.mark.parametrize("region", ["us-east-1/x", "r?x", "r@h", "r:1"])
+    def test_region_outside_identifier_charset_is_rejected(self, region):
+        with pytest.raises(ValueError, match="Invalid Snowflake region"):
+            self._identifier("airflow", region)
+
+    def test_empty_account_is_rejected(self):
+        """An empty account produced a meaningless host rather than an error."""
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            self._identifier("")
+
+    @mock.patch("requests.post")
+    def test_oauth_token_url_rejects_account_outside_charset(self, requests_post):
+        conn_config = CONN_PARAMS_OAUTH | {"account": "acct.example.com/x"}
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+
+        with pytest.raises(ValueError, match="Invalid Snowflake account"):
+            hook.get_oauth_token(conn_config=conn_config)
+
+        requests_post.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
+    @mock.patch("requests.post")
+    def test_oauth_token_endpoint_bypasses_account_validation(self, requests_post, mock_auth):
+        """An explicit ``token_endpoint`` replaces the account-derived URL entirely."""
+        conn_config = CONN_PARAMS_OAUTH | {"account": "acct.example.com/x"}
+        requests_post.return_value.status_code = 200
+        hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
+
+        hook.get_oauth_token(conn_config=conn_config, token_endpoint="https://example.com/oauth/token")
+
+        assert requests_post.call_args.args[0] == "https://example.com/oauth/token"

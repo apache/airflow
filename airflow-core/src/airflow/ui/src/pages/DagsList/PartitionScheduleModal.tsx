@@ -30,6 +30,7 @@ import { Modal } from "src/system-components";
 
 import { AssetProgressCell } from "src/components/AssetProgressCell";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
@@ -45,7 +46,7 @@ type PartitionScheduleModalProps = {
 const getColumns = (
   translate: (key: string) => string,
   dagId: string,
-): Array<ColumnDef<PartitionedDagRunResponse>> => [
+): Array<ColumnDef<DataTableFeatures, PartitionedDagRunResponse>> => [
   {
     accessorKey: "partition_key",
     enableSorting: false,
@@ -66,6 +67,7 @@ const getColumns = (
     cell: ({ row }) => (
       <AssetProgressCell
         dagId={dagId}
+        partitionedDagRunId={row.original.id}
         partitionKey={row.original.partition_key}
         totalReceived={row.original.total_received}
         totalRequired={row.original.total_required}
@@ -89,7 +91,7 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
   } satisfies TableState;
   const { pagination } = tableState;
 
-  const { data, error, isFetching, isLoading } = usePartitionedDagRunServiceGetPartitionedDagRuns(
+  const { data, error, isLoading } = usePartitionedDagRunServiceGetPartitionedDagRuns(
     {
       dagId,
       hasCreatedDagRunId: false,
@@ -131,7 +133,6 @@ export const PartitionScheduleModal = ({ dagId, onClose, open }: PartitionSchedu
         data={partitionedDagRuns}
         hideRowCountHeading
         initialState={tableState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="partitionedDagRun"
         onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}

@@ -21,8 +21,8 @@
 //
 // Brands live in the cross-realm symbol registry, which two resolved copies of
 // this package share even though each gets its own class object. That does not
-// make another copy's objects usable — `Dag` and `DagRegistry` read private
-// state keyed to the class that declared it — so callers still guard with
+// make another copy's objects usable, since `Dag` and `Bundle` read private
+// state keyed to the class that declared it, so callers still guard with
 // `instanceof` and use these only to tell the two failures apart.
 
 const PREFIX = "airflow.ts-sdk.";

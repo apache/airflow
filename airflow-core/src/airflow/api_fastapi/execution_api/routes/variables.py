@@ -23,20 +23,26 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy import func, select
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariableKeysResponse,
     VariablePostBody,
     VariableResponse,
 )
-from airflow.api_fastapi.execution_api.security import CurrentTIToken, get_team_name_dep
+from airflow.api_fastapi.execution_api.security import (
+    CurrentExecutionToken,
+    ExecutionAPIRoute,
+    ExecutionOrDagParseToken,
+    ExecutionOrProcessorSecretsToken,
+    get_team_name_dep,
+)
 from airflow.models.variable import Variable
 
 
 async def has_variable_access(
     request: Request,
     variable_key: Annotated[str, Path(min_length=1)],
-    token=CurrentTIToken,
+    token=CurrentExecutionToken,
 ):
     """Check if the task has access to the variable."""
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
@@ -57,7 +63,7 @@ async def has_variable_access(
     return True
 
 
-router = APIRouter()
+router = APIRouter(route_class=ExecutionAPIRoute)
 
 log = logging.getLogger(__name__)
 
@@ -68,12 +74,13 @@ log = logging.getLogger(__name__)
 # it requires a variable_key path parameter that /keys does not have.
 @router.get(
     "/keys",
+    dependencies=[ExecutionOrDagParseToken],
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
     },
 )
-def get_variable_keys(
-    session: SessionDep,
+async def get_variable_keys(
+    session: AsyncSessionDep,
     team_name: Annotated[str | None, Depends(get_team_name_dep)] = None,
     prefix: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=10_000)] = 1000,
@@ -96,18 +103,19 @@ def get_variable_keys(
     if team_name is not None:
         stmt = stmt.where(Variable.team_name == team_name)
 
-    total_entries = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    keys = session.scalars(stmt.offset(offset).limit(limit)).all()
+    total_entries = await session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    keys = (await session.scalars(stmt.offset(offset).limit(limit))).all()
     return VariableKeysResponse(keys=list(keys), total_entries=total_entries)
 
 
 @router.get(
     "/{variable_key:path}",
-    dependencies=[Depends(has_variable_access)],
+    dependencies=[ExecutionOrProcessorSecretsToken, Depends(has_variable_access)],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+        status.HTTP_400_BAD_REQUEST: {"description": "A Dag processor token did not name its Dag bundle"},
+        status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the variable"},
     },
 )
 def get_variable(
@@ -131,12 +139,12 @@ def get_variable(
 
 @router.put(
     "/{variable_key:path}",
-    dependencies=[Depends(has_variable_access)],
+    dependencies=[ExecutionOrDagParseToken, Depends(has_variable_access)],
     status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+        status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the variable"},
     },
 )
 def put_variable(
@@ -151,12 +159,12 @@ def put_variable(
 
 @router.delete(
     "/{variable_key:path}",
-    dependencies=[Depends(has_variable_access)],
+    dependencies=[ExecutionOrDagParseToken, Depends(has_variable_access)],
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Variable not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+        status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the variable"},
     },
 )
 def delete_variable(

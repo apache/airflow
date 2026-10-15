@@ -291,10 +291,15 @@ ARG_DR_STATE = Arg(
     metavar=", ".join(dagrun_states),
     choices=dagrun_states,
 )
+ARG_DR_LIMIT = Arg(
+    ("--limit",),
+    type=positive_int(allow_zero=False),
+    help="Return a limited number of Dag runs, ordered by most recent run_after first",
+)
 
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
-ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
+ARG_LIMIT = Arg(("--limit",), type=positive_int(allow_zero=True), help="Return a limited number of records")
 job_states = tuple(state.value for state in JobState)
 ARG_JOB_STATE = Arg(
     ("--state",),
@@ -370,6 +375,11 @@ ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
 # teams
 ARG_TEAM_NAME = Arg(("name",), help="Team name")
+ARG_TEAMS_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Show what would be synchronized without making changes.",
+    action="store_true",
+)
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
@@ -803,6 +813,23 @@ ARG_SSL_CIPHERS = Arg(
 )
 ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
+# dag-processor-token
+ARG_DAG_PROCESSOR_TOKEN_FILE = Arg(
+    ("--token-file",),
+    help="File to write the token to; it is replaced in one step and readable only by the current user",
+    required=True,
+)
+ARG_DAG_PROCESSOR_TOKEN_VALID_FOR = Arg(
+    ("--valid-for",),
+    type=positive_int(allow_zero=False),
+    help="Token lifetime in seconds (default: [execution_api] jwt_expiration_time)",
+)
+ARG_DAG_PROCESSOR_TOKEN_ROTATE = Arg(
+    ("--rotate",),
+    action="store_true",
+    help="Keep running and replace the token at half its lifetime; the session stays the same",
+)
+
 # scheduler
 ARG_NUM_RUNS = Arg(
     ("-n", "--num-runs"),
@@ -921,9 +948,6 @@ ARG_ANONYMIZE = Arg(
     ("--anonymize",),
     help="Minimize any personal identifiable information. Use it when sharing output with others.",
     action="store_true",
-)
-ARG_FILE_IO = Arg(
-    ("--file-io",), help="Send output to file.io service and returns link.", action="store_true"
 )
 
 # config
@@ -1256,13 +1280,15 @@ DAGS_COMMANDS = (
             "dagruns with the given state. If no_backfill option is given, it will filter out all "
             "backfill dagruns for given dag id. If start_date is given, it will filter out all the "
             "dagruns that were executed before this date. If end_date is given, it will filter out "
-            "all the dagruns that were executed after this date. "
+            "all the dagruns that were executed after this date. If limit is given, it will return "
+            "only the most recent N runs after filters and sorting are applied."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dag_runs"),
         args=(
             ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_DR_STATE,
+            ARG_DR_LIMIT,
             ARG_OUTPUT,
             ARG_VERBOSE,
             ARG_START_DATE,
@@ -1686,7 +1712,7 @@ TEAMS_COMMANDS = (
         help="Sync teams",
         description=("Sync missing teams from the dag bundle config into the database.\n"),
         func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
-        args=(ARG_VERBOSE,),
+        args=(ARG_TEAMS_DRY_RUN, ARG_VERBOSE),
     ),
     ActionCommand(
         name="verify",
@@ -1694,6 +1720,13 @@ TEAMS_COMMANDS = (
         description=("Verify that the multi-team configuration is internally consistent.\n"),
         func=lazy_load_command("airflow.cli.commands.team_command.team_verify"),
         args=(ARG_VERBOSE,),
+    ),
+    ActionCommand(
+        name="inspect",
+        help="Inspect a team",
+        description="Display resources associated with a team.\n",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_inspect"),
+        args=(ARG_TEAM_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 STATE_STORE_COMMANDS = (
@@ -2283,6 +2316,23 @@ core_commands: list[CLICommand] = [
         ),
     ),
     ActionCommand(
+        name="dag-processor-token",
+        help="Write a Dag processor session token to a file",
+        description=(
+            "Issue a session token that lets a Dag processor reach the Execution API for the given "
+            "bundles, without the processor holding the signing key. Run it where the signing key is "
+            "available, and give the processor read access to the token file; its mode and group are kept when "
+            "rotation replaces it."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_processor_token_command.dag_processor_token"),
+        args=(
+            ARG_DAG_PROCESSOR_TOKEN_FILE,
+            ARG_BUNDLE_NAME,
+            ARG_DAG_PROCESSOR_TOKEN_VALID_FOR,
+            ARG_DAG_PROCESSOR_TOKEN_ROTATE,
+        ),
+    ),
+    ActionCommand(
         name="version",
         help="Show the version",
         func=lazy_load_command("airflow.cli.commands.version_command.version"),
@@ -2327,7 +2377,6 @@ core_commands: list[CLICommand] = [
         func=lazy_load_command("airflow.cli.commands.info_command.show_info"),
         args=(
             ARG_ANONYMIZE,
-            ARG_FILE_IO,
             ARG_VERBOSE,
             ARG_OUTPUT,
         ),

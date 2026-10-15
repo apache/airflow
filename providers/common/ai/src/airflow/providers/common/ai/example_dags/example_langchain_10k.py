@@ -45,7 +45,7 @@ detail while Airflow provides the orchestration.
 
 .. code-block:: text
 
-    analyst_question  (HITLEntryOperator)
+    analyst_input     (HITLEntryOperator)
         -> get_question        (@task)
         -> get_tickers         (@task)
         -> decompose_question  (@task.llm, structured output)
