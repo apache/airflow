@@ -148,9 +148,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         On Airflow >= 3.3, a set ``usage_limits`` bounds the whole task instance:
         usage from earlier attempts counts against it. See
         :ref:`howto/operator:llm` for the full set of caveats.
-    :param require_approval: If ``True``, the task defers after generating
-        output and waits for a human reviewer to approve or reject via the
-        HITL interface.  Default ``False``. Needs Airflow 3.1+.
+    :param require_approval: If ``True``, the task pauses after generating
+        output (``awaiting_input`` on Airflow 3.3+, deferred on 3.1 and 3.2)
+        and waits for a human reviewer to approve or reject via the HITL
+        interface.  Default ``False``. Needs Airflow 3.1+.
     :param approval_timeout: Maximum time to wait for a review.  When
         exceeded, ``on_approval_timeout`` decides the outcome.
     :param on_approval_timeout: What to do when ``approval_timeout`` expires
@@ -168,13 +169,16 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         Default ``False``.
     :param approval_notifiers: Notifiers called once the review is open, so a
         reviewer is told about it.  Only takes effect when a review is
-        opened.  A retry re-notifies with the regenerated
-        output while the open review keeps the original subject and body.
-        Default ``None``.
+        opened.  A retry re-notifies with the regenerated output.  On
+        Airflow 3.4+ the reopened review shows it too; on Airflow 3.1 to 3.3
+        the review keeps the original subject, body and editable output, so
+        approving it unedited returns the first attempt's output.  Default
+        ``None``.
     :param approval_assigned_users: Users allowed to answer the review, as
         ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's
         user id.  ``None`` (default) lets any user with the permission respond.
-        The list is fixed when the review is first created.  Needs Airflow 3.1+.
+        On Airflow 3.1 to 3.3 the list is fixed when the review is first
+        created; on 3.4+ a cleared or retried task replaces it.  Needs Airflow 3.1+.
     :param decision_policy: Experimental. A
         :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`
         saying how confident the model has to be for the operator to return its answer by
