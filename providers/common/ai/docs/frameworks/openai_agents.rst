@@ -129,7 +129,7 @@ Installation
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai "openai-agents>=0.20.0"
+    pip install "apache-airflow-providers-common-ai[sql]" "openai-agents>=0.20.0"
 
 The SDK requires ``openai>=3`` from 0.21.0 on. Airflow's constraints file pins ``openai``
 below 3, so with that file the command above installs ``openai-agents`` 0.20, the last
