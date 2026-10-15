@@ -1685,7 +1685,7 @@ class AssetEventResponse(BaseModel):
     source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
-    source_map_index: Annotated[int, Field(title="Source Map Index")]
+    source_map_index: Annotated[int | None, Field(title="Source Map Index")]
     source_task_instance_id: Annotated[UUID | None, Field(title="Source Task Instance Id")] = None
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]

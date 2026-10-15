@@ -41,6 +41,18 @@ class AssetAliasReferenceAssetEventDagRun(BaseModel):
     name: Annotated[str, Field(title="Name")]
 
 
+class AssetEventReceipt(BaseModel):
+    """
+    Acknowledgement of a persisted event, not of downstream scheduling.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[int, Field(title="Id")]
+    timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
+
+
 class AssetProfile(BaseModel):
     """
     Profile of an asset-like object.
@@ -219,6 +231,10 @@ class DagRunType(str, Enum):
     OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
     ASSET_MATERIALIZATION = "asset_materialization"
+
+
+class PartitionKey(RootModel[str]):
+    root: Annotated[str, Field(max_length=250, title="Partition Key")]
 
 
 class HITLUser(BaseModel):
@@ -808,6 +824,23 @@ class ConnectionTestResultBody(BaseModel):
     )
     state: ConnectionTestState
     result_message: Annotated[ResultMessage | None, Field(title="Result Message")] = None
+
+
+class EmitAssetEventBody(BaseModel):
+    """
+    Immediate emission; source identity is supplied only by trusted supervisors.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    extra: Annotated[dict[str, JsonValue | None] | None, Field(title="Extra")] = None
+    partition_key: Annotated[PartitionKey | None, Field(title="Partition Key")] = None
+    partition_date: Annotated[AwareDatetime | None, Field(title="Partition Date")] = None
+    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
+    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
 
 
 class HITLDetailRequest(BaseModel):

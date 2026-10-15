@@ -94,9 +94,11 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
+    AssetEventEmissionResult,
     AssetsByAliasResult,
     CreateHITLDetailPayload,
     DRCount,
+    EmitAssetEvent,
     ErrorResponse,
     OKResponse,
     PreviousDagRunResult,
@@ -914,6 +916,19 @@ class AssetEventOperations:
 
     def __init__(self, client: Client):
         self.client = client
+
+    def emit(
+        self,
+        msg: EmitAssetEvent,
+        *,
+        source_dag_id: str | None = None,
+        source_run_id: str | None = None,
+    ) -> AssetEventEmissionResult:
+        body = msg.model_dump(mode="json", exclude={"type", "callback_index"})
+        body.update(source_dag_id=source_dag_id, source_run_id=source_run_id)
+        # A lost acknowledgement may follow a committed event. Do not retry POST.
+        response = self.client.request("POST", "asset-events/emit", json=body, retry=False)
+        return AssetEventEmissionResult.model_validate_json(response.read())
 
     def get(
         self,

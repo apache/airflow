@@ -24,6 +24,7 @@ import type { AssetEventCollectionResponse, AssetEventResponse } from "openapi/r
 
 import { Select } from "src/system-components";
 
+import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 
 import { formatNumber } from "src/utils";
@@ -43,6 +44,7 @@ const cardDef = (assetId?: number): CardDef<AssetEventResponse> => ({
 type AssetEventProps = {
   readonly assetId?: number;
   readonly data?: AssetEventCollectionResponse;
+  readonly error?: unknown;
   readonly isLoading?: boolean;
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;
@@ -54,6 +56,7 @@ type AssetEventProps = {
 export const AssetEvents = ({
   assetId,
   data,
+  error,
   isLoading,
   setOrderBy,
   setTableUrlState,
@@ -69,6 +72,14 @@ export const AssetEvents = ({
       { label: translate("sortBy.oldestFirst"), value: "timestamp" },
     ],
   });
+
+  if (Boolean(error)) {
+    return (
+      <Box p={4} py={2} {...rest}>
+        <ErrorAlert error={error} />
+      </Box>
+    );
+  }
 
   return (
     <Box p={4} py={2} {...rest}>

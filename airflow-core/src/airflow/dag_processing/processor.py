@@ -40,11 +40,14 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
-from airflow.sdk.exceptions import TaskNotFound
+from airflow.sdk.exceptions import ErrorType, TaskNotFound
 from airflow.sdk.execution_time import supervisor
+from airflow.sdk.execution_time.asset_events import set_asset_emission_callback  # noqa: SDK001
 from airflow.sdk.execution_time.comms import (
+    AssetEventEmissionResult,
     ConnectionResult,
     DeleteVariable,
+    EmitAssetEvent,
     ErrorResponse,
     GetConnection,
     GetPreviousDagRun,
@@ -136,7 +139,8 @@ class DagFileParsingResult(BaseModel):
 
 
 ToManager = Annotated[
-    DagFileParsingResult
+    EmitAssetEvent
+    | DagFileParsingResult
     | GetConnection
     | GetVariable
     | GetVariableKeys
@@ -156,7 +160,8 @@ ToManager = Annotated[
 ]
 
 ToDagProcessor = Annotated[
-    DagFileParseRequest
+    AssetEventEmissionResult
+    | DagFileParseRequest
     | ConnectionResult
     | VariableResult
     | VariableKeysResult
@@ -335,7 +340,7 @@ def _get_dag_with_task(
 def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
-    for request in callback_requests:
+    for callback_index, request in enumerate(callback_requests):
         if isinstance(request, (TaskCallbackRequest, EmailRequest)):
             log_extra = {
                 "dag_id": request.ti.dag_id,
@@ -359,7 +364,8 @@ def _execute_callbacks(
                 if isinstance(request, TaskCallbackRequest):
                     _execute_task_callbacks(dagbag, request, log)
                 elif isinstance(request, DagCallbackRequest):
-                    _execute_dag_callbacks(dagbag, request, log)
+                    with set_asset_emission_callback(callback_index):
+                        _execute_dag_callbacks(dagbag, request, log)
                 elif isinstance(request, EmailRequest):
                     _execute_email_callbacks(dagbag, request, log)
         except Exception:
@@ -711,9 +717,24 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
 
     client: Client
+    _emission_callbacks: list[CallbackRequest] = attrs.field(factory=list, init=False)
+
+    def _handle_emit_asset_event(
+        self, msg: EmitAssetEvent, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        index = msg.callback_index
+        if index is None or not 0 <= index < len(self._emission_callbacks):
+            return ErrorResponse(error=ErrorType.PERMISSION_DENIED), {}
+        callback = self._emission_callbacks[index]
+        if not isinstance(callback, DagCallbackRequest):
+            return ErrorResponse(error=ErrorType.PERMISSION_DENIED), {}
+        return self.client.asset_events.emit(
+            msg, source_dag_id=callback.dag_id, source_run_id=callback.run_id
+        ), {}
 
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,
+        **dict([register_request_method(EmitAssetEvent, _handle_emit_asset_event)]),
     }
 
     @classmethod
@@ -762,6 +783,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_path: Path,
         bundle_name: str,
     ) -> None:
+        self._emission_callbacks = list(callbacks)
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,

@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 import time_machine
 import uuid6
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, func, insert, null, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
@@ -1957,6 +1957,7 @@ class TestDeleteDagRun:
 
 
 class TestGetDagRunAssetTriggerEvents:
+    @pytest.mark.parametrize("source_scope", ["task", "dag"])
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize(
         "partition_key",
@@ -1971,7 +1972,7 @@ class TestGetDagRunAssetTriggerEvents:
         ],
     )
     def test_should_respond_200(
-        self, partition_key, state, start_date_is_none, test_client, dag_maker, session
+        self, partition_key, state, start_date_is_none, test_client, dag_maker, session, source_scope
     ):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
@@ -1987,10 +1988,10 @@ class TestGetDagRunAssetTriggerEvents:
         asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
         event = AssetEvent(
             asset_id=asset1_id,
-            source_task_id=ti.task_id,
+            source_task_id=ti.task_id if source_scope == "task" else None,
             source_dag_id=ti.dag_id,
             source_run_id=ti.run_id,
-            source_map_index=ti.map_index,
+            source_map_index=ti.map_index if source_scope == "task" else null(),
             partition_key=partition_key,
         )
         session.add(event)
@@ -2034,10 +2035,10 @@ class TestGetDagRunAssetTriggerEvents:
                     "group": "asset",
                     "name": "ds1",
                     "source_dag_id": ti.dag_id,
-                    "source_map_index": ti.map_index,
+                    "source_map_index": ti.map_index if source_scope == "task" else None,
                     "source_task_instance_id": None,
                     "source_run_id": ti.run_id,
-                    "source_task_id": ti.task_id,
+                    "source_task_id": ti.task_id if source_scope == "task" else None,
                     "created_dagruns": [
                         {
                             "dag_id": "TEST_DAG_ID",
