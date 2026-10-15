@@ -228,7 +228,7 @@ class OpenAIHook(BaseHook):
         return AsyncOpenAI(**self._client_kwargs(conn, await get_async_extra_dejson(conn)))
 
     def _client_kwargs(self, conn: Connection, extras: dict[str, Any]) -> dict[str, Any]:
-        """Return the keyword arguments of the OpenAI client, for :meth:`get_conn` and :meth:`aget_conn`."""
+        """Build the ``OpenAI`` / ``AsyncOpenAI`` constructor kwargs from the connection."""
         openai_client_kwargs = dict(extras.get("openai_client_kwargs", {}))
         base_url = openai_client_kwargs.pop("base_url", None) or conn.host or None
         # Pop api_key for every path so it is never forwarded alongside ``workload_identity``
