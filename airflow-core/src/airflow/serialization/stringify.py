@@ -28,6 +28,8 @@ T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
 # but it has no place in the human-readable XCom value rendering.
 _DAGBAG_PREFIX_RE = re.compile(r"unusual_prefix_[a-f0-9]{40}_")
 
+_FIELD_RENDERED_MODULE = "airflow.sdk.definitions.asset."
+
 
 CLASSNAME = "__classname__"
 VERSION = "__version__"
@@ -108,9 +110,19 @@ def _stringify_airflow_object(classname: str, value: Any) -> str:
     """
     Render an Airflow class from its serialized fields, e.g. ``AssetAlias(name='x', group='asset')``.
 
-    The class is neither imported nor instantiated. For attrs and dataclass types the result reads
-    the same as the ``repr`` of the deserialized object.
+    The class is neither imported nor instantiated, so whether it is an attrs type, whose serialized
+    fields mirror its ``repr``, cannot be checked here. Fields are rendered only for the asset
+    definitions, which are attrs types. Other Airflow classes may define ``serialize()`` returning
+    internal state, such as the storage options of ``ObjectStoragePath``; they are shown by their
+    ``path`` or ``uri`` field only.
     """
+    short_name = classname.rsplit(".", 1)[-1]
+    if not classname.startswith(_FIELD_RENDERED_MODULE):
+        locator = next(
+            (value[k] for k in ("path", "uri") if isinstance(value, dict) and isinstance(value.get(k), str)),
+            None,
+        )
+        return f"{short_name}({locator!r})" if locator is not None else f"{short_name}(...)"
     if value is None:
         args = ""
     elif isinstance(value, dict):
@@ -119,7 +131,7 @@ def _stringify_airflow_object(classname: str, value: Any) -> str:
         args = ", ".join(_render_field(v) for v in value)
     else:
         args = _render_field(value)
-    return f"{classname.rsplit('.', 1)[-1]}({args})"
+    return f"{short_name}({args})"
 
 
 def stringify(o: T | None) -> object:
@@ -129,7 +141,8 @@ def stringify(o: T | None) -> object:
     Matches the behavior of deserialize(full=False), except for Airflow classes:
     - Returns objects as-is for primitives, collections, plain dicts
     - Only returns string when encountering a serialized object (__classname__)
-    - Airflow classes are rendered like their ``repr``, e.g. ``AssetAlias(name='x', group='asset')``
+    - Asset definitions are rendered like their ``repr``, e.g. ``AssetAlias(name='x', group='asset')``
+    - Other Airflow classes are rendered by their path or URI only, e.g. ``ObjectStoragePath('s3://b/k')``
     """
     if o is None:
         return o

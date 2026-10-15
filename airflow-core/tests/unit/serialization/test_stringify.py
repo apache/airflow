@@ -283,7 +283,10 @@ class TestStringify:
         ],
     )
     def test_stringify_airflow_class_data_shapes(self, data, expected):
-        assert stringify({CLASSNAME: "airflow.mod.Thing", VERSION: 0, "__data__": data}) == expected
+        assert (
+            stringify({CLASSNAME: "airflow.sdk.definitions.asset.Thing", VERSION: 0, "__data__": data})
+            == expected
+        )
 
     @pytest.mark.parametrize(
         "field",
@@ -300,13 +303,38 @@ class TestStringify:
         ],
     )
     def test_stringify_airflow_class_collection_fields_read_like_repr(self, field):
-        e = {CLASSNAME: "airflow.mod.Thing", VERSION: 0, "__data__": {"f": serialize(field)}}
+        e = {
+            CLASSNAME: "airflow.sdk.definitions.asset.Thing",
+            VERSION: 0,
+            "__data__": {"f": serialize(field)},
+        }
         assert stringify(e) == repr(Thing(field))
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(
+                {"path": "s3://conn@bucket/key", "conn_id": "conn", "kwargs": {"key": "k", "token": "t"}},
+                "ObjectStoragePath('s3://conn@bucket/key')",
+                id="path",
+            ),
+            pytest.param(
+                {"uri": "s3://b", "options": {"token": "t"}}, "ObjectStoragePath('s3://b')", id="uri"
+            ),
+            pytest.param(
+                {"conn_id": "conn", "kwargs": {"anon": False}}, "ObjectStoragePath(...)", id="no-locator"
+            ),
+            pytest.param("s3://b", "ObjectStoragePath(...)", id="non-dict"),
+        ],
+    )
+    def test_stringify_airflow_class_with_custom_serialization_is_compact(self, data, expected):
+        e = {CLASSNAME: "airflow.sdk.io.path.ObjectStoragePath", VERSION: 1, "__data__": data}
+        assert stringify(e) == expected
 
     @mock.patch("importlib.import_module", autospec=True)
     def test_stringify_airflow_class_does_not_import_nested_class(self, import_module):
         e = {
-            CLASSNAME: "airflow.mod.Outer",
+            CLASSNAME: "airflow.sdk.definitions.asset.Outer",
             VERSION: 1,
             "__data__": {"inner": {CLASSNAME: "other.mod.Inner", VERSION: 2, "__data__": {"uri": "s3://b"}}},
         }
