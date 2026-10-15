@@ -414,12 +414,18 @@ class TestSQLParser:
 
 
 class TestGetOpenlineageFacetsWithSql:
-    def test_returns_none_when_no_database_info(self):
-        hook = MagicMock()
-        hook.get_openlineage_database_info.side_effect = AttributeError
+    def test_returns_none_when_hook_has_no_database_info_method(self):
+        hook = MagicMock(spec=["get_connection"])
 
         result = get_openlineage_facets_with_sql(hook=hook, sql="SELECT 1", conn_id="conn", database=None)
         assert result is None
+
+    def test_attribute_error_from_database_info_is_not_swallowed(self):
+        hook = MagicMock()
+        hook.get_openlineage_database_info.side_effect = AttributeError("broken import")
+
+        with pytest.raises(AttributeError, match="broken import"):
+            get_openlineage_facets_with_sql(hook=hook, sql="SELECT 1", conn_id="conn", database=None)
 
     def test_returns_none_when_no_dialect(self):
         hook = MagicMock()
