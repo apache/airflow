@@ -71,7 +71,7 @@ export const buildDagRunOption = (dagRun: DAGRunResponse): DagRunSearchOption =>
   return option;
 };
 
-export const buildMapIndexOption = (taskInstance: TaskInstanceResponse): MapIndexSearchOption => {
+const buildMapIndexOption = (taskInstance: TaskInstanceResponse): MapIndexSearchOption => {
   const cached = mapIndexOptions.get(taskInstance);
 
   if (cached !== undefined) {
@@ -90,4 +90,32 @@ export const buildMapIndexOption = (taskInstance: TaskInstanceResponse): MapInde
   mapIndexOptions.set(taskInstance, option);
 
   return option;
+};
+
+/**
+ * One row per map index, whatever iteration it came from.
+ *
+ * A looped task is expanded once per pass, so the same indexes come back several times over. Which
+ * pass is the iteration level's business, not this one's; all this level needs to offer is each
+ * index once. The row kept for an index is the one from the pass on screen where there is one, so
+ * moving between indexes stays in the pass the user is looking at.
+ */
+export const buildMapIndexOptions = (
+  taskInstances: Array<TaskInstanceResponse>,
+  currentRegionId: string | undefined,
+): Array<MapIndexSearchOption> => {
+  const perIndex = new Map<number, TaskInstanceResponse>();
+
+  for (const taskInstance of taskInstances) {
+    const kept = perIndex.get(taskInstance.map_index);
+
+    if (
+      kept === undefined ||
+      (kept.region_id !== currentRegionId && taskInstance.region_id === currentRegionId)
+    ) {
+      perIndex.set(taskInstance.map_index, taskInstance);
+    }
+  }
+
+  return [...perIndex.values()].map(buildMapIndexOption);
 };

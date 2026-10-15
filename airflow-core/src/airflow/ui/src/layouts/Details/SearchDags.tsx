@@ -124,7 +124,7 @@ export const SearchDags = ({
   return (
     <SearchSelect
       controlEnd={
-        <AdvancedSearchToggle enabled={matchAnywhere} onToggle={onToggleMatchAnywhere} size="2xs" />
+        <AdvancedSearchToggle enabled={matchAnywhere} onToggle={onToggleMatchAnywhere} variant="addon" />
       }
       formatOptionLabel={formatOptionLabel}
       inputValue={text}

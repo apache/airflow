@@ -83,10 +83,10 @@ const renderSearch = (initialEntry: string, route: string) =>
           <Route
             element={
               <SearchMapIndexes
+                currentRegionId={REGION_ID}
                 dagId="my_dag"
                 instances={INSTANCES}
                 onClose={onClose}
-                regionId={REGION_ID}
                 runId="run_1"
                 taskId="task_1"
               />
@@ -145,8 +145,6 @@ describe("SearchMapIndexes", () => {
         expect.objectContaining({
           dagId: "my_dag",
           dagRunId: "run_1",
-          // Scoped, or a looped task's other iterations come back as duplicate map indexes.
-          regionId: REGION_ID,
           renderedMapIndexPattern: "alpha",
           taskId: "task_1",
         }),

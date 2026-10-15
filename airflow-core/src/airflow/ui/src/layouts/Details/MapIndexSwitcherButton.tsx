@@ -30,7 +30,7 @@ import { useAutoRefresh } from "src/utils";
 import type { MapIndexSearchOption } from "src/utils/option";
 
 import { SearchMapIndexes } from "./SearchMapIndexes";
-import { BY_MAP_INDEX, SEARCH_LIMIT, buildMapIndexOption } from "./searchOptions";
+import { BY_MAP_INDEX, SEARCH_LIMIT, buildMapIndexOptions } from "./searchOptions";
 
 const NO_INSTANCES: Array<MapIndexSearchOption> = [];
 
@@ -49,18 +49,17 @@ type Props = {
 export const MapIndexSwitcherButton = ({ children, dagId, shape, to }: Props) => {
   const { t: translate } = useTranslation();
   const { runId = "", taskId = "" } = useParams();
-  // A task's expansions share one region, and a looped task has one region per iteration, so the
-  // region alone is what bounds this list to the set of instances the page is actually among.
-  // Pinning `region_index` too would narrow it to the single instance already on screen.
+  // Not a filter: the iteration level decides which pass, so every index is offered whatever pass
+  // it came from. This only says which pass to keep a row from when an index spans several.
   const { regionId } = useTaskInstanceCoordinates();
   const [open, setOpen] = useState(false);
   const refetchInterval = useAutoRefresh({ dagId });
   const { data, refetch } = useTaskInstanceServiceGetMappedTaskInstances(
-    { dagId, dagRunId: runId, limit: SEARCH_LIMIT, orderBy: BY_MAP_INDEX, regionId, taskId },
+    { dagId, dagRunId: runId, limit: SEARCH_LIMIT, orderBy: BY_MAP_INDEX, taskId },
     undefined,
     { refetchInterval: open && refetchInterval },
   );
-  const instances = data === undefined ? NO_INSTANCES : data.task_instances.map(buildMapIndexOption);
+  const instances = data === undefined ? NO_INSTANCES : buildMapIndexOptions(data.task_instances, regionId);
 
   const onOpenChange = (next: boolean) => {
     setOpen(next);
@@ -79,10 +78,10 @@ export const MapIndexSwitcherButton = ({ children, dagId, shape, to }: Props) =>
       open={open}
       search={
         <SearchMapIndexes
+          currentRegionId={regionId}
           dagId={dagId}
           instances={instances}
           onClose={() => setOpen(false)}
-          regionId={regionId}
           runId={runId}
           taskId={taskId}
         />

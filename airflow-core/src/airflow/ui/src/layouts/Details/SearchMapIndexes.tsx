@@ -35,7 +35,7 @@ import { StateBadge } from "src/components/StateBadge";
 import { buildTaskInstanceUrl } from "src/utils/links";
 import type { MapIndexSearchOption } from "src/utils/option";
 
-import { BY_MAP_INDEX, SEARCH_LIMIT, buildMapIndexOption } from "./searchOptions";
+import { BY_MAP_INDEX, SEARCH_LIMIT, buildMapIndexOptions } from "./searchOptions";
 
 const formatOptionLabel = (option: MapIndexSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>
@@ -45,19 +45,19 @@ const formatOptionLabel = (option: MapIndexSearchOption) => (
 );
 
 export const SearchMapIndexes = ({
+  currentRegionId,
   dagId,
   instances,
   onClose,
-  regionId,
   runId,
   taskId,
 }: {
+  /** The pass on screen, used to pick which row to keep for an index that spans several. */
+  readonly currentRegionId: string | undefined;
   readonly dagId: string;
   /** Already loaded by the breadcrumb level, so opening the panel shows them straight away. */
   readonly instances: Array<MapIndexSearchOption>;
   readonly onClose: () => void;
-  /** Bounds the search to the same expansion set the listed instances come from. */
-  readonly regionId: string | undefined;
   readonly runId: string;
   readonly taskId: string;
 }) => {
@@ -101,7 +101,6 @@ export const SearchMapIndexes = ({
             dagRunId: runId,
             limit: SEARCH_LIMIT,
             orderBy: BY_MAP_INDEX,
-            regionId,
             renderedMapIndexPattern: value,
             taskId,
           }),
@@ -110,14 +109,13 @@ export const SearchMapIndexes = ({
           dagRunId: runId,
           limit: SEARCH_LIMIT,
           orderBy: BY_MAP_INDEX,
-          regionId,
           renderedMapIndexPattern: value,
           taskId,
         }),
         staleTime: 0,
       })
       .then((matched: TaskInstanceCollectionResponse) =>
-        setFound(matched.task_instances.map(buildMapIndexOption)),
+        setFound(buildMapIndexOptions(matched.task_instances, currentRegionId)),
       );
   }, 300);
 

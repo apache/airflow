@@ -80,6 +80,9 @@ export const SearchSelect = <Option,>({
   // The popover is the card. Drop the floating menu's own positioning and chrome so the results
   // flow inside it directly under the input, instead of reading as a second card.
   const chakraStyles: ChakraStylesConfig<Option, false, GroupBase<Option>> = {
+    // Whatever the caller puts at the end of the control is an addon: it fills the control's
+    // height and reaches its edge, so the control itself gives up its end padding.
+    control: (provided) => ({ ...provided, overflow: "hidden", paddingInlineEnd: 0 }),
     menu: () => ({ marginTop: 2, width: "100%" }),
     menuList: (provided) => ({
       ...provided,
