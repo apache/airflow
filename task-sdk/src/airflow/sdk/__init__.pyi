@@ -110,7 +110,7 @@ from airflow.sdk.definitions.retry_policy import (
     RetryPolicy as RetryPolicy,
     RetryRule as RetryRule,
 )
-from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup as MappedTaskGroup, TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
     AssetAndTimeSchedule,
@@ -184,6 +184,7 @@ __all__ = [
     "IdentityMapper",
     "Label",
     "LoopDecision",
+    "MappedTaskGroup",
     "Metadata",
     "MinimumCount",
     "MonthWindow",
