@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
 from sqlalchemy import delete, or_, select, tuple_
@@ -31,6 +32,8 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import with_row_locks
+
+log = logging.getLogger(__name__)
 
 
 def cleanup_processor_metadata(batch_size: int = 500) -> None:
@@ -47,6 +50,11 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
             .limit(batch_size)
         )
         for dag in session.scalars(with_row_locks(query, session=session, skip_locked=True)):
+            log.info(
+                "Deactivating Dag %s. Its bundle %s is no longer active or is NULL.",
+                dag.dag_id,
+                dag.bundle_name,
+            )
             dag.is_stale = True
     with create_session() as session:
         warning_query = (

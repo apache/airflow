@@ -30,7 +30,7 @@ import zipfile
 from collections.abc import Callable, Iterable
 from socket import socket, socketpair
 from typing import TYPE_CHECKING, Any, BinaryIO
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import ANY, MagicMock, PropertyMock, patch
 
 import httpx2
 import jwt
@@ -2498,6 +2498,15 @@ class TestDagFileProcessorProcess:
         send_msg.assert_called_once_with(
             proc, comms.PrevSuccessfulDagRunResult(), request_id=42, error=None, exclude_unset=True
         )
+
+    @patch.object(supervisor.WatchedSubprocess, "_handle_request", autospec=True)
+    def test_default_mode_requests_do_not_load_the_api_client(self, handle_request, proc, monkeypatch):
+        monkeypatch.setitem(sys.modules, "airflow.dag_processing.api_client", None)
+        msg = GetVariable(key="my_key")
+
+        proc._handle_request(msg, structlog.get_logger(), req_id=42)
+
+        handle_request.assert_called_once_with(proc, msg, ANY, 42)
 
     @patch.object(DagFileProcessorProcess, "send_msg", autospec=True)
     def test_api_client_requests_are_made_for_the_files_bundle(self, send_msg, proc, tmp_path):

@@ -2425,6 +2425,49 @@ class TestDagFileProcessorManager:
         assert list(manager._files_awaiting_source) == [blocked]
         assert manager._processors[pinned].parse_source.bundle_version == "v1"
 
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_callbacks_run_while_their_bundle_has_no_parse_source(self, create):
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="unrefreshable", rel_path=Path("dag.py"))
+        manager._callback_to_execute[file] = [mock.create_autospec(DagCallbackRequest, instance=True)]
+        manager._file_queue[file] = None
+        create.return_value = self.mock_processor()[0]
+
+        manager._start_new_processes()
+
+        assert manager._processors[file].parse_source == DagParseSource()
+        assert not manager._files_awaiting_source
+
+    def test_requested_work_is_readmitted_ahead_of_queued_files(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        requested = DagFileInfo(bundle_name="testing", rel_path=Path("requested.py"))
+        parked = DagFileInfo(bundle_name="testing", rel_path=Path("parked.py"))
+        queued = DagFileInfo(bundle_name="other", rel_path=Path("queued.py"))
+        _claim_priority_parse(manager, requested)
+        manager._files_awaiting_source = dict.fromkeys([parked, requested])
+        manager._file_queue[queued] = None
+        manager._bundle_parse_sources["testing"] = DagParseSource()
+
+        manager._readmit_files_with_source()
+
+        assert list(manager._file_queue) == [requested, queued, parked]
+
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    def test_requested_file_still_parsing_stays_ahead_of_the_queue(self, create):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._parallelism = 2
+        requested, other, later = _get_file_infos(["requested.py", "other.py", "later.py"])
+        _claim_priority_parse(manager, requested)
+        manager._bundle_parse_sources["testing"] = DagParseSource()
+        manager._processors[requested] = self.mock_processor()[0]
+        manager._file_queue = OrderedDict.fromkeys([requested, other, later])
+        create.return_value = self.mock_processor()[0]
+
+        manager._start_new_processes()
+
+        assert other in manager._processors
+        assert list(manager._file_queue) == [requested, later]
+
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
     def test_files_awaiting_a_bundle_source_do_not_stop_other_bundles_refilling(self):
         manager = DagFileProcessorManager(max_runs=1)
@@ -4306,17 +4349,6 @@ class TestDagFileProcessorManager:
                 manager.run()
             sync_mock.assert_not_called()
             assert [b.name for b in manager._dag_bundles] == ["testing"]
-
-    def test_run_parsing_loop_leaves_warning_cleanup_to_scheduler(
-        self, tmp_path, configure_testing_dag_bundle
-    ):
-        with configure_testing_dag_bundle(tmp_path):
-            manager = DagFileProcessorManager(max_runs=1)
-            with mock.patch(
-                "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-            ) as direct_mock:
-                manager.run()
-            direct_mock.assert_not_called()
 
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):
@@ -6374,7 +6406,7 @@ def test_oversized_inventory_byte_boundary_preserves_auth_failures(auth_status):
         manager._publish_bundle_inventory("testing", {})
 
 
-@pytest.mark.parametrize("status_code", [409, 503])
+@pytest.mark.parametrize("status_code", [403, 404, 409, 503])
 def test_requested_work_ack_retains_only_retryable_failures(status_code):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client)

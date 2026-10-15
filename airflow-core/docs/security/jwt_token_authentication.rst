@@ -471,8 +471,10 @@ Dag File Processor and Triggerer
 ---------------------------------
 
 The **Dag File Processor** and **Triggerer** are internal Airflow components that also
-interact with the Execution API, but they do so via an **in-process** transport
-(``InProcessExecutionAPI``) rather than over the network. This in-process API:
+interact with the Execution API, but by default they do so via an **in-process** transport
+(``InProcessExecutionAPI``) rather than over the network. A Dag File Processor can instead use
+authenticated HTTP without database access; see `Dag processor HTTP client credentials`_. This
+in-process API:
 
 - Runs the Execution API application directly within the same process, using an ASGI/WSGI
   bridge.
@@ -617,9 +619,10 @@ other sources still undergo deletion reconciliation. Each inventory carries the 
 observed server revision; conflicting refreshes must
 rediscover before retrying. Imports carry the accepted revision, so an older snapshot cannot
 publish after a changed inventory. Only accepted publications establish missing Dags within
-a file; rejected requests and incomplete discovery do not establish absence. The scheduler
-performs bounded cleanup of inactive or unassigned bundles, stale warnings, and expired
-processor Jobs in both modes.
+a file; rejected requests and incomplete discovery do not establish absence. Every
+``[scheduler] parsing_cleanup_interval``, the scheduler marks the Dags of inactive or unassigned
+bundles stale, removes stale warnings, and ends expired processor Jobs, in bounded batches and in
+both modes.
 
 Callback and priority requests remain stored while claimed. A lost claim response or
 acknowledgment can be retried, and requests from a retired Job become available to another
@@ -635,7 +638,9 @@ requested refresh can also acknowledge a request if it confirms the definition i
 
 The manager retains a bounded queue of pending publications. Each loop it sends queued
 publications and acknowledgments for up to a second, stopping at the first failure that may
-be transient. Retries keep the same payload and identity while
+be transient. Connecting is limited to a second, but a publication or inventory waits up to
+``[workers] execution_api_timeout`` for its response, so a slow write can still be
+acknowledged. Retries keep the same payload and identity while
 heartbeats and subprocess supervision continue between attempts. Pending results
 count against parsing capacity. Failed publication attempts throttle reparsing but
 do not advance the timestamps used to detect stale Dags.
@@ -654,11 +659,14 @@ the manager loop; optional early token renewal caps each HTTP timeout phase at o
 
 Heartbeats use ``[scheduler] job_heartbeat_sec`` and are also sent between bundle
 operations and before each callback's bundle is prepared. Transient API failures are
-retried on the next heartbeat interval. After ``[dag_processor] job_heartbeat_timeout``
-without a recorded heartbeat, the scheduler ends the Job and releases its claimed work, and
-a processor that could not reach the API stops. Set the timeout above the longest single
+retried on the next heartbeat interval. Once a Job has gone
+``[dag_processor] job_heartbeat_timeout`` without a recorded heartbeat, the scheduler's next cleanup (every
+``[scheduler] parsing_cleanup_interval``) ends it and releases its claimed work, and a processor
+that could not reach the API for that long stops. Set the timeout above the longest single
 bundle initialization, refresh, or listing, and set it for the scheduler as well as the
-processor: the scheduler's value decides when the Job ends. Likewise, the API server reads
+processor: the scheduler's value decides when the Job ends. The processor does not update its
+local health file during one of those operations either, so ``health_check_threshold`` and the
+liveness probe's failure budget must also cover it. Likewise, the API server reads
 ``[dag_processor] health_check_threshold`` to decide whether a session's previous Job is still
 alive, so keep it the same for the API server and the processor. A restart request, replaced Job, or retired
 registration also stops parsing and terminates its children. The deployment's process
@@ -680,8 +688,9 @@ probe. The chart then replaces processor pods with the ``Recreate`` strategy, be
 that share a session token cannot run their Jobs side by side, and rejects more than one
 replica for the same reason. Disable the processor's migration-wait init container, provision the catalog
 separately, and remove server credentials from the pod. The Compose example selects the
-local probe when ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` is set. Neither
-example removes shared credentials or adds database-denying network policies automatically.
+local probe when ``AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE`` is set. Neither the
+main chart release nor the quick-start Compose file removes shared credentials or adds
+database-denying network policies automatically; the isolated examples below do.
 Set ``CONNECTION_CHECK_MAX_COUNT=0`` in the processor container too: the standard image
 entrypoint otherwise checks the database before starting the command. Do not set
 ``_AIRFLOW_DB_MIGRATE`` or ``_AIRFLOW_WWW_USER_CREATE`` in that container.

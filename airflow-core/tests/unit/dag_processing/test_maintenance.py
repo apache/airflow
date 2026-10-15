@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
 
 import pytest
 from sqlalchemy import select
@@ -47,7 +48,8 @@ def clean_db():
     clear_db_dag_bundles()
 
 
-def test_cleanup_is_bounded_and_retains_live_bundles(session, time_machine):
+@mock.patch("airflow.dag_processing.maintenance.log", autospec=True)
+def test_cleanup_is_bounded_and_retains_live_bundles(log, session, time_machine):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     inactive = DagBundleModel(name="removed")
     inactive.active = False
@@ -61,6 +63,10 @@ def test_cleanup_is_bounded_and_retains_live_bundles(session, time_machine):
     cleanup_processor_metadata(batch_size=2)
     session.expire_all()
     assert len(session.scalars(select(DagModel).where(DagModel.is_stale.is_(True))).all()) == 2
+    assert [call.args[1:] for call in log.info.call_args_list] == [
+        ("removed_0", "removed"),
+        ("removed_1", "removed"),
+    ]
     cleanup_processor_metadata(batch_size=2)
     session.expire_all()
     assert len(session.scalars(select(DagModel).where(DagModel.is_stale.is_(True))).all()) == 3

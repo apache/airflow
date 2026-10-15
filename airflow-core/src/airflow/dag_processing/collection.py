@@ -138,7 +138,11 @@ def validate_dag_bundle_ownership(dags: Iterable[DagModel], bundle_name: str, *,
                 select(DagVersion.id).where(DagVersion.dag_id == dag.dag_id).limit(1)
             )
             if previous_bundle is not None and not previous_bundle.active and has_version is None:
-                continue
+                # Adopting a row also adopts its run history, which must not cross a team boundary.
+                if not conf.getboolean("core", "multi_team") or previous_bundle.team_name == (
+                    DagBundleModel.get_team_name(bundle_name, session=session)
+                ):
+                    continue
         raise DagBundleOwnershipError(f"Dag {dag.dag_id!r} belongs to bundle {dag.bundle_name!r}")
 
 

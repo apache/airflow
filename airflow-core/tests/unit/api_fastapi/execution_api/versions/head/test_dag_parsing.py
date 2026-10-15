@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
@@ -26,7 +27,7 @@ from unittest import mock
 from uuid import UUID
 
 import pytest
-from fastapi import Request
+from fastapi import APIRouter, FastAPI, Request
 from sqlalchemy import delete, event, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -35,7 +36,7 @@ from uuid6 import uuid7
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorClaims, DagProcessorToken
-from airflow.api_fastapi.execution_api.routes.dag_parsing import get_bundles
+from airflow.api_fastapi.execution_api.routes.dag_parsing import DagParsingRoute, get_bundles
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.local import LocalDagBundle
@@ -367,6 +368,66 @@ def test_rejects_a_body_over_the_limit_before_reading_it(client, session, job, b
     assert session.scalar(select(DagParseCheckpoint)) is None
 
 
+def test_client_disconnect_during_the_body_is_a_bad_request():
+    app = FastAPI()
+    router = APIRouter(route_class=DagParsingRoute)
+
+    @router.post("/echo")
+    def echo(body: dict[str, str]) -> dict[str, str]:
+        return body
+
+    app.include_router(router)
+    messages = iter(
+        [{"type": "http.request", "body": b'{"key":', "more_body": True}, {"type": "http.disconnect"}]
+    )
+    sent = []
+
+    async def receive():
+        return next(messages)
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/echo",
+        "root_path": "",
+        "query_string": b"",
+        "headers": [(b"content-type", b"application/json")],
+        "http_version": "1.1",
+        "scheme": "http",
+        "server": ("testserver", 80),
+        "client": ("testclient", 1),
+    }
+
+    asyncio.run(app(scope, receive, send))
+
+    assert sent[0]["status"] == 400
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("dag_id", "d" * 251),
+        ("dag_id", "nested/dag"),
+        ("tags", ["t" * 101]),
+        ("fileloc", "/" + "f" * 2000),
+    ],
+    ids=["long_dag_id", "dag_id_with_slash", "long_tag", "long_fileloc"],
+)
+def test_rejects_dag_metadata_the_database_cannot_hold(client, session, job, body, field, value):
+    body["serialized_dags"][0]["dag"][field] = value
+    if field == "dag_id":
+        body["source_codes"] = {value: body["source_codes"].pop("published")}
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 422, response.json()
+    assert session.scalar(select(DagModel)) is None
+    assert session.scalar(select(DagParseCheckpoint)) is None
+
+
 def test_rejects_non_json_version_metadata(client, session, job, body):
     body["version_data"] = {"invalid": float("nan")}
     response = client.post(f"/execution/jobs/{job.id}/parse-results", content=json.dumps(body))
@@ -510,6 +571,7 @@ def test_publication_locks_do_not_block_foreign_key_inserts(client, session, job
     event.listen(settings.engine, "before_cursor_execute", capture)
     try:
         assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
+        inventory_start = len(statements)
         inventory = {
             "attempt_id": str(uuid7()),
             "dispatch_sequence": 2,
@@ -526,6 +588,13 @@ def test_publication_locks_do_not_block_foreign_key_inserts(client, session, job
     assert any("FROM dag " in lock and "FOR NO KEY UPDATE" in lock for lock in locks)
     assert any("FROM dag_bundle " in lock and "FOR NO KEY UPDATE" in lock for lock in locks)
     assert all("FROM job " in lock for lock in locks if "FOR UPDATE" in lock)
+    inventory_dag_locks = [
+        statement
+        for statement in statements[inventory_start:]
+        if " FOR " in statement and "FROM dag " in statement
+    ]
+    assert inventory_dag_locks
+    assert all("dag.dag_id IN" in lock for lock in inventory_dag_locks)
 
 
 @conf_vars({("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"})
@@ -679,6 +748,35 @@ def test_recovers_only_orphaned_legacy_dags(client, session, job, body, ineligib
     if ineligible is None:
         assert dag.relative_fileloc == "a.py"
         assert not dag.is_stale
+
+
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize("same_team", [True, False])
+def test_legacy_dag_recovery_stays_within_a_team(client, session, job, body, same_team):
+    publishing_team, other_team = Team(name=f"team_{uuid7().hex}"), Team(name=f"team_{uuid7().hex}")
+    session.get(DagBundleModel, "bundle").teams = [publishing_team]
+    previous_bundle = session.get(DagBundleModel, "other")
+    previous_bundle.active = False
+    previous_bundle.teams = [publishing_team if same_team else other_team]
+    session.add(
+        DagModel(
+            dag_id="published", bundle_name="other", relative_fileloc=None, fileloc="/old/a.py", is_stale=True
+        )
+    )
+    session.commit()
+    try:
+        response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+        assert response.status_code == (200 if same_team else 409), response.json()
+        session.expire_all()
+        assert session.get(DagModel, "published").bundle_name == ("bundle" if same_team else "other")
+    finally:
+        session.rollback()
+        for name in ("bundle", "other"):
+            session.get(DagBundleModel, name).teams = []
+        session.flush()
+        session.execute(delete(Team).where(Team.name.in_([publishing_team.name, other_team.name])))
+        session.commit()
 
 
 @conf_vars({("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"})

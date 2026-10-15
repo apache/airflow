@@ -25,7 +25,9 @@ from pydantic import Field, model_validator
 
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody
+from airflow.models.dag import TAG_MAX_LEN
 from airflow.models.dagwarning import DagWarningTypeValue
+from airflow.utils.helpers import validate_key
 
 MAX_PUBLICATION_BYTES = 16 * 1024 * 1024
 """Largest request body the Dag parsing endpoints read, measured as the bytes sent."""
@@ -68,6 +70,13 @@ class DagParseResultBody(DagParseTokenBody):
             dag = document.get("dag")
             if not isinstance(dag, dict) or not isinstance(dag.get("dag_id"), str):
                 raise ValueError("A serialized Dag must contain a dag_id")
+            # The processor runs Dag code that can bypass the SDK's checks; these columns are bounded.
+            validate_key(dag["dag_id"])
+            tags = dag.get("tags") or []
+            if not isinstance(tags, list) or any(
+                not isinstance(tag, str) or len(tag) > TAG_MAX_LEN for tag in tags
+            ):
+                raise ValueError(f"Dag tags must be strings of at most {TAG_MAX_LEN} characters")
             if dag["dag_id"] in dag_ids:
                 raise ValueError("Duplicate Dag id in publication")
             dag_ids.add(dag["dag_id"])
@@ -75,8 +84,9 @@ class DagParseResultBody(DagParseTokenBody):
             if not isinstance(relative_fileloc, str):
                 raise ValueError("Every definition must have a bundle-relative location")
             paths.append(relative_fileloc)
-            if not isinstance(dag.get("fileloc"), str):
-                raise ValueError("A serialized Dag must contain a fileloc")
+            fileloc = dag.get("fileloc")
+            if not isinstance(fileloc, str) or len(fileloc) > 2000:
+                raise ValueError("A serialized Dag must contain a fileloc of at most 2000 characters")
         for path in paths:
             if len(path) > 2000:
                 raise ValueError("Definition location exceeds 2000 characters")

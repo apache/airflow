@@ -21,6 +21,7 @@ import functools
 import importlib
 import logging
 import os
+import sys
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -695,13 +696,15 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
                 ),
             )
             return
-        # Lazy: the HTTP client pulls in the Execution API versions, which parse processes never need.
-        from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody
-        from airflow.dag_processing.api_client import DagParseContext, DagProcessorAPIClient
-
-        if not isinstance(self.client, DagProcessorAPIClient):
+        # The HTTP client pulls in the Execution API versions. A DagProcessorAPIClient can only exist once
+        # its module is loaded, so the database-backed mode never has to import it.
+        api_client_module = sys.modules.get("airflow.dag_processing.api_client")
+        if api_client_module is None or not isinstance(self.client, api_client_module.DagProcessorAPIClient):
             super()._handle_request(msg, log, req_id)
             return
+        from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody
+        from airflow.dag_processing.api_client import DagParseContext
+
         if self._api_parse_context is None:
             self._api_parse_context = DagParseContext(
                 request=DagParseTokenBody(

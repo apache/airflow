@@ -27,6 +27,7 @@ from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Request, Security, status
 from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import selectinload
+from starlette.requests import ClientDisconnect
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
@@ -90,10 +91,16 @@ class DagParsingRoute(ExecutionAPIRoute):
             if declared.isdigit() and int(declared) > MAX_PUBLICATION_BYTES:
                 raise too_large
             body = bytearray()
-            async for chunk in request.stream():
-                body += chunk
-                if len(body) > MAX_PUBLICATION_BYTES:
-                    raise too_large
+            try:
+                async for chunk in request.stream():
+                    body += chunk
+                    if len(body) > MAX_PUBLICATION_BYTES:
+                        raise too_large
+            except ClientDisconnect as error:
+                # FastAPI reports a body it could not read as a bad request rather than a server error.
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST, detail="The client disconnected while sending the body"
+                ) from error
             replayed = False
 
             async def receive() -> Message:
@@ -339,20 +346,39 @@ def publish_inventory(
     bundle.last_refreshed = timezone.utcnow()
     present = set(body.files)
     failed_sources = set(body.failed_sources)
+
+    def is_removed(relative_fileloc: str | None) -> bool:
+        return (
+            relative_fileloc is not None
+            and relative_fileloc not in present
+            and not is_source_discovery_failed(relative_fileloc, failed_sources)
+        )
+
+    # Lock only the Dags being deactivated, so the rest of the bundle stays available to the scheduler.
+    removed = sorted(
+        dag_id
+        for dag_id, relative_fileloc in session.execute(
+            select(DagModel.dag_id, DagModel.relative_fileloc).where(
+                DagModel.bundle_name == bundle_name, DagModel.is_stale.is_(False)
+            )
+        )
+        if is_removed(relative_fileloc)
+    )
     deactivated = False
-    for dag in session.scalars(
-        select(DagModel)
-        .where(DagModel.bundle_name == bundle_name, DagModel.is_stale.is_(False))
-        .order_by(DagModel.dag_id)
-        .with_for_update(key_share=True)
-    ):
-        if (
-            dag.relative_fileloc is not None
-            and dag.relative_fileloc not in present
-            and not is_source_discovery_failed(dag.relative_fileloc, failed_sources)
+    for start in range(0, len(removed), 500):
+        for dag in session.scalars(
+            select(DagModel)
+            .where(
+                DagModel.dag_id.in_(removed[start : start + 500]),
+                DagModel.bundle_name == bundle_name,
+                DagModel.is_stale.is_(False),
+            )
+            .order_by(DagModel.dag_id)
+            .with_for_update(key_share=True)
         ):
-            dag.is_stale = True
-            deactivated = True
+            if is_removed(dag.relative_fileloc):
+                dag.is_stale = True
+                deactivated = True
     if deactivated:
         session.flush()
         remove_references_to_deleted_dags(session=session)

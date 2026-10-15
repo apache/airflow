@@ -316,6 +316,13 @@ class DagProcessorAPIClient(Client):
             }
         )
 
+    def _get_write_timeout(self) -> httpx2.Timeout:
+        """Fail fast while the API is unreachable, but let a slow write commit and acknowledge."""
+        bounded = self._get_bounded_timeout()
+        return httpx2.Timeout(
+            connect=bounded.connect, read=self.timeout.read, write=self.timeout.write, pool=bounded.pool
+        )
+
     def _ensure_job_token(self, *, retry: bool, timeout: httpx2.Timeout | None = None) -> None:
         self._require_job_id()
         timeout = timeout or (None if retry else self._get_bounded_timeout())
@@ -381,7 +388,7 @@ class DagProcessorAPIClient(Client):
             content=body.model_dump_json(),
             headers=_JOB_API_HEADERS,
             retry=False,
-            timeout=self._get_bounded_timeout(),
+            timeout=self._get_write_timeout(),
         )
         return DagParseResultResponse.model_validate_json(response.content)
 
@@ -440,7 +447,7 @@ class DagProcessorAPIClient(Client):
             content=body.model_dump_json(),
             headers=_JOB_API_HEADERS,
             retry=False,
-            timeout=self._get_bounded_timeout(),
+            timeout=self._get_write_timeout(),
         )
         return DagBundleInventoryResponse.model_validate_json(response.content)
 

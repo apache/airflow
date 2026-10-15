@@ -930,9 +930,17 @@ class DagFileProcessorManager(LoggingMixin):
             try:
                 self.api_client.acknowledge_work(kind, item, failed=failed)
             except httpx2.HTTPStatusError as error:
-                if error.response.status_code != 409:
+                if error.response.status_code >= 500:
                     self.log.warning("Unable to acknowledge requested work; retaining the claim")
                     return
+                if error.response.status_code != 409:
+                    # Retrying cannot succeed; the server releases the claim when this Job ends.
+                    self.log.warning(
+                        "The API refused to acknowledge %s work %s (HTTP %s)",
+                        kind,
+                        item.id,
+                        error.response.status_code,
+                    )
             except httpx2.RequestError:
                 self.log.warning("Unable to acknowledge requested work; retaining the claim")
                 return
@@ -2188,7 +2196,9 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
     def _get_dispatch_source(self, file: DagFileInfo) -> DagParseSource | None:
-        if file.bundle_version is not None and file in self._callback_to_execute:
+        if file in self._callback_to_execute:
+            # Callback runs publish no parse result, so they need no refreshed source; they run on the
+            # bundle's current tree rather than waiting for a refresh that may keep failing.
             return DagParseSource(bundle_version=file.bundle_version)
         if (
             file.bundle_name in self._bundles_waiting_for_refresh
@@ -2197,18 +2207,31 @@ class DagFileProcessorManager(LoggingMixin):
             return None
         return self._bundle_parse_sources.get(file.bundle_name)
 
+    def _has_requested_work(self, file: DagFileInfo) -> bool:
+        return file in self._callback_to_execute or bool(self._get_priority_claims(file))
+
     def _readmit_files_with_source(self) -> None:
         ready = [file for file in self._files_awaiting_source if self._get_dispatch_source(file) is not None]
+        requested: list[DagFileInfo] = []
+        regular: list[DagFileInfo] = []
         for file in ready:
             del self._files_awaiting_source[file]
-        if ready:
-            self._add_files_to_queue(ready, mode="back")
+            if self._has_requested_work(file):
+                requested.append(file)
+            else:
+                regular.append(file)
+        if requested:
+            self._add_files_to_queue(list(reversed(requested)), mode="front")
+        if regular:
+            self._add_files_to_queue(regular, mode="back")
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         self._readmit_files_with_source()
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._file_queue})
 
+        # Requested work skipped in this pass goes back to the front once the pass is over.
+        requested_later: dict[DagFileInfo, None] = {}
         for _ in range(len(self._file_queue)):
             if len(self._processors) + len(self._pending_publications) >= self._parallelism:
                 break
@@ -2217,7 +2240,7 @@ class DagFileProcessorManager(LoggingMixin):
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file in self._processors or file in self._pending_publications:
                 if priority_claims:
-                    self._file_queue[file] = None
+                    requested_later[file] = None
                 continue
 
             source = self._get_dispatch_source(file)
@@ -2232,7 +2255,7 @@ class DagFileProcessorManager(LoggingMixin):
             if file.bundle_version is None:
                 for claim in priority_claims:
                     if processor.had_callbacks or source.refresh_generation < claim.refresh_generation:
-                        self._file_queue[file] = None
+                        requested_later[file] = None
                     else:
                         claim.attempt_id = processor.id
             stats.incr(
@@ -2249,6 +2272,8 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._processors[file] = processor
             stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
+        if requested_later:
+            self._add_files_to_queue(list(reversed(requested_later)), mode="front")
 
     def _add_new_files_to_queue(self, known_files: dict[str, set[DagFileInfo]]):
         """
