@@ -25,7 +25,12 @@ import httpx2
 import jwt
 import pytest
 from tenacity import wait_none
+from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    DagBundleInventoryBody,
+    DagParseResultBody,
+)
 from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
 from airflow.dag_processing import api_client
 from airflow.dag_processing.api_client import (
@@ -767,10 +772,67 @@ def test_parse_exchange_recovers_a_lost_response_without_changing_attempt(make_c
     )
     client.register_job()
     with client.use_parse(make_parse_context()):
+        with pytest.raises(httpx2.ReadError):
+            client.get("variables/key")
         client.get("variables/key")
 
     assert requests[1].content == requests[2].content
     assert len(requests) == 4
+
+
+@pytest.mark.parametrize(
+    ("request_kwargs", "expected_timeout"),
+    [
+        pytest.param({}, httpx2.Timeout(5), id="client-default"),
+        pytest.param({"timeout": 2.5}, httpx2.Timeout(2.5), id="explicit-timeout"),
+        pytest.param({"timeout": None}, httpx2.Timeout(None), id="disabled-timeout"),
+        pytest.param(
+            {"timeout": httpx2.Timeout(4, connect=2)},
+            httpx2.Timeout(4, connect=2),
+            id="per-phase-timeout",
+        ),
+    ],
+)
+def test_parse_requests_make_one_attempt_with_the_request_timeout(
+    make_client, request_kwargs, expected_timeout
+):
+    client, requests = make_client(
+        make_registration_response(), make_parse_token_response(), httpx2.Response(503), timeout=5
+    )
+    client.register_job()
+
+    with client.use_parse(make_parse_context()), pytest.raises(httpx2.HTTPStatusError):
+        client.get("variables/key", **request_kwargs)
+
+    assert len(requests) == 3
+    assert requests[1].extensions["timeout"] == expected_timeout.as_dict()
+    assert requests[2].extensions["timeout"] == expected_timeout.as_dict()
+
+
+@pytest.mark.parametrize(("expired", "tick"), [("parse", 60), ("job", 300)])
+def test_required_token_renewals_use_the_runtime_request_timeout(make_client, clock, expired, tick):
+    client, requests = make_client(
+        make_registration_response(),
+        make_parse_token_response(),
+        httpx2.Response(200),
+        *([make_registration_response()] if expired == "job" else []),
+        make_parse_token_response(),
+        httpx2.Response(200),
+        timeout=5,
+    )
+    client.register_job()
+
+    with client.use_parse(make_parse_context()):
+        client.get("variables/key")
+        clock.return_value = tick
+        client.get("variables/key", timeout=2.5)
+
+    assert [request.url.path for request in requests[3:]] == [
+        *(["/execution/jobs"] if expired == "job" else []),
+        "/execution/jobs/1/parse-token",
+        "/execution/variables/key",
+    ]
+    assert all(request.extensions["timeout"] == httpx2.Timeout(2.5).as_dict() for request in requests[3:])
 
 
 def test_interleaved_parses_keep_distinct_file_credentials(make_client):
@@ -951,3 +1013,69 @@ def test_exchange_failure_restores_context_and_signals_a_closed_job(make_client)
     assert client.restart_required
     assert client.heartbeat() == JobState.RESTARTING
     assert requests[-1].headers["Authorization"] == f"Bearer {make_job_token()}"
+
+
+@pytest.mark.parametrize("expired", [False, True])
+@pytest.mark.parametrize("failure", [httpx2.ReadTimeout("Lost response"), httpx2.Response(503)])
+def test_publication_attempt_does_not_sleep_through_heartbeats(make_client, clock, expired, failure):
+    body = DagParseResultBody(
+        attempt_id=uuid7(),
+        dispatch_sequence=1,
+        bundle_name="bundle-a",
+        relative_fileloc="dag.py",
+        parse_duration=0.1,
+        serialized_dags=[],
+        source_codes={},
+    )
+    responses = [make_registration_response()]
+    if expired:
+        responses.append(make_registration_response())
+    responses.extend(
+        [
+            failure,
+            httpx2.Response(200, json={"state": "running"}),
+            httpx2.Response(
+                200, json={"attempt_id": str(body.attempt_id), "accepted_at": "2026-10-05T12:00:00Z"}
+            ),
+        ]
+    )
+    client, requests = make_client(*responses)
+    client.register_job()
+    if expired:
+        clock.return_value = 300
+    with pytest.raises(httpx2.HTTPError):
+        client.publish_parse_result(body)
+    assert len(requests) == (3 if expired else 2)
+    publication_timeout = requests[-1].extensions["timeout"]
+    assert publication_timeout["connect"] <= 1
+    assert publication_timeout["pool"] <= 1
+    assert publication_timeout["read"] == client.timeout.read > 1
+    if expired:
+        assert all(value <= 1 for value in requests[1].extensions["timeout"].values())
+    assert client.heartbeat() == JobState.RUNNING
+    assert client.publish_parse_result(body).attempt_id == body.attempt_id
+    assert requests[-1].content == requests[-3].content
+
+
+def test_inventory_waits_for_a_slow_write_but_connects_quickly(make_client):
+    client, requests = make_client(
+        make_registration_response(),
+        httpx2.Response(
+            200,
+            json={
+                "attempt_id": str(uuid7()),
+                "accepted_at": "2026-10-05T12:00:00Z",
+                "revision": str(uuid7()),
+            },
+        ),
+    )
+    client.register_job()
+
+    client.publish_inventory(
+        "bundle-a",
+        DagBundleInventoryBody(attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, files=[]),
+    )
+
+    timeout = requests[-1].extensions["timeout"]
+    assert timeout["connect"] <= 1
+    assert timeout["read"] == client.timeout.read > 1
