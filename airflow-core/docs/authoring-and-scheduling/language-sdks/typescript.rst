@@ -251,7 +251,7 @@ Wrap a reference in ``label`` to name the edge drawn to it, as Python's ``Label`
 
     checked.before(label(processed, "rows found"), label(notified, "no rows"));
 
-A labelled reference only goes into ``before`` or ``after``; calling either on it throws. Redrawing an
+A labeled reference only goes into ``before`` or ``after``; calling either on it throws. Redrawing an
 existing edge, including one an input drew, labels it. That is also how to label the branches of ``dag.if``
 or ``dag.switch`` (see below):
 
