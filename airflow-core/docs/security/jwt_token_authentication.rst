@@ -471,8 +471,10 @@ Dag File Processor and Triggerer
 ---------------------------------
 
 The **Dag File Processor** and **Triggerer** are internal Airflow components that also
-interact with the Execution API, but they do so via an **in-process** transport
-(``InProcessExecutionAPI``) rather than over the network. This in-process API:
+interact with the Execution API, but by default they do so via an **in-process** transport
+(``InProcessExecutionAPI``) rather than over the network. A Dag File Processor can instead use
+authenticated HTTP without database access; see `Dag processor HTTP client credentials`_. This
+in-process API:
 
 - Runs the Execution API application directly within the same process, using an ASGI/WSGI
   bridge.
@@ -514,16 +516,18 @@ guidance, and the planned strategic and tactical improvements.
 Dag processor HTTP client credentials
 -------------------------------------
 
-The core ``DagProcessorAPIClient`` lets processor integrations authenticate to the Execution
-API without holding its signing key. The standard ``airflow dag-processor`` command does
-not yet use this client. Provisioning a token file alone does not switch that command to
-HTTP or remove its need for database access.
+Set ``[dag_processor] execution_api_token_file`` to run ``airflow dag-processor`` with
+authenticated HTTP requests. Job registration, heartbeats, completion, bundle secret
+lookups, bundle metadata, result publication, and callback and priority delivery then use
+the Execution API. The API client is created
+in the processor process, after any daemon or hot-reload fork. Leaving the setting
+unset preserves the in-process API and database-backed Job lifecycle.
 
-On a trusted host with the API signing key, provision a session token for the bundles
-the client may access::
+On a trusted host with database access and the server keys, synchronize the configured
+bundle catalog and provision a separate token file for each processor::
 
-    airflow dag-processor-token --token-file /run/airflow/processor.jwt \
-        --bundle-name dags-folder --rotate
+    airflow dag-processor --sync-bundles-only
+    airflow dag-processor-token --token-file /run/airflow/processor.jwt --bundle-name dags-folder --rotate
 
 The command writes the token atomically. A new file is readable only by its owner, and replacing
 an existing file keeps its mode and group, so grant the processor read access once. ACLs are not
@@ -532,14 +536,30 @@ token replacement stays visible. Each processor process needs its own session. R
 provisioner with the same token file and bundles keeps that session, so running processors keep
 their Jobs.
 
+Configure ``[core] execution_api_server_url`` to reach the API server, and start the
+processor::
+
+    AIRFLOW__DAG_PROCESSOR__EXECUTION_API_TOKEN_FILE=/run/airflow/processor.jwt \
+        airflow dag-processor --bundle-name dags-folder
+
+The processor does not need metadata database credentials, the Fernet key, or API signing
+keys. Remove them from its environment and mounted configuration, and block its database
+network path. Enabling the setting alone does not remove existing credentials or isolate
+code from other secrets on the processor host. Catalog synchronization is a trusted
+deployment operation: repeat it when bundle configuration changes. It loads provider
+classes for bundle URLs; the API server does not construct bundles or access their sources.
+The processor does not use the shared SDK secret cache in this mode, even when
+``[secrets] use_cache`` is enabled, because SDK cache lookups do not include the bundle
+identity that the API uses for authorization.
+
 The three credentials have different issuers and permissions:
 
 - ``dag_processor_session`` is issued by trusted provisioning. It can only register a
   Job or renew that Job's credential through ``POST /jobs``.
 - ``dag_processor`` is returned by Job registration. It can heartbeat and complete that
-  Job, read Connections and Variables for a granted bundle, and exchange a parsing
-  credential through ``POST /jobs/{job_id}/parse-token``. It cannot outlive the session
-  token used to obtain it.
+  Job, read Connections and Variables for a granted bundle, publish parsing results and
+  bundle inventories, claim requested work, and exchange a parsing credential through
+  ``POST /jobs/{job_id}/parse-token``. It cannot outlive the session token used to obtain it.
 - ``dag_parse`` is returned by the parsing-token exchange for one attempt, bundle, and
   relative file location. It permits parse-time requests, including callback-context reads,
   but cannot manage Jobs or exchange tokens. It cannot outlive its parent Job credential.
@@ -557,14 +577,148 @@ parsing subprocess can without this client. ``Variable.set`` upserts on the key 
 multi-team mode a write can overwrite another team's Variable with the same key, as it can with task
 tokens.
 
-The client attempts renewal at 80% of token lifetime. Transient early-renewal failures leave
-the existing token usable until expiry. A retired registration signals that its owner must
-restart. Completion retains its original identity and outcome across retries.
+For each ``dag_parse`` token, the manager chooses the bundle, bundle-relative file location,
+and parsing-attempt UUID.
 
-File and attempt identity are carried in the token but are not currently used for access
-checks or request attribution. Archives retain one file identity under the current processor
-model. These credentials do not isolate hostile code from other credentials accessible on
-the processor host; the process and deployment limitations above still apply.
+The manager publishes completed imports through ``POST /jobs/{job_id}/parse-results``
+using its Job credential. Parsing tokens cannot publish. A request contains one file or
+container's serialized Dags, diagnostics, source text (or an explicit unavailable marker),
+and the bundle version captured at dispatch. The API never reads the processor's source
+paths. It checks bundle access, existing Dag ownership and team-scoped plugin classes
+before deserializing results and rechecks ownership on the rows used for persistence.
+A Dag can move between files within its bundle. Recovery from a removed bundle is
+limited to stale legacy rows with neither a relative file location nor a Dag version.
+
+Each request carries an attempt UUID and a dispatch sequence within its Job. A checkpoint
+and the metadata writes commit together. Replaying the latest identical request returns
+the saved receipt; conflicting payloads and superseded sequences are rejected. Checkpoints
+retain one entry per Job and source and are removed with Job cleanup. There is no total
+ordering between different Jobs publishing a source without versioning; an already-accepted
+request's retry does not overwrite another Job's result. Listener side effects are not
+transactional and may repeat after a failed transaction.
+
+Publication and inventory request bodies are limited to 16 MiB, and the API refuses a
+larger body before reading the rest of it. A rejected publication does not fall back
+to direct database writes, and does not prevent other files from being processed. Transport
+failures and server errors are retried; exhausting those retries preserves the last accepted
+result. When the API refuses a result for its content, or the result is over the limit, the
+processor publishes an import error for the file instead, so the problem is visible.
+Dags whose definition path matches an import error are marked stale until a later parse
+publishes them again. For a container-level error, missing member Dags are marked stale
+only when their last successful parse is older than ``[dag_processor] stale_dag_threshold``,
+using the server's clock. Invalid ``access_control`` produces an import error with both
+current and supported older FAB releases. Permission backend failures remain retryable
+server errors. Empty imports still publish a receipt and clear the file's earlier import
+errors. A bundle refresh, including one forced by a parse request, waits for that bundle's
+active imports instead of discarding them; only initializing a bundle again invalidates and
+requeues older in-flight results from that manager.
+
+Inventories report discovered definitions and sources whose discovery failed separately.
+Failed sources preserve their existing definitions and diagnostics, including archive members;
+other sources still undergo deletion reconciliation. Each inventory carries the previously
+observed server revision; conflicting refreshes must
+rediscover before retrying. Imports carry the accepted revision, so an older snapshot cannot
+publish after a changed inventory. Only accepted publications establish missing Dags within
+a file; rejected requests and incomplete discovery do not establish absence. Every
+``[scheduler] parsing_cleanup_interval``, the scheduler marks the Dags of inactive or unassigned
+bundles stale, removes stale warnings, and ends expired processor Jobs, in bounded batches and in
+both modes.
+
+Callback and priority requests remain stored while claimed. A lost claim response or
+acknowledgment can be retried, and requests from a retired Job become available to another
+processor. A callback acknowledgment confirms delivery, not successful execution of user
+code. As with other at-least-once delivery, a crash after a callback's side effect and before
+acknowledgment can repeat that side effect. A graceful shutdown acknowledges finished work
+before the processor's Job ends. When a callback's bundle version cannot be
+prepared, the processor retries with backoff for up to ``[dag_processor] job_heartbeat_timeout``
+and then acknowledges the callback as failed. Priority requests are assigned to an import
+started after their requested refresh. Only that import's publication or terminal failure
+acknowledges the request; an older in-flight import cannot consume it. Discovery after the
+requested refresh can also acknowledge a request if it confirms the definition is absent.
+
+The manager retains a bounded queue of pending publications. Each loop it sends queued
+publications and acknowledgments for up to a second, stopping at the first failure that may
+be transient. Connecting is limited to a second, but a publication or inventory waits up to
+``[workers] execution_api_timeout`` for its response, so a slow write can still be
+acknowledged. Retries keep the same payload and identity while
+heartbeats and subprocess supervision continue between attempts. Pending results
+count against parsing capacity. Failed publication attempts throttle reparsing but
+do not advance the timestamps used to detect stale Dags.
+
+The returned ``dag_parse`` token binds these identifiers to the processor's session and
+Job. It authorizes parse-time operations within that bundle and has no Job-management or
+token-exchange access. A bundle header cannot override its signed bundle. The token expires
+no later than the management credential; ending or replacing the Job invalidates it.
+The supervisor caches it for the attempt and attempts renewal at 80% of its lifetime.
+Transient early-renewal failures leave the existing token usable until expiry.
+
+Parse-time requests use ``[workers] execution_api_timeout`` (five seconds by default),
+unless the request specifies a timeout. Required parsing-token exchanges and expired
+Job-token renewals use the same timeout. Each makes one attempt without retry sleeps in
+the manager loop; optional early token renewal caps each HTTP timeout phase at one second.
+
+Heartbeats use ``[scheduler] job_heartbeat_sec`` and are also sent between bundle
+operations and before each callback's bundle is prepared. Transient API failures are
+retried on the next heartbeat interval. Once a Job has gone
+``[dag_processor] job_heartbeat_timeout`` without a recorded heartbeat, the scheduler's next cleanup (every
+``[scheduler] parsing_cleanup_interval``) ends it and releases its claimed work, and a processor
+that could not reach the API for that long stops. Set the timeout above the longest single
+bundle initialization, refresh, or listing, and set it for the scheduler as well as the
+processor: the scheduler's value decides when the Job ends. The processor does not update its
+local health file during one of those operations either, so ``health_check_threshold`` and the
+liveness probe's failure budget must also cover it. Likewise, the API server reads
+``[dag_processor] health_check_threshold`` to decide whether a session's previous Job is still
+alive, so keep it the same for the API server and the processor. A restart request, replaced Job, or retired
+registration also stops parsing and terminates its children. The deployment's process
+supervisor must restart the command, which creates a new registration. After a crash,
+registration retries ``job_running`` with backoff for up to the health-check threshold
+plus one heartbeat interval, retaining the same registration ID while waiting for the old
+Job to expire.
+Failed runs attempt to record failure without masking the original error; completion
+failures after a successful run are reported to the caller.
+
+Use ``airflow dag-processor --check-health`` for local liveness and ``--check-ready`` for
+local liveness plus a recent API heartbeat. Both read ``[dag_processor] health_check_file``
+without querying the database. Give each processor its own writable health file. A paused
+manager fails liveness even while the API remains healthy; a transient API outage affects
+readiness without immediately failing liveness.
+
+Set ``CONNECTION_CHECK_MAX_COUNT=0`` in the processor container too: the standard image
+entrypoint otherwise checks the database before starting the command. Do not set
+``_AIRFLOW_DB_MIGRATE`` or ``_AIRFLOW_WWW_USER_CREATE`` in that container.
+
+Isolated deployment examples
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following examples run only the processor, alongside an existing trusted deployment.
+Use an image containing processor API support; this feature targets Airflow 3.5.
+Synchronize the bundle catalog and run token provisioning in the trusted deployment as
+described above. Keep the token provisioner running, and mount its directory rather than
+a single file so atomic token replacement remains visible.
+
+For Compose, use the :download:`standalone processor definition <dag-processor-api/docker-compose.yaml>`
+as its own project, rather than merging it with the quick-start file. It has no shared
+``env_file``, server configuration mount, or dependency on a database/migration service.
+Create its ``tokens``, ``dags``, and ``logs`` directories with permissions for the configured
+container user; provision ``tokens/processor.jwt``. Set ``AIRFLOW_IMAGE_NAME`` to the image
+with API support. Create an internal network and attach only the API server and processor::
+
+    docker network create --internal dag-processor-api
+    docker network connect --alias airflow-apiserver dag-processor-api <api-server-container>
+    docker compose -p dag-processor-api -f docker-compose.yaml up -d
+
+The API server keeps its existing database network. The processor joins only
+``dag-processor-api``. Verify readiness with ``docker compose -p dag-processor-api
+-f docker-compose.yaml exec dag-processor airflow dag-processor --check-ready``.
+The examples do not grant provider credentials through environment variables; bundle
+Connection lookups use the API. Review any image customizations, added mounts, or environment
+settings for server credentials before deployment.
+
+The token carries file and attempt identity, but the API does not currently use them
+for access checks or request attribution. Connection and Variable permissions remain
+bundle/team based. Archives retain one file identity under the current processor model.
+This exchange does not isolate hostile code from credentials accessible on the processor
+host. The process and deployment limitations described above still apply.
 
 
 Workload Isolation and Current Limitations
