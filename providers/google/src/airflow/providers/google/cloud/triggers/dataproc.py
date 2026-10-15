@@ -27,7 +27,7 @@ from collections.abc import AsyncIterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
-from google.api_core.exceptions import AlreadyExists, NotFound, ServiceUnavailable
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -651,22 +651,13 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
         hook = self.get_async_hook()
 
         while True:
-            try:
-                batch = await hook.get_batch(
-                    project_id=self.project_id,
-                    region=self.region,
-                    batch_id=self.batch_id,
-                )
-            except ServiceUnavailable as e:
-                self.log.warning("Dataproc API is temporarily unavailable. Retrying... (%s)", e)
-                await asyncio.sleep(self.polling_interval_seconds)
-                continue
-
+            batch = await hook.get_batch(
+                project_id=self.project_id, region=self.region, batch_id=self.batch_id
+            )
             state = batch.state
 
             if state in (Batch.State.FAILED, Batch.State.SUCCEEDED, Batch.State.CANCELLED):
                 break
-
             self.log.info("Current state is %s", Batch.State(state).name)
             self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
             await asyncio.sleep(self.polling_interval_seconds)
