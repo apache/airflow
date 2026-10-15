@@ -123,8 +123,9 @@ metrics:
     name_variables: []
 
   - name: "dag_processing.results_discarded_on_refresh"
-    description: "Parse results discarded because bundle initialization or refresh overlapped the import.
-    Metric with bundle_name tagging. Repeated discards can indicate that refreshes are delaying parsing."
+    description: "Parse attempts discarded because bundle initialization or refresh overlapped the import.
+    Metric with bundle_name tagging, and team_name tagging in multi-team mode.
+    Repeated discards can indicate that refreshes are delaying parsing."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -491,6 +492,13 @@ metrics:
 
   - name: "dag_processing.file_path_queue_size"
     description: "Number of Dag files to be considered for the next scan"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.files_awaiting_source"
+    description: "Number of Dag files deferred until a bundle refresh completes
+    or a usable source becomes available"
     type: "gauge"
     legacy_name: "-"
     name_variables: []
