@@ -85,7 +85,7 @@ def _read_remote_logs(relative_path: str) -> StreamingLogResponse:
         sources, logs = stream_method(relative_path, None)
         return sources, logs or []
 
-    sources, logs = remote_io.read(relative_path, None)  # type: ignore[arg-type]
+    sources, logs = remote_io.read(relative_path, None)
     if not logs:
         return sources, []
 
