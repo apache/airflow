@@ -17,8 +17,8 @@
 
 .. _howto/operator:llm_branch:
 
-Branch on an answer: ``LLMBranchOperator``
-==========================================
+Branch on an answer: ``LLMBranchOperator`` and ``@task.llm_branch``
+===================================================================
 
 Use :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
 for LLM-driven branching, where the LLM decides which downstream task(s) to
@@ -313,8 +313,10 @@ Parameters
   Jinja templating. Default ``None``.
 - ``allow_multiple_branches``: When ``False`` (default) the LLM returns a single
   task ID. When ``True`` the LLM may return one or more task IDs.
-- ``agent_params``: Additional keyword arguments passed to the pydantic-ai ``Agent``
-  constructor (e.g. ``retries``, ``model_settings``). Supports Jinja templating.
+- ``model_settings``: Pydantic AI ``ModelSettings`` for the model call, such as
+  ``temperature`` or ``max_tokens``. Supports Jinja templating.
+- ``output_retries``: How many times the model is asked again when its output fails
+  validation. Default ``None`` (Pydantic AI's default).
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
   the same fields) enforced on the run; the task fails when a budget is exceeded.
   Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.

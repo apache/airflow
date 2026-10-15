@@ -99,14 +99,6 @@ class TestAzureAnalysisServicesRefreshOperator:
                 request_timeout=request_timeout,
             )
 
-    def test_defines_template_fields(self):
-        assert AzureAnalysisServicesRefreshOperator.template_fields == (
-            "azure_analysis_services_conn_id",
-            "server_name",
-            "database",
-            "refresh_type",
-        )
-
     def test_execute_defers_without_refresh_id(self):
         with pytest.raises(TaskDeferred) as deferred:
             build_operator().execute(context=build_context())

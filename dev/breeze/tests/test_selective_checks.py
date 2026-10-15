@@ -113,7 +113,7 @@ LIST_OF_ALL_PROVIDER_TESTS_AS_JSON = json.dumps(
 
 
 ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -127,7 +127,7 @@ ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE = (
 ALL_SKIPPED_COMMITS_BY_DEFAULT_ON_ALL_TESTS_NEEDED = "identity,update-uv-lock"
 
 ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
     "lint-helm-chart,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,"
     "mypy-airflow-e2e-tests,mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,"
     "mypy-kubernetes-tests,mypy-scripts,mypy-shared-configuration,mypy-shared-dagnode,"
@@ -139,7 +139,7 @@ ALL_SKIPPED_COMMITS_IF_ONLY_UI_OPENAPI_CHANGED = (
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI = (
-    "check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
@@ -149,7 +149,7 @@ ALL_SKIPPED_COMMITS_IF_NO_UI = (
     "regenerate-java-sdk-verification-metadata,ts-compile-lint-simple-auth-manager-ui,ts-compile-lint-ui,update-uv-lock"
 )
 ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
-    "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -160,7 +160,7 @@ ALL_SKIPPED_COMMITS_IF_NO_HELM_TESTS = (
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
-    "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -175,7 +175,7 @@ ALL_SKIPPED_COMMITS_IF_NO_UI_AND_HELM_TESTS = (
 # forced. airflow-core Python changed (so mypy-airflow-core + flynt run); no
 # provider.yaml, helm, or UI files changed, so those checks stay skipped.
 ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -188,7 +188,7 @@ ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED = (
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -200,7 +200,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_AND_UI = (
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -213,7 +213,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS = (
 
 
 ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -225,7 +225,7 @@ ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS = (
 )
 
 ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -236,7 +236,7 @@ ALL_SKIPPED_COMMITS_IF_NO_CODE_PROVIDERS_AND_HELM_TESTS = (
 )
 
 ALL_SKIPPED_COMMITS_IF_NOT_IMPORTANT_FILES_CHANGED = (
-    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
+    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,lint-helm-chart,"
     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
     "mypy-scripts,"
@@ -481,7 +481,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "docs-build": "true",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -527,7 +527,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-api-tests": "true",
                     "docs-build": "true",
                     "skip-prek-hooks": (
-                        "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -782,7 +782,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -820,7 +820,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "false",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -883,7 +883,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -919,7 +919,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "false",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-e2e-tests,"
                         "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                         "mypy-scripts,"
@@ -1268,7 +1268,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "skip-prek-hooks": (
-                    "check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
@@ -1475,7 +1475,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "skip-prek-hooks": (
-                    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
+                    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,flynt,identity,ktlint,"
                     "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
@@ -1553,13 +1553,38 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/src/sdk/client.ts",),
             {
+                "run-ts-sdk-tests": "true",
                 "run-ts-sdk-docs": "true",
             },
-            id="Build ts-sdk docs when the documented sources change",
+            id="Run ts-sdk unit tests and build docs when the documented sources change",
+        ),
+        pytest.param(
+            ("ts-sdk/pnpm-lock.yaml",),
+            {
+                "run-ts-sdk-tests": "true",
+                "run-ts-sdk-docs": "false",
+            },
+            id="Run ts-sdk unit tests when the lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/package.json",),
+            {
+                "run-ts-sdk-tests": "false",
+            },
+            id="Skip ts-sdk unit tests when only the docs toolchain's package.json changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/typedoc.config.mjs",),
+            {
+                "run-ts-sdk-tests": "false",
+                "run-ts-sdk-docs": "true",
+            },
+            id="Skip ts-sdk unit tests but build docs when the docs toolchain config changes",
         ),
         pytest.param(
             ("ts-sdk/docs/index.md",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "true",
                 "run-ts-sdk-e2e-tests": "false",
             },
@@ -1568,6 +1593,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/api-docs/dag-authoring-api.ts",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "true",
                 "run-ts-sdk-e2e-tests": "false",
                 "prod-image-build": "false",
@@ -1591,9 +1617,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("ts-sdk/README.md",),
             {
+                "run-ts-sdk-tests": "false",
                 "run-ts-sdk-docs": "false",
             },
-            id="Skip ts-sdk docs build for a ts-sdk README-only change",
+            id="Skip ts-sdk unit tests and docs build for a ts-sdk README-only change",
         ),
         pytest.param(
             ("airflow-e2e-tests/java-test-bundle/src/java/org/apache/airflow/e2e/TestBundleBuilder.java",),
@@ -1611,6 +1638,61 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "true",
             },
             id="Run java e2e tests when JavaCoordinator changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/_dag_importer.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the coordinator Dag importer changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/manager.py",),
+            {
+                "run-java-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Skip java and ts e2e tests when the shared Dag processor manager changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/serialization/serialized_objects.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the Dag serialization checks change",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/lang_sdk_processor.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java and ts e2e tests when the Lang-SDK Dag file processor changes",
+        ),
+        pytest.param(
+            (
+                "airflow-e2e-tests/java-native-bundle/src/java/org/apache/airflow/e2e/NativeBundleBuilder.java",
+            ),
+            {
+                "run-java-sdk-tests": "false",
+                "run-java-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+            },
+            id="Run only java e2e tests when the java native-Dag bundle changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/dag_processing/bundles/base.py",),
+            {
+                "run-java-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Skip java and ts e2e tests for a Dag processing change off the native Dag path",
         ),
         pytest.param(
             ("go-sdk/sdk/variable.go",),
@@ -1879,7 +1961,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("shared/logging/src/airflow_shared/logging/remote.py",),
                 {
                     "skip-prek-hooks": (
-                        "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                        "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                         "mypy-airflow-core,mypy-airflow-ctl,mypy-airflow-ctl-tests,"
                         "mypy-airflow-e2e-tests,mypy-dev,mypy-devel-common,mypy-docker-tests,"
                         "mypy-helm-tests,mypy-kubernetes-tests,mypy-scripts,"
@@ -1911,7 +1993,10 @@ def test_expected_output_pull_request_main(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
-@pytest.mark.parametrize("hook", ["ktlint", "regenerate-java-sdk-verification-metadata"])
+@pytest.mark.parametrize(
+    "hook",
+    ["ktlint", "regenerate-java-sdk-verification-metadata", "check-java-sdk-serialization-conformance"],
+)
 @pytest.mark.parametrize(
     ("files", "hook_skipped"),
     [
@@ -1952,6 +2037,43 @@ def test_java_sdk_gradle_hooks_only_run_for_java_sdk_changes(
     ("files", "hook_skipped"),
     [
         pytest.param(
+            ("airflow-core/src/airflow/serialization/serialized_objects.py",),
+            False,
+            id="runs when Airflow's serializer changes",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/serialization/schema.json",),
+            False,
+            id="runs when Airflow's Dag schema changes",
+        ),
+        pytest.param(
+            ("scripts/ci/lang_sdk_serialization/compare.py",),
+            False,
+            id="runs when the shared conformance harness changes",
+        ),
+        pytest.param(
+            ("SECURITY.md",),
+            True,
+            id="skipped when none of its inputs change",
+        ),
+    ],
+)
+def test_java_sdk_conformance_hook_runs_for_serializer_changes(files: tuple[str, ...], hook_skipped: bool):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=tuple(),
+        default_branch="main",
+    )
+    skipped_hooks = get_outputs_from_stderr(str(stderr))["skip-prek-hooks"].split(",")
+    assert ("check-java-sdk-serialization-conformance" in skipped_hooks) is hook_skipped
+
+
+@pytest.mark.parametrize(
+    ("files", "hook_skipped"),
+    [
+        pytest.param(
             ("ts-sdk/src/generated/supervisor.ts",),
             False,
             id="runs when ts-sdk files change",
@@ -1985,6 +2107,11 @@ def test_java_sdk_gradle_hooks_only_run_for_java_sdk_changes(
             ("ts-sdk/docs/package-lock.json",),
             True,
             id="skipped when only the docs toolchain's lock file changes",
+        ),
+        pytest.param(
+            ("ts-sdk/docs/typedoc.config.mjs",),
+            True,
+            id="skipped when only the docs toolchain's config changes",
         ),
         pytest.param(
             ("ts-sdk/api-docs/dag-authoring-api.ts",),
@@ -2131,6 +2258,8 @@ def test_excluded_providers():
                 {
                     "3.14": [
                         "apache.cassandra",  # Enable when the next release after 3.29.3 is available
+                        "apache.tinkerpop",
+                        "vespa",
                     ],
                 }
             ),
@@ -2821,7 +2950,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "skip-prek-hooks": (
-                    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
@@ -2863,7 +2992,7 @@ def test_expected_output_push(
                 "microsoft.mssql mongo mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh standard trino",
                 "skip-prek-hooks": (
-                    "check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
+                    "check-java-sdk-serialization-conformance,check-ts-sdk-supervisor-schema,identity,ktlint,mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"
                     "mypy-shared-configuration,mypy-shared-dagnode,mypy-shared-listeners,mypy-shared-logging,"
@@ -2908,7 +3037,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow",
                 "skip-prek-hooks": (
-                    "check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
+                    "check-java-sdk-serialization-conformance,check-provider-yaml-valid,check-ts-sdk-supervisor-schema,identity,ktlint,lint-helm-chart,"
                     "mypy-airflow-ctl,mypy-airflow-ctl-tests,mypy-airflow-e2e-tests,"
                     "mypy-dev,mypy-devel-common,mypy-docker-tests,mypy-helm-tests,mypy-kubernetes-tests,"
                     "mypy-scripts,"

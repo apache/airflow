@@ -463,6 +463,22 @@ class TestLocalExecutor:
             ({}, "http://localhost:8080/execution/"),
             ({("api", "base_url"): "/"}, "http://localhost:8080/execution/"),
             ({("api", "base_url"): "/airflow/"}, "http://localhost:8080/airflow/execution/"),
+            ({("api", "port"): "9091"}, "http://localhost:9091/execution/"),
+            (
+                {("api", "base_url"): "/airflow/", ("api", "port"): "9091"},
+                "http://localhost:9091/airflow/execution/",
+            ),
+            (
+                {("api", "base_url"): "http://test-server", ("api", "port"): "9091"},
+                "http://test-server/execution/",
+            ),
+            (
+                {
+                    ("core", "execution_api_server_url"): "http://custom-server/execution/",
+                    ("api", "port"): "not-a-port",
+                },
+                "http://custom-server/execution/",
+            ),
         ],
         ids=[
             "base_url_fallback",
@@ -470,6 +486,10 @@ class TestLocalExecutor:
             "no_base_url_no_custom",
             "base_url_no_custom",
             "relative_base_url",
+            "no_base_url_custom_port",
+            "relative_base_url_custom_port",
+            "absolute_base_url_ignores_port",
+            "custom_server_ignores_port",
         ],
     )
     @mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload")
@@ -525,6 +545,18 @@ class TestLocalExecutor:
                 # Verify default server URL was used
                 assert mock_run_workload.call_count == 1
                 assert mock_run_workload.call_args.kwargs["server"] == default_server
+
+    def test_execution_api_server_url_fallback_uses_team_api_port(self):
+        """A team executor builds the fallback URL from its own ``[api] port``, not the global one."""
+        with (
+            mock.patch.dict(os.environ, {"AIRFLOW__TEAM_A___API__PORT": "9092"}),
+            conf_vars({("api", "port"): "9091"}),
+        ):
+            team_url = get_execution_api_server_url(ExecutorConf(team_name="team_a"))
+            global_url = get_execution_api_server_url(ExecutorConf(team_name=None))
+
+        assert team_url == "http://localhost:9092/execution/"
+        assert global_url == "http://localhost:9091/execution/"
 
     def test_multiple_team_executors_isolation(self):
         """Test that multiple team executors can coexist with isolated resources"""

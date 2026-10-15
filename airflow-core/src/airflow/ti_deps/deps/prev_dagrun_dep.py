@@ -62,6 +62,7 @@ class PrevDagrunDep(BaseTIDep):
         This function exists for easy mocking in tests.
         """
         return exists_query(
+            TI.working_set.is_(True),
             TI.dag_id == dagrun.dag_id,
             TI.task_id == task_id,
             TI.run_id == dagrun.run_id,
@@ -76,6 +77,7 @@ class PrevDagrunDep(BaseTIDep):
         This function exists for easy mocking in tests.
         """
         query = exists_query(
+            TI.working_set.is_(True),
             TI.dag_id == ti.dag_id,
             TI.task_id == ti.task_id,
             TI.logical_date < ti.logical_date,
@@ -96,6 +98,7 @@ class PrevDagrunDep(BaseTIDep):
         """
         unsuccessful_tis_count = session.scalar(
             select(func.count()).where(
+                TI.working_set.is_(True),
                 TI.dag_id == dagrun.dag_id,
                 TI.task_id == task_id,
                 TI.run_id == dagrun.run_id,
@@ -118,6 +121,7 @@ class PrevDagrunDep(BaseTIDep):
         if not task.downstream_task_ids:
             return False
         return exists_query(
+            TI.working_set.is_(True),
             TI.dag_id == dagrun.dag_id,
             TI.task_id.in_(task.downstream_task_ids),
             TI.run_id == dagrun.run_id,

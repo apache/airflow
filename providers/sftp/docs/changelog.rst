@@ -27,6 +27,50 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+.. warning::
+  The ``no_host_key_check`` connection extra now defaults to ``false``. A connection to a host that has
+  no entry in the known hosts file is refused unless host key verification is disabled explicitly or a
+  ``host_key`` is supplied in the connection's extra field.
+
+  Deployments that relied on the previous default can keep the earlier behaviour by adding the host key
+  to the known hosts file, supplying ``host_key`` on the connection, setting the ``no_host_key_check``
+  connection extra to ``true``, or -- when building ``SSHHook``/``SFTPHook``/``SFTPHookAsync`` directly
+  rather than from a connection -- passing the new ``no_host_key_check=True`` constructor argument. The
+  constructor argument takes precedence over the connection extra, and a value set on the hook passed to
+  a deferrable ``SFTPOperator`` is carried into its trigger.
+
+  The previously undocumented ``ignore_hostkey_verification`` extra is now honoured as a deprecated alias
+  for ``no_host_key_check`` and emits a ``DeprecationWarning``. It had no effect before: connections that
+  set it were relying on the old permissive default rather than on the setting itself.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Verify SSH host keys by default in SSH and SFTP hooks (#73419)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix concurrent SFTP directory transfers dropping parent hook's connection overrides (#73647)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 6.1.0
 .....
 

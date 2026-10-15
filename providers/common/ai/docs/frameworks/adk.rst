@@ -28,8 +28,8 @@ it is, and add Airflow's toolsets to its tools with the
 
 .. note::
 
-    ``AirflowTools`` and the framework-neutral tool interface it builds on are
-    experimental. They may change in a minor release of this provider.
+    ``AirflowTools`` is experimental: it may change in a minor release of this provider.
+    The framework-neutral tool interface it builds on is stable.
     See :ref:`howto/stability`.
 
 Run an ADK agent in a task

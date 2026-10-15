@@ -365,10 +365,22 @@ resolved in this order:
 
 Azure Storage
 -------------
-Use an ``az://`` URI with a ``conn_id`` pointing to a ``wasb`` connection.
-``abfs://`` and ``abfss://`` URIs are not recognized yet. The account name
+Use an ``az://``, ``abfs://``, or ``abfss://`` URI with a ``conn_id`` pointing
+to a ``wasb`` connection. ``az://container/path`` takes the storage account
+from the connection; when the connection resolves none (no ``host``, and no ``login``
+or a service principal), the binding falls back to ``AZURE_STORAGE_ACCOUNT_NAME`` on
+the worker.
+``abfs://container@account.dfs.core.windows.net/path`` and ``abfss://...``
+additionally name the account in the URI itself -- if it disagrees with the
+account the connection resolves to, registering the datasource raises rather
+than silently picking one, and when the connection names no account at all, the
+URI's account is used instead of ``AZURE_STORAGE_ACCOUNT_NAME``. The URI host
+follows the same cloud rule as the connection host below: a host outside
+``*.core.windows.net`` raises unless ``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT``
+is set. The account name
 comes from ``host`` (its first DNS label) when set, falling back to
-``login`` only when ``host`` is empty; only the public
+``login`` only when ``host`` is empty and the connection is not a service principal
+(``tenant_id`` set, where ``login`` is the client ID); only the public
 ``*.blob.core.windows.net`` cloud is supported, since DataFusion's binding
 otherwise has no endpoint override -- unless the worker sets
 ``AZURE_STORAGE_ENDPOINT``/``AZURE_ENDPOINT`` for a real sovereign-cloud

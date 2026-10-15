@@ -39,7 +39,7 @@ on:  # yamllint disable-line rule:truthy
       default-python-version:
         description: "Which version of python should be used by default"
         type: string
-        default: '3.10'
+        default: '3.11'
       use-uv:
         description: "Whether to use uv to build the image (true/false)"
         type: string
@@ -90,7 +90,7 @@ jobs:
     name: ${{ inputs.workflow-name || 'UI E2E Tests' }}
     runs-on: ${{ fromJSON(inputs.runners || '["ubuntu-24.04"]') }}
     env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version || '3.10' }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version || '3.11' }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}

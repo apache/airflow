@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "Acció requerida",
   "requiredAction_other": "Accions requerides",
-  "requiredActionCount_one": "Accions requerides ({{count}})",
-  "requiredActionCount_other": "Accions requerides ({{count}})",
+  "requiredActionCount_one": "Accions requerides ({{count, number}})",
+  "requiredActionCount_other": "Accions requerides ({{count, number}})",
   "requiredActionState": "Estat de l'acció requerida",
   "response": {
     "created": "Resposta creada a ",
@@ -29,10 +29,10 @@
       "selectRequiredAction": "Seleccioneu una acció requerida per a veure'n els detalls"
     },
     "list": {
-      "completedRequiredActions": "Accions requerides completades ({{count}})",
+      "completedRequiredActions": "Accions requerides completades ({{count, number}})",
       "loadError": "No s'han pogut carregar les accions requerides",
       "loadingActions": "Carregant les accions requerides...",
-      "pendingRequiredActions": "Accions requerides pendents ({{count}})"
+      "pendingRequiredActions": "Accions requerides pendents ({{count, number}})"
     },
     "openReviewDrawer": "Obrir el calaix de revisió",
     "pageLimitHint": "Aquí només es mostren les primeres accions. Utilitzeu \"$t(review.viewAll)\" per veure-les totes.",

@@ -305,7 +305,7 @@
     "bulkDelete": {
       "error": "Eliminazione in Massa di {{resourceName}} Fallita",
       "success": {
-        "description": "{{count}} {{resourceName}} sono stati eliminati con successo. Chiavi: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} sono stati eliminati con successo. Chiavi: {{keys}}",
         "title": "Eliminazione in Massa di {{resourceName}} Richiesta Inviata"
       }
     },
@@ -326,7 +326,7 @@
     "import": {
       "error": "Importazione di {{resourceName}} Fallita",
       "success": {
-        "description": "{{count}} {{resourceName}} sono stati importati con successo.",
+        "description": "{{count, number}} {{resourceName}} sono stati importati con successo.",
         "title": "Importazione di {{resourceName}} Richiesta Inviata"
       }
     },

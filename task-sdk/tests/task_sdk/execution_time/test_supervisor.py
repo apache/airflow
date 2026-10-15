@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -40,7 +40,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
-import httpx
+import httpx2
 import msgspec
 import psutil
 import pytest
@@ -57,6 +57,7 @@ from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk import DAG, BaseOperator, timezone
+from airflow.sdk._shared.secrets_masker import mask_secret
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -137,6 +138,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskStateStore,
@@ -163,6 +165,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import (
     SERVER_TERMINATED,
     ActivitySubprocess,
@@ -184,6 +187,8 @@ from airflow.sdk.execution_time.task_runner import run
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import kgb
 
     from airflow.sdk.definitions.context import Context
@@ -268,6 +273,294 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
+
+    def test_supervise_task_logs_config_hint_on_connection_error(self, mocker, tmp_path):
+        """Test that a connection failure reaching the Execution API is surfaced in the task
+        log, naming the responsible config, and still propagates."""
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+        server = "http://nonexistent-api-server:8080/execution/"
+        coordinator = mocker.Mock(spec=BaseCoordinator)
+        coordinator.execute_task.side_effect = httpx2.ConnectError("Name or service not known")
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.get_coordinator_manager", autospec=True
+        ).return_value.for_queue.return_value = coordinator
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}), pytest.raises(httpx2.ConnectError):
+            supervise_task(
+                ti=ti,
+                dag_rel_path="c.py",
+                token="",
+                server=server,
+                client=mocker.Mock(spec=sdk_client.Client),
+                bundle_info=BundleInfo(name="my-bundle", version=None),
+                log_path="attempt=1.log",
+            )
+
+        entries = [json.loads(line) for line in (tmp_path / "attempt=1.log").read_text().splitlines()]
+        assert [(e["level"], e["event"]) for e in entries] == [("info", "::endgroup::"), ("error", mock.ANY)]
+        assert "execution_api_server_url" in entries[1]["event"]
+        assert "base_url" in entries[1]["event"]
+        assert entries[1]["server"] == server
+
+
+def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
+    error = ServerResponseError.from_response(
+        httpx2.Response(status, json={"detail": detail}, request=httpx2.Request("PATCH", "http://server/x"))
+    )
+    assert error is not None
+    return error
+
+
+class TestSuperviseTaskLaunchError:
+    """A task whose runtime cannot be launched fails its try in the supervisor, with the reason."""
+
+    LAUNCH_EVENT = "Cannot launch the task's runtime"
+
+    @pytest.fixture
+    def ti(self):
+        return TaskInstance(
+            id=uuid7(),
+            task_id="extract",
+            dag_id="etl",
+            run_id="r",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="java",
+        )
+
+    @pytest.fixture
+    def client(self, make_ti_context):
+        client = MagicMock(spec=sdk_client.Client)
+        client.task_instances.start.return_value = make_ti_context(should_retry=False)
+        return client
+
+    @pytest.fixture
+    def upload_to_remote(self):
+        with patch("airflow.sdk.log.upload_to_remote", autospec=True) as mock_upload:
+            yield mock_upload
+
+    def _supervise(
+        self, client, ti, error: BaseException | Callable[..., Any], *, log_path: str | None = None
+    ) -> int:
+        coordinator = MagicMock(spec=BaseCoordinator)
+        coordinator.execute_task.side_effect = error
+        with patch.object(supervisor, "get_coordinator_manager", autospec=True) as mock_manager:
+            mock_manager.return_value.for_queue.return_value = coordinator
+            return supervise_task(
+                ti=ti,
+                bundle_info=BundleInfo(name="dags", version="v1"),
+                dag_rel_path="etl.jar",
+                token="",
+                client=client,
+                log_path=log_path,
+            )
+
+    def _read_task_log(self, tmp_path, log_path: str) -> list[dict[str, Any]]:
+        return [json.loads(line) for line in (tmp_path / log_path).read_text().splitlines() if line]
+
+    def test_fails_the_try_with_the_reason(self, client, ti, upload_to_remote):
+        exit_code = self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        assert exit_code == 1
+        client.task_instances.start.assert_called_once_with(ti.id, os.getpid(), mock.ANY)
+        client.task_instances.finish.assert_called_once_with(
+            id=ti.id,
+            state=TaskInstanceState.FAILED,
+            when=mock.ANY,
+            rendered_map_index=None,
+            retry_reason="no jar for 'extract'",
+        )
+        client.task_instances.retry.assert_not_called()
+
+    def test_retries_the_try_when_the_task_has_retries_left(
+        self, client, ti, make_ti_context, upload_to_remote
+    ):
+        client.task_instances.start.return_value = make_ti_context(should_retry=True, max_tries=2)
+
+        exit_code = self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        assert exit_code == 1
+        client.task_instances.retry.assert_called_once_with(
+            ti.id, end_date=mock.ANY, rendered_map_index=None, retry_reason="no jar for 'extract'"
+        )
+        client.task_instances.finish.assert_not_called()
+
+    def test_fails_the_try_of_an_error_that_is_not_retryable_even_with_retries_left(
+        self, client, ti, make_ti_context, upload_to_remote
+    ):
+        client.task_instances.start.return_value = make_ti_context(should_retry=True, max_tries=2)
+
+        exit_code = self._supervise(client, ti, TaskLaunchError("wrong coordinator", retryable=False))
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_called_once_with(
+            id=ti.id,
+            state=TaskInstanceState.FAILED,
+            when=mock.ANY,
+            rendered_map_index=None,
+            retry_reason="wrong coordinator",
+        )
+        client.task_instances.retry.assert_not_called()
+
+    def test_writes_the_reason_to_the_task_log(self, client, ti, tmp_path, upload_to_remote):
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"), log_path="etl/extract.log")
+
+        entries = self._read_task_log(tmp_path, "etl/extract.log")
+        assert [(e["level"], e["event"], e["reason"]) for e in entries if "reason" in e] == [
+            ("error", self.LAUNCH_EVENT, "no jar for 'extract'")
+        ]
+
+    def test_logs_the_cause_of_the_error(self, client, ti, tmp_path, upload_to_remote):
+        try:
+            try:
+                raise OSError("disk gone")
+            except OSError as cause:
+                raise TaskLaunchError("cannot read the bundle") from cause
+        except TaskLaunchError as e:
+            error = e
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, error, log_path="etl/extract.log")
+
+        (entry,) = [e for e in self._read_task_log(tmp_path, "etl/extract.log") if "reason" in e]
+        assert "disk gone" in json.dumps(entry["exception"])
+
+    def test_truncates_the_reason_for_the_server_but_not_the_log(
+        self, client, ti, tmp_path, upload_to_remote
+    ):
+        reason = "x" * 700
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, TaskLaunchError(reason), log_path="etl/extract.log")
+
+        assert client.task_instances.finish.call_args.kwargs["retry_reason"] == "x" * 500
+        (entry,) = [e for e in self._read_task_log(tmp_path, "etl/extract.log") if "reason" in e]
+        assert entry["reason"] == reason
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        ("message", "expected"),
+        [
+            pytest.param(
+                "cannot read https://user:hunter2-hunter2@git/repo",
+                "cannot read https://user:***@git/repo",
+                id="short",
+            ),
+            pytest.param("x" * 490 + "hunter2-hunter2", "x" * 490 + "***", id="across-the-cut"),
+        ],
+    )
+    def test_redacts_a_masked_secret_in_the_reason_before_cutting_it(
+        self, client, ti, tmp_path, upload_to_remote, message, expected
+    ):
+        def fail_with_a_secret(**kwargs):
+            mask_secret("hunter2-hunter2")
+            raise TaskLaunchError(message)
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._supervise(client, ti, fail_with_a_secret, log_path="etl/extract.log")
+
+        assert client.task_instances.finish.call_args.kwargs["retry_reason"] == expected
+        assert "hunter2" not in (tmp_path / "etl/extract.log").read_text()
+
+    def test_uploads_the_task_log(self, client, ti, upload_to_remote):
+        self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        upload_to_remote.assert_called_once_with(mock.ANY, ti)
+
+    def test_uploads_the_task_log_when_reporting_the_state_fails(self, client, ti, upload_to_remote):
+        client.task_instances.finish.side_effect = _response_error(500, {"reason": "boom"})
+
+        with pytest.raises(ServerResponseError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        upload_to_remote.assert_called_once()
+
+    def test_an_upload_failure_is_logged_and_not_raised(self, client, ti, tmp_path, upload_to_remote):
+        upload_to_remote.side_effect = OSError("disk gone")
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_called_once()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Failed to upload remote logs" in events
+
+    @pytest.mark.parametrize(
+        "should_retry", [pytest.param(False, id="finish"), pytest.param(True, id="retry")]
+    )
+    def test_a_conflict_on_the_state_is_logged_and_the_try_is_left_to_the_server(
+        self, client, ti, make_ti_context, tmp_path, upload_to_remote, should_retry
+    ):
+        client.task_instances.start.return_value = make_ti_context(
+            should_retry=should_retry, max_tries=2 if should_retry else 0
+        )
+        reported = client.task_instances.retry if should_retry else client.task_instances.finish
+        reported.side_effect = _response_error(409, {"reason": "invalid_state"})
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        reported.assert_called_once()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Server rejected task outcome with a conflict. Discarding task outcome." in events
+        upload_to_remote.assert_called_once()
+
+    def test_a_cleared_task_reports_no_state_and_logs_it(self, client, ti, tmp_path, upload_to_remote):
+        client.task_instances.start.side_effect = _response_error(
+            409, {"reason": "invalid_state", "previous_state": "restarting"}
+        )
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = self._supervise(client, ti, TaskLaunchError("no jar"), log_path="etl/extract.log")
+
+        assert exit_code == 1
+        client.task_instances.finish.assert_not_called()
+        client.task_instances.retry.assert_not_called()
+        events = [e["event"] for e in self._read_task_log(tmp_path, "etl/extract.log")]
+        assert "Server rejected task start because the task was cleared. Task process stopped." in events
+
+    def test_logs_the_reason_to_the_supervisor_log(self, client, ti, captured_logs, upload_to_remote):
+        self._supervise(client, ti, TaskLaunchError("no jar for 'extract'"))
+
+        supervisor_entries = [e for e in captured_logs if e["event"] == self.LAUNCH_EVENT and "ti_id" in e]
+        assert [(e["level"], e["ti_id"], e["reason"]) for e in supervisor_entries] == [
+            ("warning", str(ti.id), "no jar for 'extract'")
+        ]
+
+    def test_a_task_already_running_elsewhere_propagates(self, client, ti, upload_to_remote):
+        client.task_instances.start.side_effect = TaskAlreadyRunningError("already running")
+
+        with pytest.raises(TaskAlreadyRunningError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        client.task_instances.finish.assert_not_called()
+
+    def test_another_start_error_propagates(self, client, ti, upload_to_remote):
+        client.task_instances.start.side_effect = _response_error(500, {"reason": "boom"})
+
+        with pytest.raises(ServerResponseError):
+            self._supervise(client, ti, TaskLaunchError("no jar"))
+
+        client.task_instances.finish.assert_not_called()
+
+    def test_other_errors_from_the_coordinator_are_not_reported_as_a_launch_failure(
+        self, client, ti, upload_to_remote
+    ):
+        with pytest.raises(RuntimeError, match="boom"):
+            self._supervise(client, ti, RuntimeError("boom"))
+
+        client.task_instances.start.assert_not_called()
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -460,9 +753,9 @@ class TestWatchedSubprocess:
         main_pid = os.getpid()
         ti_id = "4d828a62-a417-4936-a7a6-2b3fabacecab"
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/heartbeat":
-                return httpx.Response(
+                return httpx2.Response(
                     status_code=409,
                     json={
                         "detail": {
@@ -473,8 +766,8 @@ class TestWatchedSubprocess:
                     },
                 )
             if request.url.path == f"/task-instances/{ti_id}/run":
-                return httpx.Response(200, json=make_ti_context_dict())
-            return httpx.Response(status_code=204)
+                return httpx2.Response(200, json=make_ti_context_dict())
+            return httpx2.Response(status_code=204)
 
         def subprocess_main():
             # Ensure we follow the "protocol" and get the startup message before we do anything
@@ -519,7 +812,7 @@ class TestWatchedSubprocess:
                 dag_version_id=uuid7(),
                 queue="default",
             ),
-            client=make_client(transport=httpx.MockTransport(handle_request)),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
             target=subprocess_main,
         )
 
@@ -723,7 +1016,10 @@ class TestWatchedSubprocess:
         assert proc.wait() == 0
         spy_agency.assert_spy_not_called(heartbeat_spy)
 
-    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start):
+    @pytest.mark.parametrize("log_to_file", [False, True])
+    def test_run_simple_dag(
+        self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start, tmp_path, log_to_file
+    ):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
@@ -750,8 +1046,15 @@ class TestWatchedSubprocess:
                 dry_run=True,
                 client=client_with_ti_start,
                 bundle_info=bundle_info,
+                log_path=str(tmp_path / "task.log") if log_to_file else None,
             )
             assert exit_code == 0, captured_logs
+
+        if log_to_file:
+            records = [json.loads(line) for line in (tmp_path / "task.log").read_text().splitlines()]
+            greeting = next(record for record in records if record.get("event") == "Hello World hello!")
+            assert greeting["ti_id"] == str(ti.id)
+            return
 
         # We should have a log from the task!
         assert {
@@ -876,14 +1179,14 @@ class TestWatchedSubprocess:
         # Track the number of requests to simulate mixed responses
         request_count = {"count": 0}
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/heartbeat":
                 request_count["count"] += 1
                 if request_count["count"] == 1:
                     # First request succeeds
-                    return httpx.Response(status_code=204)
+                    return httpx2.Response(status_code=204)
                 # Second request returns a conflict status code
-                return httpx.Response(
+                return httpx2.Response(
                     409,
                     json={
                         "reason": "not_running",
@@ -892,7 +1195,7 @@ class TestWatchedSubprocess:
                     },
                 )
             if request.url.path == f"/task-instances/{ti_id}/run":
-                return httpx.Response(200, json=make_ti_context_dict())
+                return httpx2.Response(200, json=make_ti_context_dict())
             if request.url.path == f"/task-instances/{ti_id}/state":
                 assert proc._process.wait(timeout=0) == -signal.SIGTERM
                 payload = json.loads(request.content)
@@ -901,7 +1204,7 @@ class TestWatchedSubprocess:
                 assert payload["pid"] == proc.pid
                 request_count["stopped"] = request_count.get("stopped", 0) + 1
             # Return a 204 for all other requests
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -914,7 +1217,7 @@ class TestWatchedSubprocess:
                 dag_version_id=uuid7(),
                 queue="default",
             ),
-            client=make_client(transport=httpx.MockTransport(handle_request)),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
             target=subprocess_main,
             bundle_info=FAKE_BUNDLE,
         )
@@ -1006,19 +1309,19 @@ class TestWatchedSubprocess:
 
         def handle_request(request):
             if request.url.path.endswith("/run"):
-                return httpx.Response(200, json=make_ti_context_dict())
+                return httpx2.Response(200, json=make_ti_context_dict())
             if request.url.path.endswith("/heartbeat"):
-                return httpx.Response(204)
+                return httpx2.Response(204)
             assert request.url.path.endswith("/state")
             payload = json.loads(request.content)
             reports.append(payload["state"])
             if payload["state"] != SERVER_TERMINATED:
-                return httpx.Response(409, json={"detail": detail})
+                return httpx2.Response(409, json={"detail": detail})
             assert proc._process.wait(timeout=0) == 0
             assert finalized.exists()
             assert payload["hostname"] == sdk_client.get_hostname()
             assert payload["pid"] == proc.pid
-            return httpx.Response(204)
+            return httpx2.Response(204)
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -1031,7 +1334,7 @@ class TestWatchedSubprocess:
                 dag_version_id=uuid7(),
                 queue="default",
             ),
-            client=make_client(transport=httpx.MockTransport(handle_request)),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
             target=subprocess_main,
             bundle_info=FAKE_BUNDLE,
         )
@@ -1053,7 +1356,7 @@ class TestWatchedSubprocess:
         def handle_request(request):
             requests.append(request.url.path)
             if request.url.path.endswith("/run"):
-                return httpx.Response(
+                return httpx2.Response(
                     409,
                     json={
                         "detail": {
@@ -1070,12 +1373,12 @@ class TestWatchedSubprocess:
             assert payload["hostname"] == sdk_client.get_hostname()
             assert payload["pid"] == proc.pid
             if ack_status == 404:
-                return httpx.Response(
+                return httpx2.Response(
                     404, json={"detail": {"reason": "not_found", "message": "Task Instance not found"}}
                 )
             if ack_status == 409:
-                return httpx.Response(409, json={"detail": {"reason": "running_elsewhere"}})
-            return httpx.Response(ack_status)
+                return httpx2.Response(409, json={"detail": {"reason": "running_elsewhere"}})
+            return httpx2.Response(ack_status)
 
         exit_code = supervise_task(
             dag_rel_path=os.devnull,
@@ -1090,7 +1393,7 @@ class TestWatchedSubprocess:
                 dag_version_id=uuid7(),
                 queue="default",
             ),
-            client=make_client(transport=httpx.MockTransport(handle_request)),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
         )
         assert exit_code == -signal.SIGKILL
         assert requests == [f"/task-instances/{ti_id}/run", f"/task-instances/{ti_id}/state"]
@@ -1109,9 +1412,9 @@ class TestWatchedSubprocess:
         when the API returns 409 with previous_state='running'."""
         ti_id = uuid7()
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == f"/task-instances/{ti_id}/run":
-                return httpx.Response(
+                return httpx2.Response(
                     409,
                     json={
                         "detail": {
@@ -1121,7 +1424,7 @@ class TestWatchedSubprocess:
                         }
                     },
                 )
-            return httpx.Response(status_code=204)
+            return httpx2.Response(status_code=204)
 
         def subprocess_main():
             # Ensure we follow the "protocol" and get the startup message before we do anything
@@ -1140,7 +1443,7 @@ class TestWatchedSubprocess:
                     dag_version_id=uuid7(),
                     queue="default",
                 ),
-                client=make_client(transport=httpx.MockTransport(handle_request)),
+                client=make_client(transport=httpx2.MockTransport(handle_request)),
                 target=subprocess_main,
             )
 
@@ -1304,6 +1607,153 @@ class TestWatchedSubprocess:
         else:
             mock_kill.assert_not_called()
             mock_logger.warning.assert_not_called()
+
+    def test_server_terminated_task_gets_killed_task_cleanup_time(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 42.0)
+        mocker.patch("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        client = mocker.Mock()
+        client.task_instances.heartbeat.side_effect = ServerResponseError.from_response(
+            httpx2.Response(
+                409,
+                request=httpx2.Request("PUT", "http://server/heartbeat"),
+                json={"detail": {"reason": "not_running", "current_state": "failed"}},
+            )
+        )
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=client,
+        )
+
+        proc._send_heartbeat_if_needed()
+
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=42.0)
+
+    def test_execution_timeout_kills_task_that_does_not_stop(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+
+        monotonic.return_value += 34
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
+
+        monotonic.return_value += 1
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
+        proc.process_log.error.assert_called_once_with(
+            "Task did not stop before execution_timeout elapsed; terminating process",
+            timeout_seconds=30,
+            grace_period_seconds=5.0,
+        )
+
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("terminal_state", "exit_code"),
+        [
+            pytest.param(TaskInstanceState.FAILED, None, id="terminal_state_reported"),
+            pytest.param(None, 0, id="process_exited"),
+        ],
+    )
+    def test_execution_timeout_not_enforced_once_task_is_over(self, mocker, terminal_state, exit_code):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc._terminal_state = terminal_state
+        proc._exit_code = exit_code
+
+        monotonic.return_value += 100
+        proc._handle_execution_timeout_if_needed()
+
+        mock_kill.assert_not_called()
+        proc.process_log.error.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("stops_on_sigterm", "expected_exit_code"),
+        [
+            pytest.param(True, 0, id="task_reports_state_on_sigterm"),
+            pytest.param(False, -signal.SIGKILL, id="task_ignores_sigterm"),
+        ],
+    )
+    def test_execution_timeout_enforced_by_supervisor(
+        self, stops_on_sigterm, expected_exit_code, mocker, captured_logs, client_with_ti_start
+    ):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 0.3)
+        # Far longer than the test may take: the monitor loop has to wake up for the timeout on its own
+        mocker.patch("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 30)
+
+        def subprocess_main():
+            import signal
+
+            comms = CommsDecoder()
+            comms._get_response()
+
+            def _on_term(signum, frame):
+                if stops_on_sigterm:
+                    comms.send(TaskState(state=TaskInstanceState.FAILED, end_date=timezone.utcnow()))
+                    exit(0)
+                print("Ignoring SIGTERM", file=sys.stderr)
+
+            signal.signal(signal.SIGTERM, _on_term)
+            comms.send(SetExecutionTimeout(timeout_seconds=0.1))
+            sleep(30)
+            exit(5)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=TI_ID,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+
+        started = time.monotonic()
+        assert proc.wait() == expected_exit_code
+        assert time.monotonic() - started < 10
+        assert proc.final_state == TaskInstanceState.FAILED
+
+        assert {
+            "event": "Task did not stop before execution_timeout elapsed; terminating process",
+            "level": "error",
+            "timeout_seconds": 0.1,
+            "grace_period_seconds": 0.3,
+            "logger": "task",
+            "timestamp": mocker.ANY,
+            "loc": mocker.ANY,
+        } in captured_logs
 
     @pytest.mark.parametrize(
         ("signal_to_raise", "log_pattern", "level"),
@@ -2027,6 +2477,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value="test_value"),
         ),
         expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
@@ -2039,6 +2490,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", 2, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value="test_value"),
         ),
         expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
@@ -2049,6 +2501,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
@@ -2065,6 +2518,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, True),
+            kwargs={"previous_iteration": False},
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
@@ -2087,7 +2541,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 None,
             ),
-            kwargs={"dag_result": False, "mapped_length": None},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom",
@@ -2111,7 +2568,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 2,
             ),
-            kwargs={"dag_result": False, "mapped_length": None},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_map_index",
@@ -2136,7 +2596,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 2,
             ),
-            kwargs={"dag_result": False, "mapped_length": 3},
+            kwargs={
+                "dag_result": False,
+                "mapped_length": 3,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_map_index_and_mapped_length",
@@ -2160,7 +2623,10 @@ REQUEST_TEST_CASES = [
                 '{"key": "test_key", "value": {"key2": "value2"}}',
                 None,
             ),
-            kwargs={"dag_result": True, "mapped_length": None},
+            kwargs={
+                "dag_result": True,
+                "mapped_length": None,
+            },
             response=OKResponse(ok=True),
         ),
         test_id="set_xcom_with_dag_result",
@@ -2194,6 +2660,10 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="set_rtif",
+    ),
+    RequestTestCase(
+        message=SetExecutionTimeout(timeout_seconds=30.0),
+        test_id="set_execution_timeout",
     ),
     RequestTestCase(
         message=SetRenderedMapIndex(rendered_map_index="Label: task_1"),
@@ -3036,6 +3506,8 @@ REQUEST_TEST_CASES = [
                 "task_id": "test_task",
                 "dag_id": "test_dag",
                 "run_id": "prev_run",
+                "region_id": None,
+                "region_index": None,
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
                 "start_date": timezone.parse("2024-01-14T12:05:00Z"),
                 "end_date": timezone.parse("2024-01-14T12:10:00Z"),
@@ -3150,6 +3622,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_item",
             args=("test_dag", "test_run", "test_task", "test_key", 0),
+            kwargs={"previous_iteration": False},
             response=XComSequenceIndexResult(root="test_value"),
         ),
         test_id="get_xcom_seq_item",
@@ -3166,6 +3639,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_item",
             args=("test_dag", "test_run", "test_task", "test_key", 2),
+            kwargs={"previous_iteration": False},
             response=ErrorResponse(error=ErrorType.XCOM_NOT_FOUND),
         ),
         test_id="get_xcom_seq_item_not_found",
@@ -3185,6 +3659,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get_sequence_slice",
             args=("test_dag", "test_run", "test_task", "test_key", None, None, None, False),
+            kwargs={"previous_iteration": False},
             response=XComSequenceSliceResult(root=["foo", "bar"]),
         ),
         test_id="get_xcom_seq_slice",
@@ -3247,6 +3722,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.head",
             args=("test_dag", "test_run", "test_task", "test_key"),
+            kwargs={"previous_iteration": False},
             response=XComCountResponse(len=5),
         ),
         test_id="get_xcom_count",
@@ -3306,7 +3782,7 @@ REQUEST_TEST_CASES = [
             "relative_fileloc": "dags/example.py",
             "owners": "owner_1",
             "tags": ["a_tag", "z_tag"],
-            "next_dagrun": datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+            "next_dagrun": datetime(2026, 4, 13, tzinfo=UTC),
             "type": "DagResult",
         },
         client_mock=ClientMock(
@@ -3322,7 +3798,7 @@ REQUEST_TEST_CASES = [
                 relative_fileloc="dags/example.py",
                 owners="owner_1",
                 tags=["a_tag", "z_tag"],
-                next_dagrun=datetime(2026, 4, 13, tzinfo=dt_timezone.utc),
+                next_dagrun=datetime(2026, 4, 13, tzinfo=UTC),
             ),
         ),
         test_id="get_dag",
@@ -3342,13 +3818,13 @@ REQUEST_TEST_CASES = [
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
-            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+            expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC),
         ),
         test_id="set_task_store",
         client_mock=ClientMock(
             method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            kwargs={"expires_at": datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
@@ -3358,13 +3834,13 @@ REQUEST_TEST_CASES = [
             ti_id=TI_ID,
             key="job_id",
             value="spark_app_001",
-            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc),
+            expires_at=datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC),
         ),
         test_id="set_task_store_with_expires_at",
         client_mock=ClientMock(
             method_path="task_state_store.set",
             args=(TI_ID, "job_id", "spark_app_001"),
-            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=dt_timezone.utc)},
+            kwargs={"expires_at": datetime(2026, 5, 21, 12, 0, 0, tzinfo=UTC)},
             response=OKResponse(ok=True),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
@@ -3489,10 +3965,10 @@ class TestHandleRequest:
         process, _ = watched_subprocess
         msg = TaskState(state=TaskInstanceState.FAILED)
         error = ServerResponseError.from_response(
-            httpx.Response(
+            httpx2.Response(
                 status,
                 json={"detail": {"reason": "invalid_state", "previous_state": "restarting"}},
-                request=httpx.Request("PATCH", "http://server/state"),
+                request=httpx2.Request("PATCH", "http://server/state"),
             )
         )
         process.client.task_instances.finish.side_effect = error
@@ -3510,16 +3986,16 @@ class TestHandleRequest:
         process, _ = watched_subprocess
         msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
         process.client.task_instances.succeed.side_effect = [
-            httpx.ConnectError("response lost"),
+            httpx2.ConnectError("response lost"),
             ServerResponseError.from_response(
-                httpx.Response(
+                httpx2.Response(
                     409,
                     json={"detail": {"reason": "invalid_state", "previous_state": "restarting"}},
-                    request=httpx.Request("PATCH", "http://server/state"),
+                    request=httpx2.Request("PATCH", "http://server/state"),
                 )
             ),
         ]
-        with pytest.raises(httpx.ConnectError):
+        with pytest.raises(httpx2.ConnectError):
             process._handle_request(msg, structlog.get_logger(), req_id=1)
         process.client.task_instances.finish.assert_not_called()
         process._exit_code = 0
@@ -3556,15 +4032,15 @@ class TestHandleRequest:
         process, _ = watched_subprocess
         process._handle_request(TaskState(state=TaskInstanceState.FAILED), structlog.get_logger(), req_id=1)
         process.client.task_instances.heartbeat.side_effect = ServerResponseError.from_response(
-            httpx.Response(
+            httpx2.Response(
                 409,
-                request=httpx.Request("PUT", "http://server/heartbeat"),
+                request=httpx2.Request("PUT", "http://server/heartbeat"),
                 json={"detail": "already stopped"},
             )
         )
         observed_at_kill = []
 
-        def terminate(self, signal_to_send, force):
+        def terminate(self, signal_to_send, force, escalation_delay):
             observed_at_kill.append((self._terminal_state, self._pending_terminal_state_msg))
             if arrival == "during_kill":
                 self._handle_request(msg, structlog.get_logger(), req_id=2)
@@ -3649,10 +4125,10 @@ class TestHandleRequest:
         process._exit_code = 0
         process.client.task_instances.finish = mocker.Mock(
             spec=sdk_client.TaskInstanceOperations.finish,
-            side_effect=httpx.ConnectError("connection refused"),
+            side_effect=httpx2.ConnectError("connection refused"),
         )
 
-        with pytest.raises(httpx.ConnectError):
+        with pytest.raises(httpx2.ConnectError):
             process.update_task_state_if_needed()
 
         assert process._terminal_state == TaskInstanceState.FAILED
@@ -3701,7 +4177,7 @@ class TestHandleRequest:
     def test_wait_propagates_delayed_retry_report_failure(self, watched_subprocess, mocker):
         process, _ = watched_subprocess
         msg = RetryTask(end_date=timezone.utcnow())
-        process.client.task_instances.retry.side_effect = httpx.ConnectError("connection refused")
+        process.client.task_instances.retry.side_effect = httpx2.ConnectError("connection refused")
         process._handle_request(msg, structlog.get_logger(), req_id=1)
 
         process.client.task_instances.retry.assert_not_called()
@@ -3716,7 +4192,7 @@ class TestHandleRequest:
         )
         upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs", autospec=True)
 
-        with pytest.raises(httpx.ConnectError, match="connection refused"):
+        with pytest.raises(httpx2.ConnectError, match="connection refused"):
             process.wait()
 
         assert process._terminal_state == TaskInstanceState.UP_FOR_RETRY
@@ -3965,8 +4441,8 @@ class TestHandleRequest:
 
         error = ServerResponseError(
             message="API Server Error",
-            request=httpx.Request("GET", "http://test"),
-            response=httpx.Response(500, json={"detail": "Internal Server Error"}),
+            request=httpx2.Request("GET", "http://test"),
+            response=httpx2.Response(500, json={"detail": "Internal Server Error"}),
         )
 
         mock_client_method = mocker.Mock(side_effect=error)
@@ -4026,8 +4502,8 @@ class TestHandleRequest:
 
         error = ServerResponseError(
             message="boom",
-            request=httpx.Request("PUT", "http://test"),
-            response=httpx.Response(status_code, json={"detail": "boom"}),
+            request=httpx2.Request("PUT", "http://test"),
+            response=httpx2.Response(status_code, json={"detail": "boom"}),
         )
         watched_subprocess.client.task_instances.set_rtif = mocker.Mock(side_effect=error)
 
@@ -4053,7 +4529,7 @@ class TestHandleRequest:
     def test_handle_requests_network_exception_does_not_crash_loop(self, watched_subprocess, mocker):
         """A transient network error must not crash the IPC generator.
 
-        Without the catch-all in handle_requests, an httpx.ConnectError would
+        Without the catch-all in handle_requests, an httpx2.ConnectError would
         propagate, the generator would terminate, the task subprocess would
         get EOFError on every subsequent send, and the worker would be stuck.
         Verify that the error is reported back to the task as an
@@ -4063,7 +4539,7 @@ class TestHandleRequest:
         watched_subprocess, read_socket = watched_subprocess
 
         # First request raises a network exception, second succeeds.
-        first_call = httpx.ConnectError("connection refused")
+        first_call = httpx2.ConnectError("connection refused")
         watched_subprocess.client.task_instances.succeed = mocker.Mock(side_effect=[first_call, None])
 
         generator = watched_subprocess.handle_requests(log=mocker.Mock())
@@ -4135,11 +4611,11 @@ class TestHandleRequest:
             api_method,
             mocker.Mock(
                 spec=getattr(sdk_client.TaskInstanceOperations, api_method),
-                side_effect=httpx.ConnectError("connection refused"),
+                side_effect=httpx2.ConnectError("connection refused"),
             ),
         )
 
-        with pytest.raises(httpx.ConnectError):
+        with pytest.raises(httpx2.ConnectError):
             watched_subprocess._handle_request(msg, structlog.get_logger(), req_id=1)
 
         assert watched_subprocess._terminal_state == expected_state
@@ -4235,11 +4711,11 @@ class TestHandleRequest:
         error = (
             ServerResponseError(
                 message="Acknowledgement rejected",
-                request=httpx.Request("PATCH", "http://test/task-instances/state"),
-                response=httpx.Response(status_code),
+                request=httpx2.Request("PATCH", "http://test/task-instances/state"),
+                response=httpx2.Response(status_code),
             )
             if status_code is not None
-            else httpx.ConnectError("connection refused")
+            else httpx2.ConnectError("connection refused")
         )
         proc.client.task_instances.finish.side_effect = error
 
@@ -4248,6 +4724,22 @@ class TestHandleRequest:
 
         assert exc.value is error
         proc.client.task_instances.finish.assert_called_once()
+
+    @pytest.mark.parametrize("status_code", [404, 409, 410])
+    def test_server_termination_acknowledgement_after_archival(self, watched_subprocess, status_code):
+        proc, _ = watched_subprocess
+        proc._exit_code = -signal.SIGTERM
+        proc._terminal_state = SERVER_TERMINATED
+        proc.client.task_instances.finish.side_effect = ServerResponseError(
+            message="Acknowledgement rejected",
+            request=httpx2.Request("PATCH", "http://test/task-instances/state"),
+            response=httpx2.Response(status_code),
+        )
+
+        proc.update_task_state_if_needed()
+
+        proc.client.task_instances.finish.assert_called_once()
+        assert proc._pending_terminal_state_msg is None
 
     def test_task_state_retry_reason_forwarded_to_finish(self, watched_subprocess, mocker):
         """A TaskState message's retry_reason must reach the deferred finish() call."""
@@ -4487,9 +4979,13 @@ class TestInProcessTestSupervisor:
         fake_task_instances.start.return_value = make_ti_context()
         fake_client = mock.MagicMock(spec_set=["task_instances"])
         fake_client.task_instances = fake_task_instances
-        monkeypatch.setattr(
-            InProcessTestSupervisor, "_api_client", staticmethod(lambda dag=None: fake_client)
-        )
+
+        def fake_api_client(dag, attempt_id):
+            assert dag is task.dag
+            assert attempt_id == ti.id
+            return fake_client
+
+        monkeypatch.setattr(InProcessTestSupervisor, "_api_client", staticmethod(fake_api_client))
 
         result = InProcessTestSupervisor.start(what=ti, task=task)
 
@@ -4502,17 +4998,17 @@ class TestInProcessClient:
     def test_no_retries(self):
         called = 0
 
-        def noop_handler(request: httpx.Request) -> httpx.Response:
+        def noop_handler(request: httpx2.Request) -> httpx2.Response:
             nonlocal called
             called += 1
-            return httpx.Response(500)
+            return httpx2.Response(500)
 
-        transport = httpx.MockTransport(noop_handler)
+        transport = httpx2.MockTransport(noop_handler)
         client = InProcessTestSupervisor._Client(
             base_url="http://local.invalid", token="", transport=transport
         )
 
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(httpx2.HTTPStatusError):
             client.get("/goo")
 
         assert called == 1
@@ -4537,8 +5033,8 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
     monkeypatch.delitem(sys.modules, "airflow.config_templates.airflow_local_settings", raising=False)
     monkeypatch.delitem(sys.modules, "airflow.sdk.log", raising=False)
 
-    def handle_request(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
+    def handle_request(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(
             status_code=200,
             json={
                 # Minimal enough to pass validation, we don't care what fields are in here for the tests
@@ -4574,7 +5070,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             }
         ):
             env = os.environ.copy()
-            client = make_client(transport=httpx.MockTransport(handle_request))
+            client = make_client(transport=httpx2.MockTransport(handle_request))
 
             with _remote_logging_conn(client):
                 new_keys = os.environ.keys() - env.keys()
@@ -4657,11 +5153,11 @@ def test_logs_uploaded_even_when_state_update_fails(mocker):
     mocker.patch.object(
         ActivitySubprocess,
         "update_task_state_if_needed",
-        side_effect=httpx.ConnectError("connection refused"),
+        side_effect=httpx2.ConnectError("connection refused"),
     )
     upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs")
 
-    with pytest.raises(httpx.ConnectError):
+    with pytest.raises(httpx2.ConnectError):
         proc.wait()
 
     upload_logs.assert_called_once_with()
@@ -4682,8 +5178,8 @@ def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
     conn_id = "s3_conn_logs"
     conn_uri = "aws:///?region_name=us-east-1"
 
-    def handle_request(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
+    def handle_request(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(
             status_code=200,
             json={
                 "conn_id": conn_id,
@@ -4709,7 +5205,7 @@ def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
                 ("logging", "remote_log_conn_id"): conn_id,
             }
         ):
-            client = make_client(transport=httpx.MockTransport(handle_request))
+            client = make_client(transport=httpx2.MockTransport(handle_request))
 
             assert os.getenv("_AIRFLOW_PROCESS_CONTEXT") is None
 
@@ -4874,12 +5370,12 @@ def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
         }
     ):
 
-        def noop_request(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(200)
+        def noop_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(200)
 
         clients = []
         for _ in range(3):
-            client = make_client(transport=httpx.MockTransport(noop_request))
+            client = make_client(transport=httpx2.MockTransport(noop_request))
             clients.append(weakref.ref(client))
             with _remote_logging_conn(client):
                 pass
@@ -5320,6 +5816,60 @@ def test_activity_start_opts_into_fork_exec(monkeypatch, mocker, task_uses_exec,
 
     assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
     assert base_start.call_args.kwargs["target"] is target
+
+
+@pytest.mark.parametrize(
+    ("task_uses_exec", "target", "expected_calls"),
+    [
+        pytest.param(False, supervisor._subprocess_main, ["import task runner", "fork"], id="bare-fork"),
+        pytest.param(True, supervisor._subprocess_main, ["fork"], id="exec"),
+        pytest.param(False, lambda: None, ["fork"], id="test-target"),
+    ],
+)
+def test_activity_start_imports_task_runner_before_bare_fork(
+    monkeypatch, mocker, task_uses_exec, target, expected_calls
+):
+    """A forked task process inherits the task runner from the supervisor; a spawned one imports its own."""
+    calls = []
+
+    def fork(*args, **kwargs):
+        calls.append("fork")
+        return MagicMock(spec=ActivitySubprocess)
+
+    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    mocker.patch.object(
+        supervisor,
+        "_import_task_runner_before_fork",
+        autospec=True,
+        side_effect=lambda: calls.append("import task runner"),
+    )
+    mocker.patch.object(supervisor.WatchedSubprocess, "start", autospec=True, side_effect=fork)
+
+    ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        client=MagicMock(spec=sdk_client.Client),
+        target=target,
+        logger=MagicMock(),
+    )
+
+    assert calls == expected_calls
+
+
+def test_import_task_runner_before_fork_leaves_import_errors_to_the_child(monkeypatch):
+    """A task runner that fails to import is reported by the child, which imports it again."""
+    monkeypatch.setitem(sys.modules, "airflow.sdk.execution_time.task_runner", None)
+
+    supervisor._import_task_runner_before_fork()
 
 
 class TestTaskProcessUsesExec:
