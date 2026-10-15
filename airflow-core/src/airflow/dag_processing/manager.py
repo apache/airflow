@@ -1469,7 +1469,22 @@ class DagFileProcessorManager(LoggingMixin):
     def client(self) -> Client:
         from airflow.sdk.api.client import Client
 
-        client = Client(base_url=None, token="", dry_run=True, transport=self._api_server.transport)
+        worker_retries = conf.getint("workers", "execution_api_retries")
+        worker_retry_wait_min = conf.getfloat("workers", "execution_api_retry_wait_min")
+        worker_retry_wait_max = conf.getfloat("workers", "execution_api_retry_wait_max")
+        client = Client(
+            base_url=None,
+            token="",
+            dry_run=True,
+            transport=self._api_server.transport,
+            retries=conf.getint("dag_processor", "execution_api_retries", fallback=worker_retries),
+            retry_wait_min=conf.getfloat(
+                "dag_processor", "execution_api_retry_wait_min", fallback=worker_retry_wait_min
+            ),
+            retry_wait_max=conf.getfloat(
+                "dag_processor", "execution_api_retry_wait_max", fallback=worker_retry_wait_max
+            ),
+        )
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
         return client

@@ -35,8 +35,8 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, JsonValue
 from tenacity import (
+    Retrying,
     before_log,
-    retry,
     retry_if_exception,
     stop_after_attempt,
     wait_random_exponential,
@@ -1250,10 +1250,28 @@ class Client(httpx2.Client):
             ctx.load_verify_locations(ca_path)
         return ctx
 
-    def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
+    def __init__(
+        self,
+        *,
+        base_url: str | None,
+        dry_run: bool = False,
+        token: str,
+        retries: int = API_RETRIES,
+        retry_wait_min: float = API_RETRY_WAIT_MIN,
+        retry_wait_max: float = API_RETRY_WAIT_MAX,
+        **kwargs: Any,
+    ):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
         auth = BearerAuth(token)
+
+        self._request_with_retry_policy = Retrying(
+            retry=retry_if_exception(_should_retry_api_request),
+            stop=stop_after_attempt(retries),
+            wait=wait_random_exponential(min=retry_wait_min, max=retry_wait_max),
+            before_sleep=_log_and_trace_retry,
+            reraise=True,
+        ).wraps(self._request_with_retry)
 
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
@@ -1301,7 +1319,10 @@ class Client(httpx2.Client):
         """
         if not retry:
             return self._request_without_retry(*args, **kwargs)
-        return self._request_with_retry(*args, **kwargs)
+        return self._request_with_retry_policy(*args, **kwargs)
+
+    def _request_with_retry(self, *args, **kwargs):
+        return self._request_without_retry(*args, **kwargs)
 
     def _request_without_retry(self, *args, **kwargs):
         # Set content type as convenience if not already set
@@ -1311,16 +1332,6 @@ class Client(httpx2.Client):
             kwargs["headers"] = {"content-type": "application/json"}
 
         return super().request(*args, **kwargs)
-
-    @retry(
-        retry=retry_if_exception(_should_retry_api_request),
-        stop=stop_after_attempt(API_RETRIES),
-        wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=_log_and_trace_retry,
-        reraise=True,
-    )
-    def _request_with_retry(self, *args, **kwargs):
-        return self._request_without_retry(*args, **kwargs)
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
     # methods on one object prefixed with the object type (`.task_instances.update` rather than
