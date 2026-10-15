@@ -222,6 +222,25 @@ class TestCallback:
         assert repr(triggerer_callback) == f"{triggerer_callback.data['path']}({expected}) on a triggerer"
         assert _TrackedKwarg.instantiated is False
 
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(float("nan"), "datetime.timedelta(nan)", id="nan"),
+            pytest.param(float("inf"), "datetime.timedelta(inf)", id="inf"),
+            pytest.param(float("-inf"), "datetime.timedelta(-inf)", id="-inf"),
+            pytest.param(1e300, "datetime.timedelta(1e+300)", id="too-large"),
+            pytest.param("an hour", "datetime.timedelta(an hour)", id="not-a-number"),
+        ],
+    )
+    def test_metric_tags_and_repr_fall_back_for_unusable_intervals(self, data, expected):
+        kwargs = {"interval": {serde.CLASSNAME: "datetime.timedelta", serde.VERSION: 2, serde.DATA: data}}
+        callback = TriggererCallback(AsyncCallback(async_callback, kwargs=kwargs))
+
+        tags = callback.get_metric_info(CallbackState.SUCCESS, "0")["tags"]
+
+        assert tags["kwargs"] == json.dumps({"interval": expected})
+        assert repr(callback) == f"{callback.data['path']}({ {'interval': expected} }) on a triggerer"
+
     def test_get_metric_info_includes_queue(self):
         """``queue`` is stored in ``self.data`` for a queued AsyncCallback, so it flows into metric tags."""
         queued_callback = AsyncCallback(async_callback, kwargs=TEST_CALLBACK_KWARGS, queue="custom-queue")

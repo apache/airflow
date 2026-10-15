@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import datetime
+import math
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import dateutil.relativedelta
@@ -302,10 +303,15 @@ def format_encoded_value_for_display(value: Any) -> Any:
     else:
         return {str(k): format_encoded_value_for_display(v) for k, v in value.items()}
 
-    if classname == "datetime.timedelta" and isinstance(data, (int, float)) and not isinstance(data, bool):
+    if (
+        classname == "datetime.timedelta"
+        and isinstance(data, (int, float))
+        and not isinstance(data, bool)
+        and math.isfinite(data)
+    ):
         try:
             return str(datetime.timedelta(seconds=data))
-        except OverflowError:
+        except (OverflowError, ValueError, TypeError):
             pass
     if classname in _DISPLAY_SEQUENCE_CLASSNAMES and isinstance(data, list):
         return [format_encoded_value_for_display(v) for v in data]
