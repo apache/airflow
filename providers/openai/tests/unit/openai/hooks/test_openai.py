@@ -36,6 +36,7 @@ from openai.types import (
 from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
 from openai.types.beta.threads import Message, Run
 from openai.types.chat import ChatCompletion
+from openai.types.create_embedding_response import Usage
 from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from pydantic import BaseModel
 
@@ -1232,7 +1233,7 @@ def _async_client(response_items: list[tuple[int, list[float]]]) -> MagicMock:
             ],
             model="text-embedding-3-small",
             object="list",
-            usage={"prompt_tokens": 4, "total_tokens": 4},
+            usage=Usage(prompt_tokens=4, total_tokens=4),
         )
     )
     return client
