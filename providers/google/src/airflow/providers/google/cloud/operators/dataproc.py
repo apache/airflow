@@ -166,19 +166,41 @@ class FlexibleInstanceGroupConfig:
 
     def __post_init__(self):
         if isinstance(self.hardware_class, str):
-            self.hardware_class = HardwareClass(self.hardware_class.upper())
-        if not isinstance(self.num_instances, int) or self.num_instances < 0:
+            try:
+                self.hardware_class = HardwareClass(self.hardware_class.upper())
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid hardware_class: {self.hardware_class!r}. "
+                    f"Must be one of {[c.value for c in HardwareClass]}."
+                ) from e
+        elif not isinstance(self.hardware_class, HardwareClass):
+            raise ValueError(
+                f"Invalid hardware_class: {self.hardware_class!r}. Must be a str or HardwareClass."
+            )
+        if (
+            not isinstance(self.num_instances, int)
+            or isinstance(self.num_instances, bool)
+            or self.num_instances < 0
+        ):
             raise ValueError(
                 "num_instances of a flexible config must be a non-negative integer,"
                 f" got {self.num_instances!r}."
             )
-        if self.core_count not in FLEXIBLE_CONFIG_ALLOWED_CORE_COUNTS:
+        if (
+            not isinstance(self.core_count, int)
+            or isinstance(self.core_count, bool)
+            or self.core_count not in FLEXIBLE_CONFIG_ALLOWED_CORE_COUNTS
+        ):
             raise ValueError(
                 "core_count of a flexible config must be one of"
                 f" {list(FLEXIBLE_CONFIG_ALLOWED_CORE_COUNTS)}, got"
                 f" {self.core_count!r}."
             )
-        if self.boot_disk_size_gb is not None and self.boot_disk_size_gb <= 0:
+        if self.boot_disk_size_gb is not None and (
+            not isinstance(self.boot_disk_size_gb, int)
+            or isinstance(self.boot_disk_size_gb, bool)
+            or self.boot_disk_size_gb <= 0
+        ):
             raise ValueError(
                 "boot_disk_size_gb of a flexible config must be a positive integer,"
                 f" got {self.boot_disk_size_gb!r}."
@@ -256,12 +278,16 @@ def flexible_scale_cluster_update(
     config: dict[str, Any] = {}
     paths: list[str] = []
     if num_workers is not None:
-        if num_workers < 0:
+        if not isinstance(num_workers, int) or isinstance(num_workers, bool) or num_workers < 0:
             raise ValueError("num_workers must be a non-negative integer.")
         config["worker_flexible_config"] = {"num_instances": num_workers}
         paths.append("config.worker_flexible_config.num_instances")
     if num_secondary_workers is not None:
-        if num_secondary_workers < 0:
+        if (
+            not isinstance(num_secondary_workers, int)
+            or isinstance(num_secondary_workers, bool)
+            or num_secondary_workers < 0
+        ):
             raise ValueError("num_secondary_workers must be a non-negative integer.")
         config["secondary_worker_flexible_config"] = {"num_instances": num_secondary_workers}
         paths.append("config.secondary_worker_flexible_config.num_instances")
@@ -1026,7 +1052,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 " and set 'dataproc:dataproc.allow.zero.workers': 'true' in software_config.properties."
             )
 
-        properties = config.get("software_config", {}).get("properties", {})
+        properties = (config.get("software_config") or {}).get("properties") or {}
         is_single_node = properties.get("dataproc:dataproc.allow.zero.workers") == "true"
 
         if is_single_node:
@@ -1047,7 +1073,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 " 'dataproc:dataproc.allow.zero.workers': 'true' in software_config.properties for a single-node cluster)."
             )
 
-        zone_uri = config.get("gce_cluster_config", {}).get("zone_uri")
+        zone_uri = (config.get("gce_cluster_config") or {}).get("zone_uri")
         if zone_uri:
             raise ValueError(
                 f"zone_uri can't be set together with {ho_params_str}: High"
@@ -1073,6 +1099,12 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                         f" {ho_params_str}; define the secondary workers with"
                         " secondary_worker_flexible_config instead."
                     )
+                raise ValueError(
+                    "High Obtainability mode is cluster-wide:"
+                    f" {concrete_name} can't be set together with"
+                    f" {ho_params_str}; define the workers with"
+                    " worker_flexible_config instead (or omit worker config for a single-node cluster)."
+                )
 
         return config
 

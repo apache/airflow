@@ -70,18 +70,27 @@ class TestFlexibleInstanceGroupConfig:
             FlexibleInstanceGroupConfig(num_instances=1, core_count=core_count)
 
     def test_invalid_hardware_class(self):
-        with pytest.raises(ValueError, match="HardwareClass"):
+        with pytest.raises(ValueError, match=r"[Hh]ardware_?[Cc]lass"):
             FlexibleInstanceGroupConfig(num_instances=1, core_count=2, hardware_class="PREMIUM")
 
-    @pytest.mark.parametrize("num_instances", [-1, "2", None])
+    @pytest.mark.parametrize("num_instances", [-1, "2", None, True, False])
     def test_invalid_num_instances(self, num_instances):
         with pytest.raises(ValueError, match="num_instances"):
             FlexibleInstanceGroupConfig(num_instances=num_instances, core_count=2)
 
-    @pytest.mark.parametrize("size", [0, -100])
+    @pytest.mark.parametrize("core_count", [0, 3, 6, True, False, "4"])
+    def test_invalid_core_counts_rejected(self, core_count):
+        with pytest.raises(ValueError, match="core_count"):
+            FlexibleInstanceGroupConfig(num_instances=1, core_count=core_count)
+
+    @pytest.mark.parametrize("size", [0, -100, True, False, "500"])
     def test_invalid_boot_disk_size(self, size):
         with pytest.raises(ValueError, match="boot_disk_size_gb"):
             FlexibleInstanceGroupConfig(num_instances=1, core_count=2, boot_disk_size_gb=size)
+
+    def test_invalid_hardware_class_type(self):
+        with pytest.raises(ValueError, match="hardware_class"):
+            FlexibleInstanceGroupConfig(num_instances=1, core_count=2, hardware_class=123)
 
 
 class TestDataprocCreateClusterOperatorValidation:
@@ -288,6 +297,26 @@ class TestDataprocCreateClusterOperatorValidation:
                 worker_config={"num_instances": 2},
             )
 
+    def test_ho_single_node_rejects_concrete_worker_config(self):
+        with pytest.raises(
+            ValueError, match=r"worker_config can't be set together with"
+        ):
+            self._make(
+                master_flexible_config=MASTER_FLEX,
+                worker_config={"num_instances": 0},
+                software_config={"properties": {"dataproc:dataproc.allow.zero.workers": "true"}},
+            )
+
+    def test_ho_cluster_with_none_subconfigs(self):
+        config = self._make(
+            master_flexible_config=MASTER_FLEX,
+            worker_flexible_config=WORKER_FLEX,
+            software_config=None,
+            gce_cluster_config=None,
+        )
+        assert config["master_flexible_config"]["num_instances"] == 1
+        assert config["worker_flexible_config"]["num_instances"] == 2
+
     def test_invalid_flexible_config_dict_key(self):
         with pytest.raises(ValueError, match="Invalid worker_flexible_config"):
             self._make(
@@ -343,6 +372,13 @@ class TestFlexibleScaleClusterUpdate:
             flexible_scale_cluster_update(num_workers=-1)
         with pytest.raises(ValueError, match="num_secondary_workers"):
             flexible_scale_cluster_update(num_secondary_workers=-1)
+
+    @pytest.mark.parametrize("invalid_val", [True, False, "5", 3.14])
+    def test_rejects_boolean_and_non_integer_counts(self, invalid_val):
+        with pytest.raises(ValueError, match="num_workers"):
+            flexible_scale_cluster_update(num_workers=invalid_val)
+        with pytest.raises(ValueError, match="num_secondary_workers"):
+            flexible_scale_cluster_update(num_secondary_workers=invalid_val)
 
 
 class TestDataprocUpdateClusterOperatorHighObtainability:
