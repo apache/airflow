@@ -210,7 +210,7 @@ class GenericTransfer(BaseOperator):
         event: dict[Any, Any] | None = None,
     ) -> Any:
         if event:
-            if event.get("status") == "error":
+            if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))
 
             rows = event.get("results")

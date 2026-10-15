@@ -124,7 +124,7 @@ class TestSQLExecuteQueryTrigger:
             events = run_trigger(trigger)
 
         assert len(events) == 1
-        assert events[0].payload["status"] == "error"
+        assert events[0].payload["status"] == "failure"
         assert "DB error" in events[0].payload["message"]
 
     def test_run_falls_back_to_sync_execution_for_hooks_without_async_support(self):
@@ -155,7 +155,7 @@ class TestSQLExecuteQueryTrigger:
         events = run_trigger(trigger)
 
         assert len(events) == 1
-        assert events[0].payload["status"] == "error"
+        assert events[0].payload["status"] == "failure"
 
     def test_aget_hook_raises_when_read_only_requested_without_async_support(self):
         mock_hook = self._make_mock_hook(supports_async_execution=False)
@@ -167,7 +167,7 @@ class TestSQLExecuteQueryTrigger:
             events = run_trigger(trigger)
 
         assert len(events) == 1
-        assert events[0].payload["status"] == "error"
+        assert events[0].payload["status"] == "failure"
         assert "does not support read-only execution" in events[0].payload["message"]
 
     def test_aget_hook_passes_hook_params(self):
