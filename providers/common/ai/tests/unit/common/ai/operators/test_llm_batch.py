@@ -257,6 +257,26 @@ class TestConstructorValidation:
             _make_operator(result_path="file:///tmp/x", **kwargs)
 
 
+class TestTemplateFields:
+    def test_template_fields(self):
+        assert set(LLMBatchOperator.template_fields) == {
+            "requests",
+            "result_path",
+            "system_prompt",
+            "model_id",
+            "llm_conn_id",
+            "request_params",
+        }
+
+    def test_request_params_values_are_rendered(self):
+        """``request_params`` is the batch counterpart of ``LLMOperator.agent_params``, so it is
+        templated the same way: the nested walk renders each string leaf and leaves it a string,
+        because the keys are provider body parameters whose types the operator does not know."""
+        op = _make_operator(result_path="file:///tmp/x", request_params={"temperature": "{{ params.temp }}"})
+        op.render_template_fields({"params": {"temp": "0.2"}})
+        assert op.request_params == {"temperature": "0.2"}
+
+
 class TestNormalizeRequests:
     def test_strings_and_dicts_are_accepted(self):
         assert LLMBatchOperator._normalize_requests(["a", {"prompt": "b", "params": {"x": 1}}]) == [
