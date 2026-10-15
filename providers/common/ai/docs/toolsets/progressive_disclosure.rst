@@ -24,11 +24,9 @@ Every tool an agent can call costs input tokens on every model request: its name
 description and argument schema are sent each time, whether the model uses the tool or
 not. ``.defer_loading()`` hides a toolset's tools until the model searches for them, so
 an agent can carry a wide toolset and pay mostly for the tools a run looks for. It is a
-Pydantic AI method that every toolset has, including the ones this provider ships. It
-pays off on a toolset with many tools, and does not on one with a handful, such as
-``SQLToolset`` (see :ref:`progressive-disclosure-when-not`). A tool no run needs is better
-left out of the toolset altogether, with ``allowed_methods`` or ``.filtered()``; defer the
-ones only some runs need.
+Pydantic AI method that every toolset has, including the ones this provider ships. Use it
+on toolsets with many tools, and leave a tool no run needs out of the toolset altogether,
+with ``allowed_methods`` or ``.filtered()``.
 
 Hide a toolset's tools until the model needs them
 -------------------------------------------------
@@ -44,21 +42,18 @@ none of them until it searches:
 
 How the model finds a hidden tool depends on the model:
 
-- On models with native tool search, the deferred tools are sent to the provider with
+- On a model with native tool search, the deferred tools are sent to the provider with
   ``defer_loading`` set, and the provider keeps their definitions out of the model's
-  context and searches them itself. Pydantic AI uses native search for Claude Sonnet 4.5,
-  Opus 4.5 and Haiku 4.5 and the later Claude families it lists, and for GPT-5.4 and later
-  through the OpenAI Responses API; its
-  `tool search guide <https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-search>`__
-  has the details.
+  context and searches them itself.
 - On every other model, the hidden tools are left out of the request. The model is
   offered one ``search_tools`` tool that matches keywords against tool names and
   descriptions, and the tools it finds are sent with the next request.
 
-Pydantic AI picks the path from a list of model name prefixes in the installed version, so
-a model family that version does not list gets the local search. For example, Pydantic AI
-2.48 lists ``claude-haiku-4-5`` but no Haiku 5 model, so ``claude-haiku-5-5`` takes the
-local path.
+Pydantic AI decides which models have native tool search from a list of model name
+prefixes in the installed version, so a model that list does not match gets the local
+search. Its
+`tool search guide <https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-search>`__
+has the details.
 
 Either way, a tool the model has found stays available while the search that found it
 is in the run's message history.

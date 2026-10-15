@@ -74,8 +74,17 @@ if S3Hook is not None:
             toolsets=[
                 HookToolset(
                     S3Hook(aws_conn_id="aws_reports_reader"),
-                    # The nine methods of the previous example.
-                    allowed_methods=REPORT_METHODS,
+                    allowed_methods=[
+                        "list_keys",
+                        "list_prefixes",
+                        "check_for_key",
+                        "check_for_prefix",
+                        "check_for_wildcard_key",
+                        "check_for_bucket",
+                        "head_object",
+                        "read_key",
+                        "get_bucket_tagging",
+                    ],
                     pinned_arguments={"bucket_name": "acme-reports"},
                     tool_prefix="s3",
                 ).defer_loading(
