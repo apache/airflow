@@ -65,6 +65,7 @@ class ConfiguredSentry(NoopSentry):
 
     def prepare_to_enrich_errors(self, executor_integration: str) -> None:
         """Initialize the Sentry SDK."""
+        from airflow.sdk._shared.module_loading import import_string
         from airflow.sdk.configuration import conf
 
         sentry_sdk.integrations.logging.ignore_logger("airflow.task")
@@ -87,15 +88,10 @@ class ConfiguredSentry(NoopSentry):
         dsn = old_way_dsn or new_way_dsn
 
         # Resolve before_send and transport to callables if configured
-        if before_send := conf.getimport("sentry", "before_send", fallback=None):
-            sentry_config_opts["before_send"] = before_send
-        else:
-            sentry_config_opts.pop("before_send", None)
-
-        if transport := conf.getimport("sentry", "transport", fallback=None):
-            sentry_config_opts["transport"] = transport
-        else:
-            sentry_config_opts.pop("transport", None)
+        if before_send := sentry_config_opts.pop("before_send", None):
+            sentry_config_opts["before_send"] = import_string(before_send)
+        if transport := sentry_config_opts.pop("transport", None):
+            sentry_config_opts["transport"] = import_string(transport)
 
         if unsupported_options := self.UNSUPPORTED_SENTRY_OPTIONS.intersection(sentry_config_opts):
             log.warning(
