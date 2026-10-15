@@ -160,13 +160,7 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    (
-        create_cluster
-        >> scale_up_workers
-        >> spark_pi
-        >> scale_down_secondary_workers
-        >> delete_cluster
-    )
+    (create_cluster >> scale_up_workers >> spark_pi >> scale_down_secondary_workers >> delete_cluster)
 
     from tests_common.test_utils.watcher import watcher
 

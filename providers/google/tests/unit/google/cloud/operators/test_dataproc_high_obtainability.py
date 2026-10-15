@@ -499,6 +499,24 @@ class TestDataprocUpdateClusterOperatorHighObtainability:
             ],
         )
 
+    def test_proto_cluster_supports_all_flexible_config_fields(self):
+        # Verifies google-cloud-dataproc>=5.32.0 ClusterConfig fields are accepted on proto Cluster
+        cluster = Cluster(
+            {
+                "config": {
+                    "master_flexible_config": {"num_instances": 1, "core_count": 4},
+                    "worker_flexible_config": {"num_instances": 5, "core_count": 8},
+                    "secondary_worker_flexible_config": {"num_instances": 2, "core_count": 8},
+                }
+            }
+        )
+        assert cluster.config.master_flexible_config.num_instances == 1
+        assert cluster.config.master_flexible_config.core_count == 4
+        assert cluster.config.worker_flexible_config.num_instances == 5
+        assert cluster.config.worker_flexible_config.core_count == 8
+        assert cluster.config.secondary_worker_flexible_config.num_instances == 2
+        assert cluster.config.secondary_worker_flexible_config.core_count == 8
+
     @pytest.mark.parametrize(
         "path",
         [
