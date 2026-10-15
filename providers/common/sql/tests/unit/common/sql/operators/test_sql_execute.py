@@ -36,6 +36,8 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 
+from tests_common.test_utils.config import conf_vars
+
 DATE = "2017-04-20"
 TASK_ID = "sql-operator"
 
@@ -366,6 +368,39 @@ FORGOT TO COMMENT"""
         )
         == lineage_on_complete
     )
+
+
+@mock.patch("airflow.providers.openlineage.sqlparser.SQLParser.generate_openlineage_metadata_from_sql")
+def test_openlineage_sql_use_external_connection_config(mock_generate):
+    class DBApiHookForTests(DbApiHook):
+        conn_name_attr = "sql_default"
+        get_conn = MagicMock(name="conn")
+        get_sqlalchemy_engine = MagicMock(name="sqlalchemy_engine")
+        get_connection = MagicMock(
+            return_value=Connection(conn_id="sql_default", conn_type="postgresql", host="host", port=5432)
+        )
+
+        def get_openlineage_database_info(self, connection):
+            from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+            return DatabaseInfo(scheme="sqlscheme", authority="host:5432")
+
+    dbapi_hook = DBApiHookForTests()
+
+    class SQLExecuteQueryOperatorForTest(SQLExecuteQueryOperator):
+        def get_db_hook(self):
+            return dbapi_hook
+
+    mock_generate.return_value = OperatorLineage()
+
+    op = SQLExecuteQueryOperatorForTest(task_id=TASK_ID, sql="SELECT * FROM test_table")
+
+    with conf_vars({("openlineage", "sql_use_external_connection"): "False"}):
+        op.get_openlineage_facets_on_start()
+
+    assert mock_generate.call_args.kwargs["use_connection"] is False
+    assert mock_generate.call_args.kwargs["sqlalchemy_engine"] is None
+    assert dbapi_hook.get_sqlalchemy_engine.call_count == 0
 
 
 def test_with_no_openlineage_provider():

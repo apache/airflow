@@ -321,7 +321,7 @@ class BaseSQLOperator(BaseOperator):
             hook=hook,
             database_info=database_info,
             database=self.database,
-            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+            sqlalchemy_engine=hook.get_sqlalchemy_engine() if use_external_connection else None,
             use_connection=use_external_connection,
         )
 
