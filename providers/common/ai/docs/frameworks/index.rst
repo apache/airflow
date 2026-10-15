@@ -136,9 +136,19 @@ Tested versions
      - Pins OpenTelemetry at 1.42.1 or lower, below the version in Airflow's constraints
        file. Airflow itself accepts 1.42.1.
 
-These are the versions the adapter tests have been run against. CI does not run those
-tests: its environment has ``mcp`` 2.2 and OpenTelemetry 1.44, which Strands and ADK
-exclude. They run in an environment with the framework installed.
+These are the versions the adapter tests have been run against. The main test matrix
+skips those tests: its environment has ``mcp`` 2.2 and OpenTelemetry 1.44, which Strands
+and ADK exclude. A separate CI job installs one framework at a time and runs them, on
+``amd64`` only and on the ``main`` branch only. Selective checks decide whether it runs: it
+runs when ``common.ai`` Python source or test files, the ``common.ai`` ``pyproject.toml``,
+``common.sql`` source files or ``uv.lock`` change, and also whenever selective checks
+decide a full test run is needed.
+
+Outside canary runs the job holds every package already in the image at its installed
+version with ``--override``, so Strands' and ADK's own dependency caps are overridden, and
+it installs the newest framework release that is older than the repository's
+``exclude-newer`` window, not the versions in the table above. It therefore does not show that those versions work in the environment a user gets; canary
+runs install the framework with its own dependency pins instead.
 
 Choosing a route
 ----------------

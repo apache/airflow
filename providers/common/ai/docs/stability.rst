@@ -98,7 +98,7 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        types, a write nested inside the statement fails it too. A reviewer's edit under
        ``allow_modifications=True`` is checked the same way. ``db_conn_id`` with
        ``table_names``, ``schema_context`` or ``datasource_config`` give the model the
-       schema.
+       schema. ``datasource_config`` is experimental; see below.
    * - ``@task.llm_file_analysis`` and
        :class:`~airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator`
      - Reads the file at ``file_path``, or up to ``max_files`` files under a prefix,
@@ -116,6 +116,7 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        ``severity`` of ``critical``, ``warning`` or ``info``. ``context_strategy="basic"``
        sends columns only; ``"full"``, the default, adds keys and indexes for database
        sources.
+       ``data_sources`` is experimental; see below.
    * - ``@task.llm_batch`` and
        :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`
      - Submits ``requests`` to the batch API that the ``model_id`` prefix selects, writes
@@ -242,6 +243,14 @@ Everything this provider ships that is not in the table above is experimental.
        (:doc:`toolsets/datafusion`)
      - Runs on the DataFusion engine of ``common.sql``, which pins ``datafusion`` below 52
        and follows its API.
+   * - ``datasource_config`` on ``@task.llm_sql`` (:doc:`operators/llm_sql`)
+     - Reads object storage through the DataFusion engine of ``common.sql``, which pins
+       ``datafusion`` below 52 because the DataFusion 52 crate is not supported with
+       ``iceberg-core``.
+   * - ``data_sources`` on ``@task.llm_schema_compare`` (:doc:`operators/llm_schema_compare`)
+     - Reads object storage, or any source whose connection is not a ``DbApiHook``, through
+       the DataFusion engine of ``common.sql``, which pins ``datafusion`` below 52 because
+       the DataFusion 52 crate is not supported with ``iceberg-core``.
    * - Managed agent toolsets (:doc:`toolsets/managed_agent`)
      - The amazon and google providers implement the contract. The managed-agent operators
        of the other vendor providers are still being brought onto it, which can change it.
@@ -249,10 +258,10 @@ Everything this provider ships that is not in the table above is experimental.
        ``capture_content``; :doc:`observability`)
      - Span names and attributes come from Pydantic AI's instrumentation and the
        OpenTelemetry GenAI conventions, which are still in development.
-   * - :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` used directly
+   * - :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`
        (:doc:`toolsets/logging`)
-     - The wrapper ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
-       may change.
+     - The capability ``AgentOperator`` applies for ``enable_tool_logging``; its constructor
+       and behaviour may change.
    * - The Strands plugin, the ADK toolset and Strands checkpoint resume
        (:doc:`frameworks/index`)
      - Written against Strands 1.56 and ADK 2.9.1, which change often. Strands marks its
