@@ -27,9 +27,10 @@ from __future__ import annotations
 import copy
 import json
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 from opentelemetry import context as otel_context, trace as otel_trace
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import SpanKind, Status, StatusCode
 
 try:
     from agents import FunctionTool, Tool
@@ -189,7 +190,7 @@ class AirflowTraceProcessor(TracingProcessor):
 
     .. code-block:: python
 
-        from agents import set_trace_processors
+        from agents import Runner, set_trace_processors
 
         from airflow.providers.common.ai.tools.openai_agents import AirflowTraceProcessor
         from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
@@ -224,17 +225,27 @@ class AirflowTraceProcessor(TracingProcessor):
 
     def __init__(self, tracer_provider: TracerProvider | None = None) -> None:
         self._tracer = otel_trace.get_tracer(__name__, tracer_provider=tracer_provider)
-        # The open OpenTelemetry span for each SDK trace and span, by the SDK's ID, and the
-        # token that made each SDK span current. Each access is one dict operation, which is
-        # safe across the threads the SDK may call from.
+        # The open OpenTelemetry span for each SDK trace and span, by the SDK's ID, the token
+        # that made each SDK span current, and the trace each span belongs to. Each access is
+        # one dict operation, which is safe across the threads the SDK may call from.
         self._open: dict[str, OtelSpan] = {}
         self._made_current: dict[str, Token[Context]] = {}
+        self._trace_of: dict[str, str] = {}
 
     def on_trace_start(self, trace: Trace) -> None:
         # Started as a child of whatever span is current, the task's span inside a task.
         self._open[trace.trace_id] = self._start(trace.name, {"openai_agents.trace_id": trace.trace_id})
 
     def on_trace_end(self, trace: Trace) -> None:
+        # A span the SDK never finished, such as one of a run that was cancelled, ends with its trace.
+        for span_id in [
+            span_id for span_id, trace_id in self._trace_of.items() if trace_id == trace.trace_id
+        ]:
+            self._trace_of.pop(span_id, None)
+            # Its token belongs to a context that has gone, so it is dropped rather than detached.
+            self._made_current.pop(span_id, None)
+            if (leftover := self._open.pop(span_id, None)) is not None:
+                leftover.end()
         if (otel_span := self._open.pop(trace.trace_id, None)) is not None:
             otel_span.end()
 
@@ -242,30 +253,49 @@ class AirflowTraceProcessor(TracingProcessor):
         parent = self._open.get(span.parent_id or span.trace_id)
         context = otel_trace.set_span_in_context(parent) if parent is not None else None
         name, _ = _describe(span.span_data, capture=False)
-        otel_span = self._start(name, {}, context)
+        # A model call is a request to a service outside the task, as the GenAI conventions model it.
+        kind = (
+            SpanKind.CLIENT
+            if isinstance(span.span_data, GenerationSpanData | ResponseSpanData)
+            else SpanKind.INTERNAL
+        )
+        otel_span = self._start(name, {}, context, kind=kind)
         self._open[span.span_id] = otel_span
+        self._trace_of[span.span_id] = span.trace_id
         self._made_current[span.span_id] = otel_context.attach(otel_trace.set_span_in_context(otel_span))
 
     def on_span_end(self, span: Span[Any]) -> None:
+        self._trace_of.pop(span.span_id, None)
         if (token := self._made_current.pop(span.span_id, None)) is not None:
             otel_context.detach(token)
         if (otel_span := self._open.pop(span.span_id, None)) is None:
             return
-        # Model, token counts and results are filled in while the span runs, so describe it now.
-        capture = _content_capture_enabled()
-        name, attributes = _describe(span.span_data, capture=capture)
-        otel_span.update_name(name)
-        otel_span.set_attributes(attributes)
-        if span.error is not None:
-            # The message can be app-supplied text, such as the reason a tool call was rejected.
-            message = _masked(span.error["message"]) if capture else None
-            otel_span.set_status(Status(StatusCode.ERROR, message))
-        otel_span.end()
+        try:
+            # Model, token counts and results are filled in while the span runs, so describe it now.
+            capture = _content_capture_enabled()
+            name, attributes = _describe(span.span_data, capture=capture)
+            otel_span.update_name(name)
+            otel_span.set_attributes(attributes)
+            if span.error is not None:
+                # The message can be app-supplied text, such as the reason a tool call was rejected.
+                message = _mask_content(span.error["message"]) if capture else None
+                otel_span.set_status(Status(StatusCode.ERROR, message))
+        finally:
+            otel_span.end()
 
-    def _start(self, name: str, attributes: dict[str, Any], context: Context | None = None) -> OtelSpan:
+    def _start(
+        self,
+        name: str,
+        attributes: dict[str, Any],
+        context: Context | None = None,
+        *,
+        kind: SpanKind = SpanKind.INTERNAL,
+    ) -> OtelSpan:
         # The task's identity, when inside agent_framework_tracing, whichever provider records the span.
         identity = _task_identity.get() or {}
-        return self._tracer.start_span(name, context=context, attributes={**identity, **attributes})
+        return self._tracer.start_span(
+            name, context=context, kind=kind, attributes={**identity, **attributes}
+        )
 
     def shutdown(self) -> None:
         # The tracer provider owns export, so there is nothing of this processor's to flush.
@@ -284,18 +314,26 @@ def _describe(data: SpanData, *, capture: bool) -> tuple[str, dict[str, Any]]:
         attributes = {"gen_ai.operation.name": "invoke_agent", "gen_ai.agent.name": data.name}
     elif isinstance(data, GenerationSpanData):
         name = f"chat {data.model}" if data.model else "chat"
-        attributes = {"gen_ai.operation.name": "chat", **_usage(data.usage)}
+        attributes = {"gen_ai.operation.name": "chat", **_build_usage_attributes(data.usage)}
         if data.model:
             attributes["gen_ai.request.model"] = data.model
+        # The Chat Completions client can point at any compatible server, so name the server
+        # rather than assume the provider.
+        if base_url := (data.model_config or {}).get("base_url"):
+            attributes["server.address"] = urlsplit(str(base_url)).hostname
         content = {"gen_ai.input.messages": data.input, "gen_ai.output.messages": data.output}
     elif isinstance(data, ResponseSpanData):
         model = data.response.model if data.response is not None else None
         name = f"chat {model}" if model else "chat"
-        attributes = {"gen_ai.operation.name": "chat", **_usage(data.usage)}
+        attributes = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            **_build_usage_attributes(data.usage),
+        }
         if data.response is not None:
             attributes |= {"gen_ai.response.id": data.response.id, "gen_ai.response.model": model}
         output = None
-        if data.response is not None:
+        if capture and data.response is not None:
             output = [item.model_dump(mode="json") for item in data.response.output]
         content = {"gen_ai.input.messages": data.input, "gen_ai.output.messages": output}
     elif isinstance(data, FunctionSpanData):
@@ -319,30 +357,32 @@ def _describe(data: SpanData, *, capture: bool) -> tuple[str, dict[str, Any]]:
     else:
         name = f"openai_agents.{data.type}"
     if capture:
-        attributes |= {key: _masked(value) for key, value in content.items() if value is not None}
+        attributes |= {key: _mask_content(value) for key, value in content.items() if value is not None}
     # OpenTelemetry rejects None attribute values.
     return name, {key: value for key, value in attributes.items() if value is not None}
 
 
-def _masked(value: Any) -> str:
+def _mask_content(value: Any) -> str:
     """
     Render content as text with registered secrets masked.
 
     Tool arguments, and many tool results, are JSON text. A secret holding a quote or a
-    backslash appears escaped inside it and would not match, so JSON text is parsed and
-    masked as values before it is rendered again.
+    backslash appears escaped inside it and would not match, so a JSON object or array is
+    parsed and masked as values before it is rendered again. Any other text is masked as
+    it is, so a result that is a bare number or string keeps its exact text.
     """
     if isinstance(value, str):
         try:
-            value = json.loads(value)
+            parsed = json.loads(value)
         except json.JSONDecodeError:
             return mask_secrets(value)
-        if isinstance(value, str):
+        if not isinstance(parsed, dict | list):
             return mask_secrets(value)
+        value = parsed
     return dumps_masked(value)
 
 
-def _usage(usage: dict[str, Any] | None) -> dict[str, Any]:
+def _build_usage_attributes(usage: dict[str, Any] | None) -> dict[str, Any]:
     if not usage:
         return {}
     return {

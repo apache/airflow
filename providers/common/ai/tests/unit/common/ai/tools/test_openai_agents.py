@@ -27,8 +27,12 @@ pytest.importorskip("agents")
 
 from agents import Agent, FunctionTool, Model, ModelResponse, RunConfig, Runner, Tool, Usage
 from agents.tracing import (
+    CustomSpanData,
     GenerationSpanData,
+    GuardrailSpanData,
+    HandoffSpanData,
     ResponseSpanData,
+    custom_span,
     response_span,
     set_trace_processors,
     trace as sdk_trace,
@@ -43,7 +47,7 @@ from openai.types.responses import (
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode
+from opentelemetry.trace import SpanKind, StatusCode
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.function import FunctionToolset
 
@@ -53,7 +57,7 @@ from airflow.providers.common.ai.tools.openai_agents import (
     AirflowTools,
     AirflowTraceProcessor,
     _describe,
-    _masked,
+    _mask_content,
 )
 from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -63,6 +67,7 @@ from unit.common.ai.tools.test_tracing import TI
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 
 TRACING = "airflow.providers.common.ai.tools.tracing"
+MODULE = "airflow.providers.common.ai.tools.openai_agents"
 _OK = ToolResult("ok")
 CAPTURE_CONTENT = {("common.ai", "otel_export_enabled"): "True", ("common.ai", "capture_content"): "True"}
 
@@ -277,7 +282,7 @@ class TestAgentRun:
         assert json.loads(_run(agent)) == {"error": "no such key"}
 
     @pytest.mark.enable_redact
-    def test_a_secret_in_a_result_reaches_the_model_masked(self, registered_secret):
+    def test_a_secret_in_a_result_reaches_the_model_mask_content(self, registered_secret):
         answer = _run_agent(
             AirflowTools(_tool(ToolResult(f"key={registered_secret}"))), "lookup", {"key": "a"}
         )
@@ -434,12 +439,76 @@ class TestAirflowTraceProcessor:
             span.span_data.response = Response.model_construct(id="resp_1", model="gpt-5.6-luna", output=[])
             span.span_data.usage = {"input_tokens": 12, "output_tokens": 3}
 
-        attributes = _span(exporter, "chat gpt-5.6-luna").attributes
-        assert attributes["gen_ai.usage.input_tokens"] == 12
-        assert attributes["gen_ai.usage.output_tokens"] == 3
+        chat = _span(exporter, "chat gpt-5.6-luna")
+        assert chat.kind == SpanKind.CLIENT
+        assert chat.attributes["gen_ai.provider.name"] == "openai"
+        assert chat.attributes["gen_ai.usage.input_tokens"] == 12
+        assert chat.attributes["gen_ai.usage.output_tokens"] == 3
+
+    def test_a_span_the_sdk_never_finished_ends_with_its_trace(self, recorded):
+        """A run that is cancelled or raises can leave a span unfinished."""
+        exporter, _ = recorded
+
+        with sdk_trace("workflow"):
+            custom_span("left open").start()
+
+        assert _span(exporter, "openai_agents.custom").end_time is not None
+
+    def test_a_span_ends_even_when_describing_it_fails(self, recorded):
+        exporter, _ = recorded
+
+        with patch(
+            f"{MODULE}._content_capture_enabled", autospec=True, side_effect=RuntimeError("bad config")
+        ):
+            _traced_lookup()
+
+        assert _span(exporter).end_time is not None
 
 
 class TestDescribe:
+    def test_a_generation_span_names_the_server_it_called(self):
+        """The Chat Completions client can point at any compatible server, so no provider is assumed."""
+        data = GenerationSpanData(model="m", model_config={"base_url": "https://llm.example.com/v1/"})
+
+        attributes = _describe(data, capture=False)[1]
+
+        assert attributes["server.address"] == "llm.example.com"
+        assert "gen_ai.provider.name" not in attributes
+
+    def test_a_response_output_is_not_serialized_unless_captured(self):
+        class _Unserializable:
+            def model_dump(self, **kwargs: Any) -> Any:
+                raise AssertionError("serialized although content capture is off")
+
+        data = ResponseSpanData(
+            response=Response.model_construct(id="r", model="m", output=[_Unserializable()])
+        )
+
+        assert "gen_ai.output.messages" not in _describe(data, capture=False)[1]
+
+    @pytest.mark.parametrize(
+        ("data", "name", "attributes"),
+        [
+            pytest.param(
+                HandoffSpanData(from_agent="triage", to_agent="billing"),
+                "openai_agents.handoff",
+                {"openai_agents.handoff.from_agent": "triage", "openai_agents.handoff.to_agent": "billing"},
+                id="handoff",
+            ),
+            pytest.param(
+                GuardrailSpanData(name="no_pii", triggered=True),
+                "openai_agents.guardrail no_pii",
+                {"openai_agents.guardrail.triggered": True},
+                id="guardrail",
+            ),
+            pytest.param(
+                CustomSpanData(name="lookup cache", data={}), "openai_agents.custom", {}, id="other"
+            ),
+        ],
+    )
+    def test_names_the_sdks_other_spans_for_their_kind(self, data, name, attributes):
+        assert _describe(data, capture=False) == (name, attributes)
+
     def test_a_generation_span_carries_its_model_and_token_counts(self):
         data = GenerationSpanData(model="gpt-5.6-luna", usage={"input_tokens": 12, "output_tokens": 3})
 
@@ -462,6 +531,7 @@ class TestDescribe:
         assert name == "chat gpt-5.6-luna"
         assert attributes == {
             "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
             "gen_ai.response.id": "resp_1",
             "gen_ai.response.model": "gpt-5.6-luna",
             "gen_ai.usage.input_tokens": 12,
@@ -522,10 +592,20 @@ class TestMasked:
         """A quote in the secret is escaped inside the model's JSON arguments, so the raw text does not match."""
         secret = register_secret('pa"ss-91c3')
 
-        masked = _masked(json.dumps({"password": secret}))
+        masked = _mask_content(json.dumps({"password": secret}))
 
         assert json.loads(masked) == {"password": "***"}
 
     @pytest.mark.enable_redact
+    @pytest.mark.parametrize("text", ["{secret}", '"{secret}"'], ids=["number", "json-string"])
+    def test_masks_a_secret_that_is_the_whole_result(self, register_secret, text):
+        """A bare number or string is valid JSON too; it must not escape the masker by parsing."""
+        secret = register_secret("918273645")
+
+        masked = _mask_content(text.format(secret=secret))
+
+        assert secret not in masked
+
+    @pytest.mark.enable_redact
     def test_masks_plain_text(self, registered_secret):
-        assert _masked(f"connected with {registered_secret}") == "connected with ***"
+        assert _mask_content(f"connected with {registered_secret}") == "connected with ***"

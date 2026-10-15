@@ -216,9 +216,9 @@ agent that calls two database tools at once gets its answers one after the other
 
 Run a Strands, ADK or OpenAI Agents SDK agent inside
 :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing` to keep its
-spans tied to the task (for the OpenAI Agents SDK, with
-:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor` registered), and free of prompt text unless ``[common.ai] capture_content`` is
-on; see :doc:`../observability`.
+spans tied to the task, and free of prompt text unless ``[common.ai] capture_content`` is
+on; see :doc:`../observability`. For an OpenAI Agents SDK agent, also register
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor`.
 
 .. toctree::
     :hidden:

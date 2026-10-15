@@ -135,11 +135,8 @@ conventions (``invoke_agent``, ``chat`` with the model and token counts,
 out unless ``[common.ai] otel_export_enabled`` and ``capture_content`` are both on, and pass
 through Airflow's secret masker when they are recorded; see :doc:`../observability`.
 
-Third-party packages such as ``openinference-instrumentation-openai-agents`` and
-``opentelemetry-instrumentation-openai-agents`` also turn the SDK's traces into
-OpenTelemetry spans. Use ``AirflowTraceProcessor`` instead when the spans should follow this
-provider's content rule and pass through Airflow's secret masker: those packages have
-content switches of their own, which ``agent_framework_tracing`` does not set.
+Use ``AirflowTraceProcessor`` when span content should follow ``[common.ai] capture_content``
+and Airflow's secret masker.
 
 To turn the SDK's tracing off altogether, call ``agents.set_tracing_disabled(True)`` or set
 ``OPENAI_AGENTS_DISABLE_TRACING=1`` in the worker's environment. That stops
