@@ -48,6 +48,13 @@ API_PREFIX = "/api/v2"
 
 
 # ---------------------------------------------------------------------------
+# Errors
+# ---------------------------------------------------------------------------
+class RouteParseError(Exception):
+    """A route file could not be read or parsed, so its endpoints are unknown."""
+
+
+# ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True, order=True)
@@ -281,9 +288,8 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
     except (OSError, SyntaxError) as exc:
         # Returning no entries here would quietly shrink a security reference that readers
         # trust to be complete, and the caller has no way to tell that apart from a file
-        # that genuinely declares no routes. Stop the run instead.
-        print(f"[FAIL] Could not parse {path}: {exc}", file=sys.stderr)
-        raise SystemExit(1)
+        # that genuinely declares no routes.
+        raise RouteParseError(f"Could not parse {path}: {exc}") from exc
 
     # Build lookup tables for this file
     module_consts = _extract_module_string_constants(tree)
@@ -446,7 +452,7 @@ RST_HEADER = """\
     under the License.
 
 .. THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
-   Regenerate with:  python scripts/ci/prek/extract_permissions.py
+   Regenerate with:  uv run scripts/ci/prek/extract_permissions.py
    Trigger:          prek run generate-api-permissions-doc --all-files
 
 API Endpoint Permission Reference
@@ -523,7 +529,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    try:
+        entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    except RouteParseError as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        return 1
     content = render_rst(entries)
 
     if args.print_only:
@@ -533,14 +543,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         if not OUTPUT_RST.exists():
             print(
-                f"[FAIL] {OUTPUT_RST} does not exist. Run: python scripts/ci/prek/extract_permissions.py",
+                f"[FAIL] {OUTPUT_RST} does not exist. Run: uv run scripts/ci/prek/extract_permissions.py",
                 file=sys.stderr,
             )
             return 1
         existing = OUTPUT_RST.read_text(encoding="utf-8")
         if existing != content:
             print(
-                f"[FAIL] {OUTPUT_RST} is stale. Run: python scripts/ci/prek/extract_permissions.py",
+                f"[FAIL] {OUTPUT_RST} is stale. Run: uv run scripts/ci/prek/extract_permissions.py",
                 file=sys.stderr,
             )
             return 1
