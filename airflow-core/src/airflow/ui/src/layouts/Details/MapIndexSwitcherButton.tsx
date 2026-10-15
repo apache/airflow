@@ -67,6 +67,8 @@ export const MapIndexSwitcherButton = ({ children, dagId, shape, to }: Props) =>
 
   return (
     <CrumbSwitcher
+      // A rendered map index and its badge are a fraction of a run id; the default suits those.
+      contentWidth="3xs"
       label={translate("switchMapIndex")}
       onOpenChange={onOpenChange}
       open={open}

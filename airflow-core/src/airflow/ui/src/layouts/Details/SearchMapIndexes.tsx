@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { GroupBase, OptionsOrGroups, SingleValue } from "chakra-react-select";
+import type { SingleValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
@@ -57,6 +59,8 @@ export const SearchMapIndexes = ({
   readonly taskId: string;
 }) => {
   const { t: translate } = useTranslation(["dags", "common"]);
+  const [text, setText] = useState("");
+  const [found, setFound] = useState<Array<MapIndexSearchOption>>();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -81,48 +85,51 @@ export const SearchMapIndexes = ({
     );
   };
 
-  const searchMapIndexesDebounced = useDebouncedCallback(
-    (
-      inputValue: string,
-      callback: (options: OptionsOrGroups<MapIndexSearchOption, GroupBase<MapIndexSearchOption>>) => void,
-    ) => {
-      void queryClient.fetchQuery({
+  const search = useDebouncedCallback((value: string) => {
+    void queryClient
+      .fetchQuery({
         queryFn: () =>
           TaskInstanceService.getMappedTaskInstances({
             dagId,
             dagRunId: runId,
             limit: SEARCH_LIMIT,
             orderBy: BY_MAP_INDEX,
-            renderedMapIndexPattern: inputValue,
+            renderedMapIndexPattern: value,
             taskId,
-          }).then((matches: TaskInstanceCollectionResponse) => {
-            const options = matches.task_instances.map(buildMapIndexOption);
-
-            callback(options);
-
-            return options;
           }),
         queryKey: UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({
           dagId,
           dagRunId: runId,
           limit: SEARCH_LIMIT,
           orderBy: BY_MAP_INDEX,
-          renderedMapIndexPattern: inputValue,
+          renderedMapIndexPattern: value,
           taskId,
         }),
         staleTime: 0,
-      });
-    },
-    300,
-  );
+      })
+      .then((matched: TaskInstanceCollectionResponse) =>
+        setFound(matched.task_instances.map(buildMapIndexOption)),
+      );
+  }, 300);
+
+  const onInputChange = (value: string) => {
+    setText(value);
+
+    if (value === "") {
+      search.cancel();
+      setFound(undefined);
+    } else {
+      search(value);
+    }
+  };
 
   return (
     <SearchSelect
-      defaultOptions={instances}
       formatOptionLabel={formatOptionLabel}
-      loadingMessage={translate("common:loading")}
-      loadOptions={searchMapIndexesDebounced}
+      inputValue={text}
       onChange={onSelect}
+      onInputChange={onInputChange}
+      options={text === "" ? instances : (found ?? instances)}
       placeholder={translate("search.mapIndexes")}
     />
   );

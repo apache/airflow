@@ -18,7 +18,7 @@
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
@@ -28,36 +28,29 @@ import type { MapIndexSearchOption } from "src/utils/option";
 
 import { SearchMapIndexes } from "./SearchMapIndexes";
 
-const { searched } = vi.hoisted<{ searched: { current: Array<MapIndexSearchOption> } }>(() => ({
-  searched: { current: [] },
-}));
-
 vi.mock("chakra-react-select", () => ({
-  AsyncSelect: ({
-    defaultOptions,
-    loadOptions,
+  Select: ({
+    inputValue,
     onChange,
+    onInputChange,
+    options,
   }: {
-    readonly defaultOptions: Array<MapIndexSearchOption>;
-    readonly loadOptions: (input: string, callback: (options: Array<MapIndexSearchOption>) => void) => void;
+    readonly inputValue: string;
     readonly onChange: (option: MapIndexSearchOption) => void;
+    readonly onInputChange: (value: string, meta: { action: string }) => void;
+    readonly options: Array<MapIndexSearchOption>;
   }) => (
     <>
-      {defaultOptions.map((option) => (
+      <input
+        aria-label="Search"
+        onChange={(event) => onInputChange(event.target.value, { action: "input-change" })}
+        value={inputValue}
+      />
+      {options.map((option) => (
         <button key={option.value} onClick={() => onChange(option)} type="button">
           {`${option.label} (${option.state})`}
         </button>
       ))}
-      <button
-        onClick={() =>
-          loadOptions("alpha", (options) => {
-            searched.current = options;
-          })
-        }
-        type="button"
-      >
-        Search Map Indexes
-      </button>
     </>
   ),
 }));
@@ -97,10 +90,6 @@ const renderSearch = (initialEntry: string, route: string) =>
 const MAPPED_ROUTE = "/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex";
 
 describe("SearchMapIndexes", () => {
-  beforeEach(() => {
-    searched.current = [];
-  });
-
   afterEach(() => vi.restoreAllMocks());
 
   it("names each instance by its rendered map index, with its state", () => {
@@ -137,7 +126,7 @@ describe("SearchMapIndexes", () => {
 
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
 
-    fireEvent.click(screen.getByRole("button", { name: "Search Map Indexes" }));
+    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "alpha" } });
 
     await waitFor(() =>
       expect(getMapped).toHaveBeenCalledWith(
@@ -165,8 +154,8 @@ describe("SearchMapIndexes", () => {
 
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
 
-    fireEvent.click(screen.getByRole("button", { name: "Search Map Indexes" }));
+    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "alpha" } });
 
-    await waitFor(() => expect(searched.current).toEqual([{ label: "alpha", state: "running", value: "3" }]));
+    expect(await screen.findByRole("button", { name: "alpha (running)" })).toBeInTheDocument();
   });
 });
