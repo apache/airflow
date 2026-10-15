@@ -43,7 +43,8 @@ In general, your contribution includes the following stages:
 2. Create a `local virtualenv <07_local_virtualenv.rst>`_,
    initialize the `Breeze environment <../dev/breeze/doc/README.rst>`__, and
    install `prek tool <08_static_code_checks.rst#prek-hooks>`__.
-   If you want to add more changes in the future, set up your fork and enable GitHub Actions.
+   Set up the ``upstream`` and ``origin`` remotes, enable CI in your fork and check the result
+   with ``breeze ci audit``, as described in `CI in your fork`_.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
    and set up a `Slack account <https://s.apache.org/airflow-slack>`__.
@@ -125,6 +126,66 @@ to make them immediately visible in the environment.
 
 6. Open your IDE (for example, PyCharm) and select the virtual environment you created
    as the project's default virtual environment in your IDE.
+
+CI in your fork
+...............
+
+Pull requests from contributors who are not committers or collaborators are moving to running
+their CI in the contributor's own fork, on GitHub's free runners, instead of on the shared CI
+capacity of the Apache Software Foundation (`AIP-120
+<https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711/AIP-120+Run+CI+for+external+contributions+in+contributor+forks>`__).
+CI on a public fork costs you nothing and has no minute limit; it runs on every push to your
+fork, so you get feedback before a maintainer looks at your pull request. The change is being
+piloted: until it is switched on for everyone, it applies to pilot participants (see below) and
+to pull requests a maintainer labels ``use fork ci``.
+
+Set up your checkout and fork once:
+
+1. Name your remotes as described in `Git remote naming conventions <10_working_with_git.rst>`__:
+   ``upstream`` for ``apache/airflow`` and ``origin`` for your fork.
+
+2. Unless you are a committer, a collaborator or a member of an exempted organisation, enable the
+   ``Tests (AMD)`` workflow in your fork. GitHub disables workflows in new forks. Committers and
+   collaborators keep it disabled, so their pushes do not run CI twice, unless they joined the pilot:
+
+   .. code-block:: bash
+
+      gh workflow enable ci-amd.yml -R <you>/airflow
+
+   If the workflow is missing, your fork's ``main`` is older than it; sync it first with
+   ``gh repo sync <you>/airflow --branch main``.
+
+3. Check everything at once. ``breeze ci audit`` prints one row per check and the command that fixes
+   anything missing; ``--fix`` runs those commands after asking:
+
+   .. code-block:: bash
+
+      breeze ci audit
+
+When fork CI applies to your pull request, it is labelled ``fork ci required`` and kept in draft
+until the ``Tests (AMD)`` run in your fork for its latest commit is green. A
+``Fork CI / Tests (AMD)`` status on the pull request links to that run, and one comment on the pull
+request explains the current state. Once the run is green the pull request is labelled
+``ready for maintainer review``, and marked ready for review if the monitor drafted it; a pull
+request you drafted yourself stays a draft until you mark it ready. A pull request whose fork CI does not run for 7 days is
+closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
+files that define what CI runs, such as ``.github/``, ``dev/breeze/`` or ``scripts/ci/``, a green
+fork run is not enough: a maintainer reviews the change and runs project CI for it.
+
+**Joining the pilot.** Open a pull request that adds your GitHub login to the ``[pilot]`` table in
+``.github/fork-ci-gate.toml``, with a join instant after the expected merge, for example the next day
+at 00:00 UTC:
+
+.. code-block:: toml
+
+   [pilot]
+   "your-login" = 2026-10-20T00:00:00Z
+
+Every pull request you open after that instant uses fork CI; your earlier pull requests keep project
+CI. To leave the pilot, open a pull request that removes the line. A pilot entry gates your pull
+requests whatever your role, so a committer in the pilot also enables the workflow;
+``breeze ci audit`` tells you which applies to you. The design is described in
+`Fork CI for external contributors <../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md>`__.
 
 Step 3: Connect with People
 ---------------------------
