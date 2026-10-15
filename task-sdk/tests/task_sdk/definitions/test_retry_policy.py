@@ -672,7 +672,7 @@ class TestHandleCurrentTaskFailed:
         """Policy FAIL overrides should_retry=True -- task fails immediately."""
         policy = ExceptionRetryPolicy(rules=[RetryRule(exception=PermissionError, action=RetryAction.FAIL)])
         ti = _make_mock_ti(policy=policy, should_retry=True)
-        msg, state = _handle_current_task_failed(ti, PermissionError("denied"), log)
+        msg, state = _handle_current_task_failed(ti, PermissionError("denied"), log, {})
         assert state == TaskInstanceState.FAILED
 
     def test_retry_with_delay_and_reason(self):
@@ -687,7 +687,7 @@ class TestHandleCurrentTaskFailed:
             ]
         )
         ti = _make_mock_ti(policy=policy)
-        msg, state = _handle_current_task_failed(ti, ConnectionError("refused"), log)
+        msg, state = _handle_current_task_failed(ti, ConnectionError("refused"), log, {})
         assert state == TaskInstanceState.UP_FOR_RETRY
         assert msg.retry_delay_seconds == 42.0
         assert msg.retry_reason == "net error"
@@ -701,14 +701,14 @@ class TestHandleCurrentTaskFailed:
             ]
         )
         ti = _make_mock_ti(policy=policy)
-        msg, state = _handle_current_task_failed(ti, ValueError("bad"), log)
+        msg, state = _handle_current_task_failed(ti, ValueError("bad"), log, {})
         assert state == TaskInstanceState.UP_FOR_RETRY
         assert len(msg.retry_reason) == 500
 
     def test_default_falls_through_to_standard_retry(self):
         policy = ExceptionRetryPolicy(rules=[])  # no match -> DEFAULT
         ti = _make_mock_ti(policy=policy, should_retry=True)
-        msg, state = _handle_current_task_failed(ti, ValueError("bad"), log)
+        msg, state = _handle_current_task_failed(ti, ValueError("bad"), log, {})
         assert state == TaskInstanceState.UP_FOR_RETRY
         assert msg.retry_delay_seconds is None  # no override
 
@@ -720,15 +720,15 @@ class TestHandleCurrentTaskFailed:
             ]
         )
         ti = _make_mock_ti(policy=policy, should_retry=False)
-        msg, state = _handle_current_task_failed(ti, ConnectionError("x"), log)
+        msg, state = _handle_current_task_failed(ti, ConnectionError("x"), log, {})
         assert state == TaskInstanceState.FAILED
 
     def test_no_policy_with_should_retry_true(self):
         ti = _make_mock_ti(policy=None, should_retry=True)
-        msg, state = _handle_current_task_failed(ti, ValueError("bad"), log)
+        msg, state = _handle_current_task_failed(ti, ValueError("bad"), log, {})
         assert state == TaskInstanceState.UP_FOR_RETRY
 
     def test_no_policy_with_should_retry_false(self):
         ti = _make_mock_ti(policy=None, should_retry=False)
-        msg, state = _handle_current_task_failed(ti, ValueError("bad"), log)
+        msg, state = _handle_current_task_failed(ti, ValueError("bad"), log, {})
         assert state == TaskInstanceState.FAILED

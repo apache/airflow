@@ -1929,7 +1929,7 @@ def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
     exception: BaseException,
     log: Logger,
-    context: Context | None = None,
+    context: Context,
 ) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState]:
     """
     Handle a failed task: evaluate the retry policy (if any) and decide the next state.
@@ -1991,7 +1991,7 @@ def _reschedule_count(ti: RuntimeTaskInstance) -> int:
 
 
 def _reschedule_limit_reached(
-    ti: RuntimeTaskInstance, decision: RetryDecision, context: Context | None
+    ti: RuntimeTaskInstance, decision: RetryDecision, context: Context
 ) -> str | None:
     """
     Say which bound stops a RESCHEDULE decision, or return None when the task may reschedule.
@@ -2001,7 +2001,7 @@ def _reschedule_limit_reached(
     """
     if decision.max_reschedules is not None and _reschedule_count(ti) >= decision.max_reschedules:
         return f"max_reschedules={decision.max_reschedules}"
-    if decision.reschedule_timeout is not None and context is not None:
+    if decision.reschedule_timeout is not None:
         first = ti.get_first_reschedule_date(context)
         if first is not None and datetime.now(tz=UTC) - first >= decision.reschedule_timeout:
             return f"reschedule_timeout={decision.reschedule_timeout}"

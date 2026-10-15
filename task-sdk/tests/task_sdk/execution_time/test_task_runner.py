@@ -1832,6 +1832,33 @@ def test_retry_policy_reschedule_past_its_bound_applies_the_standard_retry_logic
     assert msg == expected_msg(now, f"Reschedule limit reached ({limit}): cluster full")
 
 
+def test_retry_policy_reschedule_runs_no_failure_callbacks_or_metrics(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """A reschedule is waiting, not failing: no retry or failure callback runs and no failure is counted."""
+    called = []
+    task = _NoCapacityTask(
+        task_id="no_capacity",
+        retries=1,
+        retry_policy=_reschedule_policy(max_reschedules=3),
+        on_retry_callback=lambda context: called.append("on_retry_callback"),
+        on_failure_callback=lambda context: called.append("on_failure_callback"),
+    )
+    ti = create_runtime_ti(task=task)
+    context = ti.get_template_context()
+    log = structlog.get_logger()
+    stats_backend = mock.MagicMock(spec=StatsLogger)
+
+    with mock.patch("airflow.sdk.execution_time.task_runner.stats", stats_backend):
+        state, _, error = run(ti, context, log)
+        finalize(ti, state, context, log, error)
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert called == []
+    counted = {call.args[0] for call in stats_backend.incr.call_args_list if call.args}
+    assert counted.isdisjoint({"ti_failures", "operator_failures"})
+
+
 class _SensorStyleReschedule(BaseOperator):
     def execute(self, context):
         raise AirflowRescheduleException(reschedule_date=datetime(2026, 10, 14, 10, 0, tzinfo=UTC))

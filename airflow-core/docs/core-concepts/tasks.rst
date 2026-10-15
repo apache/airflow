@@ -257,12 +257,12 @@ Composition with existing parameters
      - Behaviour when ``retry_policy`` is set
    * - ``retries``
      - Still the maximum retry count. Policy can fail earlier but not exceed it. A
-       reschedule does not use a retry.
+       reschedule leaves the retry count unchanged.
    * - ``retry_delay`` / ``retry_exponential_backoff`` / ``max_retry_delay``
      - Used when the policy returns DEFAULT or when ``RetryDecision.retry_delay`` is None.
        A reschedule without its own delay waits ``retry_delay``, without backoff.
    * - ``on_retry_callback``
-     - Fires on all retries, including policy-driven retries. Does not fire on a reschedule.
+     - Fires on retries only, including policy-driven retries.
    * - ``AirflowFailException``
      - Always takes precedence. The policy is never consulted for this exception.
 
@@ -279,8 +279,12 @@ with no free slots. Retrying spends the task's ``retries`` on waiting, so a real
 later has none left, and ``on_retry_callback`` fires every time.
 
 **RESCHEDULE** puts the task in ``up_for_reschedule`` instead, the same state a sensor in
-``mode="reschedule"`` uses between pokes. The try number and ``retries`` are untouched and
-``on_retry_callback`` does not fire. It works with ``retries=0``.
+``mode="reschedule"`` uses between pokes. The try number and ``retries`` stay as they are, and
+it works with ``retries=0``. Like a sensor's reschedule, it counts as waiting rather than
+failing, so ``on_retry_callback``, ``on_failure_callback``, the ``on_task_instance_failed``
+listener hook, ``email_on_retry`` and the ``ti_failures`` and ``operator_failures`` metrics
+wait until a bound is reached. The failure then goes through the standard retry logic, and
+they run as they would for any retry or failure.
 
 .. exampleinclude:: /../src/airflow/example_dags/example_retry_policy.py
     :language: python
@@ -293,16 +297,20 @@ A RESCHEDULE always has a bound, so a rule matching a broad exception cannot loo
 * ``reschedule_timeout`` -- how long after the first reschedule the try may keep being
   rescheduled.
 
-Set either or both; a RESCHEDULE without one raises ``ValueError`` when the rule or decision
-is created. Both count every reschedule of this try, including a sensor's pokes, so a retry
-starts them afresh. Once a bound is reached, the failure goes through the standard retry
-logic, and the task's ``retry_reason`` says which bound stopped it, for example
-``Reschedule limit reached (reschedule_timeout=4:00:00): Warehouse busy``. The reason of a
-RESCHEDULE that went ahead appears only in the task log.
+Set either or both; a ``RetryRule`` or ``RetryDecision`` with RESCHEDULE and neither bound
+raises ``ValueError`` when it is created. For a ``RetryRule`` that is when the Dag is parsed. A
+custom policy creates its decision when the task fails, so there the error is logged and the
+task falls back to the standard retry logic, as it does for any policy that raises.
 
-The decision to reschedule belongs to the task: the policy runs in the worker and sees only
-the exception the task raised. It is for an external system the task drives that is not ready
-yet, not for a disruption of the Airflow worker itself, such as a preempted worker pod.
+Both bounds count every reschedule of this try, including a sensor's pokes, so a retry starts
+them afresh. Once a bound is reached, the failure goes through the standard retry logic, and
+the task's ``retry_reason`` says which bound stopped it, for example
+``Reschedule limit reached (reschedule_timeout=4:00:00): Warehouse busy``. A RESCHEDULE that
+goes ahead writes its reason to the task log.
+
+Use RESCHEDULE when an external system the task drives is not ready yet. The policy runs in
+the worker and sees only the exception the task raised, so a disruption of the Airflow worker
+itself, such as a preempted worker pod, follows the normal retry path.
 
 Telling "out of capacity" apart from a real failure often needs more than the exception type.
 A custom policy can look at the exception itself; for example, a Kubernetes API rejection for
