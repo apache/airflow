@@ -1305,7 +1305,9 @@ def doctor(ctx):
 
     bring_compose_projects_down(all_worktrees=True)
 
-    given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
+    given_answer = user_confirm(
+        "Are you sure with the removal of mypy cache, build cache volumes and build cache dir?"
+    )
     if given_answer == Answer.YES:
         console_print("\n[info]Cleaning mypy cache...\n")
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
