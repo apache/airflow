@@ -2948,6 +2948,44 @@ def test_selective_tests_on_push(selective_tests_on_push: bool, expected_outputs
 
 
 @pytest.mark.parametrize(
+    ("files", "fork_changes_truncated", "expected_outputs"),
+    [
+        pytest.param(
+            ("airflow-core/docs/index.rst",),
+            False,
+            {"full-tests-needed": "false", "all-versions": "false", "is-committer-build": "false"},
+            id="Fork push of a docs change does not run everything",
+        ),
+        pytest.param(
+            (),
+            False,
+            {"full-tests-needed": "false", "basic-checks-only": "true", "is-committer-build": "false"},
+            id="Fork push without changes against upstream runs basic checks only",
+        ),
+        pytest.param(
+            ("airflow-core/docs/index.rst",),
+            True,
+            {"full-tests-needed": "true", "all-versions": "true", "is-committer-build": "false"},
+            id="Fork push with a truncated change set runs everything",
+        ),
+    ],
+)
+def test_expected_output_fork_push(
+    files: tuple[str, ...], fork_changes_truncated: bool, expected_outputs: dict[str, str]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PUSH,
+        github_repository="potiuk/airflow",
+        github_actor="potiuk",
+        fork_push=True,
+        fork_changes_truncated=fork_changes_truncated,
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
     ("files", "expected_outputs"),
     [
         pytest.param(
@@ -4139,6 +4177,29 @@ dependencies = [
 
 
 @patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_fails_on_a_fork_push(mock_run_command):
+    """A push in a contributor's fork is checked like the pull request it stands for."""
+    mock_run_command.side_effect = lambda *args, **kwargs: Mock(
+        returncode=0,
+        stdout=(
+            '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.0.0"]\n'
+            if "^:" in args[0][2]
+            else '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.1.0"]\n'
+        ),
+    )
+
+    with pytest.raises(SystemExit):
+        SelectiveChecks(
+            files=("providers/amazon/pyproject.toml",),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PUSH,
+            default_branch="main",
+            fork_push=True,
+        ).provider_dependency_bump
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
 def test_provider_dependency_bump_check_skipped_on_release_branch(mock_run_command):
     """Test that provider dependency bump check is a no-op on release branches (v3-X-test)."""
     old_toml = """
@@ -4351,6 +4412,27 @@ dependencies = [
             pr_labels=(),
             github_event=GithubEvents.PULL_REQUEST,
             default_branch="main",
+        ).common_compat_changed_without_next_version
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_common_compat_changed_without_next_version_fails_on_a_fork_push(mock_run_command):
+    mock_run_command.side_effect = lambda *args, **kwargs: Mock(
+        returncode=0,
+        stdout='[project]\ndependencies = ["apache-airflow-providers-common-compat>=1.8.0"]\n',
+    )
+
+    with pytest.raises(SystemExit):
+        _ = SelectiveChecks(
+            files=(
+                "providers/common/compat/src/airflow/providers/common/compat/file.py",
+                "providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",
+            ),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PUSH,
+            default_branch="main",
+            fork_push=True,
         ).common_compat_changed_without_next_version
 
 
