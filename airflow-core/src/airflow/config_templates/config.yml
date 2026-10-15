@@ -2775,7 +2775,9 @@ scheduler:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
         the expected files) which should be deactivated, as well as assets that are no longer
-        referenced and should be marked as orphaned.
+        referenced and should be marked as orphaned. The same cleanup marks the Dags of inactive
+        or unassigned bundles stale, removes stale Dag warnings, and ends Dag processor Jobs that
+        exceeded ``[dag_processor] job_heartbeat_timeout``.
       version_added: 2.5.0
       type: integer
       example: ~
@@ -3478,6 +3480,15 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    job_heartbeat_timeout:
+      description: |
+        Seconds a Dag processor using the Execution API may go without a recorded Job heartbeat.
+        After this, the scheduler's next cleanup (every ``[scheduler] parsing_cleanup_interval``)
+        ends the Job and releases the callbacks and parse requests it claimed.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "300"
     disable_bundle_versioning:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not

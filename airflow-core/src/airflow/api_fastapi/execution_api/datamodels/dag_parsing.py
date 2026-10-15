@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -143,3 +143,28 @@ class DagBundleInventoryResponse(DagParseResultResponse):
     """The source revision to attach to imports dispatched from this inventory."""
 
     revision: UUID
+
+
+class ProcessorWorkClaimBody(StrictBaseModel):
+    """A retryable bounded claim for requested work in ready bundles."""
+
+    claim_id: UUID
+    bundle_names: list[str] = Field(min_length=1, max_length=1000)
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class ProcessorWorkItem(StrictBaseModel):
+    """A claimed callback or priority parse request."""
+
+    id: str
+    claim_id: UUID
+    bundle_name: str
+    relative_fileloc: str
+    callback: str | None = None
+
+
+class ProcessorWorkAckBody(StrictBaseModel):
+    """Acknowledge delivery, retaining the claim identity across retries."""
+
+    claim_id: UUID
+    state: Literal["success", "failed"]

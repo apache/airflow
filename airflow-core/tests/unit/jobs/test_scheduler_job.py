@@ -59,6 +59,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+from airflow.dag_processing.maintenance import cleanup_processor_metadata
 from airflow.exceptions import AirflowException, DeserializationError, TaskNotFound
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -161,6 +162,7 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
+from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
@@ -4430,6 +4432,19 @@ class TestSchedulerJob:
             # A single executor will only run up to its available slots
             assert total_enqueued == 31
         session.rollback()
+
+    @conf_vars({("scheduler", "parsing_cleanup_interval"): "123"})
+    @mock.patch.object(EventScheduler, "call_regular_interval", autospec=True)
+    def test_dag_processor_maintenance_runs_on_the_parsing_cleanup_interval(self, call_regular_interval):
+        scheduler_job = Job()
+        scheduler_job.heartbeat = mock.MagicMock()
+        self.job_runner = SchedulerJobRunner(
+            job=scheduler_job, num_runs=1, executors=[MockExecutor(do_update=False)]
+        )
+
+        self.job_runner._run_scheduler_loop()
+
+        call_regular_interval.assert_any_call(mock.ANY, 123.0, cleanup_processor_metadata, non_fatal=True)
 
     def test_adopt_or_reset_orphaned_tasks(self, dag_maker, session):
         with dag_maker("test_execute_helper_reset_orphaned_tasks", session=session):
