@@ -29,6 +29,9 @@ export type DagRunSearchOption = {
 } & Option;
 
 export type MapIndexSearchOption = {
+  /** The expansion's own coordinate, which the link has to carry to be unambiguous in a loop. */
+  readonly regionId?: string;
+  readonly regionIndex?: number;
   readonly state: TaskInstanceState | null;
 } & Option;
 

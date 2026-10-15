@@ -81,6 +81,8 @@ export const buildMapIndexOption = (taskInstance: TaskInstanceResponse): MapInde
   const option = {
     // An unrendered index still has to be nameable, and its own number is what the URL carries.
     label: taskInstance.rendered_map_index ?? String(taskInstance.map_index),
+    regionId: taskInstance.region_id,
+    regionIndex: taskInstance.region_index,
     state: taskInstance.state,
     value: String(taskInstance.map_index),
   };

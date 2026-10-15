@@ -48,6 +48,7 @@ export const SearchMapIndexes = ({
   dagId,
   instances,
   onClose,
+  regionId,
   runId,
   taskId,
 }: {
@@ -55,6 +56,8 @@ export const SearchMapIndexes = ({
   /** Already loaded by the breadcrumb level, so opening the panel shows them straight away. */
   readonly instances: Array<MapIndexSearchOption>;
   readonly onClose: () => void;
+  /** Bounds the search to the same expansion set the listed instances come from. */
+  readonly regionId: string | undefined;
   readonly runId: string;
   readonly taskId: string;
 }) => {
@@ -70,19 +73,23 @@ export const SearchMapIndexes = ({
       return;
     }
 
+    const path = buildTaskInstanceUrl({
+      currentPathname: pathname,
+      dagId,
+      isMapped: true,
+      mapIndex: selected.value,
+      runId,
+      taskId,
+    });
+    // Inside a loop the same map index exists once per iteration, so the path alone does not say
+    // which instance was picked.
+    const coordinate =
+      selected.regionId === undefined
+        ? ""
+        : `?${new URLSearchParams({ region_id: selected.regionId, region_index: String(selected.regionIndex) })}`;
+
     onClose();
-    void Promise.resolve(
-      navigate(
-        buildTaskInstanceUrl({
-          currentPathname: pathname,
-          dagId,
-          isMapped: true,
-          mapIndex: selected.value,
-          runId,
-          taskId,
-        }),
-      ),
-    );
+    void Promise.resolve(navigate(`${path}${coordinate}`));
   };
 
   const search = useDebouncedCallback((value: string) => {
@@ -94,6 +101,7 @@ export const SearchMapIndexes = ({
             dagRunId: runId,
             limit: SEARCH_LIMIT,
             orderBy: BY_MAP_INDEX,
+            regionId,
             renderedMapIndexPattern: value,
             taskId,
           }),
@@ -102,6 +110,7 @@ export const SearchMapIndexes = ({
           dagRunId: runId,
           limit: SEARCH_LIMIT,
           orderBy: BY_MAP_INDEX,
+          regionId,
           renderedMapIndexPattern: value,
           taskId,
         }),

@@ -25,6 +25,7 @@ import { useTaskInstanceServiceGetMappedTaskInstances } from "openapi/queries";
 
 import { CrumbSwitcher, type CrumbShape } from "src/components/Breadcrumb";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useAutoRefresh } from "src/utils";
 import type { MapIndexSearchOption } from "src/utils/option";
 
@@ -48,10 +49,14 @@ type Props = {
 export const MapIndexSwitcherButton = ({ children, dagId, shape, to }: Props) => {
   const { t: translate } = useTranslation();
   const { runId = "", taskId = "" } = useParams();
+  // A task's expansions share one region, and a looped task has one region per iteration, so the
+  // region alone is what bounds this list to the set of instances the page is actually among.
+  // Pinning `region_index` too would narrow it to the single instance already on screen.
+  const { regionId } = useTaskInstanceCoordinates();
   const [open, setOpen] = useState(false);
   const refetchInterval = useAutoRefresh({ dagId });
   const { data, refetch } = useTaskInstanceServiceGetMappedTaskInstances(
-    { dagId, dagRunId: runId, limit: SEARCH_LIMIT, orderBy: BY_MAP_INDEX, taskId },
+    { dagId, dagRunId: runId, limit: SEARCH_LIMIT, orderBy: BY_MAP_INDEX, regionId, taskId },
     undefined,
     { refetchInterval: open && refetchInterval },
   );
@@ -77,6 +82,7 @@ export const MapIndexSwitcherButton = ({ children, dagId, shape, to }: Props) =>
           dagId={dagId}
           instances={instances}
           onClose={() => setOpen(false)}
+          regionId={regionId}
           runId={runId}
           taskId={taskId}
         />

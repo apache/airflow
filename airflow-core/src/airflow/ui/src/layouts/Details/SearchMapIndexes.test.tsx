@@ -55,13 +55,24 @@ vi.mock("chakra-react-select", () => ({
   ),
 }));
 
+const REGION_ID = "01a140b7-c277-7330-a771-56be0f2440f6";
+
 const onClose = vi.fn();
 
-const LocationDisplay = () => <output data-testid="location">{useLocation().pathname}</output>;
+const LocationDisplay = () => {
+  const { pathname, search } = useLocation();
+
+  return (
+    <>
+      <output data-testid="location">{pathname}</output>
+      <output data-testid="search">{search}</output>
+    </>
+  );
+};
 
 const INSTANCES: Array<MapIndexSearchOption> = [
-  { label: "alpha", state: "success", value: "0" },
-  { label: "2", state: "failed", value: "2" },
+  { label: "alpha", regionId: REGION_ID, regionIndex: 0, state: "success", value: "0" },
+  { label: "2", regionId: REGION_ID, regionIndex: 2, state: "failed", value: "2" },
 ];
 
 const renderSearch = (initialEntry: string, route: string) =>
@@ -75,6 +86,7 @@ const renderSearch = (initialEntry: string, route: string) =>
                 dagId="my_dag"
                 instances={INSTANCES}
                 onClose={onClose}
+                regionId={REGION_ID}
                 runId="run_1"
                 taskId="task_1"
               />
@@ -133,6 +145,8 @@ describe("SearchMapIndexes", () => {
         expect.objectContaining({
           dagId: "my_dag",
           dagRunId: "run_1",
+          // Scoped, or a looped task's other iterations come back as duplicate map indexes.
+          regionId: REGION_ID,
           renderedMapIndexPattern: "alpha",
           taskId: "task_1",
         }),
