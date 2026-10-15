@@ -105,7 +105,7 @@ from airflow.models.connection_test import (
     ConnectionTestState,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion, _resolve_version_data
+from airflow.models.dag_version import DagVersion, _resolve_ti_callback_bundle_info
 from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -209,15 +209,6 @@ def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
         base.selectinload(AssetEvent.asset),
         base.selectinload(AssetEvent.source_aliases),
     )
-
-
-def _resolve_ti_callback_bundle_info(ti: TaskInstance) -> tuple[str, str | None, Any]:
-    """Resolve bundle metadata for task callbacks and emails using the run's execution bundle."""
-    bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-    # A code-only update can advance the DagVersion's bundle while the run stays pinned.
-    bundle_version = ti.dag_run.bundle_version
-    version_data = _resolve_version_data(ti.dag_run.created_dag_version, ti.dag_run.bundle_version)
-    return bundle_name, bundle_version, version_data
 
 
 def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logger) -> bool:
