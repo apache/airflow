@@ -23,6 +23,7 @@ import org.apache.airflow.sdk.internal.DagSource
 import org.apache.airflow.sdk.internal.GROUP_ID
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.checkConfigValue
+import org.apache.airflow.sdk.internal.deriveJoinNodeIds
 import org.apache.airflow.sdk.internal.deriveTaskId
 import org.apache.airflow.sdk.internal.validateTaskInput
 import kotlin.Throws
@@ -43,9 +44,10 @@ import kotlin.Throws
  * ```
  *
  * Dag and task IDs are validated authoritatively by the Airflow server. This
- * class accepts any ID; IDs the server would reject are reported as
- * best-effort build-time warnings by the Gradle plugin's `checkAirflowBundle`
- * task, which runs [BundleInspector] against the assembled [Bundle].
+ * class does not check the characters or length of a Dag or task ID. IDs the
+ * server would reject are reported as best-effort build-time warnings by the
+ * Gradle plugin's `checkAirflowBundle` task, which runs [BundleInspector]
+ * against the assembled [Bundle].
  *
  * @param id Dag identifier; must be unique within a [Bundle].
  *
@@ -157,6 +159,7 @@ class DagDef(
       throw IllegalArgumentException("Task '${task.id}' already belongs to Dag '${owner.id}'")
     }
     require(task.id !in groups) { "Dag '$id' already has a task group with ID: ${task.id}" }
+    requireNotJoinNode(task.id)
     require(tasks.putIfAbsent(task.id, task) == null) {
       "Tasks in Dag have duplicate ID: ${task.id}"
     }
@@ -284,7 +287,9 @@ class DagDef(
    *    or dashes, and differ from every task and group ID in this Dag.
    * @return The group, to declare tasks in and to wire edges with.
    * @throws IllegalArgumentException if [id] is not a valid group ID, or the
-   *    Dag already has a task or task group with that ID.
+   *    Dag already has a task or task group with that ID. Also thrown if a
+   *    task already has the ID of one of the group's join nodes.
+   *    [TaskGroupRef] explains join nodes.
    */
   fun taskGroup(id: String): TaskGroupRef = addGroup(null, id)
 
@@ -299,9 +304,34 @@ class DagDef(
     require(groupId !in tasks && groupId !in groups) {
       "Dag '$id' already has a task or task group with ID: $groupId"
     }
+    requireNotJoinNode(groupId)
+    // Python accepts a task that took a join node ID of the new group before
+    // the group existed. The Graph view then draws the edges into or out of
+    // the group through that task. This check rejects that order. The Go SDK
+    // rejects it too. Only a task can already have a join node ID of the new
+    // group. A group with that ID would have to be nested inside the new
+    // group, which does not exist yet.
+    deriveJoinNodeIds(groupId).firstOrNull { it in tasks }?.let { taken ->
+      throw IllegalArgumentException(
+        "Dag '$id' already has a task with ID: $taken, which is the ID of a join node of task group '$groupId'",
+      )
+    }
     return TaskGroupRef(this, groupId, parent).also {
       groups[groupId] = it
       parent?.children?.add(it)
+    }
+  }
+
+  /**
+   * Rejects [nodeId] if a task group of this Dag has a join node with the ID
+   * [nodeId]. A join node's ID is its group's ID, a dot, and a suffix with no
+   * dot in it. So at most one group can have a join node with the ID [nodeId].
+   * That group's ID is the part of [nodeId] before its last dot.
+   */
+  private fun requireNotJoinNode(nodeId: String) {
+    val groupId = nodeId.substringBeforeLast('.', "")
+    require(groupId !in groups || nodeId !in deriveJoinNodeIds(groupId)) {
+      "Dag '$id' already has a join node of task group '$groupId' with ID: $nodeId"
     }
   }
 
