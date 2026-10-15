@@ -1268,6 +1268,8 @@ class TestGetAssetEvents(TestAssets):
             ({"name_prefix_pattern": "simple1"}, 1),
             ({"name_prefix_pattern": "simple"}, 2),
             ({"name_prefix_pattern": "nonexistent"}, 0),
+            ({"name_prefix_pattern": "~"}, 2),
+            ({"name_pattern": ""}, 2),
         ],
     )
     @provide_session
