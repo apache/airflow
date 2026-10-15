@@ -93,12 +93,18 @@ class SubprocessHook(BaseHook):
             line = ""
             if self.sub_process is None:
                 raise RuntimeError("The subprocess should be created here and is None!")
-            if self.sub_process.stdout is not None:
-                for raw_line in iter(self.sub_process.stdout.readline, b""):
-                    line = raw_line.decode(output_encoding, errors="backslashreplace").rstrip()
-                    self.log.info("%s", line)
+            # Not `with Popen(...)`: its __exit__ blocks in wait(), so on an execution_timeout
+            # the task's on_kill() would never run to SIGTERM the child.
+            try:
+                if self.sub_process.stdout is not None:
+                    for raw_line in iter(self.sub_process.stdout.readline, b""):
+                        line = raw_line.decode(output_encoding, errors="backslashreplace").rstrip()
+                        self.log.info("%s", line)
 
-            self.sub_process.wait()
+                self.sub_process.wait()
+            finally:
+                if self.sub_process.stdout is not None:
+                    self.sub_process.stdout.close()
 
             self.log.info("Command exited with return code %s", self.sub_process.returncode)
             return_code: int = self.sub_process.returncode

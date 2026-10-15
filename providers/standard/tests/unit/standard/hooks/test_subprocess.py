@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import signal
+from io import BufferedReader
 from pathlib import Path
-from subprocess import PIPE, STDOUT
+from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
@@ -102,6 +103,25 @@ class TestSubprocessHook:
             stderr=STDOUT,
             stdout=PIPE,
         )
+
+    def test_run_command_closes_stdout_pipe(self):
+        hook = SubprocessHook()
+        hook.run_command(command=["bash", "-c", 'echo "stdout"'])
+        assert hook.sub_process.stdout.closed
+
+    @mock.patch(
+        "airflow.providers.standard.hooks.subprocess.Popen",
+        return_value=MagicMock(
+            spec=Popen,
+            stdout=MagicMock(spec=BufferedReader, readline=MagicMock(side_effect=OSError("pipe broken"))),
+        ),
+    )
+    def test_run_command_closes_stdout_pipe_on_read_error(self, mock_popen):
+        hook = SubprocessHook()
+        with pytest.raises(OSError, match="pipe broken"):
+            hook.run_command(command=["bash", "-c", 'echo "stdout"'])
+        mock_popen.return_value.stdout.close.assert_called_once()
+        mock_popen.return_value.wait.assert_not_called()
 
     def test_task_decode(self):
         hook = SubprocessHook()
