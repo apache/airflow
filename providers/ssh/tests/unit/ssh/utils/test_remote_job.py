@@ -519,23 +519,26 @@ class TestPosixEnvironmentQuoting:
             pytest.param("x; touch {marker}", id="semicolon"),
             pytest.param("it's'; touch {marker}; '", id="single-quotes"),
             pytest.param('say "hi" to $HOME', id="double-quotes-and-variable"),
+            pytest.param("${PATH}:~/bin", id="braced-variable-and-tilde"),
+            pytest.param("C:\\data\\\\share", id="backslashes"),
             pytest.param("line one\nline two", id="newline"),
             pytest.param("", id="empty"),
         ],
     )
     def test_value_reaches_job_verbatim(self, value, tmp_path):
         marker = tmp_path / "injected"
-        value = value.format(marker=marker)
+        value = value.replace("{marker}", str(marker))
         paths = RemoteJobPaths(job_id="env_job", remote_os="posix", base_dir=str(tmp_path / "jobs"))
         wrapper = build_posix_wrapper_command('printf %s "$MY_VAR"', paths, environment={"MY_VAR": value})
 
-        subprocess.run(["bash", "-c", wrapper], check=True, capture_output=True, text=True)
+        subprocess.run(["bash", "-c", wrapper], check=True, capture_output=True)
         # The job runs detached, so wait for it to record its exit code.
         exit_code_file = Path(paths.exit_code_file)
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline and not exit_code_file.exists():
             time.sleep(0.02)
 
+        assert not marker.exists()
+        assert exit_code_file.exists(), "job never recorded its exit code"
         assert exit_code_file.read_text() == "0"
         assert Path(paths.log_file).read_text() == value
-        assert not marker.exists()

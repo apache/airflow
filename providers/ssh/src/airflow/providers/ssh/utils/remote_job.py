@@ -184,11 +184,10 @@ def build_posix_wrapper_command(
         for key, value in environment.items():
             _validate_env_var_name(key)
             env_exports += f"export {key}={shlex.quote(value)}\n"
-    # The exports are spliced into the single-quoted ``job_script`` literal below, so on top
-    # of quoting each value for the job shell they need the same escaping as the command.
-    env_exports = env_exports.replace("'", "'\"'\"'")
 
-    escaped_command = command.replace("'", "'\"'\"'")
+    # The exports and the command are spliced into the single-quoted ``job_script`` literal
+    # below, so escape them for it once more on top of the per-value quoting.
+    escaped_job_body = (env_exports + command).replace("'", "'\"'\"'")
 
     # Launch detached under ``setsid`` so the job is its own session/process-group
     # leader, letting cancellation signal the whole job tree instead of orphaning the
@@ -223,7 +222,7 @@ set +e
 echo -n "$$" > "'"$pid_file"'"
 export LOG_FILE="'"$log_file"'"
 export STATUS_FILE="'"$status_file"'"
-{env_exports}{escaped_command} >>"'"$log_file"'" 2>&1
+{escaped_job_body} >>"'"$log_file"'" 2>&1
 ec=$?
 echo -n "$ec" > "'"$exit_code_tmp"'"
 mv "'"$exit_code_tmp"'" "'"$exit_code_file"'"
