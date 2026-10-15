@@ -1102,7 +1102,6 @@ async def test_aget_conn_api_key(password, extra, expected_kwargs):
 @pytest.mark.asyncio
 @patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
 async def test_aget_conn_without_aextra_dejson_reads_extra_dejson_off_the_event_loop(mock_client):
-    """On Airflow < 3.3.2 the connection has no ``aextra_dejson()``: ``extra_dejson`` runs in a worker thread."""
     conn = _async_conn({"openai_client_kwargs": {"api_key": "api_key_in_extra"}}, aextra_dejson=False)
     with patch(
         "airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)
@@ -1197,7 +1196,6 @@ async def test_acreate_embeddings(input_text, response_items, expected):
 
 @pytest.mark.asyncio
 async def test_acreate_embeddings_concurrent_calls_each_close_their_own_client():
-    """Concurrent calls on one hook each build a client and close it; none is shared or left open."""
     clients = [_async_client([(0, [0.1, 0.2])]) for _ in range(3)]
     hook = OpenAIHook(conn_id="openai_async")
     with (
