@@ -417,8 +417,14 @@ def _resolve_version_data(
     """Return a bundle version's ``version_data`` manifest, but only for pinned runs."""
     # Expose version_data only when the run is pinned (bundle_version set) and a DagVersion is
     # present, so the bundle initializes against the exact version the run used. Unpinned runs
-    # follow the latest bundle state, and legacy rows have no DagVersion.
-    if dag_version is not None and bundle_version is not None:
+    # follow the latest bundle state, and legacy rows have no DagVersion. A code-only update
+    # overwrites a reused DagVersion's bundle metadata in place, so its manifest describes the
+    # pinned bundle only while the two bundle versions still match.
+    if (
+        dag_version is not None
+        and bundle_version is not None
+        and dag_version.bundle_version == bundle_version
+    ):
         return dag_version.version_data
     return None
 
