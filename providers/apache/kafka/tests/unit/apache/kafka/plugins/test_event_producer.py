@@ -424,22 +424,44 @@ class TestCheckTopicExists:
             assert topic_arg == task_instance_topic
         assert retry_interval_arg == event_producer._get_topic_check_retry_interval()
 
-    def test_one_topic_doesnt_exist(self, monkeypatch, dagrun_topic, task_instance_topic):
+
+    @conf_vars(
+        {
+            ("kafka_event_producer", "dagrun_topic"): _DAGRUN_TOPIC,
+            ("kafka_event_producer", "task_instance_topic"): _TASK_INSTANCE_TOPIC,
+        }
+    )
+    def test_one_topic_doesnt_exist(self, monkeypatch):
+        def _mock_topic_exists(topic):
+            return topic == _TASK_INSTANCE_TOPIC
         kafka_producer_mock = MagicMock()
-        kafka_producer_mock.list_topics.return_value.topics.__contains__.side_effect = [True, False]
+        kafka_producer_mock.list_topics.return_value.topics.__contains__.side_effect = _mock_topic_exists
 
         log_warning_mock = MagicMock()
         monkeypatch.setattr(event_producer.log, "warning", log_warning_mock)
 
-        with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
+        with (
+            patch(_PRODUCER_CLS, return_value=kafka_producer_mock),
+            patch("airflow.providers.apache.kafka.plugins.event_producer.time.monotonic", return_value=60.0),
+        ):
+            assert event_producer._check_topic_exists(event_producer.EventProducerKafkaTopic.DAG_RUN) is False
             assert event_producer._check_topic_exists(event_producer.EventProducerKafkaTopic.TASK_INSTANCE)
             assert event_producer._check_topic_exists(event_producer.EventProducerKafkaTopic.DAG_RUN) is False
+            assert event_producer._topic_existence_map == {
+                event_producer.EventProducerKafkaTopic.DAG_RUN: False,
+                event_producer.EventProducerKafkaTopic.TASK_INSTANCE: True,
+            }
+            assert event_producer._topic_check_retry_after == {
+                event_producer.EventProducerKafkaTopic.DAG_RUN: 60.0
+                + event_producer._get_topic_check_retry_interval(),
+                event_producer.EventProducerKafkaTopic.TASK_INSTANCE: 0.0,
+            }
 
         log_warning_mock.assert_called_once()
         # Format string + the two formatting args are passed positionally to log.warning.
         warning_format, topic_arg, retry_interval_arg = log_warning_mock.call_args.args
         assert "topic %r not found on the broker" in warning_format
-        assert topic_arg == dagrun_topic
+        assert topic_arg == _DAGRUN_TOPIC
         assert retry_interval_arg == event_producer._get_topic_check_retry_interval()
 
     def test_list_topics_failure_warns_and_sets_cooldown(self, monkeypatch, topic_type):
