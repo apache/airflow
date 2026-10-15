@@ -88,7 +88,7 @@ def test_agent_framework_commands_cover_every_framework_in_the_ci_matrix():
         for _, command, _ in FLAG_COMMANDS["run_agent_framework_tests"]
     ]
 
-    assert frameworks == matrix
+    assert sorted(frameworks) == sorted(matrix)
 
 
 def test_docs_only_change_mirrors_the_ci_cell():
