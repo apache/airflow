@@ -61,13 +61,13 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
     return task.arg_bindings
 
 
-def get_stub_execution_timeout(dag_bag: DBDagBag, ti: Any, *, session: Session) -> float | None:
+def get_language_sdk_execution_timeout(dag_bag: DBDagBag, ti: Any, *, session: Session) -> float | None:
     """
-    Return the stub task's ``execution_timeout`` in seconds.
+    Return ``execution_timeout`` in seconds for tasks run by a language SDK.
 
-    Only stub (foreign-runtime) tasks need it from the server: a Python task parses the Dag file and
-    reports its own timeout, but a lang-SDK runtime never sees the Dag. ``None`` for any other task
-    and for stubs that set no timeout.
+    Both ``@task.stub`` tasks and native language-SDK Dag tasks serialize with ``is_stub=True``.
+    They need the timeout from the server; a Python task parses the Dag file and reports its own.
+    Return ``None`` for other tasks and when no timeout is set, including a zero timeout.
     """
     if ti.dag_version_id is None:
         return None
@@ -75,6 +75,6 @@ def get_stub_execution_timeout(dag_bag: DBDagBag, ti: Any, *, session: Session) 
         return None
     if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
         return None
-    if task.execution_timeout is None:
+    if not task.execution_timeout:
         return None
     return task.execution_timeout.total_seconds()

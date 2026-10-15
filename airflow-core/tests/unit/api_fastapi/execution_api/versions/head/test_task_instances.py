@@ -1059,11 +1059,15 @@ class TestTIRunState:
             @task.stub
             def without_timeout(): ...
 
+            @task.stub(execution_timeout=timedelta(0))
+            def zero_timeout(): ...
+
             @task(execution_timeout=timedelta(seconds=10))
             def python_task(): ...
 
             with_timeout()
             without_timeout()
+            zero_timeout()
             python_task()
 
         dr = dag_maker.create_dagrun()
@@ -1078,7 +1082,7 @@ class TestTIRunState:
         assert response.status_code == 200
         assert response.json()["execution_timeout"] == 90.0
 
-        for task_id in ("without_timeout", "python_task"):
+        for task_id in ("without_timeout", "zero_timeout", "python_task"):
             response = client.patch(f"/execution/task-instances/{tis[task_id].id}/run", json=self.RUN_PAYLOAD)
             assert response.status_code == 200
             assert "execution_timeout" not in response.json()

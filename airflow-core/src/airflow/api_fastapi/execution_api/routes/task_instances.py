@@ -92,7 +92,7 @@ from airflow.api_fastapi.execution_api.security import (
 from airflow.api_fastapi.execution_api.services.task_instances import (
     client_supports_arg_bindings,
     get_arg_bindings,
-    get_stub_execution_timeout,
+    get_language_sdk_execution_timeout,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
@@ -407,8 +407,10 @@ def ti_run(
                     },
                 )
 
-        # Only set for stub tasks with an execution_timeout; the lang-SDK runtime cannot read it from the Dag.
-        if (execution_timeout := get_stub_execution_timeout(dag_bag, ti, session=session)) is not None:
+        # Stub and native language-SDK Dag tasks need the timeout from the server, not a parsed Dag.
+        if (
+            execution_timeout := get_language_sdk_execution_timeout(dag_bag, ti, session=session)
+        ) is not None:
             context.execution_timeout = execution_timeout
 
         # Only set if they are non-null

@@ -1975,13 +1975,15 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         Enforce ``execution_timeout`` from outside the task process.
 
-        The task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the only
+        A Python task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the only
         place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that can
         still run Python signal handlers; one that has not reported a terminal state within the grace period
         is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
-        The deadline is armed by ``SetExecutionTimeout``, which the task process sends right before
-        ``execute()``. Anything before that (bundle load, Dag parsing) is not covered here.
+        For Python tasks, ``SetExecutionTimeout`` arms the deadline right before ``execute()``;
+        bundle loading and Dag parsing are not covered. For language-SDK tasks (stub tasks and native
+        language-SDK Dag tasks), the server-provided timeout arms the deadline when the runtime
+        connects. In either case, enforcement starts after the timeout plus ``killed_task_cleanup_time``.
         """
         if self._execution_timeout_due_in() > 0:
             return

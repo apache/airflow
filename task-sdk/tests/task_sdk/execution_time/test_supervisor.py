@@ -1665,18 +1665,17 @@ class TestWatchedSubprocess:
         mock_kill.assert_called_once()
 
     @pytest.mark.parametrize(
-        ("server_timeout", "expected_timeout"),
+        "server_timeout",
         [
-            pytest.param(30.0, 30.0, id="stub_task_with_timeout"),
-            pytest.param(None, None, id="no_timeout"),
+            pytest.param(30.0, id="language_sdk_task_with_timeout"),
+            pytest.param(None, id="no_timeout"),
         ],
     )
-    def test_execution_timeout_from_server_arms_deadline_at_startup(
-        self, mocker, server_timeout, expected_timeout
-    ):
+    def test_execution_timeout_from_server_kills_task_that_does_not_stop(self, mocker, server_timeout):
         """A lang-SDK runtime never sends SetExecutionTimeout, so the supervisor arms it from the run context."""
         mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
-        mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         client = mocker.Mock()
         client.task_instances.start.return_value = mocker.Mock(
             should_retry=False, start_date=None, execution_timeout=server_timeout
@@ -1706,11 +1705,23 @@ class TestWatchedSubprocess:
             sentry_integration="",
         )
 
-        assert proc._execution_timeout_seconds == expected_timeout
-        if expected_timeout is None:
-            assert proc._execution_timeout_enforce_at is None
+        monotonic.return_value += 34
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
+
+        monotonic.return_value += 1
+        proc._handle_execution_timeout_if_needed()
+        if server_timeout is None:
+            mock_kill.assert_not_called()
         else:
-            assert proc._execution_timeout_enforce_at == 1.0 + expected_timeout + 5.0
+            mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
+            proc.process_log.error.assert_called_once_with(
+                "Task did not stop before execution_timeout elapsed; terminating process",
+                timeout_seconds=server_timeout,
+                grace_period_seconds=5.0,
+            )
+            proc._handle_execution_timeout_if_needed()
+            mock_kill.assert_called_once()
 
     @pytest.mark.parametrize(
         ("terminal_state", "exit_code"),
