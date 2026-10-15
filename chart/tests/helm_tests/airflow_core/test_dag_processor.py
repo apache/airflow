@@ -16,8 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from configparser import ConfigParser
+from pathlib import Path
+from subprocess import CalledProcessError
+
 import jmespath
 import pytest
+import yaml
 from chart_utils.helm_template_generator import render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
 
@@ -433,6 +438,108 @@ class TestDagProcessor:
             "airflow jobs check --local --job-type DagProcessorJob"
             in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
         )
+
+    def test_api_mode_uses_local_liveness_probe(self):
+        docs = render_chart(
+            values={"config": {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}}},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        command = jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        assert "airflow dag-processor --check-health" in command
+        readiness = docs[0]["spec"]["template"]["spec"]["containers"][0]["readinessProbe"]["exec"]["command"]
+        assert "airflow dag-processor --check-ready" in readiness[-1]
+        assert "airflow jobs check" not in command
+
+    def test_api_mode_replaces_pods_with_recreate(self):
+        docs = render_chart(
+            values={
+                "config": {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}},
+                "dagProcessor": {
+                    "strategy": {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.strategy", docs[0]) == {"type": "Recreate"}
+
+    @pytest.mark.parametrize(("replicas", "rejected"), [(0, False), (1, False), (2, True)])
+    def test_api_mode_rejects_replicas_sharing_a_session_token(self, replicas, rejected):
+        values = {
+            "config": {"dag_processor": {"execution_api_token_file": "/run/processor.jwt"}},
+            "dagProcessor": {"replicas": replicas},
+        }
+        show_only = ["templates/dag-processor/dag-processor-deployment.yaml"]
+        if rejected:
+            with pytest.raises(CalledProcessError, match="must not exceed 1"):
+                render_chart(values=values, show_only=show_only)
+        else:
+            docs = render_chart(values=values, show_only=show_only)
+            assert jmespath.search("spec.replicas", docs[0]) == replicas
+
+    def test_isolated_api_deployment_example(self):
+        examples = Path(__file__).resolve().parents[4] / "airflow-core/docs/security/dag-processor-api"
+        values = yaml.safe_load((examples / "helm-values.yaml").read_text())
+        docs = render_chart(values=values, namespace="dag-processors")
+        workloads = [doc for doc in docs if doc["kind"] in {"Deployment", "StatefulSet", "Job", "CronJob"}]
+        assert len(workloads) == 1
+        deployment = workloads[0]
+        assert deployment["metadata"]["labels"]["component"] == "dag-processor"
+        assert deployment["spec"]["strategy"] == {"type": "Recreate"}
+        pod = deployment["spec"]["template"]["spec"]
+        assert not pod.get("initContainers")
+        for container in pod["containers"]:
+            assert not container.get("envFrom")
+            assert all("valueFrom" not in env for env in container.get("env", []))
+        processor = next(container for container in pod["containers"] if container["name"] == "dag-processor")
+        assert {env["name"]: env["value"] for env in processor["env"]} == {
+            "AIRFLOW_HOME": "/opt/airflow",
+            "CONNECTION_CHECK_MAX_COUNT": "0",
+        }
+        assert "--check-health" in processor["livenessProbe"]["exec"]["command"][-1]
+        assert "--check-ready" in processor["readinessProbe"]["exec"]["command"][-1]
+        assert {v["secret"]["secretName"] for v in pod["volumes"] if "secret" in v} == {
+            "dag-processor-session"
+        }
+        token_mount = next(m for m in processor["volumeMounts"] if m["name"] == "processor-token")
+        assert token_mount["readOnly"]
+        assert "subPath" not in token_mount
+        account = next(
+            doc
+            for doc in docs
+            if doc["kind"] == "ServiceAccount" and doc["metadata"]["name"] == pod["serviceAccountName"]
+        )
+        assert account["automountServiceAccountToken"] is False
+        configmap = next(
+            doc for doc in docs if doc["kind"] == "ConfigMap" and "airflow.cfg" in doc.get("data", {})
+        )
+        config = ConfigParser(interpolation=None)
+        config.read_string(configmap["data"]["airflow.cfg"])
+        for section, key in (
+            ("database", "sql_alchemy_conn"),
+            ("core", "fernet_key"),
+            ("api_auth", "jwt_secret"),
+            ("api_auth", "jwt_private_key_path"),
+        ):
+            assert not config.has_option(section, key)
+        assert config["dag_processor"]["execution_api_token_file"] == "/run/dag-processor/processor.jwt"
+        policy = yaml.safe_load((examples / "network-policy.yaml").read_text())["spec"]
+        labels = deployment["spec"]["template"]["metadata"]["labels"]
+        assert policy["podSelector"]["matchLabels"].items() <= labels.items()
+        assert set(policy["policyTypes"]) == {"Ingress", "Egress"}
+        assert not policy["ingress"]
+        assert len(policy["egress"]) == 2
+        assert policy["egress"][0] == {
+            "to": [
+                {
+                    "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "airflow"}},
+                    "podSelector": {"matchLabels": {"component": "api-server", "release": "airflow"}},
+                }
+            ],
+            "ports": [{"protocol": "TCP", "port": 8080}],
+        }
+        assert policy["egress"][1]["to"][0]["podSelector"]["matchLabels"] == {"k8s-app": "kube-dns"}
+        assert {port["port"] for port in policy["egress"][1]["ports"]} == {53}
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),

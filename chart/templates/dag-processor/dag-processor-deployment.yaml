@@ -21,6 +21,9 @@
 ## Airflow Dag Processor Deployment
 #################################
 {{- if .Values.dagProcessor.enabled }}
+{{- if and (get (.Values.config.dag_processor | default dict) "execution_api_token_file") (gt (int .Values.dagProcessor.replicas) 1) }}
+{{- fail "`dagProcessor.replicas` must not exceed 1 when `config.dag_processor.execution_api_token_file` is set, because the pods would share one session token. Deploy a separate release, with its own token, for each additional processor." }}
+{{- end }}
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
@@ -58,7 +61,11 @@ spec:
       tier: airflow
       component: dag-processor
       release: {{ .Release.Name }}
-  {{- if .Values.dagProcessor.strategy }}
+  {{- if (get (.Values.config.dag_processor | default dict) "execution_api_token_file") }}
+  {{- /* Pods share one session token, and a new pod can register its Job only after the old one stops. */}}
+  strategy:
+    type: Recreate
+  {{- else if .Values.dagProcessor.strategy }}
   strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
   {{- end }}
   template:
@@ -189,6 +196,18 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.dagProcessor.env) | indent 10 }}
+          {{- if (get (.Values.config.dag_processor | default dict) "execution_api_token_file") }}
+          readinessProbe:
+            timeoutSeconds: {{ .Values.dagProcessor.livenessProbe.timeoutSeconds }}
+            periodSeconds: {{ .Values.dagProcessor.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint
+                  airflow dag-processor --check-ready
+          {{- end }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.dagProcessor.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.dagProcessor.livenessProbe.timeoutSeconds }}
