@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 
-import { Box, Text } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
@@ -30,6 +30,7 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
+import { LoopDecisionReason } from "src/components/LoopDecisionReason";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
 import ReactMarkdown from "src/components/ReactMarkdown";
@@ -100,11 +101,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       : [
           {
             label: translate("taskInstance.loopDecision"),
-            value: (
-              <Text maxWidth="md" overflowWrap="anywhere" whiteSpace="pre-line">
-                {decisionReason}
-              </Text>
-            ),
+            value: <LoopDecisionReason reason={decisionReason} />,
           },
         ]),
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },

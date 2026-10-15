@@ -22,6 +22,8 @@ import { HStack, Icon, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdLoop } from "react-icons/md";
 
+import { LoopDecisionReason } from "src/components/LoopDecisionReason";
+
 import { useLoopSummary } from "src/queries/useLoopSummary";
 
 import { reasonSentence } from "./LoopIterations/loopUtils";
@@ -54,9 +56,7 @@ export const useLoopOutcomeStats = ({
             {reasonSentence(translate, summary)}
           </Text>
           {finalReason === undefined ? undefined : (
-            <Text color="fg.muted" maxWidth="md" overflowWrap="anywhere" whiteSpace="pre-line">
-              {finalReason}
-            </Text>
+            <LoopDecisionReason color="fg.muted" reason={finalReason} />
           )}
         </>
       ),
