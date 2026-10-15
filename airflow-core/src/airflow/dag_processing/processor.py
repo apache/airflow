@@ -578,6 +578,15 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
         )
 
 
+@attrs.frozen
+class DagParseSource:
+    """Bundle metadata captured for one import of the local source tree."""
+
+    bundle_version: str | None = None
+    version_data: dict | None = None
+    refresh_generation: int = 0
+
+
 @attrs.define(kw_only=True)
 class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
@@ -594,6 +603,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     )
     """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
+    parse_source: DagParseSource = attrs.field(factory=DagParseSource)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
     client: Client | None = None
