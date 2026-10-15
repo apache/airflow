@@ -89,8 +89,14 @@ def get_gantt_data(
     )
 
     query = current_tis.order_by(
-        TaskInstance.task_id, TaskInstance.region_id, TaskInstance.region_index, TaskInstance.try_number
-    )
+        TaskInstance.task_id,
+        TaskInstance.region_id,
+        TaskInstance.region_index,
+        TaskInstance.try_number,
+        # Every attempt is its own row and only the newest stays live, so without this the chart
+        # loses each earlier try the moment a clear archives it -- including the attempt the
+        # filter above drops the pending retry in favour of.
+    ).execution_options(include_all_attempts=True)
 
     results = session.execute(query).fetchall()
 

@@ -24,6 +24,7 @@ import zipfile
 from types import SimpleNamespace
 
 import pytest
+from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import BaseOperator, XComArg
 from airflow.sdk.definitions._internal.templater import LiteralValue
@@ -79,6 +80,26 @@ class _TemporalOperator(BaseOperator):
 
 
 OP_TEMPORAL = f"{__name__}.{_TemporalOperator.__name__}"
+
+
+class _PeriodOperator(BaseOperator):
+    """An operator with time-period-typed arguments."""
+
+    def __init__(
+        self,
+        *,
+        gap: datetime.timedelta | None = None,
+        window: relativedelta | None = None,
+        either: datetime.timedelta | relativedelta | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.gap = gap
+        self.window = window
+        self.either = either
+
+
+OP_PERIOD = f"{__name__}.{_PeriodOperator.__name__}"
 
 
 @pytest.fixture
@@ -277,6 +298,102 @@ def test_import_coerces_temporal_with_arg(mock_bundle):
     cutoff = result.dags[0].get_task("a").cutoff
     assert isinstance(cutoff, datetime.datetime)
     assert (cutoff.year, cutoff.month, cutoff.day) == (2024, 1, 1)
+
+
+def test_import_coerces_timedelta_with_arg(mock_bundle):
+    # a timedelta-typed argument accepts the short form and ISO-8601
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: a, uses: {OP_PERIOD}, with: {{gap: 1h30m}}}}
+            - {{id: b, uses: {OP_PERIOD}, with: {{gap: PT90M}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").gap == datetime.timedelta(hours=1, minutes=30)
+    assert result.dags[0].get_task("b").gap == datetime.timedelta(minutes=90)
+
+
+def test_import_coerces_relativedelta_with_arg(mock_bundle):
+    definition = _def(
+        mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP_PERIOD}, with: {{window: P1Y2M}}}}")
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").window == relativedelta(years=1, months=2)
+
+
+def test_import_period_union_picks_type_by_components(mock_bundle):
+    # for an arg that accepts both, an ISO duration with months/years becomes a relativedelta,
+    # otherwise a timedelta
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: a, uses: {OP_PERIOD}, with: {{either: P1D}}}}
+            - {{id: b, uses: {OP_PERIOD}, with: {{either: P1M}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").either == datetime.timedelta(days=1)
+    assert result.dags[0].get_task("b").either == relativedelta(months=1)
+
+
+def test_import_does_not_coerce_unparseable_duration(mock_bundle):
+    # months need a relativedelta, so P1M on a timedelta-only arg is left as-is; the short form is
+    # timedelta-only, so it is left as-is on a relativedelta arg
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: a, uses: {OP_PERIOD}, with: {{gap: P1M}}}}
+            - {{id: b, uses: {OP_PERIOD}, with: {{window: 5m}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").gap == "P1M"
+    assert result.dags[0].get_task("b").window == "5m"
+
+
+def test_import_coerces_task_level_timedelta(mock_bundle):
+    definition = _def(
+        mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP}, with: {{payload: x}}, retry_delay: PT5M}}")
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").retry_delay == datetime.timedelta(minutes=5)
+
+
+def test_import_coerces_dag_level_timedelta(mock_bundle):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP}, with: {{payload: x}}}}", extra="dagrun_timeout: 5m\n"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].dagrun_timeout == datetime.timedelta(minutes=5)
+
+
+def test_import_schedule_timetable_coerces_delta(mock_bundle):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(
+            f"- {{id: a, uses: {OP}, with: {{payload: x}}}}",
+            extra=(
+                "schedule: {uses: airflow.sdk.definitions.timetables.interval."
+                "DeltaDataIntervalTimetable, with: {delta: P1D}}\n"
+            ),
+        ),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].timetable.delta == datetime.timedelta(days=1)
 
 
 def test_import_code_task_builds_stub_operator(mock_bundle):
