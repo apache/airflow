@@ -368,6 +368,40 @@ FORGOT TO COMMENT"""
     )
 
 
+def test_openlineage_hook_without_database_info_method_returns_empty_lineage():
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    hook = mock.MagicMock(spec=["get_connection", "conn_name_attr", "conn_id"])
+    hook.conn_name_attr = "conn_id"
+    hook.conn_id = "sql_default"
+
+    class SQLExecuteQueryOperatorForTest(SQLExecuteQueryOperator):
+        def get_db_hook(self):
+            return hook
+
+    op = SQLExecuteQueryOperatorForTest(task_id=TASK_ID, sql="SELECT 1;")
+
+    assert op.get_openlineage_facets_on_start() == OperatorLineage()
+
+
+def test_openlineage_attribute_error_from_database_info_is_not_swallowed():
+    hook = mock.MagicMock()
+    hook.conn_name_attr = "conn_id"
+    hook.conn_id = "sql_default"
+    hook.get_openlineage_database_info.side_effect = AttributeError("broken import")
+
+    class SQLExecuteQueryOperatorForTest(SQLExecuteQueryOperator):
+        def get_db_hook(self):
+            return hook
+
+    op = SQLExecuteQueryOperatorForTest(task_id=TASK_ID, sql="SELECT 1;")
+
+    with pytest.raises(AttributeError, match="broken import"):
+        op.get_openlineage_facets_on_start()
+    with pytest.raises(AttributeError, match="broken import"):
+        op.get_openlineage_facets_on_complete(None)
+
+
 def test_with_no_openlineage_provider():
     import importlib
 

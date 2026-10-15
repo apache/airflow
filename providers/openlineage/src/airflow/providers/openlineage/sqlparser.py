@@ -489,10 +489,8 @@ def get_openlineage_facets_with_sql(
         connection = hook.get_connection(conn_id)
 
     if database_info is None:
-        try:
-            database_info = hook.get_openlineage_database_info(connection)
-        except AttributeError:
-            database_info = None
+        get_database_info = getattr(hook, "get_openlineage_database_info", None)
+        database_info = get_database_info(connection) if get_database_info is not None else None
 
     if database_info is None:
         log.debug("%s has no database info provided", hook)

@@ -364,6 +364,32 @@ def test_extract_metadata_extractor_empty_result_uses_hook_lineage_when_enabled(
         assert hook_input not in metadata.inputs
 
 
+def test_extract_metadata_operator_attribute_error_warns_and_falls_back_to_hook_lineage(caplog):
+    """An AttributeError raised inside the operator's facets method is logged and doesn't break emission."""
+
+    class FakeBrokenOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+        def get_openlineage_facets_on_complete(self, task_instance):
+            raise AttributeError("module 'sqlalchemy.orm.context' has no attribute 'ORMSelectCompileState'")
+
+    hook_input = OpenLineageDataset(namespace="s3://bucket", name="hook_input")
+    task = FakeBrokenOperator(task_id="test_task_attribute_error")
+
+    with mock.patch.object(
+        ExtractorManager, "get_hook_lineage", return_value=OperatorLineage(inputs=[hook_input])
+    ):
+        with caplog.at_level("WARNING"):
+            metadata = ExtractorManager().extract_metadata(
+                dagrun=MagicMock(), task=task, task_instance_state=None, task_instance=MagicMock()
+            )
+
+    assert metadata.inputs == [hook_input]
+    assert "OpenLineage method failed to extract data from Operator" in caplog.text
+    assert "ORMSelectCompileState" in caplog.text
+
+
 @pytest.mark.parametrize("hook_lineage", [True, False])
 def test_extract_metadata_no_extractor_emits_unknown_source_and_inlets_outlets(
     hook_lineage, hook_lineage_collector

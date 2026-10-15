@@ -221,6 +221,42 @@ class TestEmitLineageFromSqlExtras:
         assert call.kwargs["job_facets"]["sql"].query == SQLParser.normalize_sql("SELECT broken(")
         assert call.kwargs["run_facets"]["externalQuery"].externalQueryId == "qid-1"
 
+    def test_sql_parsing_failure_is_logged_as_warning(self, caplog):
+        self.mock_ns.return_value = "ns"
+        self.mock_facets_fn.side_effect = Exception("parse error")
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        with caplog.at_level(logging.WARNING, logger=_MODULE):
+            emit_lineage_from_sql_extras(
+                task_instance=mock_ti,
+                sql_extras=[_make_extra(sql="SELECT broken(", job_id="qid-1")],
+            )
+
+        assert "Failed to parse SQL for query 1: parse error" in caplog.text
+
+    def test_database_info_failure_is_logged_as_warning_and_event_still_emitted(self, caplog):
+        hook = mock.MagicMock()
+        hook.get_openlineage_database_info.side_effect = AttributeError("broken import")
+        self.mock_ns.return_value = "ns"
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        with caplog.at_level(logging.WARNING, logger=_MODULE):
+            emit_lineage_from_sql_extras(
+                task_instance=mock_ti,
+                sql_extras=[_make_extra(sql="SELECT 1", job_id="qid-1", hook=hook)],
+            )
+
+        assert "Failed to get OpenLineage database info for my_conn: broken import" in caplog.text
+        # Without database info SQL is not parsed, but the query event is still built and emitted
+        # with just the SQL facet (and no externalQuery facet, as namespace is unknown).
+        self.mock_facets_fn.assert_not_called()
+        self.mock_build.assert_called_once()
+        call = self.mock_build.call_args
+        assert call.kwargs["inputs"] == []
+        assert call.kwargs["outputs"] == []
+        assert call.kwargs["job_facets"]["sql"].query == SQLParser.normalize_sql("SELECT 1")
+        assert "externalQuery" not in call.kwargs["run_facets"]
+
     def test_no_namespace_skips_external_query_facet(self):
         """When namespace cannot be resolved, no externalQuery facet is added."""
         self.mock_ns.return_value = None
