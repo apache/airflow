@@ -272,7 +272,7 @@ def test_in_process_execution_api_handles_non_ascii_path(task_id):
         return task_id
 
     api = InProcessExecutionAPI(app)
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         response = client.get(f"http://localhost/echo/{task_id}")
     assert response.status_code == 200
     assert response.json() == task_id
@@ -288,8 +288,8 @@ def test_in_process_execution_api_handles_non_ascii_script_name(script_name):
         return request.scope["root_path"]
 
     api = InProcessExecutionAPI(app)
-    transport = httpx.WSGITransport(app=api.transport.app, script_name=script_name)
-    with httpx.Client(transport=transport) as client:
+    transport = httpx2.WSGITransport(app=api.transport.app, script_name=script_name)
+    with httpx2.Client(transport=transport) as client:
         response = client.get("http://localhost/echo")
     assert response.status_code == 200
     assert response.json() == script_name
