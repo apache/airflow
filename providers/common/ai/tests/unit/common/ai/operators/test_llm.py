@@ -1414,18 +1414,40 @@ class TestLLMOperatorApproval:
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
 class TestLLMOperatorMultimodalPromptApproval:
+    @pytest.mark.parametrize(
+        "review_kwargs",
+        [
+            pytest.param({"require_approval": True}, id="require-approval"),
+            pytest.param({"decision_policy": DecisionPolicy(min_confidence=0.7)}, id="below-threshold"),
+        ],
+    )
     @patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
     @patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_with_approval_reviews_a_sequence_prompt(
-        self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
+        self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result, review_kwargs
     ):
+        result = make_mock_run_result(Assessment(category="billing", score=0.3))
+        result.response = ModelResponse(
+            parts=[],
+            model_name="jev-1.13.0",
+            provider_details={
+                "confidence": {"category": 0.9, "score": 0.4},
+                "probabilities": {},
+                "scores": {},
+            },
+        )
         mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = make_mock_run_result("LLM response")
+        mock_agent.run_sync.return_value = result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
-        op = LLMOperator(task_id="t", prompt="placeholder", llm_conn_id="c", require_approval=True)
-        op.prompt = ["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")]
+        op = LLMOperator(
+            task_id="t",
+            prompt=["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")],
+            llm_conn_id="c",
+            output_type=Assessment,
+            **review_kwargs,
+        )
 
         with pytest.raises(ApprovalPauseSignal):
             op.execute(context=_make_context())

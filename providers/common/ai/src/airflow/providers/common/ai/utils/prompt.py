@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic_ai.messages import (
     AudioUrl,
@@ -26,17 +26,19 @@ from pydantic_ai.messages import (
     FileUrl,
     ImageUrl,
     TextContent,
+    UploadedFile,
+    UserContent,
     VideoUrl,
 )
 
 
-def describe_prompt(prompt: str | Sequence[Any]) -> str:
+def describe_prompt(prompt: str | Sequence[UserContent]) -> str:
     if isinstance(prompt, str):
         return prompt
     return "\n".join(_describe_part(part) for part in prompt)
 
 
-def _describe_part(part: Any) -> str:
+def _describe_part(part: UserContent) -> str:
     if isinstance(part, FileUrl) and part.url[:5].lower() == "data:":
         try:
             part = BinaryContent.from_data_uri(part.url)
@@ -49,5 +51,12 @@ def _describe_part(part: Any) -> str:
     if isinstance(part, BinaryContent):
         return f"[{part.media_type}, {len(part.data)} bytes]"
     if isinstance(part, (ImageUrl, AudioUrl, DocumentUrl, VideoUrl)):
-        return f"[{part.kind}: {part.url}]"
+        return f"[{part.kind}: {_strip_url_secrets(part.url)}]"
+    if isinstance(part, UploadedFile):
+        return f"[{part.kind}: {part.file_id}]"
     return f"[{type(part).__name__}]"
+
+
+def _strip_url_secrets(url: str) -> str:
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc.rpartition("@")[2], parts.path, "", ""))
