@@ -33,10 +33,10 @@ on:  # yamllint disable-line rule:truthy
     - cron: '28 7,19 * * *'
   push:
     # Post-merge pushes to release-prep / providers branches run on both
-    # AMD and ARM (the matching block lives in the other wrapper too —
-    # `check-ci-workflows-in-sync` enforces they stay identical). `main` is
-    # intentionally NOT in this list: main pushes stay AMD-only via
-    # `ci-amd.yml`; ARM main coverage is the cron-driven canary above.
+    # AMD and ARM. ci-amd.yml triggers on every push and its `gate` job
+    # applies this list as CANONICAL_PUSH_BRANCH_FILTERS in fork_ci_gate.py
+    # (test_fork_ci_gate.py keeps the two in step). `main` is intentionally
+    # NOT in this list: ARM main coverage is the cron-driven canary above.
     branches:
       - v[0-9]+-[0-9]+-test
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
@@ -55,7 +55,9 @@ env:
   VERBOSE: "true"
 
 concurrency:
-  group: ci-arm-${{ github.event.pull_request.number || github.ref }}
+  # The event name keeps push runs on main (gate-only since AIP-120) from cancelling the
+  # scheduled canary on the same ref.
+  group: ci-arm-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: true
 
 jobs:
@@ -1191,7 +1193,9 @@ jobs:
       contents: write
       packages: write
     # This will fire when all the jobs from "needs" are either successful or skipped
-    if: always() && !failure() && !cancelled()
+    # build-info is skipped when the fork CI gate leaves the pull request to fork CI (AIP-120);
+    # every other need is then skipped too, which always() alone would treat as success.
+    if: always() && !failure() && !cancelled() && needs.build-info.result != 'skipped'
     needs:
       - additional-ci-image-checks
       - additional-prod-image-tests
@@ -1246,9 +1250,12 @@ jobs:
       - build-info
       - finalize-tests
       - tests-agent-frameworks
+    # A failing gate skips build-info and everything after it, and must still be reported. A
+    # fork's scheduled run is the intended skip, and forks have no Slack to report to.
     if: >-
       always() &&
       !cancelled() &&
+      github.repository == 'apache/airflow' &&
       github.event_name == 'schedule' &&
       github.run_attempt == 1
     runs-on: ["ubuntu-slim"]

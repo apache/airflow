@@ -22,12 +22,15 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+import yaml
 
 from airflow_breeze.utils.fork_ci_gate import (
+    CANONICAL_PUSH_BRANCH_FILTERS,
     Decision,
     GateConfig,
     GateEvent,
     Reason,
+    compile_branch_filter,
     decide,
     load_config,
     main,
@@ -218,6 +221,12 @@ def _push(repository: str, branch: str) -> GateEvent:
             id="head-is-upstream",
         ),
         pytest.param(
+            _pr(association="MEMBER", labels=("use fork ci",), head_repository="apache/airflow"),
+            {},
+            Decision(run=True, reason=Reason.HEAD_IS_UPSTREAM),
+            id="use-fork-ci-on-an-upstream-branch",
+        ),
+        pytest.param(
             _pr(created_at=SINCE - timedelta(seconds=1)),
             {},
             Decision(run=True, reason=Reason.BEFORE_ENABLED_SINCE),
@@ -271,12 +280,34 @@ def test_decide(event: GateEvent, config_overrides: dict, expected: Decision):
     assert decide(event, _config(**config_overrides)) == expected
 
 
-def test_repository_config_is_dormant():
-    config = load_config(AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml")
+def test_canonical_branch_filters_match_arm_push_trigger():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-arm.yml").read_text())
+    # PyYAML parses the bare `on:` key as boolean True.
+    arm_branches = workflow[True]["push"]["branches"]
 
-    assert config.enabled is False
-    assert config.allowlist == {}
-    assert config.pilot == {}
+    assert list(CANONICAL_PUSH_BRANCH_FILTERS) == arm_branches
+
+
+@pytest.mark.parametrize(
+    ("pattern", "branch", "matches"),
+    [
+        pytest.param(
+            "providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+", "providers-apache-hive2/v1-2", True, id="star"
+        ),
+        pytest.param(
+            "providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+", "providers-amazon/x/v1-2", False, id="no-slash"
+        ),
+        pytest.param("v[0-9]+-[0-9]+-test", "v3-10-test", True, id="plus"),
+        pytest.param("release/**", "release/a/b", True, id="double-star"),
+        pytest.param("v1.2", "v1x2", False, id="literal-dot"),
+    ],
+)
+def test_compile_branch_filter(pattern, branch, matches):
+    assert bool(compile_branch_filter(pattern).match(branch)) is matches
+
+
+def test_repository_config_parses():
+    load_config(AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml")
 
 
 def test_parse_config_defaults():
@@ -369,7 +400,44 @@ def test_main_pull_request(mock_run, gate_env, returncode, stdout, event_labels,
     assert main(gate_env) == 0
 
     assert _outputs(gate_env) == expected
-    assert mock_run.call_args.args[0][:3] == ["gh", "api", "repos/apache/airflow/pulls/1"]
+    assert mock_run.call_args_list[0].args[0][:3] == ["gh", "api", "repos/apache/airflow/pulls/1"]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
+@pytest.mark.parametrize(
+    ("permission", "expected"),
+    [
+        pytest.param(
+            "write\n", ["project-ci=true", "reason=trusted_author"], id="committer-with-private-membership"
+        ),
+        pytest.param("read\n", ["project-ci=false", "reason=external"], id="contributor"),
+    ],
+)
+def test_main_checks_the_permission_of_an_external_author(mock_run, gate_env, permission, expected):
+    mock_run.side_effect = [
+        subprocess.CompletedProcess([], 0, stdout="[]\n", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout=permission, stderr=""),
+    ]
+
+    main(gate_env)
+
+    assert _outputs(gate_env) == expected
+    assert mock_run.call_args.args[0][:3] == [
+        "gh",
+        "api",
+        "repos/apache/airflow/collaborators/someone/permission",
+    ]
+
+
+@mock.patch(
+    "airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True, side_effect=FileNotFoundError("gh")
+)
+def test_main_without_gh_uses_the_event_labels(mock_run, gate_env):
+    gate_env["PR_EVENT_LABELS"] = '["use project ci"]'
+
+    main(gate_env)
+
+    assert _outputs(gate_env) == ["project-ci=true", "reason=label_project_ci"]
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)

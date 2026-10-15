@@ -43,16 +43,12 @@ on:  # yamllint disable-line rule:truthy
       - airflow-ctl/v[0-9]+-[0-9]+-stable
     types: [opened, reopened, synchronize, ready_for_review]
   push:
-    # Post-merge pushes to release-prep / providers branches run on both
-    # AMD and ARM (the matching block lives in the other wrapper too —
-    # `check-ci-workflows-in-sync` enforces they stay identical). `main` is
-    # intentionally NOT in this list: main pushes stay AMD-only via
-    # `ci-amd.yml`; ARM main coverage is the cron-driven canary above.
+    # Every push triggers the workflow so that contributors get CI in their forks (AIP-120).
+    # In apache/airflow the `gate` job keeps the old behaviour: only pushes to the release-prep
+    # / providers branches listed in ci-arm.yml (CANONICAL_PUSH_BRANCH_FILTERS in
+    # fork_ci_gate.py) run anything; other pushes produce a gate-only run.
     branches:
-      - v[0-9]+-[0-9]+-test
-      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
-      - chart/v[0-9]+-[0-9]+x-test
-      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - '**'
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
@@ -66,12 +62,62 @@ env:
   VERBOSE: "true"
 
 concurrency:
-  group: ci-amd-${{ github.event.pull_request.number || github.ref }}
+  # The event name keeps push runs on main (gate-only since AIP-120) from cancelling the
+  # scheduled canary on the same ref.
+  group: ci-amd-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: true
 
 jobs:
+  gate:
+    # Fork CI gate (AIP-120): decides whether project CI runs for this event. Configuration and
+    # code come from the base branch so a pull request cannot change its own eligibility. See
+    # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+    name: "Fork CI gate"
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 5
+    outputs:
+      project-ci: ${{ steps.gate.outputs.project-ci }}
+      reason: ${{ steps.gate.outputs.reason }}
+    steps:
+      - name: "Checkout gate configuration from the base branch"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.base_ref || github.ref }}
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/fork-ci-gate.toml
+            dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+          sparse-checkout-cone-mode: false
+      - name: "Decide whether project CI runs"
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GATE_CONFIG: .github/fork-ci-gate.toml
+          GATE_SCRIPT: dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_CREATED_AT: ${{ github.event.pull_request.created_at }}
+          PR_EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        # A base branch with neither gate file predates the gate (the pull request adding it,
+        # or a release branch cut before it) and keeps running project CI. With only one of
+        # them present, the missing file fails the job instead of opening the gate.
+        run: |
+          if [[ ! -e "${GATE_CONFIG}" && ! -e "${GATE_SCRIPT}" ]]; then
+            echo "project-ci=true reason=base_without_gate"
+            echo "project-ci=true" >> "${GITHUB_OUTPUT}"
+            echo "reason=base_without_gate" >> "${GITHUB_OUTPUT}"
+            echo 'Project CI runs (fork CI gate reason: `base_without_gate`)' >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          python3 "${GATE_SCRIPT}"
+
   build-info:
     name: "Build info"
+    needs: [gate]
+    if: needs.gate.outputs.project-ci == 'true'
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
     outputs:
@@ -1202,7 +1248,9 @@ jobs:
       contents: write
       packages: write
     # This will fire when all the jobs from "needs" are either successful or skipped
-    if: always() && !failure() && !cancelled()
+    # build-info is skipped when the fork CI gate leaves the pull request to fork CI (AIP-120);
+    # every other need is then skipped too, which always() alone would treat as success.
+    if: always() && !failure() && !cancelled() && needs.build-info.result != 'skipped'
     needs:
       - additional-ci-image-checks
       - additional-prod-image-tests
@@ -1257,9 +1305,12 @@ jobs:
       - build-info
       - finalize-tests
       - tests-agent-frameworks
+    # A failing gate skips build-info and everything after it, and must still be reported. A
+    # fork's scheduled run is the intended skip, and forks have no Slack to report to.
     if: >-
       always() &&
       !cancelled() &&
+      github.repository == 'apache/airflow' &&
       github.event_name == 'schedule' &&
       github.run_attempt == 1
     runs-on: ["ubuntu-slim"]

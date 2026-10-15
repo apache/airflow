@@ -33,7 +33,7 @@ import subprocess
 import sys
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
@@ -49,17 +49,52 @@ LABEL_READY_FOR_REVIEW = "ready for maintainer review"
 DEFAULT_CLOSE_AFTER_DAYS = 7
 DEFAULT_ENABLED_SINCE = datetime(2026, 1, 1, tzinfo=UTC)
 
-# The push patterns ci-amd.yml used before its push trigger became '**'. GitHub branch filters
-# use the same `+`, `?`, `*` and `[...]` semantics as these regular expressions.
-CANONICAL_PUSH_BRANCH_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
-    re.compile(pattern)
-    for pattern in (
-        r"^v[0-9]+-[0-9]+-test$",
-        r"^providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+$",
-        r"^chart/v[0-9]+-[0-9]+x-test$",
-        r"^airflow-ctl/v[0-9]+-[0-9]+-test$",
-    )
+# The push branch filters ci-amd.yml used before its push trigger became '**', as written in
+# ci-arm.yml. They are GitHub filter patterns, not regular expressions: see
+# `compile_branch_filter` for the difference.
+CANONICAL_PUSH_BRANCH_FILTERS = (
+    "v[0-9]+-[0-9]+-test",
+    "providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+",
+    "chart/v[0-9]+-[0-9]+x-test",
+    "airflow-ctl/v[0-9]+-[0-9]+-test",
 )
+
+
+def compile_branch_filter(pattern: str) -> re.Pattern[str]:
+    """
+    Compile a GitHub Actions branch filter pattern to the regular expression it means.
+
+    In a filter, `*` matches any characters except `/` and `**` any characters at all, while `?`
+    and `+` make the preceding character optional or repeatable and `[...]` is a character class.
+    So `[a-z]*` is one letter followed by anything up to the next `/`, not a run of letters.
+    """
+    parts = []
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if pattern.startswith("**", index):
+            parts.append(".*")
+            index += 2
+            continue
+        if char == "*":
+            parts.append("[^/]*")
+        elif char in "?+":
+            parts.append(char)
+        elif char == "[":
+            end = pattern.index("]", index)
+            parts.append(pattern[index : end + 1])
+            index = end + 1
+            continue
+        else:
+            parts.append(re.escape(char))
+        index += 1
+    return re.compile(f"^{''.join(parts)}$")
+
+
+CANONICAL_PUSH_BRANCH_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
+    compile_branch_filter(pattern) for pattern in CANONICAL_PUSH_BRANCH_FILTERS
+)
+PERMISSIONS_OF_COMMITTERS = frozenset({"admin", "maintain", "write"})
 
 TRUSTED_ASSOCIATIONS = frozenset({"MEMBER", "OWNER", "COLLABORATOR"})
 
@@ -187,6 +222,10 @@ def decide(event: GateEvent, config: GateConfig) -> Decision:
         return Decision(run=False, reason=Reason.ADHOC_BRANCH)
     if LABEL_USE_PROJECT_CI in event.labels:
         return Decision(run=True, reason=Reason.LABEL_PROJECT_CI)
+    # A branch of apache/airflow has no fork to run CI in, and its pushes are not project CI either
+    # (`adhoc_branch`), so `use fork ci` or a pilot entry would leave such a pull request no CI.
+    if event.head_repository == APACHE_REPO:
+        return Decision(run=True, reason=Reason.HEAD_IS_UPSTREAM)
     if LABEL_USE_FORK_CI in event.labels:
         return Decision(run=False, reason=Reason.LABEL_FORK_CI)
     joined_at = config.pilot_joined_at(event.author_login)
@@ -194,8 +233,6 @@ def decide(event: GateEvent, config: GateConfig) -> Decision:
         return Decision(run=False, reason=Reason.PILOT)
     if not config.enabled:
         return Decision(run=True, reason=Reason.GATE_DISABLED)
-    if event.head_repository == APACHE_REPO:
-        return Decision(run=True, reason=Reason.HEAD_IS_UPSTREAM)
     if event.created_at is not None and event.created_at < config.enabled_since:
         return Decision(run=True, reason=Reason.BEFORE_ENABLED_SINCE)
     if event.author_association in TRUSTED_ASSOCIATIONS:
@@ -211,21 +248,35 @@ def parse_github_datetime(value: str) -> datetime | None:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def _run_gh(*args: str) -> str | None:
+    """Run ``gh`` and return its output, or None when it is missing or fails."""
+    try:
+        result = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    except OSError as e:
+        print(f"Could not run gh: {e}", file=sys.stderr)
+        return None
+    if result.returncode != 0:
+        print(f"gh {' '.join(args)} failed: {result.stderr.strip()}", file=sys.stderr)
+        return None
+    return result.stdout
+
+
+def fetch_author_permission(repository: str, login: str) -> str | None:
+    """The author's permission on the repository (``write``, ``read``, ...), or None if unknown."""
+    output = _run_gh("api", f"repos/{repository}/collaborators/{login}/permission", "--jq", ".permission")
+    return output.strip() if output else None
+
+
 def fetch_pull_request_labels(repository: str, number: str) -> tuple[str, ...] | None:
     """Read the labels live, so a label added after the event is seen on a re-run."""
-    result = subprocess.run(
-        ["gh", "api", f"repos/{repository}/pulls/{number}", "--jq", "[.labels[].name]"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        print(f"Could not read labels of pull request #{number}: {result.stderr.strip()}", file=sys.stderr)
+    output = _run_gh("api", f"repos/{repository}/pulls/{number}", "--jq", "[.labels[].name]")
+    if output is None:
+        print(f"Could not read labels of pull request #{number}", file=sys.stderr)
         return None
     try:
-        labels = json.loads(result.stdout)
+        labels = json.loads(output)
     except json.JSONDecodeError:
-        print(f"Unexpected label output for pull request #{number}: {result.stdout!r}", file=sys.stderr)
+        print(f"Unexpected label output for pull request #{number}: {output!r}", file=sys.stderr)
         return None
     return tuple(labels)
 
@@ -260,7 +311,14 @@ def evaluate_from_env(env: Mapping[str, str]) -> Decision:
         labels=labels,
     )
     config = load_config(Path(env.get("GATE_CONFIG", ".github/fork-ci-gate.toml")))
-    return decide(event, config)
+    decision = decide(event, config)
+    # GitHub reports an author whose membership of the organisation is private as CONTRIBUTOR, so
+    # a committer could look external. Their write access to the repository tells them apart;
+    # when it cannot be read the pull request stays gated.
+    if decision.reason == Reason.EXTERNAL and event.author_login:
+        if fetch_author_permission(repository, event.author_login) in PERMISSIONS_OF_COMMITTERS:
+            decision = decide(replace(event, author_association="COLLABORATOR"), config)
+    return decision
 
 
 def main(env: Mapping[str, str] | None = None) -> int:
