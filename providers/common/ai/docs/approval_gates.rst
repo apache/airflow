@@ -29,10 +29,10 @@ reads the output in the Airflow UI and approves it, edits it, or rejects it, and
 approved answer reaches the tasks downstream. To review each tool call an agent makes
 rather than its final answer, see :doc:`tool_approval`.
 
-Approval gates need Airflow 3.1 or later. On an older Airflow version the
-operator raises ``AirflowOptionalProviderFeatureException: require_approval=True needs Airflow 3.1+.``
-when it is constructed, so the Dag file
-fails to import, and with it every Dag defined in that file. A dynamically mapped
+Approval gates need Airflow 3.1 or later. On an older Airflow version the operator
+raises ``AirflowOptionalProviderFeatureException: require_approval=True needs Airflow 3.1+.``
+when it is constructed, so the Dag file fails to import, and with it every Dag
+defined in that file. A dynamically mapped
 task (``.expand()``) is only constructed when it runs, so there the same error
 surfaces as a task failure, before the model is called.
 
@@ -218,9 +218,11 @@ the review ``{{ task.subject }}`` and ``{{ task.body }}`` in their templates,
 as the example under `Timeouts`_ does: its notifier writes the subject and body to the
 task log, just before ``Pausing task as AWAITING_INPUT.``  The ``@task.llm`` decorator
 and the ``LLMOperator`` subclasses (``LLMBranchOperator``, ``LLMSQLQueryOperator``,
-``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator``) accept the same parameter.  A notifier that raises is logged as
-``Approval notifier <notifier> failed; the review stays open`` and the task still waits for
-the review; a Jinja ``TemplateError`` in a notifier's template fails the task.  A retry re-runs the LLM and re-notifies with the regenerated output; what the
+``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator``) accept the same
+parameter.  A notifier that raises is logged as
+``Approval notifier <notifier> failed; the review stays open`` and the task still
+waits for the review.  A Jinja ``TemplateError`` in a notifier's template fails the
+task.  A retry re-runs the LLM and re-notifies with the regenerated output.  What the
 reopened review shows depends on the Airflow version, as described under
 `What each answer does`_.
 
