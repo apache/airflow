@@ -3135,9 +3135,9 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.regionId
      * @param data.regionIndex
+     * @param data.loopId Task group id of a loop; matches every instance it produced.
+     * @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
-     * @param data.loopId
-     * @param data.iteration
      * @param data.taskId
      * @param data.runAfterGte
      * @param data.runAfterGt
@@ -3204,9 +3204,9 @@ export class TaskInstanceService {
             query: {
                 region_id: data.regionId,
                 region_index: data.regionIndex,
-                cursor: data.cursor,
                 loop_id: data.loopId,
                 iteration: data.iteration,
+                cursor: data.cursor,
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,

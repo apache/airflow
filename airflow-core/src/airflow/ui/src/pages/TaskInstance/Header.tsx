@@ -37,6 +37,7 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { useLoopSummary } from "src/queries/useLoopSummary";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { useDurationFormat } from "src/utils";
 
@@ -68,6 +69,12 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
   const { formatElapsed, renderDuration } = useDurationFormat();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
   const showTeam = useShowTeam(taskInstance.team_name);
+  const loopIteration = taskInstance.loop_iteration;
+  const { data: loopSummary } = useLoopSummary({
+    dagId: taskInstance.dag_id,
+    groupId: loopIteration?.loop_id ?? "",
+    runId: taskInstance.dag_run_id,
+  });
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -77,6 +84,14 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     ...(taskInstance.try_number > 1
       ? [{ label: translate("tryNumber"), value: taskInstance.try_number }]
       : []),
+    ...(loopIteration === null || loopIteration === undefined
+      ? []
+      : [
+          {
+            label: translate("common:filters.iteration"),
+            value: `${loopIteration.iteration}/${loopSummary?.iterations_ran ?? loopIteration.iteration}`,
+          },
+        ]),
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)

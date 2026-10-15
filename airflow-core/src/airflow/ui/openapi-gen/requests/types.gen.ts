@@ -3140,6 +3140,8 @@ export type LightGridTaskInstanceSummary = {
     dag_version_number?: number | null;
     has_note?: boolean;
     loop_iterations_count?: number | null;
+    latest_region_id?: string | null;
+    latest_region_index?: number | null;
 };
 
 /**
@@ -3163,6 +3165,7 @@ export type LoopInvocationResponse = {
  */
 export type LoopIterationSummary = {
     index: number;
+    task_count?: number;
     state?: TaskInstanceState | null;
     start_date?: string | null;
     end_date?: string | null;
@@ -4649,12 +4652,18 @@ export type GetTaskInstancesData = {
     endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
+    /**
+     * Narrow ``loop_id`` to a single pass of that loop.
+     */
     iteration?: number | null;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    /**
+     * Task group id of a loop; matches every instance it produced.
+     */
     loopId?: string | null;
     mapIndex?: Array<(number)>;
     offset?: number;

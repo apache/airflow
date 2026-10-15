@@ -69,7 +69,6 @@ export const Run = () => {
 
   const tabs = [
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
-    { icon: <MdOutlineTask />, label: translate("execution.title"), value: "execution" },
     { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
     ...(hasCallbacks
       ? [{ icon: <FiPhoneCall />, label: translate("tabs.callbacks"), value: "callbacks" }]
