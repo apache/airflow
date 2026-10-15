@@ -125,7 +125,15 @@ def sync_dependencies_without_dev() -> None:
     """
     console.print("[magenta]Running uv sync --no-dev to strip development dependencies...[/]")
     result = subprocess.run(
-        ["uv", "sync", "--no-dev", "--all-packages", "--no-python-downloads", "--no-managed-python"],
+        [
+            "uv",
+            "sync",
+            "--frozen",
+            "--no-dev",
+            "--all-packages",
+            "--no-python-downloads",
+            "--no-managed-python",
+        ],
         capture_output=True,
         text=True,
         cwd=AIRFLOW_ROOT_PATH,
