@@ -27,6 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+import structlog
 from git import RemoteReference, Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
@@ -152,6 +153,25 @@ class TestGitDagBundle:
     def test_falls_back_to_connection_host_when_no_repo_url_provided(self):
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         assert bundle.repo_url == bundle.hook.repo_url
+
+    def test_subclass_log_context_uses_attributes_set_after_construction(self):
+        """A subclass can add fields it sets after GitDagBundle.__init__ to the bundle's log context."""
+
+        class TeamGitDagBundle(GitDagBundle):
+            def __init__(self, *, team: str, **kwargs) -> None:
+                super().__init__(**kwargs)
+                self.team = team
+
+            def _get_log_context(self) -> dict:
+                return {**super()._get_log_context(), "team": self.team}
+
+        bundle = TeamGitDagBundle(name="test", team="data", tracking_ref=GIT_DEFAULT_BRANCH)
+
+        with structlog.testing.capture_logs() as logs:
+            bundle._log.info("event")
+        assert logs[0]["team"] == "data"
+        assert logs[0]["bundle_name"] == "test"
+        assert logs[0]["repo_path"] == bundle.repo_path
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_current_version(self, mock_githook, git_repo):
