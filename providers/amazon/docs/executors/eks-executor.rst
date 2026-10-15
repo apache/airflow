@@ -41,8 +41,9 @@ Requirements
 The executor needs ``apache-airflow-providers-cncf-kubernetes`` version 10.24.0 or
 newer, the release that added the
 :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__client_factory`
-setting the executor is built on. Install the ``cncf.kubernetes`` extra of the Amazon
-provider together with that version:
+setting the executor is built on. The executor checks this when it is imported and raises a
+clear error if an older version is installed. Install the ``cncf.kubernetes`` extra of the
+Amazon provider together with that version:
 
 .. code-block:: bash
 
@@ -88,7 +89,7 @@ Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 -  CLUSTER_NAME - The name of the Amazon EKS cluster that tasks run on. The
-   executor refuses to start if this is unset. Required.
+   executor refuses to start if this is unset.
 
 Optional config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -123,10 +124,12 @@ something else, so that a conflicting setting cannot silently send tasks to the 
 
 Set :ref:`[kubernetes_executor] pod_template_file
 <apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__pod_template_file>`
-to a YAML file describing the worker pod, and treat it as required. When it is empty, the
-Kubernetes executor only logs a warning and builds the worker pod from an empty template, so
-the failure shows up later, usually as a rejected pod or a task that never reports back. The
-template's first container must be named ``base`` and run your Airflow worker image. The
+to a YAML file describing the worker pod, since most setups need one. Without one, the worker
+pod is built from ``worker_container_repository`` and ``worker_container_tag`` alone, which
+only works if that image already has everything the task needs. A task whose pod would end up
+with no image at all, from a template, a ``pod_override``, or the repository and tag, fails
+right away with a clear error. The template's first container must be named ``base`` and run
+your Airflow worker image. The
 :ref:`apache-airflow-providers-cncf-kubernetes:concepts:pod_template_file` section of the
 Kubernetes executor docs covers the full requirements, and its example templates work here
 unchanged.
@@ -157,7 +160,8 @@ Grant access to the cluster
 
 Create an `EKS access entry
 <https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html>`__ for the IAM
-role or user that the scheduler runs as, and associate a policy that allows create, get,
+role or user behind the executor's AWS connection (``[aws_eks_executor] conn_id``,
+``aws_default`` by default), and associate a policy that allows create, get,
 list, watch, patch and delete on pods, and get on pods/log, in the namespace you plan to
 use. If you manage cluster access through the `aws-auth ConfigMap
 <https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html>`__ instead, add
