@@ -893,7 +893,15 @@ def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[
 
 
 class SelectiveChecks:
-    __HASHABLE_FIELDS = {"_files", "_default_branch", "_commit_ref", "_pr_labels", "_github_event"}
+    __HASHABLE_FIELDS = {
+        "_files",
+        "_default_branch",
+        "_commit_ref",
+        "_pr_labels",
+        "_github_event",
+        "_fork_push",
+        "_fork_changes_truncated",
+    }
 
     def __init__(
         self,
@@ -908,7 +916,14 @@ class SelectiveChecks:
         github_context_dict: dict[str, Any] | None = None,
         platform: str = CI_AMD_PLATFORM,
         selective_tests_on_push: bool = False,
+        fork_push: bool = False,
+        fork_changes_truncated: bool = False,
     ):
+        """
+        :param fork_push: the push happened in a contributor fork (AIP-120); ``files`` are the
+            changes against apache/airflow and the run is selected like a pull request.
+        :param fork_changes_truncated: the compare API capped the changed files of a fork push.
+        """
         self._files = files
         # A changed test helper selects the tests that import it, as if those test files had changed;
         # only helpers that cannot be narrowed to their importers still force the full set of tests.
@@ -935,6 +950,8 @@ class SelectiveChecks:
         self._github_context_dict = github_context_dict or {}
         self._platform = platform
         self._selective_tests_on_push = selective_tests_on_push
+        self._fork_push = fork_push
+        self._fork_changes_truncated = fork_changes_truncated
         self._new_toml: dict[str, Any] = {}
         self._old_toml: dict[str, Any] = {}
 
@@ -995,8 +1012,14 @@ class SelectiveChecks:
             return [GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
         return [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
 
+    def _is_pull_request_like(self) -> bool:
+        return self._github_event == GithubEvents.PULL_REQUEST or self._fork_push
+
     def _should_run_all_tests_and_versions(self) -> bool:
-        if self._github_event in self._get_full_run_events():
+        if self._fork_changes_truncated:
+            console_print("[warning]Running everything because the fork change set is truncated[/]")
+            return True
+        if not self._fork_push and self._github_event in self._get_full_run_events():
             if self.only_text_non_doc_files_changed and self._github_event == GithubEvents.PUSH:
                 console_print(
                     f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
@@ -2225,6 +2248,9 @@ class SelectiveChecks:
     def is_committer_build(self):
         if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
             return False
+        # Forks have no self-hosted runners; a committer's fork push must stay on public runners.
+        if self._fork_push:
+            return False
         return self._github_actor in COMMITTERS
 
     def _find_all_providers_affected(self, include_docs: bool) -> list[str] | AllProvidersSentinel | None:
@@ -2315,7 +2341,7 @@ class SelectiveChecks:
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
         )
-        if not pyproject_files or not self._github_event == GithubEvents.PULL_REQUEST:
+        if not pyproject_files or not self._is_pull_request_like():
             return False
 
         violations = []
@@ -2536,7 +2562,7 @@ class SelectiveChecks:
         Check if common.compat provider changed and other providers changed don't have '# use next version'
         comment for their common-compat dependency.
         """
-        if self._github_event != GithubEvents.PULL_REQUEST:
+        if not self._is_pull_request_like():
             return False
         # Only enforce on PRs targeting main. On release branches (e.g. v3-X-test)
         # cherry-picked common.compat changes don't follow the '# use next version'
