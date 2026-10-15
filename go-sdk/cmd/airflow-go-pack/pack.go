@@ -165,6 +165,8 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 	if err != nil {
 		return err
 	}
+	// meta.Dags holds the Dags that have Go task handlers; meta.DagSourceFiles holds the
+	// native Dags authored with airflow.Dag. Both being empty means nothing is registered.
 	if len(meta.Dags) == 0 && len(meta.DagSourceFiles) == 0 {
 		if opts.strict {
 			return fmt.Errorf(
