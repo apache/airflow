@@ -42,8 +42,10 @@
 
 This document is the design of the CI changes implementing
 [AIP-120: Run CI for external contributions in contributor forks](https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711/AIP-120+Run+CI+for+external+contributions+in+contributor+forks).
-The policy itself and its rationale live in the AIP and in the
-[dev list discussion](https://lists.apache.org/thread/w74655o8y1jzrzcnygntyyovocf7zmzj).
+The policy itself and its rationale live in the AIP and in the dev list discussions
+([first](https://lists.apache.org/thread/w74655o8y1jzrzcnygntyyovocf7zmzj),
+[second](https://lists.apache.org/thread/ky392mrrcmj312y1r276r30p584n804c), which agreed to
+start with an opt-in pilot).
 This document describes how the policy is mechanised.
 
 ## Goals and non-goals
@@ -62,6 +64,9 @@ Goals:
   on the pull request head, red / yellow / green, linking to the run in the fork.
 - A contributor can verify their whole setup locally with `breeze ci audit` before pushing.
 - Everything ships dormant and is switched on by a one-line configuration change.
+- Before it is switched on for everyone, the whole flow can be piloted on real traffic by
+  committers on single pull requests and by volunteer external contributors on all their new
+  pull requests, without affecting anyone else.
 
 Non-goals:
 
@@ -111,8 +116,9 @@ One file, `.github/fork-ci-gate.toml`, parsed with the standard library `tomllib
 ```toml
 # Fork CI gate (AIP-120). See dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md
 
-# Master switch. When false the gate job lets every pull request run project CI and the
-# reconciler exits early. Push filtering for apache/airflow branches applies regardless.
+# Master switch. When false the gate job lets every pull request run project CI, except
+# pull requests labelled `use fork ci` and pull requests of [pilot] participants. Push
+# filtering for apache/airflow branches applies regardless.
 enabled = false
 
 # Pull requests created before this instant are never gated, whatever their author.
@@ -126,6 +132,12 @@ close_after_days = 7
 # values are GitHub logins. Changes go through a reviewed pull request.
 [allowlist]
 # "Example Org" = ["login-one", "login-two"]
+
+# Opt-in pilot participants. Keys are GitHub logins, values are the instant they joined.
+# Their pull requests created at or after that instant are gated whether or not `enabled`
+# is set. Contributors opt in and out with a pull request editing this table.
+[pilot]
+# "login-three" = 2026-10-20T00:00:00Z
 ```
 
 The file lives in the repository rather than in an Actions variable because ASF projects
@@ -144,7 +156,8 @@ the reconciler.
 The rules, first match wins. The push rules are independent of `enabled` because the `'**'`
 push trigger exists whether or not the gate is on, and today no CI runs for pushes to
 `main` or to ad-hoc branches in `apache/airflow` (post-merge coverage is the cron canary).
-The label rules are also independent of `enabled`; see "Override labels" below.
+The label and pilot rules are also independent of `enabled`; see "Override labels" and
+"Contributor pilot" below.
 
 | Rule | Decision | Reason |
 |---|---|---|
@@ -154,6 +167,7 @@ The label rules are also independent of `enabled`; see "Override labels" below.
 | Event is `push` to `apache/airflow`, any other branch | skip | `adhoc_branch` |
 | Pull request carries `use project ci` | run | `label_project_ci` |
 | Pull request carries `use fork ci` | skip | `label_fork_ci` |
+| Author login is in `[pilot]` and the pull request was created at or after that login's join instant | skip | `pilot` |
 | `enabled` is false | run | `gate_disabled` |
 | Pull request head repository is `apache/airflow` | run | `head_is_upstream` |
 | Pull request created before `enabled_since` | run | `before_enabled_since` |
@@ -161,9 +175,11 @@ The label rules are also independent of `enabled`; see "Override labels" below.
 | Author login is in `[allowlist]` | run | `allowlisted` |
 | Anything else | skip | `external` |
 
-"Gated" throughout this document means a pull request whose decision reason is `external`
-or `label_fork_ci`. The reconciler labels exactly those; an `adhoc_branch` skip is not a
-pull request and is never labelled.
+"Gated" throughout this document means a pull request whose decision reason is `external`,
+`pilot` or `label_fork_ci`. The reconciler labels exactly those; an `adhoc_branch` skip is
+not a pull request and is never labelled.
+
+Logins are compared case-insensitively in `[allowlist]` and `[pilot]`, as GitHub does.
 
 ### Override labels
 
@@ -176,8 +192,8 @@ cannot set labels) override the automatic decision for one pull request:
 | `use fork ci` | The fork regime applies to a pull request that would otherwise run on project CI. Reasons: a committer testing the machinery on their own pull request, or a large pull request from an allowlisted organisation that should be verified in the fork first. |
 
 Because both rules sit before the `enabled` switch, `use fork ci` works while
-`enabled = false`. That is the pilot mode: label a handful of pull requests and the gate,
-the fork run, the reconciler and the commit status all operate for those only.
+`enabled = false`. That is the committer pilot: label a handful of pull requests and the
+gate, the fork run, the reconciler and the commit status all operate for those only.
 
 Consequences for the other components:
 
@@ -193,6 +209,36 @@ Consequences for the other components:
   re-run.
 - Both override labels on one pull request resolve to project CI and are reported to Slack as
   a conflict.
+
+### Contributor pilot
+
+The committer pilot exercises the machinery but not the experience it is meant for: an
+external contributor setting up their fork from the instructions, waiting for their own
+fork run and being drafted and undrafted by the reconciler. The `use fork ci` label does not
+work for that. It is set after the pull request is opened, so the first `pull_request` run
+has already used project CI, and a maintainer would have to label every pull request the
+volunteer opens.
+
+The `[pilot]` table covers it. A contributor opts in with a pull request that adds their
+login and the current instant to `[pilot]`; any committer can merge it. From that instant
+every pull request they open is gated from its first run, whether or not `enabled` is set,
+and goes through exactly the flow described in this document: setup comment, draft, fork
+run, commit status, undraft, close after inactivity, gate tampering check. Pull requests
+they opened before joining keep project CI, so joining changes nothing retroactively and
+cannot trip the gate tampering check on a run that was legitimate when it happened.
+
+Leaving is a pull request that removes the line. Pull requests already labelled
+`fork ci required` stay in the state machine until a maintainer adds `use project ci`, as
+for any other gated pull request. A maintainer can also release a single pull request with
+`use project ci` at any time.
+
+Opting in only ever takes project CI away from the contributor, so the opt-in pull request
+needs no more review than checking that the login is the author's own. The table is read
+from the base branch like the rest of the file, so adding oneself in the same pull request
+that should be gated has no effect on that pull request.
+
+`[pilot]` is meant to be short-lived: it is emptied when `enabled = true` is set, because
+from then on the participants are gated as `external` anyway.
 
 `MEMBER` means a member of the `apache` GitHub organisation, which every ASF committer is.
 `COLLABORATOR` is the triage role granted through `.asf.yaml`. The static `COMMITTERS` list in
@@ -277,7 +323,7 @@ Each run performs two passes.
 the last 24 hours without the `fork ci required` label, plus any open pull request carrying
 `use fork ci` without `fork ci required`, fetching `authorAssociation`, `author.login`,
 `createdAt`, `headRepository`, `baseRefName` and `labels`. Each is classified with
-`fork_ci_gate.decide`; those with reason `external` or `label_fork_ci` get the label. The
+`fork_ci_gate.decide`; those with a gated reason get the label. The
 24-hour window overlaps many 15-minute cadences, so a lost scheduled run changes nothing. A
 pull request whose author later becomes a committer keeps the label until a maintainer
 removes it or adds `use project ci`; the reconciler does not un-gate on its own.
@@ -330,7 +376,7 @@ a pull request the author drafted stays a draft.
 Rules that sit under the table:
 
 - **Gate tampering wins.** The `gate_bypassed` check is evaluated first for every pull
-  request whose eligibility reason is `external`; when it holds, the fork state is not
+  request whose eligibility reason is `external` or `pilot`; when it holds, the fork state is not
   consulted at all. A pull request that was already `green` and undrafted is drafted again,
   loses the review label and is closed on the same run.
 
@@ -361,9 +407,11 @@ prevent this (see "Security considerations"); the reconciler detects it after th
 closes the pull request, which also stops further pushes from triggering `pull_request` runs
 in `apache/airflow`.
 
-The check applies only to pull requests whose `fork_ci_gate.decide` reason is `external`,
-recomputed from the pass 2 fields. Committers piloting with `use fork ci` are excluded: their
-pull request legitimately ran project CI before the label was added. Two signals are
+The check applies only to pull requests whose `fork_ci_gate.decide` reason is `external` or
+`pilot`, recomputed from the pass 2 fields. A pilot participant's pull request is gated from
+its creation, so it never ran project CI legitimately unless `use project ci` was on it,
+which signal 1 already accounts for. Committers piloting with `use fork ci` are excluded:
+their pull request legitimately ran project CI before the label was added. Two signals are
 required, and both must hold:
 
 1. **Project CI ran.** Among the check suites on the head SHA in `apache/airflow`, either the
@@ -501,7 +549,10 @@ budget stays observable.
   `breeze ci fork-ci-reconcile` with `GH_TOKEN`, then the Slack post step guarded by
   `has-alerts`.
 
-The workflow exits early when `enabled` is false, so it is safe to merge before the AIP vote.
+The workflow does not exit early when `enabled` is false, because both pilots rely on it.
+With `enabled = false`, an empty `[pilot]` and no `use fork ci` labels, every pull request
+classifies as `gate_disabled` or better, so the reconciler finds nothing to label and makes
+no mutations. That makes it safe to merge before the AIP vote.
 
 ## `breeze ci audit`
 
@@ -513,8 +564,8 @@ prints one row: status, finding, and the command that fixes it.
 | 1 | `gh` present and authenticated | `gh auth status` succeeds, version at least `MIN_GH_VERSION` | install / `gh auth login` |
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
 | 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin` |
-| 4 | Who you are | classifies the user: committer (`GET /user/memberships/orgs/apache` active), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external | informational |
-| 5 | Fork workflows | external: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: state is not `active` | `gh workflow enable ci-amd.yml -R <fork>` or `gh workflow disable ...` |
+| 4 | Who you are | classifies the user: committer (`GET /user/memberships/orgs/apache` active), collaborator (`.asf.yaml`), exempted (`[allowlist]`), pilot participant (`[pilot]`), external | informational |
+| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: state is not `active` | `gh workflow enable ci-amd.yml -R <fork>` or `gh workflow disable ...` |
 | 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than the configured threshold | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
 
@@ -529,7 +580,8 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
 ## Documentation changes
 
 - `contributing-docs/18_contribution_workflow.rst`: replace the single sentence "set up your
-  fork and enable GitHub Actions" with the real steps and `breeze ci audit`.
+  fork and enable GitHub Actions" with the real steps and `breeze ci audit`, and describe how
+  to join and leave the contributor pilot.
 - `contributing-docs/05_pull_requests.rst`: rewrite "you can set up both for free on your
   fork" and the draft-conversion promise to describe the fork CI regime and the labels.
 - `contributing-docs/03_contributors_quick_start.rst` and `03a_..._beginners.rst`: add the
@@ -545,20 +597,29 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
 
 1. Merge with `enabled = false`. Fork push trigger, fork mode selective checks, `breeze ci
    audit` and the docs are useful immediately and harmless.
-2. Pilot: committers label their own pull requests `use fork ci` and watch the gate, the fork
-   run, the reconciler, the status and the comments behave end to end on real traffic.
-3. Populate `[allowlist]` for the organisations agreed on the list.
-4. Set `enabled_since` to the switch-on instant and `enabled = true` in one pull request.
-5. Watch `internal-airflow-ci-cd` and the reconciler's run summaries for the first days.
-6. Rollback is `enabled = false`. Existing labels and drafts stay as they are; a maintainer
-   sweep undrafts anything still drafted by the bot, or labels them `use project ci` and lets
-   the reconciler release them.
-7. The backlog reset, if ever adopted, is `enabled_since` moved back, staged over days by
+2. Committer pilot: committers label their own pull requests `use fork ci` and watch the
+   gate, the fork run, the reconciler, the status and the comments behave end to end on real
+   traffic.
+3. Contributor pilot: volunteer external contributors add themselves to `[pilot]`. This is
+   the first point where the setup instructions, the comments and the waiting time are
+   tried by the people they are written for. The pilot is time-boxed and its results
+   (time to green, setup problems, reconciler alerts) are reported on the dev list before the
+   next step.
+4. Populate `[allowlist]` for the organisations agreed on the list.
+5. Set `enabled_since` to the switch-on instant and `enabled = true`, and empty `[pilot]`, in
+   one pull request.
+6. Watch `internal-airflow-ci-cd` and the reconciler's run summaries for the first days.
+7. Rollback is `enabled = false` (and an empty `[pilot]` during the contributor pilot).
+   Existing labels and drafts stay as they are; a maintainer sweep undrafts anything still
+   drafted by the bot, or labels them `use project ci` and lets the reconciler release them.
+8. The backlog reset, if ever adopted, is `enabled_since` moved back, staged over days by
    moving it in steps.
 
 ## Security considerations
 
 - The gate job runs with `contents: read` and reads configuration from the base branch only.
+- `[pilot]` can only take project CI away from a login, so a wrong or self-added entry costs
+  that contributor project CI and nothing else.
 - `pull_request` runs the workflow file from the pull request's merge commit, so a pull
   request can edit `ci-amd.yml` to remove the gate or add a workflow with a `pull_request`
   trigger. The gate job cannot prevent that; `pull_request_target` was deliberately not used
@@ -599,16 +660,19 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
 ## Testing
 
 - `dev/breeze/tests/test_fork_ci_gate.py`: one parametrized case per eligibility rule,
-  including `enabled_since` boundaries, the push-to-apache branch patterns and both override
-  labels with `enabled` true and false.
+  including `enabled_since` boundaries, the push-to-apache branch patterns, both override
+  labels with `enabled` true and false, and `[pilot]` with `enabled` true and false, at the
+  join-instant boundary, with a differently-cased login and overridden by `use project ci`.
 - `dev/breeze/tests/test_fork_ci_reconcile.py`: one parametrized case per row of the state
   table, plus the human-draft rule, the label escape hatch, the `use project ci` release,
   the conflicting-labels alert, the close clock reset, marker round-trips, status
   desired-vs-current comparison, the unknown-failure collection and the gate tampering
   check: each signal alone does not close, both together do, an in-progress non-gate job
   counts, an injected workflow counts, suites older than the last `use project ci` removal
-  are ignored, `label_fork_ci` pull requests are exempt, and a reopen with the same head SHA
-  closes again. GraphQL and REST are mocked with `autospec`; no network.
+  are ignored, `label_fork_ci` pull requests are exempt, `pilot` pull requests are checked,
+  and a reopen with the same head SHA closes again. Discovery labels a pilot participant's
+  new pull request with `enabled = false` and leaves their older ones alone. GraphQL and REST
+  are mocked with `autospec`; no network.
 - `dev/breeze/tests/test_selective_checks.py`: fork mode cases (changed files from compare,
   300-file fallback, committer build forced false, full-matrix not forced).
 - `dev/breeze/tests/test_ci_audit.py`: each check with mocked `gh` and `git remote -v`
