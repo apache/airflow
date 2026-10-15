@@ -357,7 +357,7 @@ To show unused mypy ignores, run:
   prek mypy-airflow-core --all-files
 
 For **providers**, mypy still runs via breeze (``breeze run mypy``) as a separate CI job and requires
-``breeze ci-image build --python 3.10`` to be built locally. Providers use a separate docker-volume
+``breeze ci-image build --python 3.11`` to be built locally. Providers use a separate docker-volume
 (called ``mypy-cache-volume``) that keeps the cache of last MyPy execution.
 
 To clear all mypy caches (the Docker volume used by providers, any legacy repo-root ``.mypy_cache``,

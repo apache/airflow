@@ -941,6 +941,7 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
 
 
 class GetXCom(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -953,6 +954,7 @@ class GetXCom(BaseModel):
 class GetXComCount(BaseModel):
     """Get the number of (mapped) XCom values available."""
 
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -961,6 +963,7 @@ class GetXComCount(BaseModel):
 
 
 class GetXComSequenceItem(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -970,6 +973,7 @@ class GetXComSequenceItem(BaseModel):
 
 
 class GetXComSequenceSlice(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -1123,6 +1127,13 @@ class SetRenderedMapIndex(BaseModel):
 
     rendered_map_index: str
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
+
+
+class SetExecutionTimeout(BaseModel):
+    """Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process."""
+
+    timeout_seconds: Annotated[float, Field(gt=0)]
+    type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
 
 
 class TriggerDagRun(TriggerDAGRunPayload):
@@ -1329,6 +1340,7 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
+    | SetExecutionTimeout
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskStateStore

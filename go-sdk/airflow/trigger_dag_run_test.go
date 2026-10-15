@@ -33,9 +33,9 @@ func TestTriggerDagRunIsATask(t *testing.T) {
 	gate := dag.Task(extract)
 	spec := TriggerDagRunSpec{
 		DagID:                 "downstream_etl",
-		RunID:                 "{{ run_id }}_downstream",
+		RunID:                 "etl_downstream",
 		Conf:                  map[string]any{"source": "etl"},
-		LogicalDate:           "{{ ds }}",
+		LogicalDate:           time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC),
 		RunAfter:              time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC),
 		ResetDagRun:           true,
 		WaitForCompletion:     true,
@@ -112,6 +112,20 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 			want:    "airflow.TriggerDagRunSpec has no DagID",
 		},
 		{
+			name:    "templated DagID",
+			trigger: TriggerDagRun(TriggerDagRunSpec{DagID: "{{ params.target }}"}),
+			want: `airflow.TriggerDagRunSpec.DagID is "{{ params.target }}"; ` +
+				"the task does not render templates",
+		},
+		{
+			name: "templated RunID",
+			trigger: TriggerDagRun(
+				TriggerDagRunSpec{DagID: "downstream_etl", RunID: "triggered_{{ run_id }}"},
+			),
+			want: `airflow.TriggerDagRunSpec.RunID is "triggered_{{ run_id }}"; ` +
+				"the task does not render templates",
+		},
+		{
 			name: "negative PokeInterval",
 			trigger: TriggerDagRun(
 				TriggerDagRunSpec{DagID: "downstream_etl", PokeInterval: ptr(-time.Second)},
@@ -151,6 +165,43 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 			want: "airflow.TriggerDagRunSpec.Conf: json: unsupported type: chan struct {}",
 		},
 		{
+			name: "RunAfter after year 9999 in UTC",
+			trigger: TriggerDagRun(TriggerDagRunSpec{
+				DagID: "downstream_etl", RunAfter: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC),
+			}),
+			want: "airflow.TriggerDagRunSpec.RunAfter is 10000-01-01T00:00:00Z in UTC; " +
+				"Airflow takes a time only from year 1 to year 9999",
+		},
+		{
+			name: "LogicalDate before year 1 in UTC",
+			trigger: TriggerDagRun(TriggerDagRunSpec{
+				DagID: "downstream_etl", LogicalDate: time.Date(0, 12, 31, 0, 0, 0, 0, time.UTC),
+			}),
+			want: "airflow.TriggerDagRunSpec.LogicalDate is 0000-12-31T00:00:00Z in UTC; " +
+				"Airflow takes a time only from year 1 to year 9999",
+		},
+		{
+			name: "Conf with an integer that does not fit in 64 bits",
+			trigger: TriggerDagRun(TriggerDagRunSpec{
+				DagID: "downstream_etl",
+				Conf: map[string]any{
+					"rows": []any{1, json.Number("18446744073709551616")},
+					"zeta": json.Number("-9223372036854775809"),
+				},
+			}),
+			want: `airflow.TriggerDagRunSpec.Conf: the integer at ["rows"][1] is ` +
+				"18446744073709551616, which does not fit in 64 bits",
+		},
+		{
+			name: "Conf with a number past the range of a float64",
+			trigger: TriggerDagRun(TriggerDagRunSpec{
+				DagID: "downstream_etl",
+				Conf:  map[string]any{"nested": map[string]any{"huge": json.Number("1e400")}},
+			}),
+			want: `airflow.TriggerDagRunSpec.Conf: the number at ["nested"]["huge"] is 1e400, ` +
+				"which is past the range of a float64",
+		},
+		{
 			name: "Conf nested deeper than encoding/json decodes",
 			trigger: TriggerDagRun(
 				TriggerDagRunSpec{DagID: "downstream_etl", Conf: buildNestedConf(10001)},
@@ -170,6 +221,61 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 				"a rejected task does not take its task_id",
 			)
 		})
+	}
+}
+
+func TestTriggerDagRunHoldsEachNumberOfConfInATypeThatFits(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		want  any
+	}{
+		{"int", 2, int64(2)},
+		{"negative int", -3, int64(-3)},
+		{"uint64 past an int64", uint64(1<<63 + 1), uint64(1<<63 + 1)},
+		{"float", 1.5, 1.5},
+		// encoding/json writes each of these floats as digits with no point, the way it writes an
+		// integer.
+		{"float past a uint64", 1.5e20, 1.5e20},
+		{"float past an int64", -1e19, -1e19},
+		{"float32", float32(1e20), 1e20},
+		{"exponent in upper case", json.Number("1E3"), 1000.0},
+		{"number too small for a float64", json.Number("1e-400"), 0.0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := Dag("etl").Task(
+				TriggerDagRun(TriggerDagRunSpec{
+					DagID: "downstream_etl",
+					Conf:  map[string]any{"value": []any{tt.value}},
+				}),
+				TaskSpec{TaskID: "trigger_downstream"},
+			)
+
+			assert.Equal(t, []any{tt.want}, task.triggerDagRun.Conf["value"])
+		})
+	}
+}
+
+func TestTriggerDagRunReportsTheSameBadNumberEveryTime(t *testing.T) {
+	conf := make(map[string]any)
+	for _, key := range []string{"h", "c", "f", "a", "e", "b", "g", "d"} {
+		conf[key] = json.Number("18446744073709551616")
+	}
+	// Go visits the keys of a map in a random order. Task still reports the bad number under the
+	// first key in sorted order.
+	for range 20 {
+		assert.PanicsWithValue(t,
+			`airflow.DagRef.Task: task "trigger_downstream" of Dag "etl": `+
+				`airflow.TriggerDagRunSpec.Conf: the integer at ["a"] is 18446744073709551616, `+
+				"which does not fit in 64 bits",
+			func() {
+				Dag("etl").Task(
+					TriggerDagRun(TriggerDagRunSpec{DagID: "downstream_etl", Conf: conf}),
+					TaskSpec{TaskID: "trigger_downstream"},
+				)
+			},
+		)
 	}
 }
 
@@ -201,7 +307,7 @@ func TestTriggerDagRunCopiesTheSpec(t *testing.T) {
 	assert.Equal(t,
 		map[string]any{
 			"target": map[string]any{"table": "rows"},
-			"batch":  json.Number("9007199254740993"),
+			"batch":  int64(9007199254740993),
 		},
 		stored.Conf,
 	)

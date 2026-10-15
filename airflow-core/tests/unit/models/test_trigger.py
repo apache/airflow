@@ -25,6 +25,7 @@ from unittest.mock import patch
 import pendulum
 import pytest
 import pytz
+import sqlalchemy as sa
 from cryptography.fernet import Fernet
 from sqlalchemy import delete, func, select
 
@@ -34,7 +35,6 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -503,16 +503,19 @@ def test_submit_event_task_end_failed_respects_retries(
     assert ti.end_date is not None
 
     tih = session.scalars(
-        select(TaskInstanceHistory).where(
-            TaskInstanceHistory.dag_id == ti.dag_id,
-            TaskInstanceHistory.task_id == ti.task_id,
-            TaskInstanceHistory.run_id == ti.run_id,
+        select(TaskInstance)
+        .where(TaskInstance.working_set.is_(None))
+        .where(
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.run_id == ti.run_id,
         )
+        .execution_options(include_all_attempts=True)
     ).all()
     if expect_history_row:
         assert len(tih) == 1
         assert ti.id != old_ti_id
-        assert tih[0].task_instance_id == old_ti_id
+        assert tih[0].id == old_ti_id
         assert tih[0].try_number == 1
         assert ti.try_number == 2
     else:
@@ -800,6 +803,36 @@ def test_queue_column_max_len_matches_ti_column_max_len() -> None:
     expected_queue_col_max_length_from_ti = TaskInstance.queue.property.columns[0].type.length
     trigger_queue_col_max_length = Trigger.queue.property.columns[0].type.length
     assert trigger_queue_col_max_length == expected_queue_col_max_length_from_ti
+
+
+@pytest.mark.need_serialized_dag
+def test_get_sorted_triggers_ignores_archived_task_instance(session, create_task_instance):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    task_instance = create_task_instance(task_id="archived_trigger_owner")
+    task_instance.trigger_id = trigger.id
+    task_instance.prepare_db_for_next_try(session)
+    session.commit()
+    statements = []
+
+    def capture_task_join(conn, cursor, statement, parameters, context, executemany):
+        if "join task_instance" in statement.lower():
+            statements.append(statement.lower())
+
+    connection = session.connection()
+    sa.event.listen(connection, "before_cursor_execute", capture_task_join)
+    try:
+        result = Trigger.get_sorted_triggers(
+            capacity=10, alive_triggerer_ids=[], queues=None, session=session
+        )
+    finally:
+        sa.event.remove(connection, "before_cursor_execute", capture_task_join)
+
+    assert task_instance.trigger_id is None
+    assert (trigger.id,) not in result
+    assert statements
+    assert all("working_set" in statement for statement in statements)
 
 
 @pytest.mark.need_serialized_dag
@@ -1215,7 +1248,7 @@ def test_decrypt_kwargs_roundtrips_datetime():
     so ``_decrypt_kwargs`` raised and the asset-watcher trigger could not be read back.
     """
     classpath = "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
-    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.UTC)
 
     dag_kwargs = encode_trigger({"classpath": classpath, "kwargs": {"moment": moment}})["kwargs"]
     decrypted = Trigger._decrypt_kwargs(Trigger.encrypt_kwargs(dag_kwargs))

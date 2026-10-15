@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -47,9 +47,9 @@ FILENAME3 = "Lorem_ipsum.py"
 STACKTRACE1 = "test_stacktrace1"
 STACKTRACE2 = "test_stacktrace2"
 STACKTRACE3 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
-TIMESTAMP1 = datetime(2024, 6, 15, 1, 0, tzinfo=timezone.utc)
-TIMESTAMP2 = datetime(2024, 6, 15, 5, 0, tzinfo=timezone.utc)
-TIMESTAMP3 = datetime(2024, 6, 15, 3, 0, tzinfo=timezone.utc)
+TIMESTAMP1 = datetime(2024, 6, 15, 1, 0, tzinfo=UTC)
+TIMESTAMP2 = datetime(2024, 6, 15, 5, 0, tzinfo=UTC)
+TIMESTAMP3 = datetime(2024, 6, 15, 3, 0, tzinfo=UTC)
 IMPORT_ERROR_NON_EXISTED_ID = 9999
 IMPORT_ERROR_NON_EXISTED_KEY = "non_existed_key"
 BUNDLE_NAME = "testing"

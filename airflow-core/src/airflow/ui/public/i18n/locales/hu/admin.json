@@ -23,7 +23,7 @@
     "connection_other": "Kapcsolatok",
     "delete": {
       "deleteConnection_one": "1 kapcsolat törlése",
-      "deleteConnection_other": "{{count}} kapcsolat törlése",
+      "deleteConnection_other": "{{count, number}} kapcsolat törlése",
       "firstConfirmMessage_one": "A következő kapcsolat törlésére készül:",
       "firstConfirmMessage_other": "A következő kapcsolatok törlésére készül:",
       "title": "Kapcsolat törlése"
@@ -33,7 +33,6 @@
       "connectionIdRequired": "Kapcsolat azonosító szükséges",
       "connectionIdRequirement": "Kapcsolat azonosító nem tartalmazhat szóközöket",
       "connectionTypeRequired": "Kapcsolat típus szükséges",
-      "extraFields": "Extra mezők",
       "extraFieldsJson": "Extra mezők JSON",
       "helperText": "Hiányzó kapcsolat típus? Győződjön meg róla, hogy a megfelelő Airflow Providers Package telepítésre került.",
       "helperTextForRedactedFields": "A kitakart mezők ('***') változatlanok maradnak, ha nem módosítja őket.",
@@ -145,7 +144,7 @@
     },
     "delete": {
       "deleteVariable_one": "1 változó törlése",
-      "deleteVariable_other": "{{count}} változó törlése",
+      "deleteVariable_other": "{{count, number}} változó törlése",
       "firstConfirmMessage_one": "A következő változó törlésére készül:",
       "firstConfirmMessage_other": "A következő változók törlésére készül:",
       "title": "Változó törlése",

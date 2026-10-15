@@ -90,6 +90,7 @@ const (
 	TypeSentFDs                     = "SentFDs"
 	TypeSetAssetStateStoreByName    = "SetAssetStateStoreByName"
 	TypeSetAssetStateStoreByURI     = "SetAssetStateStoreByUri"
+	TypeSetExecutionTimeout         = "SetExecutionTimeout"
 	TypeSetRenderedFields           = "SetRenderedFields"
 	TypeSetRenderedMapIndex         = "SetRenderedMapIndex"
 	TypeSetTaskStateStore           = "SetTaskStateStore"
@@ -319,6 +320,9 @@ func EnsureType(m any) any {
 		return b
 	case SetAssetStateStoreByURI:
 		b.Type = TypeSetAssetStateStoreByURI
+		return b
+	case SetExecutionTimeout:
+		b.Type = TypeSetExecutionTimeout
 		return b
 	case SetRenderedFields:
 		b.Type = TypeSetRenderedFields

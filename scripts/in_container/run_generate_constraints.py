@@ -20,7 +20,9 @@ from __future__ import annotations
 import ast
 import json
 import os
+import re
 import sys
+import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,13 +37,8 @@ from in_container_utils import AIRFLOW_DIST_PATH, AIRFLOW_ROOT_PATH, click, cons
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
-
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
-PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
+PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.11")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 PYPI_JSON_API_URL = "https://pypi.org/pypi/{distribution}/json"
 PYPI_LOOKUP_PARALLELISM = 8
@@ -237,21 +234,49 @@ def freeze_distributions_to_file(
     console.print(f"[green]Constraints generated to file: {file.name}. Wrote {count_lines} lines")
 
 
+def _github_headers(accept: str) -> dict[str, str]:
+    headers = {"Accept": accept}
+    if os.environ.get("GITHUB_TOKEN"):
+        headers["Authorization"] = f"Bearer {os.environ.get('GITHUB_TOKEN')}"
+    else:
+        console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
+    return headers
+
+
+def _constraints_branch_has_other_python_files(config_params: ConfigParams) -> bool:
+    """Tell a first publication for a new Python from a baseline that should exist but is missing."""
+    listing_url = (
+        f"https://api.github.com/repos/{config_params.constraints_github_repository}/contents/"
+        f"?ref={config_params.default_constraints_branch}"
+    )
+    r = requests.get(listing_url, timeout=60, headers=_github_headers("application/vnd.github.v3+json"))
+    r.raise_for_status()
+    other_python_file = re.compile(rf"{re.escape(config_params.airflow_constraints_mode)}-3\.\d+\.txt")
+    return any(
+        other_python_file.fullmatch(entry["name"])
+        and entry["name"] != f"{config_params.airflow_constraints_mode}-{config_params.python}.txt"
+        for entry in r.json()
+    )
+
+
 def download_latest_constraint_file(config_params: ConfigParams):
     constraints_url = (
         "https://api.github.com/repos/"
         f"{config_params.constraints_github_repository}/contents/"
         f"{config_params.airflow_constraints_mode}-{config_params.python}.txt?ref={config_params.default_constraints_branch}"
     )
-    # download the latest constraints file
-    # download using requests
-    headers = {"Accept": "application/vnd.github.v3.raw"}
-    if os.environ.get("GITHUB_TOKEN"):
-        headers["Authorization"] = f"Bearer {os.environ.get('GITHUB_TOKEN')}"
-    else:
-        console.print("[bright_blue]No GITHUB_TOKEN - using non-authenticated request.")
     console.print(f"[bright_blue]Downloading constraints file from {constraints_url}")
-    r = requests.get(constraints_url, timeout=60, headers=headers)
+    r = requests.get(constraints_url, timeout=60, headers=_github_headers("application/vnd.github.v3.raw"))
+    if r.status_code == 404 and _constraints_branch_has_other_python_files(config_params):
+        # The first generation for a new Python has no file to compare with: diff against an empty
+        # baseline. A 404 on a branch that carries no file of this mode at all is still an error.
+        console.print(
+            f"[yellow]No {config_params.airflow_constraints_mode} file for Python {config_params.python} on "
+            f"{config_params.default_constraints_branch}, but other Pythons have one - first publication, "
+            "using an empty baseline."
+        )
+        config_params.latest_constraints_file.write_text("")
+        return
     r.raise_for_status()
     with config_params.latest_constraints_file.open("w") as constraints_file:
         constraints_file.write(r.text)

@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-10-30"
+API_VERSION: Final[str] = "2027-02-28"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -107,6 +107,33 @@ class ConnectionTestState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+
+
+class DagParseTokenBody(BaseModel):
+    """
+    Exchange a Job credential for access on behalf of one file-parsing attempt.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+    bundle_name: Annotated[str, Field(max_length=250, min_length=1, title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(max_length=2000, min_length=1, title="Relative Fileloc")]
+
+
+class DagParseTokenResponse(BaseModel):
+    """
+    Short-lived parsing credential; cannot register, heartbeat, or complete Jobs.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    token: Annotated[str, Field(title="Token")]
+    expires_in: Annotated[
+        int, Field(description="Seconds until the token expires.", gt=0, title="Expires In")
+    ]
 
 
 class DagResponse(BaseModel):
@@ -233,6 +260,90 @@ class IntermediateTIState(str, Enum):
     AWAITING_INPUT = "awaiting_input"
 
 
+class Unixname(RootModel[str]):
+    root: Annotated[str, Field(max_length=1000, title="Unixname")]
+
+
+class BundleNames(RootModel[list[str]]):
+    root: Annotated[
+        list[str],
+        Field(
+            description="Bundles the processor parses; defaults to every bundle its token grants.",
+            min_length=1,
+            title="Bundle Names",
+        ),
+    ]
+
+
+class JobRegisterBody(BaseModel):
+    """
+    Request body a Dag processor sends to register the Job of its session.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    registration_id: Annotated[
+        UUID,
+        Field(
+            description="Chosen by the processor once per process start. Registering again with the same id while its Job is open returns that Job with a fresh token, which recovers a lost response and renews the token. Once the Job completes or is replaced the id is refused, so a restart chooses a new one.",
+            title="Registration Id",
+        ),
+    ]
+    hostname: Annotated[str, Field(max_length=500, min_length=1, title="Hostname")]
+    unixname: Annotated[Unixname | None, Field(title="Unixname")] = None
+    bundle_names: Annotated[
+        BundleNames | None,
+        Field(
+            description="Bundles the processor parses; defaults to every bundle its token grants.",
+            title="Bundle Names",
+        ),
+    ] = None
+
+
+class JobRegisterResponse(BaseModel):
+    """
+    The registered Job and its management credential.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    job_id: Annotated[int, Field(title="Job Id")]
+    token: Annotated[
+        str,
+        Field(
+            description="A ``dag_processor`` token, valid until it expires or the Job ends.", title="Token"
+        ),
+    ]
+    expires_in: Annotated[
+        int, Field(description="Seconds until the token expires.", gt=0, title="Expires In")
+    ]
+
+
+class JobState(str, Enum):
+    """
+    All possible states that a Job can be in.
+    """
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+
+class LoopContext(BaseModel):
+    """
+    Pinned loop definition and enclosing iteration for a task execution.
+    """
+
+    node_id: Annotated[str, Field(title="Node Id")]
+    index: Annotated[int, Field(ge=0, title="Index")]
+    max_iterations: Annotated[int, Field(gt=0, title="Max Iterations")]
+    terminal_task_id: Annotated[str, Field(title="Terminal Task Id")]
+    terminal_is_mapped: Annotated[bool, Field(title="Terminal Is Mapped")]
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -258,6 +369,8 @@ class PreviousTIResponse(BaseModel):
     state: Annotated[str | None, Field(title="State")] = None
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     duration: Annotated[float | None, Field(title="Duration")] = None
 
 
@@ -447,6 +560,15 @@ class TaskStatesResponse(BaseModel):
     task_states: Annotated[dict[str, Any], Field(title="Task States")]
 
 
+class TerminalJobState(str, Enum):
+    """
+    States a Job can finish in.
+    """
+
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 class TerminalStateNonSuccess(str, Enum):
     """
     TaskInstance states that can be reported without extra information.
@@ -574,6 +696,8 @@ class TaskInstance(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
     map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
     queue: Annotated[str | None, Field(title="Queue")] = "default"
@@ -717,6 +841,28 @@ class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
 
 
+class JobCompleteBody(BaseModel):
+    """
+    Final state of the Job.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: TerminalJobState
+
+
+class JobHeartbeatResponse(BaseModel):
+    """
+    Current state of the Job; ``restarting`` asks the processor to stop.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: JobState
+
+
 class LiteralArgBinding(BaseModel):
     """
     One positional stub-task argument carrying an inline literal from the Dag file.
@@ -838,7 +984,11 @@ class TIRunContext(BaseModel):
     """
 
     dag_run: DagRun
+    loop: LoopContext | None = None
     task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
+    first_task_reschedule_start_date: Annotated[
+        AwareDatetime | None, Field(title="First Task Reschedule Start Date")
+    ] = None
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None

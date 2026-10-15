@@ -53,7 +53,6 @@ from airflow.models.asset import AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
-from airflow.typing_compat import Unpack
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -718,7 +717,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
         )
         # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-        rows: Sequence[Row[Unpack[tuple[str, str]]]] = session.execute(stmt).all()  # type: ignore[type-arg]
+        rows: Sequence[Row[*tuple[str, str]]] = session.execute(stmt).all()  # type: ignore[type-arg]
         dags_by_team: dict[str, set[str]] = defaultdict(set)
         for dag_id, team_name in rows:
             dags_by_team[team_name].add(dag_id)

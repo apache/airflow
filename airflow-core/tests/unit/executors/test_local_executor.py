@@ -463,6 +463,22 @@ class TestLocalExecutor:
             ({}, "http://localhost:8080/execution/"),
             ({("api", "base_url"): "/"}, "http://localhost:8080/execution/"),
             ({("api", "base_url"): "/airflow/"}, "http://localhost:8080/airflow/execution/"),
+            ({("api", "port"): "9091"}, "http://localhost:9091/execution/"),
+            (
+                {("api", "base_url"): "/airflow/", ("api", "port"): "9091"},
+                "http://localhost:9091/airflow/execution/",
+            ),
+            (
+                {("api", "base_url"): "http://test-server", ("api", "port"): "9091"},
+                "http://test-server/execution/",
+            ),
+            (
+                {
+                    ("core", "execution_api_server_url"): "http://custom-server/execution/",
+                    ("api", "port"): "not-a-port",
+                },
+                "http://custom-server/execution/",
+            ),
         ],
         ids=[
             "base_url_fallback",
@@ -470,6 +486,10 @@ class TestLocalExecutor:
             "no_base_url_no_custom",
             "base_url_no_custom",
             "relative_base_url",
+            "no_base_url_custom_port",
+            "relative_base_url_custom_port",
+            "absolute_base_url_ignores_port",
+            "custom_server_ignores_port",
         ],
     )
     @mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload")
@@ -525,6 +545,18 @@ class TestLocalExecutor:
                 # Verify default server URL was used
                 assert mock_run_workload.call_count == 1
                 assert mock_run_workload.call_args.kwargs["server"] == default_server
+
+    def test_execution_api_server_url_fallback_uses_team_api_port(self):
+        """A team executor builds the fallback URL from its own ``[api] port``, not the global one."""
+        with (
+            mock.patch.dict(os.environ, {"AIRFLOW__TEAM_A___API__PORT": "9092"}),
+            conf_vars({("api", "port"): "9091"}),
+        ):
+            team_url = get_execution_api_server_url(ExecutorConf(team_name="team_a"))
+            global_url = get_execution_api_server_url(ExecutorConf(team_name=None))
+
+        assert team_url == "http://localhost:9092/execution/"
+        assert global_url == "http://localhost:9091/execution/"
 
     def test_multiple_team_executors_isolation(self):
         """Test that multiple team executors can coexist with isolated resources"""
@@ -900,7 +932,7 @@ class TestLocalExecutorBookkeeping:
 
     @pytest.mark.parametrize("start_method", ["fork", "spawn"])
     @pytest.mark.parametrize("kind", ["task", "callback", "connection"])
-    @pytest.mark.execution_timeout(30)
+    @pytest.mark.execution_timeout(60)
     def test_actual_worker_death_after_start_releases_slot(self, start_method, kind, mocker, tmp_path):
         ctx = multiprocessing.get_context(start_method)
         mocker.patch.object(
@@ -922,16 +954,23 @@ class TestLocalExecutorBookkeeping:
         executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
         try:
             executor.heartbeat()
-            deadline = time.monotonic() + 10
+            # Spawned workers re-import the airflow stack before dequeuing; ~10s observed on loaded CI runners.
+            timeout = 30
+            deadline = time.monotonic() + timeout
             while not marker.exists():
-                assert time.monotonic() < deadline
+                assert time.monotonic() < deadline, f"Worker process failed to start within {timeout}s"
+                assert any(proc.is_alive() for proc in executor.workers.values()), (
+                    "Worker died before entering workload: "
+                    f"{[proc.exitcode for proc in executor.workers.values()]}"
+                )
                 executor.sync()
                 time.sleep(0.01)
             executor.sync()
             pid, proc = next(iter(executor.workers.items()))
             assert executor._worker_tasks == {pid: key}
             proc.kill()
-            proc.join(timeout=1)
+            proc.join(timeout=5)
+            assert not proc.is_alive(), "Worker did not exit after being killed"
 
             executor.sync()
 

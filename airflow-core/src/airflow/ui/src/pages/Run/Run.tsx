@@ -62,7 +62,7 @@ export const Run = () => {
     },
     undefined,
     {
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 

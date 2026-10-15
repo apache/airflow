@@ -32,11 +32,14 @@ fingerprint, so stale tool results recorded under the old conversation no
 longer match.
 
 Fields that pydantic-ai regenerates on every attempt (message-level
-``timestamp``/``run_id``/``conversation_id`` and part-level ``timestamp``)
-are excluded from the fingerprint.  Requests that cannot be serialized to
-JSON fingerprint as ``None``, which degrades that step to unverified
-positional replay (the pre-fingerprint behavior) rather than disabling
-caching.
+``timestamp``/``run_id``/``conversation_id``, part-level ``timestamp``, the
+``capability_id`` of a tool from a capability without an ``id``, the timestamps of
+the nested calls code mode records on a ``run_code`` return) are excluded
+from the fingerprint, and set-valued request
+parameters are sorted or dropped.  Registered secrets in the message history are
+masked before hashing, as they are in the tool results the journal records.  Requests that cannot be serialized to JSON
+fingerprint as ``None``, which degrades that step to unverified positional
+replay (the pre-fingerprint behavior) rather than disabling caching.
 """
 
 from __future__ import annotations
@@ -49,6 +52,7 @@ from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
 
+from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.prompt_cache import PROMPT_CACHE_SETTING_NAMES
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
@@ -81,25 +85,67 @@ def _content_settings(model_settings: ModelSettings | None) -> dict[str, Any] | 
     return content or None
 
 
+def _strip_part(part: Any) -> Any:
+    """
+    Drop a dumped part's timestamp, and those of the nested calls on a code mode return.
+
+    pydantic-ai-harness's ``CodeMode`` does not journal ``run_code`` itself: a retry runs the
+    snippet again, its nested tool calls replay, and the return it builds holds a fresh
+    ``ToolReturnPart`` per nested call under ``metadata["tool_returns"]``, each with a new
+    timestamp. The rest of ``metadata`` is kept, as pydantic-ai keeps routing state there.
+    """
+    if not isinstance(part, dict):
+        return part
+    cleaned = {k: v for k, v in part.items() if k != "timestamp"}
+    metadata = cleaned.get("metadata")
+    if (
+        cleaned.get("part_kind") == "tool-return"
+        and isinstance(metadata, dict)
+        and metadata.get("code_mode") is True
+        and isinstance(nested := metadata.get("tool_returns"), dict)
+    ):
+        cleaned["metadata"] = {
+            **metadata,
+            "tool_returns": {call_id: _strip_part(ret) for call_id, ret in nested.items()},
+        }
+    return cleaned
+
+
 def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Drop per-attempt fields from a dumped message list.
 
     Only the levels pydantic-ai regenerates are touched (message-level ids and
-    timestamps, part-level timestamps); user data such as tool arguments is
-    never recursed into, so an argument legitimately named ``run_id`` still
-    affects the fingerprint.
+    timestamps, part-level timestamps, code mode's nested-call timestamps); user
+    data such as tool arguments is never recursed into, so an argument legitimately
+    named ``run_id`` still affects the fingerprint.
     """
     stripped = []
     for message in messages_dump:
         cleaned = {k: v for k, v in message.items() if k not in _VOLATILE_MESSAGE_KEYS}
         if isinstance(cleaned.get("parts"), list):
-            cleaned["parts"] = [
-                {k: v for k, v in part.items() if k != "timestamp"} if isinstance(part, dict) else part
-                for part in cleaned["parts"]
-            ]
+            cleaned["parts"] = [_strip_part(part) for part in cleaned["parts"]]
         stripped.append(cleaned)
     return stripped
+
+
+def _normalize_params(params_dump: dict[str, Any]) -> dict[str, Any]:
+    """
+    Drop capability ids and sort set-valued fields from dumped request parameters.
+
+    A capability without an explicit ``id`` gets a random one per run (``<toolset:d0d75e>``),
+    stamped on its tools' ``capability_id``, so hashing it would make every retry miss the
+    cache. A set dumps in iteration order, which differs between processes (``PYTHONHASHSEED``),
+    and a retry runs in a new process, so ``revealed_tool_names`` is sorted.
+    ``deferred_capability_ids`` is a set of explicit ids and is dropped rather than sorted: a
+    deferred capability's id reaches the model through the capability catalog in the
+    instructions, which is hashed with the messages.
+    """
+    cleaned = {k: v for k, v in params_dump.items() if k != "deferred_capability_ids"}
+    cleaned["revealed_tool_names"] = sorted(cleaned["revealed_tool_names"])
+    for key in ("function_tools", "output_tools"):
+        cleaned[key] = [{k: v for k, v in tool.items() if k != "capability_id"} for tool in cleaned[key]]
+    return cleaned
 
 
 def _digest(payload: Any) -> str:
@@ -119,9 +165,10 @@ def fingerprint_model_request(
     """
     Fingerprint a model request: model identity, message history, settings, and request parameters.
 
-    The full ``ModelRequestParameters`` object is hashed (tool definitions,
-    output mode and schema, native tools, ...) so any change to what is sent
-    to the model invalidates the cached response.
+    The ``ModelRequestParameters`` object is hashed (tool definitions, output
+    mode and schema, native tools, ...) so any change to what is sent to the
+    model invalidates the cached response; only each tool's ``capability_id`` and
+    ``deferred_capability_ids`` are left out.
 
     Returns ``None`` when the request cannot be serialized; ``None`` compares
     equal to ``None``, so requests that cannot be fingerprinted degrade to
@@ -133,9 +180,13 @@ def fingerprint_model_request(
         return _digest(
             {
                 "model": model_identifier,
-                "messages": _strip_volatile(dumped),
+                # The journal records tool results with secrets masked, and not everything in a
+                # live run's history is (an output function's result, for one), so a replayed
+                # history can hold ``***`` where the live one held the secret. Masking the
+                # history here as well makes both match.
+                "messages": _strip_volatile(mask_secrets(dumped)),
                 "settings": _content_settings(model_settings),
-                "params": params,
+                "params": _normalize_params(params),
             }
         )
     except (TypeError, ValueError):

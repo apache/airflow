@@ -28,6 +28,7 @@ import { StateIcon } from "src/components/StateIcon";
 import { TeamName } from "src/components/TeamName";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { formatNumber } from "src/utils";
 
 import DeletePoolButton from "./DeletePoolButton";
 import EditPoolButton from "./EditPoolButton";
@@ -37,7 +38,7 @@ type PoolBarCardProps = {
 };
 
 const PoolBarCard = ({ pool }: PoolBarCardProps) => {
-  const { t: translate } = useTranslation("admin");
+  const { i18n, t: translate } = useTranslation("admin");
   const showTeam = useShowTeam(pool.team_name);
 
   return (
@@ -46,8 +47,8 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
         <VStack align="start" flex="1">
           <HStack justifyContent="space-between" width="100%">
             <Text fontSize="lg" fontWeight="bold" whiteSpace="normal" wordBreak="break-word">
-              {pool.name} ({pool.slots === UNLIMITED_SLOTS ? "∞" : pool.slots} {translate("pools.form.slots")}
-              )
+              {pool.name} ({pool.slots === UNLIMITED_SLOTS ? "∞" : formatNumber(pool.slots, i18n.language)}{" "}
+              {translate("pools.form.slots")})
               {showTeam ? (
                 <>
                   {" ("}

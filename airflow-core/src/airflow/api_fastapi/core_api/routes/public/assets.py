@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
@@ -93,7 +94,6 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -214,7 +214,7 @@ def get_assets(
     )
 
     # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-    assets_rows: Result[Unpack[tuple[AssetModel, int, datetime]]] = session.execute(  # type: ignore[type-arg]
+    assets_rows: Result[*tuple[AssetModel, int, datetime]] = session.execute(  # type: ignore[type-arg]
         assets_select.options(
             *eager_load_asset_reference_teams(),
             subqueryload(AssetModel.consuming_tasks),
@@ -334,6 +334,10 @@ def get_asset_events(
     source_task_id: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_task_id, str | None))
     ],
+    source_task_instance_id: Annotated[
+        FilterParam[UUID | None],
+        Depends(filter_param_factory(AssetEvent.source_task_instance_id, UUID | None)),
+    ],
     source_run_id: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_run_id, str | None))
     ],
@@ -363,6 +367,7 @@ def get_asset_events(
             asset_id,
             source_dag_id,
             source_task_id,
+            source_task_instance_id,
             source_run_id,
             source_map_index,
             partition_key,

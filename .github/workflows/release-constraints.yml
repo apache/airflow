@@ -20,15 +20,15 @@
 #
 # The stage is derived from the version, so the two cannot be mismatched by hand:
 #
-#   * a candidate (`3.3.1rc1`) pins the providers at the versions PyPI holds - the wave being
-#     voted on exists there only as rc versions - and lands on a branch of its own, so a candidate
-#     never moves the branch every other build reads. Re-running it for the same candidate
-#     replaces that branch and its tag, so the two always describe the run that produced them;
+#   * a pre-release - beta (`3.4.0b1`) or candidate (`3.3.1rc1`) - pins the providers at the versions
+#     PyPI holds (rc provider waves included) and lands on a branch of its own, so it never moves the
+#     branch every other build reads. Re-running it for the same pre-release replaces that branch and
+#     its tag, so the two always describe the run that produced them;
 #   * a final (`3.3.1`) pins the providers at their released versions, ignoring any candidate, and
 #     commits onto `constraints-X-Y` itself, which is what makes the released constraints the
 #     baseline everything downstream reads.
 #
-# A final therefore cannot be produced by retagging a candidate: a released version must never
+# A final therefore cannot be produced by retagging a pre-release: a released version must never
 # pin an rc.
 ---
 name: Release constraints
@@ -36,7 +36,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
       version:
-        description: "Version the constraints belong to, e.g. 3.3.1rc1 or 3.3.1"
+        description: "Version the constraints belong to, e.g. 3.4.0b1, 3.3.1rc1 or 3.3.1"
         required: true
         type: string
       ref:
@@ -109,15 +109,18 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(rc[0-9]+)?$ ]]; then
-            echo "'${VERSION}' is not a release version - expected X.Y.Z or X.Y.ZrcN." >&2
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+((b|rc)[0-9]+)?$ ]]; then
+            echo "'${VERSION}' is not a release version - expected X.Y.Z, X.Y.ZbN or X.Y.ZrcN." >&2
             exit 1
           fi
           major="$(echo "${VERSION}" | cut -d. -f1)"
           minor="$(echo "${VERSION}" | cut -d. -f2)"
           constraints_branch="constraints-${major}-${minor}"
           echo "constraints-branch=${constraints_branch}" >> "${GITHUB_OUTPUT}"
-          if [[ "${VERSION}" == *rc* ]]; then
+          # A pre-release - beta or rc - pins the providers at the versions PyPI holds (rc provider
+          # waves included) and lands on a branch and tag of its own, so it never moves the shared
+          # constraints-X-Y branch. A final pins released providers and commits onto the shared branch.
+          if [[ "${VERSION}" =~ (b|rc)[0-9]+$ ]]; then
             echo "allow-pre-releases=true" >> "${GITHUB_OUTPUT}"
             echo "target-branch=constraints-${VERSION}" >> "${GITHUB_OUTPUT}"
           else

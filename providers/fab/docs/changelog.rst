@@ -20,6 +20,36 @@
 Changelog
 ---------
 
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop rebuilding the FAB app on every users and roles API call (#73104)``
+* ``Set 'SameSite' on the fab auth manager session cookie (#73894)``
+
+Misc
+~~~~
+
+* ``Update eslint to 10.12.0 and moment-timezone to 0.6.5 (#74418)``
+* ``Drop support for Python 3.10 (#74157)``
+* ``Bump stylelint to 17.16.0 (#74252)``
+* ``Bump prettier to 3.9.9 (#73857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Add an API endpoint and UI tab comparing two stored Dag versions (#73322)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+* ``UI: Add bulk pause, drain and unpause actions to the Dags list (#73055)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 3.10.0
 ......
 

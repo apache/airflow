@@ -25,9 +25,13 @@ import {
 } from "src/constants/tab";
 import { taskInstanceRoutes } from "src/router";
 
+// Links address the current execution at these coordinates; a try_number would pin the page to one attempt.
 export const getTaskInstanceLink = (
   tiOrParams:
-    | TaskInstanceResponse
+    | Pick<
+        TaskInstanceResponse,
+        "dag_id" | "dag_run_id" | "map_index" | "region_id" | "region_index" | "task_id"
+      >
     | {
         dagId: string;
         dagRunId: string;
@@ -39,9 +43,19 @@ export const getTaskInstanceLink = (
   const tabPath = tab === undefined ? "" : `/${tab}`;
 
   if ("dag_id" in tiOrParams) {
-    return `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
+    const path = `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
       tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
     }${tabPath}`;
+
+    if (tiOrParams.region_id === undefined) {
+      return path;
+    }
+    const query = new URLSearchParams({
+      region_id: tiOrParams.region_id,
+      region_index: String(tiOrParams.region_index),
+    });
+
+    return `${path}?${query}`;
   }
 
   const { dagId, dagRunId, mapIndex = -1, taskId } = tiOrParams;
@@ -66,20 +80,7 @@ export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "sear
   `${location.pathname}${location.search}${location.hash}`;
 
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
-  const subRoutes = taskInstanceRoutes.flatMap((route) => {
-    if (route.path !== undefined) {
-      return [route.path];
-    }
-
-    // Include paths from children of pathless layout routes (e.g. StoragePage wrapping task-store and xcom)
-    if ("children" in route && Array.isArray(route.children)) {
-      return route.children
-        .filter((child) => "path" in child && typeof child.path === "string")
-        .map((child) => child.path);
-    }
-
-    return [];
-  });
+  const subRoutes = taskInstanceRoutes.flatMap((route) => (route.path === undefined ? [] : [route.path]));
   // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
   const mappedRegex = /\/tasks\/[^/]+\/mapped\/[^/]+\/(?<subRoute>.+)$/u;
   const mappedMatch = mappedRegex.exec(pathname);
@@ -153,11 +154,7 @@ export const getSafeExternalUrl = (url: string): string | undefined => {
     return trimmed;
   }
 
-  if (SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol)) {
-    return trimmed;
-  }
-
-  return undefined;
+  return SAFE_EXTERNAL_URL_SCHEMES.has(parsed.protocol) ? trimmed : undefined;
 };
 
 export const buildTaskInstanceUrl = (params: {

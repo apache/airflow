@@ -18,7 +18,7 @@
  */
 import type { ChangeEventHandler } from "react";
 
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +28,7 @@ import RunBackfillForm from "./RunBackfillForm";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
+    i18n: { language: "en" },
     // eslint-disable-next-line id-length
     t: (key: string, opts?: { count?: number; dag_display_name?: string }) => {
       const map: Record<string, string> = {

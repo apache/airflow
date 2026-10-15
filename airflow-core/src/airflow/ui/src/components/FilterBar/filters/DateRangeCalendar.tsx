@@ -70,22 +70,16 @@ export const DateRangeCalendar = ({
       if (state.isEnd) {
         return "brand.muted";
       }
-      if (state.isInRange) {
-        return "brand.subtle";
-      }
 
-      return "transparent";
+      return state.isInRange ? "brand.subtle" : "transparent";
     };
 
     const getTextColor = () => {
       if (state.isStart || state.isEnd) {
         return "brand.contrast";
       }
-      if (!state.isCurrentMonth) {
-        return "fg.muted";
-      }
 
-      return "fg";
+      return state.isCurrentMonth ? "fg" : "fg.muted";
     };
 
     return {
