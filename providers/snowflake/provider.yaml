@@ -196,6 +196,8 @@ connection-types:
             "token_endpoint": "token endpoint",
             "refresh_token": "refresh token",
             "scope": "scope",
+            "oauth_username": "oauth_username",
+            "oauth_password": "oauth_password",
             "proxy_host": "proxy.example.com",
             "proxy_port": "8080",
             "proxy_user": "proxy_username",

@@ -1568,6 +1568,46 @@ class TestPytestSnowflakeHook:
         assert called_data["grant_type"] == "client_credentials"
 
     @mock.patch("requests.post")
+    def test_get_oauth_token_with_password_grant_type(self, mock_requests_post):
+        """
+        Verify that `get_oauth_token` returns an access token and includes the
+        provided required parameters for password type of grant in the outgoing OAuth request payload.
+        """
+
+        mock_requests_post.return_value = Mock(
+            status_code=200,
+            json=lambda: {"access_token": "dummy_token", "expires_in": 600},
+        )
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "password",
+                "oauth_username": "user1",
+                "oauth_password": "password1",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            token = hook.get_oauth_token(grant_type="password")
+
+        assert token == "dummy_token"
+
+        called_data = mock_requests_post.call_args.kwargs["data"]
+
+        assert called_data["grant_type"] == "password"
+        assert called_data["username"] == "user1"
+        assert called_data["password"] == "password1"
+
+    @mock.patch("requests.post")
     def test_get_oauth_token_without_scope(self, mock_requests_post):
         """
         Verify that `get_oauth_token` returns an access token`

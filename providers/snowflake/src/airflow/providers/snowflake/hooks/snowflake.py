@@ -52,7 +52,7 @@ from airflow.utils.strings import to_boolean
 
 OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
 OAUTH_EXPIRY_BUFFER = 30
-SUPPORTED_GRANT_TYPES = {"refresh_token", "client_credentials"}
+SUPPORTED_GRANT_TYPES = {"refresh_token", "client_credentials", "password"}
 
 T = TypeVar("T")
 
@@ -203,6 +203,9 @@ class _SnowflakeOAuthManager:
                 "refresh_token": conn_config["refresh_token"],
             }
 
+        if grant_type == "password":
+            data |= {"username": conn_config["oauth_username"], "password": conn_config["oauth_password"]}
+
         response = self.request_oauth_token(
             url=url,
             data=data,
@@ -322,6 +325,8 @@ class SnowflakeHook(DbApiHook):
                         "token_endpoint": "token endpoint",
                         "refresh_token": "refresh token",
                         "scope": "scope",
+                        "oauth_username": "oauth_username",
+                        "oauth_password": "oauth_password",
                         "proxy_host": "proxy.example.com",
                         "proxy_port": "8080",
                         "proxy_user": "proxy_username",
@@ -627,6 +632,17 @@ class SnowflakeHook(DbApiHook):
                 extra_dict,
                 "scope",
             )
+
+            if conn_config["grant_type"] == "password":
+                conn_config["oauth_username"] = self._get_field(
+                    extra_dict,
+                    "oauth_username",
+                )
+
+                conn_config["oauth_password"] = self._get_field(
+                    extra_dict,
+                    "oauth_password",
+                )
 
             conn_config["client_id"] = conn.login
             conn_config["client_secret"] = conn.password

@@ -1,3 +1,4 @@
+
 .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -78,8 +79,10 @@ Extra (optional)
       is ``OIDC``. The connector reads the token from this file, which suits projected or rotated tokens
       (for example a Kubernetes service-account token).
     * ``token_endpoint``: Specify token endpoint for external OAuth provider.
-    * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``.
+    * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``, ``password``.
     * ``scope``: Specify OAuth scope to include in the access token request for any OAuth grant type.
+    * ``oauth_username``: Specify Snowflake user name which is used as trusted context for OAuth to include in the access token request for password OAuth grant type.
+    * ``oauth_password``: Specify Snowflake user password which is used as trusted context for OAuth to include in the access token request for password OAuth grant type.
     * ``refresh_token``: Specify refresh_token for OAuth connection.
     * ``azure_conn_id``: Azure Connection ID to be used for retrieving the OAuth token using Azure Entra authentication. Login and Password fields aren't required when using this method. Scope for the Azure OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[snowflake]``. Requires `apache-airflow-providers-microsoft-azure>=12.8.0`.
     * ``private_key_file``: Specify the path to the private key file.
