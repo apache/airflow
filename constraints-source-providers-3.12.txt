@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-14T21:57:15.795507
+# This constraints file was automatically generated on 2026-10-15T14:58:56.097605
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -181,6 +181,7 @@ dataclasses-json==0.6.7
 datadog==0.54.0
 datafusion==51.0.0
 db-dtypes==1.7.1
+ddgs==9.16.0
 debugpy==1.8.22
 decorator==5.3.1
 defusedxml==0.7.1
@@ -370,6 +371,7 @@ jmespath==1.1.0
 joblib==1.6.0
 joserfc==1.7.5
 jpype1==1.7.1
+json_repair==0.63.5
 jsonpatch==1.33
 jsonpath-ng==1.8.0
 jsonpickle==4.1.2
@@ -536,6 +538,7 @@ pprintpp==0.4.0
 pre_commit==4.6.2
 prek==0.5.3
 presto-python-client==0.8.4
+primp==2.0.1
 prison==0.2.1
 prometheus_client==0.26.0
 prompt_toolkit==3.0.53
@@ -561,10 +564,14 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
+pydantic-ai-harness==0.35.0
 pydantic-ai-skills==1.2.0
 pydantic-ai-slim==2.48.0
 pydantic-extra-types==2.11.1
 pydantic-graph==2.48.0
+pydantic-monty-client==0.0.23
+pydantic-monty-runtime==0.0.23
+pydantic-monty==0.0.23
 pydantic-settings==2.15.0
 pydantic==2.13.5
 pydantic_core==2.46.5
