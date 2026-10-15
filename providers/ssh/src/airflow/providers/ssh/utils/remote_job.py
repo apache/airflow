@@ -183,8 +183,10 @@ def build_posix_wrapper_command(
     if environment:
         for key, value in environment.items():
             _validate_env_var_name(key)
-            escaped_value = value.replace("'", "'\"'\"'")
-            env_exports += f"export {key}='{escaped_value}'\n"
+            env_exports += f"export {key}={shlex.quote(value)}\n"
+    # The exports are spliced into the single-quoted ``job_script`` literal below, so on top
+    # of quoting each value for the job shell they need the same escaping as the command.
+    env_exports = env_exports.replace("'", "'\"'\"'")
 
     escaped_command = command.replace("'", "'\"'\"'")
 
