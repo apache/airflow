@@ -208,6 +208,11 @@ class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, o
     calls, so that server-side spans (e.g. POST /xcoms/…) appear as children of the correct task span
     rather than under the supervisor's own span.
     """
+    ti_id: UUID | None = None
+    """Id of the task instance whose trigger made this request, set only by the triggerer's trigger runner.
+
+    The supervisor forwards it so the API can act as that task instance.
+    """
 
 
 class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]

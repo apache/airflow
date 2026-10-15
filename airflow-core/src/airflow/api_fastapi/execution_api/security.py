@@ -141,6 +141,7 @@ _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
 _REQUEST_SCOPE_LIVE_ATTEMPT_KEY = "live_attempt_checked"
 _REQUEST_SCOPE_JOB_KEY = "dag_processor_job_id"
 _IN_PROCESS_NON_TI_CALLER = "airflow_in_process_non_ti_caller"
+_IN_PROCESS_TRIGGERER_ID = "airflow_in_process_triggerer_id"
 _SKIP_AUTO_TI_ATTEMPT_LIVE = "skip_auto_ti_attempt_live"
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
