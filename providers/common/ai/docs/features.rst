@@ -243,7 +243,8 @@ Recover from failures
 Bring your own agent
 --------------------
 
-The Strands, ADK, Anthropic SDK and other-framework routes get every toolset except
+The Strands, ADK, Anthropic SDK, OpenAI Agents SDK and other-framework routes get every
+toolset except
 ``MCPToolset`` and ``AgentSkillsToolset``.
 
 .. list-table::
@@ -266,6 +267,9 @@ The Strands, ADK, Anthropic SDK and other-framework routes get every toolset exc
    * - :doc:`Anthropic SDK tool runner <frameworks/anthropic>`
      - Gives a loop on the Anthropic SDK's ``tool_runner`` the toolsets.
      - ``anthropic``
+   * - :doc:`OpenAI Agents SDK <frameworks/openai_agents>`
+     - Gives an OpenAI Agents SDK agent the toolsets.
+     - None; install ``openai-agents``
    * - :doc:`LangChain <hooks/langchain>`
      - Builds LangChain chat and embedding models from a connection, and
        :doc:`turns a toolset into LangChain tools <toolsets/langchain>`.
