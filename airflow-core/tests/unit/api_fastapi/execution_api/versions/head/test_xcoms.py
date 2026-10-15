@@ -597,29 +597,58 @@ def test_trigger_ti_id_header_rejected(deferred_loop_pass, api_triggerer_id, hea
     assert response.status_code == expected_status
 
 
+NOT_DEFERRED_ON_THIS_TRIGGERER = "Task instance is not deferred on a trigger assigned to this triggerer"
+NOT_A_LIVE_ATTEMPT = "Task instance is not a live attempt"
+
+
 @pytest.mark.parametrize(
-    ("method", "change", "expected_status", "expected_value"),
+    ("method", "change", "expected_status", "expected_value", "expected_denial"),
     [
         pytest.param(
             "post",
             {"triggerer_id": TRIGGERER_ID + 1},
             403,
             None,
+            NOT_DEFERRED_ON_THIS_TRIGGERER,
             id="write-trigger-assigned-to-another-triggerer",
         ),
-        pytest.param("post", {"state": TaskInstanceState.RUNNING}, 403, None, id="write-task-not-deferred"),
+        pytest.param(
+            "post",
+            {"state": TaskInstanceState.RUNNING},
+            403,
+            None,
+            NOT_DEFERRED_ON_THIS_TRIGGERER,
+            id="write-task-not-deferred",
+        ),
+        pytest.param(
+            "delete",
+            {"state": TaskInstanceState.RUNNING},
+            403,
+            None,
+            NOT_DEFERRED_ON_THIS_TRIGGERER,
+            id="delete-task-not-deferred",
+        ),
         pytest.param(
             "get",
             {"state": TaskInstanceState.FAILED, "trigger_removed": True},
             200,
             "step-1",
+            None,
             id="read-live-task-no-longer-deferred",
         ),
-        pytest.param("get", {"archived": True}, 403, None, id="read-archived-try"),
+        pytest.param(
+            "head",
+            {"state": TaskInstanceState.FAILED, "trigger_removed": True},
+            200,
+            None,
+            None,
+            id="head-live-task-no-longer-deferred",
+        ),
+        pytest.param("get", {"archived": True}, 403, None, NOT_A_LIVE_ATTEMPT, id="read-archived-try"),
     ],
 )
 def test_trigger_ti_id_claim_check(
-    session, deferred_loop_pass, method, change, expected_status, expected_value
+    session, deferred_loop_pass, method, change, expected_status, expected_value, expected_denial
 ):
     dr, steps, trigger = deferred_loop_pass
     trigger.triggerer_id = change.get("triggerer_id", TRIGGERER_ID)
@@ -640,7 +669,13 @@ def test_trigger_ti_id_claim_check(
             json="from-trigger" if method == "post" else None,
         )
 
-    assert (response.status_code, response.json().get("value")) == (expected_status, expected_value)
+    body = response.json() if response.content else {}
+    denial = body.get("detail", {}).get("message") if expected_status == 403 else None
+    assert (response.status_code, body.get("value"), denial) == (
+        expected_status,
+        expected_value,
+        expected_denial,
+    )
 
 
 @pytest.mark.parametrize("key", ["_airflow_loop_decision", "_airflow_loop_other"])
