@@ -76,9 +76,16 @@ def get_provider_info():
                 "external-doc-url": "https://modal.com/docs/guide/sandbox",
                 "tags": ["service"],
             },
+            {"integration-name": "Islo", "external-doc-url": "https://docs.islo.dev/", "tags": ["service"]},
             {
                 "integration-name": "OpenSandbox",
                 "external-doc-url": "https://open-sandbox.ai/",
+                "tags": ["software"],
+            },
+            {"integration-name": "Boat", "external-doc-url": "https://docs.boat.dev/", "tags": ["service"]},
+            {
+                "integration-name": "NVIDIA OpenShell",
+                "external-doc-url": "https://github.com/NVIDIA/OpenShell",
                 "tags": ["software"],
             },
         ],
@@ -126,7 +133,7 @@ def get_provider_info():
                         "default": "False",
                     },
                     "capture_content": {
-                        "description": "Capture prompt, completion, and tool-call content on the emitted\nGenAI spans (``gen_ai.input.messages`` / ``gen_ai.output.messages``).\n\nOff by default: only token counts, model id, latency, tool names, and\nfinish reason are recorded, never message text. Turning this on exports\nmodel inputs and outputs to your tracing backend without redaction. Airflow's\nsecret masking applies to logs and rendered template fields, not to\nOpenTelemetry span attributes, so it does not scrub this content.\nEnable it only for debugging in a trusted environment. Has no effect\nunless ``otel_export_enabled`` is ``True``.\n",
+                        "description": "Capture prompt, completion, and tool-call content on the emitted\nGenAI spans (``gen_ai.input.messages`` / ``gen_ai.output.messages``).\n\nOff by default: only token counts, model id, latency, tool names, and\nfinish reason are recorded, never message text. Turning this on exports\nmodel inputs and outputs to your tracing backend without redaction. Airflow's\nsecret masking applies to logs and rendered template fields, not to\nOpenTelemetry span attributes. The exception is what a function tool\nreturns or raises while it runs in an agent this provider builds, which\nis masked before the span records it. Enable it only for debugging in\na trusted environment. Has no effect unless ``otel_export_enabled`` is\n``True``.\n",
                         "version_added": "0.4.0",
                         "type": "boolean",
                         "example": "False",

@@ -87,8 +87,17 @@ export const useUpdateHITLDetail = ({
     onSuccess?.();
   };
 
-  const onError = (apiError: unknown) => {
+  const onError = async (apiError: unknown) => {
     createErrorToaster(apiError, { titleKey: "hitl:response.error" }, translate);
+    // A refused answer (the request was replaced or already answered) leaves a stale request on
+    // screen; reload it so the next answer goes to what is waiting now.
+    await Promise.all(
+      [
+        [useTaskInstanceServiceGetHitlDetailsKey],
+        [useTaskInstanceServiceGetHitlDetailKey, { dagId, dagRunId }],
+        [useTaskInstanceServiceGetHitlDetailTryDetailKey, { dagId, dagRunId }],
+      ].map((key) => queryClient.invalidateQueries({ queryKey: key })),
+    );
   };
 
   const { isPending, mutate } = useTaskInstanceServiceUpdateHitlDetail({
@@ -102,6 +111,7 @@ export const useUpdateHITLDetail = ({
     const requestBody = {
       chosen_options: updateHITLResponseRequestBody.chosen_options ?? [],
       params_input: updateHITLResponseRequestBody.params_input ?? {},
+      request_created_at: updateHITLResponseRequestBody.request_created_at,
     };
 
     try {

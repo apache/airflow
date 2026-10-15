@@ -1,5 +1,6 @@
 aarch
 abc
+ABI
 AbstractCapability
 AbstractFileSystem
 AbstractToolset
@@ -200,6 +201,8 @@ bitmask
 Bitnami
 bitshift
 bitwise
+Boat
+boat
 booktabs
 Bool
 bool
@@ -214,6 +217,7 @@ bugfix
 bugfixes
 buildType
 burstable
+busybox
 bytestring
 cacert
 Cadwyn
@@ -281,11 +285,13 @@ cmdlet
 cmds
 cncf
 cnf
+CNI
 cnt
 codebase
 codec
 codecov
 codepoints
+colima
 Colour
 colour
 colours
@@ -368,6 +374,7 @@ Cypher
 cypher
 daemonize
 daemonized
+daemonizing
 dagbag
 DagCallbackRequest
 dagfile
@@ -684,6 +691,7 @@ filesystems
 filetype
 FilteredToolset
 finalStatus
+findutils
 fips
 firebase
 Firehose
@@ -908,6 +916,7 @@ irreproducible
 IRSA
 isfile
 ish
+islo
 isn
 isort
 istio
@@ -1014,6 +1023,7 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+Landlock
 langchain
 Langfuse
 LanguageServiceClient
@@ -1230,6 +1240,8 @@ openlineage
 opensandbox
 OpenSearch
 opensearch
+OpenShell
+openshell
 OpenTelemetry
 oper
 OperatorLineage
@@ -1294,6 +1306,7 @@ pinecone
 Pinot
 pinot
 PipelineRun
+PKI
 pkill
 plaintext
 pluggable
@@ -1301,6 +1314,7 @@ pluggy
 plyvel
 png
 PoC
+Podman
 PodManager
 PodSpec
 podSpec
@@ -1478,6 +1492,7 @@ requeues
 requeuing
 rerank
 reranking
+rescanning
 reserialize
 Reserializing
 resetdb
@@ -1549,6 +1564,7 @@ sdk
 sdks
 searchpath
 SearchResultGenerator
+seccomp
 secretmanager
 SecretManagerClient
 SecretManagerServiceClient

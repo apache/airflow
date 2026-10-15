@@ -20,11 +20,6 @@
 Batch processing: ``LLMBatchOperator``
 ======================================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 Use :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator` to run many
 prompts through a provider's **batch API** instead of one synchronous call per prompt:
 roughly half the per-token cost of :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`,
@@ -314,6 +309,12 @@ storage with a reconciled manifest.
 
 Adding an adapter
 ------------------
+
+.. note::
+
+    Experimental: the adapter contract can change or be removed in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
 
 Another provider package can add a batch engine without changes here: subclass
 :class:`~airflow.providers.common.ai.batch.base.BatchAdapter`, set its ``name`` to the model

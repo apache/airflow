@@ -162,11 +162,6 @@ an attempt is a separate mechanism on the connection; see
 ClassifierRetryPolicy
 ---------------------
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 ``ClassifierRetryPolicy`` takes the retry decision away from the model. Its
 ``categories`` maps a category name to an
 :class:`~airflow.providers.common.ai.policies.retry.ErrorCategory`: what
@@ -373,8 +368,9 @@ retry behaviour with no change to the Dag. Two things follow:
 
 * ``timeout`` stops bounding the whole classification call. pydantic-ai applies a
   ``ModelSettings`` timeout to each model in the chain, not to the chain as a whole, so a
-  30-second ``timeout`` across a three-connection chain is a 90-second worst case before the
-  policy falls back to ``fallback_rules``.
+  30-second ``timeout`` across a three-connection chain can take up to 90 seconds before the
+  policy falls back to ``fallback_rules``, or 270 when the connections use the OpenAI or
+  Anthropic SDK, which retry a timed-out request twice.
 * If every connection in the chain fails, the classification call raises
   ``pydantic_ai.exceptions.FallbackExceptionGroup``. ``evaluate()`` still degrades to
   ``fallback_rules`` correctly -- it catches the broad ``Exception``, and an exception group is

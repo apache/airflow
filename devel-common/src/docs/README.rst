@@ -255,6 +255,25 @@ In this example error, You should change the line with error so that the whole p
     Incorrect Spelling: 'BaseAsyncSessionFactory'
     Line with Error: ' airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory has been deprecated'
 
+mermaid diagram fails to render
+*******************************
+
+The ``.. mermaid::`` diagrams are drawn into SVG files during the docs build by mermaid-cli (``mmdc``).
+They are not drawn in the reader's browser: airflow.apache.org is served with the
+`ASF Content-Security-Policy <https://infra.apache.org/csp.html>`__, which blocks the mermaid script the
+browser would otherwise load from a CDN.
+
+When a package you build contains a diagram, ``breeze build-docs`` first installs mermaid-cli and the
+Chromium it drives into its container. Packages without diagrams skip this step.
+
+A diagram with a syntax error fails the build with ``Mermaid exited with error`` followed by mermaid's
+own message, which names the line it could not parse. If you build the docs outside breeze without
+``mmdc`` on your ``PATH``, every diagram fails the build with:
+
+.. code-block:: text
+
+    WARNING: command 'mmdc' cannot be run (needed for mermaid output), check the mermaid_cmd setting
+
 Support
 ========
 
