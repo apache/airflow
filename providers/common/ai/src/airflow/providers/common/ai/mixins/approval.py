@@ -39,6 +39,8 @@ log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from pydantic_ai.messages import UserContent
+
     from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
@@ -115,7 +117,7 @@ class DeferForApprovalProtocol(Protocol):
     on_approval_timeout: Literal["fail", "approve", "reject"]
     approval_notifiers: Sequence[BaseNotifier]
     approval_assigned_users: list[HITLUser]
-    prompt: str | Sequence[Any]
+    prompt: str | Sequence[UserContent]
     task_id: str
     defer: Any
 
@@ -166,7 +168,7 @@ class LLMApprovalMixin:
     - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
     - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
     - ``approval_assigned_users`` (``list[HITLUser]``)
-    - ``prompt`` (``str``)
+    - ``prompt`` (``str`` or ``Sequence[UserContent]``)
     """
 
     APPROVE = "Approve"
