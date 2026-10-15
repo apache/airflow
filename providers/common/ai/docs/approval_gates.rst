@@ -26,9 +26,8 @@ Approval gates for LLM operators
 
 Set ``require_approval=True`` and the task stops after the model answers. A person
 reads the output in the Airflow UI and approves it, edits it, or rejects it, and only an
-approved answer reaches the tasks downstream. Use it where a wrong answer is costly to
-publish or act on. To review each tool call an agent makes rather than its final answer,
-see :doc:`tool_approval`.
+approved answer reaches the tasks downstream. To review each tool call an agent makes
+rather than its final answer, see :doc:`tool_approval`.
 
 Approval gates need Airflow 3.1 or later. On an older Airflow version the
 operator raises ``AirflowOptionalProviderFeatureException: require_approval=True needs Airflow 3.1+.``
@@ -191,9 +190,8 @@ Timeouts
 3.3 and later the scheduler resolves expired reviews, checking every
 ``[scheduler] trigger_timeout_check_interval`` seconds (15 by default), so a review can
 stay open that long past its deadline. On Airflow 3.1 and 3.2 the triggerer enforces the
-deadline. ``on_approval_timeout="approve"`` keeps an
-unattended pipeline moving with output nobody reviewed. ``"reject"`` still fails this
-operator; only
+deadline. ``on_approval_timeout="approve"`` returns the generated output when the
+timeout expires. ``"reject"`` still fails this operator; only
 :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator` turns a
 rejection into a downstream skip. The chosen option is also pre-highlighted as the
 default in the review form, so ``"reject"`` makes Reject the primary button.
