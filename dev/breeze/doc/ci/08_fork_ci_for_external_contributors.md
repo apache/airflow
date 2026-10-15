@@ -159,8 +159,14 @@ push trigger exists whether or not the gate is on, and today no CI runs for push
 The label and pilot rules are also independent of `enabled`; see "Override labels" and
 "Contributor pilot" below.
 
+The `fork_schedule` rule exists because enabling `ci-amd.yml` in a fork also enables its
+cron trigger, and selective checks force the full matrix for `schedule` events. Without it
+every enabled fork would run the full canary matrix twice a day on the contributor's
+concurrency cap. A manual `workflow_dispatch` in a fork still runs.
+
 | Rule | Decision | Reason |
 |---|---|---|
+| Event is `schedule` and repository is not `apache/airflow` | skip | `fork_schedule` |
 | Event is `schedule` or `workflow_dispatch` | run | `scheduled` |
 | Event is `push` and repository is not `apache/airflow` | run | `fork_push` |
 | Event is `push` to `apache/airflow` and the branch matches the pre-existing push patterns (`v*-test`, `providers-*/v*`, `chart/v*x-test`, `airflow-ctl/v*-test`) | run | `canonical_branch` |
@@ -220,12 +226,21 @@ has already used project CI, and a maintainer would have to label every pull req
 volunteer opens.
 
 The `[pilot]` table covers it. A contributor opts in with a pull request that adds their
-login and the current instant to `[pilot]`; any committer can merge it. From that instant
-every pull request they open is gated from its first run, whether or not `enabled` is set,
-and goes through exactly the flow described in this document: setup comment, draft, fork
-run, commit status, undraft, close after inactivity, gate tampering check. Pull requests
-they opened before joining keep project CI, so joining changes nothing retroactively and
-cannot trip the gate tampering check on a run that was legitimate when it happened.
+login and a join instant to `[pilot]`; any committer can merge it. Once the entry is on the
+base branch, every pull request they open is gated from its first run, whether or not
+`enabled` is set, and goes through exactly the flow described in this document: setup
+comment, draft, fork run, commit status, undraft, close after inactivity, gate tampering
+check. Pull requests they opened before the join instant keep project CI.
+
+The gate reads the table from the base branch, so the entry takes effect when it merges,
+while the join instant is compared with pull request creation. The join instant must
+therefore not be earlier than the merge: pull requests opened in between ran project CI,
+are labelled on the next reconciler run, and one of them that changes `.github/workflows/`
+would be closed for gate tampering. The `check-fork-ci-gate-config` prek hook rejects a newly
+added `[pilot]` instant, or a changed `enabled_since`, that is not in the future; contributors
+use the next day at 00:00 UTC. A merge after that instant still leaves the window open; the
+closure is reported to Slack as an attention item, and the maintainer reopens the pull
+request with `use project ci`.
 
 Leaving is a pull request that removes the line. Pull requests already labelled
 `fork ci required` stay in the state machine until a maintainer adds `use project ci`, as
@@ -339,10 +354,12 @@ description } } } } }`), the project CI check suites on that same head commit
 resourcePath } } checkRuns(first: 100) { nodes { name status conclusion } } } }`, used by
 the gate tampering check below), and the reconciler's own state comment (`comments(last:
 50)` filtered by the marker). The fork state is then fetched in batches of 50 with one GraphQL
-query per batch using aliases:
+query per batch using aliases. Owner and name come from the pull request's
+`headRepository { nameWithOwner }`, never a fixed `airflow`, because a fork can be renamed or
+created as `airflow-1` on a name collision:
 
 ```graphql
-pr123: repository(owner: "<fork-owner>", name: "airflow") {
+pr123: repository(owner: "<fork-owner>", name: "<fork-name>") {
   object(oid: "<headRefOid>") { ... on Commit {
     checkSuites(first: 20) { nodes {
       app { slug } status conclusion
@@ -394,9 +411,10 @@ Rules that sit under the table:
   touched. A maintainer removing that label, or adding `use project ci`, takes the pull
   request out of the state machine on the next run (see "Override labels").
 - **Deleted head repository** is reported as unknown (see below) and otherwise left alone.
-- **The close clock** starts at the `since` timestamp recorded for the current state, resets
-  on any state change, and starts fresh after a reopen because the reconciler records a new
-  state on the first run after reopening.
+- **The close clock** starts at the `since` timestamp recorded for the current state and
+  resets on any state change. Closing for inactivity records `closed` in the marker, so the
+  first run after a reopen sees a state change from `closed` and starts a fresh clock rather
+  than closing the pull request again at once.
 
 ### Gate tampering
 
@@ -410,7 +428,8 @@ in `apache/airflow`.
 The check applies only to pull requests whose `fork_ci_gate.decide` reason is `external` or
 `pilot`, recomputed from the pass 2 fields. A pilot participant's pull request is gated from
 its creation, so it never ran project CI legitimately unless `use project ci` was on it,
-which signal 1 already accounts for. Committers piloting with `use fork ci` are excluded:
+which signal 1 already accounts for, or it was opened before the `[pilot]` entry merged
+(see "Contributor pilot"). Committers piloting with `use fork ci` are excluded:
 their pull request legitimately ran project CI before the label was added. Two signals are
 required, and both must hold:
 
@@ -606,12 +625,14 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
    (time to green, setup problems, reconciler alerts) are reported on the dev list before the
    next step.
 4. Populate `[allowlist]` for the organisations agreed on the list.
-5. Set `enabled_since` to the switch-on instant and `enabled = true`, and empty `[pilot]`, in
-   one pull request.
+5. Set `enabled_since` to a switch-on instant after the expected merge and `enabled = true`,
+   and empty `[pilot]`, in one pull request.
 6. Watch `internal-airflow-ci-cd` and the reconciler's run summaries for the first days.
 7. Rollback is `enabled = false` (and an empty `[pilot]` during the contributor pilot).
    Existing labels and drafts stay as they are; a maintainer sweep undrafts anything still
    drafted by the bot, or labels them `use project ci` and lets the reconciler release them.
+   Switching on again must move `enabled_since` forward to the new switch-on instant;
+   otherwise pull requests opened while the gate was off are gated retroactively.
 8. The backlog reset, if ever adopted, is `enabled_since` moved back, staged over days by
    moving it in steps.
 
@@ -661,11 +682,15 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
 
 - `dev/breeze/tests/test_fork_ci_gate.py`: one parametrized case per eligibility rule,
   including `enabled_since` boundaries, the push-to-apache branch patterns, both override
-  labels with `enabled` true and false, and `[pilot]` with `enabled` true and false, at the
-  join-instant boundary, with a differently-cased login and overridden by `use project ci`.
+  labels with `enabled` true and false, `[pilot]` with `enabled` true and false, at the
+  join-instant boundary, with a differently-cased login and overridden by `use project ci`,
+  and `schedule` in a fork versus in `apache/airflow`.
+- `scripts/tests/`: the `check-fork-ci-gate-config` hook accepts a future `[pilot]` instant
+  and `enabled_since`, rejects a past one, and leaves unchanged entries alone.
 - `dev/breeze/tests/test_fork_ci_reconcile.py`: one parametrized case per row of the state
   table, plus the human-draft rule, the label escape hatch, the `use project ci` release,
-  the conflicting-labels alert, the close clock reset, marker round-trips, status
+  the conflicting-labels alert, the close clock reset (including a reopen after an inactivity
+  close), a fork with a name other than `airflow`, marker round-trips, status
   desired-vs-current comparison, the unknown-failure collection and the gate tampering
   check: each signal alone does not close, both together do, an in-progress non-gate job
   counts, an injected workflow counts, suites older than the last `use project ci` removal
