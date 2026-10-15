@@ -29,6 +29,7 @@ import pytest
 from fastapi import Request
 from sqlalchemy import delete, event, select
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 from uuid6 import uuid7
 
 from airflow import settings
@@ -171,6 +172,64 @@ def test_replay_returns_receipt_without_rewriting_metadata(client, session, job,
     session.expire_all()
     assert session.get(DagModel, "published").last_parsed_time == parsed_at
     assert len(session.scalars(select(DagParseCheckpoint)).all()) == 1
+
+
+@pytest.mark.parametrize("first", ["parse", "inventory"])
+def test_parse_and_inventory_checkpoints_have_separate_namespaces(client, session, exec_app, job, first):
+    session.add_all([DagBundleModel(name="inventory"), DagBundleModel(name="a.py")])
+    job.bundle_names = ["inventory", "a.py"]
+    session.commit()
+
+    async def authenticate(request: Request):
+        return DagProcessorToken(
+            id=job.session_id,
+            claims=DagProcessorClaims(exp=1, job_id=job.id, dag_bundles=frozenset(job.bundle_names)),
+        )
+
+    exec_app.dependency_overrides[require_auth] = authenticate
+    publications = {
+        "parse": (
+            f"/execution/jobs/{job.id}/parse-results",
+            {
+                "attempt_id": str(uuid7()),
+                "dispatch_sequence": 2,
+                "bundle_name": "inventory",
+                "relative_fileloc": "a.py",
+                "parse_duration": 0.5,
+                "serialized_dags": [],
+                "source_codes": {},
+                "import_errors": {"a.py": "Import failed"},
+            },
+        ),
+        "inventory": (
+            f"/execution/jobs/{job.id}/bundles/a.py/inventory",
+            {
+                "attempt_id": str(uuid7()),
+                "dispatch_sequence": 2,
+                "expected_revision": None,
+                "files": [],
+            },
+        ),
+    }
+    publications[first][1]["dispatch_sequence"] = 3
+    second = "inventory" if first == "parse" else "parse"
+    receipts = {}
+    for kind in (first, second, first, second):
+        url, payload = publications[kind]
+        response = client.post(url, json=payload)
+        assert response.status_code == 200, response.json()
+        if kind in receipts:
+            assert response.json() == receipts[kind]
+        else:
+            receipts[kind] = response.json()
+
+    checkpoints = session.scalars(select(DagParseCheckpoint)).all()
+    assert len(checkpoints) == 2
+    assert {checkpoint.attempt_id for checkpoint in checkpoints} == {
+        UUID(payload["attempt_id"]) for _, payload in publications.values()
+    }
+    error = session.scalar(select(ParseImportError))
+    assert (error.bundle_name, error.filename) == ("inventory", "a.py")
 
 
 @pytest.mark.parametrize("paused", [True, False])
@@ -494,16 +553,32 @@ def test_fab_permissions_share_publication_transaction(update_errors, client, se
 
 @conf_vars({("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"})
 @pytest.mark.parametrize("existing", [False, True])
-def test_invalid_fab_access_control_rejects_and_rolls_back_publication(client, session, job, body, existing):
+@pytest.mark.parametrize("legacy_exception", [False, True])
+@pytest.mark.parametrize(
+    ("failure", "resource_actions", "message"),
+    [
+        ("role", {"DAGs": {"can_read"}}, "role does not exist"),
+        ("resource", {"missing_resource": {"can_read"}}, "invalid resource name"),
+        ("permission", {"DAGs": {"missing_permission"}}, "invalid permissions"),
+    ],
+)
+def test_invalid_fab_access_control_rejects_and_rolls_back_publication(
+    client, session, job, body, existing, legacy_exception, failure, resource_actions, message, monkeypatch
+):
     security = pytest.importorskip("airflow.providers.fab.www.security_appless")
+    if legacy_exception:
+        override = pytest.importorskip("airflow.providers.fab.auth_manager.security_manager.override")
+        monkeypatch.setattr(override, "DagAccessControlValidationError", override.FabException, raising=False)
     dag_id = f"published_{uuid7().hex}"
-    missing_role = f"missing_{uuid7().hex}"
+    role_name = f"role_{uuid7().hex}"
+    manager = security.ApplessAirflowSecurityManager(session=session)
+    role = manager.add_role(role_name) if failure != "role" else None
     body["serialized_dags"][0]["dag"]["dag_id"] = dag_id
     body["source_codes"] = {dag_id: body["source_codes"].pop("published")}
     original_attempt = UUID(body["attempt_id"])
     if existing:
         assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
-    dag = DAG(dag_id, schedule=None, access_control={missing_role: {"can_read"}})
+    dag = DAG(dag_id, schedule=None, access_control={role_name: resource_actions})
     body["serialized_dags"][0]["dag"]["access_control"] = LazyDeserializedDAG.from_dag(dag).data["dag"][
         "access_control"
     ]
@@ -512,13 +587,9 @@ def test_invalid_fab_access_control_rejects_and_rolls_back_publication(client, s
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": {
-            "reason": "invalid_dag",
-            "message": f"The access_control mapping for DAG '{dag_id}' includes a role named "
-            f"'{missing_role}', but that role does not exist",
-        }
-    }
+    assert response.json()["detail"]["reason"] == "invalid_dag"
+    assert message in response.json()["detail"]["message"]
+    assert dag_id in response.json()["detail"]["message"]
     session.expire_all()
     stored_dag = session.get(DagModel, dag_id)
     checkpoint = session.scalar(select(DagParseCheckpoint))
@@ -533,8 +604,29 @@ def test_invalid_fab_access_control_rejects_and_rolls_back_publication(client, s
     assert len(session.scalars(select(DagVersion)).all()) == int(existing)
     assert len(session.scalars(select(DagCode)).all()) == int(existing)
     assert session.scalar(select(ParseImportError)) is None
-    manager = security.ApplessAirflowSecurityManager(session=session)
     assert (manager.get_resource(f"DAG:{dag_id}") is not None) == existing
+    if role is not None:
+        session.delete(role)
+        session.commit()
+
+
+@conf_vars({("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"})
+@mock.patch.object(Session, "commit", autospec=True)
+def test_fab_backend_exception_is_not_reported_as_invalid_dag(commit, client, session, job, body):
+    override = pytest.importorskip("airflow.providers.fab.auth_manager.security_manager.override")
+    dag_id = f"published_{uuid7().hex}"
+    body["serialized_dags"][0]["dag"]["dag_id"] = dag_id
+    body["source_codes"] = {dag_id: body["source_codes"].pop("published")}
+    commit.side_effect = OperationalError(None, None, RuntimeError("temporary database failure"))
+
+    with pytest.raises(override.FabException) as error:
+        client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert isinstance(error.value.__cause__, OperationalError)
+    commit.assert_called_once()
+    assert session.get(DagModel, dag_id) is None
+    assert session.scalar(select(DagParseCheckpoint)) is None
+    assert session.scalar(select(ParseImportError)) is None
 
 
 @conf_vars({("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"})

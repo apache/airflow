@@ -777,18 +777,59 @@ def test_parse_exchange_recovers_a_lost_response_without_changing_attempt(make_c
     assert len(requests) == 4
 
 
-def test_parse_requests_make_one_short_attempt(make_client):
+@pytest.mark.parametrize(
+    ("request_kwargs", "expected_timeout"),
+    [
+        pytest.param({}, httpx2.Timeout(5), id="client-default"),
+        pytest.param({"timeout": 2.5}, httpx2.Timeout(2.5), id="explicit-timeout"),
+        pytest.param({"timeout": None}, httpx2.Timeout(None), id="disabled-timeout"),
+        pytest.param(
+            {"timeout": httpx2.Timeout(4, connect=2)},
+            httpx2.Timeout(4, connect=2),
+            id="per-phase-timeout",
+        ),
+    ],
+)
+def test_parse_requests_make_one_attempt_with_the_request_timeout(
+    make_client, request_kwargs, expected_timeout
+):
     client, requests = make_client(
-        make_registration_response(), make_parse_token_response(), httpx2.Response(503)
+        make_registration_response(), make_parse_token_response(), httpx2.Response(503), timeout=5
     )
     client.register_job()
 
     with client.use_parse(make_parse_context()), pytest.raises(httpx2.HTTPStatusError):
-        client.get("variables/key")
+        client.get("variables/key", **request_kwargs)
 
     assert len(requests) == 3
-    assert all(value <= 1.0 for value in requests[1].extensions["timeout"].values())
-    assert all(value <= 1.0 for value in requests[2].extensions["timeout"].values())
+    assert requests[1].extensions["timeout"] == expected_timeout.as_dict()
+    assert requests[2].extensions["timeout"] == expected_timeout.as_dict()
+
+
+@pytest.mark.parametrize(("expired", "tick"), [("parse", 60), ("job", 300)])
+def test_required_token_renewals_use_the_runtime_request_timeout(make_client, clock, expired, tick):
+    client, requests = make_client(
+        make_registration_response(),
+        make_parse_token_response(),
+        httpx2.Response(200),
+        *([make_registration_response()] if expired == "job" else []),
+        make_parse_token_response(),
+        httpx2.Response(200),
+        timeout=5,
+    )
+    client.register_job()
+
+    with client.use_parse(make_parse_context()):
+        client.get("variables/key")
+        clock.return_value = tick
+        client.get("variables/key", timeout=2.5)
+
+    assert [request.url.path for request in requests[3:]] == [
+        *(["/execution/jobs"] if expired == "job" else []),
+        "/execution/jobs/1/parse-token",
+        "/execution/variables/key",
+    ]
+    assert all(request.extensions["timeout"] == httpx2.Timeout(2.5).as_dict() for request in requests[3:])
 
 
 def test_interleaved_parses_keep_distinct_file_credentials(make_client):

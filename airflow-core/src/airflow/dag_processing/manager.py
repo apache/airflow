@@ -1067,7 +1067,7 @@ class DagFileProcessorManager(LoggingMixin):
             self._log_dropped_lang_sdk_callback(request)
             if item := self._callback_claims.pop(id(request), None):
                 self._pending_work_acks.append(("callbacks", item, True))
-                self._deferred_api_callbacks.remove(request)
+                self._remove_deferred_callback(request)
             return
         retry = self._deferred_callback_retries.get(id(request))
         if retry is not None and time.monotonic() < retry.next_attempt_time:
@@ -1078,8 +1078,6 @@ class DagFileProcessorManager(LoggingMixin):
             if id(request) in self._callback_claims:
                 self._defer_claimed_callback(request)
             return
-        self._deferred_callback_retries.pop(id(request), None)
-
         file_info = DagFileInfo(
             rel_path=Path(request.filepath),
             bundle_path=bundle.path,
@@ -1088,10 +1086,17 @@ class DagFileProcessorManager(LoggingMixin):
         )
         self._callback_to_execute[file_info].append(request)
         if id(request) in self._callback_claims:
-            self._deferred_api_callbacks.remove(request)
+            self._remove_deferred_callback(request)
         self._add_files_to_queue([file_info], mode="front")
         team_name = self._get_team_name(file_info.bundle_name)
         stats.incr("dag_processing.other_callback_count", tags=prune_dict({"team_name": team_name}))
+
+    def _remove_deferred_callback(self, request: CallbackRequest) -> None:
+        # Equal callback payloads can belong to different claims.
+        self._deferred_api_callbacks = [
+            deferred for deferred in self._deferred_api_callbacks if deferred is not request
+        ]
+        self._deferred_callback_retries.pop(id(request), None)
 
     def _defer_claimed_callback(self, request: CallbackRequest) -> None:
         """Retry preparing a claimed callback's bundle with backoff, then acknowledge it as failed."""
@@ -1108,8 +1113,7 @@ class DagFileProcessorManager(LoggingMixin):
                 timeout,
             )
             self._pending_work_acks.append(("callbacks", self._callback_claims.pop(id(request)), True))
-            self._deferred_api_callbacks.remove(request)
-            del self._deferred_callback_retries[id(request)]
+            self._remove_deferred_callback(request)
             return
         retry.attempts += 1
         retry.next_attempt_time = min(
@@ -1175,12 +1179,22 @@ class DagFileProcessorManager(LoggingMixin):
         if self.api_client is None:
             raise ValueError("Inventory publication requires an API client")
         body, found_files, source = self._pending_inventories[bundle_name]
+        if len(body.model_dump_json().encode()) > MAX_PUBLICATION_BYTES:
+            self.log.error(
+                "Bundle %s inventory exceeds the %s-byte publication limit; retaining the previous inventory",
+                bundle_name,
+                MAX_PUBLICATION_BYTES,
+            )
+            self._discard_unusable_bundle_source(bundle_name)
+            return
         try:
             receipt = self.api_client.publish_inventory(bundle_name, body)
         except httpx2.HTTPStatusError as error:
             if error.response.status_code == 409:
                 del self._pending_inventories[bundle_name]
                 self.request_bundle_refresh(bundle_name)
+            elif error.response.status_code == 413:
+                self._discard_unusable_bundle_source(bundle_name)
             elif error.response.status_code < 500:
                 raise
             self.log.warning("Inventory publication was rejected for %s", bundle_name)
@@ -1202,6 +1216,24 @@ class DagFileProcessorManager(LoggingMixin):
                 and not is_source_discovery_failed(item.relative_fileloc, failed_sources)
             ):
                 self._pending_work_acks.append(("priority", item, True))
+                del self._priority_claims[key]
+
+    def _discard_unusable_bundle_source(self, bundle_name: str) -> None:
+        self._pending_inventories.pop(bundle_name, None)
+        self._bundle_parse_sources.pop(bundle_name, None)
+        self._force_refresh_bundles.discard(bundle_name)
+        self._bundles_waiting_for_refresh.discard(bundle_name)
+        active_attempts = {
+            processor.id for file, processor in self._processors.items() if file.bundle_name == bundle_name
+        }
+        active_attempts.update(
+            pending.body.attempt_id
+            for file, pending in self._pending_publications.items()
+            if file.bundle_name == bundle_name
+        )
+        for key, claim in list(self._priority_claims.items()):
+            if claim.work.bundle_name == bundle_name and claim.attempt_id not in active_attempts:
+                self._pending_work_acks.append(("priority", claim.work, True))
                 del self._priority_claims[key]
 
     def _invalidate_bundle_parse_source(self, bundle_name: str) -> None:
@@ -1241,7 +1273,6 @@ class DagFileProcessorManager(LoggingMixin):
                 self._bundle_name_to_team_name = {bundle.name: bundle.team_name for bundle in bundles}
             except httpx2.HTTPError:
                 self.log.warning("Unable to read the bundle catalog; retrying on a later refresh")
-                catalog = {}
 
         any_refreshed = False
         active_bundles = {
@@ -1253,11 +1284,14 @@ class DagFileProcessorManager(LoggingMixin):
             # Bundle operations can block for minutes; an API-mode Job ends after job_heartbeat_timeout.
             self.heartbeat()
             with self._use_bundle(bundle.name):
+                if catalog is not None and bundle.name not in catalog:
+                    self._discard_unusable_bundle_source(bundle.name)
+                    continue
                 if bundle.name in self._pending_inventories:
                     self._publish_bundle_inventory(bundle.name, known_files)
                     any_refreshed = True
                     continue
-                if catalog is not None and bundle.name not in catalog:
+                if self.api_client is not None and catalog is None:
                     continue
                 # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
                 #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
@@ -1394,7 +1428,7 @@ class DagFileProcessorManager(LoggingMixin):
                     except ValidationError:
                         # Handled like a failed listing, so the API never sees a partial inventory.
                         self.log.exception("Bundle %s has a listing the API cannot accept", bundle.name)
-                        self._bundle_parse_sources.pop(bundle.name, None)
+                        self._discard_unusable_bundle_source(bundle.name)
                         continue
                     self._pending_inventories[bundle.name] = (
                         inventory,

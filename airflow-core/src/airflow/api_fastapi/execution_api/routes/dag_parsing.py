@@ -136,7 +136,9 @@ def publish_parse_result(
     except ValueError:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid JSON value")
     payload_hash = hashlib.sha256(payload).hexdigest()
-    source_key = hashlib.sha256(json.dumps([body.bundle_name, body.relative_fileloc]).encode()).hexdigest()
+    source_key = hashlib.sha256(
+        json.dumps(["parse", body.bundle_name, body.relative_fileloc]).encode()
+    ).hexdigest()
 
     # The Job lock serializes checkpoint creation and fences completion/replacement in the same transaction.
     job = session.scalar(select(Job).where(Job.id == job_id).with_for_update())

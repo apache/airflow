@@ -22,6 +22,7 @@ services:
     command: [dag-processor]
     user: "${AIRFLOW_UID:-50000}:0"
     environment:
+      USER: airflow
       AIRFLOW_CONFIG: /tmp/airflow.cfg
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/

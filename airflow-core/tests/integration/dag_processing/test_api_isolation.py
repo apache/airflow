@@ -29,6 +29,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
+import yaml
 from sqlalchemy import delete, select
 from sqlalchemy.engine import make_url
 from uuid6 import uuid7
@@ -135,8 +136,12 @@ def test_processor_without_database_network_or_server_credentials(
         inspected = json.loads(run_docker("inspect", current["Id"]).stdout)[0]
         api_ip = inspected["NetworkSettings"]["Networks"][network]["IPAddress"]
         worker_api_url = f"http://{api_ip}:{urlsplit(api_url).port}/execution/"
+        example = Path(__file__).resolve().parents[3] / "docs/security/dag-processor-api/docker-compose.yaml"
+        processor_environment = yaml.safe_load(example.read_text())["services"]["dag-processor"][
+            "environment"
+        ]
         environment = {
-            "USER": "airflow",
+            "USER": processor_environment["USER"],
             "AIRFLOW_USER_HOME_DIR": "/tmp/airflow-user",
             "AIRFLOW_HOME": "/tmp/isolated-airflow",
             "AIRFLOW_CONFIG": "/tmp/isolated-airflow/airflow.cfg",
@@ -172,7 +177,7 @@ def test_processor_without_database_network_or_server_credentials(
             "--security-opt",
             "no-new-privileges",
             "--user",
-            "50000:0",
+            "54321:0",
             "--read-only",
             "--tmpfs",
             "/tmp:rw,exec,size=256m",

@@ -16,14 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 from python_on_whales import DockerClient
 
 from docker_tests.constants import AIRFLOW_ROOT_PATH
 
 
-def test_isolated_processor_compose_example(tmp_path, monkeypatch):
+@pytest.mark.parametrize("uid", [50000, 54321])
+def test_isolated_processor_compose_example(tmp_path, monkeypatch, uid):
     monkeypatch.setenv("AIRFLOW_IMAGE_NAME", "processor-api:test")
     monkeypatch.setenv("DAG_PROCESSOR_API_NETWORK", "test-api-only")
+    monkeypatch.setenv("AIRFLOW_UID", str(uid))
     credentials = {
         "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": "postgresql://must-not-reach-the-processor",
         "AIRFLOW__CORE__FERNET_KEY": "must-not-reach-the-processor",
@@ -40,6 +43,8 @@ def test_isolated_processor_compose_example(tmp_path, monkeypatch):
     assert set(rendered["services"]) == {"dag-processor"}
     processor = rendered["services"]["dag-processor"]
     assert processor["command"] == ["dag-processor"]
+    assert processor["user"] == f"{uid}:0"
+    assert processor["environment"]["USER"] == "airflow"
     assert not processor.get("depends_on")
     assert not processor.get("env_file")
     assert not credentials.keys() & processor["environment"].keys()

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 from unittest import mock
 
@@ -221,6 +222,51 @@ class TestDagProcessorCommand:
             dag_processor_command._run_dag_processor_job(runner)
         assert client_class.call_args.kwargs["bundle_names"] == ["testing"]
         client_class.return_value.__exit__.assert_called_once()
+
+
+@pytest.mark.parametrize("api_mode", [False, True])
+@pytest.mark.parametrize("verbose", [False, True])
+@mock.patch("airflow.cli.commands.dag_processor_command._start_dag_processor", autospec=True)
+@mock.patch("airflow.utils.cli.cli_action_loggers.on_pre_execution", autospec=True)
+@mock.patch("airflow.utils.cli.cli_action_loggers.on_post_execution", autospec=True)
+@mock.patch("airflow.utils.db.check_and_run_migrations", autospec=True)
+@mock.patch("airflow.utils.db.synchronize_log_template", autospec=True)
+def test_verbose_logging_in_both_modes(
+    sync_log_template,
+    check_migrations,
+    on_post_execution,
+    on_pre_execution,
+    start,
+    api_mode,
+    verbose,
+    monkeypatch,
+):
+    root_logger = logging.getLogger()
+    original_level = root_logger.level
+    handler = logging.NullHandler(level=logging.INFO)
+    monkeypatch.setattr(root_logger, "handlers", [handler])
+    root_logger.setLevel(logging.INFO)
+    try:
+        with conf_vars(
+            {("dag_processor", "execution_api_token_file"): "/run/processor.jwt" if api_mode else ""}
+        ):
+            args = cli_parser.get_parser().parse_args(["dag-processor", *(["--verbose"] if verbose else [])])
+            dag_processor_command.dag_processor(args)
+
+        expected_level = logging.DEBUG if verbose else logging.INFO
+        assert root_logger.level == expected_level
+        assert handler.level == expected_level
+        start.assert_called_once_with(args)
+        if api_mode:
+            on_pre_execution.assert_not_called()
+            on_post_execution.assert_not_called()
+            check_migrations.assert_not_called()
+            sync_log_template.assert_not_called()
+        else:
+            on_pre_execution.assert_called_once()
+            on_post_execution.assert_called_once()
+    finally:
+        root_logger.setLevel(original_level)
 
 
 @mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)

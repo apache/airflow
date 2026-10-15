@@ -115,6 +115,8 @@ def dag_processor(args):
         return _run_with_action_log(_sync_bundle_catalog, args)
     if not conf.get("dag_processor", "execution_api_token_file", fallback=None):
         return _run_with_action_log(_start_dag_processor, args)
+    if getattr(args, "verbose", False):
+        cli_utils.set_verbose_logging()
     return _start_dag_processor(args)
 
 

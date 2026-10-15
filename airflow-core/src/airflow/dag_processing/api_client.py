@@ -180,7 +180,7 @@ class DagProcessorAPIClient(Client):
         finally:
             self._parse_context.reset(selected)
 
-    def _get_parse_token(self, context: DagParseContext, *, retry: bool) -> str:
+    def _get_parse_token(self, context: DagParseContext, *, retry: bool, timeout: httpx2.Timeout) -> str:
         if context.token is not None and monotonic() < context.expires_at:
             if monotonic() < context.renew_at:
                 return context.token
@@ -198,14 +198,12 @@ class DagProcessorAPIClient(Client):
                 )
             if monotonic() < context.expires_at:
                 return context.token
-        return self._exchange_parse_token(
-            context, retry=retry, timeout=None if retry else self._get_bounded_timeout()
-        )
+        return self._exchange_parse_token(context, retry=retry, timeout=timeout)
 
     def _exchange_parse_token(
         self, context: DagParseContext, *, retry: bool, timeout: httpx2.Timeout | None = None
     ) -> str:
-        self._ensure_job_token(retry=retry)
+        self._ensure_job_token(retry=retry, timeout=timeout)
         started_at = monotonic()
         response = super().request(
             "POST",
@@ -318,10 +316,11 @@ class DagProcessorAPIClient(Client):
             }
         )
 
-    def _ensure_job_token(self, *, retry: bool) -> None:
+    def _ensure_job_token(self, *, retry: bool, timeout: httpx2.Timeout | None = None) -> None:
         self._require_job_id()
+        timeout = timeout or (None if retry else self._get_bounded_timeout())
         if monotonic() >= self._expires_at:
-            self._register_job(retry=retry, timeout=None if retry else self._get_bounded_timeout())
+            self._register_job(retry=retry, timeout=timeout)
             return
         if self.restart_required or monotonic() < self._retry_renewal_at:
             return
@@ -338,7 +337,7 @@ class DagProcessorAPIClient(Client):
                 restart_required=self.restart_required,
             )
         if monotonic() >= self._expires_at:
-            self._register_job(retry=retry, timeout=None if retry else self._get_bounded_timeout())
+            self._register_job(retry=retry, timeout=timeout)
 
     def request(self, *args, retry: bool = True, **kwargs) -> httpx2.Response:
         """Use a parsing credential for subprocess requests, and the Job credential for manager work."""
@@ -346,11 +345,11 @@ class DagProcessorAPIClient(Client):
         try:
             headers = httpx2.Headers(kwargs.get("headers"))
             if context := self._parse_context.get():
-                # Subprocess requests are answered on the manager's loop, which must keep heartbeating
-                # and supervising other parses, so each one gets a single short attempt.
+                # Avoid retry sleeps on the manager loop; required credentials use the runtime request's timeout.
                 retry = False
-                kwargs["timeout"] = self._get_bounded_timeout()
-                kwargs["auth"] = BearerAuth(self._get_parse_token(context, retry=retry))
+                timeout = kwargs.get("timeout", httpx2.USE_CLIENT_DEFAULT)
+                timeout = self.timeout if timeout is httpx2.USE_CLIENT_DEFAULT else httpx2.Timeout(timeout)
+                kwargs["auth"] = BearerAuth(self._get_parse_token(context, retry=retry, timeout=timeout))
                 headers["Airflow-Dag-Bundle"] = context.request.bundle_name
             else:
                 self._ensure_job_token(retry=retry)

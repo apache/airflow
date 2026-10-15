@@ -95,6 +95,25 @@ class DagPublicationValidationError(ValueError):
     """A publication contains invalid Dag metadata."""
 
 
+def _is_dag_permission_validation_error(error: Exception) -> bool:
+    if isinstance(error, ValueError):
+        return True
+    # Supported older FAB releases use FabException for both ACL validation and backend failures.
+    # Only the validation method's own raises have the former meaning; no FAB import is needed.
+    exception_type = type(error)
+    module = "airflow.providers.fab.auth_manager.security_manager.override"
+    if exception_type.__module__ != module or exception_type.__name__ != "FabException":
+        return False
+    origin = error.__traceback__
+    while origin is not None and origin.tb_next is not None:
+        origin = origin.tb_next
+    return (
+        origin is not None
+        and origin.tb_frame.f_globals.get("__name__") == module
+        and origin.tb_frame.f_code.co_name == "_sync_dag_view_permissions"
+    )
+
+
 def is_source_discovery_failed(relative_fileloc: str | None, failed_sources: Collection[str]) -> bool:
     """Check the source and its enclosing containers without matching sibling path prefixes."""
     if relative_fileloc is None or not failed_sources:
@@ -350,8 +369,10 @@ def _serialize_dag_capturing_errors(
                 with Session(bind=connection, join_transaction_mode="create_savepoint") as perms:
                     try:
                         sync_dag_perms(dag, session=perms)
-                    except ValueError as error:
-                        raise DagPublicationValidationError(str(error)) from error
+                    except Exception as error:
+                        if _is_dag_permission_validation_error(error):
+                            raise DagPublicationValidationError(str(error)) from error
+                        raise
                     perms.commit()
             else:
                 sync_dag_perms(dag, session=session)

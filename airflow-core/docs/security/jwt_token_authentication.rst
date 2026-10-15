@@ -600,12 +600,13 @@ larger body before reading the rest of it. A rejected publication does not fall 
 to direct database writes, and does not prevent other files from being processed. Transport
 failures and server errors are retried; exhausting those retries preserves the last accepted
 result. When the API refuses a result for its content, or the result is over the limit, the
-processor publishes an import error for the file instead, so the problem is visible. As with
-any import error, the Dags recorded for that file are marked stale until a later parse
-publishes them again. An invalid ``access_control`` is refused this way, with the reason in
-the import error, only with a FAB provider release that reports it as a validation error;
-with older releases the publication fails with a server error, which the processor retries
-and then only logs. Empty imports still publish a receipt and clear the file's earlier import
+processor publishes an import error for the file instead, so the problem is visible.
+Dags whose definition path matches an import error are marked stale until a later parse
+publishes them again. For a container-level error, missing member Dags are marked stale
+only when their last successful parse is older than ``[dag_processor] stale_dag_threshold``,
+using the server's clock. Invalid ``access_control`` produces an import error with both
+current and supported older FAB releases. Permission backend failures remain retryable
+server errors. Empty imports still publish a receipt and clear the file's earlier import
 errors. A bundle refresh, including one forced by a parse request, waits for that bundle's
 active imports instead of discarding them; only initializing a bundle again invalidates and
 requeues older in-flight results from that manager.
@@ -616,9 +617,9 @@ other sources still undergo deletion reconciliation. Each inventory carries the 
 observed server revision; conflicting refreshes must
 rediscover before retrying. Imports carry the accepted revision, so an older snapshot cannot
 publish after a changed inventory. Only accepted publications establish missing Dags within
-a file. Import errors use the server's clock and stale threshold; rejected requests and
-incomplete discovery do not establish absence. The scheduler performs bounded cleanup of
-inactive or unassigned bundles, stale warnings, and expired processor Jobs in both modes.
+a file; rejected requests and incomplete discovery do not establish absence. The scheduler
+performs bounded cleanup of inactive or unassigned bundles, stale warnings, and expired
+processor Jobs in both modes.
 
 Callback and priority requests remain stored while claimed. A lost claim response or
 acknowledgment can be retried, and requests from a retired Job become available to another
@@ -645,6 +646,11 @@ token-exchange access. A bundle header cannot override its signed bundle. The to
 no later than the management credential; ending or replacing the Job invalidates it.
 The supervisor caches it for the attempt and attempts renewal at 80% of its lifetime.
 Transient early-renewal failures leave the existing token usable until expiry.
+
+Parse-time requests use ``[workers] execution_api_timeout`` (five seconds by default),
+unless the request specifies a timeout. Required parsing-token exchanges and expired
+Job-token renewals use the same timeout. Each makes one attempt without retry sleeps in
+the manager loop; optional early token renewal caps each HTTP timeout phase at one second.
 
 Heartbeats use ``[scheduler] job_heartbeat_sec`` and are also sent between bundle
 operations and before each callback's bundle is prepared. Transient API failures are
