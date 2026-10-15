@@ -1039,12 +1039,7 @@ def test_managed_agents_reports_sdk_upgrade_without_breaking_hook():
 def _async_conn(
     extra: dict, password: str | None = None, host: str | None = None, *, aextra_dejson: bool = True
 ) -> Mock:
-    """
-    A connection whose ``extra_dejson`` raises on the event loop, where its secret masking deadlocks.
-
-    With ``aextra_dejson=False`` it lacks ``Connection.aextra_dejson()``, like on Airflow < 3.3.2,
-    where ``get_async_extra_dejson`` reads ``extra_dejson`` from a worker thread instead.
-    """
+    """Connection stub whose ``extra_dejson`` fails on the event loop; ``aextra_dejson=False`` mimics Airflow < 3.3.2."""
     conn = Mock(spec=["password", "host", "extra_dejson"] + (["aextra_dejson"] if aextra_dejson else []))
     conn.password = password
     conn.host = host
