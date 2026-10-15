@@ -53,13 +53,13 @@ from airflow.api_fastapi.core_api.routes.public.log import (
     ndjson_example_response_for_get_log,
 )
 from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
-from airflow.models.callback import Callback
+from airflow.models.callback import Callback, CallbackType
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.utils.log.path_log_reader import read_logs_at_paths, validate_log_path_component
+from airflow.utils.log.path_log_reader import read_logs_at_path, validate_log_path_component
 
 deadlines_router = AirflowRouter(prefix="/dags/{dag_id}", tags=["Deadlines"])
 
@@ -261,24 +261,27 @@ def get_callback_logs(
         except ValueError:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid characters in {param_name}")
 
-    deadline_exists = session.scalar(
-        select(Deadline.id)
+    callback_type = session.scalar(
+        select(Callback.type)
+        .join(Deadline, Deadline.callback_id == Callback.id)
         .join(Deadline.dagrun)
         .where(Deadline.callback_id == callback_id, DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
         .limit(1)
     )
-    if deadline_exists is None:
+    if callback_type is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"Callback `{callback_id}` with a deadline for DagRun `{dag_run_id}` of Dag `{dag_id}` was not found",
         )
 
     # Executor callbacks log to ``executor_callbacks/...`` (see ``ExecuteCallback.make()``) and
-    # triggerer callbacks to ``triggerer_callbacks/...`` (see ``TriggerLoggingFactory``).
+    # triggerer callbacks to ``triggerer_callbacks/...`` (see ``TriggerLoggingFactory``). Read only the
+    # path for this callback's type: CloudWatch reports a missing log stream as a log line, not as no logs.
     callback_path = f"{dag_id}/{dag_run_id}/{callback_id}"
-    log_stream = read_logs_at_paths(
-        [f"executor_callbacks/{callback_path}", f"triggerer_callbacks/{callback_path}/callback.log"]
-    )
+    if callback_type == CallbackType.TRIGGERER:
+        log_stream = read_logs_at_path(f"triggerer_callbacks/{callback_path}/callback.log")
+    else:
+        log_stream = read_logs_at_path(f"executor_callbacks/{callback_path}")
 
     if accept == Mimetype.NDJSON:
         return StreamingResponse(

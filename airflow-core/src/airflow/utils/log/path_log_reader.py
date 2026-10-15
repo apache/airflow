@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 import re
-from collections.abc import Generator, Iterable
+from collections.abc import Generator
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -46,30 +46,22 @@ def validate_log_path_component(component: str) -> str:
     return component
 
 
-def read_logs_at_paths(relative_paths: Iterable[str]) -> Generator[StructuredLogMessage, None, None]:
+def read_logs_at_path(relative_path: str) -> Generator[StructuredLogMessage, None, None]:
     """
     Stream logs not tied to a TaskInstance, trying remote storage first and then the local filesystem.
 
-    Each path is relative to the log folder and is tried in order; the first one with logs wins.
-    Callers build the paths and must validate any user-supplied parts with
-    ``validate_log_path_component``. Deadline callbacks are the current user.
+    The path is relative to the log folder. Callers build it and must validate any user-supplied
+    parts with ``validate_log_path_component``. Deadline callbacks are the current user.
     """
     sources: LogSourceInfo = []
     log_streams: list[RawLogStream] = []
 
-    for relative_path in relative_paths:
-        with suppress(Exception):
-            remote_sources, remote_log_streams = _read_remote_logs(relative_path)
-            sources.extend(remote_sources)
-            log_streams.extend(remote_log_streams)
+    with suppress(Exception):
+        sources, log_streams = _read_remote_logs(relative_path)
 
-        if not log_streams:
-            local_sources, local_log_streams = _read_local_logs(relative_path)
-            sources.extend(local_sources)
-            log_streams.extend(local_log_streams)
-
-        if log_streams:
-            break
+    if not log_streams:
+        local_sources, log_streams = _read_local_logs(relative_path)
+        sources = [*sources, *local_sources]
 
     if not log_streams:
         yield StructuredLogMessage(event="No logs found.")

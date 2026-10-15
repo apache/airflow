@@ -20,14 +20,17 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import timedelta
+from unittest import mock
 from unittest.mock import Mock
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.routes.ui.deadlines import get_dag_deadline_alerts
+from airflow.logging.remote import RemoteLogStreamIO
+from airflow.models.callback import Callback, CallbackType
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
@@ -69,6 +72,12 @@ RUN_DAG2 = "run_dag2"  # belongs to DAG_ID_2, which is used for cross-dag filter
 ALERT_NAME = "SLA Breach Alert"
 
 _CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.ui.test_deadlines._noop_callback"
+
+
+_CALLBACK_LOG_FILES = [
+    (CallbackType.EXECUTOR, "executor_callbacks/{dag_id}/{run_id}/{cb_id}"),
+    (CallbackType.TRIGGERER, "triggerer_callbacks/{dag_id}/{run_id}/{cb_id}/callback.log"),
+]
 
 
 async def _noop_callback(**kwargs):
@@ -728,18 +737,24 @@ class TestGetCallbackLogs:
         deadline = session.scalar(select(Deadline).join(Deadline.dagrun).where(DagRun.run_id == RUN_MISSED))
         return str(deadline.callback_id)
 
+    @pytest.fixture
+    def set_callback_type(self, session, missed_callback_id):
+        def _set(callback_type: CallbackType) -> None:
+            session.execute(
+                update(Callback).where(Callback.id == missed_callback_id).values(type=callback_type)
+            )
+            session.commit()
+
+        return _set
+
     @pytest.mark.parametrize("accept", ["application/json", "application/x-ndjson"])
     @pytest.mark.parametrize(
-        "log_file",
-        [
-            "executor_callbacks/{dag_id}/{run_id}/{cb_id}",
-            "triggerer_callbacks/{dag_id}/{run_id}/{cb_id}/callback.log",
-        ],
-        ids=["executor", "triggerer"],
+        ("callback_type", "log_file"), _CALLBACK_LOG_FILES, ids=["executor", "triggerer"]
     )
     def test_returns_logs_from_local_storage(
-        self, test_client, missed_callback_id, tmp_path, accept, log_file
+        self, test_client, missed_callback_id, set_callback_type, tmp_path, accept, callback_type, log_file
     ):
+        set_callback_type(callback_type)
         log_path = tmp_path / log_file.format(dag_id=DAG_ID, run_id=RUN_MISSED, cb_id=missed_callback_id)
         log_path.parent.mkdir(parents=True)
         log_path.write_text("callback ran\n")
@@ -756,6 +771,35 @@ class TestGetCallbackLogs:
         else:
             entries = response.json()["content"]
         assert "callback ran" in [entry["event"] for entry in entries]
+
+    @pytest.mark.parametrize(
+        ("callback_type", "log_file"), _CALLBACK_LOG_FILES, ids=["executor", "triggerer"]
+    )
+    @mock.patch("airflow.logging_config.get_remote_task_log")
+    def test_reads_remote_log_at_the_path_for_the_callback_type(
+        self,
+        mock_get_remote_task_log,
+        test_client,
+        missed_callback_id,
+        set_callback_type,
+        callback_type,
+        log_file,
+    ):
+        # Like CloudWatch, the remote IO returns a lazy stream for any path, even one that has no log.
+        def lines(relative_path):
+            yield json.dumps({"event": f"remote log at {relative_path}"}) + "\n"
+
+        remote_io = mock.create_autospec(RemoteLogStreamIO, instance=True)
+        remote_io.stream.side_effect = lambda relative_path, ti: ([relative_path], [lines(relative_path)])
+        mock_get_remote_task_log.return_value = remote_io
+        set_callback_type(callback_type)
+
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{missed_callback_id}/logs")
+
+        assert response.status_code == 200
+        expected_path = log_file.format(dag_id=DAG_ID, run_id=RUN_MISSED, cb_id=missed_callback_id)
+        remote_io.stream.assert_called_once_with(expected_path, None)
+        assert f"remote log at {expected_path}" in [entry["event"] for entry in response.json()["content"]]
 
     @pytest.mark.parametrize(
         ("run_id", "known_callback"),
