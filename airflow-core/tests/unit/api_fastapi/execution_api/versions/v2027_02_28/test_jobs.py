@@ -48,6 +48,8 @@ class TestDagProcessorJobEndpointsVersioning:
             "/execution/jobs/0/parse-token",
             "/execution/jobs/0/parse-results",
             "/execution/jobs/0/bundles/bundle/inventory",
+            "/execution/jobs/0/requested-work/priority/claim",
+            "/execution/jobs/0/requested-work/priority/id/ack",
         ],
     )
     def test_old_version_returns_404(self, client, path):
