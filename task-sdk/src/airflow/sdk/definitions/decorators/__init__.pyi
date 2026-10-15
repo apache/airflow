@@ -29,6 +29,7 @@ from docker.types import Mount
 from kubernetes.client import models as k8s
 from pydantic_ai.capabilities import AgentCapability
 from pydantic_ai.messages import ModelMessage
+from pydantic_ai.settings import ModelSettings
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.usage import UsageLimits
 from sqlglot import exp
@@ -1153,7 +1154,8 @@ class TaskDecoratorCollection:
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
         output_type: type | UnionType = str,
-        agent_params: dict[str, Any] | None = None,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
@@ -1204,7 +1206,8 @@ class TaskDecoratorCollection:
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
         output_type: type | UnionType = str,
-        agent_params: dict[str, Any] | None = None,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
@@ -1237,7 +1240,8 @@ class TaskDecoratorCollection:
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
         output_type: type | UnionType = str,
-        agent_params: dict[str, Any] | None = None,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
@@ -1266,7 +1270,8 @@ class TaskDecoratorCollection:
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
         output_type: type | UnionType = str,
-        agent_params: dict[str, Any] | None = None,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
@@ -1298,7 +1303,8 @@ class TaskDecoratorCollection:
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = ...,
         # 'output_type' and 'serialize_output' are fixed by LLMSchemaCompareOperator.
-        agent_params: dict[str, Any] | None = None,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
         require_approval: bool = False,
         approval_timeout: timedelta | None = None,
