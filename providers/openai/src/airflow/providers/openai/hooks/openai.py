@@ -639,10 +639,9 @@ class OpenAIHook(BaseHook):
         **kwargs: Any,
     ) -> list[float] | list[list[float]]:
         """
-        Generate embeddings for the given text using the given model, asynchronously.
+        Async version of :meth:`create_embeddings`.
 
-        The async counterpart of :meth:`create_embeddings`, on a client from :meth:`aget_conn`
-        that is closed when the call returns.
+        Each call opens and closes its own client, so for many inputs pass one batched ``text`` list.
 
         :param text: The text to generate embeddings for.
         :param model: The model to use for generating embeddings.
