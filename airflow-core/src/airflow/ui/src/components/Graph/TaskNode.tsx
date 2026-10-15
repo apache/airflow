@@ -46,10 +46,12 @@ export const TaskNode = ({
     height = 0,
     isFiltered,
     isGroup,
+    isLoop,
     isMapped,
     isOpen,
     isSelected,
     label,
+    loopMaxIterations,
     operator,
     setupTeardownType,
     taskInstance,
@@ -153,9 +155,14 @@ export const TaskNode = ({
                   hasTaskInstance={hasTaskInstance}
                   id={id}
                   isGroup={isGroup}
+                  isLoop={isLoop}
                   isMapped={isMapped}
                   isOpen={isOpen}
                   label={displayLabel}
+                  latestRegionId={taskInstance?.latest_region_id}
+                  latestRegionIndex={taskInstance?.latest_region_index}
+                  loopIterationsRan={taskInstance?.loop_iterations_count}
+                  loopMaxIterations={loopMaxIterations}
                   setupTeardownType={setupTeardownType}
                 />
               </LinkOverlay>

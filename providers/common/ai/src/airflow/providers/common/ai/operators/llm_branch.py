@@ -37,7 +37,6 @@ from airflow.providers.common.ai.utils.decision import (
     review_reason,
     threshold_for,
 )
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.standard.exceptions import HITLRejectException
 from airflow.providers.standard.operators.branch import BranchMixIn
@@ -98,19 +97,19 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         output schema next to the option, so the model reads "here is an option, here is
         what it means" rather than guessing from the task ID; ``min_confidence`` on an
         option, which is experimental, is a bar for that branch alone. A downstream task
-        without an entry is
-        presented by its ID alone and takes the policy's bar. A key that is not a
-        downstream task ID fails the task before the model is called. Descriptions
-        support Jinja templating.
+        without an entry is presented by its ID alone and takes the policy's bar; some
+        decision-model servers refuse an option without a description, so describe every
+        branch when the connection is a decision model. A key that is not a downstream task
+        ID fails the task before the model is called. Descriptions support Jinja templating.
     :param allow_multiple_branches: When ``False`` (default) the LLM returns a
         single task ID. When ``True`` the LLM may return one or more task IDs.
     :param decision_policy: Experimental. A
         :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`:
         the confidence a pick needs for the operator to branch on it without a person
         (``min_confidence``) and what happens under it (``on_uncertain``: ``"review"`` or
-        ``"fail"``). Confidence comes from models that report one, such as a classifier
-        model (TypeSafe's); a text model reports none, which counts as uncertain, so
-        swapping the connection does not silently switch off a control the author set.
+        ``"fail"``). Confidence comes from models that report one, such as a decision model;
+        a text model reports none, which counts as uncertain, so swapping the connection does
+        not silently switch off a control the author set.
         A branch's own ``min_confidence`` overrides the policy's for that pick; with
         ``allow_multiple_branches`` the strictest bar among the picked branches applies.
         ``require_approval=True`` still sends every pick to a person regardless.
@@ -123,8 +122,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         every downstream task rather than only the direct ones, so a task whose
         trigger rule would still run it is skipped too. Only takes effect when a
         review is opened. Default ``False``.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
+    :param model_settings: Pydantic AI ``ModelSettings`` for the model call, such as
+        ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
 
     ``usage_limits`` is inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
@@ -160,7 +161,11 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         ignore_downstream_trigger_rules: bool = False,
         **kwargs: Any,
     ) -> None:
-        kwargs.pop("output_type", None)
+        if "output_type" in kwargs:
+            raise TypeError(
+                "LLMBranchOperator does not accept 'output_type'; it builds the output type "
+                "itself from the downstream task IDs."
+            )
         super().__init__(**kwargs)
         self.branches = self._normalize_branches(branches)
         self.allow_multiple_branches = allow_multiple_branches
@@ -226,13 +231,11 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
-        agent = self.llm_hook.create_agent(
+        agent = self._create_agent(
             output_type=output_type,
             instructions=self.system_prompt,
-            **self.agent_params,
         )
-        result = self.run_agent_sync(agent, self.prompt, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
         # The output type validated the pick, so it is a task ID (or IDs) in either encoding.
@@ -296,6 +299,8 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 context, branches, body=body, modification_schema=modification_schema, decision=record
             )
 
+        # do_branch may signal success by raising DownstreamTasksSkipped, so clear before it.
+        self._clear_usage_budget(context)
         return self.do_branch(context, branches)
 
     def execute_complete(
@@ -317,6 +322,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             self.log.info("Rejected by %s. Skipping downstream tasks...", self._describe_responder(event))
             # The record was finalized before the exception; skip() hands the skip to the supervisor
             # by raising, so nothing after it runs.
+            self._clear_usage_budget(context)
             task = context["task"]
             tasks = (
                 task.get_flat_relatives(upstream=False)
@@ -334,6 +340,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 f"{self.task_id!r}. Valid choices: {sorted(self.downstream_task_ids)}."
             )
         self._finalize_decision(context, event, decision, action=branches)
+        self._clear_usage_budget(context)
         return self.do_branch(context, branches)
 
     def _parse_reviewed_branches(self, output: str) -> str | list[str]:

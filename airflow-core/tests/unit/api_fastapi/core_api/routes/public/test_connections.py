@@ -1732,16 +1732,15 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert response.status_code == 422
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_get_status_unauthorized_user_does_not_leak_row(
-        self, test_client, unauthorized_test_client, session
-    ):
+    def test_get_status_unauthorized_user_does_not_leak_row(self, test_client, unauthorized_headers, session):
         """A user without rights on the conn_id never sees the row payload via GET-by-token."""
         post_response = test_client.post("/connections/enqueue-test", json=self.TEST_REQUEST_BODY)
         assert post_response.status_code == 202
         token = post_response.json()["token"]
 
-        response = unauthorized_test_client.get(
-            "/connections/enqueue-test", headers={"Airflow-Connection-Test-Token": token}
+        response = test_client.get(
+            "/connections/enqueue-test",
+            headers={**unauthorized_headers, "Airflow-Connection-Test-Token": token},
         )
         assert response.status_code in (401, 403, 404)
         body = (
@@ -1798,6 +1797,14 @@ class TestCreateDefaultConnections(TestConnectionEndpoint):
         assert response.status_code == 204
         assert response.content == b""
         _check_last_log(session, dag_id=None, event="create_default_connections", logical_date=None)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_respond_204_in_multi_team_mode(self, test_client, session):
+        """The route declares no body model, so the team-scoping dependency's read is the only
+        parse of the body: a correct bodyless request must not be rejected as unparsable."""
+        response = test_client.post("/connections/defaults")
+        assert response.status_code == 204
+        assert response.content == b""
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/connections/defaults")

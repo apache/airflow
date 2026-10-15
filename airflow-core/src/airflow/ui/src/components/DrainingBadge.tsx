@@ -28,11 +28,11 @@ export const DrainingBadge = (props: BadgeProps) => {
   const { t: translate } = useTranslation("dags");
 
   return (
-    <Tooltip content={translate("schedulingState.drainingBadgeTooltip")}>
+    <Tooltip content={translate("draining.badgeTooltip")}>
       <span>
         <StateBadge colorPalette="warning" data-testid="draining-badge" variant="subtle" {...props}>
           <MdHourglassTop />
-          {translate("schedulingState.draining")}
+          {translate("draining.label")}
         </StateBadge>
       </span>
     </Tooltip>

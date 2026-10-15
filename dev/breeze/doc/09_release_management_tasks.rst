@@ -176,6 +176,20 @@ automates it.
   :alt: Breeze release-management create-minor-branch
 
 
+Start beta process
+""""""""""""""""""
+
+When we prepare a beta pre-release, we automate some of the steps we need to do.
+
+.. code-block:: bash
+
+     breeze release-management start-beta-process
+
+.. image:: ./images/output_release-management_start-beta-process.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_start-beta-process.svg
+  :width: 100%
+  :alt: Breeze release-management start-beta-process
+
 Start release candidate process
 """""""""""""""""""""""""""""""
 
@@ -1087,7 +1101,9 @@ Before publishing release candidate docs to staging, reset the ``staging`` branc
 ``apache/airflow-site`` and ``apache/airflow-site-archive`` to ``main`` with the
 ``breeze workflow-run sync-staging-to-main`` command. It triggers the ``reset-staging.yml`` workflow in both
 repositories, which force-updates each ``staging`` branch to the current ``main`` commit (``main`` itself is
-not changed); in ``apache/airflow-site`` it also rebuilds the staging site.
+not changed); in ``apache/airflow-site`` it also rebuilds the staging site. Before asking for confirmation,
+the command lists the commits that exist only on each ``staging`` branch (and would be dropped), so you can
+tell whether the branch holds docs prepared for another release.
 
 .. warning::
 
@@ -1236,7 +1252,7 @@ Example usage:
 
 .. code-block:: bash
 
-     breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
+     breeze release-management constraints-version-check --python 3.11 --airflow-constraints-mode constraints-source-providers --explain-why
 
 
 -----

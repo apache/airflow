@@ -82,7 +82,7 @@ main) or when a maintainer sets the **`full tests needed`** label on the PR (bot
 
 Some DAGs require a newer Airflow than the compat targets and are dropped for older versions in
 `prepare_dags.py` (`MIN_AIRFLOW_VERSION_FOR_DAG`) — e.g. `example_openlineage_hitl_dag` needs 3.1+
-(its operators import-raise on older cores). Add an entry there when a new DAG is version-gated.
+(its operators import-raise on older Airflow versions). Add an entry there when a new DAG is version-gated.
 
 ## Layout
 

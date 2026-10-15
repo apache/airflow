@@ -92,7 +92,7 @@ private fun <I : TaskInput> bind(
   xcoms: Map<String, Any?> = emptyMap(),
 ): I {
   val (client, _) = clientWith(bindings, xcoms)
-  return ArgValues.bindInput(client, type)
+  return ArgValues.bindInput(taskContext(), client, type)
 }
 
 private fun literal(
@@ -118,6 +118,17 @@ internal class ArgValuesTest {
 
     assertEquals("emea", input.region)
     assertEquals("nightly", input.runLabel)
+    assertEquals(0.5, input.threshold)
+  }
+
+  @Test
+  @DisplayName("Should bind the Dag's wired input over the runtime bindings")
+  fun shouldPreferWiredInputOverRuntimeBindings() {
+    val (client, _) = clientWith(listOf(literal("threshold", 9.0)))
+    val context = contextWiredWith(listOf(Arg.lit(mapOf("threshold" to 0.5))))
+
+    val input = ArgValues.bindInput(context, client, ThresholdInput::class.java)
+
     assertEquals(0.5, input.threshold)
   }
 

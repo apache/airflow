@@ -20,11 +20,6 @@
 Batch processing: ``LLMBatchOperator``
 ======================================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 Use :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator` to run many
 prompts through a provider's **batch API** instead of one synchronous call per prompt:
 roughly half the per-token cost of :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`,
@@ -282,8 +277,8 @@ provider's own batch listing first.
 ``cancel_on_kill`` cancels the batch if the task is killed. In deferrable mode this runs from the
 trigger's ``on_kill``, which only **Airflow 3.3+** calls; on those versions clearing, marking
 success or marking failed on a deferred task from the UI counts as a kill, so the batch is
-cancelled and the next attempt submits a fresh one rather than re-attaching. On Airflow 3.0 to
-3.2 a killed deferred task's batch keeps running and a clear re-attaches to it. Set
+cancelled and the next attempt submits a fresh one rather than re-attaching. Before
+Airflow 3.3 a killed deferred task's batch keeps running and a clear re-attaches to it. Set
 ``cancel_on_kill=False`` if you want clear-to-re-attach on 3.3+ as well.
 
 ``cancel_on_timeout=False`` lets a batch keep running (and billing) past this task's own
@@ -314,6 +309,12 @@ storage with a reconciled manifest.
 
 Adding an adapter
 ------------------
+
+.. note::
+
+    Experimental: the adapter contract can change or be removed in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
 
 Another provider package can add a batch engine without changes here: subclass
 :class:`~airflow.providers.common.ai.batch.base.BatchAdapter`, set its ``name`` to the model

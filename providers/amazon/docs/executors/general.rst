@@ -142,9 +142,9 @@ which is running the Airflow scheduler process (and thus, the |executorName|
 executor.) Apache Airflow images with specific python versions can be
 downloaded from the Dockerhub registry, and filtering tags by the
 `python
-version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.10>`__.
-For example, the tag ``latest-python3.10`` specifies that the image will
-have python 3.10 installed.
+version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.11>`__.
+For example, the tag ``latest-python3.11`` specifies that the image will
+have python 3.11 installed.
 
 .. END BASE_IMAGE
 
@@ -363,3 +363,16 @@ The Airflow DB needs to be initialized before it can be used and a user needs to
    airflow users create --username admin --password admin --firstname <your first name> --lastname <your last name> --email <your email> --role Admin
 
 .. END INIT_DB
+
+.. BEGIN TASK_INSTANCE_IDENTITY
+
+Task-instance identity
+----------------------
+
+On Airflow versions with UUID executor-key support, ECS, Batch and Lambda retain the submitted
+attempt's UUID through dispatch, adoption and completion. On older supported Airflow versions
+they retain coordinate keys. This does not raise the provider's minimum Airflow version.
+Existing remote work is adopted using its persisted external identifier; Lambda also
+accepts the older serialized coordinate transport when it matches the adopted attempt.
+
+.. END TASK_INSTANCE_IDENTITY

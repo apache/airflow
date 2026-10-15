@@ -20,6 +20,7 @@ import logging
 from decimal import Decimal
 from unittest.mock import MagicMock
 
+import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
@@ -33,13 +34,11 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.utils.logging import (
     _log_output_debug,
     format_usage_for_xcom,
     log_run_summary,
     log_run_usage,
-    wrap_toolsets_for_logging,
 )
 
 
@@ -59,7 +58,9 @@ def _make_mock_result(model_name="gpt-5", tool_names=None, usage_kwargs=None, co
         "total_tokens": 3359,
     }
     result = MagicMock()
-    result.usage = MagicMock(cost=cost, **usage_kwargs)
+    result.usage = MagicMock(
+        spec=RunUsage, cost=cost, **{"cache_read_tokens": 0, "cache_write_tokens": 0, **usage_kwargs}
+    )
     result.response = MagicMock(model_name=model_name)
 
     messages: list = []
@@ -147,6 +148,46 @@ class TestLogRunSummary:
         records = [r for r in caplog.records if r.name == "test.log_run_summary"]
         assert not any("LLM run cost" in r.message for r in records)
 
+    def test_no_cache_tokens_skips_cache_line(self, caplog):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result()
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert not any("prompt cache" in r.message for r in records)
+
+    @pytest.mark.parametrize(
+        ("cache_read_tokens", "cache_write_tokens"),
+        [
+            pytest.param(2900, 0, id="read-only"),
+            pytest.param(0, 3000, id="write-only"),
+            pytest.param(2900, 3000, id="read-and-write"),
+        ],
+    )
+    def test_cache_tokens_logged_after_the_usage_line(self, caplog, cache_read_tokens, cache_write_tokens):
+        logger = logging.getLogger("test.log_run_summary")
+        result = _make_mock_result(
+            usage_kwargs={
+                "requests": 2,
+                "tool_calls": 1,
+                "input_tokens": 6000,
+                "output_tokens": 40,
+                "total_tokens": 6040,
+                "cache_read_tokens": cache_read_tokens,
+                "cache_write_tokens": cache_write_tokens,
+            }
+        )
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_summary"):
+            log_run_summary(logger, result)
+
+        records = [r for r in caplog.records if r.name == "test.log_run_summary"]
+        assert records[1].message == (
+            f"LLM prompt cache: cache_read_tokens={cache_read_tokens}, cache_write_tokens={cache_write_tokens}"
+        )
+
     def test_cost_set_logs_cost_line_with_value(self, caplog):
         logger = logging.getLogger("test.log_run_summary")
         result = _make_mock_result(cost=Decimal("0.0123"))
@@ -199,6 +240,16 @@ class TestLogRunSummaryUsageOverride:
 
 
 class TestLogRunUsage:
+    def test_logs_cache_tokens_on_the_failure_path(self, caplog):
+        logger = logging.getLogger("test.log_run_usage")
+        usage = RunUsage(requests=1, input_tokens=5000, cache_write_tokens=4000)
+
+        with caplog.at_level(logging.INFO, logger="test.log_run_usage"):
+            log_run_usage(logger, usage, outcome="failed")
+
+        records = [r for r in caplog.records if r.name == "test.log_run_usage"]
+        assert records[1].message == "LLM prompt cache: cache_read_tokens=0, cache_write_tokens=4000"
+
     def test_logs_usage_fields_and_outcome(self):
         logger = MagicMock(spec=logging.Logger)
         usage = RunUsage(requests=2, tool_calls=1, input_tokens=10, output_tokens=5)
@@ -228,7 +279,15 @@ class TestLogRunUsage:
 
 class TestFormatUsageForXcom:
     def test_builds_expected_dict_shape(self):
-        usage = RunUsage(requests=3, tool_calls=1, input_tokens=10, output_tokens=5, cost=Decimal("0.25"))
+        usage = RunUsage(
+            requests=3,
+            tool_calls=1,
+            input_tokens=10,
+            output_tokens=5,
+            cache_read_tokens=4,
+            cache_write_tokens=2,
+            cost=Decimal("0.25"),
+        )
 
         assert format_usage_for_xcom(usage) == {
             "requests": 3,
@@ -236,6 +295,8 @@ class TestFormatUsageForXcom:
             "output_tokens": 5,
             "total_tokens": 15,
             "tool_calls": 1,
+            "cache_read_tokens": 4,
+            "cache_write_tokens": 2,
             "cost": "0.25",
         }
 
@@ -279,18 +340,3 @@ class TestLogOutputDebug:
 
         debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
         assert len(debug_records) == 0
-
-
-class TestWrapToolsetsForLogging:
-    def test_wraps_each_toolset(self):
-        ts_a = MagicMock()
-        ts_b = MagicMock()
-        logger = logging.getLogger("test.wrap")
-
-        wrapped = wrap_toolsets_for_logging([ts_a, ts_b], logger)
-
-        assert len(wrapped) == 2
-        assert all(isinstance(w, LoggingToolset) for w in wrapped)
-        assert wrapped[0].wrapped is ts_a
-        assert wrapped[1].wrapped is ts_b
-        assert wrapped[0].logger is logger

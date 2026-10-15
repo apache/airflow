@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # ///
 """
 Watch CI job durations on ``main`` and warn when they creep above the recent trend.
@@ -75,7 +75,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypedDict
 
@@ -725,7 +725,7 @@ def main() -> None:
     runs = get_recent_runs(repo, workflow, branch, max_runs, only_successful, event)
     # A degraded Actions API can return an old page of runs, and without this check its
     # weeks-old durations were reported as "latest" and raised a false alert.
-    newest_age_days = compute_run_age_days(runs[0], datetime.now(timezone.utc)) if runs else None
+    newest_age_days = compute_run_age_days(runs[0], datetime.now(UTC)) if runs else None
     if newest_age_days is not None and newest_age_days > max_latest_run_age_days:
         print(
             f"::warning::The newest usable run (#{runs[0]['run_number']}) is "

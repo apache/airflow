@@ -17,8 +17,11 @@
 from __future__ import annotations
 
 import builtins
+import io
+import re
 import threading
 import time
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest import mock
 
@@ -26,9 +29,13 @@ import pytest
 
 pytest.importorskip("opensandbox")
 
+import httpx
+from opensandbox.config import ConnectionConfigSync
+from opensandbox.constants import DEFAULT_EGRESS_PORT
 from opensandbox.exceptions import SandboxApiException
-from opensandbox.models.sandboxes import NetworkPolicy, NetworkRule
+from opensandbox.models.sandboxes import NetworkPolicy, NetworkRule, SandboxEndpoint
 
+from airflow.providers.common.ai.sandbox import base
 from airflow.providers.common.ai.sandbox.base import (
     SandboxError,
     SandboxFileTooLargeError,
@@ -90,12 +97,18 @@ def _deny_policy(*targets: str) -> NetworkPolicy:
 
 
 def _created(policy: NetworkPolicy | Exception | None = None):
-    sandbox = mock.MagicMock(spec=["id", "get_egress_policy", "destroy"])
+    sandbox = mock.MagicMock(spec=["id", "get_egress_policy", "destroy", "connection_config", "get_endpoint"])
     sandbox.id = "created"
     if isinstance(policy, Exception):
         sandbox.get_egress_policy.side_effect = policy
     else:
         sandbox.get_egress_policy.return_value = policy
+    sandbox.connection_config = ConnectionConfigSync(
+        domain="sandbox.example", api_key="key", use_server_proxy=True, request_timeout=timedelta(seconds=12)
+    )
+    sandbox.get_endpoint.return_value = SandboxEndpoint(
+        endpoint="egress.example:18080", headers={"X-Route": "created"}
+    )
     return sandbox
 
 
@@ -205,6 +218,29 @@ class TestConnection:
 
 
 class TestCreate:
+    @pytest.fixture(autouse=True)
+    def egress_sidecar(self):
+        """Answer the egress sidecar's ``GET /policy``, reporting ``enforcement_mode`` (dns+nft unless a test sets it)."""
+        sidecar = SimpleNamespace(
+            enforcement_mode="dns+nft", status_code=200, transient_status=None, requests=[]
+        )
+
+        def send(_transport, request):
+            sidecar.requests.append(request)
+            if isinstance(sidecar.enforcement_mode, Exception):
+                raise sidecar.enforcement_mode
+            if sidecar.transient_status is not None and len(sidecar.requests) == 1:
+                return httpx.Response(sidecar.transient_status, text="retry", request=request)
+            if sidecar.status_code != 200:
+                return httpx.Response(sidecar.status_code, text="upstream failed", request=request)
+            body = {"status": "ok", "mode": "deny_all", "policy": {"defaultAction": "deny"}}
+            if sidecar.enforcement_mode is not None:
+                body["enforcementMode"] = sidecar.enforcement_mode
+            return httpx.Response(200, json=body, request=request)
+
+        with mock.patch.object(httpx.HTTPTransport, "handle_request", autospec=True, side_effect=send):
+            yield sidecar
+
     @mock.patch("opensandbox.SandboxSync.create", autospec=True)
     def test_refuses_an_owner_because_nothing_could_attach(self, create):
         # The ownership rules ride on per-sandbox metadata the attaching side reads back,
@@ -291,11 +327,13 @@ class TestCreate:
     def test_cidr_allowlist_is_refused_fail_closed(self):
         backend = OpenSandboxBackend()
 
-        with pytest.raises(SandboxTerminalError, match="allow_egress_to_cidrs"):
+        with pytest.raises(
+            SandboxTerminalError, match="allow_egress_to_cidrs, which this backend does not support yet"
+        ):
             backend.create(spec=SandboxSpec(allow_egress_to_cidrs=["203.0.113.0/24"]))
 
     @mock.patch("opensandbox.SandboxSync.create", autospec=True)
-    def test_enforced_deny_policy_is_read_back_before_the_sandbox_is_handed_out(self, create):
+    def test_enforced_deny_policy_is_read_back_before_the_sandbox_is_handed_out(self, create, egress_sidecar):
         create.return_value = _created(_deny_policy("pypi.org"))
         backend = OpenSandboxBackend()
         backend._connection_config = mock.sentinel.connection_config
@@ -303,7 +341,71 @@ class TestCreate:
         assert backend.create(spec=SandboxSpec(allow_egress_to=["pypi.org"])) == "created"
 
         create.return_value.get_egress_policy.assert_called_once_with()
+        create.return_value.get_endpoint.assert_called_once_with(DEFAULT_EGRESS_PORT)
+        [request] = egress_sidecar.requests
+        assert (request.method, str(request.url)) == ("GET", "http://egress.example:18080/policy")
+        assert request.headers["X-Route"] == "created"
+        assert request.headers["OPEN-SANDBOX-API-KEY"] == "key"
+        assert request.extensions["timeout"]["read"] == 12
         create.return_value.destroy.assert_not_called()
+
+    @pytest.mark.parametrize("transient_status", [None, 502, 503])
+    @mock.patch("opensandbox.SandboxSync.create", autospec=True)
+    def test_policy_readback_uses_owned_transport_with_proxy_environment(
+        self, create, transient_status, egress_sidecar, monkeypatch
+    ):
+        monkeypatch.setenv("HTTP_PROXY", "http://proxy.invalid:3128")
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:3128")
+        monkeypatch.setenv("NO_PROXY", "")
+        egress_sidecar.transient_status = transient_status
+        sandbox = _created(_deny_policy())
+        sandbox.connection_config = sandbox.connection_config.with_transport_if_missing()
+        shared_transport = sandbox.connection_config.transport
+        create.return_value = sandbox
+        backend = OpenSandboxBackend()
+        backend._connection_config = mock.sentinel.connection_config
+        transport_init = httpx.HTTPTransport.__init__
+        with (
+            mock.patch.object(
+                httpx.HTTPTransport, "__init__", autospec=True, side_effect=transport_init
+            ) as init,
+            mock.patch.object(
+                type(shared_transport), "close", autospec=True, side_effect=type(shared_transport).close
+            ) as close,
+        ):
+            assert backend.create(spec=SandboxSpec()) == "created"
+        assert len(egress_sidecar.requests) == (1 if transient_status is None else 2)
+        assert all(call.kwargs.get("proxy") is None for call in init.call_args_list)
+        close.assert_called_once()
+        assert close.call_args.args[0] is not shared_transport
+        shared_transport.close()
+        sandbox.destroy.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("sidecar", "reason"),
+        [
+            ({"enforcement_mode": "dns"}, r"enforces it in 'dns' mode.*\[egress\] mode = \"dns\+nft\""),
+            ({"enforcement_mode": None}, "does not report an enforcement mode.*Upgrade.*v1.0.1 or later"),
+            ({"enforcement_mode": httpx.ConnectError("refused")}, r"could not be read back \(ConnectError\)"),
+            ({"status_code": 500}, r"could not be read back \(SandboxApiException, HTTP 500\)"),
+        ],
+        ids=["dns-only", "unreported", "unreachable-sidecar", "sidecar-http-error"],
+    )
+    @mock.patch("opensandbox.SandboxSync.create", autospec=True)
+    def test_policy_not_enforced_at_the_address_layer_destroys_the_sandbox_and_is_terminal(
+        self, create, sidecar, reason, egress_sidecar
+    ):
+        vars(egress_sidecar).update(sidecar)
+        create.return_value = _created(_deny_policy())
+        backend = OpenSandboxBackend()
+        backend._connection_config = mock.sentinel.connection_config
+
+        with pytest.raises(SandboxTerminalError, match="did not enforce the requested network policy") as err:
+            backend.create(spec=SandboxSpec())
+
+        assert re.search(reason, str(err.value))
+        create.return_value.destroy.assert_called_once_with()
+        assert backend._sandboxes == {}
 
     @pytest.mark.parametrize(
         "enforced",
@@ -668,6 +770,141 @@ class TestFileOperations:
 
         with pytest.raises(ValueError, match="max_bytes"):
             backend.read_file("box-1", "/w/a", max_bytes=0)
+
+
+def _stream(*chunks: bytes) -> mock.MagicMock:
+    stream = mock.MagicMock(spec=["__iter__", "close"])
+    stream.__iter__.return_value = iter(chunks)
+    return stream
+
+
+def _entry(entry_type: str | None, size: int) -> SimpleNamespace:
+    return SimpleNamespace(entry_type=entry_type, size=size)
+
+
+class TestExportFile:
+    def test_streams_the_ranged_download_into_the_destination(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        stream = _stream(b"he", b"llo")
+        sandbox.files.read_bytes_stream.return_value = stream
+        dest = io.BytesIO()
+
+        written = backend.export_file("box-1", "/w/out.bin", dest, max_bytes=100)
+
+        assert written == 5
+        assert dest.getvalue() == b"hello"
+        sandbox.files.read_bytes_stream.assert_called_once_with(
+            "/w/out.bin", chunk_size=101, range_header="bytes=0-100"
+        )
+        stream.close.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("entry_type", "match"),
+        [("directory", "is a directory"), ("other", "not a regular file")],
+    )
+    def test_refuses_what_is_not_a_regular_file_without_downloading(self, entry_type, match):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/x": _entry(entry_type, 0)}
+
+        with pytest.raises(SandboxError, match=match):
+            backend.export_file("box-1", "/w/x", io.BytesIO(), max_bytes=100)
+
+        sandbox.files.read_bytes_stream.assert_not_called()
+
+    def test_a_file_over_the_budget_is_refused_without_downloading(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/big": _entry("file", 1_000)}
+
+        with pytest.raises(SandboxFileTooLargeError) as error:
+            backend.export_file("box-1", "/w/big", io.BytesIO(), max_bytes=100)
+
+        assert error.value.size_bytes == 1_000
+        sandbox.files.read_bytes_stream.assert_not_called()
+
+    def test_a_missing_file_is_an_error_when_the_sandbox_exists(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.side_effect = _api_error(404)
+
+        with pytest.raises(SandboxError, match="does not exist"):
+            backend.export_file("box-1", "/w/missing", io.BytesIO(), max_bytes=100)
+
+        sandbox.get_info.assert_called_once()
+
+    def test_an_empty_lookup_means_the_file_does_not_exist(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {}
+
+        with pytest.raises(SandboxError, match="does not exist"):
+            backend.export_file("box-1", "/w/missing", io.BytesIO(), max_bytes=100)
+
+    def test_a_lookup_that_fails_on_the_server_is_terminal(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.side_effect = _api_error(500)
+
+        with pytest.raises(SandboxTerminalError, match="inspect a sandbox file"):
+            backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=100)
+
+    def test_a_relative_path_uses_the_entry_the_server_keyed_by_absolute_path(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/workspace/out.bin": _entry("file", 5)}
+        sandbox.files.read_bytes_stream.return_value = _stream(b"hello")
+        dest = io.BytesIO()
+
+        backend.export_file("box-1", "out.bin", dest, max_bytes=100)
+
+        assert dest.getvalue() == b"hello"
+
+    def test_a_file_that_grows_past_the_budget_mid_copy_is_refused(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        sandbox.files.read_bytes_stream.return_value = _stream(b"x" * 8, b"x" * 8)
+
+        with pytest.raises(SandboxFileTooLargeError):
+            backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=10)
+
+    def test_a_download_slower_than_its_deadline_is_ended(self, monkeypatch):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        stream = _stream(b"he", b"llo")
+        sandbox.files.read_bytes_stream.return_value = stream
+        monkeypatch.setattr(base, "_export_allowance", lambda max_bytes: 0.0)
+
+        with pytest.raises(SandboxError, match="took longer than"):
+            backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=100)
+
+        stream.close.assert_called_once()
+
+    def test_a_file_that_changed_size_is_an_error(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        sandbox.files.read_bytes_stream.return_value = _stream(b"hello", b"!")
+
+        with pytest.raises(SandboxError, match="changed while it was exported"):
+            backend.export_file("box-1", "/w/out.bin", io.BytesIO(), max_bytes=100)
+
+    def test_a_symlink_is_exported_without_comparing_the_links_own_size(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/link": _entry("symlink", 9)}
+        sandbox.files.read_bytes_stream.return_value = _stream(b"target contents")
+        dest = io.BytesIO()
+
+        backend.export_file("box-1", "/w/link", dest, max_bytes=100)
+
+        assert dest.getvalue() == b"target contents"
+
+    def test_a_destination_failure_is_not_reported_as_a_sandbox_error(self):
+        backend, sandbox = _backend_with_sandbox()
+        sandbox.files.get_file_info.return_value = {"/w/out.bin": _entry("file", 5)}
+        stream = _stream(b"hello")
+        sandbox.files.read_bytes_stream.return_value = stream
+        dest = mock.MagicMock(spec=["write"])
+        dest.write.side_effect = OSError("No space left on device")
+
+        with pytest.raises(OSError, match="No space left"):
+            backend.export_file("box-1", "/w/out.bin", dest, max_bytes=100)
+
+        stream.close.assert_called_once()
 
 
 class TestGetSandbox:

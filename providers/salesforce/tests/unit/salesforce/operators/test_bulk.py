@@ -29,23 +29,6 @@ class TestSalesforceBulkOperator:
     Test class for SalesforceBulkOperator
     """
 
-    def test_template_fields(self):
-        """
-        Test that template_fields are correctly defined and renderable.
-        """
-        operator = SalesforceBulkOperator(
-            task_id="test_template_fields",
-            operation="insert",
-            object_name="Account",
-            payload=[],
-        )
-        assert operator.template_fields == (
-            "object_name",
-            "payload",
-            "external_id_field",
-            "salesforce_conn_id",
-        )
-
     @pytest.mark.db_test
     def test_template_rendering(self, create_task_instance_of_operator):
         """

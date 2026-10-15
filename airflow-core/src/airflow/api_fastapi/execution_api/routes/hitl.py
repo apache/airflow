@@ -24,7 +24,8 @@ from fastapi import HTTPException, Security, status
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailRequest,
     HITLDetailResponse,
@@ -119,7 +120,15 @@ def _check_hitl_detail_exists(hitl_detail_model: HITLDetail | None) -> HITLDetai
     return hitl_detail_model
 
 
-@router.patch("/{task_instance_id}")
+@router.patch(
+    "/{task_instance_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "HITLDetail not found"),
+            (status.HTTP_409_CONFLICT, "A response has already been received for this HITLDetail"),
+        ]
+    ),
+)
 def update_hitl_detail(
     task_instance_id: UUID,
     payload: UpdateHITLDetailPayload,
@@ -147,14 +156,17 @@ def update_hitl_detail(
 @router.get(
     "/{task_instance_id}",
     status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([(status.HTTP_404_NOT_FOUND, "HITLDetail not found")]),
 )
-def get_hitl_detail(
+async def get_hitl_detail(
     task_instance_id: UUID,
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> HITLDetailResponse:
     """Get Human-in-the-loop detail for a specific Task Instance."""
-    hitl_detail_model_result = session.execute(
-        select(HITLDetail).where(HITLDetail.ti_id == task_instance_id),
+    hitl_detail_model_result = (
+        await session.execute(
+            select(HITLDetail).where(HITLDetail.ti_id == task_instance_id),
+        )
     ).scalar()
     hitl_detail_model = _check_hitl_detail_exists(hitl_detail_model_result)
     return HITLDetailResponse.from_hitl_detail_orm(hitl_detail_model)

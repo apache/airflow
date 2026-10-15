@@ -48,6 +48,8 @@ class WorkerCollectionResponse(BaseModel):
 class Job(EdgeJobBase):
     """Details of the job sent to the scheduler."""
 
+    task_instance_id: str = Field(default="", description="Task-instance UUID, or empty for a legacy job.")
+
     state: Annotated[TaskInstanceState, Field(description="State of the job from the view of the executor.")]
     queue: Annotated[
         str,

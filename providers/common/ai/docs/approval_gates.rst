@@ -31,8 +31,31 @@ HITL interface.  Optionally allow the reviewer to edit the output before
 approving with ``allow_modifications=True``, and set a deadline with
 ``approval_timeout``.
 
+On ``LLMOperator``, ``LLMFileAnalysisOperator`` and ``LLMSchemaCompareOperator``, the edited text is
+converted back into ``output_type`` when the task resumes.  Write it as JSON for the
+type, such as ``31`` for an ``int``, ``["a", "b"]`` for a ``list[str]`` or an object for
+a Pydantic model.  If the edit field shows ``[object Object]`` for an object output,
+replace its content with the JSON shown in the review body.  Types that pydantic builds
+from a string, such as a ``Literal``, an ``Enum`` or ``str | None``, also accept the bare text.  If the text does not validate,
+the task fails with
+:class:`~airflow.providers.common.ai.exceptions.ReviewedOutputValidationError`
+naming the type and the (truncated) text received, rather than passing a value of the wrong
+type downstream.  Airflow retries it like any other failure, so with ``retries`` set the
+next try runs the model again and the rejected edit is not carried over.
+
+With ``output_type=str`` any edit is accepted as is, and so is an edit to a union with a ``str``
+member, such as ``Model | str``, which keeps the text when it does not validate as the model.
+An output function, a pydantic-ai
+output marker such as ``ToolOutput``, or a type pydantic has no schema for, is returned as
+the text unchanged.  An approval without an
+edit whose output cannot be converted back (for example a custom serializer) also returns
+the text with a warning, instead of failing the task.  Computed fields are left out of the
+text.  A model with a serializer that cannot be reversed, or a required field excluded from
+the dump, shows text that does not validate as shown, so write an edit in the form the model
+accepts.
+
 Human-in-the-loop review needs Airflow 3.1+, whether ``require_approval`` or a
-``decision_policy`` with ``on_uncertain="review"`` opens it. On an older core the
+``decision_policy`` with ``on_uncertain="review"`` opens it. On an older Airflow version the
 operator raises ``AirflowOptionalProviderFeatureException`` when it is constructed, so the Dag file
 fails to import, and with it every Dag defined in that file. A dynamically mapped
 task (``.expand()``) is only constructed when it runs, so there the same error
@@ -82,6 +105,8 @@ user row id as a string, not the username.  This needs Airflow 3.1+.  On Airflow
 clearing the task re-runs it against the existing review row, so a changed
 list does not take effect.
 
+.. _approval-gates:uncertain:
+
 Reviewing uncertain output
 --------------------------
 
@@ -90,8 +115,8 @@ Reviewing uncertain output
     Experimental: this can change or be removed in a minor release of this provider.
     See :ref:`howto/stability`.
 
-A classifier model such as TypeSafe's reports a confidence for every field
-of a structured output, in ``provider_details`` on the model response. It is a
+A decision model reports a confidence for every field of a structured output, in
+``provider_details`` on the model response. It is a
 summary of how concentrated the model's probability distribution was, not the
 probability that the field is right. ``decision_policy=DecisionPolicy(min_confidence=0.7)``
 (import ``DecisionPolicy`` from ``airflow.providers.common.ai.operators.llm``)

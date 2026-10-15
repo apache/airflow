@@ -278,3 +278,12 @@ When monitoring the Kubernetes cluster's watcher thread, each event has a monoto
 Every time the executor reads a ``resourceVersion``, the executor stores the latest value in the backend database.
 Because the resourceVersion is stored, the scheduler can restart and continue reading the watcher stream from where it left off.
 Since the tasks are run independently of the executor and report results directly to the database, scheduler failures will not lead to task failures or re-runs.
+
+Task-instance identity
+----------------------
+
+On Airflow versions with UUID executor-key support, task pods carry a ``task_instance_id``
+annotation. Watcher events, adoption and revocation use the submitted attempt's UUID.
+Pre-upgrade task pods can be adopted when their original serialized workload contains
+that UUID. Pods without a recoverable attempt identity are not adopted by a UUID-capable
+executor. Older supported Airflow versions retain coordinate keys and their existing adoption behavior.

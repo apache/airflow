@@ -631,6 +631,14 @@ class SnowflakeHook(DbApiHook):
             conn_config["client_id"] = conn.login
             conn_config["client_secret"] = conn.password
 
+    def _add_programmatic_access_token_config(self, conn_config: dict[str, Any]) -> None:
+        # The connector's PAT authenticator reads only ``token``; REST hooks read ``password``, so keep both.
+        if conn_config.get("authenticator") != "programmatic_access_token":
+            return
+
+        if conn_config.get("password"):
+            conn_config["token"] = conn_config["password"]
+
     def _add_network_config(
         self,
         conn_config: dict[str, Any],
@@ -693,6 +701,8 @@ class SnowflakeHook(DbApiHook):
             conn,
             extra_dict,
         )
+
+        self._add_programmatic_access_token_config(conn_config)
 
         self._add_network_config(
             conn_config,
@@ -1109,7 +1119,8 @@ class SnowflakeHook(DbApiHook):
 
         self.log.debug("openlineage: getting connection to get database info")
         connection = self.get_connection(self.get_conn_id())
-        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+        database_info = self.get_openlineage_database_info(connection)
+        namespace = SQLParser.create_namespace(database_info)
 
         self.log.info("Separate OpenLineage events will be emitted for each query_id.")
         emit_openlineage_events_for_snowflake_queries(
@@ -1118,6 +1129,8 @@ class SnowflakeHook(DbApiHook):
             query_ids=self.query_ids,
             query_for_extra_metadata=True,
             query_source_namespace=namespace,
+            default_database=database_info.database,
+            default_schema=self.get_openlineage_default_schema(),
         )
 
         if len(self.query_ids) == 1:

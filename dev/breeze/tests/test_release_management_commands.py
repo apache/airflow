@@ -220,7 +220,7 @@ def test_ensure_default_python_for_reproducible_client_passes_on_default(monkeyp
     _ensure_default_python_for_reproducible_client()
 
 
-@pytest.mark.parametrize("wrong_version", ["3.11", "3.13", "3.9"])
+@pytest.mark.parametrize("wrong_version", ["3.12", "3.13", "3.9"])
 def test_ensure_default_python_for_reproducible_client_exits_on_mismatch(monkeypatch, wrong_version):
     assert wrong_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     monkeypatch.setattr(

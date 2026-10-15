@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 
 def build_xoauth2_string(username: str, token: str) -> str:
-    """Local fallback for older Airflow cores (≤2.11)."""
+    """Local fallback for older Airflow versions (≤2.11)."""
     return f"user={username}\x01auth=Bearer {token}\x01\x01"
 
 
@@ -82,11 +82,17 @@ class SmtpHook(BaseHook):
         return await self.aget_conn()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._smtp_client.close()
+        try:
+            self._smtp_client.close()
+        finally:
+            self._smtp_client = None
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._smtp_client:
-            await self._smtp_client.quit()
+            try:
+                await self._smtp_client.quit()
+            finally:
+                self._smtp_client = None
 
     def _setup_oauth2(self) -> tuple[str, str]:
         """

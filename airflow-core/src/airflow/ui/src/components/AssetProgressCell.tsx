@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Button, HStack, VStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 import { usePartitionedDagRunServiceGetPendingPartitionedDagRun } from "openapi/queries";
@@ -27,15 +28,29 @@ import { Popover, RouterLink } from "src/system-components";
 import { AssetExpression } from "src/components/AssetExpression";
 import { RollupKeyChecklist } from "src/components/RollupKeyChecklist";
 
+import { formatNumber } from "src/utils";
+
 type Props = {
   readonly dagId: string;
+  readonly partitionedDagRunId: number;
   readonly partitionKey: string;
   readonly totalReceived: number;
   readonly totalRequired: number;
 };
 
-export const AssetProgressCell = ({ dagId, partitionKey, totalReceived, totalRequired }: Props) => {
-  const { data, isLoading } = usePartitionedDagRunServiceGetPendingPartitionedDagRun({ dagId, partitionKey });
+export const AssetProgressCell = ({
+  dagId,
+  partitionedDagRunId,
+  partitionKey,
+  totalReceived,
+  totalRequired,
+}: Props) => {
+  const { i18n } = useTranslation();
+  const { data, isLoading } = usePartitionedDagRunServiceGetPendingPartitionedDagRun({
+    dagId,
+    partitionedDagRunId,
+    partitionKey,
+  });
 
   const assetExpression = data?.asset_expression ?? undefined;
   const assets: Array<PartitionedDagRunAssetResponse> = data?.assets ?? [];
@@ -60,7 +75,7 @@ export const AssetProgressCell = ({ dagId, partitionKey, totalReceived, totalReq
       <Popover.Trigger asChild>
         <Button loading={isLoading} paddingInline={0} variant="ghost">
           <FiDatabase style={{ display: "inline" }} />
-          {`${String(totalReceived)} / ${String(totalRequired)}`}
+          {`${formatNumber(totalReceived, i18n.language)} / ${formatNumber(totalRequired, i18n.language)}`}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">

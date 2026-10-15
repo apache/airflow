@@ -213,7 +213,7 @@
   },
   "pause": "暂停",
   "pendingDagRun_one": "1 个待执行 Dag 执行",
-  "pendingDagRun_other": "{{count}} 个待执行 Dag 执行",
+  "pendingDagRun_other": "{{count, number}} 个待执行 Dag 执行",
   "presetFilters": {
     "deleteTitle": "删除预设筛选条件",
     "deleteWarning": "预设筛选条件仅保存在此浏览器中。",
@@ -458,7 +458,7 @@
   "taskInstance_other": "任务实例",
   "teams": {
     "more_one": "及其他 1 个团队",
-    "more_other": "及其他 {{count}} 个团队",
+    "more_other": "及其他 {{count, number}} 个团队",
     "none": "无团队",
     "title": "团队"
   },
@@ -484,21 +484,21 @@
     "bulkClear": {
       "error": "批量清除 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功清除 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功清除 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量清除 {{resourceName}} 请求"
       }
     },
     "bulkDelete": {
       "error": "批量删除 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功删除 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功删除 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量删除 {{resourceName}} 请求"
       }
     },
     "bulkUpdate": {
       "error": "批量更新 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功更新 {{count}} 个 {{resourceName}}。键：{{keys}}",
+        "description": "已成功更新 {{count, number}} 个 {{resourceName}}。键：{{keys}}",
         "title": "已提交批量更新 {{resourceName}} 请求"
       }
     },
@@ -519,7 +519,7 @@
     "import": {
       "error": "导入 {{resourceName}} 请求失败",
       "success": {
-        "description": "已成功导入 {{count}} 个 {{resourceName}}。",
+        "description": "已成功导入 {{count, number}} 个 {{resourceName}}。",
         "title": "已提交导入 {{resourceName}} 请求"
       }
     },

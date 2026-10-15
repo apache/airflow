@@ -44,7 +44,7 @@ def _by_name(tools) -> dict:
     return {tool.name: tool for tool in tools}
 
 
-def _scripted(*outcomes, max_retries: int = 1):
+def _scripted(*outcomes, max_retries: int | None = 1):
     """A toolset with one tool, ``step``, that returns or raises each outcome in turn."""
     remaining = iter(outcomes)
 
@@ -208,6 +208,37 @@ class TestRetryBudget:
         with pytest.raises(ToolCallError, match="kept failing"):
             asyncio.run(turn())
 
+    def test_a_toolset_without_its_own_budget_gets_one_correction(self):
+        """With no agent to take a budget from, a tool whose toolset follows the run gets
+        pydantic-ai's default of one correction."""
+        step = _scripted(ModelRetry("bad"), ModelRetry("bad"), max_retries=None)
+
+        async def call_in(turn: str) -> ToolResult:
+            with tool_call_scope(run="run", turn=turn):
+                return await step.call({})
+
+        assert asyncio.run(call_in("turn-1")).is_error
+        with pytest.raises(ToolCallError, match="after 1 correction"):
+            asyncio.run(call_in("turn-2"))
+
+    def test_last_attempt_means_what_it_does_in_a_pydantic_ai_run(self):
+        """Each call sees its own retry count, so a tool can fall back on its last attempt."""
+
+        def lookup(ctx: RunContext[None]) -> str:
+            """Look the answer up."""
+            if ctx.last_attempt:
+                return "fallback"
+            raise ModelRetry("try again")
+
+        tool = airflow_tools_from_toolset(FunctionToolset([lookup], max_retries=1))[0]
+
+        async def call_in(turn: str) -> ToolResult:
+            with tool_call_scope(run="run", turn=turn):
+                return await tool.call({})
+
+        assert asyncio.run(call_in("turn-1")).is_error
+        assert asyncio.run(call_in("turn-2")).content == "fallback"
+
     def test_a_new_run_starts_with_a_fresh_budget(self):
         """An agent reused for a second run gets its full budget again, as in pydantic-ai."""
         step = _scripted(ModelRetry("bad"), ModelRetry("bad"), max_retries=1)
@@ -334,7 +365,7 @@ class _FakeHook:
 
 class TestHookToolsetAirflowTools:
     def test_calls_the_hook_method(self):
-        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_name_prefix="s3_")
+        ts = HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix="s3")
 
         tool = _by_name(ts.airflow_tools())["s3_list_keys"]
         result = asyncio.run(tool.call({"bucket": "raw", "prefix": "2026/"}))

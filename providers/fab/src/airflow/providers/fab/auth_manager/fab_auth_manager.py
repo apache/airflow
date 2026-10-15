@@ -97,6 +97,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
+from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
@@ -117,6 +118,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
@@ -156,8 +158,8 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 }
 
 # ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` only exist on
-# core >= 3.4.0, and ``AccessView.REPARSE_ALL`` after it; the compat shim yields ``None``
-# on older core so this provider still imports there.
+# Airflow >= 3.4.0, and ``AccessView.REPARSE_ALL`` in a later version; the compat shim yields ``None``
+# on older Airflow versions so this provider still imports there.
 if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
 if AUDIT_LOGS_ALL_ACCESS_VIEW is not None:
@@ -213,6 +215,13 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
+
+    @staticmethod
+    def sync_dag_perms(dag: LazyDeserializedDAG, *, session: Session) -> None:
+        """Sync Dag-specific permissions without initializing the auth manager."""
+        log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+        security_manager = ApplessAirflowSecurityManager(session=session)
+        security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
 
     @cached_property
     def apiserver_endpoint(self) -> str:

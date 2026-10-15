@@ -31,7 +31,7 @@ import traceback
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
-from sqlalchemy import delete, false, func, insert, select, tuple_, update
+from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -78,7 +78,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.serialized_dag import DagWriteMetadata
-    from airflow.typing_compat import Self, Unpack
+    from airflow.sdk.importers import DagSourceCode  # noqa: SDK001
+    from airflow.typing_compat import Self
 
     AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
@@ -259,12 +260,14 @@ def _serialize_dag_capturing_errors(
     bundle_version: str | None,
     version_data: dict | None = None,
     _prefetched: DagWriteMetadata | None = None,
+    dag_source_code: DagSourceCode | None = None,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
 
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
+    from airflow.api_fastapi.app import get_auth_manager_cls
     from airflow.models.dagcode import DagCode
 
     # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
@@ -280,14 +283,19 @@ def _serialize_dag_capturing_errors(
             bundle_version=bundle_version,
             version_data=version_data,
             min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+            dag_source_code=dag_source_code,
             session=session,
             _prefetched=_prefetched,
         )
         if not dag_was_updated:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc, session=session)
-        if "FabAuthManager" in conf.get("core", "auth_manager"):
-            _sync_dag_perms(dag, session=session)
+            DagCode.update_source_code(
+                dag.dag_id, dag.fileloc, dag_source_code=dag_source_code, session=session
+            )
+
+        sync_dag_perms = getattr(get_auth_manager_cls(), "sync_dag_perms", None)
+        if sync_dag_perms:
+            sync_dag_perms(dag, session=session)
 
         return []
     except OperationalError:
@@ -301,17 +309,6 @@ def _serialize_dag_capturing_errors(
                 traceback.format_exc(limit=-dagbag_import_error_traceback_depth),
             )
         ]
-
-
-def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
-    """Sync DAG specific permissions."""
-    dag_id = dag.dag_id
-
-    log.debug("Syncing DAG permissions: %s to the DB", dag_id)
-    from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
-
-    security_manager = ApplessAirflowSecurityManager(session=session)
-    security_manager.sync_perm_for_dag(dag_id, dag.access_control)
 
 
 def _build_duplicate_dag_id_warnings(
@@ -370,7 +367,11 @@ def _update_dag_warnings(
         session.scalars(
             select(DagWarning).where(
                 DagWarning.dag_id.in_(dag_ids),
-                DagWarning.warning_type.in_(warning_types),
+                or_(
+                    DagWarning.warning_type.in_(warning_types),
+                    # Importer-namespaced types are only ever reported while parsing.
+                    DagWarning.warning_type.not_in([t.value for t in DagWarningType]),
+                ),
             )
         )
     )
@@ -586,8 +587,10 @@ def update_dag_parsing_results_in_db(
         DagWarningType.DUPLICATE_DAG_ID,
         DagWarningType.NONEXISTENT_POOL,
         DagWarningType.RUNTIME_VARYING_VALUE,
+        DagWarningType.TASK_GROUP_CYCLE,
     ),
     files_parsed: set[tuple[str, str]] | None = None,
+    dag_source_codes: dict[str, DagSourceCode] | None = None,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -609,6 +612,8 @@ def update_dag_parsing_results_in_db(
     :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
         If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
         import errors are cleared for files that were parsed but no longer contain DAGs.
+    :param dag_source_codes: Source code read by the Dag importers, keyed by dag_id. Dags
+        without an entry have their source read from ``fileloc``.
     """
     accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
     if len(accepted) != len(dags):
@@ -617,6 +622,7 @@ def update_dag_parsing_results_in_db(
         warnings = {warning for warning in warnings if warning.dag_id not in rejected_ids}
     dags = accepted
 
+    dag_source_codes = dag_source_codes or {}
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
@@ -657,6 +663,7 @@ def update_dag_parsing_results_in_db(
                             version_data=version_data,
                             session=session,
                             _prefetched=prefetched_metadata.get(dag.dag_id),
+                            dag_source_code=dag_source_codes.get(dag.dag_id),
                         )
                     )
             except OperationalError:
@@ -693,7 +700,7 @@ class DagModelOperation(NamedTuple):
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
-        stmt: Select[Unpack[tuple[DagModel]]] = with_row_locks(
+        stmt: Select[*tuple[DagModel]] = with_row_locks(
             (
                 select(DagModel)
                 .options(joinedload(DagModel.tags, innerjoin=False))
@@ -783,6 +790,7 @@ class DagModelOperation(NamedTuple):
             dm.timetable_description = dag.timetable.description
             dm.timetable_partitioned = dag.timetable.partitioned
             dm.timetable_periodic = dag.timetable.periodic
+            dm.timetable_asset_gated = dag.timetable.asset_gated
             dm.partition_mapper_info = dag.timetable.partition_mapper_info
             dm.fail_fast = dag.fail_fast if dag.fail_fast is not None else False
 

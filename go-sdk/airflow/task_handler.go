@@ -46,17 +46,17 @@ func (*taskHandler) registerable() {}
 // main calls TaskHandler before Serve, so a handler that fails the check stops the executable as
 // soon as it starts instead of when the task first runs.
 func TaskHandler(dagID, taskID string, fn any) Registerable {
-	task, err := newTaskFunction(fn)
+	task, err := newTaskFunction(fn, bundle.NewTaskFunction)
 	if err != nil {
 		panic(fmt.Sprintf("airflow.TaskHandler(%q, %q): %v", dagID, taskID, err))
 	}
 	return &taskHandler{dagID: dagID, taskID: taskID, task: task}
 }
 
-// newTaskFunction checks fn before bundle.NewTaskFunction does, so that the error names the Go
-// type of a value that is not a function. It also rejects a nil function, which NewTaskFunction
-// accepts even though the task would fail once it runs.
-func newTaskFunction(fn any) (bundle.Task, error) {
+// newTaskFunction checks fn before wrap does, so that the error names the Go type of a value
+// that is not a function. It also rejects a nil function, which the constructors in package
+// bundle accept even though the task would fail once it runs.
+func newTaskFunction(fn any, wrap func(fn any) (bundle.Task, error)) (bundle.Task, error) {
 	v := reflect.ValueOf(fn)
 	if v.Kind() != reflect.Func {
 		return nil, fmt.Errorf("fn is %T, not a function", fn)
@@ -64,5 +64,5 @@ func newTaskFunction(fn any) (bundle.Task, error) {
 	if v.IsNil() {
 		return nil, fmt.Errorf("fn is a nil %T", fn)
 	}
-	return bundle.NewTaskFunction(fn)
+	return wrap(fn)
 }

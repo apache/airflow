@@ -60,10 +60,7 @@ func encodeRequest(id int64, body any) ([]byte, error) {
 	body = genmodels.EnsureType(body)
 
 	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf)
-	enc.UseCompactInts(true)
-	// Use JSON field names for user values; explicit msgpack tags still win.
-	enc.SetCustomStructTag("json")
+	enc := newFrameEncoder(&buf)
 
 	if err := enc.EncodeArrayLen(2); err != nil {
 		return nil, err
@@ -75,6 +72,15 @@ func encodeRequest(id int64, body any) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// newFrameEncoder builds the encoder every outbound frame is written with.
+// Use JSON field names for user values; explicit msgpack tags still win.
+func newFrameEncoder(w io.Writer) *msgpack.Encoder {
+	enc := msgpack.NewEncoder(w)
+	enc.UseCompactInts(true)
+	enc.SetCustomStructTag("json")
+	return enc
 }
 
 // writeFrame writes a length-prefixed msgpack payload to the writer.

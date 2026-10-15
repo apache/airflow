@@ -24,7 +24,7 @@
     "connection_two": "חיבורים",
     "delete": {
       "deleteConnection_one": "מחק חיבור",
-      "deleteConnection_other": "מחק {{count}} חיבורים",
+      "deleteConnection_other": "מחק {{count, number}} חיבורים",
       "deleteConnection_two": "מחק שני חיבורים",
       "firstConfirmMessage_one": "אתה עומד למחוק את החיבור הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את החיבורים הבאים:",
@@ -36,7 +36,6 @@
       "connectionIdRequired": "נדרש מזהה חיבור",
       "connectionIdRequirement": "מזהה חיבור אינו יכול להכיל רווחים בלבד",
       "connectionTypeRequired": "נדרש סוג חיבור",
-      "extraFields": "שדות נוספים",
       "extraFieldsJson": "שדות נוספים JSON",
       "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת העזר המתאימה",
       "helperTextForRedactedFields": "שדות שהוסתרו ('***') יישארו ללא שינוי אם לא בוצע בהם עדכון",
@@ -150,7 +149,7 @@
     },
     "delete": {
       "deleteVariable_one": "מחר משתנה אחד",
-      "deleteVariable_other": "מחק {{count}} משתנים",
+      "deleteVariable_other": "מחק {{count, number}} משתנים",
       "deleteVariable_two": "מחק שני משתנים",
       "firstConfirmMessage_one": "אתה עומד למחוק את מאגר המשאבים הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את מאגרי המשאבים הבאים:",

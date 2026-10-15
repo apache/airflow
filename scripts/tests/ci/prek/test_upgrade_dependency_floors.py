@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import subprocess
 import textwrap
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -202,7 +202,7 @@ def test_no_exclusion_for_plain_floor(tmp_path):
     assert get_exclusion_reason("boto3", [_site("boto3>=1.40; python_version < '3.14'")], config) is None
 
 
-NOW = datetime(2026, 9, 24, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 24, tzinfo=UTC)
 AGE = timedelta(days=180)
 
 

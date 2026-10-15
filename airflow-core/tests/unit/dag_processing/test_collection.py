@@ -26,7 +26,6 @@ import textwrap
 import warnings
 from collections.abc import Generator
 from datetime import timedelta
-from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -61,6 +60,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
@@ -73,9 +73,17 @@ from airflow.partition_mappers.window import DayWindow
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    AssetAll,
+    AssetAndTimeSchedule,
+    AssetWatcher,
+)
 from airflow.sdk.definitions.deadline import AsyncCallback, BaseDeadlineReference, DeadlineAlert
 from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule, PartitionedAssetTimetable
+from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -96,9 +104,6 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from unit.plugins.priority_weight_strategy import StaticTestPriorityWeightStrategy
-
-if TYPE_CHECKING:
-    from kgb import SpyAgency
 
 mark_fab_auth_manager_test = pytest.mark.skipif(
     condition="FabAuthManager" not in conf.get("core", "auth_manager"),
@@ -703,11 +708,50 @@ class TestUpdateDagParsingResults:
         yield dag_import_error_listener
         dag_import_error_listener.clear()
 
+    @patch("airflow.api_fastapi.app._AuthManagerState.instance", None)
+    @patch.object(SerializedDagModel, "write_dag", return_value=True, autospec=True)
+    @patch("airflow.api_fastapi.app.get_auth_manager_cls", autospec=True)
+    def test_sync_perms_for_fab_auth_manager_subclass(
+        self, mock_get_auth_manager_cls, mock_write_dag, session
+    ):
+        FabAuthManager = pytest.importorskip(
+            "airflow.providers.fab.auth_manager.fab_auth_manager"
+        ).FabAuthManager
+
+        class CustomAuthManager(FabAuthManager):
+            pass
+
+        mock_get_auth_manager_cls.return_value = CustomAuthManager
+        dag = DAG(dag_id="test")
+
+        with patch.object(FabAuthManager, "sync_dag_perms", autospec=True) as mock_sync_dag_perms:
+            assert (
+                airflow.dag_processing.collection._serialize_dag_capturing_errors(
+                    dag, "testing", session, None
+                )
+                == []
+            )
+            mock_sync_dag_perms.assert_called_once_with(dag, session=session)
+
+    @patch.object(SerializedDagModel, "write_dag", return_value=True, autospec=True)
+    @patch("airflow.api_fastapi.app.get_auth_manager_cls", autospec=True)
+    def test_serialize_without_auth_manager_sync_hook(
+        self, mock_get_auth_manager_cls, mock_write_dag, session
+    ):
+        mock_get_auth_manager_cls.return_value = object
+        dag = DAG(dag_id="test")
+
+        assert (
+            airflow.dag_processing.collection._serialize_dag_capturing_errors(dag, "testing", session, None)
+            == []
+        )
+
     @mark_fab_auth_manager_test
     @conf_vars({("core", "min_serialized_dag_update_interval"): "5"})
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
+    @patch("airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager.sync_dag_perms", autospec=True)
     def test_sync_perms_syncs_dag_specific_perms_on_update(
-        self, monkeypatch, spy_agency: SpyAgency, session, time_machine, testing_dag_bundle
+        self, mock_sync_dag_perms, monkeypatch, session, time_machine, testing_dag_bundle
     ):
         """Test DAG-specific permissions are synced when a DAG is new or updated"""
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
@@ -717,29 +761,26 @@ class TestUpdateDagParsingResults:
 
         dag = DAG(dag_id="test")
 
-        sync_perms_spy = spy_agency.spy_on(
-            airflow.dag_processing.collection._sync_dag_perms,
-            call_original=False,
-        )
-
         def _sync_to_db():
-            sync_perms_spy.reset_calls()
+            mock_sync_dag_perms.reset_mock()
             time_machine.shift(20)
 
-            update_dag_parsing_results_in_db("testing", None, [dag], dict(), None, set(), session)
+            import_errors = {}
+            update_dag_parsing_results_in_db("testing", None, [dag], import_errors, None, set(), session)
+            assert not import_errors
 
         _sync_to_db()
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         # DAG isn't updated
         _sync_to_db()
-        # `_sync_dag_perms` should be called even the DAG isn't updated. Otherwise, any import error will not show up until DAG is updated.
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        # `sync_dag_perms` should be called even the DAG isn't updated. Otherwise, any import error will not show up until DAG is updated.
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         # DAG is updated
         dag.tags = {"new_tag"}
         _sync_to_db()
-        spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
+        mock_sync_dag_perms.assert_called_once_with(dag, session=session)
 
         serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
 
@@ -793,6 +834,7 @@ class TestUpdateDagParsingResults:
                     bundle_version=None,
                     version_data=None,
                     min_update_interval=mock.ANY,
+                    dag_source_code=None,
                     session=mock_session,
                     _prefetched=mock.ANY,
                 ),
@@ -903,6 +945,79 @@ class TestUpdateDagParsingResults:
 
         assert warning is None
 
+    @pytest.mark.usefixtures("clean_db")
+    def test_stale_importer_warnings_are_replaced(self, testing_dag_bundle, session):
+        session.add(DagModel(dag_id="imported_dag", bundle_name="testing", fileloc="/dags/imported.py"))
+        session.flush()
+        session.add_all(
+            [
+                DagWarning(dag_id="imported_dag", warning_type="test:stale", message="Stale"),
+                DagWarning(
+                    dag_id="imported_dag", warning_type=DagWarningType.ASSET_CONFLICT, message="Conflict"
+                ),
+            ]
+        )
+        session.flush()
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(DAG(dag_id="imported_dag"))],
+            import_errors={},
+            parse_duration=None,
+            warnings={DagWarning("imported_dag", "test:current", "Current")},
+            session=session,
+        )
+
+        warning_types = session.scalars(
+            select(DagWarning.warning_type).where(DagWarning.dag_id == "imported_dag")
+        ).all()
+        assert sorted(warning_types) == [DagWarningType.ASSET_CONFLICT.value, "test:current"]
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_dag_source_codes_are_written_to_dag_code(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="yaml_dag")
+        dag.fileloc = "/dags/yaml_dag.yaml"
+        dag.relative_fileloc = "yaml_dag.yaml"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+            dag_source_codes={dag.dag_id: DagSourceCode(source_code="dag_id: yaml_dag\n", language="yaml")},
+        )
+
+        dag_code = DagCode.get_latest_dagcode("yaml_dag", session=session)
+        assert (dag_code.source_code, dag_code.language) == ("dag_id: yaml_dag\n", "yaml")
+
+    def test_task_group_cycle_warning_is_removed_when_dag_is_fixed(self, testing_dag_bundle, session):
+        dag = DAG(dag_id="fixed_dag")
+        session.add(DagModel(dag_id="fixed_dag", bundle_name="testing", is_stale=False))
+        session.add(
+            DagWarning(
+                dag_id="fixed_dag",
+                warning_type=DagWarningType.TASK_GROUP_CYCLE,
+                message="Dag 'fixed_dag': group and bridge depend on each other in a cycle.",
+            )
+        )
+        session.flush()
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        assert session.scalar(select(DagWarning).where(DagWarning.dag_id == "fixed_dag")) is None
+
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
 
@@ -912,6 +1027,31 @@ class TestUpdateDagParsingResults:
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.last_parse_duration == parse_duration
+
+    def test_timetable_asset_gated_written_to_db_on_sync(self, testing_dag_bundle, session):
+        asset = Asset("test")
+        gated_dag = DAG(
+            dag_id="asset_gated",
+            schedule=AssetAndTimeSchedule(
+                timetable=CronTriggerTimetable("@daily", timezone="UTC"),
+                assets=asset,
+            ),
+            catchup=False,
+        )
+        regular_dag = DAG(dag_id="regular", schedule=None)
+
+        update_dag_parsing_results_in_db(
+            "testing",
+            None,
+            [LazyDeserializedDAG.from_dag(gated_dag), LazyDeserializedDAG.from_dag(regular_dag)],
+            {},
+            None,
+            set(),
+            session,
+        )
+
+        assert session.get(DagModel, gated_dag.dag_id).timetable_asset_gated is True
+        assert session.get(DagModel, regular_dag.dag_id).timetable_asset_gated is False
 
     @patch.object(ParseImportError, "full_file_path")
     @patch.object(SerializedDagModel, "write_dag")
