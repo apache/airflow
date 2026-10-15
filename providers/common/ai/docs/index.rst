@@ -32,6 +32,8 @@ Start here
 
 - :doc:`why_common_ai`: what this provider handles that an agent in a plain ``@task``
   leaves to you, and when a plain task is enough.
+- :doc:`features`: what the provider can do, with the page, extra, minimum Airflow
+  version and stability of each feature.
 - :doc:`quickstart`: install, connect a vendor, run a two-task Dag and check its output.
 - :doc:`use_cases/index`: ten jobs a data team already has, each with the Dag that does it.
 - :doc:`model_providers`: which vendors work, and the extra, connection and prefix for each.
@@ -107,6 +109,7 @@ waits for the result, use that vendor's provider.
     :hidden:
     :caption: Guides
 
+    Feature map <features>
     What you can build <use_cases/index>
     Connections <connections/index>
     Models and providers <model_providers>
@@ -114,7 +117,6 @@ waits for the result, use that vendor's provider.
     Operators and decorators <operators/index>
     Toolsets <toolsets/index>
     Agent frameworks <frameworks/index>
-    LLM and agent features <features>
     Document and RAG pipelines <rag_pipelines>
     Reliability and operations <operations>
 
@@ -160,7 +162,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 0.11.0
+Release: 1.0.0
 
 Provider package
 ----------------
@@ -256,5 +258,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 0.11.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.11.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.11.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.11.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 0.11.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.11.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.11.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-0.11.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.0.0-py3-none-any.whl.sha512>`__)

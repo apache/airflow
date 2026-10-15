@@ -88,7 +88,7 @@ BASIC_SPHINX_EXTENSIONS = [
     "airflow_intersphinx",
     "python_builtin_xrefs",
     "common_compat_alias",
-    "sphinxcontrib.mermaid",
+    "mermaid_svg",
     "airflow_spelling",
     "sphinx_airflow_theme",
     "redirects",

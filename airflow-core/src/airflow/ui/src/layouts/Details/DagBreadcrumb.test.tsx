@@ -38,6 +38,22 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...(original as object), useMatches: vi.fn() };
 });
 
+const LOOP_PASSES = [
+  { iteration: undefined, iterationsRan: 3, loopId: "batch", loopRegionId: "r", maxIterations: 5 },
+  { iteration: 2, loopId: "batch", loopRegionId: "r" },
+  { iteration: 1, loopId: "batch", loopRegionId: "r" },
+  { iteration: 0, loopId: "batch", loopRegionId: "r" },
+];
+
+// Most levels have no loop in scope; the loop tests opt in by setting this.
+let mockLoopOptions: Array<unknown> = [];
+
+vi.mock("src/queries/useLoopFilterOptions", async (importOriginal) => {
+  const original = await importOriginal();
+
+  return { ...(original as object), useLoopFilterOptions: () => ({ options: mockLoopOptions }) };
+});
+
 // The msw dag-details handler is pinned to this dag id.
 const DAG_ID = "tutorial_taskflow_api";
 
@@ -63,7 +79,10 @@ const createWrapper =
     </BaseWrapper>
   );
 
-beforeEach(() => vi.mocked(useMatches).mockReturnValue([]));
+beforeEach(() => {
+  mockLoopOptions = [];
+  vi.mocked(useMatches).mockReturnValue([]);
+});
 
 afterEach(() => cleanup());
 
@@ -236,5 +255,34 @@ describe("DagBreadcrumb", () => {
         expect.objectContaining({ regionId, regionIndex: 2, taskId: "task_1" }),
       ),
     );
+  });
+
+  it("names the newest pass when the url pins none", async () => {
+    mockLoopOptions = LOOP_PASSES;
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/batch.member`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId",
+      ),
+    });
+
+    // Passes arrive newest first, so the highest index leads.
+    expect(await screen.findByTestId("switch-iteration")).toBeInTheDocument();
+    expect(screen.getByTestId("dag-breadcrumb")).toHaveTextContent("2");
+  });
+
+  it("falls back to this loop's newest when the url carries another loop's pass", async () => {
+    mockLoopOptions = LOOP_PASSES;
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/batch.member?loop_id=other&iteration=0`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId",
+      ),
+    });
+
+    await screen.findByTestId("switch-iteration");
+
+    // Reading "0" here would name a pass of a loop that never counted it.
+    expect(screen.getByTestId("dag-breadcrumb")).toHaveTextContent("2");
   });
 });

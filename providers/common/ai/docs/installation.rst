@@ -94,6 +94,11 @@ The provider runs on Airflow 2.11, but some features need a newer Airflow versio
    * - A :doc:`structured output <structured_output>` reaching downstream tasks as the
        Pydantic model; on older Airflow versions it arrives as a ``dict``
      - Airflow 3.3
+   * - :ref:`Usage limits <agent-usage-budget>` counted across every retry of a task; on
+       older Airflow versions each attempt starts a fresh count
+     - Airflow 3.3
+   * - The :ref:`AI Model tab <howto/observability:model-tab>` on the task instance page
+     - Airflow 3.4
 
 Airflow 2.11
 ------------

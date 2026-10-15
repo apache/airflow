@@ -159,6 +159,8 @@ Start from the agent you already have:
   is the only one with step-level durable replay across task retries and a built-in
   human review step, because both are implemented on top of Pydantic AI.
 
+.. _howto/frameworks:other:
+
 Any other framework
 -------------------
 

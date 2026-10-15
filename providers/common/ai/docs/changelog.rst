@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+1.0.0
+.....
+
 .. note::
   ``LLMOperator``, the operators built on it (``LLMBranchOperator``, ``LLMSQLQueryOperator``,
   ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator``) and their ``@task.llm*``
@@ -47,15 +50,41 @@ Changelog
   and counted on its own, unchanged. See :ref:`howto/operator:llm`.
 
 .. note::
-  ``OpenSandboxBackend`` now refuses a deny-all or allowlist ``SandboxSpec``, including the
+  A reviewer's edit on ``LLMOperator``, ``LLMFileAnalysisOperator`` or
+  ``LLMSchemaCompareOperator`` (``allow_modifications=True``) is now converted back into
+  ``output_type``, and an edit that does not validate fails the task with
+  ``ReviewedOutputValidationError`` (a ``ValueError``) instead of returning the edited text as
+  a ``str``. Use ``output_type=str`` or ``str | None`` to keep accepting free text; a ``Literal`` or
+  a ``str`` ``Enum`` accepts one of its values typed as bare text, and any other edit now fails the
+  task. An approval without an edit never fails this way. The review text now shows field names and leaves out computed fields.
+  See :doc:`approval_gates`.
+
+.. note::
+  Durable execution (``durable=True`` on ``AgentOperator``) is rebuilt on the
+  ``AirflowDurability`` capability. The internal ``durable.caching_model``,
+  ``durable.caching_toolset`` and ``durable.step_counter`` modules are removed, and the
+  provider now needs ``pydantic-ai-slim>=2.36.0``. With ``durable=True``, every
+  ``FunctionToolset``, ``MCPToolset`` and ``DynamicToolset`` must be given a unique ``id=``
+  (for example ``FunctionToolset(..., id="orders")``), otherwise the operator raises
+  ``ValueError`` when it is created. A tool result that cannot be serialized to JSON now fails
+  the task instead of being replayed, and ``durable=True`` cannot be combined with an explicit
+  ``AirflowDurability`` capability. Durable steps recorded by 0.10.0 are not replayed, so a
+  retry that spans the upgrade runs its steps live again.
+
+.. note::
+  ``LLMBranchOperator``, ``LLMSQLQueryOperator`` and ``LLMSchemaCompareOperator`` (and their
+  decorators) now raise ``TypeError`` when given ``output_type``. They produce a fixed output and
+  previously ignored the argument silently; remove it from those tasks. With
+  ``enable_hitl_review=True``, the review loop now fails the task after 10 consecutive failures
+  to read the review XCom, instead of polling until ``hitl_timeout``.
+
+.. note::
+  ``OpenSandboxBackend`` refuses a deny-all or allowlist ``SandboxSpec``, including the
   default ``SandboxSpec()``, unless the OpenSandbox server's egress sidecar runs in ``dns+nft``
   mode. In the server's default ``dns`` mode the sidecar filters name resolution only, and a
   sandbox could still connect to any numeric address. Set ``[egress] mode = "dns+nft"`` in the
   OpenSandbox server configuration, or pass ``SandboxSpec(block_network=False)`` for a sandbox
   that may reach the network. See :ref:`the OpenSandbox backend <sandbox-backend-opensandbox>`.
-
-0.11.0
-......
 
 .. note::
   On Airflow >= 3.3, ``AgentOperator``'s ``usage_limits`` counts usage across every
@@ -93,9 +122,29 @@ Changelog
   as well as the workers. The extra's floor is now ``pydantic-ai-harness>=0.24.0``, the first
   release with ``max_tool_calls``. See :doc:`code_mode`.
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove 'agent_params' from LLM operators so they cannot run tools (#74721)``
+* ``Add AirflowDurability capability for durable agent replay across task retries (#74385, #74720)``
+* ``Bound LLM operator usage_limits across task retries (#74396)``
+* ``Reject unsupported output_type and bound HITL XCom pull retries (#74450)``
+
 Features
 ~~~~~~~~
 
+* ``Add 'OpenShell' backend for sandbox tools (#73961)``
+* ``Add Anthropic tool runner adapter for 'common.ai' toolsets (#73962)``
+* ``Let an agent ask for tool approval in more than one step (#74686)``
+* ``Add Islo backend for sandbox tools (#71672)``
+* ``Add Boat backend for sandbox tools (#71725)``
+* ``Resume Strands agents from their last checkpoint when a task retries (#74404)``
+* ``Add a Model tab to the task-instance page for 'common.ai' (#74334)``
+* ``Rename 'HookToolset' 'tool_name_prefix' to 'tool_prefix' (#74447)``
+* ``Log capability tool calls in AgentOperator (#72202)``
+* ``Let the HITL review plugin address one loop pass or mapped slot (#74351)``
+* ``Export 'DataFusionToolset', 'AgentSkillsToolset' and 'LoggingToolset' from 'common.ai' toolsets (#74449)``
+* ``Expose the resolved LLM model name on a dedicated XCom key (#74272)``
 * ``Add 'max_retries' to 'AgentSkillsToolset' (#74381)``
 * ``Add 'include_traceback' to model-backed retry policies (#74308)``
 * ``Let the Modal sandbox backend read credentials from a modal connection (#74302)``
@@ -112,18 +161,23 @@ Features
 * ``Count and trace tool calls made by native agent frameworks (#73901)``
 * ``Let HookToolset pin arguments the model must not choose (#73900)``
 * ``Add 'ObjectStorageToolset' for reading files on object storage (#73899)``
-* ``Rework common.ai Strands support into a plugin and add Google ADK (#73898)``
+* ``Rework common.ai Strands support into a plugin and add Google ADK (#73898, #74525)``
 * ``Name the tools a durable agent retry will run again (#73873)``
-* ``Return an approved agent answer as 'output_type' after human review (#73904)``
+* ``Return an approved agent answer as 'output_type' after human review (#73904, #74537)``
 * ``Let the sandbox toolset attach to a sandbox another task provisioned (#73559)``
 * ``Add Strands Agents support for 'common.ai' toolsets (#73587)``
 * ``Add Modal provider with 'ModalHook' and connection type (#73418)``
-* ``Add OpenSandbox backend for sandbox tools (#71676)``
+* ``Add OpenSandbox backend for sandbox tools (#71676, #74504)``
 * ``Let a person approve an agent's tool calls before they run (#73586)``
 
 Bug Fixes
 ~~~~~~~~~
 
+* ``Stop rejecting valid non-ASCII Anthropic batches as too large (#74662)``
+* ``Mask tool output from every capability in Common AI agents (#73993)``
+* ``Validate the connection type in PydanticAIHook.get_hook (#74626)``
+* ``Decode base64 for bytes-typed 'HookToolset' parameters (#70433)``
+* ``Make 'SQLToolset' 'check_query' follow 'allow_writes' like 'query' (#74448)``
 * ``Tell the model a pinned hook argument is fixed for every allowed method (#74380)``
 * ``Keep retried task attempts and their data under the attempt UUID (#74222)``
 * ``Fix Common AI durable retries not replaying tools from a capability without an id (#74314)``
@@ -136,16 +190,29 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Move Common AI provider from incubation to production lifecycle (#74705)``
+* ``Add a generated supported services page for the common.ai provider (#72939)``
 * ``Drop support for Python 3.10 (#74157)``
 * ``Remove Python 3.10 compatibility shims (#74153)``
 * ``Remove 'code_mode' from 'AgentOperator' in favor of the 'CodeMode' capability (#74312)``
 * ``Make 'execute_tool' the public method 'AirflowToolset' subclasses implement (#73938)``
-* ``Mark experimental 'common.ai' features ahead of 1.0 (#73896)``
+* ``Mark which 'common.ai' features are stable and which stay experimental for 1.0 (#73896, #74707, #74704, #74679)``
 * ``Require 'common.sql' 2.2.0 for common.ai's SQL extras (#73867)``
 
 Doc-only
 ~~~~~~~~
 
+* ``Add a feature map to the Common AI docs (#74723)``
+* ``Document how common.ai agent tasks recover from provider and worker failures (#74708)``
+* ``Fix the common.ai message_history trimming example and link the memory page (#74706)``
+* ``Mark decision_policy experimental on the decision models page and finish the ClassifierRetryPolicy stability row (#74713)``
+* ``Add an example of a decision model approving an agent's tool calls (#74697)``
+* ``Add a Why Common AI page comparing the provider with a plain task (#74685)``
+* ``Clarify what common.ai message_history does and does not cover (#74625)``
+* ``Explain why common.ai is built on Pydantic AI (#74680)``
+* ``Document agent memory across Dag runs for 'common.ai' (#74681)``
+* ``Document hosted OpenAI-compatible services for common.ai (#74620)``
+* ``Document that 'SQLToolset' does not check functions without 'allowed_tables' (#74444)``
 * ``Explain unknown platform labels in managed-agent metrics (#72786)``
 * ``Add toolset overview and MCP tool filtering example to 'common.ai' docs (#74378)``
 * ``Link registry modules to the guide section that documents them (#71477)``
@@ -166,6 +233,10 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Add sqlglot drift tripwires for common.ai read-only SQL validation (#74487)``
+   * ``Test that deferred capability ids stay out of Common AI durable fingerprints (#74423)``
+   * ``Assert on structured log events in common.ai tests (#74443)``
+   * ``Prepare providers release 2026-10-06 (#74429)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
    * ``Add AIP-85 to the AIP progress tracker registry (#74304)``

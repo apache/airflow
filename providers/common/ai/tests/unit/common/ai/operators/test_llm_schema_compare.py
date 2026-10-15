@@ -29,6 +29,7 @@ from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import UsageLimits
 
+from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
@@ -706,7 +707,7 @@ class TestLLMSchemaCompareOperatorUsageBudget:
         seed_usage_budget(task_state_store_accessor, requests=1)
         op = self._make_operator(require_approval=True, allow_modifications=True)
 
-        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
+        with pytest.raises(ReviewedOutputValidationError, match="output_type SchemaCompareResult"):
             op.execute_complete(
                 usage_budget_context,
                 generated_output="{}",
@@ -823,7 +824,7 @@ class TestLLMSchemaCompareOperatorApproval:
             "params_input": {"output": modified},
         }
 
-        with pytest.raises(ValueError, match="not a valid SchemaCompareResult"):
+        with pytest.raises(ReviewedOutputValidationError, match="output_type SchemaCompareResult"):
             op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
     def test_execute_rejects_sequence_prompt_with_require_approval(self):

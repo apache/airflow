@@ -28,13 +28,10 @@ with no rebuild, and checks that the live Dag IDs follow it and that each live D
 
 from __future__ import annotations
 
-import os
-from datetime import UTC, datetime
 from pathlib import Path
 
-import yaml
-
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
+from airflow_e2e_tests.e2e_test_utils.dynamic_dags import swap_yaml_and_check
 
 # The Dag processor execs the binary to parse it, so the Dags appear some time after the stack is up.
 _PARSE_TIMEOUT = 600
@@ -46,48 +43,20 @@ _GO_TASK_TIMEOUT = 600
 _TAGS = ["go_dynamic"]
 
 
-def _write_yaml_atomically(path: Path, greetings: dict[str, str]) -> None:
-    """Replace the YAML in one step, so the Dag processor never reads half of it."""
-    entries = [{"dag_id": dag_id, "greeting": greeting} for dag_id, greeting in greetings.items()]
-    tmp_path = path.with_name(f"{path.name}.tmp")
-    tmp_path.write_text(yaml.safe_dump({"dags": entries}))
-    os.replace(tmp_path, path)
-
-
-def _swap_yaml_and_check(
-    client: AirflowClient, yaml_path: Path, greetings: dict[str, str], previous: set[str], timeout: int
-) -> set[str]:
-    """Swap in a YAML of *greetings*, then check the Dags, a run of each, and the Dags it dropped."""
-    _write_yaml_atomically(yaml_path, greetings)
-    client.wait_for_dag_ids(set(greetings), tags=_TAGS, timeout=timeout)
-
-    run_ids = {
-        dag_id: client.trigger_dag(dag_id, json={"logical_date": datetime.now(UTC).isoformat()})["dag_run_id"]
-        for dag_id in greetings
-    }
-    for dag_id, run_id in run_ids.items():
-        state = client.wait_for_dag_run(dag_id=dag_id, run_id=run_id, timeout=_GO_TASK_TIMEOUT)
-        assert state == "success", f"{dag_id} run {run_id} ended {state!r}"
-        xcom = client.get_xcom_value(dag_id=dag_id, task_id="greet", run_id=run_id, key="return_value")
-        assert xcom["value"] == greetings[dag_id], f"{dag_id} returned {xcom['value']!r}"
-
-    for dag_id in previous - set(greetings):
-        assert client.get_dag(dag_id)["is_stale"], f"{dag_id} left the YAML but is not stale"
-    return set(greetings)
-
-
 def test_swapping_the_yaml_changes_the_live_dags(airflow_dags_path: Path):
     client = AirflowClient()
     yaml_path = airflow_dags_path / "go-dynamic" / "dags.yaml"
 
-    live = _swap_yaml_and_check(
+    live = swap_yaml_and_check(
         client,
         yaml_path,
         {"go_dynamic_a": "hello from a", "go_dynamic_b": "hello from b", "go_dynamic_c": "hello from c"},
         previous=set(),
+        tags=_TAGS,
         timeout=_PARSE_TIMEOUT,
+        task_timeout=_GO_TASK_TIMEOUT,
     )
-    live = _swap_yaml_and_check(
+    live = swap_yaml_and_check(
         client,
         yaml_path,
         {
@@ -98,13 +67,17 @@ def test_swapping_the_yaml_changes_the_live_dags(airflow_dags_path: Path):
             "go_dynamic_e": "hello from e",
         },
         previous=live,
+        tags=_TAGS,
         timeout=_RELOAD_TIMEOUT,
+        task_timeout=_GO_TASK_TIMEOUT,
     )
     # a keeps its Dag ID but gets a new greeting, so its run shows the Dag was rebuilt from the new YAML.
-    _swap_yaml_and_check(
+    swap_yaml_and_check(
         client,
         yaml_path,
         {"go_dynamic_a": "hello again from a", "go_dynamic_f": "hello from f"},
         previous=live,
+        tags=_TAGS,
         timeout=_RELOAD_TIMEOUT,
+        task_timeout=_GO_TASK_TIMEOUT,
     )
