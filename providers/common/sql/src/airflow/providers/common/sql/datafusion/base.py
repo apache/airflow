@@ -50,6 +50,15 @@ class ObjectStorageProvider(LoggingMixin, ABC):
         """Return URL scheme for this storage type (e.g., 's3://', 'gs://')."""
         raise NotImplementedError
 
+    def normalize_uri(self, uri: str) -> str:
+        """
+        Return the canonical ``uri`` to register under.
+
+        Default is identity; a provider overrides this when its URI shape differs from
+        DataFusion's (schema, host) registry key.
+        """
+        return uri
+
     def get_bucket(self, path: str) -> str | None:
         """Extract the bucket name from the given path."""
         if path and path.startswith(self.get_scheme()):

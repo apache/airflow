@@ -85,9 +85,9 @@ templated inside a ``Toolset`` capability the same way as in ``toolsets=``:
 A ``Toolset`` capability built from a function is resolved when the run starts, so its
 connection IDs are not templated.
 
-Tool results from a ``Toolset`` capability are masked like those from ``toolsets=``.
-When ``enable_tool_logging=True`` (the default), ``AgentOperator`` logs calls to
-these toolsets and other tools contributed by capabilities, including MCP
+Tool results from any capability whose tools run in the worker are masked like those
+from ``toolsets=``. When ``enable_tool_logging=True`` (the default), ``AgentOperator``
+logs calls to these toolsets and other tools contributed by capabilities, including MCP
 toolsets. Output tools and provider-native tools, including native MCP, are not
 covered. See :doc:`toolsets/logging` for configuration details and the complete
 limitations. Put a toolset in the capability list when you need to order it
@@ -114,9 +114,8 @@ again. Whether a capability's work is replayed depends on where it runs:
         names one without it when the agent is built. An ``id`` on a ``Toolset`` capability
         does not reach the toolset inside it, so set it on that toolset.
     * - pydantic-ai-harness ``CodeMode``
-      - Not allowed: the operator raises ``ValueError``. This includes a ``CodeMode`` inside a
-        ``CombinedCapability`` or a wrapper such as ``PrefixTools``, but not one a capability
-        function builds when the run starts.
+      - Each ``run_code`` snippet runs again, and the tool calls it makes are replayed; see
+        :ref:`durable-code-mode`.
 
 See :doc:`durable_execution` for how replay works.
 

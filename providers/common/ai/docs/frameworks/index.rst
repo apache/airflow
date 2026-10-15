@@ -50,8 +50,8 @@ AI because it does not tie a Dag to either:
 
 Pydantic AI is the recommendation, not a requirement. For a new agent, start with
 ``AgentOperator``, which gets the most from this provider. If your team has standardized
-on Strands, ADK or LangChain, keep that framework: the table below shows what this
-provider gives an agent written in each one.
+on Strands, ADK, LangChain, the Anthropic SDK or the OpenAI Agents SDK, keep that framework: the table below
+shows what this provider gives an agent written in each one.
 
 Supported frameworks
 --------------------
@@ -91,6 +91,18 @@ is Airflow's and which part stays yours.
        ADK agent the same tools, with the same masking. Guide: :doc:`adk`.
      - You
      - ``google-adk``
+   * - Anthropic SDK tool runner
+     - :class:`~airflow.providers.common.ai.tools.anthropic.AirflowTools` hands the same
+       tools to ``client.beta.messages.tool_runner`` and makes a tool failure the model
+       cannot fix fail the task. Guide: :doc:`anthropic`.
+     - You
+     - ``[anthropic]`` extra
+   * - OpenAI Agents SDK
+     - :class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTools` holds the
+       same tools as ``FunctionTool`` objects for an ``Agent``, and makes a tool failure
+       the model cannot fix fail the task. Guide: :doc:`openai_agents`.
+     - You
+     - ``openai-agents``
    * - LangChain
      - :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` returns chat
        and embedding models configured from a connection, and
@@ -107,9 +119,9 @@ is Airflow's and which part stays yours.
      - No agent
      - ``[llamaindex]`` extra
 
-The Strands and ADK integrations, the framework-neutral tool interface under them, and
-the tracing helper are experimental: they can change or be removed in a minor release of
-this provider. See :ref:`howto/stability`.
+The Strands, ADK, Anthropic and OpenAI Agents integrations and the tracing helper are experimental: they
+can change or be removed in a minor release of this provider. The framework-neutral tool
+interface under them is stable. See :ref:`howto/stability`.
 
 Tested versions
 ---------------
@@ -129,10 +141,18 @@ Tested versions
      - 2.9.1
      - Pins OpenTelemetry at 1.42.1 or lower, below the version in Airflow's constraints
        file. Airflow itself accepts 1.42.1.
+   * - OpenAI Agents SDK
+     - 0.20.0 and 0.23.1
+     - 0.21.0 and later require ``openai>=3``, while Airflow's constraints file pins
+       ``openai`` below 3, so installing with that file gives 0.20.
 
-These are the versions the adapter tests have been run against. CI does not run those
-tests: its environment has ``mcp`` 2.2 and OpenTelemetry 1.44, which Strands and ADK
-exclude. They run in an environment with the framework installed.
+These are the versions the adapter tests have been run against. Strands and ADK cap
+packages below the versions in Airflow's dependency lock, and current OpenAI Agents SDK
+releases need ``openai`` 3, so CI runs their adapter tests in a job of their own, one
+framework at a time. Pull requests test each framework against the versions in
+Airflow's CI image, which for the OpenAI Agents SDK means the newest release that accepts
+``openai`` 2.x; scheduled runs test each framework's newest release with its own
+dependency pins.
 
 Choosing a route
 ----------------
@@ -145,11 +165,17 @@ Start from the agent you already have:
   ``AirflowTools`` plugin. See :doc:`strands`.
 - **An existing ADK agent**: keep it, and add Airflow's toolsets with the ADK
   ``AirflowTools`` toolset. See :doc:`adk`.
+- **A loop written on the Anthropic SDK**: keep it, and pass the tools of
+  ``AirflowTools`` to its tool runner. See :doc:`anthropic`.
+- **An existing OpenAI Agents SDK agent**: keep it, and add Airflow's toolsets to its
+  ``tools`` with ``AirflowTools``. See :doc:`openai_agents`.
 - **An existing LangChain agent**: build its model with ``LangChainHook`` and add
   Airflow's toolsets with ``airflow_toolset_to_langchain_tools``.
 - **No agent yet, or no preference**: use ``AgentOperator`` or ``@task.agent``. That route
   is the only one with step-level durable replay across task retries and a built-in
   human review step, because both are implemented on top of Pydantic AI.
+
+.. _howto/frameworks:other:
 
 Any other framework
 -------------------
@@ -162,7 +188,7 @@ Airflow also depends on, such as OpenTelemetry or a vendor SDK.
 
 To give such a framework Airflow's toolsets rather than hand-written tools, build on
 the framework-neutral interface in :mod:`airflow.providers.common.ai.tools`, which is
-what the Strands and ADK integrations are written against:
+what the Strands, ADK, Anthropic and OpenAI Agents integrations are written against:
 
 - :class:`~airflow.providers.common.ai.tools.AirflowTool` is one operation: a name, a
   description, a JSON Schema for its arguments and an async function. Call it through
@@ -182,15 +208,17 @@ what the Strands and ADK integrations are written against:
 An adapter maps these onto the framework's own tool type and error status, and makes
 sure a ``ToolCallError`` ends the run rather than reaching the model, as the Strands
 plugin does. :func:`~airflow.providers.common.ai.tools.collect_tools` turns the toolsets and
-tools an adapter is given into one list, as the Strands and ADK adapters do.
+tools an adapter is given into one list, as the Strands, ADK, Anthropic and OpenAI Agents
+adapters do.
 
 Blocking hook calls, such as a SQL query, run one at a time in the task's process, so an
 agent that calls two database tools at once gets its answers one after the other.
 
-Run a Strands or ADK agent inside
+Run a Strands, ADK or OpenAI Agents SDK agent inside
 :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing` to keep its
 spans tied to the task, and free of prompt text unless ``[common.ai] capture_content`` is
-on; see :doc:`../observability`.
+on; see :doc:`../observability`. For an OpenAI Agents SDK agent, also register
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor`.
 
 .. toctree::
     :hidden:
@@ -199,3 +227,5 @@ on; see :doc:`../observability`.
     Pydantic AI <pydantic_ai>
     Strands Agents <strands>
     Google ADK <adk>
+    Anthropic SDK <anthropic>
+    OpenAI Agents SDK <openai_agents>

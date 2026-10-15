@@ -259,6 +259,64 @@ class TestModelRequestFingerprint:
 
         assert fp1 != fp2
 
+    @staticmethod
+    def code_mode_history(nested_timestamp, *, nested_content="a-data", code_mode=True):
+        """A ``run_code`` return as pydantic-ai-harness's ``CodeMode`` builds it, with one nested call."""
+        nested = ToolReturnPart(
+            tool_name="fetch", content=nested_content, tool_call_id="rc__1", timestamp=nested_timestamp
+        )
+        return [
+            ModelRequest(parts=[UserPromptPart(content="q")]),
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="run_code", args={"code": "..."}, tool_call_id="rc")]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="run_code",
+                        content="done",
+                        tool_call_id="rc",
+                        metadata={
+                            "code_mode": code_mode,
+                            "tool_calls": {"rc__1": ToolCallPart(tool_name="fetch", tool_call_id="rc__1")},
+                            "tool_returns": {"rc__1": nested},
+                        },
+                    )
+                ]
+            ),
+        ]
+
+    @pytest.mark.parametrize("code_mode", [True, False])
+    def test_nested_call_timestamps_count_only_outside_code_mode(self, code_mode):
+        """
+        A retry runs a code mode snippet again, and its replayed nested calls get new
+        timestamps. Without code mode's marker, the metadata is someone else's and is
+        hashed as it is.
+        """
+        fp1, fp2 = (
+            fingerprint_model_request(
+                "m",
+                self.code_mode_history(
+                    datetime.datetime(2026, 1, day, tzinfo=datetime.UTC), code_mode=code_mode
+                ),
+                None,
+                ModelRequestParameters(),
+            )
+            for day in (1, 2)
+        )
+
+        assert (fp1 == fp2) is code_mode
+
+    def test_changes_with_code_mode_nested_call_content(self):
+        """Only the nested calls' timestamps are dropped; what they returned still counts."""
+        t = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
+        fp1 = fingerprint_model_request("m", self.code_mode_history(t), None, ModelRequestParameters())
+        fp2 = fingerprint_model_request(
+            "m", self.code_mode_history(t, nested_content="b-data"), None, ModelRequestParameters()
+        )
+
+        assert fp1 != fp2
+
     def test_volatile_keys_inside_user_data_are_not_stripped(self):
         """Only pydantic-ai's own message/part fields are volatile; a tool argument
         legitimately named run_id must still affect the fingerprint."""

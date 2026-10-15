@@ -17,7 +17,7 @@
 """
 Give Airflow tools to a `Strands Agents <https://strandsagents.com/>`__ agent.
 
-.. note:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
+.. note:: Experimental; see :ref:`howto/stability`.
 """
 
 from __future__ import annotations

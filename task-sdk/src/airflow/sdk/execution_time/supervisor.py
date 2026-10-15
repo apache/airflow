@@ -35,7 +35,7 @@ import time
 import weakref
 from collections import deque
 from collections.abc import Callable, Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
@@ -56,7 +56,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
-import httpx
+import httpx2
 import msgspec
 import psutil
 import structlog
@@ -185,6 +185,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 _trace_propagator = TraceContextTextMapPropagator()
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from typing import Self
 
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -1154,7 +1155,8 @@ class WatchedSubprocess:
                 if request.context_carrier:
                     ctx = _trace_propagator.extract(request.context_carrier)
                     token = otel_context.attach(ctx)
-                self._handle_request(msg, log, request.id)
+                with self._request_scope(request):
+                    self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
                 error_details = e.response.json() if e.response else None
                 log.error(
@@ -1178,8 +1180,8 @@ class WatchedSubprocess:
                     request_id=request.id,
                 )
             except Exception as e:
-                # Generic exception handling so a transient network error (httpx.ConnectError /
-                # httpx.TimeoutException) or any other exception
+                # Generic exception handling so a transient network error (httpx2.ConnectError /
+                # httpx2.TimeoutException) or any other exception
                 # doesn't crash this generator and crash the IPC communication between supervisor and task.
                 log.exception(
                     "Unhandled exception while handling task request",
@@ -1202,6 +1204,10 @@ class WatchedSubprocess:
             finally:
                 if token is not None:
                     otel_context.detach(token)
+
+    def _request_scope(self, request: _RequestFrame) -> AbstractContextManager[None]:
+        """Return a context manager that wraps the handling of ``request``; subclasses override to scope API calls."""
+        return nullcontext()
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         if self._request_handlers is None:
@@ -1545,7 +1551,7 @@ def _ensure_client(
         yield client
         return
 
-    limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+    limits = httpx2.Limits(max_keepalive_connections=1, max_connections=10)
     new_client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
     log.debug("Connecting to execution API server", server=server)
     try:
@@ -3163,7 +3169,7 @@ def supervise_task(
                 logger=logger or structlog.get_logger(logger_name="task").bind(),
                 error=e,
             )
-        except httpx.RequestError as e:
+        except httpx2.RequestError as e:
             if logger is not None:
                 logger.info("::endgroup::")
                 logger.error(

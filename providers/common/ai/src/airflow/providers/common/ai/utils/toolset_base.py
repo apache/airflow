@@ -19,15 +19,22 @@
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import logging
 import threading
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
-from pydantic_ai.exceptions import ApprovalRequired, CallDeferred, ModelRetry, ToolFailed
-from pydantic_ai.messages import ToolReturn
+from pydantic_ai.capabilities import AbstractCapability, CapabilityOrdering
+from pydantic_ai.exceptions import (
+    ApprovalRequired,
+    CallDeferred,
+    ModelRetry,
+    ToolFailed,
+    ToolFailedError,
+    ToolRetryError,
+    UnexpectedModelBehavior,
+)
 from pydantic_ai.toolsets import DynamicToolset
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
@@ -41,6 +48,9 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from pydantic_ai._run_context import RunContext
+    from pydantic_ai.capabilities.abstract import ValidatedToolArgs, WrapToolExecuteHandler
+    from pydantic_ai.messages import ToolCallPart
+    from pydantic_ai.tools import ToolDefinition
     from pydantic_ai.toolsets import ToolsetFunc
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
@@ -93,6 +103,17 @@ async def _mask_call(name: str, call: Awaitable[Any], *, count_as: str | None = 
     except (ModelRetry, ToolFailed) as e:
         log.debug("Tool %s returned an error for the model", name, exc_info=e)
         error = _strip(e)
+    except (ToolRetryError, ToolFailedError) as e:
+        # The form a ModelRetry or ToolFailed takes by the time a capability's
+        # wrap_tool_execute sees it. The model is sent the message part it carries, not the
+        # exception's text, so that part is what gets masked.
+        log.debug("Tool %s returned an error for the model", name, exc_info=e)
+        error = _mask_tool_error_part(e)
+    except UnexpectedModelBehavior as e:
+        # What pydantic-ai raises, below a capability's wrap_tool_execute, once a tool has
+        # used up its retries. The run fails with it, so it is not logged as the tool failing.
+        log.debug("Tool %s ran out of retries", name, exc_info=e)
+        error = _strip(e)
     except Exception as e:
         if not getattr(e, _STRIPPED, False):
             log.warning("Tool %s failed", name, exc_info=e)
@@ -103,11 +124,16 @@ async def _mask_call(name: str, call: Awaitable[Any], *, count_as: str | None = 
     if error is not None:
         # Raised outside the except blocks, so Python does not chain the original back on.
         raise error
-    if isinstance(result, ToolReturn):
-        return dataclasses.replace(
-            result, return_value=mask_secrets(result.return_value), content=mask_secrets(result.content)
-        )
+    # A ToolReturn is masked field by field, its metadata included: not sent to the model,
+    # but kept in the message history and recorded in traces.
     return mask_secrets(result)
+
+
+def _mask_tool_error_part(error: ToolRetryError | ToolFailedError) -> ToolRetryError | ToolFailedError:
+    """Rebuild ``error`` around a masked copy of the message part it carries."""
+    if isinstance(error, ToolRetryError):
+        return ToolRetryError(mask_secrets(error.tool_retry))
+    return ToolFailedError(mask_secrets(error.tool_failed))
 
 
 def _strip(error: Exception) -> Exception:
@@ -257,6 +283,49 @@ class MaskingToolset(WrapperToolset[Any]):
         tool: ToolsetTool[Any],
     ) -> Any:
         return await _mask_call(name, self.wrapped.call_tool(name, tool_args, ctx, tool))
+
+
+@dataclass
+class MaskingCapability(AbstractCapability[Any]):
+    """
+    Mask what every tool hands the model, however the tool reached the agent.
+
+    :class:`MaskingToolset` only covers a toolset the operator can find and wrap. A
+    capability can supply tools the operator never sees as a toolset: ``MCP``, a
+    ``Toolset`` built per run, or a ``Toolset`` inside ``PrefixTools`` or a
+    ``CombinedCapability``. This masks around every tool call instead.
+
+    :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.create_agent`
+    adds it to every agent it builds, so add it yourself only to an agent you build with
+    ``Agent(...)``, last in its ``capabilities``:
+
+    .. code-block:: python
+
+        agent = Agent(model, toolsets=[my_toolset], capabilities=[*my_capabilities, MaskingCapability()])
+
+    It declares the innermost position, and pydantic-ai breaks ties between capabilities
+    that declare it by list order, the last one innermost, so the agent's other capabilities
+    hooking tool execution see a result only after it is masked. Two kinds still see it
+    first: a capability passed to ``run(capabilities=...)``, which wraps inside the agent's
+    own, and a toolset wrapper a capability adds with ``get_wrapper_toolset``, which runs
+    below every capability's hooks.
+    """
+
+    def get_ordering(self) -> CapabilityOrdering:
+        """Join the innermost capabilities; list order decides which of them is closest to the tool."""
+        return CapabilityOrdering(position="innermost")
+
+    async def wrap_tool_execute(
+        self,
+        ctx: RunContext[Any],
+        *,
+        call: ToolCallPart,
+        tool_def: ToolDefinition,
+        args: ValidatedToolArgs,
+        handler: WrapToolExecuteHandler,
+    ) -> Any:
+        """Run the tool and mask its result, or the error it raised, before anything else sees it."""
+        return await _mask_call(call.tool_name, handler(args))
 
 
 def ensure_masked(toolset: AbstractToolset[Any] | ToolsetFunc[Any]) -> AbstractToolset[Any]:

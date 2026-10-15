@@ -337,7 +337,6 @@
     "maxChanges": "최대 변경 수",
     "maxChangesDefault": "기본값",
     "noChanges": "두 버전에 저장된 상태가 같습니다.",
-    "observedState": "관측된 상태",
     "observedStateBoundary": "버전 생성 시점의 기록이 아니라 현재 저장된 상태를 비교합니다. 이전 버전은 소스 비교를 지원하지 않으므로, 소스를 비교하려면 코드 탭을 사용하세요.",
     "operations": {
       "added": "추가됨",
@@ -359,7 +358,6 @@
       "title": "비교할 수 없음",
       "withoutReason": "두 버전을 비교할 수 없습니다."
     },
-    "valuesHidden": "값 숨김",
-    "valuesShown": "값 표시"
+    "valuesHidden": "값 숨김"
   }
 }

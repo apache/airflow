@@ -35,6 +35,7 @@ from airflow.providers.common.ai.sandbox.boat import BoatSandboxBackend
 # actionable error from the backend instead.
 from airflow.providers.common.ai.sandbox.islo import IsloSandboxBackend
 from airflow.providers.common.ai.sandbox.opensandbox import OpenSandboxBackend
+from airflow.providers.common.ai.sandbox.openshell import OpenShellSandboxBackend
 from airflow.providers.common.ai.sandbox.sbx import SbxSandboxBackend
 
 __all__ = [
@@ -42,6 +43,7 @@ __all__ = [
     "BoatSandboxBackend",
     "IsloSandboxBackend",
     "OpenSandboxBackend",
+    "OpenShellSandboxBackend",
     "ModalSandboxBackend",
     "SandboxBackend",
     "SandboxError",

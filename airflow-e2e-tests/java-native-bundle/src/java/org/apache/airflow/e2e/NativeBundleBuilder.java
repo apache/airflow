@@ -19,8 +19,11 @@
 
 package org.apache.airflow.e2e;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.List;
 import org.apache.airflow.e2e.nativedag.AnnotationDag;
+import org.apache.airflow.e2e.nativedag.DynamicDags;
 import org.apache.airflow.e2e.nativedag.TargetDag;
 import org.apache.airflow.sdk.*;
 
@@ -140,11 +143,14 @@ public class NativeBundleBuilder {
     return dag;
   }
 
-  public static Bundle build() {
-    return new Bundle().register(buildDag()).register(AnnotationDag.class).register(TargetDag.build());
+  public static Bundle build() throws IOException, URISyntaxException {
+    var bundle =
+        new Bundle().register(buildDag()).register(AnnotationDag.class).register(TargetDag.build());
+    DynamicDags.load().forEach(bundle::register);
+    return bundle;
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException, URISyntaxException {
     Server.create(args).serve(build());
   }
 }

@@ -25,7 +25,7 @@ import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
 import { useColorMode } from "src/context/colorMode";
-import { stripExecutionParams } from "src/utils/executionParams";
+import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR } from "./constants";
@@ -72,7 +72,11 @@ export const GridTI = ({
       })
     : `/dags/${dagId}/tasks/${isGroup ? "group/" : ""}${taskId}`;
 
-  const redirectionSearch = stripExecutionParams(searchParams).toString();
+  const redirectionSearch = setExecutionCoordinates(
+    stripExecutionParams(searchParams),
+    instance.latest_region_id,
+    instance.latest_region_index,
+  ).toString();
 
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
   const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;

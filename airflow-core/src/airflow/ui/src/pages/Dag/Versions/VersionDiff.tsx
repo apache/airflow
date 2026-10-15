@@ -162,15 +162,13 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
           </Text>
         </Box>
         <Flex alignItems="center" gap={2}>
-          <Badge colorPalette="teal">{translate("versions.observedState")}</Badge>
-          <Badge colorPalette={valuesShown ? "green" : "gray"}>
-            {translate(valuesShown ? "versions.valuesShown" : "versions.valuesHidden")}
-          </Badge>
-          {/* Says what grants values, since the viewer cannot grant it here: the server decides
-              from the caller's access to Dag code. */}
-          <Text color="fg.muted" fontSize="sm">
-            {translate("versions.codeAccess")}
-          </Text>
+          {/* The hover says what grants values, since the viewer cannot grant it here: the server
+              decides from the caller's access to Dag code. */}
+          {valuesShown ? undefined : (
+            <Tooltip content={translate("versions.codeAccess")} portalled>
+              <Badge colorPalette="gray">{translate("versions.valuesHidden")}</Badge>
+            </Tooltip>
+          )}
           {/* Above the table rather than below it: a long diff would otherwise push the caveat
               off-screen exactly when it matters most. */}
           <Tooltip content={translate("versions.observedStateBoundary")} portalled>
