@@ -18,7 +18,7 @@
  */
 import type { ReactNode } from "react";
 
-import { Box } from "@chakra-ui/react";
+import { Box, type BoxProps } from "@chakra-ui/react";
 import { BsChevronExpand } from "react-icons/bs";
 
 import { IconButton, Popover, Tooltip } from "src/system-components";
@@ -28,6 +28,8 @@ import { CUT_PADDING, type CrumbShape, crumbButtonStyles, getWedgePadding } from
 
 type Props = {
   readonly children: ReactNode;
+  /** Width of the panel. The default suits a search; a short fixed list wants to shrink to fit. */
+  readonly contentWidth?: BoxProps["width"];
   /** Names the chevron for the tooltip and for assistive technology. */
   readonly label: string;
   readonly onOpenChange: (open: boolean) => void;
@@ -44,7 +46,17 @@ type Props = {
  * current one is named. Open state stays at the call site, which owns the keyboard shortcut (if
  * the level has one) and the search the panel holds.
  */
-export const CrumbSwitcher = ({ children, label, onOpenChange, open, search, shape, testId, to }: Props) => (
+export const CrumbSwitcher = ({
+  children,
+  contentWidth = "sm",
+  label,
+  onOpenChange,
+  open,
+  search,
+  shape,
+  testId,
+  to,
+}: Props) => (
   <Popover.Root
     lazyMount
     onOpenChange={(event) => onOpenChange(event.open)}
@@ -78,7 +90,7 @@ export const CrumbSwitcher = ({ children, label, onOpenChange, open, search, sha
         </Tooltip>
       </CrumbGroup>
     </Popover.Anchor>
-    <Popover.Content data-testid={`${testId}-popover`} width="sm">
+    <Popover.Content data-testid={`${testId}-popover`} width={contentWidth}>
       <Box p={2}>{search}</Box>
     </Popover.Content>
   </Popover.Root>

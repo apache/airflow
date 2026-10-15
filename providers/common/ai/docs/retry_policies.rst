@@ -345,7 +345,7 @@ The order of events on a failure:
    Retry-After header``.
 3. If that policy returns DEFAULT, whatever reason it attached, it decided
    nothing: the outer ``fallback_rules`` apply, then the task's own retry
-   behaviour. Only a RETRY or FAIL from ``fallback_policy`` ends the chain, so an
+   behaviour. Any other decision from ``fallback_policy`` ends the chain, so an
    outer rule such as ``PermissionError -> FAIL`` still holds when both models
    are unreachable.
 
@@ -560,7 +560,7 @@ Both policies share every parameter below except ``categories``,
      - None
      - ``ClassifierRetryPolicy`` only. A ``RetryPolicy`` to consult when the
        classifier is under its bar, reports no confidence, or cannot be
-       reached; typically an ``LLMRetryPolicy`` on a text model. Its RETRY or FAIL
+       reached; typically an ``LLMRetryPolicy`` on a text model. Its decision
        is used; a DEFAULT, whatever its reason, means the outer ``fallback_rules``
        apply.
    * - ``redactor``

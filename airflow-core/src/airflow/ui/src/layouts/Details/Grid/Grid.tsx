@@ -91,7 +91,7 @@ export const Grid = ({
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
   const { openGroupIds, toggleGroupId } = useGroups();
-  const { dagId = "", groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const { dagId = "", groupId: selectedGroupId, runId: selectedRunId, taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
@@ -270,7 +270,12 @@ export const Grid = ({
       {/* Grid body */}
       <Flex bg="bg" height={`${rowVirtualizer.getTotalSize()}px`} position="relative">
         <Box left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
-          <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
+          <TaskNames
+            nodes={flatNodes}
+            onRowClick={handleRowClick}
+            tiSummaries={selectedRunId === undefined ? undefined : summariesByRunId.get(selectedRunId)}
+            virtualItems={virtualItems}
+          />
         </Box>
         <Flex flexDirection="row-reverse" flexShrink={0} style={{ isolation: "isolate" }}>
           {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}

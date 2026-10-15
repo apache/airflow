@@ -2707,7 +2707,7 @@ requires-dist = [
     { name = "sphinxcontrib-httpdomain", marker = "extra == 'docs'", specifier = ">=1.8.1" },
     { name = "sphinxcontrib-jquery", marker = "extra == 'docs'", specifier = ">=4.1" },
     { name = "sphinxcontrib-jsmath", marker = "extra == 'docs'", specifier = ">=1.0.1" },
-    { name = "sphinxcontrib-mermaid", marker = "extra == 'docs'", specifier = ">=1.0.0" },
+    { name = "sphinxcontrib-mermaid", marker = "extra == 'docs'", specifier = ">=2.1.0" },
     { name = "sphinxcontrib-qthelp", marker = "extra == 'docs'", specifier = ">=1.0.3" },
     { name = "sphinxcontrib-serializinghtml", marker = "extra == 'docs'", specifier = ">=1.1.5" },
     { name = "sphinxcontrib-spelling", marker = "extra == 'docs'", specifier = ">=8.0.0" },
@@ -4558,7 +4558,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-ai"
-version = "0.11.0"
+version = "1.0.0"
 source = { editable = "providers/common/ai" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4671,6 +4671,7 @@ dev = [
     { name = "opensandbox" },
     { name = "openshell" },
     { name = "protobuf" },
+    { name = "pydantic-ai-harness", extra = ["codemode"] },
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
     { name = "sqlglot" },
@@ -4707,7 +4708,7 @@ requires-dist = [
     { name = "protobuf", marker = "extra == 'openshell'", specifier = ">=6.31.1" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
-    { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.24.0" },
+    { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.35.0" },
     { name = "pydantic-ai-shields", marker = "extra == 'shields'", specifier = ">=0.3.4" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", specifier = ">=2.36.0" },
@@ -4747,6 +4748,7 @@ dev = [
     { name = "opensandbox", specifier = ">=1.1.0" },
     { name = "openshell", specifier = ">=0.1.2,<0.2" },
     { name = "protobuf", specifier = ">=6.31.1" },
+    { name = "pydantic-ai-harness", extras = ["codemode"], specifier = ">=0.35.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.36.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
@@ -4755,7 +4757,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-compat"
-version = "1.21.0"
+version = "1.22.0"
 source = { editable = "providers/common/compat" }
 dependencies = [
     { name = "apache-airflow" },
@@ -20044,7 +20046,7 @@ email = [
 
 [[package]]
 name = "pydantic-ai-harness"
-version = "0.34.0"
+version = "0.35.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "genai-prices" },
@@ -20052,9 +20054,9 @@ dependencies = [
     { name = "json-repair" },
     { name = "pydantic-ai-slim" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/32/e0759986b8bce033e17dac91e616e096f5ab99c41a6b55588609b29c9560/pydantic_ai_harness-0.34.0.tar.gz", hash = "sha256:049ce17739b8e69067e9cdc8120fbbcc5f3c6c6bfb9cf2457a5c0b3ca8f046bf", size = 2991435, upload-time = "2026-09-23T02:50:57.536Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/b6/d30279b62971960c2f740d7b8902a1f93f6de98cc787d56185a501a6905f/pydantic_ai_harness-0.35.0.tar.gz", hash = "sha256:4bd643d09c9be349132e4eb2cbe727c8e78a3658f2f6c7a48b6411444cdd2395", size = 3208936, upload-time = "2026-09-25T05:03:26.736Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/18/e6/227553f3cc9b2b2d1350fd85ceba1e17a2bae6cfff2c6407f4bd4ef6e97e/pydantic_ai_harness-0.34.0-py3-none-any.whl", hash = "sha256:df6ca8dc6b115d75c6236ed2c9f8b708ede02efbe2de8b0b21a7ec57a47b9393", size = 928236, upload-time = "2026-09-23T02:50:55.879Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/3f/7af10428985bee133d68a60439636450456200b4c896c77f04c9a096529b/pydantic_ai_harness-0.35.0-py3-none-any.whl", hash = "sha256:ed1691d1045480bd9192b0dc13df5ae8a48448f2987cebb7344c11e3e319b293", size = 966091, upload-time = "2026-09-25T05:03:24.873Z" },
 ]
 
 [package.optional-dependencies]
