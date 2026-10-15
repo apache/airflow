@@ -741,7 +741,9 @@ class TestGetCallbackLogs:
     def set_callback_type(self, session, missed_callback_id):
         def _set(callback_type: CallbackType) -> None:
             session.execute(
-                update(Callback).where(Callback.id == missed_callback_id).values(type=callback_type)
+                update(Callback)
+                .where(Callback.id == uuid.UUID(missed_callback_id))
+                .values(type=callback_type)
             )
             session.commit()
 
