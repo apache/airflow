@@ -122,11 +122,12 @@ class TestSqlToS3Operator:
     def test_execute_writes_polars_dataframe(
         self, mock_s3_hook, file_format, df_kwargs, expected_key, read_back
     ):
-        test_df = pl.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+        test_df = pl.DataFrame({"a": [1, 2], "b": ["x", None]})
         mock_dbapi_hook = mock.Mock()
         mock_dbapi_hook.return_value.get_df.return_value = test_df
         uploaded = {}
 
+        # Read the bytes during the upload: the text wrapper around the buffer closes it once execute returns.
         def capture_upload(file_obj, key, **_):
             uploaded[key] = file_obj.read()
 
