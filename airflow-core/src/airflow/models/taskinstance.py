@@ -3175,6 +3175,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             total_length = None
 
         region_id = self.region_id
+        unmapped_region_id = region_id
         state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
@@ -3230,6 +3231,21 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             else:
                 dr = unmapped_ti.dag_run
                 state = unmapped_ti.state
+                if unmapped_ti.try_number > 0:
+                    # Once the unmapped coordinate is gone its archived attempts are unreachable, and the
+                    # 0142 downgrade rejects them; their XCom and rendered fields are deleted with them.
+                    session.execute(
+                        delete(TaskInstance)
+                        .where(
+                            TaskInstance.dag_id == task.dag_id,
+                            TaskInstance.task_id == task.task_id,
+                            TaskInstance.run_id == run_id,
+                            TaskInstance.region_id == unmapped_region_id,
+                            TaskInstance.map_index == -1,
+                            TaskInstance.working_set.is_(None),
+                        )
+                        .execution_options(synchronize_session=False, include_all_attempts=True)
+                    )
                 zero_index_ti_exists = exists_query(
                     TaskInstance.working_set.is_(True),
                     TaskInstance.dag_id == task.dag_id,
