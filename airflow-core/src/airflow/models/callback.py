@@ -30,12 +30,19 @@ from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
-from airflow._shared.module_loading import accepts_context as _accepts_context  # noqa: F401
+from airflow._shared.module_loading import (
+    accepts_context as _accepts_context,  # noqa: F401
+    qualname,
+)
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors.workloads import BaseWorkload
-from airflow.executors.workloads.callback import CallbackFetchMethod
+from airflow.executors.workloads.callback import (
+    CALLBACK_KWARGS_ENCODING_KEY,
+    SERDE_KWARGS_ENCODING,
+    CallbackFetchMethod,
+)
 from airflow.models import Base
 from airflow.models.base import StringID
 from airflow.models.dagbundle import DagBundleModel
@@ -167,6 +174,7 @@ class Callback(Base, BaseWorkload):
     def get_metric_info(self, status: CallbackState, result: Any, team_name: str | None = None) -> dict:
         tags = {"result": result, **self.data}
         tags.pop("prefix", None)
+        tags.pop(CALLBACK_KWARGS_ENCODING_KEY, None)
 
         if "kwargs" in tags:
             # Remove the context (if exists) to keep the tags simple
@@ -241,18 +249,21 @@ class TriggererCallback(Callback):
 
     def queue(self, *, session: Session) -> None:
         from airflow.models.trigger import Trigger
+        from airflow.serialization.encoders import encode_queued_callback_kwargs
         from airflow.triggers.callback import CallbackTrigger
 
         team_name: str | None = None
         if self.bundle_name and conf.getboolean("core", "multi_team"):
             team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
 
-        self.trigger = Trigger.from_object(
-            CallbackTrigger(
-                callback_path=self.data["path"],
-                callback_kwargs=self.data["kwargs"],
-                queue=self.data.get("queue"),
-            )
+        # The kwargs stay encoded: the triggerer decodes them when it creates the CallbackTrigger.
+        self.trigger = Trigger.from_serialized_kwargs(
+            classpath=qualname(CallbackTrigger),
+            serialized_kwargs={
+                "callback_path": self.data["path"],
+                "callback_kwargs": encode_queued_callback_kwargs(self.data["kwargs"] or {}),
+            },
+            queue=self.data.get("queue"),
         )
         self.trigger.team_name = team_name
         super().queue(session=session)
@@ -290,9 +301,15 @@ class ExecutorCallback(Callback):
         :param fetch_method: Method to fetch the callback at runtime
         :param kwargs: Passed to parent Callback.__init__ (see base class for details)
         """
+        from airflow.serialization.encoders import encode_stored_callback_kwargs
+
         super().__init__(**kwargs)
         self.fetch_method = fetch_method
         self.data |= callback_def.serialize()
+        # The kwargs are decoded by the callback runner on the worker, which needs the marker
+        # to tell them apart from the already-decoded kwargs of callbacks stored before it.
+        self.data["kwargs"] = encode_stored_callback_kwargs(self.data.get("kwargs") or {})
+        self.data[CALLBACK_KWARGS_ENCODING_KEY] = SERDE_KWARGS_ENCODING
 
     def __repr__(self):
         return f"{self.data['path']}({self.data['kwargs'] or ''}) on {self.data.get('executor', 'default')} executor"
