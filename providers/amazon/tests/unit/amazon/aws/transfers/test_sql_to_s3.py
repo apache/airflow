@@ -29,7 +29,7 @@ from packaging.version import Version
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 
 PANDAS_3_PLUS = Version(pd.__version__).major >= 3
 
@@ -198,6 +198,41 @@ class TestSqlToS3Operator:
             op.execute(None)
 
         mock_fix_dtypes.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("df_type", "file_format", "read_kwargs", "available_engines", "should_raise"),
+        [
+            pytest.param("pandas", "parquet", {}, set(), True, id="pandas-parquet-no-engine"),
+            pytest.param("pandas", "parquet", {}, {"fastparquet"}, False, id="pandas-parquet-fastparquet"),
+            pytest.param(
+                "pandas", "csv", {"dtype_backend": "pyarrow"}, set(), True, id="pandas-pyarrow-backend"
+            ),
+            pytest.param("pandas", "csv", {}, set(), False, id="pandas-csv-no-engine"),
+            pytest.param("polars", "parquet", {}, set(), False, id="polars-parquet-no-engine"),
+        ],
+    )
+    @mock.patch("importlib.util.find_spec")
+    def test_parquet_engine_required(
+        self, mock_find_spec, df_type, file_format, read_kwargs, available_engines, should_raise
+    ):
+        mock_find_spec.side_effect = lambda name: object() if name in available_engines else None
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            task_id="task_id",
+            df_type=df_type,
+            file_format=file_format,
+            read_kwargs=read_kwargs,
+            dag=None,
+        )
+
+        if should_raise:
+            with pytest.raises(AirflowOptionalProviderFeatureException, match=r"\[parquet\]"):
+                op._ensure_parquet_engine()
+        else:
+            op._ensure_parquet_engine()
 
     def test_invalid_file_format(self):
         with pytest.raises(AirflowException):
