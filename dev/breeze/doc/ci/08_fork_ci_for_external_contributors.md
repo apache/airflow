@@ -172,14 +172,30 @@ concurrency cap. A manual `workflow_dispatch` in a fork still runs.
 | Event is `push` to `apache/airflow` and the branch matches the pre-existing push patterns (`v*-test`, `providers-*/v*`, `chart/v*x-test`, `airflow-ctl/v*-test`) | run | `canonical_branch` |
 | Event is `push` to `apache/airflow`, any other branch | skip | `adhoc_branch` |
 | Pull request carries `use project ci` | run | `label_project_ci` |
+| Pull request head repository is `apache/airflow` | run | `head_is_upstream` |
 | Pull request carries `use fork ci` | skip | `label_fork_ci` |
 | Author login is in `[pilot]` and the pull request was created at or after that login's join instant | skip | `pilot` |
 | `enabled` is false | run | `gate_disabled` |
-| Pull request head repository is `apache/airflow` | run | `head_is_upstream` |
 | Pull request created before `enabled_since` | run | `before_enabled_since` |
-| Author association is `MEMBER`, `OWNER` or `COLLABORATOR` | run | `trusted_author` |
+| Author association is `MEMBER`, `OWNER` or `COLLABORATOR`, or the author has write access (see below) | run | `trusted_author` |
 | Author login is in `[allowlist]` | run | `allowlisted` |
 | Anything else | skip | `external` |
+
+The table applies once the base branch carries the gate. When the base branch has neither
+`.github/fork-ci-gate.toml` nor `fork_ci_gate.py` (the pull request that introduces the gate,
+or a release branch cut before it), the job runs project CI with reason `base_without_gate`,
+as it did before the gate existed. A base branch with only one of the two files fails the job.
+
+`head_is_upstream` comes before the label and pilot rules because a branch of `apache/airflow`
+has no fork to run CI in, and its pushes are `adhoc_branch` skips: `use fork ci` on such a pull
+request would otherwise leave it with no CI at all.
+
+GitHub reports an author whose membership of the `apache` organisation is private as
+`CONTRIBUTOR`, so a committer could look external. When the rules end at `external`, the gate
+asks for the author's permission on the repository
+(`gh api repos/apache/airflow/collaborators/<login>/permission`) and treats `write`, `maintain`
+or `admin` as `trusted_author`; when that call fails, the pull request stays gated. The
+reconciler's discovery does the same before labelling.
 
 "Gated" throughout this document means a pull request whose decision reason is `external`,
 `pilot` or `label_fork_ci`. The reconciler labels exactly those; an `adhoc_branch` skip is
@@ -239,8 +255,13 @@ are labelled on the next reconciler run, and one of them that changes `.github/w
 would be closed for gate tampering. The `check-fork-ci-gate-config` prek hook rejects a newly
 added `[pilot]` instant, an `enabled_since` moved later, or `enabled` switched on while
 `enabled_since` is still in the past; contributors use the next day at 00:00 UTC. Moving
-`enabled_since` earlier is the backlog reset and is allowed. In CI the hook fetches the pull
-request's base branch to compare with, because the shallow checkout has none. A merge after that instant still leaves the window open; the
+`enabled_since` earlier is the backlog reset and is allowed. A base branch without the file,
+such as a release branch the file is backported to, has no gate yet, so its entries are not
+checked against it. In CI the hook fetches the pull
+request's base branch to compare with, because the shallow checkout has none; a push in a
+contributor's fork has no base branch, so it fetches `apache/airflow`'s `main`. Without any
+base to compare with, the hook fails rather than comparing the change with itself. A merge
+after that instant still leaves the window open; the
 closure is reported to Slack as an attention item, and the maintainer reopens the pull
 request with `use project ci`.
 
@@ -279,14 +300,18 @@ directly with the runner's `python3` without installing breeze. The reconciler i
    the shared token quota would otherwise switch the gate off for every pull request.
 3. `python3 dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py` with the event payload
    fields and the labels passed as environment variables. It writes `project-ci=true|false`
-   and `reason=...` to `GITHUB_OUTPUT`.
+   and `reason=...` to `GITHUB_OUTPUT`. A base branch with neither file skips the script and
+   writes `project-ci=true` with `reason=base_without_gate`.
 
 `build-info` gains `needs: [gate]` and `if: needs.gate.outputs.project-ci == 'true'`. Every
 other job already depends on `build-info`, so a gated pull request produces a run in which the
 gate job succeeds in seconds and everything else is skipped. No red status is attached to the
 pull request; the reconciler's comment explains what to do.
 
-`ci-arm.yml` is not changed. It has no `pull_request` trigger and never runs in forks.
+`ci-arm.yml` keeps its triggers: it has no `pull_request` trigger and never runs in forks. Its
+`push.branches` list is the source of `CANONICAL_PUSH_BRANCH_FILTERS` in `fork_ci_gate.py`
+(compiled with GitHub's filter semantics, where `*` is any characters except `/`), and its
+`notify-slack` condition matches `ci-amd.yml`'s.
 The `check-ci-workflows-in-sync` prek hook allowlist is extended to permit the `gate` job and
 the `build-info` dependency to exist only in the AMD workflow.
 
