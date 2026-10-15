@@ -23,13 +23,18 @@ import copy
 import re
 import weakref
 from collections import deque
-from collections.abc import Collection, Generator, Iterator, Sequence
+from collections.abc import Collection, Generator, Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 import attrs
 
 from airflow.sdk import TriggerRule
 from airflow.sdk._shared.dagnode.node import TaskGroupMixin
+from airflow.sdk.definitions._internal.expandinput import (
+    DictOfListsExpandInput,
+    ListOfDictsExpandInput,
+    MappedArgument,
+)
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
     DuplicateTaskIdFound,
@@ -41,7 +46,10 @@ if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagAttributeTypes
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-    from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
+    from airflow.sdk.definitions._internal.expandinput import (
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
     from airflow.sdk.definitions._internal.mixins import DependencyMixin
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
@@ -751,14 +759,73 @@ class MappedTaskGroup(TaskGroup):
     """
     A mapped task group.
 
-    This doesn't really do anything special, just holds some additional metadata
-    for expansion later.
+    .. code-block:: python
 
-    Don't instantiate this class directly; call *expand* or *expand_kwargs* on
-    a ``@task_group`` function instead.
+        with MappedTaskGroup.expand({"duration": first_task.output}, group_id="process") as mtg:
+            a = PythonOperator(
+                task_id="a",
+                python_callable=work,
+                op_kwargs={"duration": mtg.get_mapped_argument("duration")},
+            )
+            b = BashOperator(
+                task_id="b",
+                bash_command="echo $DURATION",
+                env={"DURATION": mtg.get_mapped_argument("duration")},
+            )
+            a >> b
     """
 
     _expand_input: DictOfListsExpandInput | ListOfDictsExpandInput = attrs.field(alias="expand_input")
+
+    @classmethod
+    def expand(cls, mapped_kwargs: Mapping[str, OperatorExpandArgument], **kwargs: Any) -> MappedTaskGroup:
+        """
+        Create a task group mapped over each argument in *mapped_kwargs*.
+
+        :param mapped_kwargs: Mapping of argument names to the values to expand over.
+        :param kwargs: Keyword arguments forwarded to :class:`TaskGroup`.
+        """
+        from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value
+
+        if not mapped_kwargs:
+            raise TypeError("no arguments to expand against")
+        expand_input = DictOfListsExpandInput(dict(mapped_kwargs))
+        ensure_xcomarg_return_value(expand_input.value)
+        return cls(expand_input=expand_input, **kwargs)
+
+    @classmethod
+    def expand_kwargs(cls, mapped_kwargs: OperatorExpandKwargsArgument, **kwargs: Any) -> MappedTaskGroup:
+        """
+        Create a task group mapped over a list of argument dicts.
+
+        :param mapped_kwargs: A list of dicts, or an XComArg resolving to one.
+        :param kwargs: Keyword arguments forwarded to :class:`TaskGroup`.
+        """
+        from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value
+        from airflow.sdk.definitions.xcom_arg import XComArg
+
+        if isinstance(mapped_kwargs, Sequence):
+            for item in mapped_kwargs:
+                if not isinstance(item, (XComArg, Mapping)):
+                    raise TypeError(f"expected XComArg or list[dict], not {type(mapped_kwargs).__name__}")
+        elif not isinstance(mapped_kwargs, XComArg):
+            raise TypeError(f"expected XComArg or list[dict], not {type(mapped_kwargs).__name__}")
+        expand_input = ListOfDictsExpandInput(mapped_kwargs)
+        ensure_xcomarg_return_value(expand_input.value)
+        return cls(expand_input=expand_input, **kwargs)
+
+    def get_mapped_argument(self, key: str) -> MappedArgument:
+        """
+        Return a reference to the value of *key* for each expanded instance of this group.
+
+        :param key: Name of the mapped argument.
+        """
+        if isinstance(self._expand_input, DictOfListsExpandInput) and key not in self._expand_input.value:
+            raise KeyError(
+                f"{key!r} is not a mapped argument of task group {self.group_id!r}; "
+                f"available: {sorted(self._expand_input.value)}"
+            )
+        return MappedArgument(input=self._expand_input, key=key)
 
     def __iter__(self):
         for child in self.children.values():
