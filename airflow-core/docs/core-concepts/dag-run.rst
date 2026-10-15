@@ -41,7 +41,7 @@ There are two possible terminal states for the Dag Run:
     These can lead to some unexpected behavior, e.g. if you have a leaf task with trigger rule `"all_done"`, it will be executed regardless of the states of the rest of the tasks and if it will succeed, then the whole Dag Run will also be marked as ``success``, even if something failed in the middle.
 
 .. note::
-    Another exception is when ``dagrun_timeout`` expires: the scheduler marks the Dag Run as ``failed`` and unfinished task instances as ``skipped``, regardless of whether they are mapped.
+    Another exception is when :ref:`dagrun_timeout <troubleshooting-dag-run-timeout>` expires: the scheduler marks the Dag Run as ``failed`` and unfinished task instances as ``skipped``, regardless of whether they are mapped.
     Therefore, a timed-out Dag Run can be ``failed`` even when every leaf task instance is ``success`` or ``skipped``.
 
 *Added in Airflow 2.7*
