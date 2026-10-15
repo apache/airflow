@@ -92,12 +92,16 @@ record captures the decisions that shape it and the alternatives rejected.
    the two moments that need attention (workflows enabled, closed), publish the fork CI state
    as a commit status on the head SHA (red / yellow / green, linking to the run in the
    fork), close after seven days without fork CI activity, and close an external pull
-   request (external or pilot) that tampered with the gate. Tampering is detected from what GitHub recorded, not
-   from the pull request's tree: project CI ran for the head SHA (a non-skipped job other
-   than ``gate`` in ``Tests (AMD)``, or a workflow not on the base branch) *and* the pull
-   request changes files under ``.github/workflows/``. Both are required so that legitimate
-   project CI runs (backlog reset, a removed ``use project ci``) and legitimate workflow
-   edits that keep the gate intact are never closed. Commit statuses were chosen over check
+   request (external or pilot) that tampered with the gate. Tampering is detected from the
+   workflow runs GitHub recorded for the pull request's branch in the last hours, not from
+   the pull request's tree or only its head commit, so a later push that restores the gate
+   does not hide it: a run did project CI work (its jobs show more than the gate, or it is a
+   workflow not on the base branch) *and* that run's own commit changes files under
+   ``.github/workflows/``. Both are required so that legitimate project CI runs (backlog
+   reset, a removed ``use project ci``) and legitimate workflow edits that keep the gate
+   intact are never closed. A green fork run is trusted only when the pull request does not
+   change what fork CI runs (``.github/``, ``dev/breeze/``, ``scripts/ci/`` and the like);
+   otherwise it stays a draft until a maintainer runs project CI. Commit statuses were chosen over check
    runs because a check run created with the workflow token links to the creating workflow
    instead of the fork run. ``pull_request_target`` was rejected: it would react to
    untrusted events with write permissions for a gain of a few minutes of latency.
