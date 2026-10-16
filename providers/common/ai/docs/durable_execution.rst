@@ -124,6 +124,11 @@ Without the option, the task fails with:
 
     ValueError: durable=True requires [common.ai] durable_cache_path to be set. Example: durable_cache_path = file:///tmp/airflow_durable_cache
 
+If the store fails while the task runs, the task does not. A journal file that exists but
+cannot be read is left in place for the next attempt, and this attempt runs every step
+live without recording; one that is not a valid journal, such as a file cut off part way
+through a write, is replaced. Both are logged as warnings.
+
 How a retry replays
 -------------------
 
@@ -344,9 +349,8 @@ its calls run again on every attempt, while the steps around them still replay.
 
 A result has to survive a JSON round trip to be recorded. One that cannot be encoded
 fails the task with ``DurableJournalError`` and no retry, since it would fail the same
-way every time; the model could not have read it either. A write the task state store
-refuses does not fail the task: the task log names
-the step, and a retry runs it again.
+way every time; the model could not have read it either. A write the storage refuses
+or fails does not fail the task: the task log names the step, and a retry runs it again.
 
 Limitations
 -----------
