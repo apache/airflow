@@ -93,7 +93,7 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
 
 
 class AddExecutionTimeoutToTIRunContext(VersionChange):
-    """Add ``execution_timeout`` so the supervisor can enforce it for stub (foreign-runtime) tasks."""
+    """Add ``execution_timeout`` so the supervisor enforces it for stub and native language-SDK Dag tasks."""
 
     description = __doc__
 

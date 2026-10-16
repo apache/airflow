@@ -1664,18 +1664,7 @@ class TestWatchedSubprocess:
         proc._handle_execution_timeout_if_needed()
         mock_kill.assert_called_once()
 
-    @pytest.mark.parametrize(
-        "server_timeout",
-        [
-            pytest.param(30.0, id="language_sdk_task_with_timeout"),
-            pytest.param(None, id="no_timeout"),
-        ],
-    )
-    def test_execution_timeout_from_server_kills_task_that_does_not_stop(self, mocker, server_timeout):
-        """A lang-SDK runtime never sends SetExecutionTimeout, so the supervisor arms it from the run context."""
-        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
-        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
-        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+    def _start_activity_subprocess(self, mocker, server_timeout):
         client = mocker.Mock()
         client.task_instances.start.return_value = mocker.Mock(
             should_retry=False, start_date=None, execution_timeout=server_timeout
@@ -1689,7 +1678,6 @@ class TestWatchedSubprocess:
             client=client,
         )
         mocker.patch.object(ActivitySubprocess, "send_msg")
-
         proc._on_child_started(
             ti=TaskInstance(
                 id=TI_ID,
@@ -1704,6 +1692,14 @@ class TestWatchedSubprocess:
             bundle_info=FAKE_BUNDLE,
             sentry_integration="",
         )
+        return proc
+
+    def test_execution_timeout_from_server_kills_task_that_does_not_stop(self, mocker):
+        """A lang-SDK runtime never sends SetExecutionTimeout, so the supervisor arms it from the run context."""
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        proc = self._start_activity_subprocess(mocker, server_timeout=30.0)
 
         monotonic.return_value += 34
         proc._handle_execution_timeout_if_needed()
@@ -1711,17 +1707,24 @@ class TestWatchedSubprocess:
 
         monotonic.return_value += 1
         proc._handle_execution_timeout_if_needed()
-        if server_timeout is None:
-            mock_kill.assert_not_called()
-        else:
-            mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
-            proc.process_log.error.assert_called_once_with(
-                "Task did not stop before execution_timeout elapsed; terminating process",
-                timeout_seconds=server_timeout,
-                grace_period_seconds=5.0,
-            )
-            proc._handle_execution_timeout_if_needed()
-            mock_kill.assert_called_once()
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
+        proc.process_log.error.assert_called_once_with(
+            "Task did not stop before execution_timeout elapsed; terminating process",
+            timeout_seconds=30.0,
+            grace_period_seconds=5.0,
+        )
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once()
+
+    def test_no_execution_timeout_from_server_never_kills_task(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        proc = self._start_activity_subprocess(mocker, server_timeout=None)
+
+        monotonic.return_value += 3600
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
 
     @pytest.mark.parametrize(
         ("terminal_state", "exit_code"),

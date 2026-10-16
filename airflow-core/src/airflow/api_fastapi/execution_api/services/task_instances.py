@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagbag import DBDagBag
+    from airflow.serialization.serialized_objects import SerializedOperator
 
 
 def client_supports_arg_bindings() -> bool:
@@ -44,6 +45,21 @@ def client_supports_arg_bindings() -> bool:
     return AddArgBindingsToTIRunContext.is_applied
 
 
+def get_stub_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOperator | None:
+    """
+    Return the TI's task from its Dag version if it runs in a language SDK, else ``None``.
+
+    Both ``@task.stub`` tasks and native language-SDK Dag tasks serialize with ``is_stub=True``.
+    """
+    if ti.dag_version_id is None:
+        return None
+    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
+        return None
+    if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
+        return None
+    return task
+
+
 def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | None:
     """
     Extract the stub task's TaskFlow arg spec from its Dag version.
@@ -52,11 +68,7 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
     ``None`` here and keep the legacy ignored-args behavior; per-map-index delivery
     lands in a follow-up.
     """
-    if ti.dag_version_id is None:
-        return None
-    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
-        return None
-    if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
+    if (task := get_stub_task(dag_bag, ti, session=session)) is None:
         return None
     return task.arg_bindings
 
@@ -65,16 +77,9 @@ def get_language_sdk_execution_timeout(dag_bag: DBDagBag, ti: Any, *, session: S
     """
     Return ``execution_timeout`` in seconds for tasks run by a language SDK.
 
-    Both ``@task.stub`` tasks and native language-SDK Dag tasks serialize with ``is_stub=True``.
-    They need the timeout from the server; a Python task parses the Dag file and reports its own.
+    These tasks need the timeout from the server; a Python task parses the Dag file and reports its own.
     Return ``None`` for other tasks and when no timeout is set, including a zero timeout.
     """
-    if ti.dag_version_id is None:
-        return None
-    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
-        return None
-    if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
-        return None
-    if not task.execution_timeout:
+    if (task := get_stub_task(dag_bag, ti, session=session)) is None or not task.execution_timeout:
         return None
     return task.execution_timeout.total_seconds()

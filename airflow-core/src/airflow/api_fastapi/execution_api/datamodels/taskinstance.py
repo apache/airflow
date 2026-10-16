@@ -493,10 +493,11 @@ class TIRunContext(BaseModel):
 
     execution_timeout: float | None = None
     """
-    The task's ``execution_timeout`` in seconds, for stub (foreign-runtime) tasks.
+    The task's ``execution_timeout`` in seconds, for tasks run by a language SDK.
 
-    A lang-SDK runtime has no Dag file to read the timeout from, so the supervisor arms its deadline from
-    this value. ``None`` for regular tasks, which report their own timeout, and for stubs without one.
+    Covers ``@task.stub`` tasks and native language-SDK Dag tasks. Their runtime never sends
+    ``SetExecutionTimeout``, so the supervisor arms its deadline from this value. ``None`` for Python
+    tasks, which report their own timeout, and for language-SDK tasks without one.
     """
 
     multi_team: bool = False

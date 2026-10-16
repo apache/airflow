@@ -115,7 +115,9 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
     """
-    Add the ``execution_timeout`` field carrying a stub task's timeout in seconds.
+    Add the ``execution_timeout`` field carrying a language-SDK task's timeout in seconds.
+
+    Language-SDK tasks are ``@task.stub`` tasks and native language-SDK Dag tasks.
 
     The supervisor-schema mirror of the execution API's ``AddExecutionTimeoutToTIRunContext``,
     named apart so the two migrations are not confused.
