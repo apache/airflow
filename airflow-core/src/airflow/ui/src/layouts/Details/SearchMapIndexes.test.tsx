@@ -48,7 +48,7 @@ vi.mock("chakra-react-select", () => ({
       />
       {options.map((option) => (
         <button key={option.value} onClick={() => onChange(option)} type="button">
-          {`${option.label} (${option.state})`}
+          {option.state === undefined ? option.label : `${option.label} (${option.state})`}
         </button>
       ))}
     </>
@@ -110,6 +110,25 @@ describe("SearchMapIndexes", () => {
     expect(screen.getByRole("button", { name: "alpha (success)" })).toBeInTheDocument();
     // An instance with nothing rendered still has to be nameable, so it falls back to its number.
     expect(screen.getByRole("button", { name: "2 (failed)" })).toBeInTheDocument();
+  });
+
+  it("offers the whole expansion as a way back, with no state of its own", () => {
+    renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
+
+    // Labelled without a state, since it stands for every instance rather than one of them.
+    expect(screen.getByRole("button", { name: "allMapIndexes" })).toBeInTheDocument();
+  });
+
+  it("leaves the pass behind only the instance when all map indexes is picked", () => {
+    renderSearch(
+      `/dags/my_dag/runs/run_1/tasks/task_1/mapped/2?region_id=${REGION_ID}&region_index=2`,
+      MAPPED_ROUTE,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "allMapIndexes" }));
+
+    expect(screen.getByTestId("location").textContent).toBe("/dags/my_dag/runs/run_1/tasks/task_1/mapped");
+    expect(screen.getByTestId("search").textContent).toBe(`?region_id=${REGION_ID}`);
   });
 
   it("switches to the selected instance and closes the panel", () => {

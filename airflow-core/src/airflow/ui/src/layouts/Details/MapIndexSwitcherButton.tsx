@@ -38,15 +38,18 @@ type Props = {
   readonly children: ReactNode;
   readonly dagId: string;
   readonly shape: CrumbShape;
-  readonly to: string;
 };
 
 /**
  * The map index level of the breadcrumb, with a search over the task's expanded instances behind
  * its chevron. Like the run level, what the panel lists is loaded here so that opening it shows
  * the instances straight away, and polling is held to while it is open.
+ *
+ * The naming half goes nowhere: every destination it could have is the page already on screen,
+ * and the link would reach it without the region the url carries, which a looped task needs to
+ * say which pass it means.
  */
-export const MapIndexSwitcherButton = ({ children, dagId, shape, to }: Props) => {
+export const MapIndexSwitcherButton = ({ children, dagId, shape }: Props) => {
   const { t: translate } = useTranslation();
   const { runId = "", taskId = "" } = useParams();
   // Not a filter: the iteration level decides which pass, so every index is offered whatever pass
@@ -88,7 +91,6 @@ export const MapIndexSwitcherButton = ({ children, dagId, shape, to }: Props) =>
       }
       shape={shape}
       testId="switch-map-index"
-      to={to}
     >
       {children}
     </CrumbSwitcher>

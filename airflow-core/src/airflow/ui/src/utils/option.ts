@@ -32,7 +32,8 @@ export type MapIndexSearchOption = {
   /** The expansion's own coordinate, which the link has to carry to be unambiguous in a loop. */
   readonly regionId?: string;
   readonly regionIndex?: number;
-  readonly state: TaskInstanceState | null;
+  /** Absent on the row standing for all of them, which is no instance and so has no state. */
+  readonly state?: TaskInstanceState | null;
 } & Option;
 
 export type DagSearchOption = {

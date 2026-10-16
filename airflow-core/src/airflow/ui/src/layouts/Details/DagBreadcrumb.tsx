@@ -105,9 +105,9 @@ const BreadcrumbItem = ({
     );
   }
 
-  if (crumb.key === "mapIndex" && crumb.to !== undefined) {
+  if (crumb.key === "mapIndex") {
     return (
-      <MapIndexSwitcherButton dagId={dagId} shape={shape} to={crumb.to}>
+      <MapIndexSwitcherButton dagId={dagId} shape={shape}>
         {content}
       </MapIndexSwitcherButton>
     );
@@ -283,22 +283,14 @@ export const DagBreadcrumb = () => {
   // instances" when none is picked, so the switch between instances is in the same place whether
   // you are looking at one of them or at the summary of all of them.
   if (hasExpandedInstances && runId !== undefined && taskId !== undefined) {
-    const mappedPath = `/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped`;
-
     crumbs.push(
       mapIndex === "-1"
-        ? {
-            caption: translate("mapIndex"),
-            key: "mapIndex",
-            to: mappedPath,
-            value: translate("dag:allMapIndexes"),
-          }
+        ? { caption: translate("mapIndex"), key: "mapIndex", value: translate("dag:allMapIndexes") }
         : {
             caption: translate("mapIndex"),
             hasState: true,
             key: "mapIndex",
             state: mappedTaskInstance?.state,
-            to: `${mappedPath}/${mapIndex}`,
             value: mappedTaskInstance?.rendered_map_index ?? mapIndex,
           },
     );

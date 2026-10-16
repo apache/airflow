@@ -22,7 +22,7 @@ import { Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { SingleValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 
 import { UseTaskInstanceServiceGetMappedTaskInstancesKeyFn } from "openapi/queries";
@@ -32,14 +32,18 @@ import type { TaskInstanceCollectionResponse } from "openapi/requests/types.gen"
 import { SearchSelect } from "src/components/SearchSelect";
 import { StateBadge } from "src/components/StateBadge";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
 import type { MapIndexSearchOption } from "src/utils/option";
 
 import { BY_MAP_INDEX, SEARCH_LIMIT, buildMapIndexOptions } from "./searchOptions";
 
+/** Stands for the whole expansion rather than one of them, so it is not a map index. */
+const ALL_MAP_INDEXES = "all";
+
 const formatOptionLabel = (option: MapIndexSearchOption) => (
   <Flex alignItems="center" gap={2} minW={0}>
-    <StateBadge flexShrink={0} state={option.state} />
+    {option.state === undefined ? undefined : <StateBadge flexShrink={0} state={option.state} />}
     <Text truncate>{option.label}</Text>
   </Flex>
 );
@@ -67,9 +71,25 @@ export const SearchMapIndexes = ({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
 
   const onSelect = (selected: SingleValue<MapIndexSearchOption>) => {
     if (!selected) {
+      return;
+    }
+
+    if (selected.value === ALL_MAP_INDEXES) {
+      // The pass stays; only the instance within it is being let go of.
+      const params = new URLSearchParams(searchParams);
+
+      params.delete(SearchParamsKeys.REGION_INDEX);
+      const query = params.toString();
+
+      onClose();
+      void Promise.resolve(
+        navigate(`/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped${query === "" ? "" : `?${query}`}`),
+      );
+
       return;
     }
 
@@ -136,7 +156,12 @@ export const SearchMapIndexes = ({
       inputValue={text}
       onChange={onSelect}
       onInputChange={onInputChange}
-      options={text === "" ? instances : (found ?? instances)}
+      // Only offered when nothing is typed: it is the way back out, not a search result.
+      options={
+        text === ""
+          ? [{ label: translate("dag:allMapIndexes"), value: ALL_MAP_INDEXES }, ...instances]
+          : (found ?? instances)
+      }
       placeholder={translate("search.mapIndexes")}
     />
   );

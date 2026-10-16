@@ -258,11 +258,10 @@ describe("DagBreadcrumb", () => {
       "href",
       `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped`,
     );
-    // The map index is a switcher like the Dag and run levels, so its own half links to itself.
-    expect(screen.getByRole("link", { name: /^mapIndex ?0$/u })).toHaveAttribute(
-      "href",
-      `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped/0`,
-    );
+    // The map index names itself but is not a link: every destination it could have is this page,
+    // and the trip would drop the region the url carries.
+    expect(screen.queryByRole("link", { name: /mapIndex/u })).not.toBeInTheDocument();
+    expect(screen.getByText("0")).toBeInTheDocument();
   });
 
   it("resolves the task instance by the region coordinates in the URL", async () => {
