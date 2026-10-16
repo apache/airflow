@@ -193,13 +193,59 @@
         "duration": {
           "type": "number"
         },
+        "id": {
+          "description": "UUID of this attempt (Airflow 3+). Every try, and every task instance a clear creates again, gets a new one.",
+          "type": "string",
+          "format": "uuid"
+        },
         "map_index": {
+          "description": "Position in a mapped task's expansion. Absent for a task that isn't mapped.",
+          "type": "integer"
+        },
+        "loop_index": {
+          "description": "Zero-based iteration of the innermost loop the task runs in (Airflow 3.4+). Absent outside a loop.",
+          "type": "integer"
+        },
+        "loop_max_iterations": {
+          "description": "Maximum number of iterations of the innermost loop the task runs in (Airflow 3.4+). Absent outside a loop.",
+          "type": "integer"
+        },
+        "loop_group_id": {
+          "description": "Group id of the innermost loop the task runs in (Airflow 3.4+), which loop_index counts the iterations of. Absent outside a loop.",
+          "type": "string"
+        },
+        "loop_decision": {
+          "description": "Decision of a loop gate (Airflow 3.4+), on its COMPLETE or FAIL event only. A FAIL with stop false at the last iteration means the loop's until was still false at max_iterations.",
+          "type": "object",
+          "properties": {
+            "stop": {
+              "description": "Whether the gate stopped the loop.",
+              "type": "boolean"
+            },
+            "reason": {
+              "description": "Reason given by until, if any.",
+              "type": "string"
+            }
+          }
+        },
+        "region_id": {
+          "description": "Id of the region (one execution of a loop or of a mapped task's expansion) the task instance belongs to (Airflow 3.4+). Shared by the task instances of that region. Clearing a loop forks its region, so a re-run of an iteration gets a new region_id. Region ids are UUIDv7, so a later trajectory has a greater one, which is an implementation detail. Absent for a task that is neither mapped nor in a loop.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "region_index": {
+          "description": "Position inside the region (Airflow 3.4+): the iteration for a task in a loop that isn't mapped, the map index for a mapped task. Together with dag_id, the Dag run's run_id, task_id, region_id and try_number it identifies one attempt. Absent with region_id.",
           "type": "integer"
         },
         "pool": {
           "type": "string"
         },
         "try_number": {
+          "description": "Try of the task instance, counted per region_id and region_index.",
+          "type": "integer"
+        },
+        "max_tries": {
+          "description": "Last try_number that is retried on failure, so a failed try with try_number > max_tries is final. Equals the task's retries until the task instance is cleared, which sets it to the last try_number plus retries.",
           "type": "integer"
         },
         "queued_dttm": {

@@ -1,0 +1,76 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_retry_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_retry_dag.flaky_task"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_retry_dag.flaky_task"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_retry_dag.flaky_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_retry_dag.flaky_task"
+        }
+    }
+]

@@ -1123,9 +1123,67 @@ class DagRunInfo(InfoJsonEncodable):
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
-    """Defines encoding TaskInstance object to JSON."""
+    """
+    Encode a task instance as ``run.facets.airflow.taskInstance``, which tells which execution sent an event.
 
-    includes = ["duration", "log_url", "pool", "queued_dttm", "try_number"]
+    The fields that identify the execution, each left out when it doesn't apply:
+
+    * ``id`` (Airflow 3+): the UUID of the attempt. Every try, and every task instance a clear creates again,
+      gets a new one, so it identifies one execution, and it is the ``runId`` of a task inside a loop. Airflow's
+      API can look it up, but it says nothing by itself.
+    * ``try_number``: the try, counted per ``region_id`` and ``region_index`` (see below).
+    * ``max_tries``: the last ``try_number`` that still gets retried on failure, so a failed try with
+      ``try_number > max_tries`` is final. It equals the task's ``retries`` (in ``task``) only until a clear:
+      clearing sets it to the last try number plus ``retries``, giving the task its retries again.
+    * ``map_index``: the position in a mapped task's expansion that users see. Absent for a task that isn't
+      mapped.
+    * ``loop_index``, ``loop_max_iterations`` and ``loop_group_id`` (Airflow 3.4+): the zero-based iteration
+      of the innermost loop around the task, that loop's limit and its group id, which can differ from
+      ``task.task_group`` when the task sits in a task group inside the loop. The iterations of loops further
+      out aren't known. ``(loop_group_id, loop_index)`` names an iteration, but not which trajectory it ran in,
+      nor in a nested loop which iteration of the outer loop.
+    * ``region_id`` and ``region_index`` (Airflow 3.4+): the coordinates Airflow stores the task instance under.
+      A region is one execution of a loop, or of a mapped task's expansion, and is shared by all the task
+      instances it creates. ``region_index`` is the position inside it: the iteration for a task in a loop that
+      isn't mapped, the map index for a mapped task. Neither is unique: ``(dag_id, dagRun.run_id, task_id,
+      region_id, region_index, try_number)`` is, as Airflow enforces it (``task_instance_try_key``). Both are
+      absent for a task in no region, i.e. one that is neither mapped nor in a loop.
+
+    ``loop_decision`` (Airflow 3.4+): ``stop`` and the optional ``reason`` returned by ``until``, as evaluated by
+    a loop's gate, the task that ends each iteration (``gate_task_id`` of the loop group, in ``task.task_group``
+    and in ``taskGroups`` of ``AirflowJobFacet``). Only the gate's COMPLETE and FAIL events carry it, as the gate
+    decides while it runs. Read with ``loop_index``, ``loop_max_iterations`` and the group's ``has_until``:
+
+    * COMPLETE with ``stop`` false: the loop goes on to iteration ``loop_index + 1``.
+    * COMPLETE with ``stop`` true and ``has_until``: ``until`` ended the loop at iteration ``loop_index``, which
+      can be the last one.
+    * COMPLETE with ``stop`` true and no ``has_until``: the loop ran all its iterations, as one without ``until``
+      always stops at ``loop_index == loop_max_iterations - 1``.
+    * FAIL with ``stop`` false: ``until`` was still false at the last iteration (``loop_index ==
+      loop_max_iterations - 1``), so the loop ran out of iterations and fails. That's the only failure after the
+      decision is made.
+    * FAIL without ``loop_decision``: the gate failed before deciding, e.g. ``until`` raised or returned something
+      other than a bool or a ``LoopDecision``; the error facet tells which.
+
+    How a cleared loop reads: clearing a loop from iteration ``k`` retries what was cleared in iteration ``k`` in
+    place, with the same region and the next ``try_number``. The iterations after ``k`` are created again in a
+    new region forked from the loop's region, and try numbers count per region, so the new execution of
+    iteration ``k + 1`` can repeat the task, ``loop_index``, ``map_index`` and ``try_number`` of the one it
+    replaces. Only ``region_id`` (and ``id``) tell the two apart. Each such re-run of a loop is a trajectory.
+    ``dagRun.clear_number`` counts clears of the whole Dag run only.
+
+    Ordering: region ids are UUIDv7, so of two executions of one task with the same ``loop_index`` and
+    ``map_index``, the later trajectory has the greater ``region_id``. That is how Airflow generates them, not a
+    documented guarantee, and it only orders the trajectories seen: an event doesn't say whether it comes from
+    the second or the third trajectory, nor from which iteration its trajectory was forked.
+
+    What events can't tell: a mapped task's ``region_id`` is the one of its own expansion, which sits inside the
+    loop's region without naming it. So a mapped task instance in a loop can't be matched to the trajectory of
+    the loop, or to the task instances of the same pass that aren't mapped (whose ``region_id`` is the loop's),
+    other than by ``loop_index`` and time.
+    """
+
+    includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "try_number"]
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
         "note": lambda ti: safe_getattr(ti, "note", None),  # From manual state changes only
@@ -1135,11 +1193,44 @@ class TaskInstanceInfo(InfoJsonEncodable):
         "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
     }
 
+    def __init__(self, obj, position: TaskInstancePosition | None = None):
+        # Pass the position when the caller has already placed the task instance, e.g. from its stored region
+        self._position = position
+        super().__init__(obj)
+
     def _extend_fields(self) -> None:
-        map_index = get_task_instance_map_index(self.obj)
+        # A stored task instance whose task isn't attached can't be placed without its region, and a facet must
+        # not fail the whole event, so then it describes the task instance without its position.
+        position = self._position or _get_task_instance_position(self.obj)
+        if position is not None:
+            position = _add_runtime_loop_iteration(self.obj, position)
+        map_index = position.map_index if position else -1
         self.map_index = map_index if map_index != -1 else None
         self.rendered_map_index = getattr(self.obj, "rendered_map_index", None) if map_index != -1 else None
         self._fields.extend(("map_index", "rendered_map_index"))
+        if position and position.loop_index is not None:
+            self.loop_index = position.loop_index
+            self._fields.append("loop_index")
+        if position and position.loop_max_iterations is not None:
+            self.loop_max_iterations = position.loop_max_iterations
+            self._fields.append("loop_max_iterations")
+        if position and position.loop_group_id is not None:
+            self.loop_group_id = position.loop_group_id
+            self._fields.append("loop_group_id")
+        if AIRFLOW_V_3_0_PLUS and (ti_id := getattr(self.obj, "id", None)) is not None:
+            self.id = str(ti_id)
+            self._fields.append("id")
+        # Only a loop gate's runtime task instance has one, once it has evaluated ``until``. Read from a private
+        # attribute until the task SDK exposes it.
+        if (decision := getattr(self.obj, "_loop_decision", None)) is not None:
+            self.loop_decision = {"stop": decision.stop, "reason": decision.reason}
+            self._fields.append("loop_decision")
+        # A runtime task instance in no region carries the sentinel region id instead of None
+        region_id = getattr(self.obj, "region_id", None)
+        if isinstance(region_id, UUID) and region_id.int != 0:
+            self.region_id = str(region_id)
+            self.region_index = getattr(self.obj, "region_index", None)
+            self._fields.extend(("region_id", "region_index"))
 
 
 class AssetInfo(InfoJsonEncodable):
@@ -1348,6 +1439,10 @@ class TaskGroupInfo(InfoJsonEncodable):
         "tooltip",
         "upstream_group_ids",
         "upstream_task_ids",
+        "gate_task_id",  # in a loop group
+        "has_until",  # in a loop group
+        "max_iterations",  # in a loop group
+        "terminal_task_id",  # in a loop group
     ]
 
 
@@ -1403,13 +1498,14 @@ def get_airflow_run_facet(
     task: BaseOperator,
     task_uuid: str,
     include_full_task_info: bool = False,
+    ti_position: TaskInstancePosition | None = None,
 ) -> dict[str, AirflowRunFacet]:
     runtime_assets = get_runtime_outlet_assets(task_instance)
     return {
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
-            taskInstance=TaskInstanceInfo(task_instance),
+            taskInstance=TaskInstanceInfo(task_instance, position=ti_position),
             task=(
                 TaskInfoComplete(task, runtime_assets=runtime_assets)
                 if include_full_task_info
@@ -1455,6 +1551,8 @@ def get_airflow_state_run_facet(
         return {
             "airflowState": AirflowStateRunFacet(
                 dagRunState=dag_run_state,
+                # TODO: keyed by task_id only, so the mapped instances and loop iterations of one task collapse
+                #  into a single entry (the last one by region wins). Needs the map index and loop iteration here.
                 tasksState={ti.task_id: ti.state for ti in tis},
                 tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
             )
@@ -1483,18 +1581,28 @@ def is_dag_run_asset_triggered(
 @attrs.frozen
 class TaskInstancePosition:
     """
-    Where a task instance runs: inside a loop body or not, and the map index users see.
+    Where a task instance runs: inside a loop body or not, the map index users see and the loop iteration.
 
     A plain mapped task keeps the region of its own expansion, so its dag, task, try, logical date and
     map index stay unique; inside a loop they repeat on every pass, so only the execution UUID identifies
-    the run.
+    the run. ``loop_index`` is the zero-based iteration and ``loop_max_iterations`` the limit of the loop, the
+    counterparts of ``try_number`` and the maximum number of tries, and ``loop_group_id`` the loop's group id.
+    All three describe the innermost loop and are ``None`` outside a loop. A stored task whose task isn't
+    attached has no ``loop_max_iterations``, nor ``loop_group_id`` when it is mapped, and a stored mapped task
+    in a loop has no ``loop_index`` unless ``get_orm_task_instance_positions`` could read its region. A runtime
+    task instance has no ``loop_index`` nor ``loop_max_iterations`` unless placed with
+    ``get_task_instance_position``, as only its template context holds them.
+    ``TaskInstanceInfo`` explains how these read together with the try and the region in events.
     """
 
     in_loop: bool
     map_index: int
+    loop_index: int | None = None
+    loop_max_iterations: int | None = None
+    loop_group_id: str | None = None
 
 
-def _is_task_in_loop(task: Any) -> bool:
+def _get_enclosing_loop(task: Any) -> Any | None:
     from airflow.sdk.definitions._internal.loop import LoopTaskGroup
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
@@ -1502,9 +1610,9 @@ def _is_task_in_loop(task: Any) -> bool:
     group = getattr(task, "task_group", None)
     while isinstance(group, (TaskGroup, SerializedTaskGroup)):
         if isinstance(group, (LoopTaskGroup, SerializedLoopTaskGroup)):
-            return True
+            return group
         group = group.parent_group
-    return group is not None
+    return None
 
 
 def _get_task_instance_position(
@@ -1520,9 +1628,26 @@ def _get_task_instance_position(
         return TaskInstancePosition(in_loop=False, map_index=map_index)
     if (task := getattr(task_instance, "task", None)) is None:
         return None
+    enclosing_loop = _get_enclosing_loop(task)
+    in_loop = enclosing_loop is not None
+    loop_index: int | None = None
+    loop_max_iterations: int | None = None
+    loop_group_id = enclosing_loop.group_id if enclosing_loop is not None else None
+    if in_loop and is_stored:
+        loop_max_iterations = getattr(enclosing_loop, "max_iterations", None)
     if is_stored and not task.get_needs_expansion():
+        # The stored region_index means a map index only for a mapped task. A task that isn't mapped has none,
+        # and inside a loop its region_index is the iteration instead.
+        if in_loop:
+            loop_index = map_index
         map_index = -1
-    return TaskInstancePosition(in_loop=_is_task_in_loop(task), map_index=map_index)
+    return TaskInstancePosition(
+        in_loop=in_loop,
+        map_index=map_index,
+        loop_index=loop_index,
+        loop_max_iterations=loop_max_iterations,
+        loop_group_id=loop_group_id,
+    )
 
 
 def _require_task_instance_position(
@@ -1536,25 +1661,47 @@ def _require_task_instance_position(
     return position
 
 
+def _add_runtime_loop_iteration(
+    task_instance: TaskInstance | RuntimeTaskInstance, position: TaskInstancePosition
+) -> TaskInstancePosition:
+    # Run ids, map indexes and the lineage macros don't need the iteration, so only this reads the template
+    # context: it re-validates the params on every call, which can raise from inside a user's template.
+    if not position.in_loop or position.loop_index is not None or isinstance(task_instance, TaskInstance):
+        return position
+    if (loop := task_instance.get_template_context().get("loop")) is None:
+        return position
+    return attrs.evolve(position, loop_index=loop.index, loop_max_iterations=loop.max_iterations)
+
+
+def get_task_instance_position(task_instance: TaskInstance | RuntimeTaskInstance) -> TaskInstancePosition:
+    """Place a task instance with its loop iteration, once per event, to pass to ``get_airflow_run_facet``."""
+    return _add_runtime_loop_iteration(task_instance, _require_task_instance_position(task_instance))
+
+
 def get_orm_task_instance_positions(
     task_instances: Collection[TaskInstance], *, session: Session | None
 ) -> dict[UUID, TaskInstancePosition]:
     """
-    Place stored task instances, reading the regions of those without their task in one query.
+    Place stored task instances, reading in one query the regions of those without their task and of mapped tasks in a loop.
 
-    Server side only: workers never hold a session, and an instance that needs its region read without one
-    raises instead of opening a connection.
+    Server side only: workers never hold a session. An instance without its task raises when there is no session to
+    read its region, while a mapped task in a loop is then placed without its iteration.
     """
     positions: dict[UUID, TaskInstancePosition] = {}
     unplaced: list[TaskInstance] = []
+    without_iteration: list[TaskInstance] = []
     for task_instance in task_instances:
         if (position := _get_task_instance_position(task_instance)) is None:
             unplaced.append(task_instance)
         else:
             positions[task_instance.id] = position
-    if not unplaced:
+            # A stored mapped task in a loop keeps its iteration on its region only. Without a session it stays unknown.
+            if position.in_loop and position.loop_index is None and session is not None:
+                without_iteration.append(task_instance)
+    if not unplaced and not without_iteration:
         return positions
     if session is None:
+        # Only unplaced instances get here without a session, as no mapped task is added to without_iteration then
         raise ValueError("Placing a stored task instance without its task needs the session it was loaded in")
 
     from sqlalchemy import select
@@ -1564,8 +1711,15 @@ def get_orm_task_instance_positions(
     regions = {
         row.id: row
         for row in session.execute(
-            select(DynamicRegion.id, DynamicRegion.node_id, DynamicRegion.parent_region_id).where(
-                DynamicRegion.id.in_({task_instance.region_id for task_instance in unplaced})
+            select(
+                DynamicRegion.id,
+                DynamicRegion.node_id,
+                DynamicRegion.parent_region_id,
+                DynamicRegion.parent_region_index,
+            ).where(
+                DynamicRegion.id.in_(
+                    {task_instance.region_id for task_instance in (*unplaced, *without_iteration)}
+                )
             )
         )
     }
@@ -1573,10 +1727,25 @@ def get_orm_task_instance_positions(
         region = regions.get(task_instance.region_id)
         if region is not None and region.node_id == task_instance.task_id:
             positions[task_instance.id] = TaskInstancePosition(
-                in_loop=region.parent_region_id is not None, map_index=task_instance.region_index
+                in_loop=region.parent_region_id is not None,
+                map_index=task_instance.region_index,
+                loop_index=region.parent_region_index,
             )
         else:
-            positions[task_instance.id] = TaskInstancePosition(in_loop=True, map_index=-1)
+            # Only a found region tells that the task isn't mapped, so that its region is the loop's and its
+            # region_index the iteration
+            positions[task_instance.id] = TaskInstancePosition(
+                in_loop=True,
+                map_index=-1,
+                loop_index=task_instance.region_index if region is not None else None,
+                loop_group_id=region.node_id if region is not None else None,
+            )
+    for task_instance in without_iteration:
+        region = regions.get(task_instance.region_id)
+        if region is not None and region.parent_region_index is not None:
+            positions[task_instance.id] = attrs.evolve(
+                positions[task_instance.id], loop_index=region.parent_region_index
+            )
     return positions
 
 
@@ -2043,6 +2212,11 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
             "ui_label": tg.label,
             "downstream_task_edges": task_edges,
             "downstream_group_edges": group_edges,
+            **{
+                field: getattr(tg, field)  # Only a loop group has these
+                for field in ("gate_task_id", "has_until", "max_iterations", "terminal_task_id")
+                if hasattr(tg, field)
+            },
         }
     return result
 
