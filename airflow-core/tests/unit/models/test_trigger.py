@@ -551,24 +551,33 @@ def test_handle_event_submit_fails_task_when_the_event_payload_cannot_be_seriali
     assert "event payload could not be serialized" in task_instance.next_kwargs["error"]
 
 
-def test_submit_failure(session, create_task_instance):
+@pytest.mark.parametrize(
+    ("caller_triggerer_id", "expected_state", "expected_next_method"),
+    [
+        pytest.param(None, State.SCHEDULED, "__fail__", id="unguarded"),
+        pytest.param(1, State.SCHEDULED, "__fail__", id="owning-triggerer"),
+        pytest.param(2, State.DEFERRED, None, id="previous-owner"),
+    ],
+)
+def test_submit_failure(
+    session, create_task_instance, caller_triggerer_id, expected_state, expected_next_method
+):
     """
     Tests that failures submitted to a trigger fail their dependent
-    task instances if not using a TaskEndEvent.
+    task instances if not using a TaskEndEvent, unless the caller no longer owns the trigger.
     """
-    # Make a trigger
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger.triggerer_id = 1
     session.add(trigger)
-    # Make a TaskInstance that's deferred and waiting on it
     task_instance = create_task_instance(task_id="fake", logical_date=timezone.utcnow(), state=State.DEFERRED)
     task_instance.trigger_id = trigger.id
     session.commit()
-    # Call submit_event
-    Trigger.submit_failure(trigger.id, session=session)
-    # Check that the task instance is now scheduled to fail
+
+    Trigger.submit_failure(trigger.id, triggerer_id=caller_triggerer_id, session=session)
+
     updated_task_instance = session.scalar(select(TaskInstance))
-    assert updated_task_instance.state == State.SCHEDULED
-    assert updated_task_instance.next_method == "__fail__"
+    assert updated_task_instance.state == expected_state
+    assert updated_task_instance.next_method == expected_next_method
 
 
 @pytest.mark.parametrize(

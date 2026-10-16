@@ -209,7 +209,7 @@ class TestLLMSQLQueryOperator:
             "model_id",
             "fallback_conn_ids",
             "system_prompt",
-            "agent_params",
+            "model_settings",
             "usage_limits",
             "db_conn_id",
             "table_names",
@@ -321,8 +321,8 @@ class TestLLMSQLQueryOperator:
         assert result == "DROP TABLE users"
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_passes_agent_params(self, mock_hook_cls, make_mock_run_result):
-        """agent_params inherited from LLMOperator are unpacked into create_agent."""
+    def test_execute_passes_model_settings_and_output_retries(self, mock_hook_cls, make_mock_run_result):
+        """model_settings and output_retries inherited from LLMOperator reach create_agent."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "SELECT 1", make_mock_run_result
         )
@@ -331,13 +331,14 @@ class TestLLMSQLQueryOperator:
             task_id="test",
             prompt="test",
             llm_conn_id="my_llm",
-            agent_params={"retries": 3, "model_settings": {"temperature": 0}},
+            model_settings={"temperature": 0},
+            output_retries=3,
         )
         op.execute(context=MagicMock())
 
         create_agent_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert create_agent_call[1]["retries"] == 3
-        assert create_agent_call[1]["model_settings"] == {"temperature": 0}
+        assert create_agent_call.kwargs["retries"] == 3
+        assert create_agent_call.kwargs["model_settings"] == {"temperature": 0}
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_system_prompt_appended_to_sql_instructions(self, mock_hook_cls, make_mock_run_result):

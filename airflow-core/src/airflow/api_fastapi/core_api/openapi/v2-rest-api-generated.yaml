@@ -9196,6 +9196,27 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: loop_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Task group id of a loop; matches every instance it produced.
+          title: Loop Id
+        description: Task group id of a loop; matches every instance it produced.
+      - name: iteration
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: 0
+          - type: 'null'
+          description: Narrow ``loop_id`` to a single pass of that loop.
+          title: Iteration
+        description: Narrow ``loop_id`` to a single pass of that loop.
       - name: cursor
         in: query
         required: false
@@ -9210,23 +9231,6 @@ paths:
         description: Cursor for keyset-based pagination. Pass an empty string for
           the first page, then use ``next_cursor`` from the response. When ``cursor``
           is provided, ``offset`` is ignored.
-      - name: loop_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Loop Id
-      - name: iteration
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-            minimum: 0
-          - type: 'null'
-          title: Iteration
       - name: task_id
         in: query
         required: false
@@ -18847,6 +18851,17 @@ components:
           additionalProperties: true
           type: object
           title: Params Input
+        request_created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Request Created At
+          description: The ``created_at`` of the request this response answers, exactly
+            as the GET endpoint returned it. When the task has since replaced its
+            request (it asked again after a resume, retry or clear), the response
+            is refused with 409 instead of answering a request the user did not see.
+            Leave it out to answer whatever request is waiting.
       type: object
       required:
       - chosen_options

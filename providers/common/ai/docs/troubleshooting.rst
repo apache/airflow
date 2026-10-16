@@ -66,6 +66,14 @@ An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pyd
     types. Chains are also not resolved recursively, so a fallback connection may not
     declare its own ``fallback_conn_ids``; list every vendor directly on the primary.
 
+``Connection '...' has type '...', but a Pydantic AI hook needs one of [...]``
+    The connection named by ``llm_conn_id`` is not a ``pydanticai`` connection type. This
+    is easy to hit by picking a similarly named type such as ``openai`` when the OpenAI
+    provider is installed. Change the connection type to ``pydanticai``, put the API key
+    in the **API Key** field (the password) and the model, for example ``openai:gpt-5``,
+    in **Model**. For Azure, Bedrock or Vertex use the matching ``pydanticai_azure``,
+    ``pydanticai_bedrock`` or ``pydanticai_vertex`` type instead; see :doc:`model_providers`.
+
 .. _troubleshooting-conn-type-rename:
 
 A connection of type ``pydanticai-azure``, ``pydanticai-bedrock`` or ``pydanticai-vertex`` no longer resolves
@@ -103,9 +111,20 @@ as a task failure.
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
-``durable=True and enable_hitl_review=True cannot be used together`` / ``durable=True cannot be used with a CodeMode capability``
-    Durable replay assumes a stable step order across attempts, which neither a human
-    review loop nor code mode provides. Pick one. See :doc:`durable_execution`.
+``durable=True and enable_hitl_review=True cannot be used together``
+    Durable replay matches each step to the one at the same position in the previous
+    attempt, which a human review loop's regenerations do not keep. Pick one. See
+    :doc:`durable_execution`.
+
+``durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders')``
+    Durable replay records each tool call under its toolset's id, so a
+    ``FunctionToolset``, ``MCPToolset`` or ``DynamicToolset`` without one is refused when
+    the Dag loads. Set ``id=`` on the toolset itself; an id on a ``Toolset`` capability
+    around it does not reach it. See :doc:`durable_execution`.
+
+``durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both.``
+    ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
+    ``capabilities`` would record every step twice. Drop one of them.
 
 ``message_history and enable_hitl_review=True cannot be used together``
     The post-review transcript is not recoverable today, so the operator refuses rather
@@ -125,11 +144,16 @@ as a task failure.
 Run-time errors
 ---------------
 
-``Agent model must be set when durable=True``
+``An agent needs to have a model in order to be used with Airflow, it cannot be set at agent run time.``
     The agent was built without a model, usually because the connection has no
     ``model`` and no ``model_id`` was passed. Durable execution needs the model resolved
-    up front so that replayed steps can be matched against their fingerprints. Fix the connection as described
-    above.
+    up front so that replayed steps can be matched against their fingerprints. Fix the
+    connection as described above.
+
+``DurableJournalError: durable execution could not record a step's result, because it is not JSON-serializable``
+    A tool returned a value that cannot be encoded as JSON. The model could not have read
+    it either, so the task fails without retrying. Return text, numbers, lists, dicts or a
+    Pydantic model. See :doc:`durable_execution`.
 
 ``durable=True`` on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
     On Airflow versions older than 3.3 the step cache lives in object storage and

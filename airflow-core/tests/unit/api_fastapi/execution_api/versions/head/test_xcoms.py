@@ -25,19 +25,23 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, event, select, update
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
+from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
 from airflow.exceptions import TaskNotFound
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
+from airflow.models.trigger import Trigger
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -49,8 +53,11 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_triggers
 
 pytestmark = pytest.mark.db_test
+
+TRIGGERER_ID = 7
 
 
 @pytest.mark.parametrize("suffix", ["", "/item/0", "/item/-1", "/slice"])
@@ -342,6 +349,41 @@ def test_outside_caller_reads_every_iteration_of_a_loop_task(client, outside_loo
     assert client.get(url, params={"offset": -1}).json() == {"key": "key", "value": expected[-1]}
 
 
+@pytest.mark.parametrize("shape", LOOP_SEQUENCES)
+@pytest.mark.parametrize(
+    ("method", "suffix"), [("HEAD", ""), ("GET", "/slice"), ("GET", "/item/-1"), ("GET", "?offset=-1")]
+)
+def test_parsing_attempt_id_does_not_select_a_loop_iteration(
+    client, session, outside_loop_run, shape, method, suffix
+):
+    dr, _, _, steps, _ = outside_loop_run
+    token = ExecutionToken.model_validate(
+        {
+            "id": steps[0].id,
+            "claims": {
+                "scope": "dag_parse",
+                "exp": 2000000000,
+                "dag_bundles": [session.get(DagModel, dr.dag_id).bundle_name],
+                "job_id": 1,
+                "session_id": steps[0].id,
+                "relative_fileloc": "dag.py",
+            },
+        }
+    )
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: token
+    task_id, _ = LOOP_SEQUENCES[shape]
+    url = get_loop_url(dr, task_id)
+
+    response = client.request(method, f"{url}{suffix}")
+
+    assert response.status_code == 400
+    if method != "HEAD":
+        assert response.json()["detail"] == (
+            "A loop producer requires an explicit scope or a consumer inside the loop"
+        )
+
+
 def test_outside_task_that_uses_loop_outputs_waits_for_the_gate_and_reads_the_loop_task_xcom(
     client, dag_maker, outside_loop_run
 ):
@@ -484,6 +526,156 @@ def test_loop_task_reads_from_inside_the_loop_stay_on_one_pass(client, outside_l
     assert client.get(f"{step_url}/slice", params={"previous_iteration": True}).json() == ["step-0"]
     assert client.get(f"{fanout_url}/slice").json() == ["1-0", "1-1"]
     assert client.get(f"{fanout_url}/item/-1").json() == "1-1"
+
+
+@pytest.fixture
+def deferred_loop_pass(session, outside_loop_run):
+    dr, _, _, steps, _ = outside_loop_run
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger.triggerer_id = TRIGGERER_ID
+    session.add(trigger)
+    session.flush()
+    steps[1].state = TaskInstanceState.DEFERRED
+    steps[1].trigger_id = trigger.id
+    session.commit()
+    yield dr, steps, trigger
+    clear_db_triggers()
+
+
+def test_trigger_in_a_loop_reads_and_writes_as_its_deferred_pass(session, deferred_loop_pass):
+    dr, steps, _ = deferred_loop_pass
+    headers = {TRIGGER_TI_ID_HEADER: str(steps[1].id)}
+    step_url = f"/xcoms/{dr.dag_id}/{dr.run_id}/body.step/key"
+
+    sessions_begun = []
+
+    def record(api_session, *_):
+        sessions_begun.append(api_session)
+
+    with TestClient(InProcessExecutionAPI(triggerer_id=TRIGGERER_ID).app) as api:
+        event.listen(Session, "after_begin", record)
+        try:
+            with capture_orm_selects("task_instance") as task_instance_selects:
+                assert api.get(step_url, headers=headers).json() == {"key": "key", "value": "step-1"}
+            assert api.head(step_url, headers=headers).headers["Content-Range"] == "map_indexes 1"
+            assert api.get(f"{step_url}/slice", headers=headers).json() == ["step-1"]
+            assert api.get(f"{step_url}/item/0", headers=headers).json() == "step-1"
+            assert api.post(f"{step_url}-written", json="from-trigger", headers=headers).status_code == 201
+            assert api.delete(step_url, headers=headers).status_code == 200
+        finally:
+            event.remove(Session, "after_begin", record)
+
+    liveness_checks = [
+        statement
+        for statement in task_instance_selects
+        if statement.startswith("SELECT task_instance.working_set FROM")
+    ]
+    assert len(liveness_checks) == 1
+    assert len(set(map(id, sessions_begun))) == 6
+    session.expire_all()
+    assert XComModelV2.get_for_attempt(steps[1].id, "key-written", session=session).value == "from-trigger"
+    assert XComModelV2.get_for_attempt(steps[1].id, "key", session=session) is None
+    assert XComModelV2.get_for_attempt(steps[0].id, "key", session=session).value == "step-0"
+
+
+@pytest.mark.parametrize(
+    ("api_triggerer_id", "header", "expected_status"),
+    [
+        pytest.param(None, None, 403, id="api-without-triggerer-id"),
+        pytest.param(TRIGGERER_ID, "not-a-uuid", 400, id="malformed-header"),
+    ],
+)
+def test_trigger_ti_id_header_rejected(deferred_loop_pass, api_triggerer_id, header, expected_status):
+    dr, steps, _ = deferred_loop_pass
+
+    with TestClient(InProcessExecutionAPI(triggerer_id=api_triggerer_id).app) as api:
+        response = api.get(
+            f"/xcoms/{dr.dag_id}/{dr.run_id}/body.step/key",
+            headers={TRIGGER_TI_ID_HEADER: header or str(steps[1].id)},
+        )
+
+    assert response.status_code == expected_status
+
+
+NOT_DEFERRED_ON_THIS_TRIGGERER = "Task instance is not deferred on a trigger assigned to this triggerer"
+NOT_A_LIVE_ATTEMPT = "Task instance is not a live attempt"
+
+
+@pytest.mark.parametrize(
+    ("method", "change", "expected_status", "expected_value", "expected_denial"),
+    [
+        pytest.param(
+            "post",
+            {"triggerer_id": TRIGGERER_ID + 1},
+            403,
+            None,
+            NOT_DEFERRED_ON_THIS_TRIGGERER,
+            id="write-trigger-assigned-to-another-triggerer",
+        ),
+        pytest.param(
+            "post",
+            {"state": TaskInstanceState.RUNNING},
+            403,
+            None,
+            NOT_DEFERRED_ON_THIS_TRIGGERER,
+            id="write-task-not-deferred",
+        ),
+        pytest.param(
+            "delete",
+            {"state": TaskInstanceState.RUNNING},
+            403,
+            None,
+            NOT_DEFERRED_ON_THIS_TRIGGERER,
+            id="delete-task-not-deferred",
+        ),
+        pytest.param(
+            "get",
+            {"state": TaskInstanceState.FAILED, "trigger_removed": True},
+            200,
+            "step-1",
+            None,
+            id="read-live-task-no-longer-deferred",
+        ),
+        pytest.param(
+            "head",
+            {"state": TaskInstanceState.FAILED, "trigger_removed": True},
+            200,
+            None,
+            None,
+            id="head-live-task-no-longer-deferred",
+        ),
+        pytest.param("get", {"archived": True}, 403, None, NOT_A_LIVE_ATTEMPT, id="read-archived-try"),
+    ],
+)
+def test_trigger_ti_id_claim_check(
+    session, deferred_loop_pass, method, change, expected_status, expected_value, expected_denial
+):
+    dr, steps, trigger = deferred_loop_pass
+    trigger.triggerer_id = change.get("triggerer_id", TRIGGERER_ID)
+    steps[1].state = change.get("state", TaskInstanceState.DEFERRED)
+    if change.get("trigger_removed"):
+        steps[1].trigger_id = None
+        session.delete(trigger)
+    session.commit()
+    if change.get("archived"):
+        steps[1].archive(reason="cleared", session=session)
+        session.commit()
+
+    with TestClient(InProcessExecutionAPI(triggerer_id=TRIGGERER_ID).app) as api:
+        response = api.request(
+            method,
+            f"/xcoms/{dr.dag_id}/{dr.run_id}/body.step/key",
+            headers={TRIGGER_TI_ID_HEADER: str(steps[1].id)},
+            json="from-trigger" if method == "post" else None,
+        )
+
+    body = response.json() if response.content else {}
+    denial = body.get("detail", {}).get("message") if expected_status == 403 else None
+    assert (response.status_code, body.get("value"), denial) == (
+        expected_status,
+        expected_value,
+        expected_denial,
+    )
 
 
 @pytest.mark.parametrize("key", ["_airflow_loop_decision", "_airflow_loop_other"])
@@ -1079,6 +1271,34 @@ class TestXComsGetEndpoint:
             )
 
         assert response.status_code == expected_status, response.text
+
+    def test_parsing_attempt_id_is_not_treated_as_an_archived_task(
+        self, client, exec_app, create_task_instance, session
+    ):
+        attempt = create_task_instance(state=TaskInstanceState.RUNNING)
+        attempt.prepare_db_for_next_try(session)
+        session.commit()
+        token = ExecutionToken.model_validate(
+            {
+                "id": attempt.id,
+                "claims": {
+                    "scope": "dag_parse",
+                    "exp": 2000000000,
+                    "dag_bundles": [session.get(DagModel, attempt.dag_id).bundle_name],
+                    "job_id": 1,
+                    "session_id": attempt.id,
+                    "relative_fileloc": "dag.py",
+                },
+            }
+        )
+        exec_app.dependency_overrides[require_auth] = lambda: token
+
+        response = client.get(
+            f"/execution/xcoms/{attempt.dag_id}/{attempt.run_id}/{attempt.task_id}/missing_key"
+        )
+
+        assert response.status_code == 404
+        assert "XCom" in response.json()["detail"]["message"]
 
 
 class TestXComsSetEndpoint:

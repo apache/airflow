@@ -72,6 +72,7 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetUriRef,
 )
+from airflow.sdk.definitions.context import render_template_to_string
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -1803,8 +1804,10 @@ def run(
                 # not fail-closed: supervisor's final_state would misclassify
                 # them too, but exiting non-zero would map them to FAILED,
                 # which is strictly worse than the default. Those need a
-                # separate fix in supervisor's final_state.
-                if state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+                # separate fix in supervisor's final_state. Whenever the task
+                # raised, though, FAILED beats a silent SUCCESS, including when
+                # a retry policy turned the exception into a reschedule.
+                if error is not None or state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
                     ti._terminal_state_send_failed = True
 
     # Return the message to make unit tests easier too
@@ -1884,7 +1887,7 @@ def _evaluate_retry_policy(
 
 def _handle_handler_failure(
     ti: RuntimeTaskInstance, exception: Exception, log: Logger, context: Context
-) -> tuple[RetryTask | TaskState, TaskInstanceState, Exception]:
+) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState, Exception]:
     """
     Decide the outcome for an exception raised by one of the outcome handlers themselves.
 
@@ -1926,16 +1929,18 @@ def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
     exception: BaseException,
     log: Logger,
-    context: Context | None = None,
-) -> tuple[RetryTask | TaskState, TaskInstanceState]:
+    context: Context,
+) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState]:
     """
     Handle a failed task: evaluate the retry policy (if any) and decide the next state.
 
     This is the entry point every failure path routes through. When the policy
     returns FAIL the task is marked as failed immediately, bypassing the normal
     retry-count check.  When it returns RETRY with a custom delay, that delay is
-    forwarded in the ``RetryTask`` message.  For DEFAULT (or when no policy is
-    configured), the standard ``_finalize_task_failure`` logic runs.
+    forwarded in the ``RetryTask`` message.  When it returns RESCHEDULE within its
+    bounds, the task goes to ``up_for_reschedule`` without using a retry; past its
+    bounds, the standard logic runs with the reason saying why.  For DEFAULT (or when
+    no policy is configured), the standard ``_finalize_task_failure`` logic runs.
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
@@ -1955,7 +1960,52 @@ def _handle_current_task_failed(
         return _finalize_task_failure(
             ti, log, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
         )
+    if decision is not None and decision.action == RetryAction.RESCHEDULE:
+        if (limit := _reschedule_limit_reached(ti, decision, context)) is None:
+            ti.end_date = datetime.now(tz=UTC)
+            delay = decision.retry_delay if decision.retry_delay is not None else ti.task.retry_delay
+            reschedule_date = ti.end_date + delay
+            log.info(
+                "Retry policy rescheduled the task, marking task as UP_FOR_RESCHEDULE",
+                reschedule_date=reschedule_date,
+                reschedule_count=_reschedule_count(ti),
+                max_reschedules=decision.max_reschedules,
+                reschedule_timeout=decision.reschedule_timeout,
+            )
+            return (
+                RescheduleTask(reschedule_date=reschedule_date, end_date=ti.end_date),
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+            )
+        log.info("Reschedule limit reached, applying the standard retry logic", limit=limit)
+        reason = f"Reschedule limit reached ({limit})"
+        if decision.reason:
+            reason = f"{reason}: {decision.reason}"
+        return _finalize_task_failure(ti, log, retry_reason=reason)
     return _finalize_task_failure(ti, log)
+
+
+def _reschedule_count(ti: RuntimeTaskInstance) -> int:
+    """Return how many times this try has been rescheduled so far."""
+    from_server = ti._ti_context_from_server
+    return (from_server.task_reschedule_count or 0) if from_server else 0
+
+
+def _reschedule_limit_reached(
+    ti: RuntimeTaskInstance, decision: RetryDecision, context: Context
+) -> str | None:
+    """
+    Say which bound stops a RESCHEDULE decision, or return None when the task may reschedule.
+
+    Both bounds count every reschedule of this try, whatever caused it (a sensor's pokes and a
+    startup reschedule included), so a retry starts them afresh.
+    """
+    if decision.max_reschedules is not None and _reschedule_count(ti) >= decision.max_reschedules:
+        return f"max_reschedules={decision.max_reschedules}"
+    if decision.reschedule_timeout is not None:
+        first = ti.get_first_reschedule_date(context)
+        if first is not None and datetime.now(tz=UTC) - first >= decision.reschedule_timeout:
+            return f"reschedule_timeout={decision.reschedule_timeout}"
+    return None
 
 
 def _finalize_task_failure(
@@ -2334,8 +2384,8 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     if (template := context.get("map_index_template")) is None:
         return None
     log.debug("Rendering map_index_template", template_length=len(template))
-    jinja_env = ti.task.dag.get_template_env()
-    rendered_map_index = jinja_env.from_string(template).render(context)
+    jinja_env = ti.task.dag.get_template_env(force_sandboxed=True)
+    rendered_map_index = render_template_to_string(jinja_env.from_string(template), context)
     log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
 

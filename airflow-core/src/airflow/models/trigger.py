@@ -308,9 +308,14 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
+    def submit_failure(
+        cls, trigger_id, exc=None, *, triggerer_id: int | None = None, session: Session = NEW_SESSION
+    ) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
+
+        With ``triggerer_id``, only act while that triggerer still owns the trigger: a reassigned
+        trigger is being run elsewhere, so a failure from its previous owner must not fail the task.
 
         Notably, we have to actually run the failure code from a worker as it may
         have linked callbacks, so hilariously we have to re-schedule the task
@@ -320,11 +325,12 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
         """
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
+        query = select(TaskInstance).where(
+            TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+        )
+        if triggerer_id is not None:
+            query = query.join(cls, cls.id == TaskInstance.trigger_id).where(cls.triggerer_id == triggerer_id)
+        for task_instance in session.scalars(query):
             # Add the error and set the next_method to the fail state
             if isinstance(exc, BaseException):
                 traceback = format_exception(type(exc), exc, exc.__traceback__)

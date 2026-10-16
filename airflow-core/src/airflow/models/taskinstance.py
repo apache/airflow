@@ -255,14 +255,11 @@ def _add_and_prime_mapped_ti(
     set_committed_value(ti, "dag_run", dag_run)
 
 
-def _recalculate_dagrun_queued_at_deadlines(
-    dagrun: DagRun, new_queued_at: datetime, session: Session
-) -> None:
+def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session) -> None:
     """
     Recalculate deadline times for deadlines that reference dagrun.queued_at.
 
     :param dagrun: The DagRun whose deadlines should be recalculated
-    :param new_queued_at: The new queued_at timestamp to use for calculation
     :param session: Database session
 
     :meta private:
@@ -285,12 +282,9 @@ def _recalculate_dagrun_queued_at_deadlines(
     from airflow.serialization.decoders import decode_deadline_alert_model, resolve_deadline_alert_interval
 
     for deadline, deadline_alert in results:
-        # We can't use evaluate_with() since the new queued_at is not written to the DB yet, and
-        # interval is stored as JSON, so it has to be decoded rather than passed to timedelta().
         try:
-            interval = resolve_deadline_alert_interval(
-                decode_deadline_alert_model(deadline_alert), session=session
-            )
+            decoded_alert = decode_deadline_alert_model(deadline_alert)
+            interval = resolve_deadline_alert_interval(decoded_alert, session=session)
         except (ValueError, TypeError):
             # Either step can fail: the alert may hold a payload the decoder refuses, or a
             # variable-backed interval may point at a Variable that is missing or non-numeric.
@@ -304,7 +298,16 @@ def _recalculate_dagrun_queued_at_deadlines(
             )
             continue
 
-        new_deadline_time = new_queued_at + interval
+        new_deadline_time = decoded_alert.reference.evaluate_with(
+            session=session,
+            interval=interval,
+            dagrun=dagrun,
+            dag_id=dagrun.dag_id,
+            run_id=dagrun.run_id,
+        )
+
+        if new_deadline_time is None:
+            continue
 
         log.debug(
             "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
@@ -603,7 +606,7 @@ def clear_task_instances(
                     parent_context=parent_trace_context(dr.conf),
                 )
 
-                _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
+                _recalculate_dagrun_queued_at_deadlines(dr, session=session)
 
                 if was_finished:
                     dr.state = dag_run_state
@@ -785,10 +788,13 @@ def select_loop_clear_scope(
                 matched_relatives[key] = tuple(matches)
             retry.update((other.id, other) for other in matched_relatives[key])
 
+    # Both directions start from the selection only. Walking downstream from upstream relatives
+    # would also select their other descendants, including gates whose later passes then get archived.
+    seeds = tuple(retry.values())
     for is_upstream, enabled in ((True, upstream), (False, downstream)):
         if not enabled:
             continue
-        for ti in tuple(retry.values()):
+        for ti in seeds:
             task = resolver.get_task(dag_id, run_id, ti.task_id, dag_version_id=ti.dag_version_id)
             add_relatives(ti, task.get_flat_relatives(upstream=is_upstream))
     if include_setups_and_teardowns:
@@ -3175,6 +3181,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             total_length = None
 
         region_id = self.region_id
+        unmapped_region_id = region_id
         state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
@@ -3230,6 +3237,21 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             else:
                 dr = unmapped_ti.dag_run
                 state = unmapped_ti.state
+                if unmapped_ti.try_number > 0:
+                    # Once the unmapped coordinate is gone its archived attempts are unreachable, and the
+                    # 0142 downgrade rejects them; their XCom and rendered fields are deleted with them.
+                    session.execute(
+                        delete(TaskInstance)
+                        .where(
+                            TaskInstance.dag_id == task.dag_id,
+                            TaskInstance.task_id == task.task_id,
+                            TaskInstance.run_id == run_id,
+                            TaskInstance.region_id == unmapped_region_id,
+                            TaskInstance.map_index == -1,
+                            TaskInstance.working_set.is_(None),
+                        )
+                        .execution_options(synchronize_session=False, include_all_attempts=True)
+                    )
                 zero_index_ti_exists = exists_query(
                     TaskInstance.working_set.is_(True),
                     TaskInstance.dag_id == task.dag_id,

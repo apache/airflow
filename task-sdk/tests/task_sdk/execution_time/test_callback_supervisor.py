@@ -566,6 +566,20 @@ class TestCallbackSubprocessStart:
 
         assert self.mock_super_start.call_args.kwargs.get("use_exec", False) is False
 
+    def test_start_imports_task_runner_before_forking(self, base_start_kwargs):
+        """The callback child is forked from this process, so it inherits a task runner imported here."""
+        calls = []
+        self.mock_super_start.side_effect = lambda **kwargs: calls.append("fork")
+
+        with patch(
+            "airflow.sdk.execution_time.callback_supervisor._import_task_runner_before_fork",
+            autospec=True,
+            side_effect=lambda: calls.append("import task runner"),
+        ):
+            CallbackSubprocess.start(**base_start_kwargs)
+
+        assert calls == ["import task runner", "fork"]
+
 
 class TestSuperviseCallbackExchangesTokenFirst:
     """No callback code may run until the single-use token has been exchanged."""

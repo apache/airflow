@@ -94,7 +94,7 @@ dependencies = [
     "apache-airflow-providers-microsoft-azure>=12.8.0"
 ]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=2.3.0"
+    "apache-airflow-providers-openlineage>=2.16.0"
 ]
 
 [dependency-groups]
