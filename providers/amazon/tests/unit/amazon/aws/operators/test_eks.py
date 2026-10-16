@@ -1064,15 +1064,11 @@ class TestEksDeleteFargateProfileOperator:
 
 class TestEksPodOperator:
     @mock.patch(
-        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry", autospec=True
-    )
-    @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute", autospec=True
     )
     @mock.patch.object(EksHook, "generate_config_file_with_credentials", autospec=True)
-    @pytest.mark.parametrize("method", ["execute", "trigger_reentry"])
     @pytest.mark.parametrize("fails", [False, True])
-    def test_uses_shared_auth_context(self, generate_config, execute, reentry, method, fails):
+    def test_execute_uses_shared_auth_context(self, generate_config, execute, fails):
         config_context = mock.MagicMock(spec=AbstractContextManager)
         config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
         generate_config.return_value = config_context
@@ -1080,7 +1076,7 @@ class TestEksPodOperator:
             task_id="run_pod", cluster_name=CLUSTER_NAME, namespace="workloads", image="test-image"
         )
 
-        def run_in_context(op, context, *args):
+        def run_in_context(op, context):
             assert op.config_file == "/tmp/kubeconfig"
             assert op._credentials_file_path == "/tmp/credentials"
             config_context.__exit__.assert_not_called()
@@ -1088,22 +1084,46 @@ class TestEksPodOperator:
                 raise RuntimeError("parent failed")
             return "result"
 
-        parent = execute if method == "execute" else reentry
-        parent.side_effect = run_in_context
-        args = (
-            ({},)
-            if method == "execute"
-            else ({}, {"eks_cluster_name": "event-cluster", "namespace": "event-namespace"})
-        )
+        execute.side_effect = run_in_context
         with pytest.raises(RuntimeError, match="parent failed") if fails else nullcontext():
-            assert getattr(operator, method)(*args) == "result"
+            assert operator.execute({}) == "result"
 
         generate_config.assert_called_once_with(
-            mock.ANY,
-            eks_cluster_name=CLUSTER_NAME if method == "execute" else "event-cluster",
-            pod_namespace="workloads" if method == "execute" else "event-namespace",
+            mock.ANY, eks_cluster_name=CLUSTER_NAME, pod_namespace="workloads"
         )
-        parent.assert_called_once_with(operator, *args)
+        execute.assert_called_once_with(operator, {})
+        config_context.__exit__.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry", autospec=True
+    )
+    @mock.patch.object(EksHook, "generate_config_file_with_credentials", autospec=True)
+    @pytest.mark.parametrize("fails", [False, True])
+    def test_trigger_reentry_uses_shared_auth_context(self, generate_config, reentry, fails):
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
+        generate_config.return_value = config_context
+        operator = EksPodOperator(
+            task_id="run_pod", cluster_name=CLUSTER_NAME, namespace="workloads", image="test-image"
+        )
+        event = {"eks_cluster_name": "event-cluster", "namespace": "event-namespace"}
+
+        def run_in_context(op, context, event):
+            assert op.config_file == "/tmp/kubeconfig"
+            assert op._credentials_file_path == "/tmp/credentials"
+            config_context.__exit__.assert_not_called()
+            if fails:
+                raise RuntimeError("parent failed")
+            return "result"
+
+        reentry.side_effect = run_in_context
+        with pytest.raises(RuntimeError, match="parent failed") if fails else nullcontext():
+            assert operator.trigger_reentry({}, event) == "result"
+
+        generate_config.assert_called_once_with(
+            mock.ANY, eks_cluster_name="event-cluster", pod_namespace="event-namespace"
+        )
+        reentry.assert_called_once_with(operator, {}, event)
         config_context.__exit__.assert_called_once()
 
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")

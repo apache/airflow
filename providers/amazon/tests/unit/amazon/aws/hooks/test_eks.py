@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from contextlib import AbstractContextManager, nullcontext
+from contextlib import AbstractContextManager
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -1217,8 +1217,7 @@ class TestEksHook:
 
     @mock.patch.object(EksHook, "generate_config_file", autospec=True)
     @mock.patch.object(EksHook, "get_session", autospec=True)
-    @pytest.mark.parametrize("failure", [None, "caller", "kubeconfig"])
-    def test_generate_config_file_with_credentials(self, get_session, generate_config, failure):
+    def test_generate_config_file_with_credentials(self, get_session, generate_config):
         hook = EksHook(aws_conn_id=None)
         session = mock.create_autospec(Session, instance=True)
         session.get_credentials.return_value = Credentials("access-key", "secret-key", "session-token")
@@ -1226,27 +1225,61 @@ class TestEksHook:
         config_context = mock.MagicMock(spec=AbstractContextManager)
         config_context.__enter__.return_value = "/tmp/kubeconfig"
         generate_config.return_value = config_context
-        if failure == "kubeconfig":
-            config_context.__enter__.side_effect = ValueError("kubeconfig failed")
 
-        with pytest.raises(ValueError, match="failed") if failure else nullcontext():
-            with hook.generate_config_file_with_credentials("cluster", "namespace") as (config, credentials):
-                assert config == "/tmp/kubeconfig"
-                assert Path(credentials).read_text() == (
-                    "export AWS_ACCESS_KEY_ID='access-key'\n"
-                    "export AWS_SECRET_ACCESS_KEY='secret-key'\n"
-                    "export AWS_SESSION_TOKEN='session-token'\n"
-                )
-                if failure == "caller":
-                    raise ValueError("caller failed")
+        with hook.generate_config_file_with_credentials("cluster", "namespace") as (config, credentials):
+            assert config == "/tmp/kubeconfig"
+            assert Path(credentials).read_text() == (
+                "export AWS_ACCESS_KEY_ID='access-key'\n"
+                "export AWS_SECRET_ACCESS_KEY='secret-key'\n"
+                "export AWS_SESSION_TOKEN='session-token'\n"
+            )
 
         credentials = generate_config.call_args.kwargs["credentials_file"]
         generate_config.assert_called_once_with(
             hook, eks_cluster_name="cluster", pod_namespace="namespace", credentials_file=credentials
         )
         assert not Path(credentials).exists()
-        if failure != "kubeconfig":
-            config_context.__exit__.assert_called_once()
+        config_context.__exit__.assert_called_once()
+
+    @mock.patch.object(EksHook, "generate_config_file", autospec=True)
+    @mock.patch.object(EksHook, "get_session", autospec=True)
+    def test_auth_context_cleans_up_after_caller_failure(self, get_session, generate_config):
+        hook = EksHook(aws_conn_id=None)
+        session = mock.create_autospec(Session, instance=True)
+        session.get_credentials.return_value = Credentials("access-key", "secret-key", "session-token")
+        get_session.return_value = session
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = "/tmp/kubeconfig"
+        generate_config.return_value = config_context
+        error = ValueError("caller failed")
+
+        with pytest.raises(ValueError, match="caller failed") as raised:
+            with hook.generate_config_file_with_credentials("cluster", "namespace") as (_, credentials):
+                raise error
+
+        assert raised.value is error
+        assert not Path(credentials).exists()
+        config_context.__exit__.assert_called_once_with(ValueError, error, mock.ANY)
+
+    @mock.patch.object(EksHook, "generate_config_file", autospec=True)
+    @mock.patch.object(EksHook, "get_session", autospec=True)
+    def test_auth_context_cleans_up_after_kubeconfig_failure(self, get_session, generate_config):
+        hook = EksHook(aws_conn_id=None)
+        session = mock.create_autospec(Session, instance=True)
+        session.get_credentials.return_value = Credentials("access-key", "secret-key", "session-token")
+        get_session.return_value = session
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        error = ValueError("kubeconfig failed")
+        config_context.__enter__.side_effect = error
+        generate_config.return_value = config_context
+
+        with pytest.raises(ValueError, match="kubeconfig failed") as raised:
+            with hook.generate_config_file_with_credentials("cluster", "namespace"):
+                pytest.fail("Kubeconfig failure must prevent entering the auth context")
+
+        assert raised.value is error
+        credentials = generate_config.call_args.kwargs["credentials_file"]
+        assert not Path(credentials).exists()
 
     @mock.patch.object(EksHook, "generate_config_file", autospec=True)
     @mock.patch.object(EksHook, "get_session", autospec=True)
