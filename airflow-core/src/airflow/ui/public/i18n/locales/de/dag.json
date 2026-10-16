@@ -334,10 +334,6 @@
     "summary_one": "{{count, number}} Änderung",
     "summary_other": "{{count, number}} Änderungen",
     "target": "Vergleichen mit",
-    "truncated": {
-      "description": "Einige Änderungen werden nicht gezeigt um unter dem Limit zu bleiben, die angezeigte Anzahl ist ein Minimum an Änderungen.",
-      "title": "Einige Änderungen wurden nicht angezeigt"
-    },
     "unavailable": {
       "description": "Diese Versionen können nicht verglichen werden. Grund:",
       "title": "Vergleich nicht verfügbar",
