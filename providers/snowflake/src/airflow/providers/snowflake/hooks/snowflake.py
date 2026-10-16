@@ -633,7 +633,7 @@ class SnowflakeHook(DbApiHook):
                 "scope",
             )
 
-            if conn_config["grant_type"] == "password":
+            if conn_config.get("grant_type") == "password":
                 conn_config["oauth_username"] = self._get_field(
                     extra_dict,
                     "oauth_username",
