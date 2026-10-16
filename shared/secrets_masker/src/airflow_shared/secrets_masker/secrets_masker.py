@@ -76,6 +76,26 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
+DEFAULT_SENSITIVE_FIELD_NAMES = frozenset(
+    {
+        "app_key",
+        "certificate",
+        "credential",
+        "keytab",
+        "kube_config",
+        "oauth",
+        "routing_key",
+        "thumbprint",
+        "write_key",
+    }
+)
+"""
+Names of fields (Connection extra, Variable key name etc.) that are sensitive only as a whole name.
+
+Matching these as substrings would also hide non-secret fields such as ``kube_config_path`` or
+``credential_config_file``. The ``extra__<conn_type>__<name>`` form of each name matches too.
+"""
+
 SECRETS_TO_SKIP_MASKING = {"airflow"}
 """Common terms that should be excluded from masking in both production and tests"""
 
@@ -590,6 +610,8 @@ class SecretsMasker(logging.Filter):
         if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
             name = name.strip().lower()
             normalized = re.sub(r"\W+", "_", name)
+            if normalized.rsplit("__", 1)[-1] in DEFAULT_SENSITIVE_FIELD_NAMES:
+                return True
             return any(s in normalized for s in self.sensitive_variables_fields)
         return False
 
