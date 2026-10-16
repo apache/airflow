@@ -1,5 +1,21 @@
 [
     {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_manual_lineage_dag.datasets_minimal"
+        }
+    },
+    {
         "eventType": "RUNNING",
         "eventTime": "{{ is_datetime(result) }}",
         "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
@@ -131,6 +147,38 @@
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
                 }
             }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_manual_lineage_dag.datasets_minimal"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_manual_lineage_dag.datasets_maximal"
         }
     },
     {
@@ -319,6 +367,22 @@
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/SourceCodeLocationJobFacet.json\\#\\/\\$defs\\/SourceCodeLocationJobFacet$\") }}"
                 }
             }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_manual_lineage_dag.datasets_maximal"
         }
     },
     {
