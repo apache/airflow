@@ -185,16 +185,17 @@ class _ConnectionHeaderSession(Session):
 
     def __init__(self) -> None:
         super().__init__()
+        # Lower-cased, since header names are case-insensitive.
         self.connection_header_keys: set[str] = set()
 
     def rebuild_auth(self, prepared_request, response):
         """Strip connection-supplied headers when the redirect changes host."""
-        super().rebuild_auth(prepared_request, response)
-        if not self.connection_header_keys:
-            return
-        if self.should_strip_auth(response.request.url, prepared_request.url):
+        # Strip before delegating: the parent re-applies the destination's .netrc
+        # credentials as ``Authorization``, which must survive.
+        if self.connection_header_keys and self.should_strip_auth(response.request.url, prepared_request.url):
             for header in self.connection_header_keys:
                 prepared_request.headers.pop(header, None)
+        super().rebuild_auth(prepared_request, response)
 
 
 class HttpHook(BaseHook):
@@ -293,10 +294,11 @@ class HttpHook(BaseHook):
             session = self._configure_session_from_extra(session, connection, extra_options)
 
         session = self._configure_session_from_mount_adapters(session)
-        if self.default_headers:
-            session.headers.update(self.default_headers)
-        if headers:
-            session.headers.update(headers)
+        for override in (self.default_headers, headers):
+            if override:
+                session.headers.update(override)
+                if isinstance(session, _ConnectionHeaderSession):
+                    session.connection_header_keys.difference_update(str(key).lower() for key in override)
         return session
 
     def _set_base_url(self, connection) -> None:
@@ -392,7 +394,7 @@ class HttpHook(BaseHook):
             if isinstance(session, _ConnectionHeaderSession):
                 # Remember which headers came from the connection so they can be dropped
                 # if a redirect crosses to a different host.
-                session.connection_header_keys.update(conn_extra_options)
+                session.connection_header_keys.update(str(key).lower() for key in conn_extra_options)
 
         return session
 
