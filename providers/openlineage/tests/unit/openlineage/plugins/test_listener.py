@@ -1248,6 +1248,31 @@ class TestOpenLineageListenerAirflow3:
             task_instance_facet["loop_group_id"],
         ) == (1, 3, "body")
 
+    @pytest.mark.parametrize("state", ["running", "success", "failed"])
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_worker_event_of_loop_gate_has_its_decision_once_evaluated(self, state):
+        from airflow.sdk.api.datamodels._generated import LoopDecisionPayload
+
+        listener, ti = self._create_listener_and_task_instance()
+        listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
+        if state != "running":
+            ti._loop_decision = LoopDecisionPayload(stop=state == "success", reason="checked")
+        kwargs = {"error": ValueError("test")} if state == "failed" else {}
+
+        getattr(listener, f"on_task_instance_{state}")(None, ti, **kwargs)
+
+        method = {"running": "start_task", "failed": "fail_task"}.get(state, "complete_task")
+        task_instance_facet = (
+            getattr(listener.adapter, method).call_args.kwargs["run_facets"]["airflow"].taskInstance
+        )
+        if state == "running":
+            assert "loop_decision" not in task_instance_facet
+        else:
+            assert task_instance_facet["loop_decision"] == {"stop": state == "success", "reason": "checked"}
+
     @pytest.mark.parametrize("state", ["running", "success", "failed", "skipped"])
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
