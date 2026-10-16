@@ -33,8 +33,9 @@ single-turn behavior unchanged.
 To record the transcript of a single-turn run, set ``emit_message_history=True``.
 The operator starts the run with no prior turns and pushes ``result.all_messages()``
 to the same ``message_history`` XCom key, so the transcript is available to
-downstream tasks for inspection, evaluation or storage. The transcript push follows
-``do_xcom_push``.
+downstream tasks for inspection, evaluation or storage. ``emit_message_history`` defaults
+to ``True`` when ``message_history`` is set; pass ``False`` to keep a seeded run from
+pushing it.
 
 The operator does **not** decide *where* a session is stored -- that keying is
 deployment-specific. The pattern is three tasks: load the prior transcript for

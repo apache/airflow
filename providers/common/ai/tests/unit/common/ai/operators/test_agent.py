@@ -2128,15 +2128,16 @@ class TestAgentOperatorMessageHistory:
         assert pushed_keys == {"run_id", "usage", MODEL_NAME_XCOM_KEY}
 
     @pytest.mark.parametrize(
-        ("kwargs", "seeds_run"),
+        ("kwargs", "emits"),
         [
-            pytest.param({"message_history": []}, True, id="message_history"),
-            pytest.param({"emit_message_history": True}, False, id="emit_message_history"),
+            pytest.param({"message_history": []}, True, id="seeded"),
+            pytest.param({"emit_message_history": True}, True, id="opt-in"),
+            pytest.param({"message_history": [], "emit_message_history": False}, False, id="opt-out"),
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_transcript_emitted_to_xcom(self, mock_hook_cls, kwargs, seeds_run, make_mock_run_result):
-        """The post-run transcript is pushed to XCom and round-trips; only message_history seeds the run."""
+    def test_transcript_emitted_to_xcom(self, mock_hook_cls, kwargs, emits, make_mock_run_result):
+        """The transcript push follows emit_message_history, which defaults to whether the run is seeded."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_agent.run_sync.return_value.all_messages.return_value = _sample_history()
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -2145,12 +2146,13 @@ class TestAgentOperatorMessageHistory:
         context = _make_context()
         op.execute(context=context)
 
-        assert ("message_history" in mock_agent.run_sync.call_args.kwargs) is seeds_run
+        # emit_message_history never seeds the run.
+        assert ("message_history" in mock_agent.run_sync.call_args.kwargs) is ("message_history" in kwargs)
         ti = context["task_instance"]
         pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
-        assert set(pushes) == {"run_id", "usage", "message_history", MODEL_NAME_XCOM_KEY}
-        restored = ModelMessagesTypeAdapter.validate_json(pushes["message_history"])
-        assert len(restored) == 2
+        assert ("message_history" in pushes) is emits
+        if emits:
+            assert len(ModelMessagesTypeAdapter.validate_json(pushes["message_history"])) == 2
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_usage_limits_still_forwarded_with_history(
@@ -2173,31 +2175,19 @@ class TestAgentOperatorMessageHistory:
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
-    @pytest.mark.parametrize("param", ["message_history", "emit_message_history"])
-    def test_message_history_with_hitl_review_raises(self, param):
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({"message_history": []}, "message_history and enable_hitl_review", id="seeded"),
+            pytest.param(
+                {"emit_message_history": True}, "emit_message_history and enable_hitl_review", id="opt-in"
+            ),
+        ],
+    )
+    def test_message_history_with_hitl_review_raises(self, kwargs, match):
         """Transcript emission cannot be combined with HITL review (post-review transcript is lost)."""
-        with pytest.raises(ValueError, match=f"{param} and enable_hitl_review"):
-            AgentOperator(
-                task_id="t",
-                prompt="run",
-                llm_conn_id="c",
-                enable_hitl_review=True,
-                **{param: [] if param == "message_history" else True},
-            )
-
-    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_transcript_not_emitted_when_do_xcom_push_disabled(self, mock_hook_cls, make_mock_run_result):
-        """do_xcom_push=False suppresses the transcript push as it does the other XCom pushes."""
-        mock_agent = _make_mock_agent("ok", make_mock_run_result)
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
-        op = AgentOperator(
-            task_id="t", prompt="run", llm_conn_id="c", emit_message_history=True, do_xcom_push=False
-        )
-        context = _make_context()
-        op.execute(context=context)
-
-        context["task_instance"].xcom_push.assert_not_called()
+        with pytest.raises(ValueError, match=match):
+            AgentOperator(task_id="t", prompt="run", llm_conn_id="c", enable_hitl_review=True, **kwargs)
 
     def test_durable_path_also_seeds_message_history(self):
         """The durable branch forwards message_history into the run, and keeps its conversation id."""
