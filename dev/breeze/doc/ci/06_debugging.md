@@ -50,6 +50,7 @@ the PR to apply the label to the PR.
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|:---------------------:|
 | Run the build with all combinations of all<br>python, backends, kubernetes etc on PR, <br>and run all types of tests for all test<br>groups.                     | full tests needed     |                       |
 | Force to use public runners for the build                                                                                                                        | use public runners    |                       |
+| Run a PR from a fork on the self-hosted RunsOn<br>runners (committers only)                                                                                     | use self-hosted runners |                     |
 | Debug resources used during the build for <br>parallel jobs                                                                                                      | debug ci resources    |                       |
 | Force running PR on latest versions of<br>python, backends, kubernetes etc. when you<br>want to save resources and test only latest<br>versions                  | latest versions only  |                       |
 | Force running PR on minimal (default) <br>versions of python, backends, kubernetes etc.<br>in order to save resources and run tests only<br>for minimum versions | default versions only |                       |
