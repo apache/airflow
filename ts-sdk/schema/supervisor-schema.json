@@ -5374,6 +5374,18 @@
           "default": null,
           "title": "Arg Bindings"
         },
+        "execution_timeout": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Timeout"
+        },
         "multi_team": {
           "default": false,
           "title": "Multi Team",
