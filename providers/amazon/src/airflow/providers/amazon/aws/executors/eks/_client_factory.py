@@ -21,9 +21,13 @@
 
 from __future__ import annotations
 
+import atexit
+import os
 import tempfile
+import threading
 import time
 from base64 import b64decode
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 import kubernetes
@@ -132,10 +136,37 @@ def _configure_eks_auth(
     refresh_api_key(configuration)
 
 
+# The CA file written for each cluster CA, and the process that wrote it.
+_ca_files: dict[str, tuple[str, int]] = {}
+_ca_files_lock = threading.Lock()
+
+
 def _write_cluster_ca_file(base64_ca_data: str) -> str:
-    # The kubernetes client reads the CA file lazily, so it must outlive this function.
-    with tempfile.NamedTemporaryFile(
-        mode="wb", prefix="airflow-eks-ca-", suffix=".pem", delete=False
-    ) as ca_file:
-        ca_file.write(b64decode(base64_ca_data))
-    return ca_file.name
+    # The kubernetes client reads the CA file lazily, so it must outlive the client. A client is
+    # built for every log read, so write each CA once per process rather than once per client.
+    with _ca_files_lock:
+        if base64_ca_data not in _ca_files:
+            with tempfile.NamedTemporaryFile(
+                mode="wb", prefix="airflow-eks-ca-", suffix=".pem", delete=False
+            ) as ca_file:
+                ca_file.write(b64decode(base64_ca_data))
+            _ca_files[base64_ca_data] = (ca_file.name, os.getpid())
+        return _ca_files[base64_ca_data][0]
+
+
+def _remove_ca_files() -> None:
+    # A forked child reuses its parent's files, so each process only removes the ones it wrote.
+    for path, pid in _ca_files.values():
+        if pid == os.getpid():
+            with suppress(OSError):
+                os.remove(path)
+
+
+def _reset_ca_files_lock() -> None:
+    # Another thread of the parent may have held the lock when it forked.
+    global _ca_files_lock
+    _ca_files_lock = threading.Lock()
+
+
+atexit.register(_remove_ca_files)
+os.register_at_fork(after_in_child=_reset_ca_files_lock)

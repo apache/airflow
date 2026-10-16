@@ -18,7 +18,10 @@ from __future__ import annotations
 
 import inspect
 import os
+import signal
+import tempfile
 from base64 import b64encode
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
 
@@ -43,6 +46,14 @@ CLUSTER_NAME = "test-eks-cluster"
 CLUSTER_ENDPOINT = "https://ABCDEF0123456789.gr7.us-east-1.eks.amazonaws.com"
 CA_PEM = b"-----BEGIN CERTIFICATE-----\nfake-ca\n-----END CERTIFICATE-----\n"
 TOKEN_REFRESH_SECONDS = TOKEN_EXPIRATION_MINUTES * 60
+
+
+@pytest.fixture(autouse=True)
+def ca_dir(tmp_path, monkeypatch):
+    """Write CA files under tmp_path and start every test with no CA files written yet."""
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    monkeypatch.setattr(_client_factory, "_ca_files", {})
+    return tmp_path
 
 
 @pytest.fixture
@@ -87,7 +98,6 @@ class TestGetEksKubeClient:
         assert configuration.auth_settings()["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-1"
         mock_aws["eks_hook_cls"].assert_called_once_with(aws_conn_id="aws_eks", region_name="eu-west-1")
         mock_aws["eks_hook"].conn.describe_cluster.assert_called_once_with(name=CLUSTER_NAME)
-        os.unlink(configuration.ssl_ca_cert)
 
     @pytest.mark.parametrize(
         ("kubernetes_version", "token_key"),
@@ -119,7 +129,6 @@ class TestGetEksKubeClient:
         assert args.args[0] == CLUSTER_NAME
         assert args.args[1].startswith("https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity")
         assert args.kwargs["session"] is mock_aws["eks_hook"].get_session.return_value
-        os.unlink(configuration.ssl_ca_cert)
 
     def test_restores_callers_sts_regional_endpoints(self, mock_aws, monkeypatch):
         monkeypatch.setenv("AWS_STS_REGIONAL_ENDPOINTS", "legacy")
@@ -137,7 +146,13 @@ class TestGetEksKubeClient:
         assert seen_by_sts_hook == ["regional"]
         assert os.environ["AWS_STS_REGIONAL_ENDPOINTS"] == "legacy"
         assert configuration.auth_settings()["BearerToken"]["value"].startswith("Bearer k8s-aws-v1.")
-        os.unlink(configuration.ssl_ca_cert)
+
+    def test_builds_share_one_ca_file(self, mock_aws, ca_dir):
+        paths = {_get_eks_kube_client().api_client.configuration.ssl_ca_cert for _ in range(5)}
+
+        assert len(paths) == 1
+        assert [str(path) for path in ca_dir.glob("airflow-eks-ca-*")] == list(paths)
+        assert Path(paths.pop()).read_bytes() == CA_PEM
 
     @pytest.mark.parametrize("status", ["CREATING", "DELETING", "FAILED"])
     def test_unusable_cluster_status_raises(self, mock_aws, status):
@@ -177,3 +192,51 @@ async def test_async_client_refreshes_bearer_token(mock_time, _, mock_aws):
         auth = await auth
     assert auth["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-2"
     await core_v1.api_client.close()
+
+
+class TestWriteClusterCaFile:
+    CA_DATA = b64encode(CA_PEM).decode()
+
+    def test_concurrent_writes_of_one_ca_leave_one_file(self, ca_dir):
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            paths = set(pool.map(lambda _: _client_factory._write_cluster_ca_file(self.CA_DATA), range(64)))
+
+        assert len(paths) == 1
+        assert len(list(ca_dir.glob("airflow-eks-ca-*"))) == 1
+        assert Path(paths.pop()).read_bytes() == CA_PEM
+
+    def test_each_ca_gets_its_own_file_and_all_are_removed_at_exit(self, ca_dir):
+        other_pem = CA_PEM.replace(b"fake-ca", b"other-ca")
+        path = _client_factory._write_cluster_ca_file(self.CA_DATA)
+        other_path = _client_factory._write_cluster_ca_file(b64encode(other_pem).decode())
+
+        assert path != other_path
+        assert Path(other_path).read_bytes() == other_pem
+
+        _client_factory._remove_ca_files()
+
+        assert list(ca_dir.glob("airflow-eks-ca-*")) == []
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="needs os.fork")
+    def test_forked_child_reuses_parents_ca_file_and_leaves_it_at_exit(self, ca_dir):
+        path = _client_factory._write_cluster_ca_file(self.CA_DATA)
+
+        # Fork while the lock is held, as another thread of the parent might hold it.
+        with _client_factory._ca_files_lock:
+            pid = os.fork()
+            if pid == 0:
+                exit_code = 1
+                try:
+                    # Die rather than hang on the inherited lock.
+                    signal.signal(signal.SIGALRM, signal.SIG_DFL)
+                    signal.alarm(10)
+                    if _client_factory._write_cluster_ca_file(self.CA_DATA) == path:
+                        # What the child's atexit hook would do.
+                        _client_factory._remove_ca_files()
+                        exit_code = 0
+                finally:
+                    os._exit(exit_code)
+        _, status = os.waitpid(pid, 0)
+
+        assert os.waitstatus_to_exitcode(status) == 0
+        assert [str(p) for p in ca_dir.glob("airflow-eks-ca-*")] == [path]
