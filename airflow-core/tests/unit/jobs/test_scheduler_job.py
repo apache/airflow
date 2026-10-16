@@ -44,6 +44,7 @@ from sqlalchemy import delete, event, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
@@ -6572,7 +6573,10 @@ class TestSchedulerJob:
 
     @pytest.mark.parametrize("failure_point", ["deserialize", "create"])
     @pytest.mark.parametrize("failures", [1, MAX_DB_RETRIES])
-    def test_create_dagruns_retries_original_db_error(self, failure_point, failures, dag_maker, session):
+    @pytest.mark.parametrize("error_type", [IntegrityError, StaleDataError])
+    def test_create_dagruns_retries_original_db_error(
+        self, failure_point, failures, error_type, dag_maker, session
+    ):
         with dag_maker(dag_id="retry_db_error", schedule="@once", session=session):
             EmptyOperator(task_id="task")
 
@@ -6594,10 +6598,18 @@ class TestSchedulerJob:
             calls += 1
             try:
                 if calls <= failures:
-                    kwargs["session"].add(Pool(pool=pool_name, slots=1, include_deferred=False))
-                    kwargs["session"].flush()
+                    failing_session = kwargs["session"]
+                    if error_type is IntegrityError:
+                        failing_session.add(Pool(pool=pool_name, slots=1, include_deferred=False))
+                    else:
+                        pool = failing_session.scalars(select(Pool).where(Pool.pool == pool_name)).one()
+                        pool.slots += 1
+                        # Bypass ORM synchronization so the pending UPDATE matches no rows.
+                        failing_session.connection().execute(delete(Pool).where(Pool.id == pool.id))
+                    failing_session.flush()
                 return original(*args, **kwargs)
-            except IntegrityError as error:
+            except error_type as error:
+                assert not kwargs["session"].is_active
                 errors.append(error)
                 raise
 
@@ -6607,7 +6619,7 @@ class TestSchedulerJob:
             prohibit_commit(session) as guard,
         ):
             if failures == MAX_DB_RETRIES:
-                with pytest.raises(IntegrityError) as raised:
+                with pytest.raises(error_type) as raised:
                     self.job_runner._create_dagruns_for_dags(guard, session)
                 assert raised.value is errors[-1]
                 assert session.is_active
@@ -6619,6 +6631,7 @@ class TestSchedulerJob:
                 assert runs[0].state == DagRunState.QUEUED
         assert calls == min(failures + 1, MAX_DB_RETRIES)
         assert len(errors) == failures
+        assert session.scalars(select(Pool).where(Pool.pool == pool_name)).one().slots == 1
 
     @pytest.mark.backend("mysql")
     @pytest.mark.parametrize("autoflush", [False, True])

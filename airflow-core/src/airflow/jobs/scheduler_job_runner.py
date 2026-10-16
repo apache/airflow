@@ -52,6 +52,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -418,7 +419,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return None
             serdag.load_op_links = False
             return serdag.dag
-        except DBAPIError:
+        except (DBAPIError, StaleDataError):
             raise
         except Exception:
             self.log.exception("Failed to deserialize DAG '%s'", dag_id)
@@ -2841,7 +2842,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
             # crash due to misconfigured Dags. We should log non-database exceptions
             # and continue to the next serdag.
-            except DBAPIError:
+            except (DBAPIError, StaleDataError):
                 # The owning transaction must roll back and re-query candidates with HA locks.
                 # Persistent per-Dag failure isolation remains tracked in
                 # https://github.com/apache/airflow/issues/59120.
