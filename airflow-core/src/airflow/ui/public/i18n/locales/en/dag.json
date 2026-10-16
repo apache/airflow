@@ -334,6 +334,11 @@
       "provenance": "Provenance",
       "unknown": "Unknown"
     },
+    "limitReached": {
+      "description": "There are more changes than the Max changes limit allows. Raise the limit to see the rest.",
+      "descriptionDefault": "There are more changes than the default limit allows. Set Max changes higher to see the rest.",
+      "title": "Showing only the first {{limit, number}} changes"
+    },
     "maxChanges": "Max changes",
     "maxChangesDefault": "Default",
     "noChanges": "These versions hold the same state.",
@@ -350,11 +355,9 @@
     "selectPrompt": "Select two versions to see what changed between them.",
     "summary_one": "{{count, number}} change",
     "summary_other": "{{count, number}} changes",
+    "summaryAtLeast_one": "At least {{count, number}} change",
+    "summaryAtLeast_other": "At least {{count, number}} changes",
     "target": "Compare to",
-    "truncated": {
-      "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound.",
-      "title": "Some changes were not returned"
-    },
     "unavailable": {
       "description": "These versions could not be compared. Reason:",
       "title": "Comparison unavailable",
