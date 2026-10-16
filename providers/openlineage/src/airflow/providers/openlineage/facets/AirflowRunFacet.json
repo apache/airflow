@@ -214,6 +214,20 @@
           "description": "Group id of the innermost loop the task runs in (Airflow 3.4+), which loop_index counts the iterations of. Absent outside a loop.",
           "type": "string"
         },
+        "loop_decision": {
+          "description": "Decision of a loop gate (Airflow 3.4+), on its COMPLETE or FAIL event only. A FAIL with stop false at the last iteration means the loop's until was still false at max_iterations.",
+          "type": "object",
+          "properties": {
+            "stop": {
+              "description": "Whether the gate stopped the loop.",
+              "type": "boolean"
+            },
+            "reason": {
+              "description": "Reason given by until, if any.",
+              "type": "string"
+            }
+          }
+        },
         "region_id": {
           "description": "Id of the region (one execution of a loop or of a mapped task's expansion) the task instance belongs to (Airflow 3.4+). Shared by the task instances of that region. Clearing a loop forks its region, so a re-run of an iteration gets a new region_id. Region ids are UUIDv7, so a later trajectory has a greater one, which is an implementation detail. Absent for a task that is neither mapped nor in a loop.",
           "type": "string",

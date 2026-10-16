@@ -1149,6 +1149,22 @@ class TaskInstanceInfo(InfoJsonEncodable):
       region_id, region_index, try_number)`` is, as Airflow enforces it (``task_instance_try_key``). Both are
       absent for a task in no region, i.e. one that is neither mapped nor in a loop.
 
+    ``loop_decision`` (Airflow 3.4+): ``stop`` and the optional ``reason`` returned by ``until``, as evaluated by
+    a loop's gate, the task that ends each iteration (``gate_task_id`` of the loop group, in ``task.task_group``
+    and in ``taskGroups`` of ``AirflowJobFacet``). Only the gate's COMPLETE and FAIL events carry it, as the gate
+    decides while it runs. Read with ``loop_index``, ``loop_max_iterations`` and the group's ``has_until``:
+
+    * COMPLETE with ``stop`` false: the loop goes on to iteration ``loop_index + 1``.
+    * COMPLETE with ``stop`` true and ``has_until``: ``until`` ended the loop at iteration ``loop_index``, which
+      can be the last one.
+    * COMPLETE with ``stop`` true and no ``has_until``: the loop ran all its iterations, as one without ``until``
+      always stops at ``loop_index == loop_max_iterations - 1``.
+    * FAIL with ``stop`` false: ``until`` was still false at the last iteration (``loop_index ==
+      loop_max_iterations - 1``), so the loop ran out of iterations and fails. That's the only failure after the
+      decision is made.
+    * FAIL without ``loop_decision``: the gate failed before deciding, e.g. ``until`` raised or returned something
+      other than a bool or a ``LoopDecision``; the error facet tells which.
+
     How a cleared loop reads: clearing a loop from iteration ``k`` retries what was cleared in iteration ``k`` in
     place, with the same region and the next ``try_number``. The iterations after ``k`` are created again in a
     new region forked from the loop's region, and try numbers count per region, so the new execution of
@@ -1204,6 +1220,11 @@ class TaskInstanceInfo(InfoJsonEncodable):
         if AIRFLOW_V_3_0_PLUS and (ti_id := getattr(self.obj, "id", None)) is not None:
             self.id = str(ti_id)
             self._fields.append("id")
+        # Only a loop gate's runtime task instance has one, once it has evaluated ``until``. Read from a private
+        # attribute until the task SDK exposes it.
+        if (decision := getattr(self.obj, "_loop_decision", None)) is not None:
+            self.loop_decision = {"stop": decision.stop, "reason": decision.reason}
+            self._fields.append("loop_decision")
         # A runtime task instance in no region carries the sentinel region id instead of None
         region_id = getattr(self.obj, "region_id", None)
         if isinstance(region_id, UUID) and region_id.int != 0:
