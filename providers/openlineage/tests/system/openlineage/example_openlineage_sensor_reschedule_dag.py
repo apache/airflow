@@ -20,7 +20,7 @@ DAG with a sensor in reschedule mode.
 It checks:
     - the sensor emits one START (the START of later pokes is skipped) and one COMPLETE
     - taskInstance's `try_number` stays at 1 for both, as rescheduling does not start a new try
-    - START and COMPLETE share the runId (the runId check of OpenLineageTestOperator is enabled by default)
+    - START and COMPLETE share the `runId` (the `runId` check of OpenLineageTestOperator is enabled by default)
 """
 
 from __future__ import annotations

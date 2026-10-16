@@ -1611,7 +1611,7 @@ def _get_task_instance_position(
     in_loop = enclosing_loop is not None
     loop_index: int | None = None
     loop_max_iterations: int | None = None
-    loop_group_id = enclosing_loop.group_id if in_loop else None
+    loop_group_id = enclosing_loop.group_id if enclosing_loop is not None else None
     if in_loop and is_stored:
         loop_max_iterations = getattr(enclosing_loop, "max_iterations", None)
     if is_stored and not task.get_needs_expansion():
@@ -1679,7 +1679,8 @@ def get_orm_task_instance_positions(
                 without_iteration.append(task_instance)
     if not unplaced and not without_iteration:
         return positions
-    if unplaced and session is None:
+    if session is None:
+        # Only unplaced instances get here without a session, as no mapped task is added to without_iteration then
         raise ValueError("Placing a stored task instance without its task needs the session it was loaded in")
 
     from sqlalchemy import select
