@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import os
 import socket
+import subprocess
 import threading
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest import mock
 
 import httpx2
@@ -32,20 +36,32 @@ from uuid6 import uuid7
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import DagParseResultBody
 from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
+from airflow.configuration import conf
 from airflow.dag_processing.api_client import (
     DagParseContext,
     DagProcessorAPIClient,
     DagProcessorRegistrationRetired,
 )
+from airflow.dag_processing.bundles.local import LocalDagBundle
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.jobs.job import Job
+from airflow.models.dag import DagModel
+from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.team import Team
 from airflow.models.variable import Variable
+from airflow.sdk import Variable as SDKVariable
 from airflow.sdk.api.client import Client
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
     clear_db_jobs,
+    clear_db_teams,
     clear_db_variables,
 )
 
@@ -218,7 +234,7 @@ class LostAcknowledgmentTransport(httpx2.BaseTransport):
     def handle_request(self, request):
         response = self.transport.handle_request(request)
         if (
-            request.url.path.endswith(("/jobs", "/complete", "/parse-token"))
+            request.url.path.endswith(("/jobs", "/complete", "/parse-token", "/parse-results"))
             and request.url.path not in self.lost
             and response.is_success
         ):
@@ -247,16 +263,38 @@ def test_lost_registration_and_completion_responses_over_http(api_url, provision
             request=DagParseTokenBody(attempt_id=uuid7(), bundle_name="bundle-a", relative_fileloc="dag.py")
         )
         with processor.use_parse(context):
+            with pytest.raises(httpx2.ReadError):
+                processor.variables.get("parse-token-key")
             assert processor.variables.get("parse-token-key").value == "value"
             with pytest.raises(httpx2.HTTPStatusError) as error:
                 processor.post(f"jobs/{job_id}/heartbeat")
             assert error.value.response.status_code == 403
+            with pytest.raises(httpx2.HTTPStatusError) as publication_error:
+                processor.post(f"jobs/{job_id}/parse-results", json={})
+            assert publication_error.value.response.status_code == 403
+        body = DagParseResultBody(
+            attempt_id=uuid7(),
+            dispatch_sequence=1,
+            bundle_name="bundle-a",
+            relative_fileloc="dag.py",
+            parse_duration=0.1,
+            serialized_dags=[],
+            source_codes={},
+        )
+        with pytest.raises(httpx2.ReadError):
+            processor.publish_parse_result(body)
+        processor.heartbeat()
+        receipt = processor.publish_parse_result(body)
+        assert receipt.attempt_id == body.attempt_id
+        assert session.scalar(select(DagParseCheckpoint)).attempt_id == body.attempt_id
+        assert processor.publish_parse_result(body) == receipt
         processor.complete_job(TerminalJobState.SUCCESS)
         assert session.get(Job, job_id).state == JobState.SUCCESS.value
         assert transport.lost == {
             "/execution/jobs",
             f"/execution/jobs/{job_id}/parse-token",
             f"/execution/jobs/{job_id}/complete",
+            f"/execution/jobs/{job_id}/parse-results",
         }
 
 
@@ -371,3 +409,113 @@ def test_replaced_job_signals_restart(clock, api_url, provision_token, session):
 
         assert replaced.restart_required
         assert replacement.heartbeat() == JobState.RUNNING
+
+
+class SecretReadingLocalBundle(LocalDagBundle):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if SDKVariable.get("processor-client-key") != "from-api":
+            raise ValueError("Bundle constructor did not resolve its Variable")
+
+
+@pytest.mark.parametrize("multi_team", [False, True])
+@pytest.mark.parametrize("database_access", [False, True])
+def test_normal_processor_command_uses_authenticated_api(
+    api_url,
+    api_requests,
+    provision_token,
+    tmp_path,
+    session,
+    multi_team,
+    database_access,
+):
+    clear_db_dags()
+    clear_db_dag_bundles()
+    clear_db_teams()
+    team_name = "processor-team" if multi_team else None
+    if team_name:
+        session.add(Team(name=team_name))
+        session.commit()
+    dag_file = tmp_path / "api_dag.py"
+    dag_file.write_text(
+        "from airflow.sdk import DAG, Variable\n"
+        'dag = DAG("authenticated_processor", schedule=None, description=Variable.get("processor-client-key"))\n'
+    )
+    bundle_config = [
+        {
+            "name": "bundle-a",
+            "classpath": f"{__name__}.SecretReadingLocalBundle",
+            "kwargs": {"path": str(tmp_path)},
+            **({"team_name": team_name} if team_name else {}),
+        }
+    ]
+    config = {
+        ("dag_processor", "execution_api_token_file"): str(provision_token()),
+        ("core", "execution_api_server_url"): api_url,
+        ("core", "load_examples"): "False",
+        ("core", "multi_team"): str(multi_team),
+        ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+        ("scheduler", "job_heartbeat_sec"): "0",
+        ("database", "sql_alchemy_conn"): conf.get("database", "sql_alchemy_conn"),
+    }
+    try:
+        with conf_vars(config):
+            Variable.set("processor-client-key", "from-api", team_name=team_name)
+            DagBundlesManager().sync_bundles_to_db(include_bundle_urls=False)
+            processor_config = dict(config)
+            if not database_access:
+                processor_config.update(
+                    {
+                        (
+                            "database",
+                            "sql_alchemy_conn",
+                        ): "postgresql+psycopg://blocked:blocked@127.0.0.1:1/blocked",
+                        ("core", "fernet_key"): "",
+                        ("api_auth", "jwt_secret"): "",
+                        ("api_auth", "jwt_private_key_path"): "",
+                    }
+                )
+            result = subprocess.run(
+                ["airflow", "dag-processor", "--num-runs", "1", "--bundle-name", "bundle-a"],
+                env={
+                    **os.environ,
+                    **{
+                        f"AIRFLOW__{section.upper()}__{key.upper()}": value
+                        for (section, key), value in processor_config.items()
+                    },
+                    "PYTHONPATH": f"{Path(__file__).parents[3]}:{os.environ.get('PYTHONPATH', '')}",
+                },
+                capture_output=True,
+                text=True,
+                timeout=90,
+                check=False,
+            )
+            assert result.returncode == 0, result.stdout + result.stderr
+
+        session.expire_all()
+        job = session.scalars(select(Job)).one()
+        assert job.state == JobState.SUCCESS
+        assert job.end_date is not None
+        assert job.team_names == ([team_name] if team_name else [])
+        assert session.get(DagModel, "authenticated_processor").description == "from-api"
+        assert (
+            session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == "authenticated_processor")
+            )
+            is not None
+        )
+        requests = {(path, claims.get("scope")) for path, claims in api_requests}
+        assert ("/execution/jobs", "dag_processor_session") in requests
+        assert (f"/execution/jobs/{job.id}/heartbeat", "dag_processor") in requests
+        assert (f"/execution/jobs/{job.id}/complete", "dag_processor") in requests
+        assert (f"/execution/jobs/{job.id}/parse-results", "dag_processor") in requests
+        assert ("/execution/variables/processor-client-key", "dag_processor") in requests
+        assert ("/execution/variables/processor-client-key", "dag_parse") in requests
+        parsing = [claims for _, claims in api_requests if claims.get("scope") == "dag_parse"]
+        assert all(claims["relative_fileloc"] == "api_dag.py" for claims in parsing)
+    finally:
+        clear_db_jobs()
+        clear_db_dags()
+        clear_db_dag_bundles()
+        clear_db_variables()
+        clear_db_teams()
