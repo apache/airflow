@@ -324,10 +324,6 @@
     "summary_one": "{{count, number}} zmiana",
     "summary_other": "{{count, number}} zmiany",
     "target": "Porównaj z",
-    "truncated": {
-      "description": "Zmiany w niepokazanych ścieżkach zostały pominięte, aby zmieścić się w limicie, więc liczba zmian jest dolnym oszacowaniem.",
-      "title": "Nie zwrócono niektórych zmian"
-    },
     "unavailable": {
       "description": "Nie udało się porównać tych wersji. Przyczyna:",
       "title": "Porównanie niedostępne",

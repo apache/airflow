@@ -32,6 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TaskInstance,
     TerminalStateNonSuccess,
     TIRunContext,
+    TISuccessStatePayload,
     TITerminalStatePayload,
 )
 
@@ -119,6 +120,17 @@ class AddTerminalStateRetryReasonField(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TITerminalStatePayload).field("retry_reason").didnt_exist,
+    )
+
+
+class AddLoopDecisionField(VersionChange):
+    """Add the `loop_decision` field a loop gate reports with its terminal state."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TISuccessStatePayload).field("loop_decision").didnt_exist,
+        schema(TITerminalStatePayload).field("loop_decision").didnt_exist,
     )
 
 

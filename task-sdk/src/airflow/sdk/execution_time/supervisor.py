@@ -1840,6 +1840,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     when=msg.end_date or datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     retry_reason=msg.retry_reason,
+                    loop_decision=msg.loop_decision,
                 )
             elif isinstance(msg, SucceedTask):
                 self.client.task_instances.succeed(
@@ -1848,6 +1849,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     task_outlets=msg.task_outlets,
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
+                    loop_decision=msg.loop_decision,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(

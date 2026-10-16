@@ -5230,7 +5230,7 @@ class TestSchedulerJob:
 
             def mock_schedule_dag_run(*args, **kwargs):
                 mock_guard.reset_mock()
-                return None
+                return mock.create_autospec(DagCallbackRequest, instance=True)
 
             def mock_send_dag_callbacks_to_processor(*args, **kwargs):
                 mock_guard.return_value.__enter__.return_value.commit.assert_called()
@@ -5272,12 +5272,30 @@ class TestSchedulerJob:
 
         self.job_runner._do_scheduling(session)
 
-        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
-        self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
-        assert call_args[0].dag_id == dr.dag_id
-        assert call_args[1] is None
+        # No callback is built when no callbacks are set on the Dag, so nothing is sent
+        self.job_runner._send_dag_callbacks_to_processor.assert_not_called()
 
+        session.rollback()
+
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_do_scheduling_skips_dag_lookup_for_runs_without_callback(self, dag_maker, session):
+        """The callback loop does not load the Dag for runs that produced no callback."""
+        with dag_maker(
+            dag_id="test_do_scheduling_skips_dag_lookup_for_runs_without_callback", session=session
+        ):
+            EmptyOperator(task_id="dummy")
+        dag_maker.create_dagrun()
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        with (
+            mock.patch.object(self.job_runner, "_schedule_dag_run", autospec=True, return_value=None),
+            mock.patch.object(self.job_runner, "_send_dag_callbacks_to_processor", autospec=True) as send,
+            mock.patch.object(self.job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True) as get_dag,
+        ):
+            self.job_runner._do_scheduling(session)
+
+        get_dag.assert_not_called()
+        send.assert_not_called()
         session.rollback()
 
     @pytest.mark.parametrize(("state", "msg"), [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
@@ -7437,6 +7455,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
+        good_callback = mock.create_autospec(DagCallbackRequest, instance=True)
         caplog.clear()
         with (
             caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
@@ -7446,7 +7465,7 @@ class TestSchedulerJob:
                 autospec=True,
                 side_effect=[
                     TypeError("simulated crash from corrupted task instance"),  # bad_run
-                    None,  # good_run
+                    good_callback,  # good_run
                 ],
             ) as mock_schedule,
         ):
@@ -7456,8 +7475,7 @@ class TestSchedulerJob:
                 result = self.job_runner._schedule_all_dag_runs(guard, [bad_run, good_run], session=session)
 
             # The good DAG run should have been processed despite the bad one failing
-            assert len(result) == 1
-            assert result[0][0] == good_run
+            assert result == [(good_run, good_callback)]
 
             # Both dag runs should have been attempted
             assert mock_schedule.call_count == 2

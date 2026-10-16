@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -241,6 +242,63 @@ class TestReplay:
 
         assert result.output == "answer: 3 rows"
         assert memory_storage.entries == {}
+
+
+class TestLazilyValidatedIterableArgument:
+    """
+    A lazily validated ``Iterable`` argument must reach the tool intact.
+
+    pydantic validates an ``Iterable[int]`` parameter into a ``ValidatorIterator``, and
+    the call is fingerprinted before the tool runs. Reading it to build the fingerprint
+    would leave the tool an exhausted iterator, and the wrong answer would be recorded.
+    """
+
+    @staticmethod
+    def build(calls: Calls, seen: list[int], fail_final: list[bool]) -> Agent[None, str]:
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("model")
+            if responses_so_far(messages) == 0:
+                return ModelResponse(parts=[ToolCallPart("total", {"values": [1, 2, 3]})])
+            if fail_final[0]:
+                raise RuntimeError("worker died")
+            return ModelResponse(parts=[TextPart(f"total={tool_returns(messages)[-1].content}")])
+
+        toolset = FunctionToolset(id="math")
+
+        @toolset.tool_plain
+        def total(values: Iterable[int]) -> int:
+            """Add up the given values."""
+            consumed = list(values)
+            seen.extend(consumed)
+            calls.bump("total")
+            return sum(consumed)
+
+        return Agent(
+            FunctionModel(model_fn), name="adder", toolsets=[toolset], capabilities=[AirflowDurability()]
+        )
+
+    @pytest.mark.asyncio
+    async def test_tool_still_receives_every_value(self, memory_storage):
+        seen: list[int] = []
+
+        result = await attempt(memory_storage, self.build(Calls(), seen, [False]))
+
+        assert seen == [1, 2, 3]
+        assert result.output == "total=6"
+
+    @pytest.mark.asyncio
+    async def test_retry_replays_the_result_of_the_full_input(self, memory_storage):
+        calls = Calls()
+        fail_final = [True]
+        with pytest.raises(RuntimeError):
+            await attempt(memory_storage, self.build(calls, [], fail_final))
+        fail_final[0] = False
+
+        result = await attempt(memory_storage, self.build(calls, [], fail_final))
+
+        assert result.output == "total=6"
+        # The call has no fingerprint, so it replays only because the model step before it did.
+        assert calls["total"] == 1
 
 
 class TestResultsThatCannotBeRecorded:
