@@ -304,8 +304,8 @@ def check_run_id_integrity(
 
     1. all events share one ``job.name``;
     2. all events share one attempt, so another Dag run, clear, retry, map index or loop iteration can't reuse
-       a runId;
-    3. the lifecycle is complete, so START and COMPLETE/FAIL of an attempt can't carry different runIds:
+       a ``runId``;
+    3. the lifecycle is complete, so START and COMPLETE/FAIL of an attempt can't carry different ``runId`` values:
 
        * task and query: exactly one START, or several when the key of the START events is in
          ``repeated_start_keys`` (deferral re-emits START on every resume), and exactly one COMPLETE or FAIL;
@@ -315,7 +315,7 @@ def check_run_id_integrity(
 
     Across groups:
 
-    4. one attempt of a job has one runId.
+    4. one attempt of a job has one ``runId``.
 
     Only the events passed in are checked, i.e. those of the keys listed in the expected events.
     """
@@ -367,9 +367,8 @@ def check_run_id_integrity(
                 f"got: {sorted(str(event_type) for event_type in event_types)}"
             )
 
-    for attempt, run_ids in sorted(run_ids_by_attempt.items(), key=str):
+    for (job_name, attempt_fields), run_ids in sorted(run_ids_by_attempt.items(), key=str):
         if len(run_ids) > 1:
-            job_name, attempt_fields = attempt
             problems.append(f"`{job_name}` {attempt_fields} has several runIds: {sorted(run_ids)}")
     return problems
 
@@ -579,7 +578,7 @@ class OpenLineageTestOperator(BaseOperator):
 
         An open-ended ``">=N"`` (N >= 2) assertion on a START key does that, e.g. for a deferrable task that
         emits START again after every resume. Exact counts don't: they also cover mapped tasks, where each
-        instance emits its own START under its own runId.
+        instance emits its own START under its own ``runId``.
         """
         expr = self._get_count_expr(key, default="1").strip()
         return key.endswith(".event.start") and expr.startswith(">=") and int(expr[2:]) >= 2
