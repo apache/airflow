@@ -1,0 +1,1 @@
+Report Datadog timer metrics in milliseconds instead of seconds. Dashboards and monitors on Datadog ``Stats.timer()`` metrics (e.g. ``scheduler.scheduler_loop_duration``) will see values 1000x larger.
