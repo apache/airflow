@@ -1195,27 +1195,31 @@ class DagRun(Base, LoggingMixin):
 
     def _tis_for_dagrun_state(self, *, dag, tis):
         """
-        Return the collection of tasks that should be considered for evaluation of terminal dag run state.
-
-        Teardown tasks by default are not considered for the purpose of dag run state.  But
-        users may enable such consideration with on_failure_fail_dagrun.
+        Return the collection of tasks that should be considered for evaluation
+        of terminal dag run state.
         """
 
         def is_effective_leaf(task):
             for down_task_id in task.downstream_task_ids:
                 down_task = dag.get_task(down_task_id)
-                if not down_task.is_teardown or down_task.on_failure_fail_dagrun:
-                    # we found a down task that is not ignorable; not a leaf
-                    return False
-            # we found no ignorable downstreams
-            # evaluate whether task is itself ignorable
-            return not task.is_teardown or task.on_failure_fail_dagrun
 
+                if (
+                    not down_task.is_teardown
+                    or (
+                        down_task.on_failure_fail_dagrun
+                        and down_task.on_success_succeed_dagrun
+                    )
+                ):
+                    return False
+            return not task.is_teardown or task.on_failure_fail_dagrun
         leaf_task_ids = {x.task_id for x in dag.tasks if is_effective_leaf(x)}
         if not leaf_task_ids:
-            # can happen if dag is exclusively teardown tasks
             leaf_task_ids = {x.task_id for x in dag.tasks if not x.downstream_list}
-        leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
+        leaf_tis = {
+            ti
+            for ti in tis
+            if ti.task_id in leaf_task_ids and ti.state != TaskInstanceState.REMOVED
+        }
         return leaf_tis
 
     def _emit_dagrun_span(self, state: DagRunState):
