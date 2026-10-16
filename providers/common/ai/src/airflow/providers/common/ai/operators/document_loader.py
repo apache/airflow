@@ -30,6 +30,7 @@ from airflow.providers.common.compat.sdk import (
 )
 
 if TYPE_CHECKING:
+    from docx.oxml.exceptions import InvalidXmlError
     from docx.table import Table, _Cell
     from docx.text.paragraph import Paragraph
 
@@ -473,15 +474,10 @@ class DocumentLoaderOperator(BaseOperator):
         blocks = []
         for block in doc.iter_inner_content():
             if isinstance(block, Table):
-                try:
-                    rows = self._get_docx_table_rows(block, Table)
-                except (ValueError, InvalidXmlError, RecursionError) as e:
-                    # Malformed table XML raises ValueError (a vMerge with no cell above) or
-                    # InvalidXmlError (a missing required attribute). python-docx walks vertical
-                    # merges up recursively, so one spanning about 1000 rows raises RecursionError.
-                    self.log.warning(
-                        "Skipping a table in %s that python-docx could not read: %r", source_hint, e
-                    )
+                rows = self._get_docx_table_rows_or_none(
+                    block, Table, InvalidXmlError, source_hint=source_hint
+                )
+                if rows is None:
                     continue
                 text = "\n".join(f"| {' | '.join(cells)} |" for cells in rows)
             else:
@@ -491,35 +487,86 @@ class DocumentLoaderOperator(BaseOperator):
         text = "\n\n".join(blocks)
         return [{"text": text, "metadata": {}}]
 
-    def _get_docx_table_rows(self, table: Table, table_cls: type[Table]) -> list[list[str]]:
-        # w:gridBefore, w:gridAfter and w:gridSpan come straight from the XML, so the empty
-        # cells added for them are capped at the table's column count.
+    def _get_docx_table_rows_or_none(
+        self,
+        table: Table,
+        table_cls: type[Table],
+        invalid_xml_error_cls: type[InvalidXmlError],
+        *,
+        source_hint: str,
+    ) -> list[list[str]] | None:
+        try:
+            return self._get_docx_table_rows(table, table_cls, invalid_xml_error_cls, source_hint=source_hint)
+        except (ValueError, invalid_xml_error_cls, RecursionError) as e:
+            # Malformed table XML raises ValueError (a vMerge with no cell above, or a gridSpan
+            # that does not fit the table) or InvalidXmlError (a missing required attribute).
+            # python-docx walks vertical merges up recursively, so one spanning about 1000 rows
+            # raises RecursionError.
+            self.log.warning("Skipping a table in %s that python-docx could not read: %r", source_hint, e)
+            return None
+
+    def _get_docx_table_rows(
+        self,
+        table: Table,
+        table_cls: type[Table],
+        invalid_xml_error_cls: type[InvalidXmlError],
+        *,
+        source_hint: str,
+    ) -> list[list[str]]:
+        # w:gridBefore and w:gridAfter come straight from the XML and can be any integer, so the
+        # empty cells added for them only fill the row up to the column count.
         column_count = len(table.columns)
 
         rows = []
         for row in table.rows:
-            cells: list[str] = [""] * min(row.grid_cols_before, column_count)
+            # row.cells yields a cell once for every grid column its w:gridSpan covers, all at
+            # once: spans that add up to more than the table width are built in full, and a span
+            # below 1 drops the cell and its text. Both are rejected before row.cells is read.
+            spanned_columns = 0
+            for index, tc in enumerate(row._tr.tc_lst, start=1):
+                spanned_columns += tc.grid_span
+                if tc.grid_span < 1 or spanned_columns > column_count:
+                    raise ValueError(
+                        f"w:gridSpan {tc.grid_span} of cell {index} does not fit the {column_count} table columns"
+                    )
+            cells: list[str] = []
             previous_cell = None
             for cell in row.cells:
                 # python-docx repeats the same _Cell object for every grid column a horizontal
                 # merge spans: keep its text once and leave the other columns empty so later
                 # cells stay under their headers. A vertical merge repeats on each row it spans.
                 if cell is previous_cell:
-                    if len(cells) < column_count:
-                        cells.append("")
+                    cells.append("")
                     continue
                 previous_cell = cell
-                cells.append(self._get_docx_cell_text(cell, table_cls))
-            cells.extend([""] * min(row.grid_cols_after, column_count))
+                cells.append(
+                    self._get_docx_cell_text(cell, table_cls, invalid_xml_error_cls, source_hint=source_hint)
+                )
+            free_columns = max(0, column_count - len(cells))
+            grid_before = max(0, min(row.grid_cols_before, free_columns))
+            grid_after = max(0, min(row.grid_cols_after, free_columns - grid_before))
+            cells = [""] * grid_before + cells + [""] * grid_after
             if any(cells):
                 rows.append(cells)
         return rows
 
-    def _get_docx_cell_text(self, cell: _Cell, table_cls: type[Table]) -> str:
+    def _get_docx_cell_text(
+        self,
+        cell: _Cell,
+        table_cls: type[Table],
+        invalid_xml_error_cls: type[InvalidXmlError],
+        *,
+        source_hint: str,
+    ) -> str:
         parts = []
         for item in cell.iter_inner_content():
             if isinstance(item, table_cls):
-                text = "; ".join(" / ".join(cells) for cells in self._get_docx_table_rows(item, table_cls))
+                rows = self._get_docx_table_rows_or_none(
+                    item, table_cls, invalid_xml_error_cls, source_hint=source_hint
+                )
+                if rows is None:
+                    continue
+                text = "; ".join(" / ".join(cells) for cells in rows)
             else:
                 if TYPE_CHECKING:
                     assert isinstance(item, Paragraph)

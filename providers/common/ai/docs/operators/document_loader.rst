@@ -89,7 +89,9 @@ column it spans, so later values stay under their headers. A cell merged down
 several rows is repeated on each of those rows, so every row still reads on its own.
 A table nested inside a cell is flattened into that cell, with ``/`` between its
 cells and ``;`` between its rows. A table that ``python-docx`` cannot read, such as
-one with a malformed vertical merge, is skipped with a warning.
+one with a malformed vertical merge or a cell whose column span does not fit the
+table, is skipped with a warning. If that table is nested inside a cell, only the
+nested table is left out.
 
 .. note::
 
