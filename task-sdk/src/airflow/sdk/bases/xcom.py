@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+from collections.abc import AsyncIterator, Iterable, Iterator, Sequence
 from typing import Any, Protocol
 
 import structlog
@@ -355,6 +356,7 @@ class BaseXCom:
         run_id: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
+        _previous_iteration: bool = False,
     ) -> Any | None:
         """
         Retrieve an XCom value asynchronously, optionally meeting certain criteria.
@@ -389,6 +391,7 @@ class BaseXCom:
                 run_id=run_id,
                 map_index=map_index,
                 include_prior_dates=include_prior_dates,
+                previous_iteration=_previous_iteration,
             ),
         )
 
@@ -566,3 +569,290 @@ class BaseXCom:
             ),
         )
         cls.purge(xcom_result)
+
+
+def _flatten(item: Any) -> Iterator[Any]:
+    if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+        for sub in item:
+            yield from _flatten(sub)
+    else:
+        yield item
+
+
+def flattened_count(value: Any) -> int:
+    """How many items ``value`` adds to a :class:`FlattenedXComIterable`; counted when it is pushed."""
+    return sum(1 for _ in _flatten(value))
+
+
+class XComIterable(Sequence):
+    """
+    An iterable that lazily fetches XCom values one by one instead of loading all at once.
+
+    This is a read-only :class:`collections.abc.Sequence` over the ``return_value_<index>`` XComs an
+    iterated task pushed, one per index: the values are written by the producing task's runner as
+    each indexed task finishes (see ``IndexedTaskLifecycle._push_result``), and the iterable only ever reads
+    them. Nothing on this class mutates the underlying XComs.
+
+    Indexing follows the usual sequence rules, negative indices included: ``result[-1]`` is the last
+    value. Iterations that were skipped pushed nothing and are left out, as the XComs of skipped
+    mapped task instances are: ``length`` counts every input item, ``skipped`` lists the indices
+    that were skipped, and positions in the sequence run over the others only. An iteration that
+    returned ``None`` pushed nothing either but keeps its position: reading it gives ``None``,
+    where ``.expand()`` would not count such a mapped task instance at all.
+
+    Every element is a remote fetch, so random access costs one XCom read per element, and so do
+    iterating and slicing: N elements are N requests. Reading several in one request needs an
+    Execution API endpoint that takes a list of keys, which does not exist yet.
+
+    Inside a loop, the result an iterated terminal pushed in the previous iteration
+    (``loop.previous``) has ``previous_iteration`` set, so its elements are read from that
+    iteration too and not from the current one. "Previous" is relative to whoever reads, so
+    such an iterable cannot be pushed on: :meth:`serialize` refuses it (see there).
+
+    ``flattened_length`` is the item count of :meth:`flatten`, tallied by the producer as it pushes
+    each value (see :func:`flattened_count`) so the flattened view knows its length without reading
+    a page; ``None`` when the producer did not tally it.
+    """
+
+    def __init__(
+        self,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        length: int | None = None,
+        skipped: Sequence[int] = (),
+        previous_iteration: bool = False,
+        flattened_length: int | None = None,
+    ):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.map_index = map_index
+        self.length = length or 0
+        self.skipped: list[int] = sorted(skipped)
+        self.previous_iteration = previous_iteration
+        self.flattened_length = flattened_length
+
+    def _index_of(self, position: int) -> int:
+        """Map ``position`` in the sequence to its input index, stepping over the skipped indices."""
+        # range() maps a negative position from the end and raises IndexError past either end;
+        # XComIterable's own length, as a FlattenedXComIterable's len() counts items, not positions.
+        index = range(XComIterable.__len__(self))[position]
+        for skipped_index in self.skipped:
+            if skipped_index > index:
+                break
+            index += 1
+        return index
+
+    def __iter__(self) -> Iterator[Any]:
+        return _XComIterator(self)
+
+    def __len__(self) -> int:
+        return self.length - len(self.skipped)
+
+    async def alen(self) -> int:
+        """Async twin of ``len(self)``, for a length that may take a read (see :class:`FlattenedXComIterable`)."""
+        return len(self)
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        """Allow direct indexing so this works like a sequence."""
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if isinstance(key, slice):
+            # TODO: This issues one XCom.get_one call per element — N round-trips for a full slice.
+            # XComIterable stores results under distinct keys (return_value_0, return_value_1, …)
+            # with the same map_index, so the existing GetXComSequenceSlice endpoint (which ranges
+            # over map_index for a single key) cannot be reused.  A new POST endpoint that accepts
+            # a list of keys and returns values in a single query is needed; once that lands, replace
+            # this loop with a single batched fetch.
+            start, stop, step = key.indices(len(self))
+            return [self[i] for i in range(start, stop, step)]
+
+        return XCom.get_one(**self._item_query(key))
+
+    async def aget(self, index: int) -> Any:
+        """
+        Async counterpart of ``self[index]``: fetch one value through ``XCom.aget_one``.
+
+        Use it, or ``async for``, from code running on an event loop that has other SDK calls in
+        flight (an iterated task consuming this iterable as its input): a synchronous read there
+        would block the loop, and every call in flight on it, for its round trip to the supervisor.
+        """
+        from airflow.sdk.execution_time.xcom import XCom
+
+        return await XCom.aget_one(**self._item_query(index))
+
+    def __aiter__(self) -> AsyncIterator[Any]:
+        return _AsyncXComIterator(self)
+
+    def _item_query(self, position: int) -> dict[str, Any]:
+        """
+        Build the arguments of the XCom read for the item at ``position``.
+
+        The previous-iteration flag is passed only when set, so a read outside a loop calls the
+        XCom backend's ``get_one``/``aget_one`` with the same arguments as before.
+        """
+        query: dict[str, Any] = {
+            "key": f"{BaseXCom.XCOM_RETURN_KEY}_{self._index_of(position)}",
+            "dag_id": self.dag_id,
+            "task_id": self.task_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+        }
+        if self.previous_iteration:
+            query["_previous_iteration"] = True
+        return query
+
+    def flatten(self) -> XComIterable:
+        """
+        Return a FlattenedXComIterable that recursively expands nested iterables (except str/bytes).
+
+        Built from the fields themselves, not from :meth:`serialize`: an iterable read through
+        ``loop.previous`` can be flattened and read in its iteration, it only cannot be pushed on,
+        and the flattened view refuses that the same way.
+        """
+        return FlattenedXComIterable(
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            map_index=self.map_index,
+            length=self.length,
+            skipped=self.skipped,
+            previous_iteration=self.previous_iteration,
+            flattened_length=self.flattened_length,
+        )
+
+    def serialize(self) -> dict:
+        """
+        Ensure the object is JSON serializable.
+
+        An iterable read through ``loop.previous`` is refused: its items are read from the
+        iteration before the reader's, so pushed as a return value or an XCom, or checkpointed,
+        it would point at another iteration's items for every later reader. Push the values the
+        task needs instead, ``list(loop.previous)`` for all of them.
+        """
+        if self.previous_iteration:
+            raise TypeError(
+                f"The result of {self.task_id!r} read through loop.previous cannot be pushed as is: "
+                "it reads the iteration before its reader's, so a later reader would get other items. "
+                "Push the values you need instead, for example list(loop.previous)."
+            )
+        data = {
+            "task_id": self.task_id,
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "map_index": self.map_index,
+            "length": self.length,
+            "skipped": self.skipped,
+            "flattened_length": self.flattened_length,
+        }
+        return data
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        """Ensure the object is JSON deserializable."""
+        return cls(**data)
+
+
+class FlattenedXComIterable(XComIterable):
+    """
+    An XComIterable read as the items of its pages, nested iterables (except str/bytes) expanded.
+
+    ``__len__``/``__getitem__`` speak in flattened positions, not the pages ``XComIterable`` stores.
+    The length is the ``flattened_length`` the producer tallied while pushing; an iterable pushed
+    without one is counted by reading its pages once. Reads hold the last page fetched, flattened,
+    and nothing more, so a sequential read (iteration, a slice, an iterated task consuming this as
+    its input) fetches every page exactly once, and a jump backwards restarts from the first page.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self._page, self._offset = -1, 0
+        self._items: list[Any] = []
+
+    def __len__(self) -> int:
+        if self.flattened_length is None:
+            self.flattened_length = sum(
+                flattened_count(XComIterable.__getitem__(self, page))
+                for page in range(XComIterable.__len__(self))
+            )
+        return self.flattened_length
+
+    async def alen(self) -> int:
+        if self.flattened_length is None:
+            # Counted one page at a time, like __len__, so no more than one page is held.
+            count = 0
+            for page in range(XComIterable.__len__(self)):
+                count += flattened_count(await XComIterable.aget(self, page))
+            self.flattened_length = count
+        return self.flattened_length
+
+    def _page_for(self, index: int) -> int | None:
+        """Return the next page to fetch on the way to flattened position ``index``, or None if held."""
+        if index < self._offset:
+            self._page, self._offset, self._items = -1, 0, []
+        if index < self._offset + len(self._items):
+            return None
+        return self._page + 1
+
+    def _hold(self, page: int, value: Any) -> None:
+        self._offset += len(self._items)
+        self._page, self._items = page, list(_flatten(value))
+
+    def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
+        if isinstance(key, slice):
+            return [self[index] for index in range(*key.indices(len(self)))]
+        index = range(len(self))[key]
+        while (page := self._page_for(index)) is not None:
+            self._hold(page, XComIterable.__getitem__(self, page))
+        return self._items[index - self._offset]
+
+    async def aget(self, index: int) -> Any:
+        """Async counterpart of ``self[index]``, reading pages through :meth:`XComIterable.aget`."""
+        index = range(await self.alen())[index]
+        while (page := self._page_for(index)) is not None:
+            self._hold(page, await XComIterable.aget(self, page))
+        return self._items[index - self._offset]
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        return FlattenedXComIterable(**data)
+
+
+class _AsyncXComIterator:
+    """Async iterator for XComIterable, one ``aget`` per position in order."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._index >= await self._iterable.alen():
+            raise StopAsyncIteration
+
+        value = await self._iterable.aget(self._index)
+        self._index += 1
+        return value
+
+
+class _XComIterator:
+    """Iterator for XComIterable."""
+
+    def __init__(self, iterable: XComIterable):
+        self._iterable = iterable
+        self._index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index >= len(self._iterable):
+            raise StopIteration
+
+        value = self._iterable[self._index]
+        self._index += 1
+        return value
