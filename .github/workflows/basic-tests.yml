@@ -187,7 +187,7 @@ jobs:
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 32, 128) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     if: inputs.run-ui-tests == 'true'
     steps:
       - name: "Cleanup repo"
