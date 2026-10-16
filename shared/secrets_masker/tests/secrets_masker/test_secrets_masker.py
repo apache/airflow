@@ -832,9 +832,10 @@ class TestShouldHideValueForKey:
             ("GOOGLE_APIKEY", True),
             (1, False),
             # webhook_url / bearer / dsn / auth_header / service_key in DEFAULT_SENSITIVE_FIELDS.
-            # Matching is case-insensitive substring on the lowercased key, so
+            # Matching is case-insensitive substring on the normalised key, so
             # snake_case variants (and underscore-bearing prefixes/suffixes) are
-            # covered; PascalCase / camelCase variants without underscores are not.
+            # covered; camelCase / PascalCase keys are split on word boundaries
+            # first (see the camelCase cases below).
             ("webhook_url", True),
             ("WEBHOOK_URL", True),
             ("slack_webhook_url", True),
@@ -855,6 +856,30 @@ class TestShouldHideValueForKey:
             ("auth.example.com/token", True),
             ("spark.executor.memory", False),
             ("spark.driver.cores", False),
+            # camelCase / PascalCase keys matching multi-word default fields.
+            ("privateKey", True),
+            ("PrivateKey", True),
+            ("privateKEY", True),
+            ("sshPrivateKey", True),
+            ("connectionString", True),
+            ("webhookUrl", True),
+            ("webhookURL", True),
+            ("slackWebhookUrl", True),
+            ("accessKey", True),
+            ("accessKeyId", True),
+            ("authHeader", True),
+            ("keyfileDict", True),
+            ("serviceAccount", True),
+            ("serviceKey", True),
+            ("apiKey", True),
+            ("APIKey", True),
+            ("accessToken", True),
+            ("proxyPassword", True),
+            # camelCase keys that do not contain a sensitive field stay visible.
+            ("primaryKey", False),
+            ("connectionTimeout", False),
+            ("serviceName", False),
+            ("webhookName", False),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):
@@ -870,6 +895,9 @@ class TestShouldHideValueForKey:
             ("key", "GITHUB_APIKEY", True),
             ("key, token", "TRELLO_TOKEN", True),
             ("mysecretword, mysensitivekey", "GITHUB_mysecretword", True),
+            ("mysensitivekey", "mySensitiveKey", True),
+            ("my_sensitive_key", "mySensitiveKey", True),
+            ("my_sensitive_key", "MySensitiveKey", True),
             (None, "TRELLO_API", False),
             ("token", "TRELLO_KEY", False),
             ("token, mysecretword", "TRELLO_KEY", False),
