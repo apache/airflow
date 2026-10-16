@@ -41,7 +41,7 @@
       "connectionTypeFields": "שדות {{connectionType}}",
       "connectionTypeRequired": "נדרש סוג חיבור",
       "extraFieldsJson": "שדות נוספים JSON",
-      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת העזר המתאימה",
+      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את ההרחבה המתאימה",
       "helperTextForRedactedFields": "שדות שהוסתרו ('***') יישארו ללא שינוי אם לא בוצע בהם עדכון",
       "selectConnectionType": "בחר סוג חיבור",
       "standardFields": "שדות סטנדרטיים"
@@ -151,9 +151,9 @@
       "packageName": "שם חבילה",
       "version": "גירסה"
     },
-    "provider_one": "חבילת עזר",
-    "provider_other": "חבילות עזר",
-    "provider_two": "חבילות עזר"
+    "provider_one": "הרחבה",
+    "provider_other": "הרחבות",
+    "provider_two": "הרחבות"
   },
   "variables": {
     "add": "הוסף משתנה",

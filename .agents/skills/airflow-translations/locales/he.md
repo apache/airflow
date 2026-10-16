@@ -34,7 +34,7 @@ These established translations **must be used consistently**:
 - `Backfill` → `השלמה למפרע` / `השלמות למפרע`
 - `Plugin` / `Plugins` → `תוסף` / `תוספים`
 - `Pool` / `Pools` → `מאגר משאבים`
-- `Provider` / `Providers` → `חבילות עזר`
+- `Provider` / `Providers` → `הרחבה` / `הרחבות`. Reserve the noun "הרחבה" for providers: do not use "חבילת עזר", and do not use "תוסף", which means Plugin. For the expansion of a mapped task, say "מופעים ממופים" (e.g., "Whole expansion" → "כל המופעים הממופים"). The UI verb "הרחב" (expand / collapse) stays as it is.
 - `Trigger` / `Triggerer` → `מפעיל` (component noun)
 - `Executor` → `Executor`
 - `Heartbeat` → `אות חיים` (e.g., "אות חיים אחרון" for "Latest Heartbeat")
@@ -142,7 +142,7 @@ Asset          → "נכס"
 Backfill       → "השלמה למפרע"
 Pool           → "מאגר משאבים"
 Plugin         → "תוסף"
-Provider       → "חבילות עזר"
+Provider       → "הרחבה"
 Executor       → "Executor"
 Trigger        → "מפעיל"
 Heartbeat      → "אות חיים"

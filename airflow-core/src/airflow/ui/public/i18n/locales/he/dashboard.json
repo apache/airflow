@@ -29,7 +29,7 @@
   },
   "group": "קבוצה",
   "health": {
-    "dagProcessor": "מנתח Dags",
+    "dagProcessor": "מעבד Dag",
     "degraded": "ירוד",
     "degradedHint": {
       "dagProcessor": "בחלק מחבילות ה-Dag שהוגדרו אין מעבד Dag שמנתח אותן.",
@@ -51,7 +51,7 @@
     "metaDatabase": "מטא מסד-נתונים",
     "scheduler": "מתזמן",
     "status": "סטאטוס",
-    "triggerer": "מנהל תהליכים בהמתנה",
+    "triggerer": "מפעיל",
     "unhealthy": "לא תקין",
     "unknownStatus": "לא ידוע"
   },
