@@ -838,6 +838,12 @@ class TestPostVariable(TestVariableEndpoint):
             in response.json()["detail"][0]["msg"]
         )
 
+    @pytest.mark.parametrize("key", ["", " ", "   ", "\t", "\n"])
+    def test_post_variable_rejects_blank_key(self, test_client, session, key):
+        response = test_client.post("/variables", json={"key": key, "value": "some value"})
+        assert response.status_code == 422
+        assert session.scalar(select(Variable).filter_by(key=key)) is None
+
     @pytest.mark.parametrize(
         "body",
         [

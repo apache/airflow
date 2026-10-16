@@ -486,6 +486,20 @@ class TestPatchPool(TestPoolsEndpoint):
             in response.json()["detail"][0]["msg"]
         )
 
+    def test_patch_pool_rejects_blank_name_instead_of_renaming(self, test_client, session):
+        # The guard tested the body name for truthiness, so a blank one was read as "no name
+        # supplied", skipped the mismatch check and renamed the pool to "" instead.
+        self.create_pools()
+        response = test_client.patch(
+            f"/pools/{POOL1_NAME}",
+            json={"name": "", "slots": POOL1_SLOT, "include_deferred": POOL1_INCLUDE_DEFERRED},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "Invalid body, pool name from request body doesn't match uri parameter"
+        )
+        assert session.scalar(select(Pool.pool).where(Pool.pool == POOL1_NAME)) == POOL1_NAME
+
 
 class TestPostPool(TestPoolsEndpoint):
     @conf_vars({("core", "multi_team"): "True"})
@@ -594,6 +608,16 @@ class TestPostPool(TestPoolsEndpoint):
             },
         )
         assert response.status_code == 422
+
+    @pytest.mark.parametrize("name", ["", " ", "   ", "\t", "\n"])
+    def test_post_pool_rejects_blank_name(self, test_client, session, name):
+        n_pools = session.scalar(select(func.count()).select_from(Pool))
+        response = test_client.post(
+            "/pools",
+            json={"name": name, "slots": 1, "include_deferred": False},
+        )
+        assert response.status_code == 422
+        assert session.scalar(select(func.count()).select_from(Pool)) == n_pools
 
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_pool_rejects_team_name_when_multi_team_disabled(self, test_client):
