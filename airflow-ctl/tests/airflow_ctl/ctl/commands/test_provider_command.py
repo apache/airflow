@@ -69,3 +69,34 @@ class TestProviderCommands:
         result = provider_command.get_provider(args, api_client=api_client)
 
         assert result == expected
+
+    sendgrid_name = "apache-airflow-providers-sendgrid"
+    # Metadata made up entirely of keys that also exist on the summary response, plus
+    # ``email-backends`` — ``--full`` must keep every one of them.
+    sendgrid_info = {
+        "package-name": sendgrid_name,
+        "name": "Sendgrid",
+        "description": "Sendgrid https://sendgrid.com/",
+        "email-backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
+        "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
+    }
+
+    def test_get_provider_full_keeps_all_metadata(self, api_client_maker):
+        provider_response = ProviderDetailsResponse(
+            package_name=self.sendgrid_name,
+            version="4.2.5",
+            description=self.sendgrid_info["description"],
+            documentation_url=self.sendgrid_info["documentation-url"],
+            provider_info=ProviderInfoResponse.model_validate(self.sendgrid_info),
+        )
+        api_client = api_client_maker(
+            path=f"/api/v2/providers/{self.sendgrid_name}",
+            response_json=provider_response.model_dump(mode="json", by_alias=True),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        args = self.parser.parse_args(["providers", "get", self.sendgrid_name, "--full"])
+
+        result = provider_command.get_provider(args, api_client=api_client)
+
+        assert result == self.sendgrid_info

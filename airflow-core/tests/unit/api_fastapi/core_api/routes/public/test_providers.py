@@ -57,6 +57,21 @@ MOCK_PROVIDERS = {
     ),
 }
 
+# A provider whose metadata is made up entirely of the keys shared with the summary response
+# plus ``email-backends`` — nothing here may be dropped from ``provider_info``.
+MOCK_SENDGRID_PROVIDER = {
+    "apache-airflow-providers-sendgrid": ProviderInfo(
+        "4.2.5",
+        {
+            "package-name": "apache-airflow-providers-sendgrid",
+            "name": "Sendgrid",
+            "description": "`Sendgrid <https://sendgrid.com/>`__\n",
+            "email-backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
+            "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
+        },
+    ),
+}
+
 
 class TestGetProviders:
     @pytest.mark.parametrize(
@@ -119,9 +134,33 @@ class TestGetProvider:
             }
         ]
         assert provider_info["extra-links"] == ["airflow.providers.amazon.aws.links.emr.EmrClusterLink"]
+        assert provider_info["package-name"] == "apache-airflow-providers-amazon"
+        assert provider_info["description"] == "Amazon Web Services (AWS) https://aws.amazon.com/"
+        assert (
+            provider_info["documentation-url"]
+            == "https://airflow.apache.org/docs/apache-airflow-providers-amazon/1.0.0/"
+        )
         # Only keys explicitly declared in ProviderInfoResponse are serialized
         assert "versions" not in provider_info
-        assert "documentation-url" not in provider_info
+
+    @mock.patch(
+        "airflow.providers_manager.ProvidersManager.providers",
+        new_callable=mock.PropertyMock,
+        return_value=MOCK_SENDGRID_PROVIDER,
+    )
+    def test_should_respond_200_with_all_provider_metadata(self, mock_provider, test_client):
+        response = test_client.get("/providers/apache-airflow-providers-sendgrid")
+
+        assert response.status_code == 200
+        provider_info = response.json()["provider_info"]
+        # The CLI renders the metadata with ``exclude_none``, so only the populated keys matter
+        assert {key: value for key, value in provider_info.items() if value is not None} == {
+            "package-name": "apache-airflow-providers-sendgrid",
+            "name": "Sendgrid",
+            "description": "Sendgrid https://sendgrid.com/",
+            "email-backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
+            "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
+        }
 
     @mock.patch(
         "airflow.providers_manager.ProvidersManager.providers",

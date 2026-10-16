@@ -2735,7 +2735,12 @@ class ProviderInfoResponse(BaseModel):
     Typed provider metadata (from ``provider.yaml``) exposed by the API.
     """
 
+    package_name: Annotated[str | None, Field(alias="package-name", title="Package-Name")] = None
     name: Annotated[str | None, Field(title="Name")] = None
+    description: Annotated[str | None, Field(title="Description")] = None
+    documentation_url: Annotated[str | None, Field(alias="documentation-url", title="Documentation-Url")] = (
+        None
+    )
     filesystems: Annotated[list[str] | None, Field(title="Filesystems")] = None
     integrations: Annotated[list[ProviderIntegrationInfo] | None, Field(title="Integrations")] = None
     operators: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Operators")] = None
@@ -2755,6 +2760,7 @@ class ProviderInfoResponse(BaseModel):
     secrets_backends: Annotated[
         list[str] | None, Field(alias="secrets-backends", title="Secrets-Backends")
     ] = None
+    email_backends: Annotated[list[str] | None, Field(alias="email-backends", title="Email-Backends")] = None
     logging: Annotated[list[str] | None, Field(title="Logging")] = None
     remote_logging: Annotated[
         list[ProviderRemoteLoggingInfo] | None, Field(alias="remote-logging", title="Remote-Logging")

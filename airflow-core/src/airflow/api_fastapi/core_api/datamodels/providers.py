@@ -39,7 +39,8 @@ class ProviderCollectionResponse(BaseModel):
 
 
 # The models below mirror the provider metadata structure defined in
-# airflow-core/src/airflow/provider_info.schema.json (deprecated keys excluded).
+# airflow-core/src/airflow/provider_info.schema.json (deprecated keys excluded). Keys the
+# models do not declare are dropped from the response, so new metadata keys need a field here.
 
 
 class ProviderIntegrationInfo(BaseModel):
@@ -134,7 +135,12 @@ class ProviderPluginInfo(BaseModel):
 class ProviderInfoResponse(BaseModel):
     """Typed provider metadata (from ``provider.yaml``) exposed by the API."""
 
+    package_name: str | None = Field(None, alias="package-name")
     name: str | None = None
+    description: str | None = None
+    # Not part of provider_info.schema.json: added to the provider metadata when the
+    # distribution is built, but present in the installed provider data at runtime.
+    documentation_url: str | None = Field(None, alias="documentation-url")
     filesystems: list[str] | None = None
     integrations: list[ProviderIntegrationInfo] | None = None
     operators: list[ProviderIntegrationModulesInfo] | None = None
@@ -148,6 +154,7 @@ class ProviderInfoResponse(BaseModel):
     connection_types: list[ProviderConnectionTypeInfo] | None = Field(None, alias="connection-types")
     extra_links: list[str] | None = Field(None, alias="extra-links")
     secrets_backends: list[str] | None = Field(None, alias="secrets-backends")
+    email_backends: list[str] | None = Field(None, alias="email-backends")
     logging: list[str] | None = None
     remote_logging: list[ProviderRemoteLoggingInfo] | None = Field(None, alias="remote-logging")
     auth_backends: list[str] | None = Field(None, alias="auth-backends")

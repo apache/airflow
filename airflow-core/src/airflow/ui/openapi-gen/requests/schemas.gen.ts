@@ -7598,6 +7598,17 @@ export const $ProviderDialectInfo = {
 
 export const $ProviderInfoResponse = {
     properties: {
+        'package-name': {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Package-Name'
+        },
         name: {
             anyOf: [
                 {
@@ -7608,6 +7619,28 @@ export const $ProviderInfoResponse = {
                 }
             ],
             title: 'Name'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        'documentation-url': {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Documentation-Url'
         },
         filesystems: {
             anyOf: [
@@ -7790,6 +7823,20 @@ export const $ProviderInfoResponse = {
                 }
             ],
             title: 'Secrets-Backends'
+        },
+        'email-backends': {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Email-Backends'
         },
         logging: {
             anyOf: [

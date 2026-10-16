@@ -2069,7 +2069,10 @@ export type ProviderDialectInfo = {
  * Typed provider metadata (from ``provider.yaml``) exposed by the API.
  */
 export type ProviderInfoResponse = {
+    'package-name'?: string | null;
     name?: string | null;
+    description?: string | null;
+    'documentation-url'?: string | null;
     filesystems?: Array<(string)> | null;
     integrations?: Array<ProviderIntegrationInfo> | null;
     operators?: Array<ProviderIntegrationModulesInfo> | null;
@@ -2083,6 +2086,7 @@ export type ProviderInfoResponse = {
     'connection-types'?: Array<ProviderConnectionTypeInfo> | null;
     'extra-links'?: Array<(string)> | null;
     'secrets-backends'?: Array<(string)> | null;
+    'email-backends'?: Array<(string)> | null;
     logging?: Array<(string)> | null;
     'remote-logging'?: Array<ProviderRemoteLoggingInfo> | null;
     'auth-backends'?: Array<(string)> | null;

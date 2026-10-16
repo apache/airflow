@@ -41,7 +41,10 @@ def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
 
 def map_provider_details(provider: ProviderInfo) -> ProviderDetailsResponse:
     """Map provider information to a detailed API response."""
+    provider_info = ProviderInfoResponse.model_validate(provider.data)
+    if provider_info.description is not None:
+        provider_info.description = _remove_rst_syntax(provider_info.description)
     return ProviderDetailsResponse(
         **_provider_mapper(provider).model_dump(),
-        provider_info=ProviderInfoResponse.model_validate(provider.data),
+        provider_info=provider_info,
     )
