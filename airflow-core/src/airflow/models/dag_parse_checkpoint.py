@@ -28,7 +28,12 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class DagParseCheckpoint(Base):
-    """Latest publication per Job and source; removed when its Job is purged."""
+    """
+    Latest accepted publication per Job and source.
+
+    Publications need an open Job, so its checkpoints are deleted when the Job completes or is replaced.
+    The cascade covers a Job purged while still open.
+    """
 
     __tablename__ = "dag_parse_checkpoint"
 

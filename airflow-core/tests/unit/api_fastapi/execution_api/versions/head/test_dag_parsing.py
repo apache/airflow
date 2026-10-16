@@ -584,6 +584,23 @@ def test_publication_locks_do_not_block_foreign_key_inserts(client, session, job
     assert all("dag.dag_id IN" in lock for lock in inventory_dag_locks)
 
 
+@pytest.mark.backend("postgres", "mysql")
+def test_catalog_read_does_not_lock_the_job(client, job):
+    statements = []
+
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    event.listen(settings.engine, "before_cursor_execute", capture)
+    try:
+        assert client.get(f"/execution/jobs/{job.id}/bundles").status_code == 200
+    finally:
+        event.remove(settings.engine, "before_cursor_execute", capture)
+
+    assert any("FROM job " in statement for statement in statements)
+    assert not [statement for statement in statements if " FOR " in statement]
+
+
 @conf_vars({("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"})
 @pytest.mark.parametrize("fail", [False, True])
 @mock.patch("airflow.dag_processing.collection._update_import_errors", autospec=True)
@@ -916,6 +933,27 @@ def test_inventory_removes_asset_references_of_removed_dags(client, session, job
     session.expire_all()
     assert session.get(DagModel, "published").is_stale
     assert session.scalar(select(DagScheduleAssetReference)) is None
+
+
+def test_inventory_deactivates_dags_never_parsed_since_upgrade(client, session, job):
+    session.add(
+        DagModel(
+            dag_id="legacy", bundle_name="bundle", relative_fileloc=None, fileloc="/old/a.py", is_stale=False
+        )
+    )
+    session.commit()
+    inventory = {
+        "attempt_id": str(uuid7()),
+        "dispatch_sequence": 1,
+        "expected_revision": None,
+        "files": ["a.py"],
+    }
+
+    response = client.post(f"/execution/jobs/{job.id}/bundles/bundle/inventory", json=inventory)
+
+    assert response.status_code == 200, response.json()
+    session.expire_all()
+    assert session.get(DagModel, "legacy").is_stale
 
 
 @pytest.mark.parametrize("recovery", ["member_present", "member_removed", "archive_removed"])
