@@ -557,6 +557,24 @@ class TestCliUtil:
                 ],
                 id="backfill-dag-run-conf",
             ),
+            pytest.param(
+                ["airflow", "users", "create", "-u", "a", "-vpS3CRET"],
+                {"username": "a", "verbose": True, "password": "S3CRET"},
+                ["airflow", "users", "create", "-u", "a", "-vp********"],
+                id="grouped-short-flags",
+            ),
+            pytest.param(
+                ["airflow", "tasks", "test", "d1", "t1", "-t", '{"password": "S3CRET"}'],
+                {"dag_id": "d1", "task_id": "t1", "task_params": '{"password": "S3CRET"}'},
+                ["airflow", "tasks", "test", "d1", "t1", "-t", '{"password": "********"}'],
+                id="tasks-test-task-params",
+            ),
+            pytest.param(
+                ["airflow", "tasks", "test", "d1", "t1", "--env-v", '{"API_TOKEN": "S3CRET"}'],
+                {"dag_id": "d1", "task_id": "t1", "env_vars": {"API_TOKEN": "S3CRET"}},
+                ["airflow", "tasks", "test", "d1", "t1", "--env-v", '{"API_TOKEN": "********"}'],
+                id="tasks-test-env-vars-abbreviated",
+            ),
             # ``-p`` that does not parse into a password is recorded as given.
             pytest.param(
                 ["airflow", "api-server", "-p", "8080"],

@@ -154,6 +154,8 @@ _JSON_OPTIONS: dict[str, tuple[str, ...]] = {
     "conn_extra": ("--conn-extra",),
     "conf": ("-c", "--conf"),
     "dag_run_conf": ("--dag-run-conf",),
+    "task_params": ("-t", "--task-params"),
+    "env_vars": ("--env-vars",),
 }
 # Options whose value is a URI that may hold secrets in its credentials or query.
 _URI_OPTIONS: dict[str, tuple[str, ...]] = {
@@ -309,12 +311,16 @@ def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
             continue
         for idx, prefix in _find_option_values(full_command, option_strings, allow_abbrev=True):
             full_command[idx] = prefix + MASKED_VALUE
-        full_command = [MASKED_VALUE if argument == value else argument for argument in full_command]
+        # The value can also sit inside a token the option lookup does not recognise, e.g. after
+        # grouped short flags (``-vpVALUE``), so mask it wherever it appears.
+        full_command = [argument.replace(value, MASKED_VALUE) for argument in full_command]
 
     for options, redact in ((_JSON_OPTIONS, _redact_json_argument), (_URI_OPTIONS, _redact_uri_argument)):
         for dest, option_strings in options.items():
             value = parsed.get(dest)
-            in_namespace = isinstance(value, str) and bool(value)
+            # Some of these options parse their JSON on the way in (``--env-vars``), so a dict or
+            # list in the namespace also means the command takes the option.
+            in_namespace = isinstance(value, (str, dict, list)) and bool(value)
             for idx, prefix in _find_option_values(full_command, option_strings, allow_abbrev=in_namespace):
                 full_command[idx] = prefix + redact(full_command[idx][len(prefix) :])
             if in_namespace:
