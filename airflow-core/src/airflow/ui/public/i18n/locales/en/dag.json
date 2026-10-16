@@ -337,10 +337,10 @@
     "record_other": "Records",
     "schemaChange": "Serialized schema {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "Select two versions to see what changed between them.",
-    "summaryAtLeast_one": "At least {{count, number}} change",
-    "summaryAtLeast_other": "At least {{count, number}} changes",
     "summary_one": "{{count, number}} change",
     "summary_other": "{{count, number}} changes",
+    "summaryAtLeast_one": "At least {{count, number}} change",
+    "summaryAtLeast_other": "At least {{count, number}} changes",
     "target": "Compare to",
     "unavailable": {
       "description": "These versions could not be compared. Reason:",
