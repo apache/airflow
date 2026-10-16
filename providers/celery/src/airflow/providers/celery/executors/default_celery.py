@@ -23,7 +23,7 @@ import json
 import logging
 import re
 import ssl
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
@@ -199,7 +199,10 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
         "result_backend_transport_options": result_backend_transport_options,
         "database_engine_options": _get_database_engine_options(
             result_backend,
-            team_conf.getjson("celery", "result_backend_sqlalchemy_engine_options", fallback={}),
+            cast(
+                "dict[str, Any]",
+                team_conf.getjson("celery", "result_backend_sqlalchemy_engine_options", fallback={}),
+            ),
         ),
         "worker_concurrency": team_conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
         "worker_enable_remote_control": team_conf.getboolean(
