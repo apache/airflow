@@ -160,6 +160,7 @@ def get_assets(
         Depends(SortParam(["id", "name", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
     ],
     readable_assets_filter: ReadableAssetsFilterDep,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
@@ -223,30 +224,16 @@ def get_assets(
         )
     )
 
-    assets = []
-
-    for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
-        watchers_data = [
-            {
-                "name": watcher.name,
-                "trigger_id": watcher.trigger_id,
-                "created_date": watcher.trigger.created_date,
-            }
-            for watcher in asset.watchers
-        ]
-
-        asset_response = AssetResponse.model_validate(
-            {
-                **asset.__dict__,
-                "aliases": asset.aliases,
-                "watchers": watchers_data,
-                "last_asset_event": {
-                    "id": last_asset_event_id,
-                    "timestamp": last_asset_event_timestamp,
-                },
-            }
+    # Nested Dag and task references are narrowed to the Dags the caller may read.
+    assets = [
+        AssetResponse.from_asset_row(
+            asset,
+            last_asset_event_id,
+            last_asset_event_timestamp,
+            readable_dag_ids=readable_dags_filter.value,
         )
-        assets.append(asset_response)
+        for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows
+    ]
 
     return AssetCollectionResponse(
         assets=assets,
@@ -592,6 +579,7 @@ def get_asset_queued_events(
 )
 def get_asset(
     asset_id: int,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> AssetResponse:
     """Get an asset."""
@@ -624,25 +612,12 @@ def get_asset(
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
-    watchers_data = [
-        {
-            "name": watcher.name,
-            "trigger_id": watcher.trigger_id,
-            "created_date": watcher.trigger.created_date,
-        }
-        for watcher in asset.watchers
-    ]
-
-    return AssetResponse.model_validate(
-        {
-            **asset.__dict__,
-            "aliases": asset.aliases,
-            "watchers": watchers_data,
-            "last_asset_event": {
-                "id": last_asset_event_id,
-                "timestamp": last_asset_event_timestamp,
-            },
-        }
+    # Nested Dag and task references are narrowed to the Dags the caller may read.
+    return AssetResponse.from_asset_row(
+        asset,
+        last_asset_event_id,
+        last_asset_event_timestamp,
+        readable_dag_ids=readable_dags_filter.value,
     )
 
 
