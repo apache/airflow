@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -32,9 +33,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/apache/airflow/go-sdk/airflow"
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
+	"github.com/apache/airflow/go-sdk/internal/contexttest"
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // assertSucceedTask asserts RunTask produced a terminal SucceedTask body.
@@ -64,25 +67,47 @@ func assertRetryTask(t *testing.T, result any, reasonSubstr string) {
 
 // --- Test task functions ---
 
-func failingTask(airflow.Context) error {
+func failingTask(contexttest.Context) error {
 	return errors.New("task failed intentionally")
 }
 
-func panicTask(airflow.Context) error {
+func panicTask(contexttest.Context) error {
 	panic("something went wrong")
 }
 
-func simpleTask(airflow.Context) error {
+func simpleTask(contexttest.Context) error {
 	return nil
 }
 
-// buildBundle wires a bundlev1.Registry from a closure and returns it as a
-// bundlev1.Bundle (the materialised registry).
-func buildBundle(t *testing.T, register func(bundlev1.Registry)) bundlev1.Bundle {
+func init() { binding.RegisterTaskContext(contexttest.New) }
+
+type testBundle map[string]testDag
+
+type testDag map[string]bundle.Task
+
+func (b testBundle) AddDag(dagID string) testDag {
+	b[dagID] = testDag{}
+	return b[dagID]
+}
+
+func (d testDag) AddTaskWithName(taskID string, fn any) {
+	task, err := bundle.NewTaskFunction(fn)
+	if err != nil {
+		panic(err)
+	}
+	d[taskID] = task
+}
+
+func (b testBundle) LookupTask(dagID, taskID string) (bundle.Task, bool) {
+	task, ok := b[dagID][taskID]
+	return task, ok
+}
+
+func buildBundle(t *testing.T, register func(testBundle)) bundle.Bundle {
 	t.Helper()
-	reg := bundlev1.New()
-	register(reg)
-	return reg
+	b := testBundle{}
+	register(b)
+	return b
 }
 
 func newStartupDetails(
@@ -107,8 +132,8 @@ func newStartupDetails(
 }
 
 func TestTaskRunnerSuccess(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask)
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("simpleTask", simpleTask)
 	})
 
 	details := newStartupDetails("simpleTask")
@@ -121,8 +146,8 @@ func TestTaskRunnerSuccess(t *testing.T) {
 }
 
 func TestTaskRunnerFailure(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask)
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("failingTask", failingTask)
 	})
 
 	details := newStartupDetails("failingTask")
@@ -135,8 +160,8 @@ func TestTaskRunnerFailure(t *testing.T) {
 }
 
 func TestTaskRunnerRetry(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask)
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("failingTask", failingTask)
 	})
 
 	details := newStartupDetails("failingTask")
@@ -151,22 +176,25 @@ func TestTaskRunnerRetry(t *testing.T) {
 }
 
 func TestTaskRunnerTaskNotFound(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask)
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("simpleTask", simpleTask)
 	})
 
 	details := newStartupDetails("nonexistent")
+	details.TIContext.XcomKeysToClear = []string{"return_value"}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+	var sent bytes.Buffer
+	comm := NewCoordinatorComm(bytes.NewReader(nil), &sent, logger)
 
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assertTaskState(t, result, genmodels.TaskStateStateRemoved)
+	assert.Zero(t, sent.Len(), "a task that is not in the bundle must not delete any XCom")
 }
 
 func TestTaskRunnerPanic(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask)
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("panicTask", panicTask)
 	})
 
 	details := newStartupDetails("panicTask")
@@ -179,8 +207,8 @@ func TestTaskRunnerPanic(t *testing.T) {
 }
 
 func TestTaskRunnerPanicRetry(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask)
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("panicTask", panicTask)
 	})
 
 	details := newStartupDetails("panicTask")
@@ -197,9 +225,9 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 func TestTaskRunnerBindsArgs(t *testing.T) {
 	var gotCountry string
 	var gotMeta map[string]any
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(actx airflow.Context, country string, meta map[string]any) error {
+			func(actx contexttest.Context, country string, meta map[string]any) error {
 				gotCountry = country
 				gotMeta = meta
 				return nil
@@ -233,9 +261,9 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 
 func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	ran := false
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(actx airflow.Context, country string, meta map[string]any) error {
+			func(actx contexttest.Context, country string, meta map[string]any) error {
 				ran = true
 				return nil
 			})
@@ -265,9 +293,9 @@ type regionInput struct {
 
 func TestTaskRunnerBindsStructArgs(t *testing.T) {
 	var got regionInput
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(actx airflow.Context, input regionInput) error {
+			func(actx contexttest.Context, input regionInput) error {
 				got = input
 				return nil
 			})
@@ -293,9 +321,9 @@ func TestTaskRunnerBindsStructArgs(t *testing.T) {
 
 func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 	var got regionInput
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(actx airflow.Context, input regionInput) error {
+			func(actx contexttest.Context, input regionInput) error {
 				got = input
 				return nil
 			})
@@ -327,9 +355,9 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 }
 
 func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(actx airflow.Context, count int) error { return nil })
+			func(actx contexttest.Context, count int) error { return nil })
 	})
 
 	details := newStartupDetails(
@@ -351,9 +379,9 @@ func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 
 func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 	ran := false
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(actx airflow.Context, country string) error {
+			func(actx contexttest.Context, country string) error {
 				ran = true
 				return nil
 			})
@@ -374,9 +402,9 @@ func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 
 func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
 	ran := false
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(actx airflow.Context, country string) error {
+			func(actx contexttest.Context, country string) error {
 				ran = true
 				return nil
 			})
@@ -423,9 +451,9 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ran := false
-			bundle := buildBundle(t, func(r bundlev1.Registry) {
+			bundle := buildBundle(t, func(r testBundle) {
 				r.AddDag("test_dag").AddTaskWithName("transform",
-					func(actx airflow.Context, country string) error {
+					func(actx contexttest.Context, country string) error {
 						ran = true
 						return nil
 					})
@@ -444,9 +472,9 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 }
 
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(actx airflow.Context, country string) error { return nil })
+			func(actx contexttest.Context, country string) error { return nil })
 	})
 
 	details := newStartupDetails(
@@ -469,10 +497,10 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	start := logical.Add(-time.Hour)
 	end := logical.Add(time.Hour)
 
-	var got airflow.Context
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	var got contexttest.Context
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
-			func(actx airflow.Context) error {
+			func(actx contexttest.Context) error {
 				got = actx
 				return nil
 			})
@@ -524,11 +552,54 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+}
 
-	// A helper taking a plain context.Context recovers the same surface.
-	recovered, ok := airflow.FromContext(context.Context(got))
-	require.True(t, ok)
-	assert.Equal(t, ti, recovered.TaskInstance())
+// Guards against the runtime binding the task state store to an empty task instance id.
+func TestRunTaskBindsTaskStateStoreClient(t *testing.T) {
+	const tiID = "0199e0e5-1b2c-7c3d-8e4f-5a6b7c8d9e0f"
+
+	// A default-retention write needs the setting the supervisor passes.
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
+	var got sdk.TaskStateStoreClient
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("statestore",
+			func(actx contexttest.Context) error {
+				got = actx.Client()
+				return actx.Client().TaskStateStore().Set(actx, "job_id", "abc123")
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       tiID,
+			DagID:    "test_dag",
+			TaskID:   "statestore",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+	}
+
+	responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+	var responseBuf bytes.Buffer
+	require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+	var requestBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(&responseBuf, &requestBuf, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+
+	require.NotNil(t, got, "the task must reach a coordinator-backed task state store")
+
+	sent, err := readFrame(&requestBuf)
+	require.NoError(t, err)
+	sentMap := rawToMap(t, sent.Body)
+	assert.Equal(t, "SetTaskStateStore", sentMap["type"])
+	assert.Equal(t, tiID, sentMap["ti_id"],
+		"the runtime must bind the store to the started task instance")
 }
 
 // Serve traps SIGINT/SIGTERM into the context it hands RunTask, so a
@@ -536,9 +607,9 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 func TestRunTaskAirflowContextHonorsShutdown(t *testing.T) {
 	var sawDone bool
 	var sawErr error
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
-			func(actx airflow.Context) error {
+			func(actx contexttest.Context) error {
 				select {
 				case <-actx.Done():
 					sawDone = true
@@ -565,10 +636,10 @@ func TestRunTaskAirflowContextHonorsShutdown(t *testing.T) {
 }
 
 func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
-	var got airflow.Context
-	bundle := buildBundle(t, func(r bundlev1.Registry) {
+	var got contexttest.Context
+	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
-			func(actx airflow.Context) error {
+			func(actx contexttest.Context) error {
 				got = actx
 				return nil
 			})
@@ -588,19 +659,6 @@ func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 }
 
 // --- End-to-end Serve test against a fake supervisor ---
-
-// fakeProvider implements bundlev1.BundleProvider; it lets a test inject the
-// registration closure.
-type fakeProvider struct {
-	register func(bundlev1.Registry) error
-}
-
-func (f *fakeProvider) RegisterDags(reg bundlev1.Registry) error {
-	if f.register == nil {
-		return nil
-	}
-	return f.register(reg)
-}
 
 func startSupervisor(
 	t *testing.T,
@@ -638,15 +696,12 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
 	defer cleanup()
 
-	provider := &fakeProvider{
-		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTask(simpleTask)
-			return nil
-		},
-	}
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("dag1").AddTaskWithName("simpleTask", simpleTask)
+	})
 
 	done := make(chan error, 1)
-	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+	go func() { done <- Serve(bundle, commAddr, logsAddr) }()
 
 	commConn := <-commCh
 	defer commConn.Close()
@@ -687,22 +742,19 @@ func TestServeUsesSupervisorLogLevelEnvironment(t *testing.T) {
 	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
 	defer cleanup()
 
-	provider := &fakeProvider{
-		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTaskWithName("logging", func(actx airflow.Context) error {
-				logger := actx.Logger()
-				logger.Info("global filtered")
-				logger.WithGroup("example.child").Debug("namespace debug")
-				logger.WithGroup("unrelated").Warn("unrelated filtered")
-				logger.Error("global error")
-				return nil
-			})
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("dag1").AddTaskWithName("logging", func(actx contexttest.Context) error {
+			logger := actx.Logger()
+			logger.Info("global filtered")
+			logger.WithGroup("example.child").Debug("namespace debug")
+			logger.WithGroup("unrelated").Warn("unrelated filtered")
+			logger.Error("global error")
 			return nil
-		},
-	}
+		})
+	})
 
 	done := make(chan error, 1)
-	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+	go func() { done <- Serve(bundle, commAddr, logsAddr) }()
 
 	commConn := <-commCh
 	defer commConn.Close()
@@ -764,23 +816,20 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	const varKey = "go_sdk_round_trip_only_key"
 
 	var gotVar string
-	provider := &fakeProvider{
-		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTaskWithName("getvar",
-				func(actx airflow.Context) (string, error) {
-					v, err := actx.Client().GetVariable(actx, varKey)
-					if err != nil {
-						return "", err
-					}
-					gotVar = v
-					return "xval", nil
-				})
-			return nil
-		},
-	}
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("dag1").AddTaskWithName("getvar",
+			func(actx contexttest.Context) (string, error) {
+				v, err := actx.Client().GetVariable(actx, varKey)
+				if err != nil {
+					return "", err
+				}
+				gotVar = v
+				return "xval", nil
+			})
+	})
 
 	done := make(chan error, 1)
-	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+	go func() { done <- Serve(bundle, commAddr, logsAddr) }()
 
 	commConn := <-commCh
 	defer commConn.Close()
@@ -855,39 +904,544 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	assert.Equal(t, "hello", gotVar)
 }
 
-// TestServeRegisterDagsFailureClosesComm asserts the failure-signaling
-// contract: when bundle registration fails after the sockets are connected,
-// Serve returns the error (so the caller exits non-zero) without writing a
-// terminal frame. The supervisor observes the failure as the comm socket
-// closing rather than as a TaskState message.
-func TestServeRegisterDagsFailureClosesComm(t *testing.T) {
+// TestServeSkipsDownstreamTasksEndToEnd drives a task that skips downstream tasks through the
+// real Serve. Before the terminal SucceedTask frame, the supervisor gets the return value XCom.
+// If there is a task to skip, the skipmixin_key XCom with its task_id and the SkipDownstreamTasks
+// request follow, in that order.
+func TestServeSkipsDownstreamTasksEndToEnd(t *testing.T) {
+	xcom := func(key string, value any) map[string]any {
+		return map[string]any{
+			"type":    "SetXCom",
+			"dag_id":  "dag1",
+			"run_id":  "run1",
+			"task_id": "decide",
+			"key":     key,
+			"value":   value,
+		}
+	}
+	tests := []struct {
+		name         string
+		result       bool
+		wantRequests []map[string]any
+		// wantSkipLogs holds the task_ids of each "Skipping downstream tasks" log entry.
+		wantSkipLogs []any
+	}{
+		{
+			name:   "false skips load",
+			result: false,
+			wantRequests: []map[string]any{
+				xcom("return_value", false),
+				xcom("skipmixin_key", map[string]any{"skipped": []any{"load"}}),
+				{"type": "SkipDownstreamTasks", "tasks": []any{"load"}},
+			},
+			wantSkipLogs: []any{[]any{"load"}},
+		},
+		{
+			name:   "true skips nothing",
+			result: true,
+			wantRequests: []map[string]any{
+				xcom("return_value", true),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+			defer cleanup()
+
+			decide, err := bundle.NewPositionalBranchFunction(
+				func(contexttest.Context) (bool, error) { return tt.result, nil },
+				func(result any) (any, []string, error) {
+					if result.(bool) {
+						return result, nil, nil
+					}
+					return result, []string{"load"}, nil
+				},
+			)
+			require.NoError(t, err)
+			tasks := testBundle{"dag1": testDag{"decide": decide}}
+
+			done := make(chan error, 1)
+			go func() { done <- Serve(tasks, commAddr, logsAddr) }()
+
+			commConn := <-commCh
+			defer commConn.Close()
+			logsConn := <-logsCh
+			defer logsConn.Close()
+			require.NoError(t, commConn.SetDeadline(time.Now().Add(10*time.Second)))
+			require.NoError(t, logsConn.SetDeadline(time.Now().Add(10*time.Second)))
+
+			startup, err := encodeRequest(0, map[string]any{
+				"type": "StartupDetails",
+				"ti": map[string]any{
+					"id":         "550e8400-e29b-41d4-a716-446655440000",
+					"dag_id":     "dag1",
+					"task_id":    "decide",
+					"run_id":     "run1",
+					"try_number": 1,
+				},
+				"bundle_info": map[string]any{"name": "fake", "version": "1.0"},
+			})
+			require.NoError(t, err)
+			require.NoError(t, writeFrame(commConn, startup))
+
+			// Until the terminal frame arrives, answer each runtime request with an empty response
+			// so that the task goes on.
+			var requests []map[string]any
+			for {
+				frame, err := readFrame(commConn)
+				require.NoError(t, err)
+				require.True(t, isNilRaw(frame.Err))
+				if peekBodyType(frame.Body) == "SucceedTask" {
+					break
+				}
+				requests = append(requests, rawToMap(t, frame.Body))
+				reply, err := encodeRequest(frame.ID, map[string]any{})
+				require.NoError(t, err)
+				require.NoError(t, writeFrame(commConn, reply))
+			}
+			assert.Equal(t, tt.wantRequests, requests)
+
+			select {
+			case err := <-done:
+				require.NoError(t, err)
+			case <-time.After(2 * time.Second):
+				t.Fatal("Serve did not return after task completion")
+			}
+
+			output, err := io.ReadAll(logsConn)
+			require.NoError(t, err)
+			var skipLogs []any
+			for line := range strings.Lines(string(output)) {
+				var entry map[string]any
+				require.NoError(t, json.Unmarshal([]byte(line), &entry))
+				if entry["event"] == "Skipping downstream tasks" {
+					skipLogs = append(skipLogs, entry["task_ids"])
+				}
+			}
+			assert.Equal(t, tt.wantSkipLogs, skipLogs)
+		})
+	}
+}
+
+// serveTask runs task as the task instance taskID of dag1 through the real Serve. The
+// StartupDetails frame carries mapIndex, unless it is nil, and tiContext as ti_context. The fake
+// supervisor passes each runtime request to answer, which returns the ErrorResponse to reply with,
+// or nil to reply with an empty response. serveTask returns the requests in the order they
+// arrived, and the body of the terminal frame.
+func serveTask(
+	t *testing.T,
+	taskID string,
+	task bundle.Task,
+	mapIndex *int,
+	tiContext map[string]any,
+	answer func(request map[string]any) map[string]any,
+) (requests []map[string]any, terminal map[string]any) {
+	t.Helper()
 	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
 	defer cleanup()
 
-	wantErr := errors.New("boom registering dags")
-	provider := &fakeProvider{
-		register: func(bundlev1.Registry) error { return wantErr },
+	done := make(chan error, 1)
+	go func() { done <- Serve(testBundle{"dag1": testDag{taskID: task}}, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	defer commConn.Close()
+	logsConn := <-logsCh
+	defer logsConn.Close()
+	go func() { _, _ = io.Copy(io.Discard, logsConn) }()
+	require.NoError(t, commConn.SetDeadline(time.Now().Add(10*time.Second)))
+
+	ti := map[string]any{
+		"id":         "550e8400-e29b-41d4-a716-446655440000",
+		"dag_id":     "dag1",
+		"task_id":    taskID,
+		"run_id":     "run1",
+		"try_number": 2,
+	}
+	if mapIndex != nil {
+		ti["map_index"] = *mapIndex
+	}
+	startup, err := encodeRequest(0, map[string]any{
+		"type":        "StartupDetails",
+		"ti":          ti,
+		"ti_context":  tiContext,
+		"bundle_info": map[string]any{"name": "fake", "version": "1.0"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, startup))
+
+	for {
+		frame, err := readFrame(commConn)
+		require.NoError(t, err)
+		require.True(t, isNilRaw(frame.Err))
+		body := rawToMap(t, frame.Body)
+		switch body["type"] {
+		case "SucceedTask", "TaskState", "RetryTask":
+			terminal = body
+		}
+		if terminal != nil {
+			break
+		}
+		requests = append(requests, body)
+		var reply []byte
+		if errBody := answer(body); errBody != nil {
+			reply = encodeResponseFrame(t, frame.ID, nil, errBody)
+		} else {
+			reply, err = encodeRequest(frame.ID, map[string]any{})
+			require.NoError(t, err)
+		}
+		require.NoError(t, writeFrame(commConn, reply))
 	}
 
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after task completion")
+	}
+	return requests, terminal
+}
+
+// answerAll replies to every runtime request with an empty response.
+func answerAll(map[string]any) map[string]any { return nil }
+
+// TestServeClearsTheXComsOfEarlierTriesEndToEnd pins that the runtime deletes each XCom that
+// ti_context.xcom_keys_to_clear lists before the task sends anything. The DeleteXCom frame leaves
+// map_index out for an unmapped task instance and carries the index of a mapped one, 0 included.
+func TestServeClearsTheXComsOfEarlierTriesEndToEnd(t *testing.T) {
+	deleteXCom := func(key string, mapIndex any) map[string]any {
+		frame := map[string]any{
+			"type":    "DeleteXCom",
+			"dag_id":  "dag1",
+			"run_id":  "run1",
+			"task_id": "extract",
+			"key":     key,
+		}
+		if mapIndex != nil {
+			frame["map_index"] = mapIndex
+		}
+		return frame
+	}
+	returnValue := func(mapIndex any) map[string]any {
+		frame := map[string]any{
+			"type":    "SetXCom",
+			"dag_id":  "dag1",
+			"run_id":  "run1",
+			"task_id": "extract",
+			"key":     "return_value",
+			"value":   "rows",
+		}
+		if mapIndex != nil {
+			frame["map_index"] = mapIndex
+		}
+		return frame
+	}
+	tests := []struct {
+		name         string
+		mapIndex     *int
+		keys         []any
+		wantRequests []map[string]any
+	}{
+		{
+			name:     "unmapped",
+			mapIndex: ptr(-1),
+			keys:     []any{"return_value", "skipmixin_key"},
+			wantRequests: []map[string]any{
+				deleteXCom("return_value", nil),
+				deleteXCom("skipmixin_key", nil),
+				returnValue(nil),
+			},
+		},
+		{
+			name:     "map index 0",
+			mapIndex: ptr(0),
+			keys:     []any{"return_value"},
+			wantRequests: []map[string]any{
+				deleteXCom("return_value", int8(0)),
+				returnValue(int8(0)),
+			},
+		},
+		{
+			name:     "map index 2",
+			mapIndex: ptr(2),
+			keys:     []any{"return_value"},
+			wantRequests: []map[string]any{
+				deleteXCom("return_value", int8(2)),
+				returnValue(int8(2)),
+			},
+		},
+		{
+			name:         "no keys",
+			mapIndex:     ptr(-1),
+			wantRequests: []map[string]any{returnValue(nil)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extract, err := bundle.NewTaskFunction(
+				func(contexttest.Context) (string, error) { return "rows", nil },
+			)
+			require.NoError(t, err)
+			tiContext := map[string]any{}
+			if tt.keys != nil {
+				tiContext["xcom_keys_to_clear"] = tt.keys
+			}
+
+			requests, terminal := serveTask(
+				t,
+				"extract",
+				extract,
+				tt.mapIndex,
+				tiContext,
+				answerAll,
+			)
+
+			assert.Equal(t, tt.wantRequests, requests)
+			assert.Equal(t, "SucceedTask", terminal["type"])
+		})
+	}
+}
+
+// TestServeFailsWhenItCannotClearAnXComEndToEnd pins that the task does not run when the runtime
+// cannot delete an XCom that ti_context.xcom_keys_to_clear lists. The task then ends like a failed
+// task: as RetryTask when ti_context.should_retry is set, and as a FAILED TaskState otherwise.
+func TestServeFailsWhenItCannotClearAnXComEndToEnd(t *testing.T) {
+	for _, shouldRetry := range []bool{true, false} {
+		t.Run(fmt.Sprintf("should_retry=%t", shouldRetry), func(t *testing.T) {
+			ran := false
+			extract, err := bundle.NewTaskFunction(func(contexttest.Context) error {
+				ran = true
+				return nil
+			})
+			require.NoError(t, err)
+
+			requests, terminal := serveTask(t, "extract", extract, nil, map[string]any{
+				"xcom_keys_to_clear": []any{"return_value", "skipmixin_key"},
+				"should_retry":       shouldRetry,
+			}, func(map[string]any) map[string]any {
+				return map[string]any{
+					"type":   "ErrorResponse",
+					"error":  "API_SERVER_ERROR",
+					"detail": map[string]any{"status_code": 500},
+				}
+			})
+
+			assert.False(t, ran, "the task must not run")
+			assert.Equal(t, []map[string]any{{
+				"type":    "DeleteXCom",
+				"dag_id":  "dag1",
+				"run_id":  "run1",
+				"task_id": "extract",
+				"key":     "return_value",
+			}}, requests, "the runtime stops at the first XCom it cannot delete")
+			if shouldRetry {
+				assert.Equal(t, "RetryTask", terminal["type"])
+				assert.Contains(t, terminal["retry_reason"], "API_SERVER_ERROR")
+			} else {
+				assert.Equal(t, "TaskState", terminal["type"])
+				assert.Equal(t, "failed", terminal["state"])
+			}
+		})
+	}
+}
+
+// TestServeClearsXComsBeforeItBindsArgumentsEndToEnd pins that the runtime deletes the XComs
+// before it converts arg_bindings. When arg_bindings is invalid, the task fails without running,
+// and the XComs are still gone, as they are for a Python task whose templates fail to render.
+func TestServeClearsXComsBeforeItBindsArgumentsEndToEnd(t *testing.T) {
+	ran := false
+	extract, err := bundle.NewTaskFunction(func(contexttest.Context) error {
+		ran = true
+		return nil
+	})
+	require.NoError(t, err)
+
+	requests, terminal := serveTask(t, "extract", extract, nil, map[string]any{
+		"xcom_keys_to_clear": []any{"skipmixin_key"},
+		"arg_bindings":       []any{map[string]any{"kind": "bogus", "name": "x"}},
+	}, answerAll)
+
+	assert.False(t, ran, "the task must not run")
+	assert.Equal(t, []map[string]any{{
+		"type":    "DeleteXCom",
+		"dag_id":  "dag1",
+		"run_id":  "run1",
+		"task_id": "extract",
+		"key":     "skipmixin_key",
+	}}, requests)
+	assert.Equal(t, "TaskState", terminal["type"])
+	assert.Equal(t, "failed", terminal["state"])
+}
+
+// TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd covers a task that skips downstream
+// tasks and whose earlier try skipped load. When this try fails or skips nothing, it writes no
+// list, so only the deletion keeps NotPreviouslySkippedDep from reading the old list and skipping
+// load again. The fake supervisor keeps the XComs of the task instance to show what is left.
+func TestServeConditionDoesNotLeaveTheListOfAnEarlierTryEndToEnd(t *testing.T) {
+	tests := []struct {
+		name         string
+		fn           func(contexttest.Context) (bool, error)
+		wantTerminal string
+		wantXComs    map[string]any
+	}{
+		{
+			name: "fails",
+			fn: func(contexttest.Context) (bool, error) {
+				return false, errors.New("cannot reach the table")
+			},
+			wantTerminal: "TaskState",
+			wantXComs:    map[string]any{},
+		},
+		{
+			name:         "skips nothing",
+			fn:           func(contexttest.Context) (bool, error) { return true, nil },
+			wantTerminal: "SucceedTask",
+			wantXComs:    map[string]any{"return_value": true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decide, err := bundle.NewPositionalBranchFunction(
+				tt.fn,
+				func(result any) (any, []string, error) {
+					if result.(bool) {
+						return result, nil, nil
+					}
+					return result, []string{"load"}, nil
+				},
+			)
+			require.NoError(t, err)
+
+			xcoms := map[string]any{
+				"return_value":  false,
+				"skipmixin_key": map[string]any{"skipped": []any{"load"}},
+			}
+			requests, terminal := serveTask(t, "decide", decide, nil, map[string]any{
+				"xcom_keys_to_clear": []any{"return_value", "skipmixin_key"},
+			}, func(request map[string]any) map[string]any {
+				switch request["type"] {
+				case "DeleteXCom":
+					delete(xcoms, request["key"].(string))
+				case "SetXCom":
+					xcoms[request["key"].(string)] = request["value"]
+				}
+				return nil
+			})
+
+			require.GreaterOrEqual(t, len(requests), 2)
+			assert.Equal(t, "DeleteXCom", requests[0]["type"])
+			assert.Equal(t, "DeleteXCom", requests[1]["type"])
+			for _, request := range requests {
+				assert.NotEqual(t, "SkipDownstreamTasks", request["type"])
+			}
+			assert.Equal(t, tt.wantXComs, xcoms)
+			assert.Equal(t, tt.wantTerminal, terminal["type"])
+		})
+	}
+}
+
+// TestServeFailureAfterConnectClosesComm asserts the failure-signaling
+// contract: when Serve fails after the sockets are connected, it returns the
+// error (so the caller exits non-zero) without writing a terminal frame. The
+// supervisor observes the failure as the comm socket closing rather than as a
+// TaskState message.
+func TestServeFailureAfterConnectClosesComm(t *testing.T) {
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	defer cleanup()
+
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("dag1").AddTaskWithName("simpleTask", simpleTask)
+	})
+
 	done := make(chan error, 1)
-	go func() { done <- Serve(provider, commAddr, logsAddr) }()
+	go func() { done <- Serve(bundle, commAddr, logsAddr) }()
 
 	commConn := <-commCh
 	defer commConn.Close()
 	logsConn := <-logsCh
 	defer logsConn.Close()
 
+	// Serve expects StartupDetails or DagFileParseRequest first, so it fails to decode a
+	// VariableResult.
+	payload, err := encodeRequest(
+		0,
+		map[string]any{"type": "VariableResult", "key": "k", "value": "v"},
+	)
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, payload))
+
 	select {
 	case err := <-done:
-		require.Error(t, err)
-		assert.ErrorIs(t, err, wantErr)
+		require.ErrorContains(t, err, "decoding initial message")
 	case <-time.After(2 * time.Second):
-		t.Fatal("Serve did not return after RegisterDags failure")
+		t.Fatal("Serve did not return after a first frame it cannot decode")
 	}
 
 	// No terminal frame was sent: the next read on the comm socket sees the
 	// connection close instead of a decodable frame.
 	require.NoError(t, commConn.SetReadDeadline(time.Now().Add(time.Second)))
-	_, err := readFrame(commConn)
+	_, err = readFrame(commConn)
 	require.Error(t, err)
+}
+
+// parseBundle is a bundle that serializes Dags and has no task to run.
+type parseBundle struct {
+	testBundle
+	*serializedDags
+}
+
+const dagParseRequestID = 7
+
+// startDagParse runs Serve for dags and sends it a DagFileParseRequest. It returns the frame that
+// Serve answers with and the channel that gets what Serve returns.
+func startDagParse(t *testing.T, dags *serializedDags) (frame IncomingFrame, done <-chan error) {
+	t.Helper()
+	commAddr, logsAddr, commCh, logsCh, cleanup := startSupervisor(t)
+	t.Cleanup(cleanup)
+
+	served := make(chan error, 1)
+	go func() { served <- Serve(parseBundle{testBundle{}, dags}, commAddr, logsAddr) }()
+
+	commConn := <-commCh
+	t.Cleanup(func() { commConn.Close() })
+	logsConn := <-logsCh
+	t.Cleanup(func() { logsConn.Close() })
+	deadline := time.Now().Add(10 * time.Second)
+	require.NoError(t, commConn.SetDeadline(deadline))
+	require.NoError(t, logsConn.SetDeadline(deadline))
+
+	payload, err := encodeRequest(dagParseRequestID, map[string]any{
+		"type":        "DagFileParseRequest",
+		"file":        "/bundles/go/etl",
+		"bundle_path": "/bundles/go",
+		"bundle_name": "go",
+	})
+	require.NoError(t, err)
+	require.NoError(t, writeFrame(commConn, payload))
+
+	frame, err = readFrame(commConn)
+	require.NoError(t, err)
+	require.True(t, isNilRaw(frame.Err))
+	return frame, served
+}
+
+func TestServeDagFileParseRequestEndToEnd(t *testing.T) {
+	dags := &serializedDags{dags: []bundle.SerializedDag{serializedDag("etl")}}
+	frame, done := startDagParse(t, dags)
+
+	assert.EqualValues(t, dagParseRequestID, frame.ID)
+	var result genmodels.DagFileParsingResult
+	require.NoError(t, decodeBody(frame.Body, &result))
+	assert.Equal(t, "DagFileParsingResult", result.Type)
+	assert.Equal(t, "/bundles/go/etl", result.Fileloc)
+	require.Len(t, result.SerializedDags, 1)
+	assert.Equal(t, "etl", result.SerializedDags[0].Data["dag"].(map[string]any)["dag_id"])
+	assert.Equal(t, "etl", dags.relative)
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after it sent the Dag parsing result")
+	}
 }

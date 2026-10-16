@@ -4782,6 +4782,28 @@
                     "type": "boolean",
                     "default": true
                 },
+                "hostAliases": {
+                    "description": "HostAliases for the dag processor pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
                 "extraContainers": {
                     "description": "Launch additional containers into dag processor (templated).",
                     "type": "array",

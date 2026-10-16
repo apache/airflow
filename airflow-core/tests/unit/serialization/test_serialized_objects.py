@@ -499,30 +499,33 @@ def test_serialize_deserialize_connection():
 
 @pytest.mark.parametrize("reference", REFERENCE_TYPES)
 @pytest.mark.parametrize(
-    ("interval", "expected_interval"),
+    ("alert_class", "interval", "expected_interval"),
     [
         pytest.param(
+            DeadlineAlert,
             timedelta(hours=1),
             timedelta(hours=1),
             id="timedelta",
         ),
         pytest.param(
+            DeadlineAlert,
             VariableInterval("deadline_seconds"),
             SerializedVariableInterval("deadline_seconds"),
             id="sdk_variable_interval",
         ),
         pytest.param(
+            SerializedDeadlineAlert,
             SerializedVariableInterval("deadline_seconds"),
             SerializedVariableInterval("deadline_seconds"),
-            id="serialized_variable_interval",
+            id="core_serialized_alert",
         ),
     ],
 )
-def test_serialize_deserialize_deadline_alert(reference, interval, expected_interval):
+def test_serialize_deserialize_deadline_alert(reference, alert_class, interval, expected_interval):
     public_deadline_alert_fields = {
         field.lower() for field in vars(DeadlineAlertFields) if not field.startswith("_")
     }
-    original = DeadlineAlert(
+    original = alert_class(
         reference=reference,
         interval=interval,
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),

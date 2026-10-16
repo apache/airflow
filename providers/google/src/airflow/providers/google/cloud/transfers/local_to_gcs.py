@@ -64,6 +64,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         "dst",
         "bucket",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

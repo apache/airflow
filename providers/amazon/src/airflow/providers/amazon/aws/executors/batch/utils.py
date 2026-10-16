@@ -29,14 +29,14 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
 
     if AIRFLOW_V_3_3_PLUS:
-        from airflow.executors.workloads.types import WorkloadKey
+        from airflow.executors.workloads.types import WorkloadKey as _BatchWorkloadKey
 
-        BatchJobWorkloadKey: TypeAlias = WorkloadKey
+        BatchJobWorkloadKey: TypeAlias = _BatchWorkloadKey
     else:
         BatchJobWorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
 
 
-CommandType = list[str]
+CommandType: TypeAlias = list[str]
 ExecutorConfigType = dict[str, Any]
 
 CONFIG_GROUP_NAME = "aws_batch_executor"
@@ -126,6 +126,7 @@ class BatchJobCollection:
         del self.key_to_id[workload_key]
         del self.id_to_key[job_id]
         del self.id_to_failure_counts[job_id]
+        del self.id_to_job_info[job_id]
         return workload_key
 
     def remove_job(self, job_id: str) -> BatchJobWorkloadKey | None:

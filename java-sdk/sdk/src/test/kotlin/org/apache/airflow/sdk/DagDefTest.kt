@@ -19,9 +19,12 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.Deps.Flow
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import java.time.Duration
+import java.time.OffsetDateTime
 
 internal class DagDefTest {
   private class NoOp : Task {
@@ -94,4 +97,255 @@ internal class DagDefTest {
 
     Assertions.assertEquals("Task 'extract' already belongs to Dag 'dag'", error.message)
   }
+
+  @Test
+  @DisplayName("Should register a task and hand back its handle")
+  fun shouldRegisterTaskFromFactory() {
+    val dag = DagDef("dag")
+
+    val extract = dag.task<Long>("extract", NoOp::class.java)
+
+    Assertions.assertEquals(listOf("extract"), dag.tasks.keys.toList())
+    Assertions.assertEquals(listOf(dag.tasks.getValue("extract")), extract.nodes())
+  }
+
+  @Test
+  @DisplayName("Should fan out ordering-only edges with before")
+  fun shouldFanOutOrderingEdgesWithBefore() {
+    val dag = DagDef("dag")
+    val extract = dag.task<Long>("extract", NoOp::class.java)
+    val left = dag.task<Unit>("left", NoOp::class.java)
+    val right = dag.task<Unit>("right", NoOp::class.java)
+
+    extract.before(left, right)
+
+    Assertions.assertEquals(setOf("extract"), upstreamsOf(dag, "left"))
+    Assertions.assertEquals(setOf("extract"), upstreamsOf(dag, "right"))
+  }
+
+  @Test
+  @DisplayName("Should fan in ordering-only edges with after")
+  fun shouldFanInOrderingEdgesWithAfter() {
+    val dag = DagDef("dag")
+    val left = dag.task<Unit>("left", NoOp::class.java)
+    val right = dag.task<Unit>("right", NoOp::class.java)
+    val join = dag.task<Unit>("join", NoOp::class.java)
+
+    join.after(left, right)
+
+    Assertions.assertEquals(setOf("left", "right"), upstreamsOf(dag, "join"))
+  }
+
+  @Test
+  @DisplayName("Should return the receiver so before and after chain on one task")
+  fun shouldChainBeforeAndAfterOnOneTask() {
+    val dag = DagDef("dag")
+    val extract = dag.task<Long>("extract", NoOp::class.java)
+    val transform = dag.task<Long>("transform", NoOp::class.java)
+    val load = dag.task<Unit>("load", NoOp::class.java)
+
+    transform.after(extract).before(load)
+
+    Assertions.assertEquals(setOf("extract"), upstreamsOf(dag, "transform"))
+    Assertions.assertEquals(setOf("transform"), upstreamsOf(dag, "load"))
+  }
+
+  @Test
+  @DisplayName("Should draw every edge between two sets with Flow.of")
+  fun shouldDrawEdgesBetweenSetsWithFlowOf() {
+    val dag = DagDef("dag")
+    val left = dag.task<Unit>("left", NoOp::class.java)
+    val right = dag.task<Unit>("right", NoOp::class.java)
+    val join = dag.task<Unit>("join", NoOp::class.java)
+
+    Flow.of(left, right).before(join)
+
+    Assertions.assertEquals(setOf("left", "right"), upstreamsOf(dag, "join"))
+  }
+
+  @Test
+  @DisplayName("Should store validated dag config values keyed by schema name")
+  fun shouldStoreDagConfigValues() {
+    val dag =
+      DagDef("dag")
+        .config("schedule", "@daily")
+        .config("description", "demo")
+        .config("catchup", true)
+        .config("max_active_runs", 3)
+        .config("dagrun_timeout", Duration.ofMinutes(5))
+        .config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"))
+        .config("tags", listOf("a", "b"))
+
+    Assertions.assertEquals(
+      mapOf(
+        "schedule" to "@daily",
+        "description" to "demo",
+        "catchup" to true,
+        "max_active_runs" to 3,
+        "dagrun_timeout" to Duration.ofMinutes(5),
+        "start_date" to OffsetDateTime.parse("2026-01-01T00:00:00Z"),
+        "tags" to listOf("a", "b"),
+      ),
+      dag.dagConfig,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject unknown dag config keys")
+  fun shouldRejectUnknownDagConfigKey() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        DagDef("dag").config("scheduel", "@daily")
+      }
+
+    Assertions.assertEquals("Unknown Dag config key: 'scheduel'", error.message)
+  }
+
+  @Test
+  @DisplayName("Should reject dag config values of the wrong type")
+  fun shouldRejectMismatchedDagConfigValue() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        DagDef("dag").config("catchup", "yes")
+      }
+
+    Assertions.assertEquals(
+      "Value for Dag config key 'catchup' must be a Boolean, got: java.lang.String",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject null dag config values")
+  fun shouldRejectNullDagConfigValue() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        DagDef("dag").config("description", null)
+      }
+
+    Assertions.assertEquals("Value for Dag config key 'description' must not be null", error.message)
+  }
+
+  @Test
+  @DisplayName("Should reject non-integral values for integer dag config keys")
+  fun shouldRejectFractionalIntegerValue() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        DagDef("dag").config("max_active_runs", 1.5)
+      }
+
+    Assertions.assertEquals(
+      "Value for Dag config key 'max_active_runs' must be an integral Number, got: java.lang.Double",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject an ISO-8601 string where a duration dag config key expects a Duration")
+  fun shouldRejectStringForDurationDagConfigKey() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        DagDef("dag").config("dagrun_timeout", "PT5M")
+      }
+
+    Assertions.assertEquals(
+      "Value for Dag config key 'dagrun_timeout' must be a java.time.Duration, got: java.lang.String",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject an ISO-8601 string where a date-time dag config key expects a date-time")
+  fun shouldRejectStringForDateTimeDagConfigKey() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        DagDef("dag").config("start_date", "2026-01-01")
+      }
+
+    Assertions.assertEquals(
+      "Value for Dag config key 'start_date' must be a java.time.OffsetDateTime or java.time.Instant, " +
+        "got: java.lang.String",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject a string-array dag config key whose elements are not strings")
+  fun shouldRejectNonStringElementsForArrayDagConfigKey() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        DagDef("dag").config("tags", arrayListOf(1, 2))
+      }
+
+    Assertions.assertEquals(
+      "Value for Dag config key 'tags' must be an Iterable of String, got: java.util.ArrayList",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should store validated task config values on the task definition")
+  fun shouldStoreTaskConfigValues() {
+    val def =
+      TaskDef("extract", NoOp::class.java)
+        .config("retries", 2)
+        .config("queue", "q")
+        .config("retry_delay", Duration.ofMinutes(5))
+        .config("retry_exponential_backoff", 1.5)
+
+    Assertions.assertEquals(
+      mapOf(
+        "retries" to 2,
+        "queue" to "q",
+        "retry_delay" to Duration.ofMinutes(5),
+        "retry_exponential_backoff" to 1.5,
+      ),
+      def.configValues,
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject unknown task config keys")
+  fun shouldRejectUnknownTaskConfigKey() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        TaskDef("extract", NoOp::class.java).config("retrys", 1)
+      }
+
+    Assertions.assertEquals("Unknown task config key: 'retrys'", error.message)
+  }
+
+  @Test
+  @DisplayName("Should reject an ISO-8601 string where a duration task config key expects a Duration")
+  fun shouldRejectStringForDurationTaskConfigKey() {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        TaskDef("extract", NoOp::class.java).config("retry_delay", "PT5M")
+      }
+
+    Assertions.assertEquals(
+      "Value for task config key 'retry_delay' must be a java.time.Duration, got: java.lang.String",
+      error.message,
+    )
+  }
+
+  @Test
+  @DisplayName("Should configure a task through the handle dag.task returns")
+  fun shouldConfigureTaskThroughHandle() {
+    val dag = DagDef("dag")
+
+    val extract = dag.task<Long>("extract", NoOp::class.java).config("retries", 2)
+
+    Assertions.assertEquals(mapOf("retries" to 2), dag.tasks.getValue("extract").configValues)
+    Assertions.assertEquals(listOf(dag.tasks.getValue("extract")), extract.nodes())
+  }
+
+  private fun upstreamsOf(
+    dag: DagDef,
+    taskId: String,
+  ): Set<String> =
+    dag.tasks
+      .getValue(taskId)
+      .upstreams
+      .mapTo(mutableSetOf()) { it.id }
 }

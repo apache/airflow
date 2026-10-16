@@ -47,7 +47,8 @@ OpenAIResponseOperator
 
 Use the :class:`~airflow.providers.openai.operators.openai.OpenAIResponseOperator` to generate a
 model response with the OpenAI Responses API, OpenAI's recommended interface for text generation and
-tool use. The operator returns the response's aggregated output text. When ``do_xcom_push`` is
+tool use. By default, the operator returns the response's aggregated output text; it can also return
+Pydantic-validated structured output as a JSON-compatible value (see below). When ``do_xcom_push`` is
 enabled (the default), ``execute`` also pushes two XCom keys: ``response_id`` (the response's ID,
 usable as a downstream task's ``previous_response_id`` for chaining) and ``usage`` (the response's
 token usage, or ``None`` when the API omits it). ``usage`` is the nested dict returned by
@@ -172,9 +173,43 @@ know about yet. Options worth knowing about:
     before the response finishes. ``OpenAIResponseOperator`` is synchronous: it makes one
     ``create_response`` call and returns ``response.output_text`` immediately, so a response
     started with ``background=True`` comes back incomplete, and the operator logs its own warning
-    because ``response.status`` is not yet ``"completed"``. Do not set ``background=True`` on
+    because ``response.status`` is not yet ``"completed"``. With ``text_format`` set, the task
+    raises ``ValueError`` instead, and the background response is left running on OpenAI's side.
+    Do not set ``background=True`` on
     ``OpenAIResponseOperator``. If you need a background response, create it from a ``@task``
     using :class:`~airflow.providers.openai.hooks.openai.OpenAIHook`'s ``create_response`` directly.
+
+Structured outputs (Pydantic models)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To request a structured response, pass a Pydantic ``BaseModel`` subclass as ``text_format``. The
+operator then calls the Responses API's structured-output path (``responses.parse``) and returns
+the parsed model's JSON-mode dump (via ``model_dump(mode="json")``). This renders supported field
+types such as enums and dates as JSON-compatible values before the result is pushed to XCom. Most
+models produce a ``dict``; a Pydantic custom model serializer may produce another JSON shape such
+as a list or scalar.
+
+``response_kwargs``, ``max_output_tokens`` and ``max_tool_calls`` are validated and passed through
+for structured requests exactly as for plain-text ones, and the ``response_id`` and ``usage`` XCom
+keys are pushed the same way -- before the checks below, so a rejected response still records its
+id and token usage. With ``multiple_outputs=True``, each top-level field of the result is pushed as
+its own XCom after ``execute`` returns, so ``response_id`` and ``usage`` are reserved field names: a
+field with either name would overwrite the XCom the operator pushes under that key.
+
+The operator rejects any response that did not complete -- incomplete, failed, or still in
+progress -- even if the partial output happens to match the Pydantic model, so unlike the
+plain-text path, reaching ``max_output_tokens`` fails the task instead of returning truncated
+output. The resulting ``ValueError`` includes the response id and
+available API details, such as ``status``, ``error``, ``incomplete_details``, refusal text, or
+output item types. If the SDK cannot parse the model output, it raises ``ValidationError`` before
+returning a response object; the operator converts that to ``ValueError`` naming the requested
+model and notes that reaching ``max_output_tokens`` is a likely cause. In that case, a response id
+and API details are unavailable, and neither XCom key is pushed.
+
+.. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
+    :language: python
+    :start-after: [START howto_operator_openai_response_structured]
+    :end-before: [END howto_operator_openai_response_structured]
 
 Using the OpenAIHook for Responses and Conversations
 =====================================================
@@ -182,7 +217,8 @@ Using the OpenAIHook for Responses and Conversations
 The :class:`~airflow.providers.openai.hooks.openai.OpenAIHook` exposes the Responses and
 Conversations APIs directly for use inside ``@task`` functions or custom operators:
 
-- Responses: ``create_response``, ``get_response``, ``delete_response`` and ``cancel_response``
+- Responses: ``create_response``, ``parse_response`` (structured-output wrapper),
+  ``get_response``, ``delete_response`` and ``cancel_response``
   (the last cancels a response created with ``background=True``).
 - Conversations: ``create_conversation``, ``get_conversation``, ``update_conversation`` and
   ``delete_conversation``. Pass the conversation id to ``create_response`` (via the operator's
@@ -224,3 +260,76 @@ An example of using the operator:
     :language: python
     :start-after: [START howto_operator_openai_trigger_operator]
     :end-before: [END howto_operator_openai_trigger_operator]
+
+.. _howto/operator:OpenAIAgentSessionOperator:
+
+Managed Agents sessions
+=======================
+
+Use :class:`~airflow.providers.openai.operators.agent.OpenAIAgentSessionOperator`
+to submit a message to OpenAI's Managed Agents service. The service runs the agent
+loop. Airflow waits for the first turn to complete, optionally releasing the worker
+with ``deferrable=True``. This requires OpenAI Python SDK 3.13.0 or newer and access
+to the beta Agents API on your configured endpoint.
+
+The provider's base dependency still permits older SDKs for other OpenAI APIs.
+Install ``openai>=3.13.0`` on both workers and triggerers to use Managed Agents.
+Libraries that require ``openai<3`` (including current LlamaIndex OpenAI LLM
+integrations) cannot share that environment.
+
+.. exampleinclude:: /../../openai/tests/system/openai/example_openai_agent.py
+    :language: python
+    :start-after: [START howto_operator_openai_agent]
+    :end-before: [END howto_operator_openai_agent]
+
+Parameters
+^^^^^^^^^^
+
+* ``input``: Initial user message.
+* ``environment``: SDK environment configuration, such as ``{"type": "none"}``,
+  or an environment template reference for a hosted sandbox.
+* ``agent_id``: An existing saved agent. Alternatively, supply an inline agent
+  with a model in ``session_kwargs["agent"]``.
+* ``session_kwargs``: SDK session creation options, including agent overrides,
+  ``vault_ids`` and ``metadata``. The keys ``input``, ``environment``, ``agent_id``
+  and ``stream`` are reserved.
+* ``conn_id``: OpenAI connection, defaulting to ``openai_default``.
+* ``deferrable``: Whether to release the worker while waiting. Defaults to the
+  Airflow ``operators.default_deferrable`` setting.
+* ``poll_interval``: Seconds between checks, defaulting to 10.
+* ``timeout``: Seconds to wait for completion, defaulting to 3600. A shorter
+  ``execution_timeout`` still applies to a deferred task and preempts the
+  cancel-on-timeout path below.
+
+Transient polling failures are retried; three consecutive failures fail the task.
+
+The operator returns the session ID. When XCom pushing is enabled, it also writes
+``session_id``, ``turn_id`` and the turn's available token ``usage``. Usage includes
+the Airflow ``try_number``; it represents the current attempt, not cumulative spend
+across retries. Full message histories and artifacts are not stored in XCom.
+Retrieve them with ``OpenAIHook().get_conn().beta.agents.sessions.items`` and
+``.artifacts`` using the returned session ID.
+
+Each attempt creates a fresh session. Do not submit additional turns to it while
+this task is running. An idle session without a visible turn is not treated as
+success. Failed or cancelled turns fail the task. Client-side function tools are
+not executed by the operator and fail the task when requested; use service-side
+tools instead. A self-hosted environment must have an independently managed worker.
+
+On timeout or polling failure, the operator requests cancellation of its session's
+active turn. It retains the session and artifacts for inspection. Cancellation does
+not delete the environment or guarantee that its resources have been released.
+Killing a synchronous task also requests cancellation. Cancellation of a killed
+deferred task requires Airflow 3.3 or newer; on older versions, cancel it manually.
+A hard worker termination or Airflow execution timeout can bypass cleanup. Retrying
+the task creates another session and can repeat external side effects.
+
+Hook methods
+^^^^^^^^^^^^
+
+:class:`~airflow.providers.openai.hooks.openai.OpenAIHook` provides
+``create_agent``, ``create_agent_session``, ``get_agent_session`` and
+``cancel_agent_session``. ``poll_agent_session`` checks the first turn of a fresh,
+exclusively owned session; it is not a general waiter for reused sessions.
+For other resources, use the SDK client returned by ``get_conn()``. See the
+`OpenAI Agents API reference <https://developers.openai.com/api/reference/python/resources/beta/subresources/agents>`__.

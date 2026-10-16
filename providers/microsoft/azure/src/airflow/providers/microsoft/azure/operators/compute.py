@@ -39,7 +39,7 @@ class BaseAzureVirtualMachineOperator(BaseOperator):
     :param azure_conn_id: Azure connection id.
     """
 
-    template_fields: Sequence[str] = ("resource_group_name", "vm_name")
+    template_fields: Sequence[str] = ("resource_group_name", "vm_name", "azure_conn_id")
     ui_color = "#0078d4"
     ui_fgcolor = "#ffffff"
 

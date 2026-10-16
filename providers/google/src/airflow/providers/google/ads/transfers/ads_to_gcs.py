@@ -74,6 +74,8 @@ class GoogleAdsToGcsOperator(BaseOperator):
         "bucket",
         "obj",
         "impersonation_chain",
+        "gcp_conn_id",
+        "google_ads_conn_id",
     )
 
     def __init__(

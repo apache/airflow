@@ -19,18 +19,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
-from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
-
     from airflow.sdk import Context
 
 
@@ -56,8 +53,10 @@ class LLMFileAnalysisOperator(LLMOperator):
         for how blank entries in the list are dropped.
     :param system_prompt: Additional instructions appended to the built-in
         file-analysis system prompt.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
+    :param model_settings: Pydantic AI ``ModelSettings`` for the model call, such as
+        ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
     :param file_path: File or prefix to analyze.
     :param file_conn_id: Optional connection ID for the storage backend.
         Overrides a connection embedded in ``file_path``.
@@ -93,6 +92,9 @@ class LLMFileAnalysisOperator(LLMOperator):
         "file_path",
         "file_conn_id",
     )
+
+    # Runs its own execute() without the confidence gate; a decision_policy is rejected at construction.
+    supports_decision_policy: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -131,6 +133,11 @@ class LLMFileAnalysisOperator(LLMOperator):
     def execute(self, context: Context) -> Any:
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__} requires a string prompt (got {type(self.prompt).__name__}). "
+                "Supply images or PDFs via file_path with multi_modal=True instead."
+            )
 
         request = build_file_analysis_request(
             file_path=self.file_path,
@@ -156,13 +163,11 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent: Agent[object, Any] = self.llm_hook.create_agent(
+        agent = self._create_agent(
             output_type=self.output_type,
             instructions=self._build_system_prompt(),
-            **self.agent_params,
         )
-        result = agent.run_sync(request.user_content, usage_limits=usage_limits)
-        log_run_summary(self.log, result)
+        result = self._run_llm(context, agent, request.user_content, usage_limits=usage_limits)
         output = result.output
 
         if self.require_approval:
@@ -175,6 +180,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             # so the dump step has to be repeated here.
             output = output.model_dump()
 
+        self._clear_usage_budget(context)
         return output
 
     def _build_system_prompt(self) -> str:

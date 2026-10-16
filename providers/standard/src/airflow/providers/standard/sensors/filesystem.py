@@ -60,7 +60,10 @@ class FileSensor(BaseSensorOperator):
 
     """
 
-    template_fields: Sequence[str] = ("filepath",)
+    template_fields: Sequence[str] = (
+        "filepath",
+        "fs_conn_id",
+    )
     ui_color = "#91818a"
     start_trigger_args = StartTriggerArgs(
         trigger_cls="airflow.providers.standard.triggers.file.FileTrigger",

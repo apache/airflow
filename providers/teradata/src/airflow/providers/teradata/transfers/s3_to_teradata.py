@@ -68,7 +68,7 @@ class S3ToTeradataOperator(BaseOperator):
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields: Sequence[str] = ("s3_source_key", "teradata_table")
+    template_fields: Sequence[str] = ("s3_source_key", "teradata_table", "aws_conn_id", "teradata_conn_id")
     ui_color = "#e07c24"
 
     def __init__(

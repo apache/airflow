@@ -219,7 +219,17 @@ calls involved (``~`` works as a wildcard for ``dag_id`` and ``dag_run_id``):
     # Submit the response; the test run resumes the task on its next poll.
     # map_index is -1 for non-mapped tasks.
     PATCH /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails
-    {"chosen_options": ["Approve"], "params_input": {}}
+    {"chosen_options": ["Approve"], "params_input": {}, "request_created_at": "<created_at from the GET>"}
+
+``request_created_at`` is optional. Copy it unchanged from the request you read: if the task asked
+again in the meantime (a retry, a clear, or an operator that pauses more than once in one run), the
+answer is refused with ``409`` instead of being applied to a request you did not read.
+
+.. note::
+
+    Keys in ``params_input`` must not be Airflow's reserved serialization keys (``__classname__``,
+    ``__version__``, ``__data__``, ``__id__``, ``__cache__``, ``__type``, ``__source``, ``__var``),
+    at any nesting depth. A response containing one is rejected with ``422`` at submission time.
 
 .. note::
 

@@ -27,16 +27,42 @@
 Changelog
 ---------
 
-Breaking changes
-~~~~~~~~~~~~~~~~
+4.0.1
+.....
 
-* ``Stop defaulting PsrpOperator task_id to cmdlet``
+Misc
+~~~~
 
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+4.0.0
+.....
+
+.. warning::
   ``PsrpOperator`` no longer uses ``cmdlet`` as the default ``task_id``; ``task_id`` is now required, as
   on every other operator. ``cmdlet`` is a template field rendered after the constructor runs, so the
   default read the un-rendered value. To keep the existing task identity (history, logs, XComs), pass
   ``task_id`` explicitly with the same value as ``cmdlet``, for example
   ``PsrpOperator(task_id="Get-Process", cmdlet="Get-Process", psrp_conn_id="psrp_default")``.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Stop defaulting PsrpOperator task_id to cmdlet (#73036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
 
 3.2.7
 .....

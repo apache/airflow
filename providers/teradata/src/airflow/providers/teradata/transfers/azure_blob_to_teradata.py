@@ -70,7 +70,12 @@ class AzureBlobStorageToTeradataOperator(BaseOperator):
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields: Sequence[str] = ("blob_source_key", "teradata_table")
+    template_fields: Sequence[str] = (
+        "blob_source_key",
+        "teradata_table",
+        "azure_conn_id",
+        "teradata_conn_id",
+    )
     ui_color = "#e07c24"
 
     def __init__(

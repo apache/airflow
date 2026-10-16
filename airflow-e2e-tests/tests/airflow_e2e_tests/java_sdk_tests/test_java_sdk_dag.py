@@ -54,19 +54,29 @@ confirms:
 4. A Java task that throws with retries left returns ``RetryTask`` rather than a
    terminal ``FAILED``, so the supervisor marks it UP_FOR_RETRY and re-runs it;
    ``load`` therefore ends ``success`` on its second attempt (try_number 2).
+
+5. Keyword arguments at the stub call site bind to a ``TaskInput``'s fields by
+   name, matched ignoring case and underscores; ``report`` asserts the value it
+   received, so it only succeeds if ``run_label`` reached its ``runLabel``
+   field.
+
+The ``java_interface_example`` and ``scala_spark_example`` Dags are covered too:
+the former for tasks written against ``InputTask``, whose arguments the SDK
+resolves from the stub call site into a ``TaskInput`` and injects.
 """
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
 import requests
 
+from airflow_e2e_tests.constants import LANG_SDK_STATE_STORE_RETENTION_DAYS
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
 if TYPE_CHECKING:
@@ -81,10 +91,13 @@ _SPARK_TASK_TIMEOUT = 1200
 _LOG_FETCH_TIMEOUT = 60
 
 _ANNOTATION_DAG_ID = "java_annotation_example"
+_INTERFACE_DAG_ID = "java_interface_example"
 _XCOM_CASTING_DAG_ID = "java_xcom_casting_example"
 _SCALA_SPARK_DAG_ID = "scala_spark_example"
 _VARIABLE_WRITE_DAG_ID = "java_variable_write"
 _VARIABLE_WRITE_DESCRIPTION = "written by the Java SDK e2e test"
+_TASK_STATE_DAG_ID = "java_task_state"
+_TASK_STATE_TASK_ID = "roundtrip_task_state"
 
 
 @dataclass
@@ -118,6 +131,14 @@ class _CompletedRun:
             key=key,
         ).get("value")
 
+    def get_task_state_store(self, task_id: str, key: str) -> dict:
+        self._raise_if_failed()
+        if self.run_id is None:
+            raise RuntimeError(f"Dag {self.dag_id!r} did not produce a run ID")
+        return self.client.get_task_state_store(
+            dag_id=self.dag_id, run_id=self.run_id, task_id=task_id, key=key
+        )
+
     def wait_for_log_record(
         self, task_id: str, try_number: int, match: Callable[[dict], bool]
     ) -> tuple[dict | None, list[dict]]:
@@ -145,7 +166,7 @@ def _trigger_and_wait_for_dag(dag_id: str, timeout: int) -> _CompletedRun:
     client = AirflowClient()
     run_id = None
     try:
-        resp = client.trigger_dag(dag_id, json={"logical_date": datetime.now(timezone.utc).isoformat()})
+        resp = client.trigger_dag(dag_id, json={"logical_date": datetime.now(UTC).isoformat()})
         run_id = resp["dag_run_id"]
         state = client.wait_for_dag_run(dag_id=dag_id, run_id=run_id, timeout=timeout)
         ti_resp = client.get_task_instances(dag_id=dag_id, run_id=run_id)
@@ -165,10 +186,20 @@ def _trigger_and_wait_for_dag(dag_id: str, timeout: int) -> _CompletedRun:
     )
 
 
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
 @pytest.fixture(scope="module")
 def annotation_example_run() -> _CompletedRun:
     """Trigger the annotation example once for all of its assertions."""
     return _trigger_and_wait_for_dag(_ANNOTATION_DAG_ID, _JAVA_TASK_TIMEOUT)
+
+
+@pytest.fixture(scope="module")
+def interface_example_run() -> _CompletedRun:
+    """Trigger the interface example once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_INTERFACE_DAG_ID, _JAVA_TASK_TIMEOUT)
 
 
 @pytest.fixture(scope="module")
@@ -187,6 +218,12 @@ def scala_spark_example_run() -> _CompletedRun:
 def variable_write_run() -> _CompletedRun:
     """Trigger the variable write Dag once for all of its assertions."""
     return _trigger_and_wait_for_dag(_VARIABLE_WRITE_DAG_ID, _JAVA_TASK_TIMEOUT)
+
+
+@pytest.fixture(scope="module")
+def task_state_run() -> _CompletedRun:
+    """Trigger the task state Dag once for all of its assertions."""
+    return _trigger_and_wait_for_dag(_TASK_STATE_DAG_ID, _JAVA_TASK_TIMEOUT)
 
 
 class TestJavaSDKAnnotationExample:
@@ -211,6 +248,19 @@ class TestJavaSDKAnnotationExample:
         )
         assert value > 0, (
             f"Expected 'transform' XCom to be a positive integer (millisecond timestamp), got {value!r}"
+        )
+
+    def test_report_binds_keyword_arguments_by_folded_name(self, annotation_example_run: _CompletedRun):
+        """``report`` declares a ``TaskInput`` with no ``@ArgName``, so reaching ``success``
+        proves ``run_label`` folded onto its ``runLabel`` field: the task throws unless that
+        field holds the ``run_label="nightly"`` literal from the keyword call site."""
+        report_ti = annotation_example_run.get_task_instance("report")
+
+        assert report_ti.get("state") == "success", (
+            f"Java 'report' task did not succeed.\n"
+            f"  task state : {report_ti.get('state')!r}\n"
+            f"  dag state  : {annotation_example_run.state!r}\n"
+            f"  all tasks  : {annotation_example_run.ti_states}"
         )
 
     def test_concurrent_client_calls_succeed(self, annotation_example_run: _CompletedRun):
@@ -377,13 +427,32 @@ class TestJavaSDKVariableWrite:
         )
 
 
+class TestJavaSDKInterfaceExample:
+    """Verify tasks written against ``InputTask`` receive their bound arguments."""
+
+    def test_input_tasks_receive_their_bound_arguments(self, interface_example_run: _CompletedRun):
+        """``transform`` and ``summarize`` implement ``InputTask``, so reaching ``success``
+        proves the supervisor's bindings arrived: ``transform`` binds the ``extract`` XCom
+        onto its bundle's ``extracted`` field, and ``summarize`` throws unless its bundle
+        holds the ``region_code="emea"`` literal from the keyword call site."""
+        for task_id in ("transform", "summarize"):
+            task_instance = interface_example_run.get_task_instance(task_id)
+            assert task_instance.get("state") == "success", (
+                f"Java {task_id!r} task did not succeed.\n"
+                f"  task state : {task_instance.get('state')!r}\n"
+                f"  dag state  : {interface_example_run.state!r}\n"
+                f"  all tasks  : {interface_example_run.ti_states}"
+            )
+
+
 class TestJavaSDKXComCastingExample:
     """Verify numeric XCom values are cast across declared Java types."""
 
     def test_numeric_xcom_casting(self, xcom_casting_example_run: _CompletedRun):
         """Numeric XComs are read across declared types (int -> long -> double, and a wire
-        double back as a float), and a boxed param stays null when its XCom is absent."""
-        for task_id in ("widen_to_double", "consume_nullable", "consume_float"):
+        double back as a float), a boxed param stays null when its XCom is absent, and a
+        ``List<Double>`` param keeps its element type over a literal list of integers."""
+        for task_id in ("widen_to_double", "consume_nullable", "consume_float", "consume_double_list"):
             task_instance = xcom_casting_example_run.get_task_instance(task_id)
             assert task_instance.get("state") == "success", (
                 f"Java {task_id!r} task did not succeed.\n"
@@ -431,4 +500,53 @@ class TestJavaSDKScalaSparkExample:
         load_xcom = scala_spark_example_run.get_xcom("spark_load")
         assert load_xcom == _SPARK_EXPECTED_TOTAL_REVENUE, (
             f"Expected spark_load to return total revenue {_SPARK_EXPECTED_TOTAL_REVENUE}, got {load_xcom!r}"
+        )
+
+
+class TestJavaSDKTaskStateStore:
+    """Verify a Java task can set, get and delete task state store keys.
+
+    The task lives in the java-test-bundle fixture project (served on the
+    dedicated "java-test" queue). It also reads its keys back and fails if a
+    value does not match, so ``success`` covers the get path. Assertions here
+    read the store through the REST API, so the data is proven to have reached
+    the database.
+    """
+
+    def _assert_task_succeeded(self, run: _CompletedRun) -> None:
+        ti = run.get_task_instance(_TASK_STATE_TASK_ID)
+        assert ti.get("state") == "success", (
+            f"Java {_TASK_STATE_TASK_ID!r} task did not succeed.\n"
+            f"  task state : {ti.get('state')!r}\n"
+            f"  dag state  : {run.state!r}\n"
+            f"  all tasks  : {run.ti_states}"
+        )
+
+    def test_never_expire_key_holds_run_id(self, task_state_run: _CompletedRun):
+        self._assert_task_succeeded(task_state_run)
+        entry = task_state_run.get_task_state_store(_TASK_STATE_TASK_ID, "java_e2e_run_id")
+        assert entry.get("value") == task_state_run.run_id, entry
+        assert entry.get("expires_at") is None, entry
+
+    def test_structured_value_roundtrips(self, task_state_run: _CompletedRun):
+        self._assert_task_succeeded(task_state_run)
+        entry = task_state_run.get_task_state_store(_TASK_STATE_TASK_ID, "java_e2e_counter")
+        assert entry.get("value") == {"processed": 3, "cursor": "abc-123"}, entry
+
+    def test_deleted_key_is_gone(self, task_state_run: _CompletedRun):
+        self._assert_task_succeeded(task_state_run)
+        with pytest.raises(requests.HTTPError) as excinfo:
+            task_state_run.get_task_state_store(_TASK_STATE_TASK_ID, "java_e2e_scratch")
+        assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND
+
+    def test_default_retention_applied(self, task_state_run: _CompletedRun):
+        self._assert_task_succeeded(task_state_run)
+        entry = task_state_run.get_task_state_store(_TASK_STATE_TASK_ID, "java_e2e_retained")
+        assert entry.get("expires_at") is not None, entry
+        gap = _parse_timestamp(entry["expires_at"]) - _parse_timestamp(entry["updated_at"])
+        expected = timedelta(days=LANG_SDK_STATE_STORE_RETENTION_DAYS)
+        assert abs(gap - expected) <= timedelta(minutes=5), (
+            f"expected ~{LANG_SDK_STATE_STORE_RETENTION_DAYS} days, got {gap / timedelta(days=1):.1f} days; "
+            "if ~30, the coordinator passed Airflow's config default, so the JVM did not see "
+            f"[state_store] default_retention_days. entry: {entry!r}"
         )

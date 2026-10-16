@@ -59,6 +59,17 @@ Get an AWS Step Functions execution output
 To fetch the output from an AWS Step Function state machine execution you can
 use :class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionGetExecutionOutputOperator`.
 
+The operator decodes JSON execution output. When the execution has an error instead,
+it returns the error string unchanged if it is not valid JSON. JSON-formatted errors
+continue to be decoded to their corresponding Python values.
+
+Fetching an error does not by itself fail the Airflow task. This operator does not wait
+for completion or check that the execution succeeded; use
+:class:`~airflow.providers.amazon.aws.sensors.step_function.StepFunctionExecutionSensor`
+to check the execution state. A returned error string is not suitable for
+``multiple_outputs=True`` or downstream dynamic task mapping, which require a mapping
+or a mappable collection, respectively.
+
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_step_functions.py
     :language: python
     :dedent: 4

@@ -100,6 +100,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         "environment_id",
         "environment",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -276,6 +277,7 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         "region",
         "environment_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -363,6 +365,7 @@ class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
         "region",
         "environment_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -443,6 +446,7 @@ class CloudComposerListEnvironmentsOperator(GoogleCloudBaseOperator):
         "project_id",
         "region",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     operator_extra_links = (CloudComposerEnvironmentsLink(),)
@@ -529,6 +533,7 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         "region",
         "environment_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -647,6 +652,7 @@ class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
         "project_id",
         "region",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -725,6 +731,7 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
         "environment_id",
         "command",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -868,6 +875,7 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
         "environment_id",
         "composer_dag_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

@@ -29,14 +29,11 @@ from airflow.configuration import conf
 from airflow.utils import file as file_utils
 from airflow.utils.file import (
     correct_maybe_zipped,
-    list_py_file_paths,
     open_maybe_zipped,
 )
 
 from tests_common.test_utils.config import conf_vars
 from unit.models import TEST_DAGS_FOLDER
-
-TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 
 def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):
@@ -96,7 +93,7 @@ class TestOpenMaybeZipped:
         assert isinstance(content, str)
 
 
-class TestListPyFilesPath:
+class TestDagFileHelpers:
     def test_find_path_from_directory_regex_ignore(self):
         should_ignore = [
             "test_invalid_cron.py",
@@ -180,38 +177,6 @@ class TestListPyFilesPath:
         modules = list(file_utils.iter_airflow_imports(file_path))
 
         assert len(modules) == 0
-
-    def test_list_py_file_paths(self, test_zip_path):
-        detected_files = set()
-        expected_files = set()
-        # No_dags is empty, _invalid_ is ignored by .airflowignore
-        ignored_files = {
-            "no_dags.py",
-            "should_ignore_this.py",
-            "test_explicit_ignore.py",
-            "test_invalid_cron.py",
-            "test_invalid_dup_task.py",
-            "test_ignore_this.py",
-            "test_invalid_param.py",
-            "test_invalid_param2.py",
-            "test_invalid_param3.py",
-            "test_invalid_param4.py",
-            "test_nested_dag.py",
-            "test_imports.py",
-            "test_nested_negate_ignore.py",
-            "file_no_airflow_dag.py",  # no_dag test case in test_zip folder
-            "test.py",  # no_dag test case in test_zip_module folder
-            "__init__.py",
-        }
-        for root, _, files in os.walk(TEST_DAG_FOLDER):
-            for file_name in files:
-                if file_name.endswith((".py", ".zip")):
-                    if file_name not in ignored_files:
-                        expected_files.add(f"{root}/{file_name}")
-        detected_files = set(list_py_file_paths(TEST_DAG_FOLDER))
-        assert detected_files == expected_files, (
-            f"Detected files mismatched expected files:\ndetected_files: {pformat(detected_files)}\nexpected_files: {pformat(expected_files)}"
-        )
 
 
 @pytest.mark.parametrize(

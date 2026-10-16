@@ -34,12 +34,14 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     TypeOfChange,
     _convert_git_changes_to_table,
     _find_insertion_index_for_version,
+    _generate_new_changelog,
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
     classification_result,
     classify_change_deterministically,
     drop_provider_to_doc_only,
+    format_message_for_classification,
     get_most_impactful_change,
     get_version_tag,
     update_release_notes,
@@ -97,6 +99,53 @@ def test_find_insertion_index_insert_new_changelog():
     index, append = _find_insertion_index_for_version(CHANGELOG_CONTENT.splitlines(), "5.0.1")
     assert not append
     assert index == 3
+
+
+def test_generate_new_changelog_recognises_grouped_pr_references(tmp_path):
+    changelog_path = tmp_path / "changelog.rst"
+    changelog_path.write_text(
+        """
+Changelog
+---------
+
+5.0.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add X (#1001, #1002)``
+* ``Add Y (#1003)``
+* ``Add Z (continuation of #1005) (#1006)``
+
+4.7.0
+.....
+
+* ``Old (#900)``
+"""
+    )
+    provider_details = mock.MagicMock(
+        spec=ProviderPackageDetails, versions=["5.0.0"], changelog_path=changelog_path
+    )
+    changes = [
+        Change("hash", "short", "2024-01-01", "5.0.0", f"Fix (#{pr})", f"Fix (#{pr})", pr)
+        for pr in ("1001", "1002", "1003", "1004", "1005")
+    ]
+
+    _generate_new_changelog(
+        package_id="asana",
+        provider_details=provider_details,
+        changes=[changes],
+        context={},
+        with_breaking_changes=False,
+        maybe_with_new_features=False,
+    )
+
+    new_changelog = changelog_path.read_text()
+    assert "* ``Fix (#1004)``" in new_changelog
+    assert "* ``Fix (#1005)``" in new_changelog
+    for pr in ("1001", "1002", "1003"):
+        assert new_changelog.count(f"#{pr}") == 1
 
 
 @pytest.mark.parametrize(
@@ -412,6 +461,15 @@ def test_version_bump_for_provider_documentation(initial_version, bump_index, ex
 )
 def test_get_most_impactful_change(changes, expected):
     assert get_most_impactful_change(changes) == expected
+
+
+def test_format_message_for_classification_links_every_reference_to_its_own_number():
+    message = "Fix td_format rendering of negative durations (#72694) (#72774)"
+    assert format_message_for_classification(message) == (
+        "Fix td_format rendering of negative durations "
+        "(https://github.com/apache/airflow/pull/72694) "
+        "(https://github.com/apache/airflow/pull/72774)"
+    )
 
 
 @pytest.mark.parametrize(

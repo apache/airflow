@@ -24,6 +24,8 @@
 // unclaimed argument as a whole value.
 //
 // Analyze validates a function once. Resolve binds each execution.
+// AnalyzePositional builds a plan in which a sole struct binds positionally too, as one whole
+// argument.
 package binding
 
 import (
@@ -38,7 +40,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -102,25 +103,9 @@ type Plan struct {
 
 // Analyze validates a task function and builds its binding plan.
 func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
-	if fnType.NumIn() == 0 {
-		return nil, fmt.Errorf(
-			"task function %s: takes no parameters, but the first parameter must be "+
-				"airflow.Context",
-			fnName,
-		)
-	}
-	p := &Plan{fnName: fnName, params: make([]paramPlan, fnType.NumIn())}
-	var dataIdxs []int
-	for i := range fnType.NumIn() {
-		plan, err := classifyParam(fnName, fnType.In(i), i)
-		if err != nil {
-			return nil, err
-		}
-		if plan.kind == paramData {
-			p.numData++
-			dataIdxs = append(dataIdxs, i)
-		}
-		p.params[i] = plan
+	p, dataIdxs, err := analyzeParams(fnType, fnName)
+	if err != nil {
+		return nil, err
 	}
 
 	if p.numData == 1 {
@@ -153,6 +138,38 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 	return p, nil
 }
 
+// AnalyzePositional checks each parameter of a task function as Analyze does, but builds a plan
+// in which every data parameter takes one whole argument, in order. A sole struct takes one
+// whole argument too, where Analyze would bind its fields by name. So AnalyzePositional does
+// not check the fields of a struct, and `arg:` tags have no effect.
+func AnalyzePositional(fnType reflect.Type, fnName string) (*Plan, error) {
+	p, _, err := analyzeParams(fnType, fnName)
+	return p, err
+}
+
+func analyzeParams(fnType reflect.Type, fnName string) (p *Plan, dataIdxs []int, err error) {
+	if fnType.NumIn() == 0 {
+		return nil, nil, fmt.Errorf(
+			"task function %s: takes no parameters, but the first parameter must be "+
+				"airflow.Context",
+			fnName,
+		)
+	}
+	p = &Plan{fnName: fnName, params: make([]paramPlan, fnType.NumIn())}
+	for i := range fnType.NumIn() {
+		plan, err := classifyParam(fnName, fnType.In(i), i)
+		if err != nil {
+			return nil, nil, err
+		}
+		if plan.kind == paramData {
+			p.numData++
+			dataIdxs = append(dataIdxs, i)
+		}
+		p.params[i] = plan
+	}
+	return p, dataIdxs, nil
+}
+
 // Resolve builds the ordered values for one task call.
 func (p *Plan) Resolve(
 	ctx context.Context,
@@ -163,9 +180,9 @@ func (p *Plan) Resolve(
 	out := make([]reflect.Value, len(p.params))
 	// Bound to the live task context, so actx.Done() fires on supervisor shutdown.
 	ti, dagRun := storedRunMetadata(ctx)
-	out[0] = reflect.ValueOf(airflow.NewContext(ctx, logger, client, ti, dagRun))
+	out[0] = newAirflowContext(ctx, logger, client, ti, dagRun)
 	if p.loneStruct {
-		return p.resolveLoneStructParam(ctx, client, args, out)
+		return p.resolveLoneStructParam(ctx, logger, client, args, out)
 	}
 	return p.resolveFlatParams(ctx, client, args, out)
 }
@@ -220,6 +237,7 @@ func (p *Plan) resolveFlatParams(
 
 func (p *Plan) resolveLoneStructParam(
 	ctx context.Context,
+	logger *slog.Logger,
 	c sdk.XComClient,
 	args []Arg,
 	out []reflect.Value,
@@ -256,6 +274,7 @@ func (p *Plan) resolveLoneStructParam(
 		argIdx int
 	}
 	binds := make([]fieldBind, 0, len(plan.fields))
+	var unfilled []string
 	for _, sf := range plan.fields {
 		idx, ok := byName[sf.argName]
 		if !ok && !sf.tagged {
@@ -265,6 +284,7 @@ func (p *Plan) resolveLoneStructParam(
 			}
 		}
 		if !ok {
+			unfilled = append(unfilled, fmt.Sprintf("%s (argument %q)", sf.goName, sf.argName))
 			continue
 		}
 		claimed[idx] = true
@@ -278,14 +298,25 @@ func (p *Plan) resolveLoneStructParam(
 		}
 	}
 
-	if len(args) == 0 && len(plan.fields) > 0 {
-		return nil, fmt.Errorf(
-			"task function %s: no TaskFlow arg bindings arrived but the struct declares "+
-				"%d bindable field(s); nothing can fill them on this execution path",
-			p.fnName, len(plan.fields),
+	// Neither direction of a name mismatch is fatal, because a struct binds by
+	// name: an unfilled field keeps its Go zero value and an unclaimed argument
+	// changes nothing the handler reads. Both are logged so the mismatch is still
+	// visible, since the spec carries one entry per stub parameter and either side
+	// of it means the Go signature and the stub signature disagree.
+	//
+	// A spec that arrived empty is the same thing with every field unfilled, and
+	// is what an argless call looks like: build_arg_bindings sends nothing at all
+	// when a stub is called with no arguments.
+	if len(unfilled) > 0 {
+		logger.Warn(
+			"Task handler declares argument(s) the Dag's call did not pass",
+			"function", p.fnName,
+			"declared_not_passed", unfilled,
+			"passed", passedArgNames(args),
 		)
 	}
 
+	// Captured defaults are the normal case of an unclaimed argument and stay silent.
 	var unclaimed []string
 	for i, c := range claimed {
 		if c {
@@ -296,15 +327,16 @@ func (p *Plan) resolveLoneStructParam(
 		}
 		name := "<nil>"
 		if args[i] != nil {
-			name = fmt.Sprintf("%q", args[i].ArgName())
+			name = args[i].ArgName()
 		}
 		unclaimed = append(unclaimed, name)
 	}
 	if len(unclaimed) > 0 {
-		return nil, fmt.Errorf(
-			"task function %s: %d TaskFlow call argument(s) not claimed by any struct "+
-				"field: %s",
-			p.fnName, len(unclaimed), strings.Join(unclaimed, ", "),
+		logger.Warn(
+			"Dag's call passed argument(s) the task handler does not declare",
+			"function", p.fnName,
+			"passed_not_declared", unclaimed,
+			"declared", declaredFieldNames(plan.fields),
 		)
 	}
 
@@ -336,6 +368,25 @@ func (p *Plan) resolveLoneStructParam(
 		out[paramIdx] = structVal
 	}
 	return out, nil
+}
+
+func declaredFieldNames(fields []structField) []string {
+	names := make([]string, 0, len(fields))
+	for _, sf := range fields {
+		names = append(names, sf.argName)
+	}
+	return names
+}
+
+func passedArgNames(args []Arg) []string {
+	names := make([]string, 0, len(args))
+	for _, a := range args {
+		if a == nil {
+			continue
+		}
+		names = append(names, a.ArgName())
+	}
+	return names
 }
 
 func dropDefaultedArgs(args []Arg) []Arg {
@@ -487,7 +538,7 @@ func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error)
 		if in == airflowContextType {
 			return paramPlan{kind: paramAirflowContext, index: index}, nil
 		}
-		if in == reflect.PointerTo(airflowContextType) {
+		if in == airflowContextPtrType {
 			return paramPlan{}, fmt.Errorf(
 				"task function %s: parameter 0 is %s, but airflow.Context is taken by value",
 				fnName, in,
@@ -785,6 +836,13 @@ func describeShapes(shapes []schemaShape) string {
 	return "JSON-schema alternatives " + strings.Join(parts, " | ")
 }
 
+// DecodeLiteral decodes the value of a literal argument into a value of the target type, as
+// Resolve does for a LiteralArg. It lets a Dag check at build time what Resolve accepts at run
+// time.
+func DecodeLiteral(raw any, target reflect.Type) (reflect.Value, error) {
+	return decodeValue(raw, target)
+}
+
 func decodeValue(raw any, target reflect.Type) (reflect.Value, error) {
 	out := reflect.New(target)
 
@@ -837,8 +895,7 @@ func implementsUnmarshaler(t reflect.Type) bool {
 }
 
 var (
-	airflowContextType = reflect.TypeFor[airflow.Context]()
-	slogLoggerType     = reflect.TypeFor[*slog.Logger]()
+	slogLoggerType = reflect.TypeFor[*slog.Logger]()
 
 	jsonUnmarshalerType = reflect.TypeFor[json.Unmarshaler]()
 	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()

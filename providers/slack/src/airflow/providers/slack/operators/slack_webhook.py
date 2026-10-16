@@ -67,6 +67,7 @@ class SlackWebhookOperator(BaseOperator):
         "channel",
         "username",
         "proxy",
+        "slack_webhook_conn_id",
     )
 
     def __init__(

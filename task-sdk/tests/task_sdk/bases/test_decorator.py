@@ -68,6 +68,18 @@ class TestBaseDecorator:
         ast.parse(cleaned)
         assert cleaned.lstrip().splitlines()[0].startswith("def a_task")
 
+    def test_docstring_used_as_doc_md_is_dedented(self):
+        @task
+        def my_task():
+            """Summary line.
+
+            Body line indented under the function.
+            """
+
+        op = my_task().operator
+
+        assert op.doc_md == "Summary line.\n\nBody line indented under the function."
+
 
 class DummyDecoratedOperator(DecoratedOperator):
     custom_operator_name = "@task.dummy"

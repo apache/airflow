@@ -131,7 +131,7 @@ class CronMixin:
         return self._expression == other._expression and self._timezone == other._timezone
 
     def __hash__(self):
-        return hash((self._expression, self._timezone))
+        return hash((self._expression, str(self._timezone)))
 
     @property
     def summary(self) -> str:

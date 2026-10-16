@@ -218,9 +218,15 @@ def print_local_reproduction(commands: list[ReproductionCommand]) -> None:
     console.print(f"[warning]{ruler}[/]\n")
 
 
+SKIP_LOCAL_REPRODUCTION = "skip_local_reproduction"
+
+
 def maybe_print_reproduction(ctx: click.Context) -> None:
-    """Called by BreezeCommand.invoke() — prints reproduction instructions in CI."""
-    if not should_print_local_reproduction():
+    """Called by BreezeCommand.invoke() — prints reproduction instructions in CI.
+
+    Commands whose stdout is a machine-readable contract set ``ctx.meta[SKIP_LOCAL_REPRODUCTION]``.
+    """
+    if not should_print_local_reproduction() or ctx.meta.get(SKIP_LOCAL_REPRODUCTION):
         return
 
     github_repository = ctx.params.get("github_repository", APACHE_AIRFLOW_GITHUB_REPOSITORY)

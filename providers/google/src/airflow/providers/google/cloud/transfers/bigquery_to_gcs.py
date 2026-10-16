@@ -96,6 +96,7 @@ class BigQueryToGCSOperator(BaseOperator):
         "labels",
         "impersonation_chain",
         "job_id",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#e4e6f0"

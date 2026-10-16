@@ -193,8 +193,8 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "प्राप्त एसेट इवेंट"
   },
-  "pendingDagRun_one": "{{count}} लंबित Dag रन",
-  "pendingDagRun_other": "{{count}} लंबित Dag रन",
+  "pendingDagRun_one": "{{count, number}} लंबित Dag रन",
+  "pendingDagRun_other": "{{count, number}} लंबित Dag रन",
   "presetFilters": {
     "deleteTitle": "प्रीसेट फ़िल्टर हटाएं",
     "deleteWarning": "प्रीसेट फ़िल्टर केवल इस ब्राउज़र में संग्रहीत होते हैं।",
@@ -401,21 +401,21 @@
     "bulkClear": {
       "error": "बल्क क्लियर {{resourceName}} अनुरोध विफल",
       "success": {
-        "description": "{{count}} {{resourceName}} सफलतापूर्वक साफ़ कर दिए गए। कुंजियाँ: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} सफलतापूर्वक साफ़ कर दिए गए। कुंजियाँ: {{keys}}",
         "title": "बल्क क्लियर {{resourceName}} अनुरोध सबमिट किया गया"
       }
     },
     "bulkDelete": {
       "error": "बल्क डिलीट {{resourceName}} अनुरोध विफल",
       "success": {
-        "description": "{{count}} {{resourceName}} सफलतापूर्वक हटा दिए गए हैं। keys: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} सफलतापूर्वक हटा दिए गए हैं। keys: {{keys}}",
         "title": "बल्क डिलीट {{resourceName}} अनुरोध सबमिट किया गया"
       }
     },
     "bulkUpdate": {
       "error": "बल्क अपडेट {{resourceName}} अनुरोध विफल",
       "success": {
-        "description": "{{count}} {{resourceName}} सफलतापूर्वक अपडेट कर दिए गए। कुंजियाँ: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} सफलतापूर्वक अपडेट कर दिए गए। कुंजियाँ: {{keys}}",
         "title": "बल्क अपडेट {{resourceName}} अनुरोध सबमिट किया गया"
       }
     },
@@ -436,7 +436,7 @@
     "import": {
       "error": "{{resourceName}} आयात अनुरोध विफल",
       "success": {
-        "description": "{{count}} {{resourceName}} सफलतापूर्वक आयात किए गए हैं।",
+        "description": "{{count, number}} {{resourceName}} सफलतापूर्वक आयात किए गए हैं।",
         "title": "{{resourceName}} आयात अनुरोध सबमिट किया गया"
       }
     },

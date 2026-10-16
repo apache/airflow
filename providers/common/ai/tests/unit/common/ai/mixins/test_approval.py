@@ -29,14 +29,14 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from jinja2 import TemplateError
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
 from airflow.providers.common.compat.notifier import BaseNotifier
+from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTriggerEventError
-from airflow.sdk import DAG
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.sdk.exceptions import TaskAwaitingInput
@@ -103,8 +103,27 @@ def context():
     return {"task_instance": ti, "dag": DAG("test_dag")}
 
 
-# The legacy trigger path is taken on cores < 3.3; pin the flag so these tests keep
-# exercising the defer() fallback when run against newer cores.
+class _SerializedByAlias(BaseModel):
+    model_config = ConfigDict(serialize_by_alias=True)
+    user_name: str = Field(serialization_alias="userName")
+
+
+class _NoSchema:
+    def __repr__(self):
+        return "no-schema"
+
+
+class _Doubled(BaseModel):
+    a: int
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def double(self) -> int:
+        return self.a * 2
+
+
+# The legacy trigger path is taken on Airflow versions < 3.3; pin the flag so these tests keep
+# exercising the defer() fallback when run against newer Airflow versions.
 @patch(AWAIT_INPUT_FLAG_PATH, False)
 class TestDeferForApproval:
     @patch(HITL_TRIGGER_PATH, autospec=True)
@@ -143,12 +162,32 @@ class TestDeferForApproval:
 
     @pytest.mark.parametrize(
         ("output", "expected"),
-        [(42, "42"), (True, "true"), ([1, "a"], '[1,"a"]'), ({"k": "v"}, '{"k":"v"}')],
-        ids=["int", "bool", "list", "dict"],
+        [
+            (42, "42"),
+            (True, "true"),
+            ([1, "a"], '[1,"a"]'),
+            ({"k": "v"}, '{"k":"v"}'),
+            (_Doubled(a=1), '{"a":1}'),
+            ([_Doubled(a=1)], '[{"a":1}]'),
+            (_SerializedByAlias(user_name="kax"), '{"user_name":"kax"}'),
+            ([_SerializedByAlias(user_name="kax")], '[{"user_name":"kax"}]'),
+            (_NoSchema(), "no-schema"),
+        ],
+        ids=[
+            "int",
+            "bool",
+            "list",
+            "dict",
+            "model-without-computed-fields",
+            "list-of-models-without-computed-fields",
+            "model-serialized-by-alias",
+            "list-of-models-serialized-by-alias",
+            "no-schema-falls-back-to-str",
+        ],
     )
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_non_string_non_pydantic_output_is_json_encoded(
+    def test_non_string_output_is_dumped_for_review(
         self, mock_upsert, mock_trigger_cls, approval_op, context, output, expected
     ):
         approval_op.defer_for_approval(context, output)
@@ -425,17 +464,99 @@ class TestDeferForApproval:
     def test_approved_with_non_string_modified_output_raises(self, approval_op_with_modifications):
         # On the awaiting_input path nothing upstream schema-validates params_input
         # (HITLTrigger did on the legacy path), so execute_complete must enforce the
-        # string contract instead of returning a dict as the task's output.
+        # string contract instead of returning another type as the task's output.
         event = {
             "chosen_options": ["Approve"],
             "responded_by_user": {"id": "u1", "name": "editor"},
-            "params_input": {"output": {"sneaky": "dict"}},
+            "params_input": {"output": 42},
         }
 
         with pytest.raises(HITLTriggerEventError, match="must be a string"):
             approval_op_with_modifications.execute_complete(
                 {}, generated_output="original output", event=event
             )
+
+    @pytest.mark.parametrize(
+        ("generated_output", "modified"),
+        [
+            ('{"title":"a","priority":0}', {"title": "a", "priority": 0}),
+            ('{"id":9007199254740993}', {"id": 9007199254740992}),
+            ('{"score":2.0}', {"score": 2}),
+            ('{"b":1,"10":2}', {"10": 2, "b": 1}),
+            ('{\n  "a": 1\n}', {"a": 1}),
+            ('{"ids":[9007199254740993]}', {"ids": [9007199254740992]}),
+        ],
+        ids=[
+            "same",
+            "int-rounded-by-javascript",
+            "integral-float",
+            "reordered-keys",
+            "pretty-printed",
+            "int-rounded-in-a-list",
+        ],
+    )
+    def test_approved_with_untouched_object_from_the_form_returns_the_generated_output(
+        self, approval_op_with_modifications, generated_output, modified
+    ):
+        # The HITL form parses a JSON-object value into an object with JavaScript numbers.
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "editor"},
+            "params_input": {"output": modified},
+        }
+
+        result = approval_op_with_modifications.execute_complete(
+            {}, generated_output=generated_output, event=event
+        )
+
+        assert result == generated_output
+
+    @pytest.mark.parametrize(
+        ("generated_output", "modified", "expected"),
+        [
+            ('{"amount":0}', {"amount": False}, '{"amount":false}'),
+            ('{"flags":[0]}', {"flags": [False]}, '{"flags":[false]}'),
+        ],
+        ids=["field", "in-a-list"],
+    )
+    def test_approved_with_a_bool_in_place_of_a_number_counts_as_an_edit(
+        self, approval_op_with_modifications, generated_output, modified, expected
+    ):
+        # Python treats ``False == 0``, but the reviewer changed the value's JSON type.
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "editor"},
+            "params_input": {"output": modified},
+        }
+
+        result = approval_op_with_modifications.execute_complete(
+            {}, generated_output=generated_output, event=event
+        )
+
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("modified", "expected"),
+        [
+            ({"title": "b", "priority": 3}, '{"title":"b","priority":3}'),
+            ({"title": "café", "priority": 0}, '{"title":"café","priority":0}'),
+        ],
+        ids=["edited", "non-ascii"],
+    )
+    def test_approved_with_edited_object_from_the_form_is_dumped_as_json(
+        self, approval_op_with_modifications, modified, expected
+    ):
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "editor"},
+            "params_input": {"output": modified},
+        }
+
+        result = approval_op_with_modifications.execute_complete(
+            {}, generated_output='{"title":"a","priority":0}', event=event
+        )
+
+        assert result == expected
 
     def test_approved_with_list_modified_output_is_serialized(self, approval_op_with_modifications):
         event = {

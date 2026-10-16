@@ -19,36 +19,86 @@ from __future__ import annotations
 import asyncio
 import gc
 import threading
+from contextlib import asynccontextmanager
 from unittest import mock
 from uuid import UUID
 
-import httpx
+import httpx2
 import pytest
-from fastapi import Request, status
+from fastapi import FastAPI, Request, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy import event, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow import settings
+from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
+    create_jwt_generator,
     create_task_execution_api_app,
 )
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.models.xcom import XComModel
+from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
 
+@pytest.mark.parametrize("supply_dag_bag", [False, True])
+@mock.patch("airflow.api_fastapi.common.dagbag.create_dag_bag", autospec=True)
+def test_create_app_initializes_dag_bag(mock_create_dag_bag, supply_dag_bag):
+    dag_bag = mock.sentinel.dag_bag if supply_dag_bag else None
+    app = create_task_execution_api_app(dag_bag=dag_bag)
+
+    if supply_dag_bag:
+        assert app.state.dag_bag is dag_bag
+        mock_create_dag_bag.assert_not_called()
+    else:
+        assert app.state.dag_bag is mock_create_dag_bag.return_value
+        mock_create_dag_bag.assert_called_once_with()
+
+
+@pytest.mark.parametrize("in_process_first", [False, True])
+@conf_vars({("api_auth", "jwt_secret"): "execution-api-hosting-test-secret"})
+def test_server_and_in_process_apps_isolate_auth(in_process_first, monkeypatch):
+    monkeypatch.setenv("AIRFLOW_VAR_EXECUTION_API_HOSTING", "shared-value")
+    if in_process_first:
+        api = InProcessExecutionAPI()
+        assert api.app is not None
+        server_app = create_app(apps="execution")
+    else:
+        server_app = create_app(apps="execution")
+        api = InProcessExecutionAPI()
+
+    with (
+        TestClient(server_app) as server,
+        httpx2.Client(transport=api.transport, base_url="http://in-process.invalid") as local,
+    ):
+        response = local.get("/variables/execution_api_hosting")
+        assert response.status_code == 200
+        assert response.json() == {"key": "execution_api_hosting", "value": "shared-value"}
+        assert server.get("/execution/variables/execution_api_hosting").status_code == 401
+        token = create_jwt_generator().generate({"sub": "00000000-0000-0000-0000-000000000000"})
+        authenticated_response = server.get(
+            "/execution/variables/execution_api_hosting", headers={"Authorization": f"Bearer {token}"}
+        )
+        # Missing credentials bypass JWTValidator; only an authenticated request detects a leaked stub.
+        assert authenticated_response.status_code == 200
+        assert authenticated_response.json() == response.json()
+
+
 def test_custom_openapi_includes_extra_schemas(client):
     """Test to ensure that extra schemas are correctly included in the OpenAPI schema."""
-    response = client.get("/execution/openapi.json?version=2025-04-28")
+    response = client.get(f"/execution/openapi.json?version={bundle.version_values[0]}")
     assert response.status_code == 200
 
     openapi_schema = response.json()
@@ -158,9 +208,24 @@ def test_routes_with_task_instance_id_param_enforce_ti_self(client):
 def test_in_process_execution_api_runs_without_jwt_secret():
     """The in-process API must not require ``api_auth/jwt_secret`` to be configured."""
     api = InProcessExecutionAPI()
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         response = client.get("http://localhost/health")
     assert response.status_code == 200
+
+
+def test_in_process_task_xcom_write_uses_its_attempt_id(create_task_instance, session):
+    ti = create_task_instance()
+    session.commit()
+    path = f"/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value"
+
+    with TestClient(InProcessExecutionAPI().app) as client:
+        wrong = client.post(path, json="wrong", headers={"X-Airflow-In-Process-Attempt-Id": str(UUID(int=1))})
+        correct = client.post(path, json="correct", headers={"X-Airflow-In-Process-Attempt-Id": str(ti.id)})
+
+    assert wrong.status_code == 404
+    assert correct.status_code == 201
+    stored = session.scalar(select(XComModel).where(XComModel.task_instance_id == ti.id))
+    assert stored.value == "correct"
 
 
 def test_in_process_execution_api_transport_lifecycle():
@@ -171,6 +236,10 @@ def test_in_process_execution_api_transport_lifecycle():
     left every later request hanging on a stopped loop. Dropping the transport must stop the loop and
     join the daemon thread (the a2wsgi background-thread leak guard).
     """
+    # Collect earlier tests' garbage first. If GC runs a failing __del__ (an aiomysql connection on a closed loop)
+    # while the app below is built, pytest keeps that error, and its __context__ chain holds the app-building
+    # frames, which keep the transport alive.
+    gc.collect()
     before = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"}
 
     api = InProcessExecutionAPI()
@@ -191,6 +260,84 @@ def test_in_process_execution_api_transport_lifecycle():
     gc.collect()
     thread.join(timeout=5)
     assert not thread.is_alive()
+
+
+@pytest.fixture
+def in_process_db_app():
+    engine = settings.async_engine
+    opened, closed = [], []
+    app = FastAPI()
+
+    def record_connect(connection, record):
+        opened.append((connection, asyncio.get_running_loop()))
+
+    def record_close(connection, record):
+        closed.append((connection, asyncio.get_running_loop()))
+
+    @app.get("/")
+    async def query():
+        async with create_session_async() as session:
+            return (await session.execute(text("SELECT 1"))).scalar_one()
+
+    event.listen(engine.sync_engine, "connect", record_connect)
+    event.listen(engine.sync_engine, "close", record_close)
+    try:
+        yield app, opened, closed
+    finally:
+        event.remove(engine.sync_engine, "connect", record_connect)
+        event.remove(engine.sync_engine, "close", record_close)
+
+
+@pytest.mark.parametrize("fail_shutdown", [False, True])
+def test_in_process_shutdown_closes_connections_after_lifespan(in_process_db_app, fail_shutdown):
+    app, opened, closed = in_process_db_app
+    shutdown_loops = []
+
+    @asynccontextmanager
+    async def lifespan(app):
+        yield
+        async with create_session_async() as session:
+            assert (await session.execute(text("SELECT 1"))).scalar_one() == 1
+        assert closed == []
+        shutdown_loops.append(asyncio.get_running_loop())
+        if fail_shutdown:
+            raise RuntimeError("shutdown failed")
+
+    app.router.lifespan_context = lifespan
+    api = InProcessExecutionAPI(app)
+    with httpx2.Client(transport=api.transport) as client:
+        assert client.get("http://localhost/").json() == 1
+    del client, api
+    gc.collect()
+
+    assert len(opened) == 1
+    assert closed == opened
+    assert shutdown_loops == [opened[0][1]]
+
+
+def test_session_factory_remains_usable_after_in_process_shutdown(in_process_db_app):
+    app, opened, closed = in_process_db_app
+    engine, factory = settings.async_engine, settings.AsyncSession
+    api = InProcessExecutionAPI(app)
+    with httpx2.Client(transport=api.transport) as client:
+        assert client.get("http://localhost/").json() == 1
+    del client, api
+    gc.collect()
+
+    assert settings.async_engine is engine
+    assert settings.AsyncSession is factory
+
+    async def query_after_shutdown():
+        try:
+            async with create_session_async() as session:
+                assert (await session.execute(text("SELECT 1"))).scalar_one() == 1
+        finally:
+            await settings.dispose_async_engine()
+
+    asyncio.run(query_after_shutdown())
+    assert len(opened) == 2
+    assert opened[0][1] is not opened[1][1]
+    assert closed == opened
 
 
 class TestCorrelationIdMiddleware:

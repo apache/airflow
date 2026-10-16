@@ -21,6 +21,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -85,6 +86,10 @@ func NewContext(
 	values := taskValues{logger: logger, client: client, ti: ti, dagRun: dagRun}
 	return Context{Context: context.WithValue(ctx, contextKey{}, values), values: values}
 }
+
+// Package binding builds the Context for every handler call. It gets NewContext here
+// because it cannot import this package. See binding.RegisterTaskContext.
+func init() { binding.RegisterTaskContext(NewContext) }
 
 // FromContext recovers the Airflow surface inside a helper typed as a plain context.Context,
 // reporting whether ctx carries one.

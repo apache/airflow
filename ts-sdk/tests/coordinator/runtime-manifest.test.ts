@@ -28,7 +28,7 @@ import { Bundle } from "../../src/sdk/bundle.js";
 function buildDag(dagId: string, ...taskIds: string[]): Dag {
   const dag = new Dag(dagId);
   for (const taskId of taskIds) {
-    dag.task(taskId, async () => undefined);
+    dag.task(taskId, async () => undefined)();
   }
   return dag;
 }
@@ -42,6 +42,9 @@ describe("buildBundleManifest", () => {
         dag_a: { tasks: ["t1", "t3"] },
         dag_b: { tasks: ["t2"] },
       },
+      // Both Dags were built in this test file, not through airflow-ts-pack, so
+      // the module-source tag never ran and both source paths are absent.
+      dag_source_paths: {},
     });
   });
 
@@ -49,6 +52,29 @@ describe("buildBundleManifest", () => {
     expect(buildBundleManifest(new Bundle(buildDag("empty_dag"))).task_handlers).toEqual({
       empty_dag: { tasks: [] },
     });
+  });
+
+  it("records dag_source_paths from the module-source slot that airflow-ts-pack sets", () => {
+    // The slot is what `airflow-ts-pack`'s onLoad plugin writes into globalThis
+    // before each author-owned module runs. Setting it by hand simulates that.
+    const slot = Symbol.for("airflow.ts-sdk.current-module-source");
+    const holder = globalThis as Record<symbol, string | undefined>;
+    const before = holder[slot];
+    try {
+      holder[slot] = "src/dags/reports.ts";
+      const reportsDag = buildDag("reports_dag", "generate");
+      holder[slot] = "src/main.ts";
+      const ordersDag = buildDag("orders_dag", "record");
+
+      const manifest = buildBundleManifest(new Bundle(reportsDag, ordersDag));
+
+      expect(manifest.dag_source_paths).toEqual({
+        reports_dag: "src/dags/reports.ts",
+        orders_dag: "src/main.ts",
+      });
+    } finally {
+      holder[slot] = before;
+    }
   });
 
   it("keeps a Dag named __proto__ visible in serialized metadata", () => {
@@ -87,7 +113,7 @@ describe("buildBundleManifest", () => {
 
   it("rejects a non-string dagId before object-key coercion hides it", () => {
     const dag = new Dag(123 as unknown as string);
-    dag.task("t1", async () => undefined);
+    dag.task("t1", async () => undefined)();
     expect(() => buildBundleManifest(new Bundle(dag))).toThrowError(/Dag ID must be a string/);
   });
 });

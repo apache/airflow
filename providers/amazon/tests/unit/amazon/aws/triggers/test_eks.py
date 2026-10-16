@@ -369,7 +369,7 @@ class TestEksDeleteClusterTriggerDeleteNodegroupsAndFargateProfiles(TestEksTrigg
 class TestEksPodTrigger:
     """Tests for EksPodTrigger."""
 
-    TRIGGER_START_TIME = datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc)
+    TRIGGER_START_TIME = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
 
     def _create_trigger(self, **overrides):
         """Create an EksPodTrigger with sensible defaults."""

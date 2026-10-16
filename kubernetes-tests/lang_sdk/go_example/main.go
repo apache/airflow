@@ -16,10 +16,11 @@
 // under the License.
 
 // Command go_example is the Go half of the KubernetesExecutor lang-SDK system
-// test bundle. It registers the Go tasks of the shared lang_sdk_combined Dag
-// (the Java half lives in ../java_example, the Python stub Dag in ../dags). The
-// coordinator locates this binary by dag_id, so only the Go tasks are registered
-// here; the Java tasks of the same dag_id live in the Java jar.
+// test bundle. It registers the Go tasks of the shared lang_sdk_mixed_language Dag
+// (the Java half lives in ../java_example, the TypeScript half in ../ts_example, the
+// Python stub Dag in ../dags). The coordinator locates this binary by dag_id, so only
+// the Go tasks are registered here; the Java and TypeScript tasks of the same dag_id
+// live in their own bundles.
 package main
 
 import (
@@ -28,28 +29,22 @@ import (
 	"time"
 
 	"github.com/apache/airflow/go-sdk/airflow"
-	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
-	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server"
 )
 
-// Must match the dag_id of the Python stub Dag and the Java bundle.
-const combinedDagID = "lang_sdk_combined"
-
-type combinedBundle struct{}
-
-var _ v1.BundleProvider = (*combinedBundle)(nil)
-
-func (m *combinedBundle) RegisterDags(dagbag v1.Registry) error {
-	dag := dagbag.AddDag(combinedDagID)
-	// Explicit task ids so the Go tasks are namespaced apart from the Java
-	// tasks that share this dag_id in the Python stub.
-	dag.AddTaskWithName("go_extract", goExtract)
-	dag.AddTaskWithName("go_transform", goTransform)
-	return nil
-}
+// Must match the dag_id of the Python stub Dag and the Java/TypeScript bundles.
+const mixedLanguageDagID = "lang_sdk_mixed_language"
 
 func main() {
-	if err := bundlev1server.Serve(&combinedBundle{}); err != nil {
+	bundle := airflow.Bundle()
+
+	// The go_ prefix keeps the Go tasks apart from the Java/TypeScript tasks that
+	// share this dag_id in the Python stub.
+	bundle.Register(
+		airflow.TaskHandler(mixedLanguageDagID, "go_extract", goExtract),
+		airflow.TaskHandler(mixedLanguageDagID, "go_transform", goTransform),
+	)
+
+	if err := bundle.Serve(); err != nil {
 		log.Fatal(err)
 	}
 }

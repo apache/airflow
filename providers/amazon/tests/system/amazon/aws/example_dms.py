@@ -393,7 +393,10 @@ with DAG(
     db_parameter_group = create_db_parameter_group(db_parameter_group_name)
     await_db_parameter_group = DateTimeSensorAsync(
         task_id="await_db_parameter_group",
-        target_time=db_parameter_group["available_at"],
+        # Airflow 2's built-in DateTimeSensor rejects a non-str/datetime ``target_time`` in its
+        # constructor, so an XComArg cannot be passed directly. Pulling the value through a Jinja
+        # template keeps this Dag parseable on both Airflow 2 and 3.
+        target_time="{{ ti.xcom_pull(task_ids='create_db_parameter_group', key='available_at') }}",
     )
 
     table_mappings = {

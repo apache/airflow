@@ -120,8 +120,8 @@ from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.docker_command_utils import (
-    bring_all_compose_projects_down,
     bring_compose_project_down,
+    bring_compose_projects_down,
     check_docker_resources,
     enter_shell,
     execute_command_in_shell,
@@ -136,6 +136,7 @@ from airflow_breeze.utils.path_utils import (
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     PYCACHE_VOLUME_NAME,
     cleanup_python_generated_files,
+    get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
@@ -891,7 +892,6 @@ def _build_python_docs(
     clean_inventory_cache: bool,
     refresh_airflow_inventories: bool,
     fail_on_missing_third_party_inventories: bool,
-    docs_only: bool,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
@@ -899,7 +899,6 @@ def _build_python_docs(
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
-    spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
     # Docs are always built on the default Python. The Sphinx configuration mocks third-party
@@ -947,8 +946,6 @@ def _build_python_docs(
     doc_packages = docs_list_as_tuple or doc_packages
     doc_builder = DocBuildParams(
         package_filter=package_filter,
-        docs_only=docs_only,
-        spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         include_commits=include_commits,
         fail_on_missing_third_party_inventories=fail_on_missing_third_party_inventories,
@@ -1003,7 +1000,6 @@ def _build_python_docs(
     help="Fail the build if any third-party inventory cannot be downloaded. "
     "By default, missing third-party inventories are warned about but do not fail the build.",
 )
-@click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option(
     "--include-commits", help="Include commits in the documentation.", is_flag=True, envvar="INCLUDE_COMMITS"
 )
@@ -1032,7 +1028,6 @@ def _build_python_docs(
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
-@click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_sdk
 @click.option(
     "--sdk-docs-only",
@@ -1048,7 +1043,6 @@ def build_docs(
     clean_inventory_cache: bool,
     refresh_airflow_inventories: bool,
     fail_on_missing_third_party_inventories: bool,
-    docs_only: bool,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
@@ -1056,7 +1050,6 @@ def build_docs(
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
-    spellcheck_only: bool,
     sdk: tuple[str, ...],
     sdk_docs_only: bool,
     doc_packages: tuple[str, ...],
@@ -1078,7 +1071,6 @@ def build_docs(
             clean_inventory_cache=clean_inventory_cache,
             refresh_airflow_inventories=refresh_airflow_inventories,
             fail_on_missing_third_party_inventories=fail_on_missing_third_party_inventories,
-            docs_only=docs_only,
             github_repository=github_repository,
             include_not_ready_providers=include_not_ready_providers,
             include_removed_providers=include_removed_providers,
@@ -1086,7 +1078,6 @@ def build_docs(
             one_pass_only=one_pass_only,
             package_filter=package_filter,
             distributions_list=distributions_list,
-            spellcheck_only=spellcheck_only,
             doc_packages=doc_packages,
         )
     # Every requested SDK is built even if an earlier one failed, so a single run reports
@@ -1102,18 +1093,15 @@ def build_docs(
 @main.command(
     name="down",
     help=(
-        "Stop every docker compose project breeze knows about. Discovers running "
-        "projects via the `com.docker.compose.project` label and brings each one "
-        "down with `--remove-orphans` (and `--volumes` unless `--preserve-volumes` "
-        "is passed). Covers `breeze shell`, `breeze testing`, `breeze build-docs`, "
-        "`breeze db`, release-management, registry, and prek-hook compose projects "
-        "in a single command."
+        "Stop Breeze projects with no worktree, in this checkout, or belonging to deleted worktrees. "
+        "Removes containers, networks and volumes without changing local files or images. "
+        "Use --all-worktrees to include other checkouts, or --project-name for one exact project."
     ),
 )
 @click.option(
     "-p",
     "--preserve-volumes",
-    help="Skip removing database volumes when stopping Breeze.",
+    help="Keep all volumes, including those belonging to deleted worktrees.",
     is_flag=True,
 )
 @click.option(
@@ -1134,19 +1122,16 @@ def build_docs(
     is_flag=True,
 )
 @click.option(
-    "--all-projects",
+    "--all-worktrees",
     help=(
-        "Also bring down docker compose projects whose names do not match any known "
-        "breeze prefix. Off by default to avoid touching unrelated projects on the host."
+        "Remove Breeze-owned resources across all checkouts, including leftover volumes. "
+        "Unrelated Docker projects are left alone."
     ),
     is_flag=True,
 )
 @click.option(
     "--project-name",
-    help=(
-        "Restrict the cleanup to a single docker compose project name and skip "
-        "discovery. Useful in CI steps that want to bring exactly one project down."
-    ),
+    help=("Restrict removal to this exact Compose project, without cleaning up other stale worktrees."),
     default=None,
 )
 @option_verbose
@@ -1156,24 +1141,25 @@ def down(
     cleanup_mypy_cache: bool,
     cleanup_pycache: bool,
     cleanup_build_cache: bool,
-    all_projects: bool,
+    all_worktrees: bool,
     project_name: str | None,
 ):
-    perform_environment_checks()
-    brought_down, skipped = bring_all_compose_projects_down(
+    if all_worktrees and project_name:
+        raise click.UsageError("--all-worktrees and --project-name cannot be used together.")
+    perform_environment_checks(cleanup_stale_worktrees=False)
+    brought_down = bring_compose_projects_down(
         preserve_volumes=preserve_volumes,
-        include_unknown=all_projects,
+        all_worktrees=all_worktrees,
         only_project=project_name,
+        current_worktree=str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else "",
     )
-    if not brought_down and not project_name:
-        console_print("[info]No running breeze-managed docker compose projects found.[/]")
-    elif brought_down:
-        console_print(f"[success]Brought down {len(brought_down)} compose project(s): {brought_down}[/]")
-    if skipped:
+    if brought_down:
+        action = "Would remove" if get_dry_run() else "Removed"
         console_print(
-            f"[warning]Left {len(skipped)} unrelated compose project(s) running: {skipped}\n"
-            f"Use `breeze down --all-projects` to also bring those down.[/]"
+            f"[success]{action} resources from {len(brought_down)} compose project(s): {brought_down}[/]"
         )
+    else:
+        console_print("[info]No matching Docker resources to remove.[/]")
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)
@@ -1318,9 +1304,7 @@ def doctor(ctx):
     if not get_dry_run() and given_answer == Answer.YES:
         cleanup_python_generated_files()
 
-    # Doctor is the heal-everything command, so it sweeps EVERY compose project
-    # on the host (not only the known-prefix ones that `breeze down` defaults to).
-    bring_all_compose_projects_down(preserve_volumes=False, include_unknown=True)
+    bring_compose_projects_down(all_worktrees=True)
 
     given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
     if given_answer == Answer.YES:

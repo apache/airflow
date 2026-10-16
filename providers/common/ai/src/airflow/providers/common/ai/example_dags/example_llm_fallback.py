@@ -24,9 +24,9 @@ Prerequisites:
   - Connection ``llm_primary_down`` with ``conn_type='pydanticai'``,
     ``host='http://127.0.0.1:9/v1'`` (a port nothing listens on, standing in for an
     outage), ``password=<any value>``, and
-    ``extra='{"model": "openai:gpt-4o-mini", "fallback_conn_ids": ["llm_fallback"]}'``
+    ``extra='{"model": "openai:gpt-5-mini", "fallback_conn_ids": ["llm_fallback"]}'``
   - Connection ``llm_primary_down_no_chain``: same as ``llm_primary_down`` but with
-    ``extra='{"model": "openai:gpt-4o-mini"}'`` (no ``fallback_conn_ids``) -- used by
+    ``extra='{"model": "openai:gpt-5-mini"}'`` (no ``fallback_conn_ids``) -- used by
     the operator-argument and hook-argument Dags, so the chain visibly comes from the
     task instead of the connection
   - Connection ``llm_fallback`` with ``conn_type='pydanticai'``,
