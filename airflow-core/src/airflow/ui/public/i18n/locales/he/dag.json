@@ -43,7 +43,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "חייב להסתיים תוך {{interval}} מ-{{reference}}",
-    "completionRuleDynamic": "יש להשלים בתוך מרווח זמן משתנה הנמדד מ-{{reference}}",
+    "completionRuleDynamic": "חייב להסתיים תוך מרווח זמן משתנה מ-{{reference}}",
     "count_one": "מועד אחד",
     "count_other": "{{count, number}} מועדים",
     "count_two": "{{count, number}} מועדים",
@@ -302,7 +302,7 @@
       "callback": "קריאה חוזרת",
       "deadline": "מועד יעד",
       "dependency": "תלות",
-      "metadata": "נתוני מטא",
+      "metadata": "מטא-נתונים",
       "param": "פרמטר",
       "provenance": "מקור",
       "schedule": "תזמון",
@@ -323,7 +323,7 @@
     "impacts": {
       "authorization": "הרשאה",
       "execution": "ביצוע",
-      "metadata": "נתוני מטא",
+      "metadata": "מטא-נתונים",
       "provenance": "מקור",
       "unknown": "לא ידוע"
     },

@@ -31,7 +31,7 @@
       "file_one": "קובץ",
       "file_other": "קבצים",
       "file_two": "קבצים",
-      "importErrorGone": "שגיאת הייבוא הזו אינה מתועדת עוד. כנראה שהיא תוקנה בניתוח מחדש.",
+      "importErrorGone": "שגיאת ייבוא זו אינה מתועדת עוד. כנראה שהיא תוקנה והניתוח מחדש זיהה זאת.",
       "neverParsed": "אף פעם",
       "showImportError_one": "הצג שגיאה",
       "showImportError_other": "הצגת {{count, number}} שגיאות",
