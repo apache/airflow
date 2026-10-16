@@ -137,7 +137,7 @@ from airflow_breeze.utils.path_utils import (
     FAB_AUTH_MANAGER_WWW_PREK_HOOK,
     PYCACHE_VOLUME_NAME,
     cleanup_python_generated_files,
-    get_isolated_worktree_path,
+    get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
@@ -1148,8 +1148,8 @@ def down(
     if all_worktrees and project_name:
         raise click.UsageError("--all-worktrees and --project-name cannot be used together.")
     perform_environment_checks(cleanup_stale_worktrees=False)
-    worktree = get_isolated_worktree_path()
-    current_worktree = str(worktree) if worktree else ""
+    # Resources keep this worktree's label when isolation is disabled later, so select them either way.
+    current_worktree = str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else ""
     brought_down = bring_compose_projects_down(
         preserve_volumes=preserve_volumes,
         all_worktrees=all_worktrees,

@@ -24,6 +24,7 @@ import os
 import platform
 import re
 import shlex
+import socket
 import subprocess
 import sys
 import time
@@ -664,27 +665,33 @@ def start_worktree_watcher_if_needed() -> None:
     if worktree is None or get_dry_run() or os.environ.get("CI") == "true":
         return
     lock_file = worktree / ".build" / WORKTREE_WATCHER_LOCK_FILE
-    if worktree_watcher.is_watcher_running(lock_file):
-        return
-    subprocess.Popen(
-        [
-            sys.executable,
-            "-I",
-            worktree_watcher.__file__,
-            "--worktree",
-            str(worktree),
-            "--host",
-            get_host_id(),
-            "--lock-file",
-            str(lock_file),
-        ],
-        # Keep the watcher out of the worktree it watches, and detached from this terminal session.
-        cwd="/",
-        stdin=DEVNULL,
-        stdout=DEVNULL,
-        stderr=DEVNULL,
-        start_new_session=True,
-    )
+    try:
+        if worktree_watcher.is_watcher_running(lock_file):
+            return
+        subprocess.Popen(
+            [
+                sys.executable,
+                "-I",
+                worktree_watcher.__file__,
+                "--worktree",
+                str(worktree),
+                "--host",
+                get_host_id(),
+                "--lock-file",
+                str(lock_file),
+            ],
+            # Keep the watcher out of the worktree it watches, and detached from this terminal session.
+            cwd="/",
+            stdin=DEVNULL,
+            stdout=DEVNULL,
+            stderr=DEVNULL,
+            start_new_session=True,
+        )
+    except OSError as error:
+        console_print(
+            f"[warning]Cannot start the worktree watcher: {error}. "
+            "Resources of this worktree will be removed by the next Breeze command after it is deleted.[/]"
+        )
 
 
 def get_docker_syntax_version() -> str:
@@ -877,7 +884,8 @@ def remove_stale_worktree_containers() -> None:
 def _belongs_to_deleted_worktree(worktree: str, host: str) -> bool:
     # Another host's paths cannot be checked here. Resources created before the host label existed
     # have no host and keep the local-path check.
-    if host and host != get_host_id():
+    # Resources created when the host id could not be stored carry the host name instead.
+    if host and host not in (get_host_id(), socket.gethostname()):
         return False
     return _worktree_is_missing(worktree)
 

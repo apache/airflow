@@ -49,8 +49,11 @@ from airflow_breeze.utils.docker_command_utils import (
 
 @pytest.mark.parametrize("listing_failed", [False, True])
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
+@mock.patch(
+    "airflow_breeze.utils.docker_command_utils.socket.gethostname", autospec=True, return_value="host-name"
+)
 def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_paths(
-    _host_id, tmp_path, make_worktree, listing_failed
+    _host_name, _host_id, tmp_path, make_worktree, listing_failed
 ):
     existing = make_worktree(tmp_path / "existing worktree")
     leftover = tmp_path / "leftover bind mounts"
@@ -62,6 +65,7 @@ def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_pa
         [
             f"stale\t{missing}\tthis-host",
             f"unlabelled-host\t{missing}\t<no value>",
+            f"host-name-fallback\t{missing}\thost-name",
             f"other-host\t{missing}\tother-host",
             f"leftover\t{leftover}\tthis-host",
             f"unlinked\t{unlinked}\tthis-host",
@@ -91,6 +95,7 @@ def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_pa
         else [
             ["docker", "rm", "--force", "--volumes", "stale"],
             ["docker", "rm", "--force", "--volumes", "unlabelled-host"],
+            ["docker", "rm", "--force", "--volumes", "host-name-fallback"],
             ["docker", "rm", "--force", "--volumes", "leftover"],
             ["docker", "rm", "--force", "--volumes", "unlinked"],
         ]
@@ -681,6 +686,35 @@ def test_start_worktree_watcher_if_needed(
     ]
     assert popen.call_args.kwargs["start_new_session"] is True
     assert popen.call_args.kwargs["cwd"] == "/"
+
+
+@pytest.mark.parametrize("failing", ["lock", "popen"])
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print", autospec=True)
+@mock.patch("airflow_breeze.utils.docker_command_utils.subprocess.Popen", autospec=True)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
+def test_start_worktree_watcher_if_needed_does_not_fail_the_command(
+    _host_id, popen, console_print, tmp_path, monkeypatch, failing
+):
+    monkeypatch.delenv("CI", raising=False)
+    if failing == "popen":
+        popen.side_effect = OSError("cannot start")
+    with (
+        mock.patch.object(
+            docker_command_utils, "get_isolated_worktree_path", autospec=True, return_value=tmp_path
+        ),
+        mock.patch.object(docker_command_utils, "get_dry_run", autospec=True, return_value=False),
+        mock.patch.object(
+            docker_command_utils.worktree_watcher,
+            "is_watcher_running",
+            autospec=True,
+            side_effect=PermissionError("root-owned lock") if failing == "lock" else None,
+            return_value=False,
+        ),
+    ):
+        docker_command_utils.start_worktree_watcher_if_needed()
+
+    console_print.assert_called_once()
+    assert "Cannot start the worktree watcher" in console_print.call_args.args[0]
 
 
 @pytest.mark.parametrize("all_worktrees", [False, True])

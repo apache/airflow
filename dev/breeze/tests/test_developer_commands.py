@@ -43,8 +43,10 @@ def test_down_rejects_conflicting_project_selectors(runner):
         )
 
 
+@pytest.mark.parametrize("isolation", ["true", "false"])
 @pytest.mark.parametrize("linked", [False, True])
-def test_down_preserves_volumes_without_startup_cleanup(runner, tmp_path, linked):
+def test_down_preserves_volumes_without_startup_cleanup(runner, tmp_path, monkeypatch, linked, isolation):
+    monkeypatch.setenv("BREEZE_WORKTREE_ISOLATION", isolation)
     with (
         patch(
             "airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True
@@ -59,17 +61,18 @@ def test_down_preserves_volumes_without_startup_cleanup(runner, tmp_path, linked
             autospec=True,
             return_value={},
         ),
+        patch("airflow_breeze.commands.developer_commands.AIRFLOW_ROOT_PATH", tmp_path),
         patch(
-            "airflow_breeze.commands.developer_commands.get_isolated_worktree_path",
+            "airflow_breeze.commands.developer_commands.get_main_git_dir_for_worktree",
             autospec=True,
-            return_value=tmp_path if linked else None,
+            return_value=tmp_path / ".git" if linked else None,
         ),
     ):
         result = runner.invoke(down, ["--preserve-volumes"])
     assert result.exit_code == 0
     checks.assert_called_once_with(cleanup_stale_worktrees=False)
     assert teardown.call_args.kwargs["preserve_volumes"] is True
-    assert teardown.call_args.kwargs["current_worktree"] == (str(tmp_path) if linked else "")
+    assert teardown.call_args.kwargs["current_worktree"] == (str(tmp_path.resolve()) if linked else "")
 
 
 @pytest.mark.parametrize(
@@ -93,17 +96,18 @@ def test_down_lists_projects_left_in_other_worktrees(runner, tmp_path, args, lis
             autospec=True,
             return_value={"/work/other": ["breeze-other-abc123", "breeze-other-abc123-tests"]},
         ) as find_others,
+        patch("airflow_breeze.commands.developer_commands.AIRFLOW_ROOT_PATH", tmp_path),
         patch(
-            "airflow_breeze.commands.developer_commands.get_isolated_worktree_path",
+            "airflow_breeze.commands.developer_commands.get_main_git_dir_for_worktree",
             autospec=True,
-            return_value=tmp_path,
+            return_value=tmp_path / ".git",
         ),
     ):
         result = runner.invoke(down, args)
     assert result.exit_code == 0
     output = " ".join(click.unstyle(result.output).split())
     if listed:
-        find_others.assert_called_once_with(str(tmp_path))
+        find_others.assert_called_once_with(str(tmp_path.resolve()))
         assert "/work/other: breeze-other-abc123, breeze-other-abc123-tests" in output
         assert "breeze down --all-worktrees" in output
     else:
