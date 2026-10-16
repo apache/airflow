@@ -349,6 +349,25 @@ def test_handle_event_submit_keeps_legacy_encoding(session, create_task_instance
     assert task_instance.next_kwargs == BaseSerialization.serialize({"count": 1, "event": "payload"})
 
 
+def test_handle_event_submit_fails_task_when_legacy_event_payload_cannot_be_serialized(
+    session, create_task_instance
+):
+    """Legacy-form rows must not resume with an unsupported payload cast to its ``str()``."""
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.next_method = "execute_complete"
+    task_instance.next_kwargs = BaseSerialization.serialize({"count": 1})
+    session.flush()
+
+    handle_event_submit(TriggerEvent({"data": b"abc"}), task_instance=task_instance, session=session)
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_method == "__fail__"
+    assert "event payload could not be serialized" in task_instance.next_kwargs["error"]
+
+
 def test_handle_event_submit_fails_task_when_the_event_payload_cannot_be_serialized(
     session, create_task_instance
 ):

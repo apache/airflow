@@ -610,7 +610,7 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
 
             serialized_next_kwargs = {
                 **next_kwargs_raw,
-                OLD_DATA: {**stored_kwargs, "event": BaseSerialization.serialize(event.payload)},
+                OLD_DATA: {**stored_kwargs, "event": BaseSerialization.serialize(event.payload, strict=True)},
             }
         else:
             serialized_next_kwargs = {**stored_kwargs, "event": serialize(event.payload)}
