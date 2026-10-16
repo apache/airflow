@@ -188,6 +188,23 @@ with DAG(
             },
             section="Drop-Downs and selection lists",
         ),
+        # The options of a drop-down can depend on the value of another param
+        "country": Param(
+            "Germany",
+            type="string",
+            title="Country",
+            enum=["Germany", "France"],
+            section="Drop-Downs and selection lists",
+        ),
+        "city": Param(
+            "Berlin",
+            type=["null", "string"],
+            title="City",
+            description="The options depend on the country. Change the country and the city is cleared.",
+            depends_on="country",
+            options_map={"Germany": ["Berlin", "Munich"], "France": ["Paris", "Lyon"]},
+            section="Drop-Downs and selection lists",
+        ),
         # If you want to have a list box with proposals but not enforcing a fixed list
         # then you can use the examples feature of JSON schema
         "proposals": Param(
