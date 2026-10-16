@@ -55,6 +55,8 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
+    RUNS_ON_AMD_RUNNER_TEMPLATE,
+    RUNS_ON_ARM_RUNNER_TEMPLATE,
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATION_OWNERS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
@@ -94,6 +96,7 @@ LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 AREA_E2E_TESTS_LABEL = "area:e2e-tests"
@@ -2137,6 +2140,96 @@ class SelectiveChecks:
     @cached_property
     def arm_runners(self) -> str:
         return PUBLIC_ARM_RUNNERS
+
+    @cached_property
+    def runner_type(self) -> str:
+        """Runner labels for the jobs of a CI run on this run's platform.
+
+        The RunsOn label is a template the jobs fill in with their size class.
+        """
+        # RunsOn needs the run id in the label; without one (e.g. a local run) the jobs would never start.
+        run_id = self._github_context_dict.get("run_id")
+        if not run_id or not self._use_runs_on_runners():
+            return PUBLIC_ARM_RUNNERS if self._platform == CI_ARM_PLATFORM else PUBLIC_AMD_RUNNERS
+        template = (
+            RUNS_ON_ARM_RUNNER_TEMPLATE if self._platform == CI_ARM_PLATFORM else RUNS_ON_AMD_RUNNER_TEMPLATE
+        )
+        return json.dumps([template.format(run_id=run_id)])
+
+    def _use_runs_on_runners(self) -> bool:
+        """Whether this run may use the self-hosted RunsOn runners.
+
+        Code that runs on them can reach the RunsOn stack's AWS resources, so only code from
+        apache/airflow itself goes there: pushes, schedules and dispatches, and PRs from its own
+        branches except bots' (e.g. Dependabot's), which carry code nobody has reviewed. A PR from a fork
+        goes there only after a committer adds the ``use self-hosted runners`` label.
+        """
+        if self._github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
+            return False
+        if USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
+            return False
+        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
+            return True
+        if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+        if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels and self._self_hosted_label_added_by_committer():
+            return True
+        if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
+            return False
+        pull_request = self._github_context_dict.get("event", {}).get("pull_request", {})
+        # The PR author, not github.actor: a committer rebasing a Dependabot PR becomes the actor.
+        # The branch too: anyone can open their own PR from a Dependabot branch.
+        if (pull_request.get("user") or {}).get("type") == "Bot" or (
+            pull_request.get("head", {}).get("ref", "").startswith("dependabot/")
+        ):
+            return False
+        # A PR from a deleted fork has no head repo.
+        head_repo = (pull_request.get("head", {}).get("repo") or {}).get("full_name")
+        return head_repo == APACHE_AIRFLOW_GITHUB_REPOSITORY
+
+    def _self_hosted_label_added_by_committer(self) -> bool:
+        """Whether the ``use self-hosted runners`` label was last added by a committer and not removed since.
+
+        Triage collaborators can label PRs too, including their own, so the label alone does not
+        show that a committer vouched for the PR. Any failure to tell counts as "no".
+        """
+        # Lazy: breeze keeps its top-level imports minimal (check-breeze-top-dependencies-limited).
+        import requests
+
+        pr_number = self._github_context_dict.get("event", {}).get("pull_request", {}).get("number")
+        url: str | None = (
+            f"https://api.github.com/repos/{self._github_repository}/issues/{pr_number}/events?per_page=100"
+        )
+        headers = {"Accept": "application/vnd.github+json"}
+        if token := os.environ.get("GITHUB_TOKEN"):
+            headers["Authorization"] = f"Bearer {token}"
+        labeled_by = None
+        try:
+            while url:
+                response = requests.get(url, headers=headers, timeout=30)
+                response.raise_for_status()
+                for event in response.json():
+                    if (event.get("label") or {}).get("name") != USE_SELF_HOSTED_RUNNERS_LABEL:
+                        continue
+                    # A re-run reuses the labels of its original event, so a later removal must count.
+                    if event.get("event") == "labeled":
+                        labeled_by = (event.get("actor") or {}).get("login")
+                    elif event.get("event") == "unlabeled":
+                        labeled_by = None
+                url = response.links.get("next", {}).get("url")
+        # AttributeError / TypeError: a 200 whose body is not the expected list of events.
+        except (requests.RequestException, AttributeError, TypeError) as e:
+            console_print(
+                f"[warning]Could not tell who added the {USE_SELF_HOSTED_RUNNERS_LABEL!r} label: {e}"
+            )
+            return False
+        if (labeled_by or "").casefold() not in {committer.casefold() for committer in COMMITTERS}:
+            console_print(
+                f"[warning]Ignoring the {USE_SELF_HOSTED_RUNNERS_LABEL!r} label: "
+                f"added by {labeled_by}, who is not in COMMITTERS"
+            )
+            return False
+        return True
 
     @cached_property
     def has_migrations(self) -> bool:

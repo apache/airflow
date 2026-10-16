@@ -85,7 +85,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: Generate constraints for ${{ matrix.python-version }} on ${{ inputs.platform }}
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     strategy:
       fail-fast: false
       max-parallel: 20

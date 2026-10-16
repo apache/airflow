@@ -128,7 +128,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.python-versions) }}
     timeout-minutes: 110
     name: "Build CI ${{ inputs.platform }} image ${{ matrix.python-version }}"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     env:
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -147,6 +147,14 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
+      # A local action is read from the workspace, and `checkout-ref` may be a release ref cut
+      # before the stash actions existed, so they are loaded from the workflow's own version.
+      - name: "Checkout the workflow version for its actions"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          path: workflow-version
+          sparse-checkout: .github/actions
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
@@ -163,8 +171,7 @@ jobs:
       - name: >
           Restore the commit the CI image stashed for ref ${{ inputs.image-stash-ref }}
           was built from
-        # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
+        uses: ./workflow-version/.github/actions/stash-restore
         with:
           key: "ci-image-commit-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -197,8 +204,7 @@ jobs:
       - name: >
           Restore CI docker image built for ref ${{ inputs.image-stash-ref }}
           ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-        # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
+        uses: ./workflow-version/.github/actions/stash-restore
         with:
           key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -244,8 +250,7 @@ jobs:
           --cache-file /tmp/ci-cache-mount-save-v4-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
       - name: "Restore CI docker image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
+        uses: ./workflow-version/.github/actions/stash-restore
         with:
           key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
           path: "/mnt/"
@@ -336,7 +341,7 @@ jobs:
         shell: bash
         if: inputs.upload-image-artifact == 'true' && steps.stashed-image.outputs.reusable != 'true'
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
+        uses: ./workflow-version/.github/actions/stash-save
         with:
           key: ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
@@ -350,7 +355,7 @@ jobs:
       # what a later publish of that same ref reads - hence a retention that outlives the shared
       # one, the same ref being rebuilt three days apart at the very least.
       - name: "Stash CI docker image built for ref ${{ inputs.image-stash-ref }}"
-        uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
+        uses: ./workflow-version/.github/actions/stash-save
         with:
           key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -364,7 +369,7 @@ jobs:
       # Saved last and with the image's retention, so that finding this commit is enough to
       # know the image it describes is there to be restored.
       - name: "Stash the commit the CI image for ref ${{ inputs.image-stash-ref }} was built from"
-        uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
+        uses: ./workflow-version/.github/actions/stash-save
         with:
           key: "ci-image-commit-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"

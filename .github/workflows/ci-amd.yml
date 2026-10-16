@@ -20,8 +20,9 @@
 # `release-branch-ci.yml`. Companion to `ci-arm.yml`, which runs the same pipeline on ARM as the
 # scheduled canary. The two workflows are physical copies of each other
 # (GitHub Actions has no cross-file YAML include), differing only in their
-# trigger surface, the hardcoded `runner-type` / `platform` values in
-# `build-info`'s outputs, and the architecture-specific print-platform job.
+# trigger surface, the hardcoded `platform` value in `build-info`'s outputs
+# (and the `PLATFORM` selective checks pick the runner type for), and the
+# architecture-specific print-platform job.
 # Edit both files together when changing pipeline shape.
 name: Tests (AMD)
 on:  # yamllint disable-line rule:truthy
@@ -200,7 +201,7 @@ jobs:
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      # platform / runner-type are hardcoded per workflow file (this is the
+      # platform is hardcoded per workflow file (this is the
       # AMD copy). The matching ARM copy lives in ci-arm.yml.
       platform: "linux/amd64"
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
@@ -242,7 +243,7 @@ jobs:
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
-      runner-type: '["ubuntu-22.04"]'
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
@@ -461,7 +462,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy providers checks"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
     if: needs.build-info.outputs.run-mypy-providers == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -502,7 +503,7 @@ jobs:
     timeout-minutes: 20
     name: "Migration round-trip check"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     if: needs.build-info.outputs.has-migrations == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -624,7 +625,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -653,7 +654,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -682,7 +683,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -712,7 +713,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -741,7 +742,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -772,7 +773,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -803,7 +804,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -833,7 +834,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -919,7 +920,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -949,7 +950,7 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -1060,7 +1061,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 32, 128) }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1076,7 +1077,7 @@ jobs:
   tests-go-sdk:
     name: "Go SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1130,7 +1131,7 @@ jobs:
   tests-ts-sdk:
     name: "TypeScript SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1164,7 +1165,7 @@ jobs:
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 32, 128) }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1194,7 +1195,7 @@ jobs:
   build-java-sdk-docs:
     name: "Java SDK docs"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1226,7 +1227,7 @@ jobs:
   build-ts-sdk-docs:
     name: "TypeScript SDK docs"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 4, 16) }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1263,7 +1264,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 4, 16) }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1284,7 +1285,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, 8, 32) }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -1474,7 +1475,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], 8, 32) }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"
