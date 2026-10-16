@@ -22,6 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.providers.common.ai.durable import storage as storage_module
+from airflow.providers.common.ai.durable.journal import DurableJournal
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.compat.sdk import ObjectStoragePath
 
@@ -124,6 +125,95 @@ class TestDeleteSteps:
 
     def test_deleting_when_there_is_no_file_does_not_raise(self, storage):
         storage.delete_steps(["a"])
+
+
+def store_down():
+    return patch.object(DurableStorage, "_write", autospec=True, side_effect=OSError("store unavailable"))
+
+
+class TestStoreFailures:
+    def test_a_failed_write_skips_the_step_without_raising(self, storage):
+        with store_down(), patch.object(storage_module, "log") as mock_log:
+            assert not storage.save_step("k", ENTRY)
+
+        assert storage.load_step("k") is None
+        mock_log.warning.assert_called_once()
+
+    def test_a_failed_write_keeps_the_previous_value_of_a_step(self, storage):
+        storage.save_step("meta", {"high_water": 1})
+
+        with store_down():
+            assert not storage.save_step("meta", {"high_water": 2})
+
+        assert storage.load_step("meta") == {"high_water": 1}
+
+    def test_an_entry_that_cannot_be_encoded_keeps_the_previous_value_of_a_step(self, storage):
+        storage.save_step("meta", {"high_water": 1})
+
+        assert not storage.save_step("meta", {"high_water": object()})
+
+        assert storage.load_step("meta") == {"high_water": 1}
+
+    def test_a_skipped_step_is_not_written_by_a_later_save(self, storage, tmp_path):
+        with store_down():
+            storage.save_step("skipped", ENTRY)
+        storage.save_step("written", ENTRY)
+
+        (journal_file,) = tmp_path.iterdir()
+        assert set(json.loads(journal_file.read_text())) == {"written"}
+
+    def test_an_outage_after_the_work_succeeded_does_not_fail_the_task(self, storage):
+        journal = DurableJournal(storage)
+        first, second = journal.start_run(), journal.start_run()
+        first.save(0, ENTRY)
+        second.save(0, ENTRY)
+
+        with store_down():
+            journal.cleanup()
+
+    def test_an_outage_does_not_replace_the_error_the_run_failed_with(self, storage):
+        run = DurableJournal(storage).start_run()
+        run.save(0, ENTRY)
+
+        with store_down():
+            run.fail(RuntimeError("the agent's own error"))
+
+
+class TestUnreadableJournal:
+    @pytest.mark.parametrize(
+        "content",
+        [
+            pytest.param("{truncated", id="cut off mid-write"),
+            pytest.param('["not", "a", "journal"]', id="not a JSON object"),
+        ],
+    )
+    def test_a_corrupt_journal_is_reported_and_started_over(self, storage, content):
+        storage._get_path().write_text(content)
+
+        with patch.object(storage_module, "log") as mock_log:
+            assert storage.load_step("k") is None
+        mock_log.warning.assert_called_once()
+
+        assert storage.save_step("k", ENTRY)
+        assert storage.load_step("k") == ENTRY
+
+    def test_a_journal_that_cannot_be_read_is_not_overwritten(self, storage):
+        storage.save_step("k", ENTRY)
+        attempt = DurableStorage(dag_id="test_dag", task_id="my_task", run_id="run_1", map_index=-1)
+
+        with (
+            patch.object(ObjectStoragePath, "read_text", side_effect=OSError("read timed out")),
+            patch.object(storage_module, "log") as mock_log,
+        ):
+            assert attempt.load_step("k") is None
+        mock_log.warning.assert_called_once()
+
+        assert not attempt.save_step("new", ENTRY)
+        attempt.delete_steps(["k"])
+
+        retry = DurableStorage(dag_id="test_dag", task_id="my_task", run_id="run_1", map_index=-1)
+        assert retry.load_step("k") == ENTRY
+        assert retry.load_step("new") is None
 
 
 class TestMissingConfig:
