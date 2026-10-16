@@ -1650,50 +1650,15 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
-# Temporary: google-cloud-aiplatform 1.164.0 is the first release whose "evaluation" extra
-# allows the litellm versions that carry the Python 3.14 security fixes, and it was published
-# 2026-08-12, inside the "4 days" exclude-newer window. This pins the per-package cutoff just
-# past that release so 1.164.0 resolves while any later release stays quarantined.
-# Remove once the rolling window advances past 2026-08-12.
-google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-# Temporary: typesafe-sdk>=0.6.0 (required by the apache-airflow-providers-common-ai[typesafe]
-# extra) first shipped on 2026-09-18, inside the "4 days" exclude-newer window. This pins the
-# per-package cutoff just past that release so it resolves while any later release stays
-# quarantined.
-# Remove once the rolling window advances past 2026-09-18.
-typesafe-sdk = "2026-09-19T00:00:00Z"
-# Temporary: boat-sdk 1.9.3 (adds the create request's monitoring field, required by the
-# apache-airflow-providers-common-ai[boat] floor) was published 2026-10-10, inside the
-# "4 days" exclude-newer window. This pins the per-package cutoff just past that release so
-# 1.9.3 resolves while any later release stays quarantined.
-# Remove once the rolling window advances past 2026-10-10.
-boat-sdk = "2026-10-11T00:00:00Z"
-# Temporary: pydantic 2.14.0 and pydantic-core 2.50.0 are the first releases with Python 3.15 wheels
-# for the core runtime. Both were published 2026-10-08, inside the "4 days" exclude-newer window.
-# Remove once the rolling window advances past 2026-10-08.
-pydantic = "2026-10-09T00:00:00Z"
-pydantic-core = "2026-10-09T00:00:00Z"
-# Temporary: httptools 0.9.0 (Python 3.15 wheels for the core runtime) was published 2026-10-09,
-# inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-09.
-httptools = "2026-10-10T00:00:00Z"
-# Temporary: aiohttp 3.14.5 (Python 3.15 wheels for the core and provider runtimes) was published
-# 2026-10-11, inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-11.
-aiohttp = "2026-10-12T00:00:00Z"
-# Temporary: pyarrow 26.0.0 (Python 3.15 wheels for the provider and dev runtimes) was published
-# 2026-10-09, inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-09.
-pyarrow = "2026-10-10T00:00:00Z"
-# Temporary: sqlalchemy-utils 0.43.0 (the first release that works with SQLAlchemy 2.1, which the Python 3.15 floor selects) was
-# published 2026-10-09, inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-09.
-sqlalchemy-utils = "2026-10-10T00:00:00Z"
-# Temporary: ijson 3.6.0 (Python 3.15 wheels) was published 2026-10-12, inside the "4 days" exclude-newer window.
-# Remove once the rolling window advances past 2026-10-12.
-ijson = "2026-10-13T00:00:00Z"
-# Temporary: pendulum 3.3.0 (Python 3.15 wheels) was published 2026-10-12, inside the "4 days" exclude-newer window.
-# Remove once the rolling window advances past 2026-10-12.
-pendulum = "2026-10-13T00:00:00Z"
-# Temporary: pyvespa 1.2.9 (the first release declaring Python 3.14 and 3.15 support) was published 2026-10-13,
-# inside the "4 days" exclude-newer window. Remove once the rolling window advances past 2026-10-13.
-pyvespa = "2026-10-14T00:00:00Z"
+# Temporary: zope.interface 8.7 (Python 3.15 wheels, required by gevent) was published 2026-10-15.
+# Remove once the "4 days" rolling window advances past 2026-10-15.
+zope-interface = "2026-10-16T00:00:00Z"
+# Temporary: ormsgpack 1.13.0 adds Python 3.15 wheels; published 2026-10-15.
+# Remove once the "4 days" rolling window advances past 2026-10-15.
+ormsgpack = "2026-10-16T00:00:00Z"
+# Temporary: lazy-object-proxy 1.13.0 adds Python 3.15 support; published 2026-10-17.
+# Remove once the "4 days" rolling window advances past 2026-10-17.
+lazy-object-proxy = "2026-10-18T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
@@ -1877,12 +1842,9 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-# Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
-google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-# Temporary: see the typesafe-sdk note in `[tool.uv.exclude-newer-package]`.
-typesafe-sdk = "2026-09-19T00:00:00Z"
-# Temporary: see the boat-sdk note in `[tool.uv.exclude-newer-package]`.
-boat-sdk = "2026-10-11T00:00:00Z"
+zope-interface = "2026-10-16T00:00:00Z"
+ormsgpack = "2026-10-16T00:00:00Z"
+lazy-object-proxy = "2026-10-18T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
