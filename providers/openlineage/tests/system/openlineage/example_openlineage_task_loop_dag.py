@@ -29,8 +29,8 @@ It checks, for a plain task, tasks in a loop, a mapped task in a loop and the lo
     - the loop groups' `max_iterations`, `has_until`, `gate_task_id` and `terminal_task_id`, in the task's
       `task_group` and in the `taskGroups` of the Dag's job facet
     - a retried task emits START and FAIL for each failed try, then START and COMPLETE for the last one
-    - every execution (iteration, map index, try) has its own runId, shared by its START and COMPLETE/FAIL
-      (the runId check of OpenLineageTestOperator is enabled by default)
+    - every execution (iteration, map index, try) has its own `runId`, shared by its START and COMPLETE/FAIL
+      (the `runId` check of OpenLineageTestOperator is enabled by default)
 """
 
 from __future__ import annotations
