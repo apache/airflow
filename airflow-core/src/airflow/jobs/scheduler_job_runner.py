@@ -2004,6 +2004,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self._emit_dag_runs_metric,
             )
 
+            timers.call_regular_interval(
+                conf.getfloat("scheduler", "dagrun_metrics_interval", fallback=30.0),
+                self._emit_schedule_overdue_metric,
+            )
+
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
             self._find_and_purge_task_instances_without_heartbeats,
@@ -3681,6 +3686,33 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             counts[state] = int(count)
         stats.gauge("scheduler.dagruns.running", float(counts.get(DagRunState.RUNNING, 0)))
         stats.gauge("scheduler.dagruns.queued", float(counts.get(DagRunState.QUEUED, 0)))
+
+    @provide_session
+    def _emit_schedule_overdue_metric(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Emit how long each time-scheduled Dag held back by ``max_active_runs`` has been due.
+
+        ``DagModel.dags_needing_dagruns`` skips Dags at ``max_active_runs``, so their next run
+        is never created and nothing is queued. Only Dags in that state are emitted.
+        """
+        now = timezone.utcnow()
+        stmt = select(DM.dag_id, DM.next_dagrun_create_after).where(
+            DM.is_paused == expression.false(),
+            DM.is_draining == expression.false(),
+            DM.is_stale == expression.false(),
+            DM.has_import_errors == expression.false(),
+            DM.timetable_asset_gated == expression.false(),
+            DM.exceeds_max_non_backfill == expression.true(),
+            DM.next_dagrun_create_after <= now,
+        )
+        for dag_id, create_after in session.execute(stmt):
+            if create_after is None:
+                continue
+            stats.gauge(
+                "dag.schedule_overdue_seconds",
+                (now - create_after).total_seconds(),
+                tags={"dag_id": dag_id},
+            )
 
     @provide_session
     def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
