@@ -492,26 +492,23 @@ class TestDocxParser:
         )
 
     @pytest.mark.parametrize(
-        ("add_grid_element", "expected_row"),
+        ("grid_before", "grid_after", "expected_row"),
         [
-            pytest.param(
-                lambda tr: tr.get_or_add_trPr().get_or_add_gridBefore(), "|  |  | x |", id="grid-before"
-            ),
-            pytest.param(
-                lambda tr: tr.get_or_add_trPr().get_or_add_gridAfter(), "| x |  |  |", id="grid-after"
-            ),
-            pytest.param(
-                lambda tr: tr.tc_lst[0].get_or_add_tcPr().get_or_add_gridSpan(), "| x |  |", id="grid-span"
-            ),
+            pytest.param(1000, 0, "|  | x |", id="grid-before"),
+            pytest.param(0, 1000, "| x |  |", id="grid-after"),
+            pytest.param(1000, 1000, "|  | x |", id="grid-before-and-after"),
+            pytest.param(-5, 1000, "| x |  |", id="negative-grid-before"),
         ],
     )
-    def test_docx_grid_values_capped_at_column_count(self, add_grid_element, expected_row):
+    def test_docx_grid_values_capped_at_column_count(self, grid_before, grid_after, expected_row):
         doc = _create_docx()
         table = doc.add_table(rows=2, cols=2)
         _fill_docx_table(table, [["a", "b"], ["x", ""]])
         row = table.rows[1]._tr
         row.remove(row.tc_lst[1])
-        add_grid_element(row).val = 1000
+        tr_pr = row.get_or_add_trPr()
+        tr_pr.get_or_add_gridBefore().val = grid_before
+        tr_pr.get_or_add_gridAfter().val = grid_after
 
         assert _load_docx_text(_get_docx_bytes(doc)) == f"| a | b |\n{expected_row}"
 
@@ -530,6 +527,22 @@ class TestDocxParser:
                 '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}gridSpan")',
                 id="gridspan-without-val",
             ),
+            pytest.param(
+                lambda tc_pr: setattr(tc_pr.get_or_add_gridSpan(), "val", 100_000_000),
+                "ValueError('w:gridSpan 100000000 of cell 1 does not fit the 2 table columns')",
+                id="gridspan-wider-than-table",
+            ),
+            pytest.param(
+                lambda tc_pr: setattr(tc_pr.get_or_add_gridSpan(), "val", 0),
+                "ValueError('w:gridSpan 0 of cell 1 does not fit the 2 table columns')",
+                id="gridspan-zero",
+            ),
+            pytest.param(
+                # The first cell spans both columns on its own, so the second cell is one too many.
+                lambda tc_pr: setattr(tc_pr.get_or_add_gridSpan(), "val", 2),
+                "ValueError('w:gridSpan 1 of cell 2 does not fit the 2 table columns')",
+                id="gridspans-together-wider-than-table",
+            ),
         ],
     )
     def test_docx_unreadable_table_skipped_with_warning(self, break_first_cell, error, caplog):
@@ -544,6 +557,21 @@ class TestDocxParser:
         assert (
             f"Skipping a table in <bytes:.docx> that python-docx could not read: {error}" in caplog.messages
         )
+
+    def test_docx_unreadable_nested_table_skipped_with_warning(self, caplog):
+        doc = _create_docx()
+        doc.add_paragraph("Before")
+        outer = doc.add_table(rows=2, cols=2)
+        _fill_docx_table(outer, [["Name", "Qty"], ["Apple", ""]])
+        nested = outer.cell(1, 1).add_table(rows=2, cols=2)
+        nested.cell(0, 0)._tc.get_or_add_tcPr().get_or_add_vMerge()
+        doc.add_paragraph("After")
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "Before\n\n| Name | Qty |\n| Apple |  |\n\nAfter"
+        assert (
+            "Skipping a table in <bytes:.docx> that python-docx could not read: "
+            "ValueError('no tr above topmost tr in w:tbl')"
+        ) in caplog.messages
 
     @patch.object(
         DocumentLoaderOperator,
