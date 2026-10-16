@@ -5099,10 +5099,26 @@ class TestBulkDagRuns:
         assert dag_run.note == "bulk note"
         assert dag_run.state == DAG1_RUN1_STATE
 
+    @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    @pytest.mark.parametrize(
+        ("existing_note", "new_note", "expected_note"),
+        [
+            pytest.param(None, "new note", "new note", id="new-note"),
+            pytest.param("old note", "new note", "new note", id="replace-stale-note"),
+            pytest.param("old note", "", None, id="empty-string-clears-note"),
+        ],
+    )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_bulk_update_listener_sees_note_when_note_and_state_both_updated(
-        self, test_client, listener_manager
+        self, test_client, listener_manager, session, state, existing_note, new_note, expected_note
     ):
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        dag_run.state = DagRunState.RUNNING
+        if existing_note is not None:
+            dag_run.note = (existing_note, "not_test")
+        session.commit()
         listener = ClassBasedListener()
         listener_manager(listener)
         response = test_client.patch(
@@ -5111,16 +5127,17 @@ class TestBulkDagRuns:
                 "actions": [
                     {
                         "action": "update",
-                        "entities": [
-                            {"dag_run_id": DAG1_RUN2_ID, "state": "success", "note": "listener_note"}
-                        ],
+                        "entities": [{"dag_run_id": DAG1_RUN2_ID, "state": state, "note": new_note}],
                     }
                 ]
             },
         )
         assert response.status_code == 200
-        assert response.json()["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN2_ID}"]
-        assert listener.dag_run_note_at_listener == "listener_note"
+        body = response.json()
+        assert body["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        assert body["update"]["errors"] == []
+        assert listener.state == [state]
+        assert listener.dag_run_note_at_listener == expected_note
 
     def test_bulk_update_not_found_fails(self, test_client, session):
         """FAIL semantics: a single missing run fails the whole action and nothing is updated."""
