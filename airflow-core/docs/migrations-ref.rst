@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``c71065a1b14f`` (head) | ``ee86eed19e24`` | ``3.5.0``         | Add session_id and registration_id to Job.                   |
+| ``a4f3c8d19e72`` (head) | ``c71065a1b14f`` | ``3.5.0``         | Allow bundle priority parsing requests.                      |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``c71065a1b14f``        | ``ee86eed19e24`` | ``3.5.0``         | Add session_id and registration_id to Job.                   |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``ee86eed19e24``        | ``9cffe90fa0c0`` | ``3.4.0``         | Add pending_partition_key to asset_partition_dag_run and     |
 |                         |                  |                   | enforce single pending row per key.                          |
