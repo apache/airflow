@@ -47,7 +47,7 @@
   "dag_two": "Dags",
   "dagBundle_one": "חבילת Dag",
   "dagBundle_other": "חבילות Dag",
-  "dagBundle_two": "שתי חבילות Dag",
+  "dagBundle_two": "חבילות Dag",
   "dagDetails": {
     "activeRuns": "הרצות פעילות",
     "catchup": "השלמה אוטומטית",
@@ -135,7 +135,7 @@
   },
   "event_one": "אירוע",
   "event_other": "אירועים",
-  "event_two": "שני אירועים",
+  "event_two": "אירועים",
   "expand": {
     "collapse": "כווץ",
     "expand": "הרחב",
@@ -222,7 +222,7 @@
   "overallStatus": "סטטוס כללי",
   "partition_one": "מחיצה",
   "partition_other": "מחיצות",
-  "partition_two": "שתי מחיצות",
+  "partition_two": "מחיצות",
   "partitionedDagRun_one": "הרצת Dag מחולקת",
   "partitionedDagRun_other": "הרצות Dag מחולקות",
   "partitionedDagRun_two": "הרצות Dag מחולקות",
@@ -401,7 +401,7 @@
   "slot": "חריץ",
   "slot_one": "חריץ",
   "slot_other": "חריצים",
-  "slot_two": "שני חריצים",
+  "slot_two": "חריצים",
   "source": {
     "hide": "הסתר מקור",
     "hotkey": "s",

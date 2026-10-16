@@ -23,7 +23,7 @@
   "favorite": {
     "favoriteDags_one": "ה-Dag המועדף הראשון",
     "favoriteDags_other": "{{count, number}} ה-Dags המועדפים הראשונים",
-    "favoriteDags_two": "שני ה-Dags המועדפים הראשונים",
+    "favoriteDags_two": "{{count, number}} ה-Dags המועדפים הראשונים",
     "noDagRuns": "אין עדיין הרצת Dag עבור Dag זה.",
     "noFavoriteDags": "אין עדיין מועדפים. לחץ על סמל הכוכב ליד Dag ברשימה כדי להוסיף אותו למועדפים."
   },

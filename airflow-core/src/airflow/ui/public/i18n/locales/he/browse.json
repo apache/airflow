@@ -30,7 +30,7 @@
       },
       "file_one": "קובץ",
       "file_other": "קבצים",
-      "file_two": "שני קבצים",
+      "file_two": "קבצים",
       "importErrorGone": "שגיאת הייבוא הזו אינה מתועדת עוד. כנראה שהיא תוקנה בניתוח מחדש.",
       "neverParsed": "אף פעם",
       "showImportError_one": "הצג שגיאה",
@@ -91,7 +91,7 @@
     },
     "entry_one": "רשומת XCom",
     "entry_other": "רשומות XCom",
-    "entry_two": "שתי רשומות XCom",
+    "entry_two": "רשומות XCom",
     "key": "מפתח",
     "title": "XCom",
     "value": "ערך"

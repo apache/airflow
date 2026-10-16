@@ -12,7 +12,7 @@
     },
     "config_one": "הגדרה",
     "config_other": "הגדרות",
-    "config_two": "שתי הגדרות"
+    "config_two": "הגדרות"
   },
   "connections": {
     "add": "הוסף חיבור חדש",
@@ -28,7 +28,7 @@
     "delete": {
       "deleteConnection_one": "מחק חיבור",
       "deleteConnection_other": "מחק {{count, number}} חיבורים",
-      "deleteConnection_two": "מחק שני חיבורים",
+      "deleteConnection_two": "מחק {{count, number}} חיבורים",
       "firstConfirmMessage_one": "אתה עומד למחוק את החיבור הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את החיבורים הבאים:",
       "firstConfirmMessage_two": "אתה עומד למחוק את החיבורים הבאים:",
@@ -104,7 +104,7 @@
     },
     "job_one": "עבודה",
     "job_other": "עבודות",
-    "job_two": "שתי עבודות"
+    "job_two": "עבודות"
   },
   "plugins": {
     "columns": {
@@ -115,7 +115,7 @@
     "importError_two": "שגיאות בייבוא תוסף",
     "plugin_one": "תוסף",
     "plugin_other": "תוספים",
-    "plugin_two": "שני תוספים",
+    "plugin_two": "תוספים",
     "searchPlaceholder": "חפש לפי קובץ"
   },
   "pools": {
@@ -153,7 +153,7 @@
     },
     "provider_one": "חבילת עזר",
     "provider_other": "חבילות עזר",
-    "provider_two": "שתי חבילות עזר"
+    "provider_two": "חבילות עזר"
   },
   "variables": {
     "add": "הוסף משתנה",
@@ -163,7 +163,7 @@
     "delete": {
       "deleteVariable_one": "מחר משתנה אחד",
       "deleteVariable_other": "מחק {{count, number}} משתנים",
-      "deleteVariable_two": "מחק שני משתנים",
+      "deleteVariable_two": "מחק {{count, number}} משתנים",
       "firstConfirmMessage_one": "אתה עומד למחוק את מאגר המשאבים הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
       "firstConfirmMessage_two": "אתה עומד למחוק את מאגרי המשאבים הבאים:",

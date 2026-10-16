@@ -2,7 +2,7 @@
   "backfill": {
     "affected_one": "ריצה אחת תופעל.",
     "affected_other": "{{count, number}} ריצות יופעלו.",
-    "affected_two": "שתי ריצות יופעלו.",
+    "affected_two": "{{count, number}} ריצות יופעלו.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
@@ -62,7 +62,7 @@
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
     "warning_one": "אזהרה אחת",
     "warning_other": "{{count, number}} אזהרות",
-    "warning_two": "שתי אזהרות"
+    "warning_two": "{{count, number}} אזהרות"
   },
   "dateRangeFilter": {
     "validation": {
@@ -75,10 +75,10 @@
     "duration": "משך זמן (שניות)",
     "lastDagRun_one": "ריצת Dag אחרונה",
     "lastDagRun_other": "{{count, number}} ריצות Dag אחרונות",
-    "lastDagRun_two": "שתי ריצות Dag אחרונות",
+    "lastDagRun_two": "{{count, number}} ריצות Dag אחרונות",
     "lastTaskInstance_one": "מופע משימה אחרונה",
     "lastTaskInstance_other": "{{count, number}} מופעי משימות אחרונות",
-    "lastTaskInstance_two": "שני מופעי משימות אחרונות",
+    "lastTaskInstance_two": "{{count, number}} מופעי משימות אחרונות",
     "medianTotalDuration": "סה״כ: {{duration}}",
     "queuedDuration": "זמן המתנה בתור",
     "runAfter": "הרץ אחרי",
@@ -87,7 +87,7 @@
   "fileUpload": {
     "files_one": "קובץ אחד",
     "files_other": "{{count, number}} קבצים",
-    "files_two": "שני קבצים"
+    "files_two": "{{count, number}} קבצים"
   },
   "flexibleForm": {
     "durationPlaceholder": "הזן משך זמן בפורמט ISO 8601",
@@ -112,7 +112,7 @@
     "otherDagRuns": "+ ריצות Dag נוספות",
     "taskCount_one": "משימה אחת",
     "taskCount_other": "{{count, number}} משימות",
-    "taskCount_two": "שתי משימות",
+    "taskCount_two": "{{count, number}} משימות",
     "taskGroup": "קבוצת משימות",
     "zoomToTask": "התמקד במשימה שנבחרה"
   },
@@ -125,13 +125,13 @@
   "limitedList.allItems": "כל {{count, number}} הפריטים:",
   "limitedList.allTags_one": "כל התגיות (1)",
   "limitedList.allTags_other": "כל התגיות ({{count, number}})",
-  "limitedList.allTags_two": "כל התגיות (2)",
+  "limitedList.allTags_two": "כל התגיות ({{count, number}})",
   "limitedList.clickToInteract": "לחץ על תגית כדי לסנן Dags",
   "limitedList.clickToOpenFull": "לחץ על \"+{{count, number}} נוספים\" כדי לפתוח את התצוגה המלאה",
   "limitedList.copyPasteText": "ניתן להעתיק ולהדביק את הטקסט שמעל",
   "limitedList.showingItems_one": "מציג פריט אחד",
   "limitedList.showingItems_other": "מציג {{count, number}} פריטים",
-  "limitedList.showingItems_two": "מציג שני פריטים",
+  "limitedList.showingItems_two": "מציג {{count, number}} פריטים",
   "logs": {
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"

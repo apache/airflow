@@ -252,7 +252,7 @@
     "emptyStore": "מאגר מצבי המשימות שומר ערכים הנשמרים בין ניסיונות חוזרים. עובדים יכולים לכתוב למאגר מצבי המשימות באמצעות Task SDK.",
     "entry_one": "רשומה",
     "entry_other": "רשומות",
-    "entry_two": "שתי רשומות",
+    "entry_two": "רשומות",
     "expiresAt": {
       "column": "תקף עד",
       "custom": "מותאם אישית",
@@ -308,7 +308,7 @@
     },
     "record_one": "רשומה",
     "record_other": "רשומות",
-    "record_two": "שתי רשומות",
+    "record_two": "רשומות",
     "selectPrompt": "בחר שתי גרסאות כדי לראות את ההבדלים ביניהן.",
     "summary_one": "{{count, number}} שינוי · סכימה לאחר סריאליזציה {{baseSchema}} → {{targetSchema}}",
     "summary_other": "{{count, number}} שינויים · סכימה מסודרת {{baseSchema}} → {{targetSchema}}",
