@@ -2913,8 +2913,10 @@ scheduler:
       default: "1000"
     use_job_schedule:
       description: |
-        Set to ``False`` to stop the scheduler creating Dag runs from Dag timetables.
-        Manually triggered and asset-triggered Dag runs are still created.
+        Set to ``False`` to stop the scheduler creating Dag runs on its own, whether a Dag is due
+        by its timetable or has received asset events. Manually triggered Dag runs and backfills
+        are still created. Asset events received while this is off stay queued and create their
+        runs once it is turned back on.
       version_added: 1.10.2
       type: boolean
       example: ~
