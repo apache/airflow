@@ -194,7 +194,11 @@ def _redact_structure(obj):
 
 
 def _find_option_values(
-    command: list[str], option_strings: tuple[str, ...], *, allow_abbrev: bool
+    command: list[str],
+    option_strings: tuple[str, ...],
+    *,
+    allow_abbrev: bool,
+    other_values: frozenset[str] = frozenset(),
 ) -> list[tuple[int, str]]:
     """
     Locate every value given for an option in a recorded command, in any accepted spelling.
@@ -207,6 +211,11 @@ def _find_option_values(
     Every occurrence is returned: argparse keeps the last one, but all of them were typed.
     Abbreviations and short options are only matched with ``allow_abbrev``, i.e. when the
     parsed namespace confirms the command takes this option.
+
+    A short option can also follow grouped flags (``-vpVALUE``, ``-vp VALUE``). The cluster is
+    walked until the option is found, unless the rest of the cluster is one of
+    ``other_values``, i.e. the parsed value of a preceding short option (``-uapple`` for a
+    username ``apple``).
     """
     long_options = [o for o in option_strings if o.startswith("--")]
     short_options = [o for o in option_strings if not o.startswith("--")] if allow_abbrev else []
@@ -225,16 +234,36 @@ def _find_option_values(
                 positions.append((idx, f"{name}="))
             elif idx + 1 < len(command):
                 positions.append((idx + 1, ""))
-        else:
-            for option in short_options:
-                if argument == option:
-                    if idx + 1 < len(command):
-                        positions.append((idx + 1, ""))
-                elif argument.startswith(f"{option}="):
-                    positions.append((idx, f"{option}="))
-                elif argument.startswith(option):
-                    positions.append((idx, option))
+        elif argument.startswith("-") and short_options:
+            prefix = _find_short_option_prefix(argument, short_options, other_values)
+            if prefix is None:
+                continue
+            if prefix:
+                positions.append((idx, prefix))
+            elif idx + 1 < len(command):
+                positions.append((idx + 1, ""))
     return positions
+
+
+def _find_short_option_prefix(
+    argument: str, short_options: list[str], other_values: frozenset[str]
+) -> str | None:
+    """
+    Return the part of a short-option token that precedes the option value.
+
+    ``None`` means the token does not carry the option; an empty string means the value is
+    the next command element.
+    """
+    for pos in range(1, len(argument)):
+        char = argument[pos]
+        if not char.isalnum() or (pos > 1 and argument[pos:] in other_values):
+            return None
+        if f"-{char}" in short_options:
+            rest = argument[pos + 1 :]
+            if not rest:
+                return ""
+            return argument[: pos + 1] + ("=" if rest.startswith("=") else "")
+    return None
 
 
 def _redact_json_argument(value: str) -> str:
@@ -266,6 +295,10 @@ def _redact_uri_argument(value: str) -> str:
     """
     from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+    if value.count("://") > 1:
+        # ``Connection`` accepts a protocol in the host: ``http://https://user:pass@host``.
+        scheme, separator, rest = value.partition("://")
+        return f"{scheme}{separator}{_redact_uri_argument(rest)}"
     try:
         parsed_uri = urlparse(value)
         has_password = parsed_uri.password is not None
@@ -286,7 +319,8 @@ def _redact_uri_argument(value: str) -> str:
             elif _should_hide_key(key):
                 redacted_params.append((key, MASKED_VALUE))
             else:
-                redacted_params.append((key, item))
+                # ``Connection`` parses every query value as JSON into ``extra``.
+                redacted_params.append((key, _redact_structure(item)))
         if redacted_params != params:
             query = urlencode(redacted_params, safe="*")
 
@@ -310,6 +344,10 @@ def _mask_value_token(argument: str, value: str, redact) -> str:
     return argument
 
 
+def _get_other_string_values(parsed: dict, dest: str) -> frozenset[str]:
+    return frozenset(v for k, v in parsed.items() if k != dest and isinstance(v, str) and v)
+
+
 def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
     """
     Mask secrets supplied through any supported argument spelling in the recorded command line.
@@ -320,25 +358,36 @@ def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
     parsed = vars(namespace) if isinstance(namespace, Namespace) else {}
     full_command = list(full_command)
 
+    # argparse stores a default for every option of the command, so presence in the namespace,
+    # not the truthiness of the last value, tells whether the command takes the option: a final
+    # empty value (``--password ''``) must not unmask the earlier occurrences.
     for dest, option_strings in _SECRET_OPTIONS.items():
-        value = parsed.get(dest)
-        if not isinstance(value, str) or not value:
+        if dest not in parsed:
             continue
-        for idx, prefix in _find_option_values(full_command, option_strings, allow_abbrev=True):
+        value = parsed[dest]
+        for idx, prefix in _find_option_values(
+            full_command,
+            option_strings,
+            allow_abbrev=True,
+            other_values=_get_other_string_values(parsed, dest),
+        ):
             full_command[idx] = prefix + MASKED_VALUE
-        full_command = [
-            _mask_value_token(argument, value, lambda _: MASKED_VALUE) for argument in full_command
-        ]
+        if isinstance(value, str) and value:
+            full_command = [
+                _mask_value_token(argument, value, lambda _: MASKED_VALUE) for argument in full_command
+            ]
 
     for options, redact in ((_JSON_OPTIONS, _redact_json_argument), (_URI_OPTIONS, _redact_uri_argument)):
         for dest, option_strings in options.items():
             value = parsed.get(dest)
-            # Some of these options parse their JSON on the way in (``--env-vars``), so a dict or
-            # list in the namespace also means the command takes the option.
-            in_namespace = isinstance(value, (str, dict, list)) and bool(value)
-            for idx, prefix in _find_option_values(full_command, option_strings, allow_abbrev=in_namespace):
+            for idx, prefix in _find_option_values(
+                full_command,
+                option_strings,
+                allow_abbrev=dest in parsed,
+                other_values=_get_other_string_values(parsed, dest),
+            ):
                 full_command[idx] = prefix + redact(full_command[idx][len(prefix) :])
-            if in_namespace and isinstance(value, str):
+            if isinstance(value, str) and value:
                 full_command = [_mask_value_token(argument, value, redact) for argument in full_command]
 
     return full_command
