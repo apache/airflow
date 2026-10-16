@@ -113,6 +113,42 @@ class TestAwsEksExecutor:
         with pytest.raises(ValueError, match=rf"{key} itself.*my_company.build_client"):
             AwsEksExecutor(**_team_kwargs(team_name))
 
+    @REQUIRES_MULTI_TEAM
+    @pytest.mark.parametrize(
+        ("env", "file_config", "key"),
+        [
+            pytest.param(
+                {"AIRFLOW__TEAM_A___AWS_EKS_EXECUTOR__CLUSTER_NAME": "team-cluster"},
+                {("aws_eks_executor", "cluster_name"): None},
+                "cluster_name",
+                id="env-var-without-global-cluster",
+            ),
+            pytest.param(
+                {"AIRFLOW__TEAM_A___AWS_EKS_EXECUTOR__CONN_ID": "team_aws"},
+                {},
+                "conn_id",
+                id="env-var-for-option-with-default",
+            ),
+            pytest.param(
+                {},
+                {("team_a=aws_eks_executor", "region_name"): "eu-west-1"},
+                "region_name",
+                id="config-file-section",
+            ),
+        ],
+    )
+    def test_team_eks_config_raises(self, monkeypatch, env, file_config, key):
+        for name, value in env.items():
+            monkeypatch.setenv(name, value)
+
+        with (
+            conf_vars(file_config),
+            pytest.raises(
+                ValueError, match=rf"team-specific \[aws_eks_executor\].*team team_a sets {key}\..*74844"
+            ),
+        ):
+            AwsEksExecutor(team_name="team_a")
+
     @pytest.mark.parametrize(
         ("executors", "team_name", "conflict"),
         [

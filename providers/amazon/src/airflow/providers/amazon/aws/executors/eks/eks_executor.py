@@ -73,9 +73,10 @@ class AwsEksExecutor(KubernetesExecutor):
     supports_multi_team: bool = True
 
     def __init__(self, *args, **kwargs):
-        self._validate_eks_config()
         super().__init__(*args, **kwargs)
-        # Both need team_name, which super().__init__ sets.
+        # These need team_name, which super().__init__ sets.
+        self._check_no_team_eks_config()
+        self._validate_eks_config()
         self._check_no_kubernetes_executor_in_scope()
         self._ensure_client_factory()
 
@@ -157,6 +158,24 @@ class AwsEksExecutor(KubernetesExecutor):
             raise ValueError(
                 f"AwsEksExecutor requires [{CONFIG_GROUP_NAME}] cluster_name to be set. "
                 "Set it in airflow.cfg or with AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME."
+            )
+
+    def _check_no_team_eks_config(self) -> None:
+        # [aws_eks_executor] is only read globally for now, so refuse team values rather than ignore them.
+        if not self.team_name:
+            return
+        # self.conf looks options up for this team only, falling back to the built-in defaults.
+        team_keys = sorted(
+            key
+            for key in AllEksConfigKeys()
+            if self.conf.get(CONFIG_GROUP_NAME, key, fallback=None) not in (None, CONFIG_DEFAULTS.get(key))
+        )
+        if team_keys:
+            raise ValueError(
+                f"AwsEksExecutor doesn't support team-specific [{CONFIG_GROUP_NAME}] config yet, but team "
+                f"{self.team_name} sets {', '.join(team_keys)}. Set these in the global "
+                f"[{CONFIG_GROUP_NAME}] section instead. Per-team clusters are tracked at "
+                "https://github.com/apache/airflow/issues/74844"
             )
 
     def _check_no_kubernetes_executor_in_scope(self) -> None:
