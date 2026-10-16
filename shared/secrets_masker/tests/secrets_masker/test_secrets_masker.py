@@ -870,10 +870,12 @@ class TestShouldHideValueForKey:
             ("authHeader", True),
             ("keyfileDict", True),
             ("serviceAccount", True),
+            ("serviceAccountName", True),
             ("serviceKey", True),
             ("apiKey", True),
             ("APIKey", True),
             ("accessToken", True),
+            ("oauth2Token", True),
             ("proxyPassword", True),
             # camelCase keys that do not contain a sensitive field stay visible.
             ("primaryKey", False),
@@ -1267,6 +1269,21 @@ class TestMixedDataScenarios:
             assert "***" in redacted_data["description"]
             assert redacted_data["nested"]["token"] == "***"
             assert redacted_data["nested"]["info"] == "No secrets here"
+
+    def test_nested_camel_case_keys(self):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+
+        data = {"connection": {"privateKey": "pk", "connectionString": "cs", "serviceName": "svc"}}
+
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
+            redacted_data = redact(data)
+
+        assert redacted_data == {
+            "connection": {"privateKey": "***", "connectionString": "***", "serviceName": "svc"}
+        }
 
 
 class TestSecretsMaskerMerge:
