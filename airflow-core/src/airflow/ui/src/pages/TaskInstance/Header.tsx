@@ -30,6 +30,7 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
+import { LoopDecisionReason } from "src/components/LoopDecisionReason";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
 import ReactMarkdown from "src/components/ReactMarkdown";
@@ -75,6 +76,9 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     groupId: loopIteration?.loop_id ?? "",
     runId: taskInstance.dag_run_id,
   });
+  const decisionReason = loopSummary?.iterations.find(
+    (iteration) => iteration.index === loopIteration?.iteration,
+  )?.decision_reason;
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -90,6 +94,14 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           {
             label: translate("common:filters.iteration"),
             value: `${loopIteration.iteration}/${loopSummary?.iterations_ran ?? loopIteration.iteration}`,
+          },
+        ]),
+    ...(decisionReason === undefined
+      ? []
+      : [
+          {
+            label: translate("taskInstance.loopDecision"),
+            value: <LoopDecisionReason reason={decisionReason} />,
           },
         ]),
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },

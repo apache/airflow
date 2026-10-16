@@ -4761,6 +4761,7 @@ export class XcomService {
      * @param data.mapIndex
      * @param data.regionId
      * @param data.regionIndex
+     * @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
      * @param data.limit
      * @param data.offset
      * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4799,6 +4800,7 @@ export class XcomService {
                 map_index: data.mapIndex,
                 region_id: data.regionId,
                 region_index: data.regionIndex,
+                exclude_internal_keys: data.excludeInternalKeys,
                 limit: data.limit,
                 offset: data.offset,
                 xcom_key_pattern: data.xcomKeyPattern,

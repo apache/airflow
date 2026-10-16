@@ -474,6 +474,7 @@
     "hostname": "Hostname",
     "id": "ID",
     "iteration": "Iteration",
+    "loopDecision": "Decision",
     "loopIterations": "Iterations run",
     "maxTries": "Max Tries",
     "pid": "PID",
