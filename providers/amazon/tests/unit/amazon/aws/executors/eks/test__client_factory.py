@@ -20,6 +20,7 @@ import inspect
 import os
 import signal
 import tempfile
+import threading
 from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -130,22 +131,40 @@ class TestGetEksKubeClient:
         assert args.args[1].startswith("https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity")
         assert args.kwargs["session"] is mock_aws["eks_hook"].get_session.return_value
 
-    def test_restores_callers_sts_regional_endpoints(self, mock_aws, monkeypatch):
+    def test_concurrent_builds_never_change_sts_regional_endpoints_env_var(self, mock_aws, monkeypatch):
         monkeypatch.setenv("AWS_STS_REGIONAL_ENDPOINTS", "legacy")
-        seen_by_sts_hook = []
-        mock_aws["sts_hook_cls"].side_effect = lambda **_: (
-            seen_by_sts_hook.append(os.environ["AWS_STS_REGIONAL_ENDPOINTS"]) or mock.DEFAULT
-        )
-        mock_aws["eks_hook"].get_session.return_value = boto3.Session(
+        mock_aws["eks_hook"].get_session.side_effect = lambda: boto3.Session(
             aws_access_key_id="testing", aws_secret_access_key="testing", region_name="us-east-1"
         )
         mock_aws["fetch_token"].side_effect = fetch_access_token_for_cluster
+        env_writes = []
+        environ_cls = type(os.environ)
+        for method in ("__setitem__", "__delitem__"):
+            real = getattr(environ_cls, method)
+            monkeypatch.setattr(
+                environ_cls,
+                method,
+                lambda self, key, *args, _real=real: env_writes.append(key) or _real(self, key, *args),
+            )
+        seen = set()
+        building = threading.Event()
 
-        configuration = _get_eks_kube_client().api_client.configuration
+        def watch():
+            while building.is_set():
+                seen.add(os.environ.get("AWS_STS_REGIONAL_ENDPOINTS"))
 
-        assert seen_by_sts_hook == ["regional"]
-        assert os.environ["AWS_STS_REGIONAL_ENDPOINTS"] == "legacy"
-        assert configuration.auth_settings()["BearerToken"]["value"].startswith("Bearer k8s-aws-v1.")
+        building.set()
+        watcher = threading.Thread(target=watch)
+        watcher.start()
+        try:
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                list(pool.map(lambda _: _get_eks_kube_client(), range(16)))
+        finally:
+            building.clear()
+            watcher.join()
+
+        assert "AWS_STS_REGIONAL_ENDPOINTS" not in env_writes
+        assert seen == {"legacy"}
 
     def test_builds_share_one_ca_file(self, mock_aws, ca_dir):
         paths = {_get_eks_kube_client().api_client.configuration.ssl_ca_cert for _ in range(5)}

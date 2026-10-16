@@ -19,8 +19,6 @@ from __future__ import annotations
 import argparse
 import base64
 import os
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 
 import boto3
@@ -51,22 +49,7 @@ def get_parser():
     return parser
 
 
-@contextmanager
-def regional_sts_endpoints() -> Iterator[None]:
-    """Make STS clients created in this block use the regional endpoint, then restore the previous setting."""
-    previous = os.environ.get("AWS_STS_REGIONAL_ENDPOINTS")
-    os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
-    try:
-        yield
-    finally:
-        if previous is None:
-            os.environ.pop("AWS_STS_REGIONAL_ENDPOINTS", None)
-        else:
-            os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = previous
-
-
-# The token is very picky that the STS endpoint is regional, which some regions do not default to.
-@regional_sts_endpoints()
+# EKS only accepts the token if sts_url is the regional STS endpoint. The URL is signed as given.
 def fetch_access_token_for_cluster(
     eks_cluster_name: str, sts_url: str, region_name: str, session: boto3.Session | None = None
 ) -> str:
@@ -114,6 +97,9 @@ def fetch_access_token_for_cluster(
 
 
 def main():
+    # Keeps any STS call made here for credentials regional too. This is the kubeconfig exec plugin's
+    # own short-lived process, so setting the env var can't affect another thread.
+    os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
     parser = get_parser()
     args = parser.parse_args()
     access_token = fetch_access_token_for_cluster(
