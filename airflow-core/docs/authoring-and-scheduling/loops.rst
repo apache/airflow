@@ -122,7 +122,8 @@ Returning a ``LoopDecision(stop=..., reason=...)`` instead of a ``bool`` lets yo
 detailed information about why the loop continued or finished. ``stop`` has the same meaning as the
 plain ``bool`` return value. The ``reason`` field is optional text, written by the Dag author, that
 the Airflow UI shows next to the iteration's outcome, for example ``error 0.17, needs < 1e-06``. It
-is limited to 512 bytes of UTF-8; anything longer will result in the gate task failing outright.
+is limited to 512 bytes of UTF-8; anything longer will result in the gate task failing outright. This
+decision will then show up in the UI on Task Instance Details section of the gate task.
 
 The reason is also recorded when the loop fails because it reached ``max_iterations`` without
 stopping.
@@ -351,9 +352,8 @@ In the Grid, select the loop's task group in a Dag run to open its Task Instance
 tab. The **Iteration** filter narrows the table to one iteration, or shows
 **All iterations**, and the **Iteration** column shows which iteration each task
 instance belongs to. The gate's state and logs explain why the loop continued,
-stopped, or failed. When ``until`` returned a ``LoopDecision`` with a reason, the
-Iteration filter shows that reason next to the iteration. Each task's tries and
-logs remain accessible within its iteration.
+stopped, or failed. Each task's tries and logs remain accessible within its
+iteration.
 
 Iterations cleared by a rerun are kept as history but are not shown in the UI
 in 3.4.0.

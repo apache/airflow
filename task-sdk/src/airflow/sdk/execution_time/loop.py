@@ -102,16 +102,19 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
                     f"until must return a bool or LoopDecision, got {type(result).__name__}"
                 )
     if reason is not None:
-        # Mask here, where mask_secret() registered the value: the API server showing it later does not.
+        # Mask here, where we can know what the task has masked.
         reason = cast("str", redact(reason))
         try:
-            size = len(reason.encode())
+            encoded = reason.encode()
         except UnicodeEncodeError:
             raise AirflowFailException("LoopDecision reason must be valid UTF-8")
+        size = len(encoded)
         if size > LOOP_DECISION_REASON_MAX_BYTES:
             raise AirflowFailException(
                 f"LoopDecision reason must be at most {LOOP_DECISION_REASON_MAX_BYTES} bytes of UTF-8"
             )
+        if "\x00" in reason:
+            raise AirflowFailException("LoopDecision reason cannot contain NUL bytes")
     ti._loop_decision = LoopDecisionPayload(stop=stop, reason=reason)
     suffix = "" if reason is None else f": {reason}"
     if not stop and loop.index + 1 >= loop.max_iterations:

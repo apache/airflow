@@ -98,9 +98,12 @@ class LoopDecisionPayload(StrictBaseModel):
 
     @field_validator("reason")
     @classmethod
-    def _check_reason_size(cls, reason: str | None) -> str | None:
-        if reason is not None and len(reason.encode()) > LOOP_DECISION_REASON_MAX_BYTES:
-            raise ValueError(f"must be at most {LOOP_DECISION_REASON_MAX_BYTES} bytes of UTF-8")
+    def _check_reason(cls, reason: str | None) -> str | None:
+        if reason is not None:
+            if len(reason.encode()) > LOOP_DECISION_REASON_MAX_BYTES:
+                raise ValueError(f"must be at most {LOOP_DECISION_REASON_MAX_BYTES} bytes of UTF-8")
+            if "\x00" in reason:
+                raise ValueError("cannot contain NUL bytes")
         return reason
 
 
