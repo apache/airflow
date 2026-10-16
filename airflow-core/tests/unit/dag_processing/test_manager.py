@@ -2445,9 +2445,11 @@ class TestDagFileProcessorManager:
         assert not manager._file_queue
         assert not manager._files_awaiting_source
 
+    @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
-    def test_periodic_refresh_drains_imports_before_admitting_more(self, persist, create):
+    def test_periodic_refresh_drains_imports_before_admitting_more(self, persist, create, monotonic):
+        monotonic.return_value = 300
         manager = DagFileProcessorManager(max_runs=1, bundle_refresh_check_interval=300)
         bundle = self._make_refresh_bundle(supports_versioning=True, current_version="v2")
         bundle.refresh_interval = 300
@@ -2455,7 +2457,7 @@ class TestDagFileProcessorManager:
         manager._bundle_parse_sources[bundle.name] = DagParseSource(bundle_version="v1")
         active = DagFileInfo(bundle_name=bundle.name, rel_path=Path("active.py"))
         queued = DagFileInfo(bundle_name=bundle.name, rel_path=Path("queued.py"))
-        processor, _ = self.mock_processor()
+        processor, _ = self.mock_processor(start_time=monotonic.return_value - 1)
         processor.had_callbacks = False
         processor.parse_source = DagParseSource(bundle_version="v1")
         processor.parsing_result = DagFileParsingResult(fileloc="active.py", serialized_dags=[])
@@ -2466,6 +2468,7 @@ class TestDagFileProcessorManager:
         manager._start_new_processes()
         bundle.refresh.assert_not_called()
         create.assert_not_called()
+        assert manager._bundles_last_refreshed == 300
         assert manager._bundles_waiting_for_refresh == {bundle.name}
 
         manager._collect_results()
