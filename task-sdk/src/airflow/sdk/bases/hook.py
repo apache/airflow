@@ -95,8 +95,8 @@ class BaseHook(LoggingMixin):
 
         Use this instead of :meth:`get_hook` when calling from an async context
         (e.g. inside ``aexecute``).  Calling the sync :meth:`get_hook` from the
-        event loop thread blocks the loop and can cause a deadlock when another
-        coroutine is concurrently communicating with the supervisor.
+        event loop thread blocks the loop, and every other coroutine on it, for
+        its round trip to the supervisor.
 
         :param conn_id: connection id
         :param hook_params: hook parameters
