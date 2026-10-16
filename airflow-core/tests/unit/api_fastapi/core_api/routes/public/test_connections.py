@@ -1039,6 +1039,27 @@ class TestPatchConnection(TestConnectionEndpoint):
         db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
         assert json.loads(db_conn.extra) == {key: "secret-config", "tag": "updated"}
 
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        autospec=True,
+        return_value={"apprise": frozenset({"config"})},
+    )
+    def test_patch_does_not_carry_provider_sensitive_extra_to_another_type(self, _, test_client, session):
+        session.add(
+            Connection(conn_id=TEST_CONN_ID, conn_type="apprise", extra='{"config": "secret-config"}')
+        )
+        session.commit()
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": "http", "extra": '{"config": "***"}'},
+        )
+
+        assert response.status_code == 200
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == {"config": "***"}
+
     def test_patch_with_update_mask_validates_extra_as_json(self, test_client):
         """When update_mask includes 'extra', the extra field validator should still reject invalid JSON."""
         self.create_connection()
@@ -1380,6 +1401,28 @@ class TestConnection(TestConnectionEndpoint):
 
         assert response.status_code == 200
         assert json.loads(captured_extra["value"]) == {"path": "/secret"}
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        autospec=True,
+        return_value={"fs": frozenset({"path"})},
+    )
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_not_reuse_provider_sensitive_extra_for_another_type(self, _, test_client, session):
+        session.add(Connection(conn_id=TEST_CONN_ID, conn_type="fs", extra='{"path": "/secret"}'))
+        session.commit()
+        captured_extra = {}
+
+        def mock_test_connection(self):
+            captured_extra["value"] = self.extra
+            return True, "mocked"
+
+        body = {"connection_id": TEST_CONN_ID, "conn_type": "sqlite", "extra": '{"path": "***"}'}
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert json.loads(captured_extra["value"]) == {"path": "***"}
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_merge_both_password_and_extra(self, test_client, session):

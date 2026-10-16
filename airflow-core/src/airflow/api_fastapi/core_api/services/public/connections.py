@@ -44,7 +44,6 @@ def update_orm_from_pydantic(
     orm_conn: Connection, pydantic_conn: ConnectionBody, update_mask: list[str] | None = None
 ) -> None:
     """Update ORM object from Pydantic object."""
-    # The response masked extra by the stored type, before any conn_type change below is applied.
     stored_conn_type = orm_conn.conn_type
     # Not all fields match and some need setters, therefore copy partly manually via setters
     non_update_fields = {"connection_id", "conn_id"}
@@ -78,7 +77,9 @@ def update_orm_from_pydantic(
         try:
             old_extra = json.loads(orm_conn.extra)
             merged_extra = merge(json.loads(pydantic_conn.extra), old_extra)
-            merged_extra = restore_provider_sensitive_extra(merged_extra, old_extra, stored_conn_type)
+            # A secret declared by one provider must not be handed to another type's hook.
+            if orm_conn.conn_type == stored_conn_type:
+                merged_extra = restore_provider_sensitive_extra(merged_extra, old_extra, stored_conn_type)
             orm_conn.set_extra(json.dumps(merged_extra))
         except json.JSONDecodeError:
             # We can't merge fields in an unstructured `extra`
