@@ -22,11 +22,13 @@ import os
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.providers.amazon.aws.executors.eks.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
     AllEksConfigKeys,
 )
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, conf
 
 if TYPE_CHECKING:
@@ -55,6 +57,8 @@ if "client_factory" not in (
 _FACTORY_MODULE = "airflow.providers.amazon.aws.executors.eks._client_factory"
 _CLIENT_FACTORY_PATH = f"{_FACTORY_MODULE}._get_eks_kube_client"
 _ASYNC_CLIENT_FACTORY_PATH = f"{_FACTORY_MODULE}._get_eks_async_kube_client"
+# Airflow 2 hybrid executors that wrap a KubernetesExecutor.
+_HYBRID_KUBERNETES_EXECUTORS = ("CeleryKubernetesExecutor", "LocalKubernetesExecutor")
 
 
 class AwsEksExecutor(KubernetesExecutor):
@@ -71,7 +75,8 @@ class AwsEksExecutor(KubernetesExecutor):
     def __init__(self, *args, **kwargs):
         self._validate_eks_config()
         super().__init__(*args, **kwargs)
-        # Needs team_name, which super().__init__ sets.
+        # Both need team_name, which super().__init__ sets.
+        self._check_no_kubernetes_executor_in_scope()
         self._ensure_client_factory()
 
     def start(self) -> None:
@@ -154,6 +159,31 @@ class AwsEksExecutor(KubernetesExecutor):
                 "Set it in airflow.cfg or with AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME."
             )
 
+    def _check_no_kubernetes_executor_in_scope(self) -> None:
+        executor_names = (
+            ExecutorLoader.get_executor_names(validate_teams=False)
+            if AIRFLOW_V_3_2_PLUS
+            else ExecutorLoader.get_executor_names()
+        )
+        for executor_name in executor_names:
+            # ExecutorName has no team_name before Airflow 3.1.
+            if getattr(executor_name, "team_name", None) != self.team_name:
+                continue
+            executor_cls, _ = ExecutorLoader.import_executor_cls(executor_name)
+            if issubclass(executor_cls, AwsEksExecutor) or not (
+                issubclass(executor_cls, KubernetesExecutor)
+                or executor_cls.__name__ in _HYBRID_KUBERNETES_EXECUTORS
+            ):
+                continue
+            scope = f"team {self.team_name}" if self.team_name else "the global scope"
+            raise ValueError(
+                f"AwsEksExecutor can't run alongside {executor_cls.__name__} in {scope}. AwsEksExecutor "
+                f"sets the [kubernetes_executor] client factory for {scope}, so {executor_cls.__name__} "
+                "would silently send its pods to the EKS cluster. Configure the two executors for "
+                "different teams, or don't use them together. "
+                "See https://github.com/apache/airflow/issues/74844"
+            )
+
     def _ensure_client_factory(self) -> None:
         # A team's factory is looked up in team config only, with no global fallback.
         team_name = self.team_name
@@ -170,5 +200,8 @@ class AwsEksExecutor(KubernetesExecutor):
                     f"it is set to {configured}"
                 )
             if not configured:
-                # An env var, not conf.set, so the spawned pod watcher process sees it too.
+                # An env var, not conf.set, so the spawned pod watcher process sees it too. A plain
+                # KubernetesExecutor in the same scope reads it as well, which
+                # _check_no_kubernetes_executor_in_scope refuses; replacing this env var is tracked at
+                # https://github.com/apache/airflow/issues/74844
                 os.environ[f"{env_var_prefix}KUBERNETES_EXECUTOR__{key.upper()}"] = path

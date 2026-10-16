@@ -206,6 +206,10 @@ the same way the Kubernetes executor does. Teams share the cluster set in the gl
 team-scoped :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor` settings,
 such as the namespace and pod template.
 
+The executor refuses to start next to a Kubernetes executor in the same team, or when both are
+global, because that Kubernetes executor would also send its pods to the EKS cluster; configure
+them for different teams instead (see `#74844 <https://github.com/apache/airflow/issues/74844>`__).
+
 Fault tolerance
 ---------------
 

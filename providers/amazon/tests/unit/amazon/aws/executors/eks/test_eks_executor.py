@@ -20,6 +20,7 @@ import importlib
 import os
 import sys
 import time
+from contextlib import nullcontext
 from unittest import mock
 
 import pytest
@@ -41,15 +42,20 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 EKS_EXECUTOR_MODULE = "airflow.providers.amazon.aws.executors.eks.eks_executor"
+EKS_EXECUTOR_PATH = f"{EKS_EXECUTOR_MODULE}.AwsEksExecutor"
+LOCAL_KUBERNETES_EXECUTOR_PATH = (
+    "airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor.LocalKubernetesExecutor"
+)
 WORKER_IMAGE = "my-account.dkr.ecr.us-east-1.amazonaws.com/airflow:3"
 CLIENT_FACTORY_ENV_VAR = "AIRFLOW__KUBERNETES_EXECUTOR__CLIENT_FACTORY"
+REQUIRES_MULTI_TEAM = pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
 TEAMS = [
     pytest.param(None, "AIRFLOW__", id="global"),
     pytest.param(
         "team_a",
         "AIRFLOW__TEAM_A___",
         id="team",
-        marks=pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+"),
+        marks=REQUIRES_MULTI_TEAM,
     ),
 ]
 
@@ -105,6 +111,48 @@ class TestAwsEksExecutor:
         monkeypatch.setenv(f"{env_prefix}KUBERNETES_EXECUTOR__{key.upper()}", "my_company.build_client")
 
         with pytest.raises(ValueError, match=rf"{key} itself.*my_company.build_client"):
+            AwsEksExecutor(**_team_kwargs(team_name))
+
+    @pytest.mark.parametrize(
+        ("executors", "team_name", "conflict"),
+        [
+            pytest.param(
+                f"KubernetesExecutor,{EKS_EXECUTOR_PATH}",
+                None,
+                "KubernetesExecutor in the global scope",
+                id="both-global",
+            ),
+            pytest.param(
+                f"{LOCAL_KUBERNETES_EXECUTOR_PATH},{EKS_EXECUTOR_PATH}",
+                None,
+                "LocalKubernetesExecutor in the global scope",
+                id="hybrid-global",
+            ),
+            pytest.param(
+                f"LocalExecutor;team_a=KubernetesExecutor,{EKS_EXECUTOR_PATH}",
+                "team_a",
+                "KubernetesExecutor in team team_a",
+                id="both-same-team",
+                marks=REQUIRES_MULTI_TEAM,
+            ),
+            pytest.param(
+                f"KubernetesExecutor;team_a={EKS_EXECUTOR_PATH}",
+                "team_a",
+                None,
+                id="global-kubernetes-team-eks",
+                marks=REQUIRES_MULTI_TEAM,
+            ),
+            pytest.param(EKS_EXECUTOR_PATH, None, None, id="eks-alone"),
+        ],
+    )
+    @pytest.mark.usefixtures("clean_executor_loader")
+    def test_refuses_kubernetes_executor_in_same_scope(self, executors, team_name, conflict):
+        expectation = (
+            pytest.raises(ValueError, match=rf"alongside {conflict}\..*issues/74844")
+            if conflict
+            else nullcontext()
+        )
+        with conf_vars({("core", "executor"): executors, ("core", "multi_team"): "True"}), expectation:
             AwsEksExecutor(**_team_kwargs(team_name))
 
     @pytest.mark.parametrize("check_health", [True, False])
