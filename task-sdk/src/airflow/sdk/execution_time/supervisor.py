@@ -1740,6 +1740,9 @@ class ActivitySubprocess(WatchedSubprocess):
             return
         ti_context = prepared
 
+        if ti_context.execution_timeout is not None:
+            self._arm_execution_timeout(ti_context.execution_timeout)
+
         # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
         # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
         # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
@@ -1996,13 +1999,16 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         Enforce ``execution_timeout`` from outside the task process.
 
-        The task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the only
-        place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that can
-        still run Python signal handlers; one that has not reported a terminal state within the grace period
-        is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
+        A Python task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the
+        only place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that
+        can still run Python signal handlers; one that has not reported a terminal state within the grace
+        period is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
-        The deadline is armed by ``SetExecutionTimeout``, which the task process sends right before
-        ``execute()``. Anything before that (bundle load, Dag parsing) is not covered here.
+        For a Python task, ``SetExecutionTimeout`` arms the deadline right before ``execute()``, so bundle
+        loading and Dag parsing are not covered. For a task a language SDK runs, the ``execution_timeout``
+        the server sends in the run context arms it when the runtime starts, and a runtime that also sends
+        ``SetExecutionTimeout`` re-arms it right before running the task. Either way, the process is sent
+        SIGTERM ``killed_task_cleanup_time`` after the timeout elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return
@@ -2149,9 +2155,12 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_set_execution_timeout(
         self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
-        self._execution_timeout_seconds = msg.timeout_seconds
-        self._execution_timeout_enforce_at = time.monotonic() + msg.timeout_seconds + KILLED_TASK_CLEANUP_TIME
+        self._arm_execution_timeout(msg.timeout_seconds)
         return None, {}
+
+    def _arm_execution_timeout(self, timeout_seconds: float) -> None:
+        self._execution_timeout_seconds = timeout_seconds
+        self._execution_timeout_enforce_at = time.monotonic() + timeout_seconds + KILLED_TASK_CLEANUP_TIME
 
     def _handle_set_rendered_fields(
         self, msg: SetRenderedFields, log: FilteringBoundLogger, req_id: int
