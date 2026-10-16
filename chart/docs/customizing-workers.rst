@@ -32,6 +32,50 @@ For example, to set resources on workers for CeleryExecutor:
          limits:
            cpu: 1
 
+Separate Celery worker sets
+---------------------------
+
+Use ``workers.celery.sets`` to configure workers for different queues. Each set
+inherits ``workers.celery`` settings and can override them, including
+``extraVolumes`` and ``extraVolumeMounts``. For example, mount different existing
+PersistentVolumeClaims for two worker sets:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   executor: CeleryExecutor
+   workers:
+     celery:
+       enableDefault: false
+       sets:
+         - name: analytics
+           queue: analytics
+           extraVolumes:
+             - name: input-data
+               persistentVolumeClaim:
+                 claimName: analytics-input
+           extraVolumeMounts:
+             - name: input-data
+               mountPath: /opt/airflow/input
+               readOnly: true
+         - name: research
+           queue: research
+           extraVolumes:
+             - name: input-data
+               persistentVolumeClaim:
+                 claimName: research-input
+           extraVolumeMounts:
+             - name: input-data
+               mountPath: /opt/airflow/input
+               readOnly: true
+
+Create both PersistentVolumeClaims before deploying the chart, and route tasks
+to the corresponding queue. ``enableDefault: false`` disables the default worker
+set, so this example creates only the ``analytics`` and ``research`` sets.
+Non-empty list overrides such as ``extraVolumes`` and ``extraVolumeMounts`` replace
+the inherited list, so include all additional volumes and mounts needed by each
+set. An empty list retains the inherited value.
+
 Custom ``pod_template_file``
 ----------------------------
 
