@@ -32,7 +32,7 @@ from datetime import UTC, datetime
 from unittest.mock import ANY, MagicMock, call, patch
 
 import attrs
-import httpx
+import httpx2
 import msgspec
 import psutil
 import pytest
@@ -991,11 +991,11 @@ class TestPopenActivitySubprocessClearXComs:
                 if log.get("event") == "Clearing XCom with key"
             ]
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             events.append((request.method, request.url.path, request.url.query.decode(), logged_keys()))
             if request.url.path.endswith("/run"):
-                return httpx.Response(200, json=ti_context)
-            return httpx.Response(200, json={})
+                return httpx2.Response(200, json=ti_context)
+            return httpx2.Response(200, json={})
 
         def record_frame(frame: bytearray) -> None:
             body = msgspec.msgpack.decode(frame[4:])[1]
@@ -1013,7 +1013,7 @@ class TestPopenActivitySubprocessClearXComs:
             what=ti,
             dag_rel_path="bundle",
             bundle_info=FAKE_BUNDLE,
-            client=make_client(transport=httpx.MockTransport(handle_request)),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
             command=["/bin/true"],
             subprocess_logs_to_stdout=False,
         )
@@ -1060,25 +1060,25 @@ class TestPopenActivitySubprocessClearXComs:
         requests: list[tuple[str, str]] = []
         reports: list[tuple[str, str, str]] = []
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             requests.append((request.method, request.url.path))
             if request.url.path.endswith("/run"):
-                return httpx.Response(200, json=ti_context)
+                return httpx2.Response(200, json=ti_context)
             if request.method == "DELETE":
                 if not request.url.path.endswith("/skipmixin_key"):
-                    return httpx.Response(200, json={})
+                    return httpx2.Response(200, json={})
                 if delete_error == "unreachable":
-                    raise httpx.ConnectError("Connection refused", request=request)
-                return httpx.Response(403, json={"detail": "Forbidden"})
+                    raise httpx2.ConnectError("Connection refused", request=request)
+                return httpx2.Response(403, json={"detail": "Forbidden"})
             report = json.loads(request.content)
             reports.append((report["state"], report["end_date"], report["retry_reason"]))
-            return httpx.Response(204)
+            return httpx2.Response(204)
 
         proc = _PopenActivitySubprocess.start(
             what=ti,
             dag_rel_path="bundle",
             bundle_info=FAKE_BUNDLE,
-            client=make_client(transport=httpx.MockTransport(handle_request)),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
             command=[sys.executable, "-c", _RUNTIME_AWAITING_STARTUP],
             subprocess_logs_to_stdout=False,
         )

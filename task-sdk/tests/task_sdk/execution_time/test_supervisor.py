@@ -1456,16 +1456,16 @@ class TestWatchedSubprocess:
         """
         requests = []
 
-        def handle_request(request: httpx.Request) -> httpx.Response:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             requests.append((request.method, request.url.path))
-            return httpx.Response(200, json={})
+            return httpx2.Response(200, json={})
 
         proc = ActivitySubprocess(
             process_log=MagicMock(spec=FilteringBoundLogger),
             id=TI_ID,
             pid=12345,
             stdin=MagicMock(spec=socket.socket),
-            client=make_client(transport=httpx.MockTransport(handle_request)),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
             process=MagicMock(spec=psutil.Process),
         )
         ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["return_value"]})
