@@ -199,7 +199,6 @@ class DagBag(LoggingMixin):
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
         self.parse_lang_sdk_files = parse_lang_sdk_files
-        # Explicit ownership, including None, avoids provider I/O in isolated processes.
         if not is_arg_set(team_name):
             team_name = None
             if bundle_name and conf.getboolean("core", "multi_team"):
