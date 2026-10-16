@@ -3211,13 +3211,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard: CommitProhibitorGuard,
         dag_runs: Iterable[DagRun],
         session: Session,
-    ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
-        """Make scheduling decisions for all `dag_runs`."""
-        callback_tuples = []
+    ) -> list[tuple[DagRun, DagCallbackRequest]]:
+        """Make scheduling decisions for all `dag_runs` and return the callbacks to send."""
+        callback_tuples: list[tuple[DagRun, DagCallbackRequest]] = []
         for run in dag_runs:
             try:
                 callback = self._schedule_dag_run(run, session=session)
-                callback_tuples.append((run, callback))
+                if callback is not None:
+                    callback_tuples.append((run, callback))
             except DBAPIError:
                 raise  # let @retry_db_transaction handle DB errors
             except Exception:
