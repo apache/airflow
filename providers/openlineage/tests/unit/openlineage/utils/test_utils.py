@@ -4046,6 +4046,49 @@ def test_runtime_task_instance_info_has_loop_index_only_inside_a_loop(in_loop, m
         assert "loop_group_id" not in info
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+@pytest.mark.parametrize(
+    ("until", "loop_index", "expected", "runs_out"),
+    [
+        pytest.param(None, 1, {"stop": False, "reason": None}, False, id="no_until_continues"),
+        pytest.param(None, 2, {"stop": True, "reason": None}, False, id="no_until_stops_at_last"),
+        pytest.param("done", 0, {"stop": True, "reason": "done"}, False, id="until_stops_with_reason"),
+        pytest.param(False, 2, {"stop": False, "reason": None}, True, id="until_false_at_last"),
+    ],
+)
+def test_task_instance_info_has_the_decision_of_a_loop_gate(until, loop_index, expected, runs_out):
+    from airflow.sdk import LoopDecision
+    from airflow.sdk.definitions._internal.loop import LoopGateOperator
+    from airflow.sdk.execution_time.loop import LoopMaxIterationsExceeded, execute_loop_gate
+
+    if until is False:
+        until_callable = lambda: False
+    elif until is not None:
+        until_callable = lambda: LoopDecision(stop=True, reason=until)
+    else:
+        until_callable = None
+    gate = LoopGateOperator(task_id="__loop_gate", until=until_callable)
+    ti = SimpleNamespace(id=uuid7(), map_index=-1)
+    context = {"loop": SimpleNamespace(index=loop_index, max_iterations=3), "ti": ti}
+
+    if runs_out:
+        with pytest.raises(LoopMaxIterationsExceeded):
+            execute_loop_gate(gate, context)
+    else:
+        execute_loop_gate(gate, context)
+    info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=False, map_index=-1)))
+
+    assert info["loop_decision"] == expected
+
+
+def test_task_instance_info_has_no_loop_decision_for_other_tasks():
+    ti = SimpleNamespace(id=uuid7(), map_index=-1)
+
+    info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=False, map_index=-1)))
+
+    assert "loop_decision" not in info
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Attempt UUIDs require Airflow 3")
 @pytest.mark.parametrize("stored", [False, True])
 @pytest.mark.parametrize("in_region", [False, True])

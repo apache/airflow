@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG with a plain task and task loops, some of their tasks retrying (requires Airflow 3.4+).
+DAG with a plain task and task loops, some of their tasks retrying and one stopped early by `until`
+(requires Airflow 3.4+).
 
 It checks, for a plain task, tasks in a loop, a mapped task in a loop and the loop gates:
     - taskInstance's `try_number`, `map_index`, `loop_index` and `loop_max_iterations` of every event: the
@@ -26,6 +27,10 @@ It checks, for a plain task, tasks in a loop, a mapped task in a loop and the lo
     - taskInstance's `id` of every event, and `region_id` and `region_index` of the tasks in a loop: the
       `region_index` is the iteration for a task that isn't mapped and the map index for a mapped one, and a
       plain task has neither
+    - the gates' `loop_decision`: absent on START; for the loops without `until`, `stop` true only at the last
+      iteration and no `reason`; for the loop with `until` (whose gate is named after it), the `reason` it
+      returns and `stop` true at the iteration it ends the loop, before `max_iterations`; absent for the plain
+      task
     - the loop groups' `max_iterations`, `has_until`, `gate_task_id` and `terminal_task_id`, in the task's
       `task_group` and in the `taskGroups` of the Dag's job facet
     - a retried task emits START and FAIL for each failed try, then START and COMPLETE for the last one
@@ -38,7 +43,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.sdk import task, task_group
+from airflow.sdk import LoopDecision, task, task_group
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
@@ -104,8 +109,21 @@ with DAG(
 
         process.expand(value=choose_items())
 
+    @task_group
+    def poll():
+        @task
+        def check(*, loop):
+            return loop.index
+
+        check()
+
+    def ready(*, loop):
+        # Stops at the second of three iterations, giving a reason both when continuing and when stopping
+        return LoopDecision(stop=loop.result >= 1, reason=f"check returned {loop.result}")
+
     accumulate_loop = accumulate.loop(max_iterations=3)
     process_batch_loop = process_batch.loop(max_iterations=2)
+    poll_loop = poll.loop(max_iterations=3, until=ready)
 
     check_events = OpenLineageTestOperator(
         task_id="check_events",
@@ -113,7 +131,7 @@ with DAG(
         event_sort_fn=sort_by_execution,
     )
 
-    [plain_task(), accumulate_loop, process_batch_loop] >> check_events
+    [plain_task(), accumulate_loop, process_batch_loop, poll_loop] >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

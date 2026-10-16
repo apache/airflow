@@ -17,6 +17,12 @@
                             "has_until": false,
                             "max_iterations": 2,
                             "terminal_task_id": "process_batch.process"
+                        },
+                        "poll": {
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
                         }
                     }
                 }
@@ -37,7 +43,8 @@
                         "region_id": null,
                         "region_index": null,
                         "max_tries": 0,
-                        "loop_group_id": null
+                        "loop_group_id": null,
+                        "loop_decision": null
                     }
                 }
             }
@@ -60,7 +67,8 @@
                         "region_id": null,
                         "region_index": null,
                         "max_tries": 0,
-                        "loop_group_id": null
+                        "loop_group_id": null,
+                        "loop_decision": null
                     }
                 }
             }
@@ -530,7 +538,8 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
-                        "loop_group_id": "accumulate"
+                        "loop_group_id": "accumulate",
+                        "loop_decision": null
                     },
                     "task": {
                         "task_group": {
@@ -561,7 +570,8 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
-                        "loop_group_id": "accumulate"
+                        "loop_group_id": "accumulate",
+                        "loop_decision": null
                     },
                     "task": {
                         "task_group": {
@@ -592,7 +602,8 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
-                        "loop_group_id": "accumulate"
+                        "loop_group_id": "accumulate",
+                        "loop_decision": null
                     },
                     "task": {
                         "task_group": {
@@ -623,7 +634,10 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
-                        "loop_group_id": "accumulate"
+                        "loop_group_id": "accumulate",
+                        "loop_decision": {
+                            "stop": false
+                        }
                     },
                     "task": {
                         "task_group": {
@@ -654,7 +668,10 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
-                        "loop_group_id": "accumulate"
+                        "loop_group_id": "accumulate",
+                        "loop_decision": {
+                            "stop": false
+                        }
                     },
                     "task": {
                         "task_group": {
@@ -685,7 +702,10 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
-                        "loop_group_id": "accumulate"
+                        "loop_group_id": "accumulate",
+                        "loop_decision": {
+                            "stop": true
+                        }
                     },
                     "task": {
                         "task_group": {
@@ -1372,7 +1392,8 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
-                        "loop_group_id": "process_batch"
+                        "loop_group_id": "process_batch",
+                        "loop_decision": null
                     },
                     "task": {
                         "task_group": {
@@ -1403,7 +1424,8 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
-                        "loop_group_id": "process_batch"
+                        "loop_group_id": "process_batch",
+                        "loop_decision": null
                     },
                     "task": {
                         "task_group": {
@@ -1434,7 +1456,10 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
-                        "loop_group_id": "process_batch"
+                        "loop_group_id": "process_batch",
+                        "loop_decision": {
+                            "stop": false
+                        }
                     },
                     "task": {
                         "task_group": {
@@ -1465,7 +1490,10 @@
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
-                        "loop_group_id": "process_batch"
+                        "loop_group_id": "process_batch",
+                        "loop_decision": {
+                            "stop": true
+                        }
                     },
                     "task": {
                         "task_group": {
@@ -1481,6 +1509,268 @@
         },
         "job": {
             "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop_group_id": "poll",
+                        "max_tries": 0
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.check"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop_group_id": "poll",
+                        "max_tries": 0
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.check"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop_group_id": "poll",
+                        "max_tries": 0
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.check"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop_group_id": "poll",
+                        "max_tries": 0
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.check"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop_group_id": "poll",
+                        "loop_decision": null
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.ready"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop_group_id": "poll",
+                        "loop_decision": null
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.ready"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop_group_id": "poll",
+                        "loop_decision": {
+                            "stop": false,
+                            "reason": "check returned 0"
+                        }
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.ready"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop_group_id": "poll",
+                        "loop_decision": {
+                            "stop": true,
+                            "reason": "check returned 1"
+                        }
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.ready"
         }
     }
 ]
