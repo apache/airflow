@@ -121,6 +121,10 @@ Dag Import Error Events
 
 Dag import error events occur when Dag processor finds an import error in the Dag code and updates the metadata database table.
 
+``filename`` is the absolute path of the file on the Dag processor. When the Dag processor publishes its
+results through the Execution API, these events fire on the API server, which does not have the processor's
+bundles, so ``filename`` is the path relative to the bundle root instead.
+
 
 |experimental|
 
