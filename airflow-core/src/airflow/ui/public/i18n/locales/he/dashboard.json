@@ -59,7 +59,7 @@
   "importErrors": {
     "dagImportError_one": "שגיאה בטעינת Dag",
     "dagImportError_other": "שגיאות בטעינת Dag",
-    "dagImportError_two": "שגיאות בטעינת Dags",
+    "dagImportError_two": "שגיאות בטעינת Dag",
     "searchByFile": "חפש לפי קובץ",
     "timestamp": "חותמת זמן"
   },

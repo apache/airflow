@@ -130,9 +130,9 @@
       "failedTaskInstance_two": "מופעי משימות שנכשלו"
     },
     "charts": {
-      "assetEvent_one": "אירוע בנכס שנוצר",
-      "assetEvent_other": "אירועי בנכסים שנוצרו",
-      "assetEvent_two": "אירועים בנכסים שנוצרו"
+      "assetEvent_one": "אירוע נכס שנוצר",
+      "assetEvent_other": "אירועי נכס שנוצרו",
+      "assetEvent_two": "אירועי נכס שנוצרו"
     },
     "deadlines": {
       "showAll": "הצג הכל",
@@ -309,10 +309,11 @@
     "record_one": "רשומה",
     "record_other": "רשומות",
     "record_two": "רשומות",
+    "schemaChange": "סכימה לאחר סריאליזציה {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "בחר שתי גרסאות כדי לראות את ההבדלים ביניהן.",
-    "summary_one": "{{count, number}} שינוי · סכימה לאחר סריאליזציה {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} שינויים · סכימה מסודרת {{baseSchema}} → {{targetSchema}}",
-    "summary_two": "{{count, number}} שינויים · סכימה לאחר סריאליזציה {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} שינוי",
+    "summary_other": "{{count, number}} שינויים",
+    "summary_two": "{{count, number}} שינויים",
     "target": "השווה אל",
     "truncated": {
       "description": "שינויים בנתיבים שלא הוצגו הושמטו כדי לעמוד במגבלה, ולכן הספירה היא חסם תחתון.",
