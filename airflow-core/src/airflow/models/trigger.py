@@ -298,6 +298,7 @@ class Trigger(Base):
             AssetManager.register_asset_change(
                 asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
+                partition_key=event.partition_key,
                 session=session,
             )
         if trigger.callback:

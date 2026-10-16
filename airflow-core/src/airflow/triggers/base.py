@@ -28,6 +28,7 @@ from pydantic import (
     BaseModel,
     Discriminator,
     JsonValue,
+    StringConstraints,
     Tag,
     model_serializer,
 )
@@ -462,8 +463,11 @@ class TriggerEvent(BaseModel):
     Must be natively JSON-serializable, or registered with the airflow serialization code.
     """
 
-    def __init__(self, payload, **kwargs):
-        super().__init__(payload=payload, **kwargs)
+    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=250)] | None = None
+    """Native partition key for asset updates emitted by this event, if any."""
+
+    def __init__(self, payload, *, partition_key: str | None = None, **kwargs):
+        super().__init__(payload=payload, partition_key=partition_key, **kwargs)
 
     def __repr__(self) -> str:
         return f"TriggerEvent<{self.payload!r}>"
@@ -498,7 +502,10 @@ class BaseTaskEndEvent(TriggerEvent):
     def ser_model(self) -> dict[str, Any]:
         # We need to customize the serialized schema so it works for the custom constructor we have to keep
         # the interface to this class "nice"
-        return {"task_instance_state": self.task_instance_state, "xcoms": self.xcoms}
+        data: dict[str, Any] = {"task_instance_state": self.task_instance_state, "xcoms": self.xcoms}
+        if self.partition_key is not None:
+            data["partition_key"] = self.partition_key
+        return data
 
 
 class TaskSuccessEvent(BaseTaskEndEvent):
