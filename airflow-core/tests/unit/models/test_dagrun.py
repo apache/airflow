@@ -359,37 +359,36 @@ def test_loop_runs_through_scheduler_sdk_and_api(dag_maker, session, mode):
 
 @pytest.mark.parametrize("has_until", [False, True])
 @pytest.mark.parametrize(
-    ("region_index", "decision", "accepted"),
+    ("region_index", "stop", "accepted"),
     [
-        # One pass below the cap there is still an iteration left, so "continue" is the only
+        # One pass below the cap there is still an iteration left, so continuing is the only
         # valid answer for a fixed-count loop. A zero-based cap check treats this as the limit.
-        pytest.param(2, "continue", True, id="continue below the cap"),
-        pytest.param(2, "stop", False, id="stop below the cap"),
+        pytest.param(2, False, True, id="continue below the cap"),
+        pytest.param(2, True, False, id="stop below the cap"),
         # At the cap the loop cannot produce another pass.
-        pytest.param(3, "continue", False, id="continue at the cap"),
-        pytest.param(3, "stop", True, id="stop at the cap"),
+        pytest.param(3, False, False, id="continue at the cap"),
+        pytest.param(3, True, True, id="stop at the cap"),
     ],
 )
-def test_validate_loop_decision_counts_the_cap_from_one(region_index, decision, accepted, has_until):
+def test_validate_loop_decision_counts_the_cap_from_one(region_index, stop, accepted, has_until):
     group = mock.create_autospec(SerializedLoopTaskGroup, instance=True)
     group.max_iterations, group.has_until = 3, has_until
     # A conditional loop may stop early, so only the fixed-count loop rejects an early stop.
-    expected = accepted or (has_until and decision == "stop")
+    expected = accepted or (has_until and stop)
 
     if expected:
-        validate_loop_decision(decision, region_index, group)
+        validate_loop_decision(stop, region_index, group)
     else:
         with pytest.raises(InvalidLoopDecision):
-            validate_loop_decision(decision, region_index, group)
+            validate_loop_decision(stop, region_index, group)
 
 
-@pytest.mark.parametrize("decision", [None, "", "restart"])
-def test_validate_loop_decision_requires_a_known_decision(decision):
+def test_validate_loop_decision_requires_a_decision():
     group = mock.create_autospec(SerializedLoopTaskGroup, instance=True)
     group.max_iterations, group.has_until = 3, True
 
     with pytest.raises(InvalidLoopDecision, match="requires a decision"):
-        validate_loop_decision(decision, 1, group)
+        validate_loop_decision(None, 1, group)
 
 
 @pytest.fixture
@@ -6505,7 +6504,7 @@ def test_rerun_gate_continues_while_superseded_later_passes_terminate(completed_
 
 @pytest.mark.parametrize(
     ("index", "state", "stored"),
-    [(4, State.SUCCESS, ["why"]), (4, State.FAILED, ["why"]), (2, State.SUCCESS, []), (2, State.FAILED, [])],
+    [(5, State.SUCCESS, ["why"]), (5, State.FAILED, ["why"]), (3, State.SUCCESS, []), (3, State.FAILED, [])],
     ids=["last-success", "last-failed", "earlier-success", "earlier-failed"],
 )
 def test_complete_loop_gate_records_the_reason_only_without_a_later_pass(
@@ -6521,7 +6520,7 @@ def test_complete_loop_gate_records_the_reason_only_without_a_later_pass(
     group, _ = resolver.loop_context(gate)
     before = len(dr.get_task_instances(session=session))
 
-    dr.complete_loop_gate(gate, group, state, stop=index == 4, reason="why", session=session)
+    dr.complete_loop_gate(gate, group, state, stop=index == 5, reason="why", session=session)
 
     assert len(dr.get_task_instances(session=session)) == before
     assert (

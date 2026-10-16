@@ -1333,11 +1333,11 @@ class TestGetLoopSummaryEndpoint:
         ("until", "expected"),
         [
             (
-                lambda loop: LoopDecision(stop=loop.index >= 1, reason=f"iteration {loop.index} decided"),
-                ["iteration 0 decided", "iteration 1 decided"],
+                lambda loop: LoopDecision(stop=loop.index >= 2, reason=f"iteration {loop.index} decided"),
+                ["iteration 1 decided", "iteration 2 decided"],
             ),
-            (lambda loop: loop.index >= 1, [None, None]),
-            (lambda loop: LoopDecision(stop=loop.index >= 1), [None, None]),
+            (lambda loop: loop.index >= 2, [None, None]),
+            (lambda loop: LoopDecision(stop=loop.index >= 2), [None, None]),
         ],
         ids=["with_reason", "plain_bool", "decision_without_reason"],
     )
