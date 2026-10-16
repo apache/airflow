@@ -159,7 +159,10 @@ _SERDE_COLLECTION_CLASSNAMES = frozenset(
 def _task_id_list(value: object) -> list[str] | None:
     # The decision is read as plain JSON, so a set or tuple of task ids arrives as the serde
     # wrapper dict; take its items without importing or constructing anything.
-    if isinstance(value, dict) and value.get("__classname__") in _SERDE_COLLECTION_CLASSNAMES:
+    if isinstance(value, dict):
+        classname = value.get("__classname__")
+        if not (isinstance(classname, str) and classname in _SERDE_COLLECTION_CLASSNAMES):
+            return None
         value = value.get("__data__")
     if isinstance(value, (list, tuple)) and all(isinstance(task_id, str) for task_id in value):
         return list(value)

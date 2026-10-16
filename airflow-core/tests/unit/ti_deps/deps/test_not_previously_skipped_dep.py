@@ -857,6 +857,8 @@ def test_skipmixin_xcom_collection_wrapper_is_read_as_task_ids(
             {XCOM_SKIPMIXIN_FOLLOWED: _serde_collection("collections.OrderedDict", ["op3"])},
             id="wrapper-other-class",
         ),
+        pytest.param({XCOM_SKIPMIXIN_FOLLOWED: {"__classname__": []}}, id="wrapper-classname-list"),
+        pytest.param({XCOM_SKIPMIXIN_SKIPPED: {"__classname__": {}}}, id="wrapper-classname-dict"),
     ],
 )
 def test_malformed_skipmixin_task_id_collection_is_ignored(session, dag_maker, stored):
