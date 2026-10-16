@@ -746,6 +746,9 @@ model — Airflow does not enforce these natively.
       * - ``AIRFLOW__CORE__FERNET_KEY``
         - Fernet encryption key for connections/variables at rest
         - API Server, Scheduler, Workers, Dag File Processor, Triggerer
+      * - ``AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST``
+        - Dag bundle definitions (may contain credentials)
+        - API Server, Scheduler, Workers, Dag File Processor, Triggerer
       * - ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``
         - Metadata database connection string
         - API Server, Scheduler, Dag File Processor, Triggerer
