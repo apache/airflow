@@ -155,6 +155,55 @@ def _holds_only_builtin_values(value: Any) -> bool:
     return all(_holds_only_builtin_values(item) for item in value.values())
 
 
+_ASSET_CLASSNAME = "airflow.sdk.definitions.asset.Asset"
+_ASSET_ALIAS_CLASSNAME = "airflow.sdk.definitions.asset.AssetAlias"
+
+
+class _UnconvertibleNextKwargsError(ValueError):
+    """next_kwargs hold a value that cannot be translated to the legacy BaseSerialization format."""
+
+    def __init__(self, classname: str) -> None:
+        super().__init__(
+            f"The deferred task cannot be resumed: its next_kwargs hold a value of type {classname!r}, "
+            "which cannot be sent to this worker's Task SDK version. Upgrade the Task SDK on the worker."
+        )
+
+
+def _convert_to_legacy(value: Any) -> Any:
+    """
+    Translate a serde-encoded value to the legacy BaseSerialization encoding.
+
+    Assets and asset aliases are translated structurally from their encoded fields, so no class
+    beyond the built-in value types is ever instantiated here.
+    """
+    from airflow._shared.serialization import CLASSNAME, DATA, OLD_TYPE
+    from airflow.sdk.serde import deserialize
+    from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    if _holds_only_builtin_values(value):
+        return BaseSerialization.serialize(deserialize(value))
+    if isinstance(value, list):
+        return [_convert_to_legacy(item) for item in value]
+    if CLASSNAME not in value:
+        if OLD_TYPE in value:
+            raise _UnconvertibleNextKwargsError(str(value[OLD_TYPE]))
+        return {
+            Encoding.TYPE: DAT.DICT,
+            Encoding.VAR: {key: _convert_to_legacy(item) for key, item in value.items()},
+        }
+    classname = value[CLASSNAME]
+    data = value.get(DATA)
+    if classname == _ASSET_CLASSNAME and isinstance(data, dict) and not data.get("watchers"):
+        return {
+            Encoding.TYPE: DAT.ASSET,
+            Encoding.VAR: {key: data[key] for key in ("name", "uri", "group", "extra")},
+        }
+    if classname == _ASSET_ALIAS_CLASSNAME and isinstance(data, dict):
+        return {Encoding.TYPE: DAT.ASSET_ALIAS, Encoding.VAR: {"name": data["name"], "group": data["group"]}}
+    raise _UnconvertibleNextKwargsError(str(classname))
+
+
 class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
     """Change the types of `trigger_kwargs` and `next_kwargs` in TIDeferredStatePayload to JsonValue."""
 
@@ -178,26 +227,34 @@ class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
         timedelta, etc.), then re-serialize with BaseSerialization so old workers get
         proper typed values instead of raw {"__classname__": ...} dicts.
         """
+        from airflow._shared.serialization import OLD_DATA, OLD_TYPE
+        from airflow.models.trigger import TRIGGER_FAIL_REPR
+        from airflow.serialization.serialized_objects import BaseSerialization
+
         next_kwargs = response.body.get("next_kwargs")
         if next_kwargs is None:
             return
 
-        # Only built-in value types are rebuilt here. Anything else would be reconstructed by
-        # calling into its class in the API server, which only the worker has any need to do; such
-        # payloads are passed through as stored.
-        if not _holds_only_builtin_values(next_kwargs):
-            return
-
-        from airflow.sdk.serde import deserialize
-        from airflow.serialization.serialized_objects import BaseSerialization
-
-        try:
-            plain = deserialize(next_kwargs)
-        except (ImportError, KeyError, AttributeError, TypeError):
+        if (
+            OLD_TYPE in next_kwargs
+            and OLD_DATA in next_kwargs
+            and not _holds_only_builtin_values(next_kwargs)
+        ):
             # Already in BaseSerialization format (rolling upgrade, old data in DB)
             return
 
-        response.body["next_kwargs"] = BaseSerialization.serialize(plain)
+        # Only built-in value types are rebuilt here; assets and asset aliases are translated
+        # structurally. Anything else would be reconstructed by calling into its class in the API
+        # server, so the task is resumed through the trigger-failure path instead, which old
+        # workers report as a TaskDeferralError carrying this message.
+        try:
+            response.body["next_kwargs"] = _convert_to_legacy(next_kwargs)
+        except _UnconvertibleNextKwargsError as e:
+            response.body["next_method"] = TRIGGER_FAIL_REPR
+            response.body["next_kwargs"] = BaseSerialization.serialize({"error": str(e)})
+        except (ImportError, KeyError, AttributeError, TypeError):
+            # Already in BaseSerialization format (rolling upgrade, old data in DB)
+            return
 
 
 class RemoveUpstreamMapIndexesField(VersionChange):

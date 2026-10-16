@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pytest
 
 from airflow._shared.timezones import timezone
@@ -38,6 +40,11 @@ RUN_PATCH_BODY = {
     "pid": 12345,
     "start_date": TIMESTAMP_STR,
 }
+
+
+@dataclass
+class _ResumePayload:
+    value: int
 
 
 @pytest.fixture
@@ -191,39 +198,109 @@ class TestNextKwargsBackwardCompat:
         # datetime must come back as a datetime, not a {"__classname__": ...} dict
         assert result["event"] == TIMESTAMP
 
-    def test_old_version_passes_non_builtin_values_through(
+    def test_old_version_translates_assets_without_constructing_them(
         self, old_ver_client, session, create_task_instance, monkeypatch
     ):
-        """Values of other classes are not rebuilt in the API server; the payload is returned as stored."""
-        from airflow.sdk import Asset
+        """Assets and asset aliases reach old workers in the legacy format without being rebuilt here."""
+        from airflow.sdk import Asset, AssetAlias
         from airflow.sdk.serde import serialize as serde_serialize
 
-        serde_encoded = serde_serialize({"asset": Asset("resume-data"), "event": TIMESTAMP})
+        original = {
+            "assets": [Asset("resume-data", uri="s3://bucket/key", group="g", extra={"k": 1})],
+            "alias": AssetAlias("resume-alias"),
+            "event": TIMESTAMP,
+        }
+        expected = BaseSerialization.serialize(original)
 
         ti = create_task_instance(
-            task_id="test_next_kwargs_non_builtin",
+            task_id="test_next_kwargs_assets",
             state=State.QUEUED,
             session=session,
             start_date=TIMESTAMP,
         )
         ti.next_method = "execute_complete"
-        ti.next_kwargs = serde_encoded
+        ti.next_kwargs = serde_serialize(original)
         session.commit()
 
         constructed = []
-        original_init = Asset.__init__
+        for cls in (Asset, AssetAlias):
+            original_init = cls.__init__
 
-        def spy(self, *args, **kwargs):
-            constructed.append(True)
-            original_init(self, *args, **kwargs)
+            def spy(self, *args, _original_init=original_init, **kwargs):
+                constructed.append(type(self))
+                _original_init(self, *args, **kwargs)
 
-        monkeypatch.setattr(Asset, "__init__", spy)
+            monkeypatch.setattr(cls, "__init__", spy)
 
         response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
 
         assert response.status_code == 200
         assert constructed == []
-        assert response.json()["next_kwargs"] == serde_encoded
+        assert response.json()["next_method"] == "execute_complete"
+        next_kwargs = response.json()["next_kwargs"]
+        assert next_kwargs == expected
+        result = BaseSerialization.deserialize(next_kwargs)
+        assert [(a.name, a.uri, a.group, a.extra) for a in result["assets"]] == [
+            ("resume-data", "s3://bucket/key", "g", {"k": 1})
+        ]
+        assert (result["alias"].name, result["alias"].group) == ("resume-alias", "asset")
+        assert result["event"] == TIMESTAMP
+
+    def test_old_version_fails_task_for_unconvertible_values(
+        self, old_ver_client, session, create_task_instance, monkeypatch
+    ):
+        """Values of other classes are not rebuilt; old workers get a trigger failure naming the type."""
+        from airflow.sdk.serde import serialize as serde_serialize
+
+        ti = create_task_instance(
+            task_id="test_next_kwargs_unconvertible",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = serde_serialize({"payload": _ResumePayload(value=1), "event": TIMESTAMP})
+        session.commit()
+
+        constructed = []
+        original_init = _ResumePayload.__init__
+
+        def spy(self, *args, **kwargs):
+            constructed.append(True)
+            original_init(self, *args, **kwargs)
+
+        monkeypatch.setattr(_ResumePayload, "__init__", spy)
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        assert constructed == []
+        assert response.json()["next_method"] == "__fail__"
+        error = BaseSerialization.deserialize(response.json()["next_kwargs"])["error"]
+        assert f"{__name__}._ResumePayload" in error
+
+    def test_old_version_passes_base_serialization_assets_through(
+        self, old_ver_client, session, create_task_instance
+    ):
+        """Rolling upgrade: BaseSerialization-format assets already in the DB are returned as stored."""
+        from airflow.sdk import Asset
+
+        stored = BaseSerialization.serialize({"asset": Asset("resume-data")})
+        ti = create_task_instance(
+            task_id="test_next_kwargs_base_assets",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = stored
+        session.commit()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        assert response.json()["next_method"] == "execute_complete"
+        assert response.json()["next_kwargs"] == stored
 
     def test_old_version_handles_already_base_serialization_in_db(
         self, old_ver_client, session, create_task_instance
