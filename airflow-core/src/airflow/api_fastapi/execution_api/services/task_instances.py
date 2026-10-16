@@ -72,3 +72,15 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
     if (task := get_stub_task(dag_bag, ti, session=session)) is None:
         return None
     return task.arg_bindings
+
+
+def get_language_sdk_execution_timeout(dag_bag: DBDagBag, ti: Any, *, session: Session) -> float | None:
+    """
+    Return the ``execution_timeout`` in seconds of a task that a language SDK runs.
+
+    A Python task parses its Dag file and reports its own timeout, so it gets ``None`` here.
+    A zero timeout also returns ``None``, as the Python task runner treats it as no timeout.
+    """
+    if (task := get_stub_task(dag_bag, ti, session=session)) is None or not task.execution_timeout:
+        return None
+    return task.execution_timeout.total_seconds()
