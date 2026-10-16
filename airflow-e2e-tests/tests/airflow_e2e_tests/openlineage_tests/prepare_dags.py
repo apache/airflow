@@ -50,6 +50,7 @@ PYTEST_FOOTER_MARKER = "from tests_common.test_utils.system_tests import get_tes
 # otherwise raise at parse time and take the whole dag-processor down, not just skip that one DAG.
 MIN_AIRFLOW_VERSION_FOR_DAG: dict[str, tuple[int, int]] = {
     "example_openlineage_hitl_dag.py": (3, 1),
+    "example_openlineage_task_loop_dag.py": (3, 4),
 }
 
 

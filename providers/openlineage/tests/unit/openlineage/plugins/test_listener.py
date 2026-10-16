@@ -49,6 +49,7 @@ from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.plugins.macros import lineage_run_id
 from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+from airflow.providers.openlineage.utils.utils import TaskInstancePosition
 from airflow.utils import types
 from airflow.utils.state import DagRunState, State
 
@@ -1208,6 +1209,87 @@ class TestOpenLineageListenerAirflow3:
         assert getattr(listener.adapter, method).call_args.kwargs["run_id"] == str(ti.id)
         assert lineage_run_id(ti) == str(ti.id)
         listener.adapter.build_task_instance_run_id.assert_not_called()
+
+    @pytest.mark.parametrize("state", ["running", "success", "failed", "skipped"])
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_worker_event_of_task_in_loop_has_its_iteration(self, state):
+        from airflow.sdk import DAG, task_group
+        from airflow.sdk.api.datamodels._generated import LoopContext
+        from airflow.sdk.definitions._internal.loop import create_loop
+
+        listener, ti = self._create_listener_and_task_instance()
+        listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
+        with DAG("loop_dag") as loop_dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="work")
+
+            create_loop(body, max_iterations=3)
+        ti.task = loop_dag.get_task("body.work")
+        ti.region_id = uuid.uuid4()
+        ti.region_index = 1
+        ti._ti_context_from_server.loop = LoopContext(
+            node_id="body", index=1, max_iterations=3, terminal_task_id="body.work", terminal_is_mapped=False
+        )
+        kwargs = {"error": ValueError("test")} if state == "failed" else {}
+
+        getattr(listener, f"on_task_instance_{state}")(None, ti, **kwargs)
+
+        method = {"running": "start_task", "failed": "fail_task"}.get(state, "complete_task")
+        run_facets = getattr(listener.adapter, method).call_args.kwargs["run_facets"]
+        task_instance_facet = run_facets["airflow"].taskInstance
+        assert (
+            task_instance_facet["loop_index"],
+            task_instance_facet["loop_max_iterations"],
+            task_instance_facet["loop_group_id"],
+        ) == (1, 3, "body")
+
+    @pytest.mark.parametrize("state", ["running", "success", "failed", "skipped"])
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_worker_event_run_id_of_mapped_task_has_its_map_index(self, state):
+        listener, ti = self._create_listener_and_task_instance()
+        ti.map_index = 2
+        kwargs = {"error": ValueError("test")} if state == "failed" else {}
+
+        getattr(listener, f"on_task_instance_{state}")(None, ti, **kwargs)
+
+        assert listener.adapter.build_task_instance_run_id.call_args.kwargs["map_index"] == 2
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+    def test_manual_event_passes_its_stored_position_to_the_airflow_run_facet(self, mocker):
+        from airflow.sdk import DAG, task_group
+        from airflow.sdk.definitions._internal.loop import create_loop
+
+        listener, ti = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = mocker.Mock(spec=ProcessPoolExecutor)
+        with DAG("loop_dag") as loop_dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="work")
+
+            create_loop(body, max_iterations=3)
+        ti.task = loop_dag.get_task("body.work")
+        ti.region_id = uuid.uuid4()
+        ti.region_index = 2
+        get_airflow_run_facet = mocker.patch(
+            "airflow.providers.openlineage.plugins.listener.get_airflow_run_facet",
+            autospec=True,
+            return_value={},
+        )
+        mocker.patch.object(listener, "submit_callable", autospec=True)
+
+        listener._on_task_instance_manual_state_change(ti, ti.dag_run, "success")
+
+        assert get_airflow_run_facet.call_args.kwargs["ti_position"] == TaskInstancePosition(
+            in_loop=True, map_index=-1, loop_index=2, loop_max_iterations=3, loop_group_id="body"
+        )
 
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
     @patch("airflow.models.BaseOperator.render_template")

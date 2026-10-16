@@ -29,6 +29,7 @@ from uuid import UUID, uuid4
 import pendulum
 import pytest
 from openlineage.client.facet_v2 import parent_run
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import DetachedInstanceError
 from uuid6 import uuid7
 
@@ -81,6 +82,8 @@ from airflow.providers.openlineage.utils.utils import (
     get_root_information_from_dagrun_conf,
     get_runtime_outlet_assets,
     get_task_documentation,
+    get_task_instance_map_index,
+    get_task_instance_position,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
@@ -2011,6 +2014,33 @@ def test_get_task_groups_details():
     assert result == expected
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+def test_get_task_groups_details_has_loop_attributes_only_for_a_loop():
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("loop_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        create_loop(body, max_iterations=3)
+        with TaskGroup("plain"):
+            EmptyOperator(task_id="work")
+
+    result = _get_task_groups_details(dag, edge_map=_build_labeled_edge_map(dag))
+
+    loop_attributes = {"max_iterations", "has_until", "terminal_task_id", "gate_task_id"}
+    assert {k: result["body"][k] for k in loop_attributes} == {
+        "max_iterations": 3,
+        "has_until": False,
+        "terminal_task_id": "body.work",
+        "gate_task_id": "body.__loop_gate",
+    }
+    assert not loop_attributes & set(result["plain"])
+
+
 def test_get_task_groups_details_nested():
     with DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         with TaskGroup("tg1", prefix_group_id=True) as tg:
@@ -3266,10 +3296,13 @@ def test_taskinstance_info_af3():
     bundle_instance = MagicMock(version="bundle_version")
     bundle_instance.name = "bundle_name"
     runtime_ti.bundle_instance = bundle_instance
+    runtime_ti.max_tries = 3
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
+        "id": str(runtime_ti.id),
         "log_url": runtime_ti.log_url,
         "map_index": 2,
+        "max_tries": 3,
         "note": None,
         "rendered_map_index": None,
         "try_number": 1,
@@ -3305,6 +3338,7 @@ def test_taskinstance_info_af2():
         "rendered_map_index": None,
         "pool": "default_pool",
         "try_number": 0,
+        "max_tries": 0,
         "queued_dttm": "2024-06-01T00:00:00+00:00",
         "log_url": "some_log_url",
         "dag_bundle_name": None,
@@ -3924,15 +3958,251 @@ def test_regional_run_id_is_the_execution_uuid_only_inside_a_loop(in_loop):
             create_loop(body, max_iterations=2)
         else:
             body()
-    ti = SimpleNamespace(id=uuid4(), region_id=uuid4(), task=dag.get_task("body.work"))
+    ti = SimpleNamespace(
+        id=uuid4(),
+        region_id=uuid4(),
+        map_index=-1,
+        task=dag.get_task("body.work"),
+        get_template_context=MagicMock(),
+    )
 
     assert get_regional_task_instance_run_id(ti) == (str(ti.id) if in_loop else None)
+    assert get_task_instance_map_index(ti) == -1
+    ti.get_template_context.assert_not_called()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+@pytest.mark.parametrize("has_loop_context", [True, False])
+def test_runtime_task_instance_position_has_the_iteration_of_its_loop_context(has_loop_context):
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("position_dag") as dag:
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        create_loop(body, max_iterations=3)
+    loop = SimpleNamespace(index=2, max_iterations=3) if has_loop_context else None
+    ti = SimpleNamespace(
+        id=uuid4(),
+        region_id=uuid4(),
+        map_index=-1,
+        task=dag.get_task("body.work"),
+        get_template_context=MagicMock(return_value={"loop": loop}),
+    )
+
+    assert get_task_instance_position(ti) == TaskInstancePosition(
+        in_loop=True,
+        map_index=-1,
+        loop_index=2 if has_loop_context else None,
+        loop_max_iterations=3 if has_loop_context else None,
+        loop_group_id="body",
+    )
+    ti.get_template_context.assert_called_once_with()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+def test_stored_task_instance_without_task_or_region_has_no_loop_index():
+    ti = TaskInstance(task=MagicMock(), run_id="run_id", dag_version_id=uuid7())
+    ti.dag_id = "dag_id"
+    ti.task_id = "task_id"
+    ti.region_id = uuid4()
+    ti.region_index = 1
+    ti.task = None
+    session = MagicMock(spec=Session)
+    session.execute.return_value = []
+
+    assert get_orm_task_instance_positions([ti], session=session) == {
+        ti.id: TaskInstancePosition(in_loop=True, map_index=-1, loop_index=None)
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+@pytest.mark.parametrize("mapped", [False, True])
+@pytest.mark.parametrize("in_loop", [False, True])
+def test_runtime_task_instance_info_has_loop_index_only_inside_a_loop(in_loop, mapped):
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("loop_index_dag") as dag:
+
+        @task_group
+        def body():
+            if mapped:
+                PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+            else:
+                EmptyOperator(task_id="work")
+
+        if in_loop:
+            create_loop(body, max_iterations=3)
+        else:
+            body()
+    ti = SimpleNamespace(
+        id=uuid4(),
+        region_id=uuid4(),
+        map_index=1 if mapped else -1,
+        task=dag.get_task("body.work"),
+    )
+    if in_loop:
+        ti.get_template_context = lambda: {"loop": SimpleNamespace(index=2, max_iterations=3)}
+
+    info = dict(TaskInstanceInfo(ti))
+
+    assert info["map_index"] == (1 if mapped else None)
+    if in_loop:
+        assert (info["loop_index"], info["loop_max_iterations"], info["loop_group_id"]) == (2, 3, "body")
+    else:
+        assert "loop_index" not in info
+        assert "loop_max_iterations" not in info
+        assert "loop_group_id" not in info
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Attempt UUIDs require Airflow 3")
+@pytest.mark.parametrize("stored", [False, True])
+@pytest.mark.parametrize("in_region", [False, True])
+def test_task_instance_info_has_attempt_id_and_region_only_in_a_region(stored, in_region):
+    region_id = uuid4() if in_region else UUID(int=0)
+    if stored:
+        ti = TaskInstance(task=MagicMock(), run_id="run_id", dag_version_id=uuid7())
+    else:
+        ti = SimpleNamespace(id=uuid7(), map_index=-1)
+    ti.region_id = region_id
+    ti.region_index = 2 if in_region else -1
+
+    info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=False, map_index=-1)))
+
+    assert info["id"] == str(ti.id)
+    if in_region:
+        assert (info["region_id"], info["region_index"]) == (str(region_id), 2)
+    else:
+        assert "region_id" not in info
+        assert "region_index" not in info
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+def test_stored_task_instance_in_loop_has_loop_index_and_max_iterations():
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("stored_loop_dag") as dag:
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        create_loop(body, max_iterations=3)
+    ti = TaskInstance(task=dag.get_task("body.work"), dag_version_id=uuid7())
+    ti.region_id = uuid4()
+    ti.region_index = 2
+
+    assert get_orm_task_instance_positions([ti], session=None) == {
+        ti.id: TaskInstancePosition(
+            in_loop=True, map_index=-1, loop_index=2, loop_max_iterations=3, loop_group_id="body"
+        )
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+@pytest.mark.parametrize("with_session", [True, False])
+def test_stored_mapped_task_in_loop_gets_its_iteration_from_its_region(with_session):
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("stored_mapped_loop_dag") as dag:
+
+        @task_group
+        def body():
+            PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+
+        create_loop(body, max_iterations=3)
+    ti = TaskInstance(task=dag.get_task("body.work"), dag_version_id=uuid7())
+    ti.region_id = uuid4()
+    ti.region_index = 1
+    session = MagicMock(spec=Session)
+    session.execute.return_value = [
+        SimpleNamespace(id=ti.region_id, node_id="body.work", parent_region_id=uuid4(), parent_region_index=2)
+    ]
+
+    positions = get_orm_task_instance_positions([ti], session=session if with_session else None)
+
+    assert positions == {
+        ti.id: TaskInstancePosition(
+            in_loop=True,
+            map_index=1,
+            loop_index=2 if with_session else None,
+            loop_max_iterations=3,
+            loop_group_id="body",
+        )
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+def test_task_instance_info_of_stored_instance_without_task_does_not_raise():
+    ti = TaskInstance(task=MagicMock(), run_id="run_id", dag_version_id=uuid7())
+    ti.dag_id = "dag_id"
+    ti.task_id = "task_id"
+    ti.region_id = uuid4()
+    ti.region_index = 2
+    ti.task = None
+
+    info = dict(TaskInstanceInfo(ti))
+
+    assert info["map_index"] is None
+    assert "loop_index" not in info
+
+
+def test_task_instance_info_uses_the_position_it_is_given():
+    ti = SimpleNamespace(id=uuid4(), region_id=uuid4(), map_index=-1)
+    position = TaskInstancePosition(
+        in_loop=True, map_index=1, loop_index=2, loop_max_iterations=3, loop_group_id="body"
+    )
+
+    info = dict(TaskInstanceInfo(ti, position=position))
+
+    assert (info["map_index"], info["loop_index"], info["loop_max_iterations"], info["loop_group_id"]) == (
+        1,
+        2,
+        3,
+        "body",
+    )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+def test_task_group_info_has_loop_attributes_only_for_a_loop():
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("loop_group_dag"):
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        loop = create_loop(body, max_iterations=3)
+
+        @task_group
+        def plain():
+            EmptyOperator(task_id="work")
+
+        plain_group = plain()
+
+    loop_info = dict(TaskGroupInfo(loop))
+    assert loop_info["max_iterations"] == 3
+    assert loop_info["has_until"] is False
+    assert loop_info["terminal_task_id"] == "body.work"
+    assert loop_info["gate_task_id"] == "body.__loop_gate"
+    assert not {"max_iterations", "has_until", "terminal_task_id", "gate_task_id"} & set(
+        TaskGroupInfo(plain_group)
+    )
 
 
 @pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
-@pytest.mark.parametrize("mapped", [False, True])
-def test_stored_regional_instance_without_its_task_is_placed_from_its_region(dag_maker, session, mapped):
+@pytest.mark.parametrize("kind", ["plain_loop", "mapped", "mapped_in_loop"])
+def test_stored_regional_instance_without_its_task_is_placed_from_its_region(dag_maker, session, kind):
+    mapped = kind != "plain_loop"
     with dag_maker(serialized=True):
         if mapped:
             PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
@@ -3940,12 +4210,19 @@ def test_stored_regional_instance_without_its_task_is_placed_from_its_region(dag
             EmptyOperator(task_id="work")
     run = dag_maker.create_dagrun()
     ti = max(run.task_instances, key=lambda ti: ti.region_index)
-    if not mapped:
+    if kind == "plain_loop":
         region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
         session.add(region)
         session.flush()
         ti.region_id = region.id
         ti.region_index = 2
+    elif kind == "mapped_in_loop":
+        loop_region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+        session.add(loop_region)
+        session.flush()
+        mapped_region = session.get(DynamicRegion, ti.region_id)
+        mapped_region.parent_region_id = loop_region.id
+        mapped_region.parent_region_index = 2
     session.flush()
     ti.task = None
 
@@ -3955,7 +4232,12 @@ def test_stored_regional_instance_without_its_task_is_placed_from_its_region(dag
         positions = get_orm_task_instance_positions([ti], session=session)
 
     assert positions == {
-        ti.id: TaskInstancePosition(in_loop=not mapped, map_index=ti.region_index if mapped else -1)
+        ti.id: TaskInstancePosition(
+            in_loop=kind != "mapped",
+            map_index=ti.region_index if mapped else -1,
+            loop_index=2 if kind != "mapped" else None,
+            loop_group_id="loop" if kind == "plain_loop" else None,
+        )
     }
 
 

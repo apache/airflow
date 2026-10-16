@@ -1,0 +1,34 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_sensor_reschedule_dag.wait"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_sensor_reschedule_dag.wait"
+        }
+    }
+]
