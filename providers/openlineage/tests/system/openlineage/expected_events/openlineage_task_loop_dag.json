@@ -1,0 +1,1486 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_dag",
+            "facets": {
+                "airflow": {
+                    "taskGroups": {
+                        "accumulate": {
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "process_batch": {
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": null,
+                        "loop_max_iterations": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": null,
+                        "region_index": null,
+                        "max_tries": 0,
+                        "loop_group_id": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.plain_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": null,
+                        "loop_max_iterations": null,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": null,
+                        "region_index": null,
+                        "max_tries": 0,
+                        "loop_group_id": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.plain_task"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 2,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 2,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 0,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 2,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 0,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 0,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 2,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 0,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 2,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 2,
+                        "loop_max_iterations": 3,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "loop_group_id": "accumulate"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 0,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.choose_items"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.choose_items"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 0,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.choose_items"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.choose_items"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop_group_id": "process_batch"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    }
+]
