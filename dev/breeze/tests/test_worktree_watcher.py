@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -38,6 +40,40 @@ def test_lock_allows_a_single_watcher(tmp_path):
     assert worktree_watcher.is_watcher_running(lock_file) is False
 
 
+@pytest.mark.parametrize(
+    ("damage", "missing"),
+    [
+        pytest.param(None, False, id="intact"),
+        pytest.param("worktree", True, id="worktree-deleted"),
+        pytest.param("dot-git", True, id="bind-mount-directories-left-behind"),
+        pytest.param("gitdir", True, id="link-to-main-repository-gone"),
+    ],
+)
+def test_is_worktree_missing_follows_the_link_to_the_main_repository(
+    tmp_path, make_worktree, damage, missing
+):
+    worktree = make_worktree(tmp_path / "worktree")
+    (worktree / "devel-common").mkdir()
+    gitdir = Path((worktree / ".git").read_text().removeprefix("gitdir:").strip())
+    if damage == "worktree":
+        shutil.rmtree(worktree)
+    elif damage == "dot-git":
+        (worktree / ".git").unlink()
+    elif damage == "gitdir":
+        gitdir.rmdir()
+
+    assert worktree_watcher.is_worktree_missing(worktree) is missing
+
+
+def test_is_worktree_missing_resolves_a_relative_gitdir(tmp_path):
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    (tmp_path / "gitdir").mkdir()
+    (worktree / ".git").write_text("gitdir: ../gitdir\n")
+
+    assert worktree_watcher.is_worktree_missing(worktree) is False
+
+
 @pytest.fixture
 def docker():
     """Fake ``docker`` that reports one resource of each kind until it is asked to remove it."""
@@ -53,10 +89,9 @@ def docker():
 
 
 @mock.patch.object(worktree_watcher.time, "sleep", autospec=True)
-def test_watch_removes_resources_once_the_worktree_is_deleted(sleep, docker, tmp_path):
-    worktree = tmp_path / "worktree"
-    worktree.mkdir()
-    sleep.side_effect = lambda _: worktree.rmdir()
+def test_watch_removes_resources_once_the_worktree_is_deleted(sleep, docker, tmp_path, make_worktree):
+    worktree = make_worktree(tmp_path / "worktree")
+    sleep.side_effect = lambda _: shutil.rmtree(worktree)
 
     worktree_watcher.watch(worktree, "this-host", poll_interval=30, idle_timeout=3600)
 
@@ -79,10 +114,25 @@ def test_watch_removes_resources_once_the_worktree_is_deleted(sleep, docker, tmp
 
 @mock.patch.object(worktree_watcher.time, "sleep", autospec=True)
 @mock.patch.object(worktree_watcher, "list_resources", autospec=True, return_value=[])
-def test_watch_stops_when_the_worktree_stays_idle(list_resources, sleep, tmp_path):
+def test_watch_stops_when_the_worktree_stays_idle(list_resources, sleep, tmp_path, make_worktree):
+    make_worktree(tmp_path)
     worktree_watcher.watch(tmp_path, "this-host", poll_interval=30, idle_timeout=0)
 
     list_resources.assert_called_once_with("container", tmp_path, "this-host")
+
+
+@mock.patch.object(worktree_watcher.time, "sleep", autospec=True)
+@mock.patch.object(worktree_watcher, "list_resources", autospec=True, return_value=[])
+@mock.patch.object(worktree_watcher, "remove_resources", autospec=True)
+@mock.patch.object(
+    worktree_watcher, "is_worktree_missing", autospec=True, side_effect=PermissionError("unreadable")
+)
+def test_watch_keeps_resources_when_the_worktree_cannot_be_checked(
+    _is_missing, remove_resources, _list_resources, _sleep, tmp_path
+):
+    worktree_watcher.watch(tmp_path, "this-host", poll_interval=30, idle_timeout=0)
+
+    remove_resources.assert_not_called()
 
 
 @mock.patch.object(worktree_watcher, "watch", autospec=True)

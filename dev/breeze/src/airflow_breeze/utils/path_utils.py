@@ -20,6 +20,7 @@ Useful tools for various Paths used inside Airflow Sources.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import platform
@@ -29,6 +30,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 from airflow_breeze import NAME
@@ -681,9 +683,35 @@ def get_default_project_name() -> str:
     return f"breeze-{name}-{path_hash}"
 
 
+HOST_ID_PATH = Path.home() / ".config" / "breeze" / "host-id"
+
+
+@clearable_cache
 def get_host_id() -> str:
-    """Identify the machine whose filesystem decides whether a labelled worktree still exists."""
-    return socket.gethostname()
+    """
+    Identify the machine whose filesystem decides whether a labelled worktree still exists.
+
+    A random id is stored on first use instead of using the host name, because macOS renames the host
+    when another device on the network has the same name, and resources labelled with the old name
+    would never be swept. The host name is the fallback when the home directory is not writable.
+    """
+    try:
+        return HOST_ID_PATH.read_text().strip()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        return socket.gethostname()
+    try:
+        HOST_ID_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", dir=HOST_ID_PATH.parent, prefix=".host-id-") as new_id:
+            new_id.write(uuid.uuid4().hex)
+            new_id.flush()
+            # Linking fails when the file exists, so concurrent first runs all keep the first id.
+            with contextlib.suppress(FileExistsError):
+                os.link(new_id.name, HOST_ID_PATH)
+        return HOST_ID_PATH.read_text().strip()
+    except OSError:
+        return socket.gethostname()
 
 
 def get_main_git_dir_for_worktree() -> Path | None:

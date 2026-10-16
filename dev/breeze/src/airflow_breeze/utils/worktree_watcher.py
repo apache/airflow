@@ -60,12 +60,20 @@ def is_watcher_running(lock_file: Path) -> bool:
 
 
 def is_worktree_missing(worktree: Path) -> bool:
+    """
+    Tell whether the worktree is deleted, judged by its link to the main repository.
+
+    Checking the worktree path alone is not enough: Docker Desktop on macOS keeps bind-mounted
+    directories of a running container when the worktree is deleted, and a failed
+    ``git worktree remove`` leaves a ``.git`` file whose ``gitdir`` no longer exists.
+
+    Errors other than a missing file propagate, so that callers keep the resources.
+    """
     try:
-        worktree.stat()
+        gitdir = (worktree / ".git").read_text().strip().removeprefix("gitdir:").strip()
+        (worktree / gitdir).stat()
     except FileNotFoundError:
         return True
-    except OSError:
-        return False
     return False
 
 
@@ -119,7 +127,11 @@ def watch(worktree: Path, host: str, poll_interval: float, idle_timeout: float) 
     """
     last_seen_containers = time.monotonic()
     while True:
-        if is_worktree_missing(worktree):
+        try:
+            missing = is_worktree_missing(worktree)
+        except OSError:
+            missing = False
+        if missing:
             remove_resources(worktree, host)
             return
         if list_resources("container", worktree, host):

@@ -68,8 +68,11 @@ Every container, volume and network that Breeze's Compose files create carries:
 * ``org.apache.airflow.breeze=true`` - Breeze owns the resource;
 * ``org.apache.airflow.breeze.worktree=<absolute path>`` - the isolated worktree that owns it (empty
   for the main checkout and for shared resources);
-* ``org.apache.airflow.breeze.host=<host name>`` - the machine whose filesystem decides whether that
-  path still exists.
+* ``org.apache.airflow.breeze.host=<host id>`` - the machine whose filesystem decides whether that
+  path still exists. The id is random, generated once and stored in ``~/.config/breeze/host-id``;
+  the host name is not used because macOS renames the host when another device on the network has
+  the same name, which would leave the old resources unswept. When the id cannot be stored, Breeze
+  falls back to the host name.
 
 Labels are applied when Docker creates a resource, so a resource is marked for cleanup from the
 moment it exists, and Docker can be queried by label without parsing project names. A registry file
@@ -117,8 +120,12 @@ bytecode cache volume) are scoped per worktree in a follow-up change.
 
 ### Safety rules
 
-* **Missing means not found.** A worktree counts as deleted only when its path does not exist. Any
-  other error while checking the path keeps the resources.
+* **Missing means not found.** A worktree counts as deleted when its ``.git`` file, or the
+  ``gitdir`` that file points to in the main repository, does not exist. The path alone is not
+  checked: Docker Desktop on macOS keeps the bind-mounted directories of a running container when
+  the worktree is deleted, and a failed ``git worktree remove`` leaves a ``.git`` file pointing at a
+  removed ``gitdir``. Any other error while checking keeps the resources. The watcher and the sweep
+  share this check.
 * **Host scoping.** Resources labelled with another host are never treated as stale, because that
   host's paths cannot be checked here. This keeps a Docker daemon shared between machines from losing
   another machine's resources. Resources created before the host label existed have no host and are

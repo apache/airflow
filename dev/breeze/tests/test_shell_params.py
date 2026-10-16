@@ -102,7 +102,7 @@ def test_worktree_labels_are_derived_from_checkout(tmp_path, monkeypatch, linked
             autospec=True,
             return_value=tmp_path / ".git" if linked_worktree else None,
         ),
-        patch("airflow_breeze.utils.path_utils.socket.gethostname", autospec=True, return_value="this-host"),
+        patch("airflow_breeze.params.shell_params.get_host_id", autospec=True, return_value="this-host"),
     ):
         env = ShellParams().env_variables_for_docker_commands
 

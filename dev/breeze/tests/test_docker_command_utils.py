@@ -50,16 +50,21 @@ from airflow_breeze.utils.docker_command_utils import (
 @pytest.mark.parametrize("listing_failed", [False, True])
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
 def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_paths(
-    _host_id, tmp_path, listing_failed
+    _host_id, tmp_path, make_worktree, listing_failed
 ):
-    existing = tmp_path / "existing worktree"
-    existing.mkdir()
+    existing = make_worktree(tmp_path / "existing worktree")
+    leftover = tmp_path / "leftover bind mounts"
+    (leftover / "devel-common").mkdir(parents=True)
+    unlinked = make_worktree(tmp_path / "unlinked worktree")
+    (tmp_path / "main-checkout" / ".git" / "worktrees" / unlinked.name).rmdir()
     missing = tmp_path / "deleted worktree"
     listing = "\n".join(
         [
             f"stale\t{missing}\tthis-host",
             f"unlabelled-host\t{missing}\t<no value>",
             f"other-host\t{missing}\tother-host",
+            f"leftover\t{leftover}\tthis-host",
+            f"unlinked\t{unlinked}\tthis-host",
             f"active\t{existing}\tthis-host",
             "primary\t\t",
             "legacy\t<no value>\t<no value>",
@@ -86,21 +91,16 @@ def test_stale_worktree_cleanup_removes_only_containers_with_missing_absolute_pa
         else [
             ["docker", "rm", "--force", "--volumes", "stale"],
             ["docker", "rm", "--force", "--volumes", "unlabelled-host"],
+            ["docker", "rm", "--force", "--volumes", "leftover"],
+            ["docker", "rm", "--force", "--volumes", "unlinked"],
         ]
     )
 
 
 def test_stale_worktree_cleanup_keeps_containers_when_path_cannot_be_checked(tmp_path):
-    original_stat = Path.stat
-
-    def stat(path, **kwargs):
-        if path == tmp_path:
-            raise PermissionError("unreadable")
-        return original_stat(path, **kwargs)
-
     with (
         mock.patch("airflow_breeze.utils.docker_command_utils.run_command", autospec=True) as run,
-        mock.patch.object(Path, "stat", autospec=True, side_effect=stat),
+        mock.patch.object(Path, "read_text", autospec=True, side_effect=PermissionError("unreadable")),
     ):
         run.return_value = subprocess.CompletedProcess([], 0, stdout=f"container\t{tmp_path}\n", stderr="")
         docker_command_utils.remove_stale_worktree_containers()
@@ -481,11 +481,11 @@ def docker_resources():
 @pytest.mark.parametrize("preserve_volumes", [False, True])
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
 def test_down_selects_checkout_stale_or_explicit_projects(
-    _host_id, docker_resources, tmp_path, kwargs, linked, expected, preserve_volumes
+    _host_id, docker_resources, tmp_path, make_worktree, kwargs, linked, expected, preserve_volumes
 ):
     resources, run = docker_resources
-    other = tmp_path / "other"
-    other.mkdir()
+    make_worktree(tmp_path)
+    other = make_worktree(tmp_path / "other")
     projects = {
         "breeze": {},
         "breeze-docs": {},
@@ -598,13 +598,13 @@ def test_environment_checks_reap_stale_resources(
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
-def test_find_other_worktree_projects_lists_existing_worktrees_only(_host_id, docker_resources, tmp_path):
+def test_find_other_worktree_projects_lists_existing_worktrees_only(
+    _host_id, docker_resources, tmp_path, make_worktree
+):
     resources, _ = docker_resources
-    current = tmp_path / "current"
-    other = tmp_path / "other"
+    current = make_worktree(tmp_path / "current")
+    other = make_worktree(tmp_path / "other")
     remote = tmp_path / "remote"
-    for path in (current, other):
-        path.mkdir()
 
     def labels(project, worktree, host="this-host", owned="true"):
         return {

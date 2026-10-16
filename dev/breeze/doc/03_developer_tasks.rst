@@ -792,9 +792,9 @@ Explicit ``breeze down`` reports Docker failures as errors.
 
 ``breeze down`` removes containers, networks, and volumes for Breeze projects with no worktree path
 and for projects belonging to the current checkout.
-It also removes Breeze-owned resources whose absolute worktree path no longer exists,
-including running containers. Resources record the host name of the machine that created them,
-and a worktree path is only checked for resources created on the machine running Breeze, so a
+It also removes Breeze-owned resources of deleted worktrees - those whose ``.git`` link to the main
+repository is gone - including running containers. Resources record an id of the machine that created
+them (stored in ``~/.config/breeze/host-id``), and a worktree is only checked for resources created on the machine running Breeze, so a
 Docker daemon shared between machines does not lose another machine's resources. Afterwards it lists
 other worktrees that still have Breeze containers or volumes.
 

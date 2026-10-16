@@ -887,9 +887,7 @@ def _worktree_is_missing(worktree: str) -> bool:
     if not path.is_absolute():
         return False
     try:
-        path.stat()
-    except FileNotFoundError:
-        return True
+        return worktree_watcher.is_worktree_missing(path)
     except OSError as error:
         console_print(f"[warning]Cannot check worktree {worktree}: {error}. Keeping its resources.[/]")
     return False

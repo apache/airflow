@@ -39,9 +39,9 @@ can check whether your problem is fixed.
      then prune unused Breeze volumes across all Compose projects. Breeze's Compose containers,
      volumes, and networks carry ``org.apache.airflow.breeze=true``. Linked worktrees also record their
      absolute path in ``org.apache.airflow.breeze.worktree``; the primary checkout uses an empty value.
-     Shared cache volumes and shared networks have no worktree owner. Resources also record the
-     host name of the machine that created them in ``org.apache.airflow.breeze.host``, and worktree
-     paths are only checked for resources created on the machine running Breeze.
+     Shared cache volumes and shared networks have no worktree owner. Resources also record an
+     id of the machine that created them in ``org.apache.airflow.breeze.host`` (stored in
+     ``~/.config/breeze/host-id``), and worktrees are only checked for resources created on the machine running Breeze.
 
      Existing volumes keep their original labels. Cleanup retains support for the old
      ``com.docker.compose.project=breeze`` label, but older volumes from custom projects without
