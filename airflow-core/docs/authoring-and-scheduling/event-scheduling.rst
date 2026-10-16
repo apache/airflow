@@ -35,7 +35,7 @@ The ``watchers`` parameter in the ``Asset`` definition allows you to associate m
 asset, enabling it to respond to various event sources.
 
 Publishing partitioned asset events
-----------------------------------
+------------------------------------
 
 A watcher trigger can set a native partition key when yielding an event::
 
