@@ -200,6 +200,19 @@ class TestClient:
         assert err.value.args == ("Not found",)
         assert err.value.detail is None
 
+    @pytest.mark.parametrize("content_type", ["application/json; charset=utf-8", "Application/JSON"])
+    def test_error_parsing_json_media_type_variants(self, content_type):
+        responses = [
+            httpx2.Response(
+                409, content=b'{"detail": {"reason": "job_running"}}', headers={"content-type": content_type}
+            )
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as err:
+            client.get("http://error")
+        assert err.value.detail == {"reason": "job_running"}
+
     def test_server_response_error_pickling(self):
         responses = [httpx2.Response(404, json={"detail": {"message": "Invalid input"}})]
         client = make_client_w_responses(responses)
