@@ -53,6 +53,11 @@ try:
         ToolInputGuardrailTripwireTriggered,
     )
     from agents.items import TResponseOutputItem
+    from agents.tool import (
+        default_tool_error_function,
+        resolve_function_tool_failure_error_function,
+        set_function_tool_failure_error_function,
+    )
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
@@ -90,6 +95,10 @@ _MODEL_AT_FAULT = (
 
 # The tool results the SDK hands the model as structured content rather than as text.
 _STRUCTURED_OUTPUTS = (ToolOutputText, ToolOutputImage, ToolOutputFileContent)
+
+# Set on a tool call's context by the SDK when its default failure_error_function turned the
+# tool's exception into the text the model sees.
+_DEFAULT_FAILURE_HANDLED = "_function_tool_default_failure_handled"
 
 # Arguments that keep the conversation on OpenAI's servers, which a replayed model call never reaches.
 _SERVER_SIDE_STATE = ("previous_response_id", "conversation_id", "auto_previous_response_id")
@@ -133,9 +142,11 @@ async def run_durably(
     other than function tools (hosted tools such as web search, the tools of
     ``mcp_servers``, shell and computer tools), a function tool whose ``needs_approval`` is
     a function, since the SDK checks its arguments only through its own invoker, the
-    function tools of an agent reached through ``handoff()`` and its model unless that is
-    given by name or left to the default, and streamed runs. A replayed model call reports
-    no usage, since it costs nothing.
+    function tools of an agent reached through ``handoff()``, and its model too unless the
+    agent's ``model`` is a model name or not set, and streamed runs. A tool call that fails,
+    including one whose exception ``failure_error_function`` turns into text for the model,
+    is not recorded either, so a retry runs it again. A replayed model call reports no
+    usage, since it costs nothing.
 
     A ``session`` makes every retry run live: the SDK adds the failed try's prompt to it
     before the first model call, so that call no longer asks what it asked then.
@@ -150,8 +161,7 @@ async def run_durably(
         ``auto_previous_response_id`` is passed: a replayed call never reaches the
         conversation OpenAI keeps for them.
     """
-    journal = current_journal()
-    if journal is None:
+    if (journal := current_journal()) is None:
         return await Runner.run(starting_agent, input, run_config=run_config, **kwargs)
     if stateful := [name for name in _SERVER_SIDE_STATE if kwargs.get(name)]:
         raise ValueError(
@@ -163,7 +173,7 @@ async def run_durably(
     config.model_provider = _DurableModelProvider(config.model_provider, durable_run)
     if isinstance(config.model, Model):
         config.model = _DurableModel(config.model, durable_run)
-    agent = _durable_agent(starting_agent, durable_run, {})
+    agent = _get_durable_agent(starting_agent, durable_run, {})
     try:
         result = await Runner.run(agent, input, run_config=config, **kwargs)
     except BaseException as error:
@@ -185,32 +195,46 @@ def run_durably_sync(
     return run_coroutine_sync(run_durably(starting_agent, input, run_config=run_config, **kwargs))
 
 
-def _durable_agent(agent: Agent[Any], durable_run: DurableRun, seen: dict[int, Agent[Any]]) -> Agent[Any]:
+def _get_durable_agent(agent: Agent[Any], durable_run: DurableRun, seen: dict[int, Agent[Any]]) -> Agent[Any]:
     """Return a copy of ``agent`` whose model, function tools and handoff agents go through the journal."""
     if (done := seen.get(id(agent))) is not None:
         return done
-    durable = agent.clone()
+    durable_agent = agent.clone()
     # Recorded before the handoffs are copied, so agents that hand off to each other copy once.
-    seen[id(agent)] = durable
+    seen[id(agent)] = durable_agent
     if isinstance(agent.model, Model):
-        durable.model = _DurableModel(agent.model, durable_run)
-    durable.tools = [_durable_tool(tool, durable_run) for tool in agent.tools]
-    durable.handoffs = [
-        _durable_agent(target, durable_run, seen) if isinstance(target, Agent) else target
+        durable_agent.model = _DurableModel(agent.model, durable_run)
+    durable_agent.tools = [_get_durable_tool(tool, durable_run) for tool in agent.tools]
+    durable_agent.handoffs = [
+        _get_durable_agent(target, durable_run, seen) if isinstance(target, Agent) else target
         for target in agent.handoffs
     ]
-    return durable
+    return durable_agent
 
 
-def _durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
+def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
     # A tool whose approval depends on its arguments is left as it is: the SDK checks that the
     # arguments it approved are the ones the tool runs with only through its own invoker.
     if not isinstance(tool, FunctionTool) or callable(tool.needs_approval):
         return tool
+    # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
+    durable_tool = copy.copy(tool)
     invoke = tool.on_invoke_tool
+    # Exceptions a custom failure_error_function turned into text, by tool call.
+    handled: dict[str, Exception] = {}
+    formatter = resolve_function_tool_failure_error_function(tool)
+    bind = getattr(invoke, "__agents_bind_function_tool__", None)
+    if formatter is not None and formatter is not default_tool_error_function and bind is not None:
+
+        def remember(ctx: Any, error: Exception) -> Any:
+            handled[ctx.tool_call_id] = error
+            return formatter(ctx, error)
+
+        set_function_tool_failure_error_function(durable_tool, remember)
+        invoke = bind(durable_tool)
 
     async def on_invoke_tool(ctx: ToolContext[Any], arguments: str) -> Any:
-        if _inside_a_call(durable_run):
+        if _is_inside_a_call(durable_run):
             return await invoke(ctx, arguments)
         try:
             parsed = json.loads(arguments) if arguments else {}
@@ -222,19 +246,26 @@ def _durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
             mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
             ctx.tool_call_id,
         )
-        return await durable_run.run(
-            f"tool:{tool.name}",
-            kind="tool",
-            fingerprint=fingerprint,
-            body=lambda: invoke(ctx, arguments),
+        step = durable_run.claim(f"tool:{tool.name}", kind="tool", fingerprint=fingerprint)
+        if step.replayed:
+            return step.payload
+        try:
+            with step.executing():
+                output = await invoke(ctx, arguments)
+        except Exception as error:
+            step.fail(error)
+            raise
+        # A failure the SDK turned into text for the model is not recorded, so a retry runs the
+        # call again, as it does a call that raised.
+        if (handled_error := handled.pop(ctx.tool_call_id, None)) is not None:
+            step.fail(handled_error)
+        elif not getattr(ctx, _DEFAULT_FAILURE_HANDLED, False):
             # Secrets must not reach the journal any more than the model.
-            to_record=lambda output: mask_secrets(_as_sent(output)),
-        )
+            step.record(mask_secrets(_as_sent(output)))
+        return output
 
-    # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
-    durable = copy.copy(tool)
-    durable.on_invoke_tool = on_invoke_tool
-    return durable
+    durable_tool.on_invoke_tool = on_invoke_tool
+    return durable_tool
 
 
 def _as_sent(output: Any) -> Any:
@@ -257,7 +288,7 @@ def _as_sent(output: Any) -> Any:
     return str(output)
 
 
-def _inside_a_call(durable_run: DurableRun) -> bool:
+def _is_inside_a_call(durable_run: DurableRun) -> bool:
     """
     Whether a recorded call of ``durable_run`` is running, such as an agent called through ``as_tool``.
 
@@ -272,24 +303,24 @@ class _DurableModelProvider(ModelProvider):
     """Wrap every model the run resolves by name in a :class:`_DurableModel`."""
 
     def __init__(self, provider: ModelProvider, durable_run: DurableRun) -> None:
-        self._provider = provider
-        self._durable_run = durable_run
-        self._models: dict[str | None, _DurableModel] = {}
+        self.provider = provider
+        self.durable_run = durable_run
+        self.models: dict[str | None, _DurableModel] = {}
 
     def get_model(self, model_name: str | None) -> Model:
-        if model_name not in self._models:
-            self._models[model_name] = _DurableModel(self._provider.get_model(model_name), self._durable_run)
-        return self._models[model_name]
+        if model_name not in self.models:
+            self.models[model_name] = _DurableModel(self.provider.get_model(model_name), self.durable_run)
+        return self.models[model_name]
 
 
 class _DurableModel(Model):
     """Replay a model call the previous attempt recorded, or make it and record the response."""
 
     def __init__(self, model: Model, durable_run: DurableRun) -> None:
-        self._model = model
-        self._durable_run = durable_run
+        self.wrapped = model
+        self.durable_run = durable_run
         # The step of a call that raised, which the SDK's own model retry may make again.
-        self._failed: JournalStep | None = None
+        self.failed_step: JournalStep | None = None
 
     async def get_response(
         self,
@@ -302,14 +333,14 @@ class _DurableModel(Model):
         tracing: ModelTracing,
         **kwargs: Any,
     ) -> ModelResponse:
-        if _inside_a_call(self._durable_run):
-            return await self._model.get_response(
+        if _is_inside_a_call(self.durable_run):
+            return await self.wrapped.get_response(
                 system_instructions, input, model_settings, tools, output_schema, handoffs, tracing, **kwargs
             )
         fingerprint = _fingerprint_request(
-            self._model, system_instructions, input, model_settings, tools, output_schema, handoffs, kwargs
+            self.wrapped, system_instructions, input, model_settings, tools, output_schema, handoffs, kwargs
         )
-        step = self._retried(fingerprint) or self._durable_run.claim(
+        step = self._retried(fingerprint) or self.durable_run.claim(
             "model", kind="model", fingerprint=fingerprint
         )
         if step.replayed:
@@ -320,17 +351,17 @@ class _DurableModel(Model):
                     response_id=step.payload.get("response_id"),
                 )
             except (ValidationError, KeyError, TypeError) as error:
-                self._durable_run.reject(step, reason=f"the recorded model response cannot be read: {error}")
+                self.durable_run.reject(step, reason=f"the recorded model response cannot be read: {error}")
 
         async def call() -> ModelResponse:
-            return await self._model.get_response(
+            return await self.wrapped.get_response(
                 system_instructions, input, model_settings, tools, output_schema, handoffs, tracing, **kwargs
             )
 
         try:
             return await step.run(call, to_record=_record_response)
         except Exception:
-            self._failed = step
+            self.failed_step = step
             raise
 
     def _retried(self, fingerprint: str | None) -> JournalStep | None:
@@ -340,10 +371,10 @@ class _DurableModel(Model):
         The SDK's model retry asks again with the same request and nothing in between; it is
         the same call, so it takes the same position, and the next try lines up with this one.
         """
-        failed, self._failed = self._failed, None
+        failed, self.failed_step = self.failed_step, None
         if failed is None or failed.fingerprint != fingerprint:
             return None
-        return failed if self._durable_run.position == failed.position + 1 else None
+        return failed if self.durable_run.position == failed.position + 1 else None
 
     def stream_response(
         self,
@@ -357,23 +388,23 @@ class _DurableModel(Model):
         **kwargs: Any,
     ) -> AsyncIterator[TResponseStreamEvent]:
         # A streamed response is not recorded: it reaches the caller event by event.
-        return self._model.stream_response(
+        return self.wrapped.stream_response(
             system_instructions, input, model_settings, tools, output_schema, handoffs, tracing, **kwargs
         )
 
     def _supports_default_prompt_cache_key(self) -> bool:
         # The runner asks the model whether to add a prompt cache key; the answer is the wrapped model's.
-        supports = getattr(self._model, "_supports_default_prompt_cache_key", None)
+        supports = getattr(self.wrapped, "_supports_default_prompt_cache_key", None)
         return bool(supports()) if callable(supports) else False
 
     def get_retry_advice(self, request: ModelRetryAdviceRequest) -> ModelRetryAdvice | None:
-        return self._model.get_retry_advice(request)
+        return self.wrapped.get_retry_advice(request)
 
     async def _cleanup_on_run_end(self, owner: object) -> None:
-        await self._model._cleanup_on_run_end(owner)
+        await self.wrapped._cleanup_on_run_end(owner)
 
     async def close(self) -> None:
-        await self._model.close()
+        await self.wrapped.close()
 
 
 def _record_response(response: ModelResponse) -> dict[str, Any]:

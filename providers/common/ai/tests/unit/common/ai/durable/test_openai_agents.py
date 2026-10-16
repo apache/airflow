@@ -32,17 +32,19 @@ from agents import (
     ModelResponse,
     ModelSettings,
     RunConfig,
+    SQLiteSession,
     ToolOutputText,
     Usage,
     function_tool,
 )
-from agents.exceptions import MaxTurnsExceeded
+from agents.exceptions import MaxTurnsExceeded, ModelBehaviorError
 from agents.retry import ModelRetryBackoffSettings, ModelRetrySettings
 from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
 from pydantic import BaseModel
 
+from airflow.providers.common.ai.durable.base import build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
-from airflow.providers.common.ai.durable.openai_agents import _durable_tool, run_durably_sync
+from airflow.providers.common.ai.durable.openai_agents import _get_durable_tool, run_durably_sync
 from airflow.providers.common.ai.tools import AirflowTool, ToolResult
 from airflow.providers.common.ai.tools.openai_agents import AirflowTools
 
@@ -316,6 +318,10 @@ class TestRunDurably:
             pytest.param(datetime.datetime(2026, 10, 14, 9, 30), id="datetime"),
             pytest.param({"rows": 3}, id="dict"),
             pytest.param(ToolOutputText(text="3 rows"), id="structured"),
+            pytest.param(
+                [ToolOutputText(text="3 rows"), ToolOutputText(text="2 orders")], id="structured-list"
+            ),
+            pytest.param({"type": "text", "text": "3 rows"}, id="typed-dict"),
         ],
     )
     def test_a_tool_result_replays_as_the_model_saw_it(self, result):
@@ -400,12 +406,110 @@ class TestRunDurably:
             """Pay an amount."""
             return "paid"
 
-        assert _durable_tool(pay, DurableJournal(MemoryStorage()).start_run()) is pay
+        assert _get_durable_tool(pay, DurableJournal(MemoryStorage()).start_run()) is pay
 
-    @pytest.mark.parametrize("option", ["previous_response_id", "conversation_id"])
-    def test_refuses_a_conversation_kept_on_openais_servers(self, option):
+    @pytest.mark.parametrize(
+        ("option", "value"),
+        [
+            ("previous_response_id", "resp_1"),
+            ("conversation_id", "conv_1"),
+            ("auto_previous_response_id", True),
+        ],
+    )
+    def test_refuses_a_conversation_kept_on_openais_servers(self, option, value):
         with pytest.raises(ValueError, match=option):
-            _attempt(MemoryStorage(), _ScriptedModel(), _CountingTool(), **{option: "resp_1"})
+            _attempt(MemoryStorage(), _ScriptedModel(), _CountingTool(), **{option: value})
+
+    def test_a_recorded_answer_that_cannot_be_read_runs_live_with_every_call_after_it(self):
+        storage, tool = MemoryStorage(), _CountingTool()
+        with pytest.raises(RuntimeError):
+            _attempt(storage, _ScriptedModel(fail_on_answer=True), tool)
+        storage.entries[build_step_key(0, 0)]["payload"]["output"] = [{"type": "not an output item"}]
+
+        retry_model = _ScriptedModel()
+        _, journal = _attempt(storage, retry_model, tool)
+
+        assert retry_model.calls == 2
+        assert tool.calls == 2
+        assert journal.stats.replayed == {"model": 0}
+
+    @pytest.mark.parametrize(
+        "failure_error_function",
+        [
+            pytest.param({}, id="default-formatter"),
+            pytest.param(
+                {"failure_error_function": lambda ctx, error: f"lookup failed: {error}"}, id="custom"
+            ),
+        ],
+    )
+    def test_a_tool_call_that_failed_runs_again_on_retry(self, failure_error_function):
+        """The SDK hands the model the error as text; that text must not replay as the tool's result."""
+        calls = []
+
+        @function_tool(**failure_error_function)
+        def lookup(key: str) -> str:
+            """Look a key up."""
+            calls.append(key)
+            if len(calls) == 1:
+                raise ConnectionError("warehouse unreachable")
+            return f"{key}=42"
+
+        storage = MemoryStorage()
+
+        def attempt(model: _ScriptedModel) -> DurableJournal:
+            journal = DurableJournal(storage, clean_up_after_run=True)
+            with journal_scope(journal):
+                run_durably_sync(
+                    Agent(name="analyst", model=model, tools=[lookup]), "go", run_config=NO_TRACING
+                )
+            return journal
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(fail_on_answer=True))
+        retry_model = _ScriptedModel()
+        attempt(retry_model)
+
+        assert len(calls) == 2
+        assert retry_model.calls == 1
+
+    def test_a_model_behavior_error_a_tool_raises_reruns_the_tool_and_replays_the_answer_before_it(self):
+        calls = []
+
+        @function_tool(failure_error_function=None)
+        def lookup(key: str) -> str:
+            """Look a key up."""
+            calls.append(key)
+            if len(calls) == 1:
+                raise ModelBehaviorError("lookup was called with a key that does not exist")
+            return f"{key}=42"
+
+        storage = MemoryStorage()
+
+        def attempt(model: _ScriptedModel) -> None:
+            with journal_scope(DurableJournal(storage, clean_up_after_run=True)):
+                run_durably_sync(
+                    Agent(name="analyst", model=model, tools=[lookup]), "go", run_config=NO_TRACING
+                )
+
+        with pytest.raises(ModelBehaviorError):
+            attempt(_ScriptedModel())
+        retry_model = _ScriptedModel()
+        attempt(retry_model)
+
+        assert len(calls) == 2
+        # The answer that asked for the lookup replays; only the final answer is asked for.
+        assert retry_model.calls == 1
+
+    def test_a_run_with_a_session_runs_live_on_retry(self, tmp_path):
+        """The session already holds the failed try's prompt, so the first request differs."""
+        storage, tool = MemoryStorage(), _CountingTool()
+        session = SQLiteSession("analyst", str(tmp_path / "session.db"))
+        with pytest.raises(RuntimeError):
+            _attempt(storage, _ScriptedModel(fail_on_answer=True), tool, session=session)
+
+        _, journal = _attempt(storage, _ScriptedModel(), tool, session=session)
+
+        assert journal.stats.replayed == {}
 
     def test_outside_a_task_it_runs_the_agent_as_runner_run_does(self):
         model, tool = _ScriptedModel(), _CountingTool()
