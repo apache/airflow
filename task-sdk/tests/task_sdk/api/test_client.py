@@ -44,6 +44,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
+    LoopDecisionPayload,
     TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
@@ -474,6 +475,32 @@ class TestTaskInstanceOperations:
             rendered_map_index="test",
             retry_reason=retry_reason,
         )
+
+    @pytest.mark.parametrize(
+        ("method", "kwargs"),
+        [
+            ("finish", {"state": TerminalTIState.FAILED}),
+            ("succeed", {"task_outlets": [], "outlet_events": []}),
+        ],
+    )
+    def test_task_instance_terminal_state_sends_loop_decision(self, method, kwargs):
+        ti_id = uuid6.uuid7()
+        bodies = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            bodies.append(json.loads(request.read()))
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        getattr(client.task_instances, method)(
+            ti_id,
+            when="2024-10-31T12:00:00Z",
+            rendered_map_index=None,
+            loop_decision=LoopDecisionPayload(stop=False, reason="error 0.2"),
+            **kwargs,
+        )
+
+        assert bodies[0]["loop_decision"] == {"stop": False, "reason": "error 0.2"}
 
     def test_task_instance_heartbeat(self):
         # Simulate a successful response from the server that sends a heartbeat for a ti

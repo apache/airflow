@@ -90,7 +90,7 @@ from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.dynamic_region import (
-    LOOP_DECISION_KEY,
+    LOOP_DECISION_REASON_KEY,
     SENTINEL_REGION_ID,
     DynamicRegion,
     public_region_filter,
@@ -152,14 +152,14 @@ class InvalidLoopDecision(ValueError):
     """A gate cannot complete successfully with the available decision."""
 
 
-def validate_loop_decision(decision: str | None, region_index: int, group: SerializedLoopTaskGroup) -> None:
-    """Raise :class:`InvalidLoopDecision` unless ``decision`` is valid for the gate of pass ``region_index``."""
+def validate_loop_decision(stop: bool | None, region_index: int, group: SerializedLoopTaskGroup) -> None:
+    """Raise :class:`InvalidLoopDecision` unless ``stop`` is valid for the gate of pass ``region_index``."""
     at_limit = region_index + 1 >= group.max_iterations
-    if decision not in ("continue", "stop"):
+    if stop is None:
         raise InvalidLoopDecision("Successful loop gate requires a decision")
-    if decision == "continue" and at_limit:
+    if not stop and at_limit:
         raise InvalidLoopDecision("Loop cannot continue beyond its iteration limit")
-    if not group.has_until and (decision == "stop") != at_limit:
+    if not group.has_until and stop != at_limit:
         raise InvalidLoopDecision("Fixed-count loop decision does not match its iteration limit")
 
 
@@ -2323,24 +2323,34 @@ class DagRun(Base, LoggingMixin):
         group: SerializedLoopTaskGroup,
         state: TaskInstanceState,
         *,
+        stop: bool | None,
+        reason: str | None,
         session: Session,
     ) -> None:
-        """Consume a gate decision while the caller holds the DagRun and TI locks."""
-        from airflow.models.xcom import XComModelV2
+        """
+        Apply a gate's decision and record its reason while the caller holds the DagRun and TI locks.
+
+        A gate whose loop already has a later pass changes nothing, and its reason is not recorded.
+        """
+        # A module-level import of airflow.models.xcom is circular when this module is imported first.
+        from airflow.models.xcom import XComModel
         from airflow.settings import task_instance_mutation_hook
 
         if gate.dag_version_id is None:
             raise InvalidLoopDecision("Loop gate requires a pinned DAG version")
-        signal = XComModelV2.get_for_attempt(gate.id, LOOP_DECISION_KEY, session=session)
-        later_gate = gate.has_later_loop_pass(group, session=session)
-        if state != TaskInstanceState.SUCCESS or later_gate:
-            if signal is not None:
-                session.delete(signal)
+        if gate.has_later_loop_pass(group, session=session):
             return
-        decision = signal.value if signal is not None else None
-        validate_loop_decision(decision, gate.region_index, group)
-        session.delete(signal)
-        if decision == "stop":
+        if state == TaskInstanceState.SUCCESS:
+            validate_loop_decision(stop, gate.region_index, group)
+        if reason:
+            XComModel.set_for_attempt(
+                task_instance_id=gate.id,
+                key=LOOP_DECISION_REASON_KEY,
+                value=reason,
+                serialize=False,
+                session=session,
+            )
+        if state != TaskInstanceState.SUCCESS or stop:
             return
         created_counts: dict[str, int] = defaultdict(int)
         hook_is_noop: Literal[True, False] = getattr(task_instance_mutation_hook, "is_noop", False)
