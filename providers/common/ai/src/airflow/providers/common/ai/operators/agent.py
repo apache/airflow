@@ -241,6 +241,27 @@ def _declares_agent_template_fields(toolset: Any) -> bool:
     )
 
 
+def _dump_unregistered_models(value: Any, registered: set[type]) -> Any:
+    """Return *value* with each model whose class is not in *registered* dumped to a JSON-compatible dict."""
+    if isinstance(value, BaseModel):
+        if type(value) in registered:
+            return value
+        # A python-mode dump leaves values such as Enum members, HttpUrl and Path in the dict, and
+        # airflow.sdk.serde raises TypeError for those values. When a model instance itself is pushed,
+        # serde dumps it with mode="json", so this dict has the same values as a pushed instance.
+        return value.model_dump(mode="json")
+    # Compare exact types instead of using isinstance. pydantic builds exactly list, tuple and dict for
+    # list[...], tuple[...] and dict[...] annotations, and rebuilding a subclass such as a NamedTuple from
+    # its items could fail.
+    if type(value) is list:
+        return [_dump_unregistered_models(item, registered) for item in value]
+    if type(value) is tuple:
+        return tuple(_dump_unregistered_models(item, registered) for item in value)
+    if type(value) is dict:
+        return {key: _dump_unregistered_models(item, registered) for key, item in value.items()}
+    return value
+
+
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
@@ -1122,18 +1143,20 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         return output
 
     def _convert_output_for_xcom(self, output: Any) -> Any:
-        """Return the value to push to XCom, as a dict if a downstream task could not load the model."""
-        if isinstance(output, BaseModel) and (
-            self._serialize_model_output or type(output) not in iter_pydantic_models(self.output_type)
-        ):
-            # A downstream task can load a model from XCom only if the worker registered the model's class.
-            # The worker registers the classes that iter_pydantic_models finds in output_type.
-            # iter_pydantic_models finds no class in a list of output types, an output marker, an output
-            # function, a TypeAliasType or a NewType, so the operator pushes the model as a dict.
-            # When iter_pydantic_models could not be imported, _serialize_model_output is always True, so
-            # the condition above never reaches the iter_pydantic_models call.
+        """Return the XCom value, with dicts in place of models that a downstream task could not load."""
+        if self._serialize_model_output and isinstance(output, BaseModel):
             return output.model_dump()
-        return output
+        if not _CORE_WALKER:
+            # iter_pydantic_models could not be imported, so the worker registers no class.
+            # _serialize_model_output is always True when that import fails, so a model at the top level
+            # was already dumped above. Any other output is pushed unchanged.
+            return output
+        # A downstream task can load a model from XCom only if the worker registered the model's class.
+        # The worker registers the classes that iter_pydantic_models finds in output_type.
+        # iter_pydantic_models finds no class in a list of output types, an output marker, an output
+        # function, a TypeAliasType or a NewType. For these output types the operator pushes each model
+        # as a dict, including models inside a list, tuple or dict.
+        return _dump_unregistered_models(output, set(iter_pydantic_models(self.output_type)))
 
     def _pause_for_tool_approval(self, context: Context, result: Any, *, attempt_usage: RunUsage) -> NoReturn:
         """
