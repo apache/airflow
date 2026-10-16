@@ -43,7 +43,7 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.dynamic_region import LOOP_DECISION_KEY, DynamicRegion
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, DynamicRegion
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import clear_loop_task_instances, clear_task_instances, uuid7
@@ -6086,7 +6086,7 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         assert tis["body.first", 0].note is None
         assert tis["body.first", 2].note is None
 
-    def test_manual_gate_success_after_rewind_stops_without_consuming_continue(
+    def test_manual_gate_success_after_rewind_stops_and_keeps_the_reason(
         self, test_client, session, loop_instances
     ):
         dr, loop, root, tis = loop_instances
@@ -6100,7 +6100,7 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
             )
         ).one()
         gate_id = gate.id
-        session.add(XComModelV2(task_instance_id=gate_id, key=LOOP_DECISION_KEY, value="continue"))
+        session.add(XComModelV2(task_instance_id=gate_id, key=LOOP_DECISION_REASON_KEY, value="stale"))
         session.commit()
 
         response = test_client.patch(
@@ -6112,7 +6112,9 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         session.expire_all()
         assert session.get(TaskInstance, gate_id).state == State.SUCCESS
         assert all(ti.region_index == 0 for ti in dr.get_task_instances(session=session))
-        assert not session.scalar(select(XComModelV2).where(XComModelV2.task_instance_id == gate_id))
+        assert session.scalars(
+            select(XComModelV2.value).where(XComModelV2.task_instance_id == gate_id)
+        ).all() == ["stale"]
 
     @pytest.mark.parametrize("outcome", ["success", "failed", "skipped"])
     def test_manual_terminal_settles_superseded_running_execution(

@@ -63,6 +63,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailResponse,
     HITLUser,
     InactiveAssetsResponse,
+    LoopDecisionPayload,
     Note,
     PrevSuccessfulDagRunResponse,
     ResultMessage,
@@ -281,6 +282,7 @@ class TaskInstanceOperations:
         retry_reason: str | None = None,
         *,
         pid: int | None = None,
+        loop_decision: LoopDecisionPayload | None = None,
     ):
         """Report a terminal outcome or acknowledge server-requested termination."""
         if state == TaskInstanceState.SUCCESS:
@@ -291,6 +293,8 @@ class TaskInstanceOperations:
             rendered_map_index=rendered_map_index,
             retry_reason=retry_reason,
         )
+        if loop_decision is not None:
+            body.loop_decision = loop_decision
         if state == TerminalStateNonSuccess.SERVER_TERMINATED:
             body.hostname = get_hostname()
             body.pid = pid
@@ -313,13 +317,23 @@ class TaskInstanceOperations:
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, rendered_map_index):
+    def succeed(
+        self,
+        id: uuid.UUID,
+        when: datetime,
+        task_outlets,
+        outlet_events,
+        rendered_map_index,
+        *,
+        loop_decision: LoopDecisionPayload | None = None,
+    ):
         """Tell the API server that this TI has succeeded."""
         body = TISuccessStatePayload(
             end_date=when,
             task_outlets=task_outlets,
             outlet_events=outlet_events,
             rendered_map_index=rendered_map_index,
+            loop_decision=loop_decision,
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 

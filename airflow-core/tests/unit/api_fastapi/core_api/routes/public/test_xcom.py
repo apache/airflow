@@ -538,6 +538,38 @@ class TestGetXComEntries(TestXComEndpoint):
             for e in entries
         ] == [(dag_id, dag_id, task_id, task_id, run_id, key) for dag_id, task_id, key in expected]
 
+    @pytest.mark.parametrize(
+        ("exclude_internal_keys", "expected_keys"),
+        [
+            (
+                False,
+                [
+                    f"{TEST_XCOM_KEY}-0",
+                    f"{TEST_XCOM_KEY}-1",
+                    "_airflow_loop_decision_reason",
+                    "xairflowxloopx",
+                ],
+            ),
+            (True, [f"{TEST_XCOM_KEY}-0", f"{TEST_XCOM_KEY}-1", "xairflowxloopx"]),
+        ],
+        ids=["included-by-default", "excluded"],
+    )
+    def test_exclude_internal_keys(self, test_client, exclude_internal_keys, expected_keys):
+        self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
+        for key in ("_airflow_loop_decision_reason", "xairflowxloopx"):
+            XComModel.set(
+                key=key, value="v", run_id=run_id, task_id=TEST_TASK_ID, dag_id=TEST_DAG_ID, map_index=-1
+            )
+
+        response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            params={"exclude_internal_keys": exclude_internal_keys, "order_by": "key"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == len(expected_keys)
+        assert sorted(entry["key"] for entry in response.json()["xcom_entries"]) == sorted(expected_keys)
+
     def test_should_respond_200_with_tilde(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
         self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
@@ -961,6 +993,15 @@ class TestCreateXComEntry(TestXComEndpoint):
                 f"The XCom with key: `{TEST_XCOM_KEY}` with mentioned task instance already exists.",
                 id="xcom-already-exists",
             ),
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key="_airflow_loop_decision_reason", value="converged"),
+                400,
+                "Reserved loop XCom key",
+                id="reserved-loop-key",
+            ),
         ],
     )
     def test_create_xcom_entry(
@@ -1198,6 +1239,13 @@ class TestPatchXComEntry(TestXComEndpoint):
                 404,
                 f"The XCom with key: `{TEST_XCOM_KEY}` with mentioned task instance doesn't exist.",
                 id="xcom-not-found",
+            ),
+            pytest.param(
+                "_airflow_loop_decision_reason",
+                {"value": "converged"},
+                400,
+                "Reserved loop XCom key",
+                id="reserved-loop-key",
             ),
         ],
     )
