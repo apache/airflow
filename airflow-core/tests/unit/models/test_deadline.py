@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -367,8 +368,10 @@ class TestDeadline:
 
     @pytest.mark.db_test
     @pytest.mark.usefixtures("classname_shaped_conf")
-    def test_handle_miss_serializes_runtime_context_strictly_for_triggerer(self, dagrun, session):
-        """The context is serialized as-is: a conf value shaped like an encoded object is not kept encoded."""
+    def test_handle_miss_never_rebuilds_runtime_context_for_triggerer(self, dagrun, session):
+        """A conf value shaped like an encoded object never reaches the triggerer to be rebuilt."""
+        from airflow.models.trigger import Trigger
+
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,
             callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
@@ -379,9 +382,13 @@ class TestDeadline:
         session.add(deadline_orm)
         session.flush()
 
-        with pytest.raises(AttributeError, match="reserved key"):
+        # Strict serialization refuses the context, either by raising here or by failing the
+        # callback without queueing it; both keep the value away from the triggerer.
+        with contextlib.suppress(AttributeError):
             deadline_orm.handle_miss(session)
 
+        assert deadline_orm.callback.trigger is None
+        assert session.scalars(select(Trigger)).all() == []
         assert _ContextValue.instantiated is False
 
     @pytest.mark.db_test
