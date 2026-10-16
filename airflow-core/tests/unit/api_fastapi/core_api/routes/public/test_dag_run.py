@@ -5099,6 +5099,29 @@ class TestBulkDagRuns:
         assert dag_run.note == "bulk note"
         assert dag_run.state == DAG1_RUN1_STATE
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_update_listener_sees_note_when_note_and_state_both_updated(
+        self, test_client, listener_manager
+    ):
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_run_id": DAG1_RUN2_ID, "state": "success", "note": "listener_note"}
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        assert listener.dag_run_note_at_listener == "listener_note"
+
     def test_bulk_update_not_found_fails(self, test_client, session):
         """FAIL semantics: a single missing run fails the whole action and nothing is updated."""
         response = test_client.patch(
