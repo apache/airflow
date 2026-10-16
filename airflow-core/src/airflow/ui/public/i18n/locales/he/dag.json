@@ -111,6 +111,37 @@
     "waitingToRetry": "ניסיון {{tryNumber}} ממתין לניסיון חוזר.",
     "warning": "WARNING"
   },
+  "loop": {
+    "history": {
+      "capLabel": "מגבלה: {{max}}",
+      "iterationsAxis": "איטרציות",
+      "stats": {
+        "capHits": "הגיעו למגבלה",
+        "medianIterations": "חציון איטרציות"
+      },
+      "title": "איטרציות לכל הרצה"
+    },
+    "iterationLabel": "איטרציה {{index}}",
+    "iterations": "איטרציות",
+    "outcome": "תוצאה",
+    "reason": {
+      "cap_reached": "הגיע למגבלת האיטרציות ({{max}})",
+      "failed": "נכשל באיטרציה {{index}}",
+      "iteration_failed": "איטרציה {{index}} נכשלה ב-{{taskId}}",
+      "ran_to_cap": "הריץ את כל {{max}} האיטרציות המותרות",
+      "removed": "הוסר",
+      "running": "בריצה",
+      "skipped": "דולג",
+      "stopped_early": "נעצר מוקדם באיטרציה {{index}}"
+    },
+    "rules": {
+      "behaviour": "התנהגות",
+      "boundedFor": "מריץ מספר קבוע של איטרציות",
+      "exitCriteria": "תנאי יציאה",
+      "maxIterations": "מספר איטרציות מרבי",
+      "whileUntil": "חוזר עד ש-{{criteria}}"
+    }
+  },
   "notFound": {
     "back": "חזור",
     "backToDags": "חזור ל-Dags",
@@ -299,7 +330,6 @@
     "maxChanges": "מספר השינויים המרבי",
     "maxChangesDefault": "ברירת מחדל",
     "noChanges": "הגרסאות האלה מכילות את אותו מצב.",
-    "observedState": "המצב שנצפה",
     "observedStateBoundary": "ההשוואה מתייחסת למצב המאוחסן כעת, ולא לראיות מזמן היצירה. אין אפשרות להשוות את המקור בגרסאות היסטוריות; השתמש בכרטיסייה Code כדי להשוות את המקור.",
     "operations": {
       "added": "נוסף",
@@ -324,7 +354,6 @@
       "title": "ההשוואה אינה זמינה",
       "withoutReason": "לא ניתן להשוות בין הגרסאות האלה."
     },
-    "valuesHidden": "הערכים מוסתרים",
-    "valuesShown": "הערכים מוצגים"
+    "valuesHidden": "הערכים מוסתרים"
   }
 }

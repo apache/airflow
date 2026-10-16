@@ -6,6 +6,11 @@
       "warning": "זה ימחק את כל המטא-נתונים הקשורים ל-Dag, כולל ריצות ומשימות"
     }
   },
+  "draining": {
+    "badgeTooltip": "ה-Dag יושהה לאחר שההרצות הפעילות שלו יסתיימו.",
+    "label": "ממתין לסיום",
+    "tooltip": "{{dagDisplayName}} ממתין לסיום ההרצות הפעילות — יושהה לאחר מכן. לחץ כדי לחדש."
+  },
   "favoriteDag": "הוסף Dag למועדפים",
   "filters": {
     "allRunTypes": "כל סוגי הריצות",
@@ -92,13 +97,15 @@
       "existingTasks": "נקה משימות קיימות",
       "future": "בעתיד",
       "keepTaskState": "שמור את מצב המשימה והמשך",
+      "laterIterations": "איטרציות מאוחרות יותר",
       "onlyFailed": "נקה משימות שנכשלו בלבד",
       "past": "בעבר",
       "preventRunningTasks": "מנע הרצה חוזרת אם המשימה כבר רצה",
       "queueNew": "תזמן משימות חדשות",
       "runOnLatestVersion": "הרץ על גרסת החבילה האחרונה",
       "runOnLatestVersionForced": "תמיד משתמש בגרסה העדכנית — אין גרסה קודמת לחזור אליה",
-      "upstream": "במעלה הזרם"
+      "upstream": "במעלה הזרם",
+      "wholeExpansion": "כל ההרחבה"
     }
   },
   "runStateCounts": {
@@ -116,18 +123,10 @@
   "schedulingBanner": {
     "message": "ה-Dag ממתין לסיום ההרצות הפעילות שלו ויושהה לאחר מכן."
   },
-  "schedulingState": {
-    "active": "פעיל",
-    "draining": "ממתין לסיום",
-    "drainingBadgeTooltip": "ה-Dag יושהה לאחר שההרצות הפעילות שלו יסתיימו.",
-    "drainingTooltip": "{{dagDisplayName}} ממתין לסיום ההרצות הפעילות — יושהה לאחר מכן. לחץ כדי לחדש.",
-    "label": "מצב תזמון",
-    "paused": "מושהה",
-    "placeholder": "בחר מצב תזמון…"
-  },
   "search": {
     "advanced": "חיפוש מתקדם",
     "clear": "נקה חיפוש",
+    "dagRuns": "חפש $t(common:dagRun_other)",
     "dags": "חפש Dags",
     "hotkey": "+K",
     "tasks": "חפש משימות"

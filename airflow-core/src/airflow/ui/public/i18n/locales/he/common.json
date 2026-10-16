@@ -152,13 +152,19 @@
   "filter": "מסנן",
   "filters": {
     "addFilter": "הוסף מסנן",
+    "allIterations": "הכול",
     "completedAt": "הסתיים בתאריך",
     "date": "תאריך",
     "durationFrom": "משך זמן מ-",
     "durationTo": "משך זמן עד",
     "endTime": "זמן סיום",
+    "iteration": "איטרציה",
     "logicalDateFrom": "תאריך לוגי מ-",
     "logicalDateTo": "תאריך לוגי עד",
+    "loop": "לולאה",
+    "loopAllIterations": "{{loop}} – הכול",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "בחר לולאה",
     "maxActiveRunsFrom": "ממספר הרצות פעילות מרבי",
     "maxActiveRunsTo": "עד מספר הרצות פעילות מרבי",
     "removeFilter": "הסר מסנן",
@@ -168,6 +174,7 @@
     "selectDateRange": "בחר טווח תאריכים",
     "selectDateTime": "בחר תאריך ושעה",
     "startTime": "זמן התחלה",
+    "switchIteration": "החלף איטרציה",
     "time": "שעה"
   },
   "fullscreen": {
@@ -176,6 +183,7 @@
   "generateToken": "צור אסימון",
   "includedIn": "כלול ב",
   "key": "מפתח",
+  "loading": "טוען…",
   "logLevel": {
     "hide": "הסתר רמות יומן",
     "hotkey": "l",
@@ -432,6 +440,7 @@
     "upstream_failed": "משימות קודמות נכשלו"
   },
   "switchDag": "החלף $t(dag_one)",
+  "switchDagRun": "החלף $t(dagRun_one)",
   "table": {
     "completedAt": "הושלם בתאריך",
     "createdAt": "נוצר בתאריך",
@@ -480,6 +489,9 @@
     "executorConfig": "הגדרות Executor",
     "hostname": "שם מארח",
     "id": "מזהה",
+    "iteration": "איטרציה",
+    "loopDecision": "החלטה",
+    "loopIterations": "איטרציות שרצו",
     "maxTries": "מספר נסיונות מרבי",
     "pid": "מזהה תהליך",
     "pool": "מאגר משאבים",
