@@ -46,9 +46,6 @@ The payload is still stored in ``extra["payload"]``. A ``partition_key`` inside 
 alone does not assign a native partition. Keys must contain a non-whitespace character and
 be at most 250 characters long. Omit the argument to publish an ordinary asset event.
 
-This also works for events yielded by ``filter_shared_stream``. The shared-stream
-acknowledgement mechanism continues to gate producer advancement on event persistence.
-
 See the :doc:`common.messaging provider docs <apache-airflow-providers-common-messaging:triggers>` for more information and examples.
 
 Supported triggers for event-driven scheduling
