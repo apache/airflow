@@ -2130,7 +2130,7 @@ requires-dist = [
     { name = "pendulum", specifier = ">=3.1.0" },
     { name = "pluggy", specifier = ">=1.5.0" },
     { name = "psutil", specifier = ">=5.8.0" },
-    { name = "pydantic", specifier = ">=2.11.0" },
+    { name = "pydantic", specifier = ">=2.12.0" },
     { name = "pygments", specifier = ">=2.0.1,!=2.19.0" },
     { name = "pygtrie", specifier = ">=2.5.0" },
     { name = "pyjwt", specifier = ">=2.11.0" },
