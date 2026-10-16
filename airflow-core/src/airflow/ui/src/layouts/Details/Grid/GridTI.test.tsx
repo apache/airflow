@@ -109,7 +109,7 @@ describe("GridTI", () => {
     },
     { childStates: { none: 2, success: 1 }, primaryState: null, secondaryState: "success" },
   ])(
-    "shows $secondaryState alongside $primaryState for a mapped task",
+    "shows the highest-priority secondary state when mapped instances have different states",
     ({ childStates, primaryState, secondaryState }) => {
       renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
         instance: { ...taskInstance, child_states: childStates, state: primaryState },
@@ -131,7 +131,7 @@ describe("GridTI", () => {
     { childStates: { success: 3 }, isMapped: true },
     { childStates: { skipped: 0, success: 3 }, isMapped: true },
     { childStates: { skipped: 2, success: 1 }, isMapped: false },
-  ])("keeps a solid cell for $childStates with isMapped=$isMapped", ({ childStates, isMapped }) => {
+  ])("uses a solid color when there are no mixed mapped states", ({ childStates, isMapped }) => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
       instance: { ...taskInstance, child_states: childStates },
       isMapped,
@@ -140,7 +140,7 @@ describe("GridTI", () => {
     expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe("");
   });
 
-  it.each([true, false])("keeps the note marker and selected outline with isMapped=%s", (isMapped) => {
+  it.each([true, false])("preserves note markers and selection highlighting on task cells", (isMapped) => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
       hasNote: true,
       instance: { ...taskInstance, child_states: { skipped: 2, success: 1 } },
