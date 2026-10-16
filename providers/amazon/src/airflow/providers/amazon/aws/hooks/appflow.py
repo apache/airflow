@@ -89,7 +89,7 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
                     self.log.info("Run complete, execution details: %s", fe)
                     return
             next_token = response_desc.get("nextToken")
-            if not next_token:
+            if not next_token or next_token == args.get("nextToken"):
                 break
             args["nextToken"] = next_token
         self.log.warning(

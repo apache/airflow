@@ -120,6 +120,24 @@ def test_run_flow_execution_not_found(hook):
     )
 
 
+def test_run_flow_repeating_token(hook):
+    page = {
+        "flowExecutions": [{"executionId": "other_id", "executionStatus": "Successful"}],
+        "nextToken": "same_token",
+    }
+    hook.conn.describe_flow_execution_records.return_value = page
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
+        with mock.patch.object(hook.log, "warning") as mock_warning:
+            res = hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
+
+    assert res == EXECUTION_ID
+    assert hook.conn.describe_flow_execution_records.call_count == 2
+    mock_warning.assert_called_once_with(
+        "Execution %s for flow %s was not found in execution records.", EXECUTION_ID, FLOW_NAME
+    )
+
+
 def test_update_flow_filter(hook):
     tasks = [
         {
