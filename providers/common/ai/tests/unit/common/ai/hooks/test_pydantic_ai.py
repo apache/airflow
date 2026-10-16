@@ -23,7 +23,7 @@ import logging
 import re
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from pydantic_ai import Agent
@@ -385,6 +385,13 @@ class TestPydanticAIHookGetHook:
         assert hook.llm_conn_id == "llm"
         assert hook.model_id == "openai:gpt-5"
         assert hook.fallback_conn_ids == []
+
+    def test_seeds_the_hook_with_the_connection_it_fetched(self, registry, infer_model_stub):
+        registry.add("llm", extra={"model": "openai:gpt-5"})
+
+        PydanticAIHook.get_hook("llm").get_conn()
+
+        PydanticAIHook.get_connection.assert_called_once_with("llm")
 
     def test_registers_the_pydanticai_hook_without_patching_the_registry(self):
         assert _get_registered_hooks()["pydanticai"].hook_class_name == qualname(PydanticAIHook)
@@ -2210,56 +2217,77 @@ class TestConnTypeResolution:
         assert type(resolved.get_hook()) is hook_class
 
 
-def _extra_dejson_off_the_event_loop(conn: Connection) -> dict:
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return json.loads(conn.extra) if conn.extra else {}
-    raise AssertionError("extra_dejson masks secrets synchronously on the event loop")
+def _off_the_event_loop(lookup):
+    """
+    Wrap a synchronous Task SDK lookup so it fails the test when it runs on the event loop.
+
+    ``get_connection`` and the secret masking of ``extra_dejson`` send to the supervisor
+    synchronously. On the event loop, with another async call in flight, that raises
+    ``DeadlockImminentError``; from a worker thread it only waits its turn.
+    """
+
+    def guarded(*args, **kwargs):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return lookup(*args, **kwargs)
+        raise AssertionError("synchronous Task SDK call on the event loop")
+
+    return guarded
 
 
 @pytest.fixture
-def async_registry():
-    """
-    Serve connections only through ``get_async_connection``: the synchronous lookups fail on the loop.
-
-    ``get_connection`` and the secret masking of ``extra_dejson`` send to the supervisor
-    synchronously, which raises ``DeadlockImminentError`` inside an async task with another
-    async call in flight. ``get_connection`` must not be called at all, and ``extra_dejson``
-    only off the event loop, where ``get_async_extra_dejson`` reads it on Airflow < 3.3.2.
-    """
+def loop_guarded_registry():
+    """The ``registry`` fixture, with every synchronous lookup refused on the event loop."""
     reg = _ConnRegistry()
     with (
-        patch(
-            "airflow.providers.common.ai.hooks.pydantic_ai.get_async_connection",
-            new=AsyncMock(side_effect=reg.get_connection),
-        ) as mock_get_async_connection,
-        patch.object(PydanticAIHook, "get_connection", side_effect=AssertionError("sync get_connection")),
-        patch.object(Connection, "extra_dejson", new=property(_extra_dejson_off_the_event_loop)),
+        patch.object(
+            PydanticAIHook, "get_connection", side_effect=_off_the_event_loop(reg.get_connection)
+        ) as mock_get_connection,
+        patch.object(
+            Connection,
+            "extra_dejson",
+            new=property(_off_the_event_loop(lambda conn: json.loads(conn.extra) if conn.extra else {})),
+        ),
         patch.object(Connection, "get_hook", side_effect=reg.get_hook, autospec=True),
+        patch(
+            "airflow.providers.common.ai.hooks.pydantic_ai._get_registered_hooks",
+            autospec=True,
+            return_value=reg.hooks,
+        ),
     ):
-        reg.get_async_connection = mock_get_async_connection
+        reg.get_connection_mock = mock_get_connection
         yield reg
+
+
+class _ReadsAnotherConnectionHook(PydanticAIHook):
+    """A subclass whose provider kwargs come from another connection, as Snowflake's do."""
+
+    def _get_provider_kwargs(self, api_key, base_url, extra):
+        return {"api_key": self.get_connection("credentials").extra_dejson["token"]}
 
 
 class TestPydanticAIHookAsync:
     @pytest.mark.asyncio
-    async def test_aget_conn_resolves_the_model_asynchronously(self, async_registry, infer_model_stub):
-        async_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
-        hook = PydanticAIHook(llm_conn_id="primary")
+    async def test_aget_conn_resolves_the_model_off_the_event_loop(
+        self, loop_guarded_registry, infer_model_stub
+    ):
+        loop_guarded_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
 
-        assert await hook.aget_conn() is infer_model_stub.models["openai:gpt-5.6-sol"]
-        async_registry.get_async_connection.assert_awaited_once_with("primary")
+        model = await PydanticAIHook(llm_conn_id="primary").aget_conn()
+
+        assert model is infer_model_stub.models["openai:gpt-5.6-sol"]
+        loop_guarded_registry.get_connection_mock.assert_called_once_with("primary")
 
     @pytest.mark.asyncio
-    async def test_aget_conn_resolves_the_fallback_chain_asynchronously(
-        self, async_registry, infer_model_stub
+    async def test_aget_conn_resolves_the_fallback_chain_off_the_event_loop(
+        self, loop_guarded_registry, infer_model_stub
     ):
-        async_registry.add(
+        loop_guarded_registry.add(
             "primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second", "third"]}
         )
-        async_registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
-        async_registry.add("third", extra={"model": "groq:llama-4"})
+        loop_guarded_registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        loop_guarded_registry.add("third", extra={"model": "groq:llama-4"})
 
         model = await PydanticAIHook(llm_conn_id="primary").aget_conn()
 
@@ -2269,75 +2297,124 @@ class TestPydanticAIHookAsync:
             infer_model_stub.models["anthropic:claude-opus-4-6"],
             infer_model_stub.models["groq:llama-4"],
         ]
-        assert async_registry.get_async_connection.await_args_list == [
+        assert loop_guarded_registry.get_connection_mock.call_args_list == [
             call("primary"),
             call("second"),
             call("third"),
         ]
 
     @pytest.mark.asyncio
-    async def test_aget_conn_is_cached(self, async_registry, infer_model_stub):
-        async_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+    @pytest.mark.parametrize("subclass_conn_id", ["primary", "second"], ids=["primary", "fallback"])
+    async def test_aget_conn_runs_a_subclass_provider_kwargs_off_the_event_loop(
+        self, loop_guarded_registry, infer_model_stub, subclass_conn_id
+    ):
+        loop_guarded_registry.add("credentials", extra={"token": "from-another-connection"})
+        loop_guarded_registry.add(
+            "primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]}
+        )
+        loop_guarded_registry.add(
+            "second", hook_class=_ReadsAnotherConnectionHook, extra={"model": "anthropic:claude-opus-4-6"}
+        )
+        hook_class = _ReadsAnotherConnectionHook if subclass_conn_id == "primary" else PydanticAIHook
+
+        await hook_class(llm_conn_id="primary").aget_conn()
+
+        loop_guarded_registry.get_connection_mock.assert_any_call("credentials")
+
+    @pytest.mark.asyncio
+    async def test_aget_conn_is_cached(self, loop_guarded_registry, infer_model_stub):
+        loop_guarded_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
         hook = PydanticAIHook(llm_conn_id="primary")
 
         assert await hook.aget_conn() is await hook.aget_conn()
         assert hook.get_conn() is infer_model_stub.models["openai:gpt-5.6-sol"]
-        async_registry.get_async_connection.assert_awaited_once()
+        loop_guarded_registry.get_connection_mock.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
-    async def test_acreate_agent(self, mock_agent_cls, async_registry, infer_model_stub):
-        async_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
-        hook = PydanticAIHook(llm_conn_id="primary")
+    async def test_acreate_agent_forwards_every_argument(
+        self, mock_agent_cls, loop_guarded_registry, infer_model_stub
+    ):
+        loop_guarded_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
 
-        agent = await hook.acreate_agent(instructions="Be helpful.")
+        agent = await PydanticAIHook(llm_conn_id="primary").acreate_agent(
+            int, instructions="Count.", retries=3
+        )
 
         assert agent is mock_agent_cls.return_value
         mock_agent_cls.assert_called_once_with(
             infer_model_stub.models["openai:gpt-5.6-sol"],
-            output_type=str,
-            instructions="Be helpful.",
+            output_type=int,
+            instructions="Count.",
+            retries=3,
             capabilities=[MaskingCapability()],
         )
 
     @pytest.mark.asyncio
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
-    async def test_acreate_agent_with_spec_file_uses_file_model_when_hook_model_not_configured(
-        self, mock_agent_cls, async_registry, infer_model_stub
+    async def test_acreate_agent_with_spec_file_forwards_every_argument(
+        self, mock_agent_cls, loop_guarded_registry, infer_model_stub
     ):
-        async_registry.add("primary")
+        loop_guarded_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
 
-        await PydanticAIHook(llm_conn_id="primary").acreate_agent(spec_file="/path/to/agent.yaml")
+        await PydanticAIHook(llm_conn_id="primary").acreate_agent(
+            int, spec_file="/path/to/agent.yaml", instructions="Be brief.", retries=3
+        )
 
         mock_agent_cls.from_file.assert_called_once_with(
-            "/path/to/agent.yaml", output_type=str, capabilities=[MaskingCapability()]
+            "/path/to/agent.yaml",
+            output_type=int,
+            model=infer_model_stub.models["openai:gpt-5.6-sol"],
+            instructions="Be brief.",
+            retries=3,
+            capabilities=[MaskingCapability()],
         )
-        infer_model_stub.mock.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_aget_conn_uses_aextra_dejson_when_available(self, async_registry, infer_model_stub):
-        """On Airflow 3.3.2+ the extra comes from ``Connection.aextra_dejson()``, which masks asynchronously."""
-        async_registry.add("primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]})
-        async_registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
-        decoded: list[str] = []
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    async def test_acreate_agent_twice_fetches_each_connection_once(
+        self, mock_agent_cls, loop_guarded_registry, infer_model_stub
+    ):
+        loop_guarded_registry.add(
+            "primary", extra={"model": "openai:gpt-5.6-sol", "fallback_conn_ids": ["second"]}
+        )
+        loop_guarded_registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        hook = PydanticAIHook(llm_conn_id="primary")
 
-        async def aextra_dejson(conn: Connection) -> dict:
-            decoded.append(conn.conn_id)
-            return json.loads(conn.extra)
+        await hook.acreate_agent(instructions="Be helpful.")
+        await hook.acreate_agent(instructions="Be helpful.")
 
-        with patch.object(Connection, "aextra_dejson", new=aextra_dejson, create=True):
-            model = await PydanticAIHook(llm_conn_id="primary").aget_conn()
-
-        assert isinstance(model, FallbackModel)
-        assert decoded == ["primary", "second"]
+        assert loop_guarded_registry.get_connection_mock.call_args_list == [call("primary"), call("second")]
 
     @pytest.mark.asyncio
     async def test_acreate_agent_without_instructions_or_spec_file_raises_before_fetching(
-        self, async_registry
+        self, loop_guarded_registry
     ):
-        async_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        loop_guarded_registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
 
         with pytest.raises(ValueError, match="instructions is required when spec_file is not provided"):
             await PydanticAIHook(llm_conn_id="primary").acreate_agent()
 
-        async_registry.get_async_connection.assert_not_awaited()
+        loop_guarded_registry.get_connection_mock.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aget_hook_builds_the_connection_hook_off_the_event_loop(
+        self, loop_guarded_registry, infer_model_stub
+    ):
+        loop_guarded_registry.add("llm", extra={"model": "openai:gpt-5.6-sol"})
+
+        hook = await PydanticAIHook.aget_hook("llm", hook_params={"model_id": "anthropic:claude-opus-4-6"})
+
+        assert hook.model_id == "anthropic:claude-opus-4-6"
+        assert await hook.aget_conn() is infer_model_stub.models["anthropic:claude-opus-4-6"]
+        loop_guarded_registry.get_connection_mock.assert_called_once_with("llm")
+
+    @pytest.mark.asyncio
+    async def test_aget_hook_rejects_a_connection_of_another_type(self, loop_guarded_registry):
+        loop_guarded_registry.add("llm", conn_type="openai")
+        loop_guarded_registry.register_hook("openai", qualname(_OtherProviderHook))
+
+        with pytest.raises(ValueError, match="Connection 'llm' has type 'openai'"):
+            await PydanticAIHook.aget_hook("llm")
+
+        Connection.get_hook.assert_not_called()

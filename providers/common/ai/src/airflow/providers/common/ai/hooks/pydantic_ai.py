@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import functools
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -28,12 +30,10 @@ from pydantic_ai.providers import infer_provider, infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
-from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
-
 
 # Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
 # ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
@@ -176,9 +176,6 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
-        # Fallback connections already fetched by :meth:`aget_conn` / :meth:`acreate_agent`,
-        # with their deserialized extra, so resolving the chain makes no Task SDK call.
-        self._prefetched_fallbacks: dict[str, tuple[Connection, dict[str, Any]]] = {}
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
@@ -211,7 +208,28 @@ class PydanticAIHook(BaseHook):
                 f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
                 "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
             )
-        return conn.get_hook(hook_params=hook_params)
+        hook = conn.get_hook(hook_params=hook_params)
+        if isinstance(hook, PydanticAIHook):
+            # Saves the second fetch of this same connection the hook's first ``get_conn``
+            # would make.
+            hook._seed_connection(conn)
+        return hook
+
+    @classmethod
+    async def aget_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``, for use inside an async task.
+
+        The async counterpart of :meth:`get_hook`, with the same connection type check and
+        the connection already cached on the hook. The lookup runs in a worker thread:
+        ``get_connection`` sends to the supervisor synchronously, which raises
+        ``DeadlockImminentError`` on the event loop while another async call is in flight,
+        but only waits its turn from any other thread.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
+        return await asyncio.to_thread(cls.get_hook, conn_id, hook_params)
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -265,7 +283,7 @@ class PydanticAIHook(BaseHook):
             self._conn_extra_dejson = self._conn.extra_dejson
         return self._conn, self._conn_extra_dejson
 
-    def _seed_connection(self, conn: Connection, extra: dict[str, Any] | None = None) -> None:
+    def _seed_connection(self, conn: Connection) -> None:
         """
         Prime this hook's connection cache with an already-fetched ``Connection``.
 
@@ -274,12 +292,9 @@ class PydanticAIHook(BaseHook):
         ``Connection`` that call built the hook from. Without this, :meth:`_get_conn_and_extra`
         would fetch that same connection a second time the first time it runs, doubling the
         Execution API round trips a fallback chain costs.
-
-        :param extra: The connection's extra, already deserialized. The async path passes it,
-            since ``extra_dejson`` masks secrets with a synchronous call to the supervisor.
         """
         self._conn = conn
-        self._conn_extra_dejson = conn.extra_dejson if extra is None else extra
+        self._conn_extra_dejson = conn.extra_dejson
 
     def get_conn(self) -> Model:
         """
@@ -328,28 +343,18 @@ class PydanticAIHook(BaseHook):
 
     async def aget_conn(self) -> Model:
         """
-        Return the configured pydantic-ai ``Model``, for use inside an async task or trigger.
+        Return the configured pydantic-ai ``Model``, for use inside an async task.
 
-        The same model as :meth:`get_conn`, fallback chain included, but this hook's connection
-        and its fallback connections are fetched with ``get_async_connection``, so resolving
-        them makes no synchronous call to the Task SDK. ``get_connection`` and the secret
-        masking of ``extra_dejson`` send to the supervisor synchronously, which raises
-        ``DeadlockImminentError`` on an event loop with another async call in flight.
+        The same model as :meth:`get_conn`, fallback chain included, resolved in a worker
+        thread. Resolving it reads connections with ``get_connection`` and ``extra_dejson``,
+        and a subclass's :meth:`_get_provider_kwargs` may read more (Snowflake's builds a
+        ``SnowflakeHook``); each of those sends to the supervisor synchronously, which raises
+        ``DeadlockImminentError`` on the event loop while another async call is in flight,
+        but only waits its turn from any other thread.
         """
         if self._model is not None:
             return self._model
-        await self._aprefetch_connections()
-        return self.get_conn()
-
-    async def _aprefetch_connections(self) -> None:
-        """Fetch this hook's connection and its fallback connections asynchronously, once."""
-        if self._conn is None:
-            conn = await get_async_connection(self.llm_conn_id)
-            self._seed_connection(conn, await get_async_extra_dejson(conn))
-        for conn_id in self._get_fallback_conn_ids():
-            if conn_id not in self._prefetched_fallbacks:
-                conn = await get_async_connection(conn_id)
-                self._prefetched_fallbacks[conn_id] = (conn, await get_async_extra_dejson(conn))
+        return await asyncio.to_thread(self.get_conn)
 
     def _qualify_model_name(self, model_name: str, *, forwarded_from_conn_id: str | None = None) -> str:
         """
@@ -563,10 +568,7 @@ class PydanticAIHook(BaseHook):
             # dispatch the hook class from it directly instead -- this is exactly what
             # ``BaseHook.get_hook`` does internally, so the result still isn't constrained to
             # this class and the type has to be checked here.
-            if conn_id in self._prefetched_fallbacks:
-                conn, extra = self._prefetched_fallbacks[conn_id]
-            else:
-                conn, extra = PydanticAIHook.get_connection(conn_id), None
+            conn = PydanticAIHook.get_connection(conn_id)
             hook = conn.get_hook()
             if not isinstance(hook, PydanticAIHook):
                 raise ValueError(
@@ -574,7 +576,7 @@ class PydanticAIHook(BaseHook):
                     "not a PydanticAIHook. Only pydanticai connection types can be used as "
                     f"fallbacks for '{self.llm_conn_id}'."
                 )
-            hook._seed_connection(conn, extra)
+            hook._seed_connection(conn)
             if hook._get_fallback_conn_ids():
                 raise ValueError(
                     f"Fallback connection '{conn_id}' declares its own "
@@ -743,18 +745,21 @@ class PydanticAIHook(BaseHook):
         """
         Create a pydantic-ai Agent configured with this hook's model, for use inside an async task.
 
-        The async counterpart of :meth:`create_agent`, with the same parameters: the
-        connections are fetched as in :meth:`aget_conn`, so building the agent makes no
-        synchronous call to the Task SDK. Run it with ``await agent.run(...)``.
+        The async counterpart of :meth:`create_agent`, with the same parameters, built in a
+        worker thread for the reason given in :meth:`aget_conn`. Run the agent with
+        ``await agent.run(...)``.
         """
-        if spec_file is None and instructions is None:
-            raise ValueError("instructions is required when spec_file is not provided.")
-        await self._aprefetch_connections()
         if spec_file is not None:
-            return self.create_agent(
-                output_type, spec_file=spec_file, instructions=instructions, **agent_kwargs
+            build = functools.partial(
+                self.create_agent, output_type, spec_file=spec_file, instructions=instructions, **agent_kwargs
             )
-        return self.create_agent(output_type, instructions=instructions, **agent_kwargs)
+        elif instructions is None:
+            raise ValueError("instructions is required when spec_file is not provided.")
+        else:
+            build = functools.partial(
+                self.create_agent, output_type, instructions=instructions, **agent_kwargs
+            )
+        return await asyncio.to_thread(build)
 
     def test_connection(self) -> tuple[bool, str]:
         """
