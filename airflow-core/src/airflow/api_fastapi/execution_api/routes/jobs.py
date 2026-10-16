@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, cast
 import svcs
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Security, status
-from sqlalchemy import insert, select, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from airflow._shared.timezones import timezone
@@ -55,6 +55,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, JobState
+from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
 from airflow.models.team import JobTeam
 
 if TYPE_CHECKING:
@@ -199,6 +200,7 @@ def register_job(
             previous.end_date = now
         previous.session_id = None
         session.flush()
+        session.execute(delete(DagParseCheckpoint).where(DagParseCheckpoint.job_id == previous.id))
 
     try:
         with session.begin_nested():
@@ -282,6 +284,7 @@ def complete_job(
             status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Job {job_id} not found for this token"},
         )
+    session.execute(delete(DagParseCheckpoint).where(DagParseCheckpoint.job_id == job_id))
 
 
 @router.post(
