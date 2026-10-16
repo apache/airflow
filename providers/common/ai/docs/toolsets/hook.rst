@@ -194,6 +194,22 @@ The value of ``base64`` can be passed to a ``bytes`` parameter as it is; text ha
 to be encoded by the model first. ``bytes`` nested in a returned list or dict are
 rendered as UTF-8 text, with any byte that does not decode replaced.
 
+.. _hook-toolset-datetimes:
+
+Dates and times
+---------------
+
+JSON has no date type either. A parameter typed ``datetime`` or ``datetime | None``,
+such as ``from_datetime`` of ``S3Hook.list_keys``, is offered to the model as a string
+in ``date-time`` format whose description asks for ISO 8601 with a UTC offset, and the
+value is parsed into a timezone-aware ``datetime`` before the method is called. A value
+with no offset, such as ``2026-09-01T00:00:00``, or one that does not parse, is refused
+while the call's arguments are validated, and the model is asked to correct the call.
+The toolset does not assume a timezone for it, because hooks disagree on one:
+``S3Hook.list_keys`` and ``GCSHook.list_by_timespan`` raise ``TypeError`` for a naive
+value, while ``GCSHook.is_updated_after`` treats it as UTC. A ``datetime`` nested in
+another type, such as ``list[datetime]``, is not converted.
+
 When to choose it
 -----------------
 

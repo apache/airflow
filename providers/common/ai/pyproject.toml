@@ -127,13 +127,16 @@ dependencies = [
 # Provides the CodeMode capability for AgentOperator(capabilities=[CodeMode()]).
 # pydantic-ai-harness is pre-1.0; an opt-in extra so its churn never breaks the
 # base provider install.
-"code-mode" = ["pydantic-ai-harness[codemode]>=0.24.0"]
+# 0.35.0 is the first release that caps pydantic-monty below 1.0; earlier releases also
+# accept monty 1.x, which they cannot run code with.
+"code-mode" = ["pydantic-ai-harness[codemode]>=0.35.0"]
 # Shield capabilities such as InputGuard, OutputGuard, ToolGuard, and CostTracking.
 "shields" = ["pydantic-ai-shields>=0.3.4"]
 # Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset;
 # the git provider supplies GitHook + GitPython for cloning GitSkills with
-# credentials from a `git` connection. Native progressive disclosure is tracked
-# upstream in pydantic/pydantic-ai#5230; revisit this extra once that lands.
+# credentials from a `git` connection. pydantic-ai-harness's Skills capability is not
+# a replacement: it loads only SKILL.md instructions, with no skill resources and no
+# run_skill_script.
 "skills" = [
     "apache-airflow-providers-git>=0.4.0",
     "pydantic-ai-skills>=1.2.0",
@@ -197,6 +200,8 @@ dev = [
     # needs them so the adapter tests, which build real SDK models, run instead of skipping.
     "openai>=2.47.0",
     "anthropic>=1.1.0",
+    # The code-mode extra, so the tests that run a real CodeMode under durable execution run.
+    "pydantic-ai-harness[codemode]>=0.35.0",
     "boat-sdk>=1.9.3",
     "islo>=0.3.19",
     "opensandbox>=1.1.0",

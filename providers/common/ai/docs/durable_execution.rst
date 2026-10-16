@@ -193,6 +193,82 @@ In a plain ``@task``, which has no such moment, the capability deletes a run's j
 as soon as that run succeeds: after a failure, only the run that failed replays, and
 the agents that ran before it run again.
 
+Values that are not plain JSON
+------------------------------
+
+Plain JSON tool arguments and settings are hashed as they are. Anything else is
+fingerprinted from pydantic's JSON rendering, so ordinary types that are not JSON, such
+as a ``datetime`` or ``Decimal`` tool argument, a dataclass in ``tool_choice``, the
+bytes in a ``BinaryContent`` or a dict keyed by date, fingerprint normally. Bytes in
+tool arguments and settings are rendered as base64, so binary data that is not valid
+UTF-8 fingerprints too; bytes inside a pydantic model follow that model's
+``ser_json_bytes`` setting instead, which renders them as UTF-8 text by default. Because
+a tool call is fingerprinted from how its arguments render, a field excluded from
+serialization and a secret value, which renders masked, take no part in it.
+
+The members of a ``set`` are ordered before hashing. A set of strings iterates in an
+order that changes from one process to the next, and every attempt is a new process, so
+without this a step holding one would never match on retry. A list that a serializer
+produces is hashed as the serializer produced it, so a set that a serializer turns into
+a list may not match on retry. The one list that is re-sorted is the output of a
+JSON-only serializer (``when_used="json"``) that returns the members of a set: it cannot
+be told from the set itself, so ``["z-first", "a"]`` hashes as ``["a", "z-first"]``.
+
+A request cannot be fingerprinted when:
+
+- two distinct dict keys render alike, such as ``1`` and ``"1"``, since the fingerprint
+  could then not tell those payloads apart;
+- a set whose order changes between processes cannot be found in the rendering, because
+  its members have different shapes, or because a JSON-only serializer renamed or
+  reshaped it, even one that also sorts it;
+- a value would render through an iterator, since rendering would consume it. A
+  parameter annotated ``Iterable[...]`` is the usual case: pydantic validates it lazily,
+  and reading it to hash it would consume input the tool has not read yet. Tool
+  arguments are rendered from copies, so fingerprinting never changes what the tool
+  receives, and an argument that cannot be copied is not fingerprinted either;
+- pydantic cannot render a value at all.
+
+Such a step is handled like a step with no request to fingerprint: it replays on its
+name, and only when the step before it replayed. The task log names it with a
+``could not fingerprint model request`` or ``could not fingerprint tool call`` warning.
+On the model path the cause is rarely confined to one step. ``model_settings`` and the
+tool definitions travel with every request, and a value that enters the message
+history, for example in a tool return, is carried into every later request, so every
+model step from that point on is replayed without verification.
+
+A set of models or dataclass instances, and from pydantic 2.13 a dict keyed by a model
+or dataclass instance, is a special case. In a tool argument or a setting it cannot be
+fingerprinted. In the message history it is rendered, and the history is then hashed
+from its JSON rendering alone: nothing in it is ordered and nothing is refused, so a set
+of strings elsewhere in that history can make the run diverge at that step on retry.
+
+.. _durable-code-mode:
+
+Code mode
+---------
+
+With pydantic-ai-harness's ``CodeMode`` (:doc:`code_mode`), the model sends Python to one
+``run_code`` tool, and the snippet calls the agent's tools as functions. ``run_code`` is
+not a step of its own: the retry runs each snippet again, and the tool calls the snippet
+makes replay from the journal one by one, so a snippet that called three tools is three
+recorded steps. When the snippet returns what it returned before, the model request after
+it replays too.
+
+A call the snippet makes replays only when the call at that position in the journal has
+the same tool, arguments and call id. Code mode numbers a snippet's calls in the order the
+snippet makes them, so when calls under ``asyncio.gather`` reach the journal in another
+order on the retry, the first call out of place and every step after it run live. A call
+never gets the result recorded for another one.
+
+The snippet's own code is not recorded. Whatever it does outside a tool call happens again
+on the retry, such as writing to a directory shared through ``mount`` or calling an
+``os_access`` handler, and if what it reads that way has changed, the tool calls it makes
+next differ and run live. Keep side effects in tools, whose results are recorded.
+
+``CodeMode``'s ``eager`` and ``speculate`` options start tool calls while the model is
+still writing the snippet. Both are off while the run is durable, so a retry runs the
+finished snippet the way the previous attempt did.
+
 What the task log shows
 -----------------------
 
@@ -271,9 +347,9 @@ the step, and a retry runs it again.
 Limitations
 -----------
 
-- ``durable=True`` cannot be combined with ``enable_hitl_review``, a pydantic-ai-harness
-  ``CodeMode`` capability, a ``SandboxToolset`` or tool approval. ``AgentOperator`` raises
-  ``ValueError`` for the first three when the Dag is parsed.
+- ``durable=True`` cannot be combined with ``enable_hitl_review``, a ``SandboxToolset``
+  or tool approval. ``AgentOperator`` raises ``ValueError`` for the first two when the Dag
+  is parsed.
 - A task instance that is retried across an upgrade of this provider from a version
   without ``AirflowDurability`` runs its steps live once: the journal keys changed.
 
