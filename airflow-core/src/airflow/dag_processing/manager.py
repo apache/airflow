@@ -48,7 +48,7 @@ from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, DagSkippedIntervalsCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
@@ -821,6 +821,8 @@ class DagFileProcessorManager(LoggingMixin):
     def _log_dropped_lang_sdk_callback(self, request: CallbackRequest) -> None:
         if isinstance(request, DagCallbackRequest):
             target = f"dag_id={request.dag_id} run_id={request.run_id}"
+        elif isinstance(request, DagSkippedIntervalsCallbackRequest):
+            target = f"dag_id={request.dag_id}"
         else:
             ti = request.ti
             target = f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
