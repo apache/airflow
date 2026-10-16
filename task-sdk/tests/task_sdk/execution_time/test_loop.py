@@ -175,6 +175,43 @@ def test_gate_fails_when_until_does_not_return_a_bool(loop_ti, mock_supervisor_c
     mock_supervisor_comms.send.assert_not_called()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("previous_iteration", [False, True])
+async def test_iterated_terminal_keeps_iteration_across_item_reads(
+    loop_ti, mock_supervisor_comms, previous_iteration
+):
+    """An iterated terminal's result is an XComIterable; its items are read in the same iteration."""
+    from airflow.sdk.bases.xcom import XComIterable
+    from airflow.sdk.serde import serialize
+
+    ti = loop_ti(index=1)
+    sent = []
+
+    def respond(message):
+        sent.append(message)
+        if message.key == "return_value":
+            result = XComIterable(task_id="body.terminal", dag_id="loop_runtime", run_id=ti.run_id, length=2)
+            return XComResult(key=message.key, value=serialize(result))
+        return XComResult(key=message.key, value=message.key)
+
+    async def arespond(message):
+        return respond(message)
+
+    mock_supervisor_comms.send.side_effect = respond
+    mock_supervisor_comms.asend.side_effect = arespond
+    loop = ti.get_template_context()["loop"]
+    result = loop.previous if previous_iteration else loop.result
+
+    assert isinstance(result, XComIterable)
+    assert result[0] == "return_value_0"
+    assert await result.aget(1) == "return_value_1"
+    assert [(message.key, message.previous_iteration) for message in sent] == [
+        ("return_value", previous_iteration),
+        ("return_value_0", previous_iteration),
+        ("return_value_1", previous_iteration),
+    ]
+
+
 @pytest.mark.parametrize("previous_iteration", [False, True])
 @pytest.mark.parametrize("values", [[], [0], [0, False, ""]])
 def test_mapped_terminal_keeps_iteration_across_lazy_reads(

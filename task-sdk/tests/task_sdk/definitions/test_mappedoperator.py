@@ -32,15 +32,12 @@ from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import (
-    ErrorResponse,
     GetTICount,
     GetXCom,
-    GetXComSequenceItem,
     GetXComSequenceSlice,
     SetXCom,
     TICount,
     XComResult,
-    XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
 
@@ -182,6 +179,22 @@ def test_partial_on_class_invalid_ctor_args() -> None:
     """
     with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
         MockOperator.partial(task_id="a", foo="bar", bar=2)
+
+
+def test_unmap_with_mapped_params_leaves_the_partial_params_alone() -> None:
+    """Unmapping with ``params`` of its own must not resolve them into the mapped operator's ``Param`` objects.
+
+    ``.iterate()`` unmaps every index in one process, so one index's params would otherwise become the next one's.
+    """
+    with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE):
+        mapped = MockOperator.partial(task_id="a", params={"p": 1}).expand(arg1=["x", "y"])
+
+    first = mapped.unmap({"arg1": "x", "params": {"p": 2}})
+    second = mapped.unmap({"arg1": "y"})
+
+    assert first.params["p"] == 2
+    assert second.params["p"] == 1
+    assert mapped.params["p"] == 1
 
 
 def test_partial_on_invalid_pool_slots_raises() -> None:
@@ -679,17 +692,10 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
                 value = [v for k, v in expected_values.items() if k[0] == msg.task_id]
                 return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=value)
         elif isinstance(msg, GetXComSequenceSlice):
-            # Handle sequence slicing for pulling all XCom values from mapped tasks
+            # The aggregated task-group value resolves lazily and is read in chunks: honour the bounds.
             task_id = msg.task_id
             values = [v for k, v in expected_values.items() if k[0] == task_id and k[1] is not None]
-            return XComSequenceSliceResult(root=values)
-        elif isinstance(msg, GetXComSequenceItem):
-            # The aggregated task-group value now resolves lazily, so iterating it fetches one item at a time.
-            task_id = msg.task_id
-            values = [v for k, v in expected_values.items() if k[0] == task_id and k[1] is not None]
-            if 0 <= msg.offset < len(values):
-                return XComSequenceIndexResult(root=values[msg.offset])
-            return ErrorResponse()
+            return XComSequenceSliceResult(root=values[msg.start : msg.stop : msg.step])
         elif isinstance(msg, GetTICount):
             # Handle TI count queries for upstream_map_indexes computation
             if msg.task_ids:
@@ -842,3 +848,20 @@ def test_mapped_operator_in_task_group_no_duplicate_prefix():
 
     # The unmapped operator should have the same task_id, not a duplicate prefix
     assert unmapped.task_id == "tg1.mapped_task", f"Expected 'tg1.mapped_task' but got '{unmapped.task_id}'"
+
+
+def test_deserialization_allowed_values_are_read_from_the_partial_kwargs():
+    """Not expanded yet, the operator class's __init__ has not set the declared fields."""
+
+    class DeclaringOperator(BaseOperator):
+        deserialization_allowed_class_fields = ("output_type",)
+
+        def __init__(self, *, output_type=None, value=None, **kwargs):
+            super().__init__(**kwargs)
+            self.output_type = output_type
+            self.value = value
+
+    with DAG("declaring_dag"):
+        mapped = DeclaringOperator.partial(task_id="mapped", output_type=int).expand(value=[1, 2])
+
+    assert mapped.deserialization_allowed_values() == [int]
