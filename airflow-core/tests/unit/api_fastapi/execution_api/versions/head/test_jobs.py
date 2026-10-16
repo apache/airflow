@@ -32,6 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import (
 )
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.jobs.job import Job, JobState
+from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -108,6 +109,20 @@ def _create_job(
     session.add(job)
     session.commit()
     return job
+
+
+def _add_checkpoint(session, job: Job) -> None:
+    session.add(
+        DagParseCheckpoint(
+            job_id=job.id,
+            source_key="0" * 64,
+            attempt_id=REGISTRATION_ID,
+            dispatch_sequence=1,
+            payload_hash="0" * 64,
+            accepted_at=NOW,
+        )
+    )
+    session.commit()
 
 
 def _register(client, registration_id: UUID = REGISTRATION_ID, **body):
@@ -328,6 +343,7 @@ class TestRegisterJob:
     )
     def test_replaces_a_stopped_job(self, client, session, previous_job, outcome):
         previous = _create_job(session, **previous_job)
+        _add_checkpoint(session, previous)
 
         response = _register(client, registration_id=OTHER_REGISTRATION_ID)
 
@@ -336,6 +352,7 @@ class TestRegisterJob:
         session.refresh(previous)
         assert previous.session_id is None
         assert (previous.state, previous.end_date) == outcome
+        assert session.scalar(select(DagParseCheckpoint)) is None
 
 
 class TestHeartbeatJob:
@@ -402,6 +419,7 @@ class TestParseTokenExchange:
 class TestCompleteJob:
     def test_records_the_final_state(self, client, session, authenticate, time_machine):
         job = _create_job(session)
+        _add_checkpoint(session, job)
         authenticate(scope="dag_processor", dag_bundles=frozenset({"bundle_a"}), job_id=job.id)
         time_machine.move_to(NOW + timedelta(minutes=5), tick=False)
 
@@ -410,6 +428,7 @@ class TestCompleteJob:
         assert response.status_code == 204, response.text
         session.refresh(job)
         assert (job.state, job.end_date) == (JobState.SUCCESS, NOW + timedelta(minutes=5))
+        assert session.scalar(select(DagParseCheckpoint)) is None
 
     def test_replay_keeps_the_first_outcome(self, client, session, authenticate):
         job = _create_job(session, state=JobState.SUCCESS, end_date=NOW)

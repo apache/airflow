@@ -98,7 +98,8 @@ class DagPublicationValidationError(ValueError):
 def _is_dag_permission_validation_error(error: Exception) -> bool:
     if isinstance(error, ValueError):
         return True
-    # Supported older FAB releases use FabException for both ACL validation and backend failures.
+    # FAB 3.10.1 and earlier raise FabException for both ACL validation and backend failures; later
+    # releases raise DagAccessControlValidationError (a ValueError), so drop this once they are the minimum.
     # Only the validation method's own raises have the former meaning; no FAB import is needed.
     exception_type = type(error)
     module = "airflow.providers.fab.auth_manager.security_manager.override"

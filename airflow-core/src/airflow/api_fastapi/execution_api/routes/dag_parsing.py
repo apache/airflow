@@ -64,6 +64,8 @@ from airflow.serialization.serialized_objects import DagSerialization, LazyDeser
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 
+    from pydantic import BaseModel
+    from sqlalchemy.orm import Session
     from starlette.responses import Response
     from starlette.types import Message
 
@@ -110,10 +112,27 @@ class DagParsingRoute(ExecutionAPIRoute):
 router = VersionedAPIRouter(route_class=DagParsingRoute)
 
 
+def _compute_payload_hash(body: BaseModel) -> str:
+    """Hash a request body independently of key order; a non-JSON float raises ValueError."""
+    payload = json.dumps(body.model_dump(mode="json"), sort_keys=True, allow_nan=False)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _validate_job(job_id: int, token, *, session: Session, for_update: bool = True) -> None:
+    if job_id != token.claims.job_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail={"reason": "not_found"})
+    query = select(Job).where(Job.id == job_id)
+    # Publications lock the Job to serialize checkpoint creation and fence completion or replacement.
+    job = session.scalar(query.with_for_update() if for_update else query)
+    if job is None or job.session_id != token.id or job.end_date is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "job_closed"})
+
+
 @router.post(
     "/{job_id}/parse-results",
     responses=create_openapi_http_exception_doc(
         [
+            (status.HTTP_403_FORBIDDEN, "The bundle or a Dag's plugin is not granted, or the Job has ended"),
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
             status.HTTP_413_CONTENT_TOO_LARGE,
@@ -126,23 +145,17 @@ def publish_parse_result(
     job_id: int, body: DagParseResultBody, *, session: SessionDep, token=CurrentExecutionToken
 ) -> DagParseResultResponse:
     """Atomically publish a file's results and a receipt, without reading the processor's filesystem."""
-    if job_id != token.claims.job_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail={"reason": "not_found"})
     if body.bundle_name not in token.claims.dag_bundles:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
     try:
-        payload = json.dumps(body.model_dump(mode="json"), sort_keys=True, allow_nan=False).encode()
+        payload_hash = _compute_payload_hash(body)
     except ValueError:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid JSON value")
-    payload_hash = hashlib.sha256(payload).hexdigest()
     source_key = hashlib.sha256(
         json.dumps(["parse", body.bundle_name, body.relative_fileloc]).encode()
     ).hexdigest()
 
-    # The Job lock serializes checkpoint creation and fences completion/replacement in the same transaction.
-    job = session.scalar(select(Job).where(Job.id == job_id).with_for_update())
-    if job is None or job.session_id != token.id or job.end_date is not None:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "job_closed"})
+    _validate_job(job_id, token, session=session)
     checkpoint = session.get(DagParseCheckpoint, (job_id, source_key))
     if checkpoint is not None:
         if checkpoint.attempt_id == body.attempt_id:
@@ -177,6 +190,14 @@ def publish_parse_result(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail={"reason": "dag_owned_by_another_bundle"}
         ) from error
+    if len(_reject_other_teams_plugin_classes(body.bundle_name, dags, {}, session=session)) != len(dags):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "plugin_not_granted"})
+    try:
+        for dag in dags:
+            DagSerialization.validate_serialized_dag(dag.data)
+    except (DeserializationError, ValueError, TypeError, KeyError) as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid serialized Dag") from error
+
     # A complete accepted import proves absence; an import error only ages out prior definitions.
     cutoff = timezone.utcnow() - timedelta(seconds=conf.getint("dag_processor", "stale_dag_threshold"))
     source_filter = or_(
@@ -196,13 +217,6 @@ def publish_parse_result(
         )
         if not failed or (stored_dag.last_parsed_time is not None and stored_dag.last_parsed_time < cutoff):
             stored_dag.is_stale = True
-    if len(_reject_other_teams_plugin_classes(body.bundle_name, dags, {}, session=session)) != len(dags):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "plugin_not_granted"})
-    try:
-        for dag in dags:
-            DagSerialization.validate_serialized_dag(dag.data)
-    except (DeserializationError, ValueError, TypeError, KeyError) as error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid serialized Dag") from error
 
     import_errors = {(body.bundle_name, path): error for path, error in body.import_errors.items()}
     files_parsed = {(body.bundle_name, path) for path in [body.relative_fileloc, *body.parsed_definitions]}
@@ -254,14 +268,16 @@ def publish_parse_result(
 
 @router.get(
     "/{job_id}/bundles",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [(status.HTTP_403_FORBIDDEN, "The Job has ended or was replaced"), status.HTTP_404_NOT_FOUND]
+    ),
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
 )
 def get_bundles(
     job_id: int, *, session: SessionDep, token=CurrentExecutionToken
 ) -> list[DagBundleStateResponse]:
     """Read the provisioned catalog without constructing providers on the API server."""
-    _validate_job(job_id, token, session=session)
+    _validate_job(job_id, token, session=session, for_update=False)
     bundles = session.scalars(
         select(DagBundleModel)
         .options(selectinload(DagBundleModel.teams))
@@ -280,18 +296,15 @@ def get_bundles(
     ]
 
 
-def _validate_job(job_id, token, *, session):
-    if job_id != token.claims.job_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail={"reason": "not_found"})
-    job = session.scalar(select(Job).where(Job.id == job_id).with_for_update())
-    if job is None or job.session_id != token.id or job.end_date is not None:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "job_closed"})
-
-
 @router.post(
     "/{job_id}/bundles/{bundle_name:path}/inventory",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT, status.HTTP_413_CONTENT_TOO_LARGE]
+        [
+            (status.HTTP_403_FORBIDDEN, "The bundle is not granted, or the Job has ended"),
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_413_CONTENT_TOO_LARGE,
+        ]
     ),
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
 )
@@ -306,9 +319,9 @@ def publish_inventory(
     """Reconcile observed sources in one bundle, preserving sources whose discovery failed."""
     if bundle_name not in token.claims.dag_bundles:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
-    _validate_job(job_id, token, session=session)
     source_key = hashlib.sha256(json.dumps(["inventory", bundle_name]).encode()).hexdigest()
-    payload_hash = hashlib.sha256(body.model_dump_json().encode()).hexdigest()
+    payload_hash = _compute_payload_hash(body)
+    _validate_job(job_id, token, session=session)
     checkpoint = session.get(DagParseCheckpoint, (job_id, source_key))
     if checkpoint is not None:
         if checkpoint.attempt_id == body.attempt_id:
@@ -339,11 +352,10 @@ def publish_inventory(
     present = set(body.files)
     failed_sources = set(body.failed_sources)
 
+    # Like DagModel.deactivate_deleted_dags, a NULL location (a 2.x row never parsed since) is not present.
     def is_removed(relative_fileloc: str | None) -> bool:
-        return (
-            relative_fileloc is not None
-            and relative_fileloc not in present
-            and not is_source_discovery_failed(relative_fileloc, failed_sources)
+        return relative_fileloc not in present and not is_source_discovery_failed(
+            relative_fileloc, failed_sources
         )
 
     # Lock only the Dags being deactivated, so the rest of the bundle stays available to the scheduler.
@@ -379,7 +391,7 @@ def publish_inventory(
         for error in session.scalars(
             select(ParseImportError).where(ParseImportError.bundle_name == bundle_name)
         )
-        if error.filename not in present and not is_source_discovery_failed(error.filename, failed_sources)
+        if is_removed(error.filename)
     ]
     for start in range(0, len(error_ids), 500):
         session.execute(
