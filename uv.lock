@@ -3126,6 +3126,9 @@ openlineage = [
 pandas = [
     { name = "pandas" },
 ]
+parquet = [
+    { name = "pyarrow" },
+]
 python3-saml = [
     { name = "lxml", marker = "python_full_version < '3.13'" },
     { name = "python3-saml", marker = "python_full_version < '3.13'" },
@@ -3151,7 +3154,7 @@ standard = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
-    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "sqlalchemy"] },
+    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "parquet", "sqlalchemy"] },
     { name = "apache-airflow-providers-apache-hive" },
     { name = "apache-airflow-providers-cncf-kubernetes" },
     { name = "apache-airflow-providers-common-ai" },
@@ -3223,6 +3226,9 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
     { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
+    { name = "pyarrow", marker = "python_full_version == '3.13.*' and extra == 'parquet'", specifier = ">=18.0.0" },
+    { name = "pyarrow", marker = "python_full_version < '3.13' and extra == 'parquet'", specifier = ">=16.1.0" },
+    { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyathena", specifier = ">=3.10.0" },
     { name = "python3-saml", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.16.0" },
     { name = "redshift-connector", specifier = ">=2.1.3" },
@@ -3233,13 +3239,14 @@ requires-dist = [
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
 ]
-provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-ai", "common-messaging", "duckdb", "sqlalchemy"]
+provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "parquet", "openlineage", "salesforce", "ssh", "standard", "common-ai", "common-messaging", "duckdb", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["parquet"], editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["sqlalchemy"], editable = "providers/amazon" },
     { name = "apache-airflow-providers-apache-hive", editable = "providers/apache/hive" },
     { name = "apache-airflow-providers-cncf-kubernetes", editable = "providers/cncf/kubernetes" },
