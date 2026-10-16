@@ -29,7 +29,11 @@ function cleanup_runner {
     # Hence we only move docker to /mnt on x86_64 where we have a separate /mnt mount
     # If we get short on disk space on arm64 as well we need to revisit this logic
     # and make the idle nvme being used as well.
-    if uname -i|grep -q x86_64; then
+    if [[ "${RUNNER_ENVIRONMENT:-}" == "self-hosted" ]] && mountpoint -q /var/lib/docker; then
+        # RunsOn already keeps docker on the instance's local NVMe disks, which may also back
+        # /home/runner and /tmp, so emptying /var/lib/docker could delete the running job's files.
+        echo "/var/lib/docker is already on a dedicated disk - keeping it"
+    elif uname -i|grep -q x86_64; then
         local target_docker_volume_location="/mnt/var-lib-docker"
         # This is faster than docker prune
         echo "Stopping docker"
