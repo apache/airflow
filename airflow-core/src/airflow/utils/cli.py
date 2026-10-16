@@ -295,9 +295,10 @@ def _redact_uri_argument(value: str) -> str:
     """
     from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
-    if value.count("://") > 1:
-        # ``Connection`` accepts a protocol in the host: ``http://https://user:pass@host``.
-        scheme, separator, rest = value.partition("://")
+    scheme, separator, rest = value.partition("://")
+    # ``Connection`` accepts a protocol in the host: ``http://https://user:pass@host``. A ``://``
+    # elsewhere (``?next=http://...``) does not make the URI double-scheme.
+    if separator and re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", rest):
         return f"{scheme}{separator}{_redact_uri_argument(rest)}"
     try:
         parsed_uri = urlparse(value)

@@ -654,6 +654,39 @@ class TestCliUtil:
                 id="conn-uri-protocol-in-host",
             ),
             pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-uri", "postgres://u:S3CRET@h/db?x=http://y"],
+                {"conn_id": "c1", "conn_uri": "postgres://u:S3CRET@h/db?x=http://y"},
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
+                    f"postgres://u:{MASKED}@h/db?x=http://y",
+                ],
+                id="conn-uri-url-in-query",
+            ),
+            pytest.param(
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
+                    "http://https://u:S3CRET@h/p?next=http://z",
+                ],
+                {"conn_id": "c1", "conn_uri": "http://https://u:S3CRET@h/p?next=http://z"},
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
+                    f"http://https://u:{MASKED}@h/p?next=http://z",
+                ],
+                id="conn-uri-protocol-in-host-and-url-in-query",
+            ),
+            pytest.param(
                 [
                     "airflow",
                     "connections",
