@@ -69,6 +69,10 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Seeds the run with the given conversation, as a list of messages or its JSON form,
        and publishes the finished conversation under the ``message_history`` XCom key so a
        later run can continue it. Cannot be combined with ``enable_hitl_review``.
+   * - ``emit_message_history`` on ``AgentOperator``
+     - Publishes the finished conversation under the ``message_history`` XCom key without
+       seeding the run. Defaults to ``True`` when ``message_history`` is set, and ``False``
+       stops a seeded run from publishing it. Cannot be combined with ``enable_hitl_review``.
    * - ``durable=True`` on ``AgentOperator`` and ``@task.agent``, and
        :class:`~airflow.providers.common.ai.durable.AirflowDurability`
        (:doc:`durable_execution`)
