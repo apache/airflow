@@ -113,6 +113,48 @@ or
 
 The mask must be set before any log/output is produced to have any effect.
 
+Content-based masking of well-known secret formats
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+.. versionadded:: 3.4.0
+
+Registering secrets explicitly via ``mask_secret`` (or through Connections and Variables) only
+covers values Airflow was told about. Credentials that end up in Task logs or Rendered fields via
+other paths — a debug ``print`` of an environment variable, a stack trace containing a token, a
+value pulled from an XCom — are not covered by that mechanism.
+
+To catch those cases, Airflow can additionally scan every string that passes through the secrets
+masker for a small, curated set of well-known credential formats and redact any match. The set
+is intentionally narrow — each entry has a distinctive prefix so a match is overwhelmingly
+likely to be a real credential:
+
+* AWS access / session keys (``AKIA…``, ``ASIA…``)
+* GitHub tokens (``ghp_…``, ``gho_…``, ``ghu_…``, ``ghs_…``, ``ghr_…``)
+* Slack tokens (``xoxb-…``, ``xoxp-…``, ``xoxa-…``, ``xoxr-…``, ``xoxs-…``)
+* Google API keys (``AIza…``)
+* Stripe live keys (``sk_live_…``)
+* PEM-encoded private key blocks (``-----BEGIN … PRIVATE KEY-----``)
+* JSON Web Tokens with the standard ``eyJ…`` header + payload prefix
+
+This is a **defense-in-depth** measure that complements, but does not replace, explicit masking:
+formats with high false-positive rates (generic credit-card numbers, SSNs, email addresses) are
+deliberately excluded, and matches only fire on values that actually flow through the masker.
+Secrets you already know about should still be registered via ``mask_secret``.
+
+The feature is opt-in because the regex scan runs on every string that passes through the
+masker. Enable it in your Airflow config:
+
+.. code-block:: ini
+
+    [core]
+    mask_secrets_content_patterns = True
+
+or via the corresponding environment variable
+``AIRFLOW__CORE__MASK_SECRETS_CONTENT_PATTERNS=True``.
+
+When enabled, log records and redacted values containing e.g. ``AKIAIOSFODNN7EXAMPLE`` are
+rewritten so that only ``***`` appears in the output, while the surrounding text is preserved.
+
 NOT masking when using environment variables
 """"""""""""""""""""""""""""""""""""""""""""
 
