@@ -26,7 +26,7 @@ so downstream tasks can type-hint the class directly
 (``def downstream(result: MyModel)``) and use attribute access (``result.field``).
 
 The declared ``output_type`` (and any ``BaseModel`` reachable from
-``Union``/``Optional``/``list`` shapes) is registered for XCom deserialization by
+``Union``/``Optional``/``list[...]`` types) is registered for XCom deserialization by
 the worker when it loads the Dag, before any task runs -- so no edit to
 ``[core] allowed_deserialization_classes`` is needed. The Pydantic class must be
 defined at **module scope** and bound to an attribute matching its ``__name__``;
@@ -49,6 +49,15 @@ Registration covers downstream tasks in the **same Dag**: every worker walks the
 loaded Dag's tasks at startup and registers each declared class, so it also works
 for mapped producers (``.expand(...)``) and for workers that load Dags from a
 cache that bypasses operator construction.
+
+The worker finds no class to register when ``output_type`` is a list of output
+types such as ``[Summary, int]``, an output marker such as
+``ToolOutput(Summary)``, an output function, a ``TypeAliasType`` or a
+``NewType``. For these output types, ``AgentOperator`` and ``@task.agent`` push
+each model in the output as a JSON-compatible dict, including models inside a
+list, tuple or dict. A model is pushed as a dict even if its class is listed in
+``[core] allowed_deserialization_classes``. A downstream task therefore reads
+``result["text"]``, not ``result.text``.
 
 The Airflow UI's XCom viewer renders Pydantic instances via the
 ``stringify`` path, which produces a representation like
