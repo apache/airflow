@@ -47,6 +47,7 @@ from tests_common.test_utils.config import conf_vars
 # - ``cli_action_loggers.on_post_execution``
 pytestmark = pytest.mark.db_test
 repo_root = Path(airflow.__file__).parents[1]
+MASKED = "*" * 8
 
 
 class TestCliUtil:
@@ -305,6 +306,292 @@ class TestCliUtil:
         # Replace single quotes to double quotes to avoid json decode error
         command = ast.literal_eval(command)
         assert command == expected_command
+
+    @pytest.mark.parametrize(
+        ("given_command", "parsed", "expected_command"),
+        [
+            pytest.param(
+                ["airflow", "users", "create", "-u", "a", "-r", "Admin", "-pS3CRET"],
+                {"username": "a", "role": "Admin", "password": "S3CRET"},
+                ["airflow", "users", "create", "-u", "a", "-r", "Admin", f"-p{MASKED}"],
+                id="users-short-option-attached",
+            ),
+            pytest.param(
+                ["airflow", "users", "create", "-u", "a", "--pass", "S3CRET"],
+                {"username": "a", "password": "S3CRET"},
+                ["airflow", "users", "create", "-u", "a", "--pass", MASKED],
+                id="users-abbreviated",
+            ),
+            pytest.param(
+                ["airflow", "users", "reset-password", "-u", "a", "--passw=S3CRET"],
+                {"username": "a", "password": "S3CRET"},
+                ["airflow", "users", "reset-password", "-u", "a", f"--passw={MASKED}"],
+                id="users-abbreviated-joined",
+            ),
+            pytest.param(
+                ["airflow", "users", "create", "-u", "a", "--p", "S3CRET"],
+                {"username": "a", "password": "S3CRET"},
+                ["airflow", "users", "create", "-u", "a", "--p", MASKED],
+                id="users-shortest-abbreviation",
+            ),
+            pytest.param(
+                [
+                    "airflow",
+                    "keycloak-auth-manager",
+                    "create-scopes",
+                    "--username",
+                    "admin",
+                    "--pass",
+                    "S3CRET",
+                ],
+                {"username": "admin", "password": "S3CRET"},
+                [
+                    "airflow",
+                    "keycloak-auth-manager",
+                    "create-scopes",
+                    "--username",
+                    "admin",
+                    "--pass",
+                    MASKED,
+                ],
+                id="keycloak-abbreviated",
+            ),
+            pytest.param(
+                ["airflow", "keycloak-auth-manager", "create-all", "--username", "admin", "--p=S3CRET"],
+                {"username": "admin", "password": "S3CRET"},
+                ["airflow", "keycloak-auth-manager", "create-all", "--username", "admin", f"--p={MASKED}"],
+                id="keycloak-abbreviated-joined",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-type", "generic", "--conn-pass", "S3CRET"],
+                {"conn_id": "c1", "conn_type": "generic", "conn_password": "S3CRET"},
+                ["airflow", "connections", "add", "c1", "--conn-type", "generic", "--conn-pass", MASKED],
+                id="conn-password-abbreviated",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-type", "generic", "--conn-pa=S3CRET"],
+                {"conn_id": "c1", "conn_type": "generic", "conn_password": "S3CRET"},
+                ["airflow", "connections", "add", "c1", "--conn-type", "generic", f"--conn-pa={MASKED}"],
+                id="conn-password-abbreviated-joined",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-ext", '{"password": "S3CRET"}'],
+                {"conn_id": "c1", "conn_extra": '{"password": "S3CRET"}'},
+                ["airflow", "connections", "add", "c1", "--conn-ext", f'{{"password": "{MASKED}"}}'],
+                id="conn-extra-abbreviated",
+            ),
+            pytest.param(
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-j",
+                    '{"conn_type": "generic", "password": "S3CRET"}',
+                ],
+                {"conn_id": "c1", "conn_json": '{"conn_type": "generic", "password": "S3CRET"}'},
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-j",
+                    f'{{"conn_type": "generic", "password": "{MASKED}"}}',
+                ],
+                id="conn-json-abbreviated",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-u", "postgres://u:S3CRET@h/db"],
+                {"conn_id": "c1", "conn_uri": "postgres://u:S3CRET@h/db"},
+                ["airflow", "connections", "add", "c1", "--conn-u", f"postgres://u:{MASKED}@h/db"],
+                id="conn-uri-abbreviated",
+            ),
+            pytest.param(
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-json",
+                    '{"extra": "{\\"password\\": \\"S3CRET\\"}"}',
+                ],
+                {"conn_id": "c1", "conn_json": '{"extra": "{\\"password\\": \\"S3CRET\\"}"}'},
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-json",
+                    f'{{"extra": "{{\\"password\\": \\"{MASKED}\\"}}"}}',
+                ],
+                id="conn-json-extra-as-json-string",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-uri", "http://h/?api_key=S3CRET&region=eu"],
+                {"conn_id": "c1", "conn_uri": "http://h/?api_key=S3CRET&region=eu"},
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
+                    f"http://h/?api_key={MASKED}&region=eu",
+                ],
+                id="conn-uri-query-parameter",
+            ),
+            pytest.param(
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
+                    "http://h/?__extra__=%7B%22token%22%3A%22S3CRET%22%7D",
+                ],
+                {"conn_id": "c1", "conn_uri": "http://h/?__extra__=%7B%22token%22%3A%22S3CRET%22%7D"},
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
+                    f"http://h/?__extra__=%7B%22token%22%3A+%22{MASKED}%22%7D",
+                ],
+                id="conn-uri-encoded-extra",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-uri", "aws://AKIA:S3CRET@"],
+                {"conn_id": "c1", "conn_uri": "aws://AKIA:S3CRET@"},
+                ["airflow", "connections", "add", "c1", "--conn-uri", f"aws://AKIA:{MASKED}@"],
+                id="conn-uri-without-host",
+            ),
+            pytest.param(
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
+                    "postgres://u:FIRST@h/db",
+                    "--conn-uri",
+                    "postgres://u:S3CRET@h/db",
+                ],
+                {"conn_id": "c1", "conn_uri": "postgres://u:S3CRET@h/db"},
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
+                    f"postgres://u:{MASKED}@h/db",
+                    "--conn-uri",
+                    f"postgres://u:{MASKED}@h/db",
+                ],
+                id="conn-uri-repeated",
+            ),
+            pytest.param(
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-extra",
+                    '{"password": "FIRST"}',
+                    "--conn-extra",
+                    '{"password": "S3CRET"}',
+                ],
+                {"conn_id": "c1", "conn_extra": '{"password": "S3CRET"}'},
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-extra",
+                    f'{{"password": "{MASKED}"}}',
+                    "--conn-extra",
+                    f'{{"password": "{MASKED}"}}',
+                ],
+                id="conn-extra-repeated",
+            ),
+            pytest.param(
+                ["airflow", "celery", "flower", "--basic-auth", "u:S3CRET"],
+                {"basic_auth": "u:S3CRET", "port": 5555},
+                ["airflow", "celery", "flower", "--basic-auth", MASKED],
+                id="flower-basic-auth",
+            ),
+            pytest.param(
+                ["airflow", "celery", "flower", "-A", "u:S3CRET"],
+                {"basic_auth": "u:S3CRET", "port": 5555},
+                ["airflow", "celery", "flower", "-A", MASKED],
+                id="flower-basic-auth-short",
+            ),
+            pytest.param(
+                ["airflow", "celery", "flower", "--broker-api", "http://u:S3CRET@rabbit:15672/api/"],
+                {"broker_api": "http://u:S3CRET@rabbit:15672/api/", "port": 5555},
+                ["airflow", "celery", "flower", "--broker-api", f"http://u:{MASKED}@rabbit:15672/api/"],
+                id="flower-broker-api",
+            ),
+            pytest.param(
+                ["airflow", "dags", "trigger", "d1", "--conf", '{"password": "S3CRET", "x": 1}'],
+                {"dag_id": "d1", "conf": '{"password": "S3CRET", "x": 1}'},
+                ["airflow", "dags", "trigger", "d1", "--conf", f'{{"password": "{MASKED}", "x": 1}}'],
+                id="dags-trigger-conf",
+            ),
+            pytest.param(
+                ["airflow", "dags", "trigger", "d1", '-c{"api_key": "S3CRET"}'],
+                {"dag_id": "d1", "conf": '{"api_key": "S3CRET"}'},
+                ["airflow", "dags", "trigger", "d1", f'-c{{"api_key": "{MASKED}"}}'],
+                id="dags-trigger-conf-short-attached",
+            ),
+            pytest.param(
+                ["airflow", "backfill", "create", "--dag-id", "d1", "--dag-run-conf", '{"token": "S3CRET"}'],
+                {"dag_id": "d1", "dag_run_conf": '{"token": "S3CRET"}'},
+                [
+                    "airflow",
+                    "backfill",
+                    "create",
+                    "--dag-id",
+                    "d1",
+                    "--dag-run-conf",
+                    f'{{"token": "{MASKED}"}}',
+                ],
+                id="backfill-dag-run-conf",
+            ),
+            # ``-p`` that does not parse into a password is recorded as given.
+            pytest.param(
+                ["airflow", "api-server", "-p", "8080"],
+                {"port": 8080},
+                ["airflow", "api-server", "-p", "8080"],
+                id="api-server-port",
+            ),
+            pytest.param(
+                ["airflow", "roles", "list", "-p"],
+                {"permission": True},
+                ["airflow", "roles", "list", "-p"],
+                id="roles-list-permission",
+            ),
+            pytest.param(
+                ["airflow", "celery", "flower", "-p", "5555"],
+                {"port": 5555, "basic_auth": None, "broker_api": None},
+                ["airflow", "celery", "flower", "-p", "5555"],
+                id="flower-port",
+            ),
+            pytest.param(
+                ["airflow", "dags", "trigger", "d1", "--conf", '{"retries": 3}'],
+                {"dag_id": "d1", "conf": '{"retries": 3}'},
+                ["airflow", "dags", "trigger", "d1", "--conf", '{"retries": 3}'],
+                id="dags-trigger-conf-without-secrets",
+            ),
+        ],
+    )
+    def test_secrets_masked_in_any_argument_spelling(self, given_command, parsed, expected_command):
+        """Mask secrets supplied through any supported argument spelling in the recorded command line."""
+        with mock.patch.object(sys, "argv", given_command):
+            metrics = cli._build_metrics(given_command[1], Namespace(**parsed))
+
+        command = ast.literal_eval(metrics["full_command"])
+        assert command == expected_command
+        assert not any("S3CRET" in argument or "FIRST" in argument for argument in command)
 
     def test_action_log_records_team_name(self, session):
         namespace = Namespace(team_name="payments")

@@ -139,35 +139,100 @@ def action_cli(func=None, check_db=True):
 
 MASKED_VALUE = "*" * 8
 
+# Options whose value is a secret on its own, keyed by the destination argparse stores the
+# parsed value under. Masking is driven by what is present in the parsed namespace, so ``-p``
+# is only treated as a password on commands where it parses into ``password`` (``api-server -p``
+# parses into ``port`` and is left alone).
+_SECRET_OPTIONS: dict[str, tuple[str, ...]] = {
+    "password": ("-p", "--password"),
+    "conn_password": ("--conn-password",),
+    "basic_auth": ("-A", "--basic-auth"),
+}
+# Options whose value is JSON that may hold secrets under sensitive keys.
+_JSON_OPTIONS: dict[str, tuple[str, ...]] = {
+    "conn_json": ("--conn-json",),
+    "conn_extra": ("--conn-extra",),
+    "conf": ("-c", "--conf"),
+    "dag_run_conf": ("--dag-run-conf",),
+}
+# Options whose value is a URI that may hold secrets in its credentials or query.
+_URI_OPTIONS: dict[str, tuple[str, ...]] = {
+    "conn_uri": ("--conn-uri",),
+    "broker_api": ("-a", "--broker-api"),
+}
 
-def _redact_structure(obj):
-    """Redact values whose key looks sensitive, at any depth."""
+
+def _should_hide_key(key) -> bool:
     from airflow._shared.secrets_masker import _secrets_masker
 
+    return bool(key) and isinstance(key, str) and _secrets_masker().should_hide_value_for_key(key)
+
+
+def _redact_structure(obj):
+    """
+    Redact values whose key looks sensitive, at any depth.
+
+    String values that themselves hold a JSON object or list are parsed and redacted too:
+    ``--conn-json`` accepts ``extra`` as a JSON-encoded string as well as an object.
+    """
+    import json
+
     if isinstance(obj, dict):
-        return {
-            k: MASKED_VALUE if k and _secrets_masker().should_hide_value_for_key(k) else _redact_structure(v)
-            for k, v in obj.items()
-        }
+        return {k: MASKED_VALUE if _should_hide_key(k) else _redact_structure(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [_redact_structure(item) for item in obj]
+    if isinstance(obj, str) and obj.lstrip()[:1] in ("{", "["):
+        try:
+            parsed = json.loads(obj)
+        except ValueError:
+            return obj
+        redacted = _redact_structure(parsed)
+        return obj if redacted == parsed else json.dumps(redacted)
     return obj
 
 
-def _find_option_value(command: list[str], option: str) -> tuple[int | None, str]:
+def _find_option_values(
+    command: list[str], option_strings: tuple[str, ...], *, allow_abbrev: bool
+) -> list[tuple[int, str]]:
     """
-    Locate an option's value in a recorded command, in either accepted spelling.
+    Locate every value given for an option in a recorded command, in any accepted spelling.
 
-    argparse accepts both ``--option VALUE`` and ``--option=VALUE``. Returns the index of
-    the element holding the value and the prefix that must be preserved when rewriting it
-    (empty for the separated form, ``--option=`` for the joined one).
+    argparse accepts ``--option VALUE``, ``--option=VALUE``, unambiguous abbreviations of
+    long options (``--opt VALUE``), and for short options also ``-o VALUE``, ``-o=VALUE`` and
+    ``-oVALUE``. Returns ``(index, prefix)`` pairs: the index of the element holding the
+    value and the prefix to keep when rewriting it (empty for the separated forms).
+
+    Every occurrence is returned: argparse keeps the last one, but all of them were typed.
+    Abbreviations and short options are only matched with ``allow_abbrev``, i.e. when the
+    parsed namespace confirms the command takes this option.
     """
+    long_options = [o for o in option_strings if o.startswith("--")]
+    short_options = [o for o in option_strings if not o.startswith("--")] if allow_abbrev else []
+    positions: list[tuple[int, str]] = []
     for idx, argument in enumerate(command):
-        if argument == option and idx + 1 < len(command):
-            return idx + 1, ""
-        if argument.startswith(f"{option}="):
-            return idx, f"{option}="
-    return None, ""
+        if argument.startswith("--"):
+            name, eq, _ = argument.partition("=")
+            matches = (
+                any(len(name) > 2 and option.startswith(name) for option in long_options)
+                if allow_abbrev
+                else name in long_options
+            )
+            if not matches:
+                continue
+            if eq:
+                positions.append((idx, f"{name}="))
+            elif idx + 1 < len(command):
+                positions.append((idx + 1, ""))
+        else:
+            for option in short_options:
+                if argument == option:
+                    if idx + 1 < len(command):
+                        positions.append((idx + 1, ""))
+                elif argument.startswith(f"{option}="):
+                    positions.append((idx, f"{option}="))
+                elif argument.startswith(option):
+                    positions.append((idx, option))
+    return positions
 
 
 def _redact_json_argument(value: str) -> str:
@@ -187,6 +252,77 @@ def _redact_json_argument(value: str) -> str:
     except (json.JSONDecodeError, TypeError, ValueError):
         return MASKED_VALUE
     return json.dumps(_redact_structure(parsed))
+
+
+def _redact_uri_argument(value: str) -> str:
+    """
+    Redact the secrets a URI command-line argument can carry.
+
+    That is the password in the credentials, query parameters with a sensitive name
+    (``?api_key=...``) and sensitive entries of the URL-encoded ``__extra__`` JSON that
+    connection URIs accept.
+    """
+    from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+    try:
+        parsed_uri = urlparse(value)
+        has_password = parsed_uri.password is not None
+    except ValueError:
+        return MASKED_VALUE
+    netloc = parsed_uri.netloc
+    if has_password:
+        userinfo, _, host = netloc.rpartition("@")
+        netloc = f"{userinfo.partition(':')[0]}:{MASKED_VALUE}@{host}"
+
+    query = parsed_uri.query
+    if query:
+        params = parse_qsl(query, keep_blank_values=True)
+        redacted_params = []
+        for key, item in params:
+            if key == "__extra__":
+                redacted_params.append((key, _redact_json_argument(item)))
+            elif _should_hide_key(key):
+                redacted_params.append((key, MASKED_VALUE))
+            else:
+                redacted_params.append((key, item))
+        if redacted_params != params:
+            query = urlencode(redacted_params, safe="*")
+
+    return urlunparse(
+        (parsed_uri.scheme, netloc, parsed_uri.path, parsed_uri.params, query, parsed_uri.fragment)
+    )
+
+
+def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
+    """
+    Mask secrets supplied through any supported argument spelling in the recorded command line.
+
+    The values are taken from the parsed namespace, so the masking does not depend on how
+    the option was spelled on the command line.
+    """
+    parsed = vars(namespace) if isinstance(namespace, Namespace) else {}
+    full_command = list(full_command)
+
+    for dest, option_strings in _SECRET_OPTIONS.items():
+        value = parsed.get(dest)
+        if not isinstance(value, str) or not value:
+            continue
+        for idx, prefix in _find_option_values(full_command, option_strings, allow_abbrev=True):
+            full_command[idx] = prefix + MASKED_VALUE
+        full_command = [MASKED_VALUE if argument == value else argument for argument in full_command]
+
+    for options, redact in ((_JSON_OPTIONS, _redact_json_argument), (_URI_OPTIONS, _redact_uri_argument)):
+        for dest, option_strings in options.items():
+            value = parsed.get(dest)
+            in_namespace = isinstance(value, str) and bool(value)
+            for idx, prefix in _find_option_values(full_command, option_strings, allow_abbrev=in_namespace):
+                full_command[idx] = prefix + redact(full_command[idx][len(prefix) :])
+            if in_namespace:
+                full_command = [
+                    redact(argument) if argument == value else argument for argument in full_command
+                ]
+
+    return full_command
 
 
 def _build_metrics(func_name, namespace):
@@ -239,41 +375,9 @@ def _build_metrics(func_name, namespace):
                     if command.startswith(f"{sensitive_field}="):
                         full_command[idx] = f"{sensitive_field}={MASKED_VALUE}"
 
-    # handle conn-json, conn-extra and conn-uri separately as they require different handling
-    for json_option in ("--conn-json", "--conn-extra"):
-        for idx, argument in enumerate(full_command):
-            # argparse accepts both "--conn-json VALUE" and "--conn-json=VALUE", so the
-            # value is matched in either spelling rather than by looking one element past
-            # a standalone token.
-            if argument == json_option and idx + 1 < len(full_command):
-                full_command[idx + 1] = _redact_json_argument(full_command[idx + 1])
-            elif argument.startswith(f"{json_option}="):
-                redacted = _redact_json_argument(argument[len(json_option) + 1 :])
-                full_command[idx] = f"{json_option}={redacted}"
-
-    uri_index, uri_prefix = _find_option_value(full_command, "--conn-uri")
-    if uri_index is not None:
-        from urllib.parse import urlparse, urlunparse
-
-        conn_uri = full_command[uri_index][len(uri_prefix) :]
-        parsed_uri = urlparse(conn_uri)
-        netloc = parsed_uri.netloc
-        if parsed_uri.password:
-            password = MASKED_VALUE
-            netloc = f"{parsed_uri.username}:{password}@{parsed_uri.hostname}"
-            if parsed_uri.port:
-                netloc += f":{parsed_uri.port}"
-
-        full_command[uri_index] = uri_prefix + urlunparse(
-            (
-                parsed_uri.scheme,
-                netloc,
-                parsed_uri.path,
-                parsed_uri.params,
-                parsed_uri.query,
-                parsed_uri.fragment,
-            )
-        )
+    # Options carrying secrets (on their own, or inside JSON and URIs) are masked by their
+    # parsed value, whatever spelling was used for them on the command line.
+    full_command = _mask_parsed_arguments(full_command, namespace)
 
     metrics = {
         "sub_command": func_name,
