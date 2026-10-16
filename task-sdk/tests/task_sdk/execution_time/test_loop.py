@@ -96,7 +96,7 @@ def test_body_callable_receives_loop_context_after_unmapping(create_runtime_ti, 
     ti = create_runtime_ti(task=operator, map_index=0 if mapped else -1)
     ti._ti_context_from_server.loop = LoopContext(
         node_id=group.group_id,
-        index=3,
+        index=2,
         max_iterations=4,
         terminal_task_id=group.terminal_task_id,
         terminal_is_mapped=mapped,
