@@ -1007,6 +1007,38 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.json() == expected_response
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
 
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        autospec=True,
+        return_value={"apprise": frozenset({"config"})},
+    )
+    @pytest.mark.parametrize("key", ["config", "extra__apprise__config"])
+    def test_patch_keeps_masked_provider_sensitive_extra(self, _, test_client, session, key):
+        session.add(
+            Connection(
+                conn_id=TEST_CONN_ID,
+                conn_type="apprise",
+                extra=json.dumps({key: "secret-config", "tag": "alerts"}),
+            )
+        )
+        session.commit()
+        masked_extra = test_client.get(f"/connections/{TEST_CONN_ID}").json()["extra"]
+        assert json.loads(masked_extra) == {key: "***", "tag": "alerts"}
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": "apprise",
+                "extra": json.dumps({key: "***", "tag": "updated"}),
+            },
+        )
+
+        assert response.status_code == 200
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == {key: "secret-config", "tag": "updated"}
+
     def test_patch_with_update_mask_validates_extra_as_json(self, test_client):
         """When update_mask includes 'extra', the extra field validator should still reject invalid JSON."""
         self.create_connection()
@@ -1324,6 +1356,30 @@ class TestConnection(TestConnectionEndpoint):
         db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
         assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
         assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        autospec=True,
+        return_value={"fs": frozenset({"path"})},
+    )
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_reuse_masked_provider_sensitive_extra_of_existing_connection(
+        self, _, test_client, session
+    ):
+        session.add(Connection(conn_id=TEST_CONN_ID, conn_type="fs", extra='{"path": "/secret"}'))
+        session.commit()
+        captured_extra = {}
+
+        def mock_test_connection(self):
+            captured_extra["value"] = self.extra
+            return True, "mocked"
+
+        body = {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "***"}'}
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
+        assert response.status_code == 200
+        assert json.loads(captured_extra["value"]) == {"path": "/secret"}
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_merge_both_password_and_extra(self, test_client, session):
