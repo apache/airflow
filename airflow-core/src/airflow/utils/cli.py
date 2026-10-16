@@ -295,6 +295,21 @@ def _redact_uri_argument(value: str) -> str:
     )
 
 
+def _mask_value_token(argument: str, value: str, redact) -> str:
+    """
+    Redact a parsed option value where it forms a whole token or ends a short-option cluster.
+
+    A cluster of grouped short flags (``-vpVALUE``) carries the value of its last option, so a
+    single-dash token ending with the value is rewritten too. Other tokens are left alone, so
+    a short value is not masked wherever its text happens to appear.
+    """
+    if argument == value:
+        return redact(value)
+    if argument.startswith("-") and not argument.startswith("--") and argument.endswith(value):
+        return argument[: -len(value)] + redact(value)
+    return argument
+
+
 def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
     """
     Mask secrets supplied through any supported argument spelling in the recorded command line.
@@ -311,9 +326,9 @@ def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
             continue
         for idx, prefix in _find_option_values(full_command, option_strings, allow_abbrev=True):
             full_command[idx] = prefix + MASKED_VALUE
-        # The value can also sit inside a token the option lookup does not recognise, e.g. after
-        # grouped short flags (``-vpVALUE``), so mask it wherever it appears.
-        full_command = [argument.replace(value, MASKED_VALUE) for argument in full_command]
+        full_command = [
+            _mask_value_token(argument, value, lambda _: MASKED_VALUE) for argument in full_command
+        ]
 
     for options, redact in ((_JSON_OPTIONS, _redact_json_argument), (_URI_OPTIONS, _redact_uri_argument)):
         for dest, option_strings in options.items():
@@ -323,10 +338,8 @@ def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
             in_namespace = isinstance(value, (str, dict, list)) and bool(value)
             for idx, prefix in _find_option_values(full_command, option_strings, allow_abbrev=in_namespace):
                 full_command[idx] = prefix + redact(full_command[idx][len(prefix) :])
-            if in_namespace:
-                full_command = [
-                    redact(argument) if argument == value else argument for argument in full_command
-                ]
+            if in_namespace and isinstance(value, str):
+                full_command = [_mask_value_token(argument, value, redact) for argument in full_command]
 
     return full_command
 

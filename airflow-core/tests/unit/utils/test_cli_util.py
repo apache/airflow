@@ -564,6 +564,28 @@ class TestCliUtil:
                 id="grouped-short-flags",
             ),
             pytest.param(
+                ["airflow", "tasks", "test", "d1", "t1", "-mt", '{"password": "S3CRET"}'],
+                {
+                    "dag_id": "d1",
+                    "task_id": "t1",
+                    "post_mortem": True,
+                    "task_params": '{"password": "S3CRET"}',
+                },
+                ["airflow", "tasks", "test", "d1", "t1", "-mt", '{"password": "********"}'],
+                id="grouped-short-flags-json-separate",
+            ),
+            pytest.param(
+                ["airflow", "tasks", "test", "d1", "t1", '-mt{"password": "S3CRET"}'],
+                {
+                    "dag_id": "d1",
+                    "task_id": "t1",
+                    "post_mortem": True,
+                    "task_params": '{"password": "S3CRET"}',
+                },
+                ["airflow", "tasks", "test", "d1", "t1", '-mt{"password": "********"}'],
+                id="grouped-short-flags-json-attached",
+            ),
+            pytest.param(
                 ["airflow", "tasks", "test", "d1", "t1", "-t", '{"password": "S3CRET"}'],
                 {"dag_id": "d1", "task_id": "t1", "task_params": '{"password": "S3CRET"}'},
                 ["airflow", "tasks", "test", "d1", "t1", "-t", '{"password": "********"}'],
@@ -610,6 +632,24 @@ class TestCliUtil:
         command = ast.literal_eval(metrics["full_command"])
         assert command == expected_command
         assert not any("S3CRET" in argument or "FIRST" in argument for argument in command)
+
+    def test_short_secret_is_not_masked_inside_other_arguments(self):
+        """A short secret only masks the option value, not every token containing its text."""
+        command = ["airflow", "users", "create", "-u", "alice", "-r", "Admin", "-p", "a"]
+        with mock.patch.object(sys, "argv", command):
+            metrics = cli._build_metrics("users", Namespace(username="alice", role="Admin", password="a"))
+
+        assert ast.literal_eval(metrics["full_command"]) == [
+            "airflow",
+            "users",
+            "create",
+            "-u",
+            "alice",
+            "-r",
+            "Admin",
+            "-p",
+            "********",
+        ]
 
     def test_action_log_records_team_name(self, session):
         namespace = Namespace(team_name="payments")
