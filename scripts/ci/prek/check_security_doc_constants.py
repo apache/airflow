@@ -80,6 +80,10 @@ CORE_COMPONENT_MAP: dict[tuple[str, str], str] = {
     ("api_auth", "jwt_secret"): "API Server, Scheduler",
     ("core", "asset_manager_kwargs"): "Dag File Processor",
     ("core", "fernet_key"): "API Server, Scheduler, Workers, Dag File Processor, Triggerer",
+    (
+        "dag_processor",
+        "dag_bundle_config_list",
+    ): "API Server, Scheduler, Workers, Dag File Processor, Triggerer",
     ("database", "sql_alchemy_conn"): "API Server, Scheduler, Dag File Processor, Triggerer",
     ("database", "sql_alchemy_conn_async"): "API Server, Scheduler, Dag File Processor, Triggerer",
     ("database", "sql_alchemy_engine_args"): "API Server, Scheduler, Dag File Processor, Triggerer",
@@ -95,6 +99,7 @@ CORE_DESCRIPTIONS: dict[tuple[str, str], str] = {
     ("api_auth", "jwt_secret"): "JWT signing key (symmetric mode)",
     ("core", "asset_manager_kwargs"): "Asset manager credentials",
     ("core", "fernet_key"): "Fernet encryption key for connections/variables at rest",
+    ("dag_processor", "dag_bundle_config_list"): "Dag bundle definitions (may contain credentials)",
     ("database", "sql_alchemy_conn"): "Metadata database connection string",
     ("database", "sql_alchemy_conn_async"): "Async metadata database connection string",
     ("database", "sql_alchemy_engine_args"): "SQLAlchemy engine parameters (may contain credentials)",
