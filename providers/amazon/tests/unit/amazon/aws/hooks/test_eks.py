@@ -1233,6 +1233,7 @@ class TestEksHook:
                 "export AWS_SECRET_ACCESS_KEY='secret-key'\n"
                 "export AWS_SESSION_TOKEN='session-token'\n"
             )
+            config_context.__exit__.assert_not_called()
 
         credentials = generate_config.call_args.kwargs["credentials_file"]
         generate_config.assert_called_once_with(
