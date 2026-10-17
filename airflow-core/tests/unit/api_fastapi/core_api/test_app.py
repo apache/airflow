@@ -20,6 +20,7 @@ import contextlib
 import inspect
 import json
 import typing
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -30,7 +31,8 @@ from starlette.routing import Mount
 from starlette.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.core_api.app import init_config, init_ui_translation_views
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.core_api.app import init_config, init_middlewares, init_ui_translation_views
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
 from airflow.api_fastapi.core_api.routes.ui import ui_router
 from airflow.api_fastapi.core_api.security import get_user
@@ -319,3 +321,26 @@ class TestUiTranslationViews:
         response = self._client([TranslationPlugin()], tmp_path).get("/static/i18n/languages.json")
 
         assert response.headers["cache-control"] == "no-cache"
+
+
+class TestMiddlewareInitialisation:
+    @patch("airflow.api_fastapi.app.get_auth_manager")
+    def test_jwt_refresh_middleware_init(self, mock_get_auth_manager):
+        app = FastAPI()
+        auth_manager = MagicMock(spec=BaseAuthManager)
+        auth_manager.use_jwt_middleware = True
+        auth_manager.get_jwt_refresh_middleware.return_value = Mock(), {}
+        auth_manager.get_fastapi_middlewares.return_value = []
+        mock_get_auth_manager.return_value = auth_manager
+        init_middlewares(app)
+        auth_manager.get_jwt_refresh_middleware.assert_called_once()
+
+    @patch("airflow.api_fastapi.app.get_auth_manager")
+    def test_no_jwt_refresh_middleware_init(self, mock_get_auth_manager):
+        app = FastAPI()
+        auth_manager = MagicMock(spec=BaseAuthManager)
+        auth_manager.use_jwt_middleware = False
+        auth_manager.get_fastapi_middlewares.return_value = []
+        mock_get_auth_manager.return_value = auth_manager
+        init_middlewares(app)
+        auth_manager.get_jwt_refresh_middleware.assert_not_called()
