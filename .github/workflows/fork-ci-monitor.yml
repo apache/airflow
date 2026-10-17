@@ -20,6 +20,9 @@
 # state comment, the `Fork CI / Tests (AMD)` commit status and closing. It is the only writer for
 # those pull requests and never checks out or runs pull request code. See
 # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+#
+# Part of the fork CI gate: a pull request whose CI runs in the contributor's fork and changes
+# this file is closed by this monitor ("Gate protection" in the document above).
 name: "Fork CI monitor"
 on:  # yamllint disable-line rule:truthy
   schedule:

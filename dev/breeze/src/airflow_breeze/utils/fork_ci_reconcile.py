@@ -20,6 +20,9 @@ Scheduled reconciler for pull requests gated to fork CI (AIP-120).
 ``classify`` is a pure function from what GitHub recorded about one pull request to the mutations
 that bring it to the desired state; ``run_reconcile`` gathers that data and applies the result.
 See "Reconciler" in dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+
+Part of the fork CI gate: a pull request whose CI runs in the contributor's fork and changes
+this file is closed by the fork CI monitor, see "Gate protection" in the same document.
 """
 
 from __future__ import annotations
@@ -58,6 +61,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     STATUS_STATES,
     Marker,
     fork_actions_url,
+    gate_modified_close_comment,
     inactivity_close_comment,
     nudge_comment,
     parse_marker,
@@ -72,6 +76,19 @@ CI_WORKFLOW_FILE = "ci-amd.yml"
 # The files the gate job of ci-amd.yml reads from a pull request's base branch.
 GATE_CONFIG_PATH = ".github/fork-ci-gate.toml"
 GATE_SCRIPT_PATH = "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py"
+CI_WORKFLOW_PATH = f".github/workflows/{CI_WORKFLOW_FILE}"
+# Files of the fork CI gate that a pull request whose CI runs in a fork must not change at all.
+# The gate configuration and the gate job in ci-amd.yml are checked separately, since the first
+# may carry the author's own pilot entry and the second shares its file with the CI pipeline.
+GATE_PROTECTED_PATHS = frozenset(
+    {
+        GATE_SCRIPT_PATH,
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_github.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_messages.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py",
+        ".github/workflows/fork-ci-monitor.yml",
+    }
+)
 GATE_JOB_NAME = "Fork CI gate"
 BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
 DISCOVERY_WINDOW = timedelta(hours=24)
@@ -121,6 +138,7 @@ class ForkState(str, Enum):
     CLOSED = "closed"
     RELEASED = "released"
     UNGATED = "ungated"
+    GATE_MODIFIED = "gate_modified"
 
 
 CLOSABLE_STATES = frozenset({ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH})
@@ -169,6 +187,8 @@ class PullRequestSnapshot:
     last_reopened_at: datetime | None = None
     last_reopened_by_anyone_at: datetime | None = None
     last_base_change_at: datetime | None = None
+    # (changed at, previous base, new base) for each retarget, oldest first.
+    base_changes: tuple[tuple[datetime, str, str], ...] = ()
     current_status: tuple[str, str, str] | None = None
     status_created_at: datetime | None = None
     marker: Marker | None = None
@@ -348,6 +368,8 @@ def classify(
     repo: str,
     find_bypass_run: Callable[[], str | None],
     changes_ci_files: Callable[[], bool],
+    head_shared_across_bases: bool = False,
+    find_gate_change: Callable[[], str | None] = lambda: None,
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -358,6 +380,11 @@ def classify(
         called for pull requests that the gate tampering check applies to.
     :param changes_ci_files: whether the pull request changes CI-defining paths; only called
         when a new head commit turns green in the fork.
+    :param head_shared_across_bases: another gated pull request has the same head commit and a
+        different base, so their changed files differ but they share one commit status.
+    :param find_gate_change: describes how the pull request changes the fork CI gate, or returns
+        None; only called for pull requests that the gate tampering check applies to, once per
+        head commit.
     """
     plan = Plan()
     labels = set(pr.labels)
@@ -420,6 +447,7 @@ def classify(
     reopened_since_closing = {
         ForkState.CLOSED.value: pr.last_reopened_by_anyone_at,
         ForkState.GATE_BYPASSED.value: pr.last_reopened_at,
+        ForkState.GATE_MODIFIED.value: pr.last_reopened_at,
     }
     if marker and marker.state in reopened_since_closing:
         reopened = reopened_since_closing[marker.state]
@@ -428,6 +456,8 @@ def classify(
             _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
             if plan.state == ForkState.CLOSED:
                 comment = inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo)
+            elif plan.state == ForkState.GATE_MODIFIED:
+                comment = gate_modified_close_comment(change=None)
             else:
                 # The status written with the marker links the run that bypassed the gate.
                 bypass_url = (
@@ -440,6 +470,44 @@ def classify(
             plan.close = True
             return plan
 
+    # A pull request whose CI runs in a fork must not change the gate that sent it there. Checked
+    # once per head commit: the marker records a head commit as checked only when the check ran
+    # for it (not while `use fork ci` exempted it), and a retarget since the state began changes
+    # what the pull request changes. A
+    # maintainer's reopen of one closed for it leaves the marker at gate_modified, so reopening
+    # without restoring the gate closes it again; `use project ci` is the way to accept the change.
+    gate_checked = reason in TAMPER_CHECKED_REASONS
+    already_checked = (
+        marker is not None
+        and marker.gate_checked
+        and marker.sha == pr.head_sha
+        and (pr.last_base_change_at is None or pr.last_base_change_at < marker.since)
+    )
+    if gate_checked and not already_checked:
+        change = find_gate_change()
+        if change is not None:
+            plan.state = ForkState.GATE_MODIFIED
+            if not pr.is_draft:
+                plan.draft = True
+            _set_label(plan, labels, LABEL_READY_FOR_REVIEW, present=False)
+            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _set_status(
+                plan, pr, ForkState.GATE_MODIFIED.value, f"https://github.com/{repo}/pull/{pr.number}/files"
+            )
+            _set_marker_comment(
+                plan,
+                pr,
+                state_comment(
+                    Marker(ForkState.GATE_MODIFIED.value, pr.head_sha, now), fork=pr.head_repo, run_url=None
+                ),
+            )
+            plan.new_comments.append(gate_modified_close_comment(change=change))
+            plan.close = True
+            plan.attention.append(
+                f"closed for changing the fork CI gate (author @{pr.author_login}): {change}"
+            )
+            return plan
+
     state, unknown_reason = observe_fork_state(fork, marker)
     if state is None:
         plan.unknown.append(unknown_reason or "unknown fork state")
@@ -449,14 +517,22 @@ def classify(
         # The decision is read back from the commit status on the head commit, which only
         # apache/airflow's own tokens can write, never from a comment. The changed files depend
         # on the base too, so a status written before the pull request was retargeted is stale.
-        # The status is shared by every pull request with this head commit; scoping it to one is
-        # tracked at https://github.com/apache/airflow/issues/74907
         previous = status_state(pr.current_status)
         decided = previous in (ForkState.GREEN.value, ForkState.GREEN_UNVERIFIED.value)
         stale = pr.last_base_change_at is not None and (
             pr.status_created_at is None or pr.status_created_at <= pr.last_base_change_at
         )
-        if decided and not stale:
+        if head_shared_across_bases:
+            # One commit status cannot hold a decision per base, and trusting the one written for
+            # the other pull request could skip the check; both wait for a maintainer instead.
+            unverified = True
+            if previous != ForkState.GREEN_UNVERIFIED.value:
+                plan.attention.append(
+                    "fork CI is green, but another gated pull request to a different base has the "
+                    "same head commit, so its CI-defining changes cannot be told apart; review and add "
+                    "`use project ci` to verify"
+                )
+        elif decided and not stale:
             unverified = previous == ForkState.GREEN_UNVERIFIED.value
         else:
             # Writing the status again, even unchanged, records when this decision was made.
@@ -472,8 +548,6 @@ def classify(
     plan.state = state
     since = marker.since if marker and marker.state == state.value else now
 
-    # The marker records awaiting_push before the nudge is posted, so a failed post is not retried;
-    # tracked at https://github.com/apache/airflow/issues/74908
     if marker and marker.state == ForkState.SETUP_REQUIRED.value and state == ForkState.AWAITING_PUSH:
         plan.new_comments.append(nudge_comment(fork=pr.head_repo))
 
@@ -483,7 +557,11 @@ def classify(
         _set_marker_comment(
             plan,
             pr,
-            state_comment(Marker(ForkState.CLOSED.value, pr.head_sha, now), fork=pr.head_repo, run_url=None),
+            state_comment(
+                Marker(ForkState.CLOSED.value, pr.head_sha, now, gate_checked=gate_checked),
+                fork=pr.head_repo,
+                run_url=None,
+            ),
         )
         plan.new_comments.append(inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo))
         plan.close = True
@@ -508,7 +586,11 @@ def classify(
     _set_marker_comment(
         plan,
         pr,
-        state_comment(Marker(state.value, pr.head_sha, since), fork=pr.head_repo, run_url=fork.run_url),
+        state_comment(
+            Marker(state.value, pr.head_sha, since, gate_checked=gate_checked),
+            fork=pr.head_repo,
+            run_url=fork.run_url,
+        ),
     )
     return plan
 
@@ -549,7 +631,7 @@ query($q: String!, $cursor: String) {
           ... on ConvertToDraftEvent { createdAt actor { login } }
           ... on UnlabeledEvent { createdAt label { name } }
           ... on ReopenedEvent { createdAt actor { login } }
-          ... on BaseRefChangedEvent { createdAt }
+          ... on BaseRefChangedEvent { createdAt previousRefName currentRefName }
         }
       }
       commits(last: 1) { nodes { commit {
@@ -601,22 +683,25 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
     last_reopened = None
     last_reopened_by_anyone = None
     last_base_change = None
+    base_changes = []
     for item in (node.get("timelineItems") or {}).get("nodes") or []:
         if item["__typename"] == "ConvertToDraftEvent":
             last_draft_actor = _login(item.get("actor"))
         elif item["__typename"] == "BaseRefChangedEvent":
             last_base_change = parse_github_datetime(item["createdAt"])
+            base_changes.append(
+                (last_base_change, item.get("previousRefName") or "", item.get("currentRefName") or "")
+            )
         elif item["__typename"] == "ReopenedEvent":
             last_reopened_by_anyone = parse_github_datetime(item["createdAt"])
             # Only a reopen by someone else counts for the gate tampering check: an author closing
             # and reopening their own pull request must not hide a tampered run from it.
             if _login(item.get("actor")).casefold() != _login(node.get("author")).casefold():
                 last_reopened = last_reopened_by_anyone
-        elif (
-            item["__typename"] == "UnlabeledEvent"
-            and (item.get("label") or {}).get("name") == LABEL_USE_PROJECT_CI
-        ):
-            last_unlabel = parse_github_datetime(item["createdAt"])
+        elif item["__typename"] == "UnlabeledEvent":
+            label = (item.get("label") or {}).get("name")
+            if label == LABEL_USE_PROJECT_CI:
+                last_unlabel = parse_github_datetime(item["createdAt"])
 
     current_status = None
     status_created_at = None
@@ -657,6 +742,7 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
         last_reopened_at=last_reopened,
         last_reopened_by_anyone_at=last_reopened_by_anyone,
         last_base_change_at=last_base_change,
+        base_changes=tuple(base_changes),
         current_status=current_status,
         status_created_at=status_created_at,
         marker=marker,
@@ -681,6 +767,17 @@ def _is_not_found(error: GitHubError) -> bool:
     return "404" in str(error) or "Not Found" in str(error)
 
 
+def read_file(client: GitHubClient, repo: str, path: str, ref: str) -> str | None:
+    """Return a file's content at a ref, or None when it does not exist there."""
+    try:
+        content = client.rest_get(f"repos/{repo}/contents/{path}?ref={quote(ref, safe='')}")
+    except GitHubError as e:
+        if _is_not_found(e):
+            return None
+        raise
+    return base64.b64decode(content["content"]).decode()
+
+
 class BaseGateConfigs:
     """
     The gate configuration of each base branch, as the gate job of a pull request against it reads it.
@@ -695,15 +792,7 @@ class BaseGateConfigs:
         self._configs: dict[str, GateConfig | None] = {default_branch: default_config}
 
     def _read(self, path: str, base_ref: str) -> str | None:
-        try:
-            content = self._client.rest_get(
-                f"repos/{self._repo}/contents/{path}?ref={quote(base_ref, safe='')}"
-            )
-        except GitHubError as e:
-            if _is_not_found(e):
-                return None
-            raise
-        return base64.b64decode(content["content"]).decode()
+        return read_file(self._client, self._repo, path, base_ref)
 
     def get(self, base_ref: str) -> GateConfig | None:
         """Return the base branch's configuration, or None when the base branch has no gate."""
@@ -884,6 +973,15 @@ def load_workflow_triggers(workflows_dir: Path) -> dict[str, frozenset[str]]:
     return triggers
 
 
+def base_at(pr: PullRequestSnapshot, when: datetime) -> str:
+    """The base branch the pull request had at ``when``, from its retargets."""
+    base = pr.base_ref
+    for changed_at, previous, _ in reversed(pr.base_changes):
+        if when < changed_at:
+            base = previous
+    return base
+
+
 class BypassFinder:
     """
     Finds project CI runs that bypassed the gate, from the runs apache/airflow recorded.
@@ -894,17 +992,28 @@ class BypassFinder:
     signals of the design must hold for a run: it did project CI work, and its own commit changes
     `.github/workflows/`. A run did project CI work when the base branch's version of its
     workflow is not triggered by the run's event (an injected workflow, or a trigger the pull
-    request added to an existing one, such as `pull_request` on ci-arm.yml), or when it is a long
-    ci-amd.yml run whose jobs show more than the gate.
+    request added to an existing one, such as `pull_request` on ci-arm.yml) and a job of it ran,
+    or when it is a long ci-amd.yml run whose jobs show more than the gate.
     """
 
     def __init__(
-        self, client: GitHubClient, *, repo: str, now: datetime, base_triggers: dict[str, frozenset[str]]
+        self,
+        client: GitHubClient,
+        *,
+        repo: str,
+        now: datetime,
+        base_triggers: dict[str, frozenset[str]],
+        is_gated_base: Callable[[str], bool] = lambda base_ref: True,
     ):
+        """:param is_gated_base: whether a base branch has the gate; runs against one without it are project CI by design."""
         self._client = client
         self._repo = repo
         self._now = now
         self._base_triggers = base_triggers
+        self._is_gated_base = is_gated_base
+        # Pull requests whose matching run could belong to another pull request from the same
+        # branch; reported instead of closed.
+        self.ambiguous: list[tuple[int, str]] = []
         since = (now - TAMPER_WINDOW).strftime("%Y-%m-%dT%H:%M:%SZ")
         self._runs_by_branch: dict[tuple[str, str], list[WorkflowRun]] = {}
         incomplete = []
@@ -928,21 +1037,33 @@ class BypassFinder:
         self._did_project_ci: dict[int, bool] = {}
         self._changes_workflows: dict[tuple[str, str], bool | None] = {}
 
+    def _list_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
+        return self._client.rest_get(
+            f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
+            paginate=True,
+            items_key="jobs",
+        )
+
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
         if run.id not in self._did_project_ci:
             if run.event not in self._base_triggers.get(run.workflow_file, frozenset()):
-                # Counts even when every job skipped; tracked at
-                # https://github.com/apache/airflow/issues/74905
-                result = True
+                # A workflow or trigger the base branch does not have, for example a fork-only
+                # workflow the pull request adds, did no work in apache/airflow if its jobs all
+                # skipped there. Jobs that cannot be listed count as work.
+                try:
+                    jobs = self._list_jobs(run)
+                except GitHubError:
+                    result = True
+                else:
+                    result = (
+                        jobs_show_project_ci(jobs, self._now)
+                        if run.workflow_file == CI_WORKFLOW_FILE
+                        else any(job.get("conclusion") != "skipped" for job in jobs)
+                    )
             elif run.workflow_file != CI_WORKFLOW_FILE or not run.is_long_running(self._now):
                 result = False
             else:
-                jobs = self._client.rest_get(
-                    f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                    paginate=True,
-                    items_key="jobs",
-                )
-                result = jobs_show_project_ci(jobs, self._now)
+                result = jobs_show_project_ci(self._list_jobs(run), self._now)
             self._did_project_ci[run.id] = result
         return self._did_project_ci[run.id]
 
@@ -963,11 +1084,26 @@ class BypassFinder:
                 self._changes_workflows[key] = None if len(files) >= COMPARE_FILES_CAP else False
         return self._changes_workflows[key]
 
+    def _other_pull_requests(self, pr: PullRequestSnapshot) -> list[int]:
+        """Other pull requests from the same branch that were open within the tampering window."""
+        owner = pr.head_repo.split("/", 1)[0]  # type: ignore[union-attr]
+        pulls = self._client.rest_get(
+            f"repos/{self._repo}/pulls?head={quote(owner, safe='')}:{quote(pr.head_ref, safe='')}"
+            "&state=all&per_page=100",
+            paginate=True,
+        )
+        window_start = self._now - TAMPER_WINDOW
+        return [
+            pull["number"]
+            for pull in pulls
+            if pull["number"] != pr.number
+            and (pull.get("closed_at") is None or parse_github_datetime(pull["closed_at"]) >= window_start)
+        ]
+
     def find(self, pr: PullRequestSnapshot) -> str | None:
         if not pr.head_repo:
             return None
-        # Matching by fork branch alone also picks up runs of another pull request from that branch
-        # or from before a retarget; tracked at https://github.com/apache/airflow/issues/74906
+        # Runs are listed per fork branch: GitHub records no pull request on runs from forks.
         runs = self._runs_by_branch.get((pr.head_repo.casefold(), pr.head_ref), [])
         # Runs before `use project ci` was removed were legitimate. Runs before a maintainer
         # reopened the pull request were already acted on; reopening without restoring the gate
@@ -978,12 +1114,158 @@ class BypassFinder:
         for run in sorted(runs, key=lambda r: r.created_at, reverse=True):
             if not_before is not None and run.created_at <= not_before:
                 continue
+            base_ref = base_at(pr, run.created_at)
+            # Project CI against a base branch without the gate is what its gate job decides.
+            if not self._is_gated_base(base_ref):
+                continue
             if not self._did_run_project_ci(run):
                 continue
             # A change set too large to list fails closed: padding a tampered commit past the
             # compare API's cap must not hide the workflow change.
-            if self._commit_changes_workflows(run, pr.base_ref) is not False:
+            if self._commit_changes_workflows(run, base_ref) is not False:
+                others = self._other_pull_requests(pr)
+                if others:
+                    self.ambiguous.append(
+                        (
+                            pr.number,
+                            f"project CI run {run.html_url} may have bypassed the gate, but it could also "
+                            f"belong to {', '.join(f'#{n}' for n in others)} from the same branch; not closed, "
+                            "check it",
+                        )
+                    )
+                    return None
                 return run.html_url
+        return None
+
+
+def get_gate_wiring(workflow_text: str | None) -> Any:
+    """
+    The parts of a ci-amd.yml that make up the gate: its job, how build-info depends on it, the
+    jobs that do not depend on it (a job freed from the gate runs whatever it decides), and the
+    workflow-level triggers and settings that every job, the gate included, runs with.
+
+    A file that is not a workflow mapping yields an object equal to nothing, so a pull request
+    breaking the workflow counts as changing the gate rather than escaping the check.
+    """
+    if workflow_text is None:
+        return None
+    try:
+        workflow = yaml.safe_load(workflow_text)
+    except yaml.YAMLError:
+        return object()
+    jobs = workflow.get("jobs") if isinstance(workflow, dict) else None
+    if not isinstance(jobs, dict):
+        return object()
+    build_info = jobs.get("build-info")
+    build_info = build_info if isinstance(build_info, dict) else {}
+    return (
+        jobs.get("gate"),
+        build_info.get("needs"),
+        build_info.get("if"),
+        find_jobs_outside_gate(jobs),
+        workflow.get("on", workflow.get(True)),
+        workflow.get("defaults"),
+        workflow.get("env"),
+        workflow.get("permissions"),
+        workflow.get("concurrency"),
+    )
+
+
+def find_jobs_outside_gate(jobs: dict[str, Any]) -> frozenset[str]:
+    """Jobs that do not depend on the gate job, directly or through other jobs."""
+
+    def get_needs(job_id: str) -> list[str]:
+        job = jobs.get(job_id)
+        needs = job.get("needs") if isinstance(job, dict) else None
+        if isinstance(needs, str):
+            return [needs]
+        return [need for need in needs if isinstance(need, str)] if isinstance(needs, list) else []
+
+    def depends_on_gate(job_id: str, seen: frozenset[str] = frozenset()) -> bool:
+        # `seen` stops a dependency cycle, which GitHub rejects anyway.
+        return any(
+            need == "gate" or (need not in seen and depends_on_gate(need, seen | {job_id}))
+            for need in get_needs(job_id)
+        )
+
+    return frozenset(job_id for job_id in jobs if job_id != "gate" and not depends_on_gate(job_id))
+
+
+def is_own_pilot_change(base_text: str | None, head_text: str | None, author_login: str) -> bool:
+    """Whether a gate configuration differs from the base only in the author's own pilot entry."""
+    if base_text is None or head_text is None:
+        return False
+    try:
+        base = parse_config(base_text)
+        head = parse_config(head_text)
+    except (ValueError, TypeError, AttributeError):
+        # Valid TOML of the wrong shape, such as `pilot = []`, is no permitted change either.
+        return False
+    base_pilot = {login.casefold(): joined for login, joined in base.pilot.items()}
+    head_pilot = {login.casefold(): joined for login, joined in head.pilot.items()}
+    changed = {
+        login
+        for login in base_pilot.keys() | head_pilot.keys()
+        if base_pilot.get(login) != head_pilot.get(login)
+    }
+    return replace(head, pilot=base.pilot) == base and changed <= {author_login.casefold()}
+
+
+class HeadMovedError(RuntimeError):
+    """The pull request's head moved while it was checked; the next run checks the new head."""
+
+
+class GateChangeFinder:
+    """Finds how a pull request changes the fork CI gate, from its changed files."""
+
+    def __init__(self, client: GitHubClient, *, repo: str):
+        self._client = client
+        self._repo = repo
+
+    def _merge_base(self, pr: PullRequestSnapshot) -> str:
+        # The pull request's changes are against the merge base, not the base branch's tip, which
+        # may have moved on: comparing with the tip would count others' later changes as its own.
+        owner = (pr.head_repo or "").split("/", 1)[0]
+        compare = self._client.rest_get(
+            f"repos/{self._repo}/compare/{quote(pr.base_ref, safe='')}...{owner}:{pr.head_sha}?per_page=1"
+        )
+        return compare["merge_base_commit"]["sha"]
+
+    def find(self, pr: PullRequestSnapshot) -> str | None:
+        files = self._client.rest_get(
+            f"repos/{self._repo}/pulls/{pr.number}/files?per_page=100", paginate=True
+        )
+        # The listing is of the pull request as it is now, while the head commit recorded as checked
+        # is the one read at the start of the run: a push in between would mark a commit checked
+        # by another one's files.
+        current_head = self._client.rest_get(f"repos/{self._repo}/pulls/{pr.number}")["head"]["sha"]
+        if current_head != pr.head_sha:
+            raise HeadMovedError(
+                f"head moved from {pr.head_sha[:8]} to {current_head[:8]} during the gate check"
+            )
+        # A listing at GitHub's cap may leave out a gate file, so it is not trusted.
+        if len(files) >= PULL_REQUEST_FILES_CAP:
+            return f"it changes {len(files)} or more files, more than GitHub lists, so the gate cannot be checked"
+        paths = set(changed_paths(files))
+        for path in sorted(GATE_PROTECTED_PATHS & paths):
+            return f"it changes `{path}`"
+        if not paths & {GATE_CONFIG_PATH, CI_WORKFLOW_PATH}:
+            return None
+        head_repo = pr.head_repo or ""
+        merge_base = self._merge_base(pr)
+        if GATE_CONFIG_PATH in paths and not is_own_pilot_change(
+            read_file(self._client, self._repo, GATE_CONFIG_PATH, merge_base),
+            read_file(self._client, head_repo, GATE_CONFIG_PATH, pr.head_sha),
+            pr.author_login,
+        ):
+            return f"it changes `{GATE_CONFIG_PATH}` beyond the author's own `[pilot]` entry"
+        if CI_WORKFLOW_PATH in paths and get_gate_wiring(
+            read_file(self._client, self._repo, CI_WORKFLOW_PATH, merge_base)
+        ) != get_gate_wiring(read_file(self._client, head_repo, CI_WORKFLOW_PATH, pr.head_sha)):
+            return (
+                f"it changes the `gate` job of `{CI_WORKFLOW_PATH}`, which jobs depend on it, or the "
+                "workflow-level triggers or settings it runs with"
+            )
         return None
 
 
@@ -1027,6 +1309,14 @@ def pull_request_changes_ci_files(client: GitHubClient, repo: str, number: int) 
     return changes_ci_definition(changed_paths(files), file_count=len(files))
 
 
+def find_heads_shared_across_bases(prs: Iterable[PullRequestSnapshot]) -> set[str]:
+    """Head commits of more than one pull request whose bases differ."""
+    bases_by_head: dict[str, set[str]] = {}
+    for pr in prs:
+        bases_by_head.setdefault(pr.head_sha, set()).add(pr.base_ref)
+    return {head for head, bases in bases_by_head.items() if len(bases) > 1}
+
+
 def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> None:
     if plan.draft is True:
         client.convert_to_draft(pr.number, pr.node_id)
@@ -1035,6 +1325,11 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Non
     for label in plan.remove_labels:
         if label != LABEL_FORK_CI_REQUIRED:
             client.remove_label(pr.number, label)
+    # New comments go before the state comment records the new state: the state recorded there is
+    # what the next run compares with, so a failure on the way posts them again rather than never.
+    # They carry no marker, so the state comment stays the earliest bot comment with one.
+    for comment in plan.new_comments:
+        client.create_comment(pr.number, comment)
     if plan.marker_comment is not None:
         if pr.marker_comment_id is not None:
             client.update_comment(pr.number, pr.marker_comment_id, plan.marker_comment)
@@ -1042,8 +1337,6 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Non
             client.create_comment(pr.number, plan.marker_comment)
     if plan.status is not None:
         client.set_status(pr.number, pr.head_sha, *plan.status)
-    for comment in plan.new_comments:
-        client.create_comment(pr.number, comment)
     if plan.draft is False:
         client.mark_ready(pr.number, pr.node_id)
     if plan.close:
@@ -1135,10 +1428,24 @@ def run_reconcile(
         )
     ]
     observations = fetch_fork_observations(client, prs)
+
+    def is_gated_base(base_ref: str) -> bool:
+        # A base branch whose configuration cannot be read is treated as gated.
+        try:
+            return configs.get(base_ref) is not None
+        except (GitHubError, ValueError):
+            return True
+
     bypass_finder = BypassFinder(
-        client, repo=repo, now=now, base_triggers=load_workflow_triggers(workflows_dir)
+        client,
+        repo=repo,
+        now=now,
+        base_triggers=load_workflow_triggers(workflows_dir),
+        is_gated_base=is_gated_base,
     )
 
+    shared_heads = find_heads_shared_across_bases(prs)
+    gate_change_finder = GateChangeFinder(client, repo=repo)
     for listed in prs:
         try:
             pr = listed if listed.comments_cursor is None else find_state_comment(client, repo, listed)
@@ -1159,14 +1466,19 @@ def run_reconcile(
                 repo=repo,
                 find_bypass_run=functools.partial(bypass_finder.find, pr),
                 changes_ci_files=functools.partial(pull_request_changes_ci_files, client, repo, pr.number),
+                head_shared_across_bases=pr.head_sha in shared_heads,
+                find_gate_change=functools.partial(gate_change_finder.find, pr),
             )
             apply_plan(client, pr, plan)
             unknown.extend((pr.number, reason) for reason in plan.unknown)
             attention.extend((pr.number, item) for item in plan.attention)
+        except HeadMovedError as e:
+            console_print(f"[info]#{listed.number}: {e}; checked again on the next run[/]")
         except Exception as e:
             console_print(f"[error]#{listed.number}: {e}[/]")
             unknown.append((listed.number, f"{type(e).__name__}: {e}"))
 
+    attention.extend(bypass_finder.ambiguous)
     notes = [bypass_finder.incomplete] if bypass_finder.incomplete else []
     # The full list for the run log; Slack may show only part of a very long one.
     for number, reason in [*unknown, *attention]:

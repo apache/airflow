@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime
 
 import pytest
@@ -25,6 +26,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     _STATUS_DESCRIPTIONS,
     FOOTER,
     Marker,
+    gate_modified_close_comment,
     inactivity_close_comment,
     nudge_comment,
     parse_marker,
@@ -32,6 +34,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     render_marker,
     state_comment,
     tamper_close_comment,
+    ungated_comment,
 )
 
 MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15, 10, 0, tzinfo=UTC))
@@ -39,6 +42,8 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
 
 def test_marker_round_trip():
     assert parse_marker(f"text before\n{render_marker(MARKER)}\ntext after") == MARKER
+    checked = dataclasses.replace(MARKER, gate_checked=True)
+    assert parse_marker(render_marker(checked)) == checked
 
 
 def test_parse_marker_absent():
@@ -73,6 +78,8 @@ def test_parse_marker_malformed(body):
         pytest.param(nudge_comment(fork="u/airflow"), id="nudge"),
         pytest.param(inactivity_close_comment(days=7, fork="u/airflow"), id="inactivity"),
         pytest.param(tamper_close_comment(run_url="https://x"), id="tamper"),
+        pytest.param(gate_modified_close_comment(change="it changes `x`"), id="gate-modified"),
+        pytest.param(ungated_comment(MARKER, base_ref="v2-10-test"), id="ungated"),
     ],
 )
 def test_every_comment_ends_with_footer(text):
