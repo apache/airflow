@@ -42,7 +42,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors import (
     celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043.
 )
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_4_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
 from airflow.utils.helpers import prune_dict
 from airflow.utils.state import TaskInstanceState
@@ -50,7 +50,9 @@ from airflow.utils.state import TaskInstanceState
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
-    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+    _SUPPORTED_WORKLOAD_TYPES = frozenset(
+        {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK, WorkloadType.TEST_CONNECTION}
+    )
 
 log = logging.getLogger(__name__)
 
@@ -104,7 +106,8 @@ class CeleryExecutor(BaseExecutor):
     """
     CeleryExecutor is recommended for production use of Airflow.
 
-    It allows distributing the execution of workloads (task instances and callbacks) to multiple worker nodes.
+    It allows distributing the execution of workloads (task instances, callbacks and connection tests) to
+    multiple worker nodes.
 
     Celery is a simple, flexible and reliable distributed system to process
     vast amounts of messages, while providing operations with the tools
@@ -117,6 +120,7 @@ class CeleryExecutor(BaseExecutor):
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
     else:
         supports_callbacks: bool = True
+        supports_connection_test: bool = True
     sentry_integration: str = "sentry_sdk.integrations.celery.CeleryIntegration"
     pre_assigns_external_executor_id: ClassVar[bool] = True
 
@@ -184,6 +188,8 @@ class CeleryExecutor(BaseExecutor):
 
         if AIRFLOW_V_3_2_PLUS:
             from airflow.executors.workloads import ExecuteCallback
+        if AIRFLOW_V_3_3_PLUS:
+            from airflow.executors.workloads import TestConnection
 
         workloads_to_be_sent: list[WorkloadInCelery] = []
         for workload in workload_items:
@@ -196,6 +202,9 @@ class CeleryExecutor(BaseExecutor):
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
                     queue = workload.callback.data["queue"]
                 workloads_to_be_sent.append((workload.callback.key, workload, queue, self.team_name))
+            elif AIRFLOW_V_3_3_PLUS and isinstance(workload, TestConnection):
+                queue = workload.queue or self.conf.get_mandatory_value("operators", "default_queue")
+                workloads_to_be_sent.append((workload.key, workload, queue, self.team_name))
             else:
                 raise ValueError(f"{type(self)}._process_workloads cannot handle {type(workload)}")
 
@@ -226,15 +235,16 @@ class CeleryExecutor(BaseExecutor):
                     self.workload_publish_retries[key] = retries + 1
                     continue
             if AIRFLOW_V_3_4_PLUS:
-                if key in self.executor_queues.get(WorkloadType.EXECUTE_TASK, {}):
-                    self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key)
-                else:
-                    self.executor_queues[WorkloadType.EXECUTE_CALLBACK].pop(key, None)
+                for queued in self.executor_queues.values():
+                    if queued.pop(key, None) is not None:
+                        break
             else:
                 if key in self.queued_tasks:
                     self.queued_tasks.pop(key)
-                else:
-                    self.queued_callbacks.pop(key, None)
+                elif key in self.queued_callbacks:
+                    self.queued_callbacks.pop(key)
+                elif AIRFLOW_V_3_3_PLUS:
+                    self.queued_connection_tests.pop(key, None)  # type: ignore[attr-defined]
             self.workload_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
@@ -402,6 +412,15 @@ class CeleryExecutor(BaseExecutor):
             self.revoke_task(ti=ti)
             self.fail(self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key)
         return reprs
+
+    def fail_connection_test(self, key) -> None:
+        celery_async_result = self.workloads.pop(key, None)
+        if celery_async_result:
+            try:
+                self.celery_app.control.revoke(celery_async_result.task_id)
+            except Exception:
+                self.log.exception("Error revoking connection test %s from celery", key)
+        super().fail_connection_test(key)
 
     def revoke_task(self, *, ti: TaskInstance):
         key = self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key
