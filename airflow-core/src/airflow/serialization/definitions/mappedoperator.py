@@ -100,6 +100,7 @@ class SerializedMappedOperator(DAGNode):
     operator_extra_links: Collection[XComOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
+    template_fields_extra: Collection[str] = ()
     template_fields_renderers: dict[str, str]
     ui_color: str
     ui_fgcolor: str
@@ -371,6 +372,7 @@ class SerializedMappedOperator(DAGNode):
                 "task_type",
                 "template_ext",
                 "template_fields",
+                "template_fields_extra",
                 "template_fields_renderers",
                 "ui_color",
                 "ui_fgcolor",
