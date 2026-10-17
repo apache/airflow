@@ -25,7 +25,7 @@ import logging
 import os
 import shutil
 from collections.abc import Generator
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -307,7 +307,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 # instead of an empty view that looks like remote logging silently failed.
                 if e.response.get("Error", {}).get("Code") != "ResourceNotFoundException":
                     raise
-                notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=timezone.utc))
+                notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=UTC))
                 yield {
                     "timestamp": notice_ts,
                     "ingestionTime": notice_ts,
@@ -321,7 +321,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return _iter_events()
 
     def _parse_log_event_as_dumped_json(self, event: CloudWatchLogEvent) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc).isoformat()
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC).isoformat()
         event_msg = event["message"]
         try:
             message = json.loads(event_msg)
@@ -432,7 +432,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         return messages, logs
 
     def _event_to_str(self, event: CloudWatchLogEvent) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC)
         # Format a datetime object to a string in Zulu time without milliseconds.
         formatted_event_dt = event_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         message = event["message"]

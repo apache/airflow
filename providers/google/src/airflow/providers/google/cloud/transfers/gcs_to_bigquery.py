@@ -203,6 +203,7 @@ class GCSToBigQueryOperator(BaseOperator):
         "impersonation_chain",
         "src_fmt_configs",
         "extra_config",
+        "gcp_conn_id",
     )
     template_fields_renderers = {"schema_fields": "json"}
     template_ext: Sequence[str] = (".sql",)

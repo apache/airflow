@@ -23,6 +23,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils.transfer import strip_overlapping_folder_markers
 from airflow.providers.common.compat.sdk import BaseOperator
 
 try:
@@ -82,6 +83,8 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         "prefix",
         "delimiter",
         "dest_s3_key",
+        "wasb_conn_id",
+        "aws_conn_id",
     )
 
     def __init__(
@@ -137,6 +140,14 @@ class AzureBlobStorageToS3Operator(BaseOperator):
             container_name=self.container_name, prefix=self.prefix, endswith=self.delimiter
         )
 
+        files, dropped_keys = strip_overlapping_folder_markers(files)
+        if dropped_keys:
+            self.log.info(
+                "Skipping %s Azure Blob folder-marker key(s) (omitted from transfer and XCom output): %s",
+                len(dropped_keys),
+                dropped_keys,
+            )
+
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket
             # and only keep those files which are present in
@@ -149,7 +160,7 @@ class AzureBlobStorageToS3Operator(BaseOperator):
             existing_files = existing_files or []
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(f"{prefix}/", "", 1) for file in existing_files]
-            files = list(set(files) - set(existing_files))
+            files = sorted(set(files) - set(existing_files))
 
         if files:
             for file in files:

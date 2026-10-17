@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, HStack, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { PiRectangleDashed } from "react-icons/pi";
 
@@ -30,6 +31,8 @@ import { RouterLink } from "src/system-components";
 
 import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
 
+import { formatNumber } from "src/utils";
+
 import Time from "../Time";
 
 export const AssetNode = ({
@@ -39,6 +42,7 @@ export const AssetNode = ({
   readonly asset: AssetExpressionAlias | AssetExpressionAsset;
   readonly event?: NextRunAssetEventResponse;
 }) => {
+  const { i18n } = useTranslation();
   const isFullyReceived = Boolean(event?.last_update);
   const isPartial =
     !isFullyReceived &&
@@ -90,7 +94,8 @@ export const AssetNode = ({
         </Text>
       ) : isPartial ? (
         <Text color="warning.fg" fontSize="sm">
-          {event?.received_count} / {event?.required_count}
+          {formatNumber(event?.received_count ?? 0, i18n.language)} /{" "}
+          {formatNumber(event?.required_count ?? 0, i18n.language)}
         </Text>
       ) : undefined}
     </Box>

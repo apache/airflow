@@ -54,6 +54,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`
 - **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual --skip compile-ui-assets-dev --skip view-skill-eval --skip run-skill-eval-codex` (the skipped hooks start long-running local servers or provision the opt-in Codex environment rather than run checks that complete)
 - **Build docs:** `breeze build-docs`
+- **List the local verification for your changes:** `breeze verify` (add `--full` for everything CI runs for the default matrix cell except static checks, `--json` for machine-readable output). It uses the same selective-checks logic as CI.
 - **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`
 <!-- END generated-commands, please keep comment here to allow auto update -->
 
@@ -134,7 +135,14 @@ reported as such are described in "What is NOT considered a security vulnerabili
 
 - **Always format and check Python files with ruff immediately after writing or editing them:** `uv run ruff format <file_path>` and `uv run ruff check --fix <file_path>`. Do this for every Python file you create or modify, before moving on to the next step.
 - No `assert` in production code.
-- **Comment sparingly — code says *what*, comments say *why*.** Add a comment only when the reasoning is non-obvious and cannot be carried by a clear name or the code itself. Do not write narrating comments that restate the next line, do not pad logic with multi-line prose, and do not repeat the same rationale at several sites — put one concise note at the source of truth and let the others stand on their own. Tests whose names already describe intent need no explanatory comment. Reserve longer explanation for genuinely complex or non-obvious logic (e.g. a security check whose threat model isn't apparent), and keep even that as tight as it can be. Over-commenting is noise that ages badly and obscures the code it wraps.
+- **Comment only when context is not readily apparent from the code.**
+  Generic purpose explanation do not qualify: `# Log for debugging` above `logging.debug(...)`,
+  `# Validate for safety`, `# Retry for reliability` and similar provide no useful information.
+  Useful comments record a specific constraint, invariant, compatibility quirk, or tradeoff.
+  Before adding a comment, identify the misunderstanding or incorrect change it would prevent.
+  If removing a comment will lose non-code-related context, omit it. Do not narrate code, repeat code,
+  or invent a rationale in comments. Keep necessary explanations short, precise and at the source of truth.
+  Do not repeat comments at each call site. Judge each comment value by the preserved context only.
 - `time.monotonic()` for durations, not `time.time()`.
 - In `airflow-core`, functions with a `session` parameter must not call `session.commit()`. Use keyword-only `session` parameters.
 - Imports at top of file. Valid exceptions: circular imports, lazy loading for worker isolation, `TYPE_CHECKING` blocks.
@@ -200,6 +208,10 @@ own agent harness. In Claude Code:
 
 `magpie@apache-magpie` installs every family at once; other families
 (`magpie-security`, `magpie-release-management`, …) install individually.
+`magpie-release-management` is in the project floor (`.apache-magpie.lock`):
+its `verify-rc` skill verifies a release candidate and, per
+[`.apache-magpie-overrides/release-verify-rc.md`](.apache-magpie-overrides/release-verify-rc.md),
+can test your own changes against a providers wave.
 The contributor-facing summary lives in the [Agent-assisted contribution
 section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
 

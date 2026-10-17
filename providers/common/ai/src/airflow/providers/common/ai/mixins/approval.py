@@ -19,17 +19,18 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
 from jinja2 import TemplateError
-from pydantic import BaseModel, TypeAdapter
 
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
     # On Airflow 3.3+ the review parks the task in the first-class AWAITING_INPUT state instead
-    # of deferring to a trigger. On older cores this name is absent and defer() is used.
+    # of deferring to a trigger. On older Airflow versions this name is absent and defer() is used.
     from airflow.sdk.exceptions import TaskAwaitingInput
 
 log = logging.getLogger(__name__)
@@ -40,6 +41,69 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
+
+
+def _object_from_the_form_as_text(modified: dict[str, Any], generated_output: str) -> str:
+    """
+    Turn the object the HITL form sent back into review text, keeping ``generated_output`` if untouched.
+
+    The form round-trips the value through JavaScript, which rounds integers above 2**53, writes ``1.0``
+    as ``1`` and may reorder keys (so may the metadata database), so compare values the same way rather
+    than text; a re-dumped untouched object would otherwise read as an edit and could change a value.
+    """
+    try:
+        generated = json.loads(generated_output)
+    except ValueError:
+        generated = None
+    if _with_javascript_numbers(modified) == _with_javascript_numbers(generated):
+        return generated_output
+    return json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
+
+
+def _with_javascript_numbers(value: Any) -> Any:
+    """Map every number to a float, as ``JSON.parse`` does, so values compare as the browser sees them."""
+    if isinstance(value, bool):
+        # Tagged, because Python treats ``False == 0.0`` and ``True == 1.0`` as equal and JSON does not.
+        return ("bool", value)
+    if isinstance(value, int | float):
+        try:
+            return float(value)
+        except OverflowError:
+            return value
+    if isinstance(value, dict):
+        return {key: _with_javascript_numbers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_with_javascript_numbers(item) for item in value]
+    return value
+
+
+def normalize_assigned_users(value: Any, *, param: str) -> list[HITLUser]:
+    """
+    Return *value* as a list of ``{'id': str, 'name': str}`` users.
+
+    Accepts ``None``, a single user dict, or an iterable of them, and raises ``TypeError``
+    naming *param* for anything else, so a malformed list fails when the Dag is parsed
+    rather than when the task first asks for a review.
+    """
+    users: list[Any]
+    if value is None:
+        users = []
+    elif isinstance(value, dict):
+        users = [value]
+    elif isinstance(value, str) or not isinstance(value, Iterable):
+        raise TypeError(
+            f"{param} must be a {{'id': str, 'name': str}} dict or an iterable of them, got {value!r}"
+        )
+    else:
+        users = list(value)
+    for user in users:
+        if (
+            not isinstance(user, dict)
+            or not isinstance(user.get("id"), str)
+            or not isinstance(user.get("name"), str)
+        ):
+            raise TypeError(f"{param} entries must be {{'id': str, 'name': str}} dicts, got {user!r}")
+    return users
 
 
 class DeferForApprovalProtocol(Protocol):
@@ -83,15 +147,17 @@ class LLMApprovalMixin:
     ``{{ task.subject }}`` and ``{{ task.body }}`` in notifier templates.  A
     notifier whose delivery raises is logged without failing the task, while a
     template error fails the task.  A retry re-runs the LLM and re-notifies
-    with the regenerated output, while the open review keeps the original
-    subject and body.
+    with the regenerated output.  On Airflow 3.4+ the reopened review shows the
+    regenerated output too; on Airflow 3.1 to 3.3 it keeps the original subject,
+    body and editable output, so approving it unedited returns the first
+    attempt's output.
 
     ``approval_assigned_users`` restricts the review to the named users, the way
     :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
     ``assigned_users``.  Leaving it empty lets any user with the permission
-    respond.  The list is stored when the review is first created; clearing
-    the task re-runs it against the existing review row, so a changed list
-    does not take effect.
+    respond.  On Airflow 3.1 to 3.3 the list is stored when the review is first
+    created, so clearing the task after changing it does not take effect; on
+    3.4+ a cleared or retried task replaces it.
 
     Operators that use this mixin must set the following attributes:
 
@@ -128,6 +194,7 @@ class LLMApprovalMixin:
         subject: str | None = None,
         body: str | None = None,
         modification_schema: dict[str, Any] | None = None,
+        decision: dict[str, Any] | None = None,
     ) -> None:
         """
         Write HITL detail, then pause the task for human review.
@@ -151,6 +218,10 @@ class LLMApprovalMixin:
             multi-select (JSON Schema forbids ``enum`` at the array level, so the
             options come from ``examples``); a list submitted by the reviewer is
             returned from ``execute_complete`` re-serialized as a compact JSON string.
+        :param decision: The pending decision record, when the operator wrote one. It is carried in
+            the continuation the task resumes from, next to ``generated_output``, so
+            ``execute_complete`` finalizes the record from what was checkpointed with the pause and
+            not from a copy a reader could have edited or deleted in the meantime.
         """
         from airflow.providers.standard.triggers.hitl import HITLTrigger
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
@@ -159,11 +230,8 @@ class LLMApprovalMixin:
         self.validate_approval_prompt()
 
         raw_output = output
-        if isinstance(output, BaseModel):
-            output = output.model_dump_json()
-        elif not isinstance(output, str):
-            # JSON round-trip: execute_complete validates the string back into output_type.
-            output = TypeAdapter(type(output)).dump_json(output).decode()
+        # JSON round-trip: execute_complete validates the string back into output_type.
+        output = dump_output_to_json(output)
 
         ti_id = context["task_instance"].id
         timeout_defaults = LLMApprovalMixin.TIMEOUT_DEFAULTS.get(self.on_approval_timeout)
@@ -213,16 +281,20 @@ class LLMApprovalMixin:
             except Exception:
                 log.exception("Approval notifier %s failed; the review stays open", notifier)
 
+        continuation: dict[str, Any] = {"generated_output": output}
+        if decision is not None:
+            continuation["decision"] = decision
+
         if AIRFLOW_V_3_3_PLUS:
-            # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The
+            # Airflow 3.3+: park the task in AWAITING_INPUT -- no trigger, no triggerer. The
             # task is resumed by the Core API response handler or the scheduler timeout sweep.
             raise TaskAwaitingInput(
                 method_name="execute_complete",
-                kwargs={"generated_output": output},
+                kwargs=continuation,
                 timeout=self.approval_timeout,
             )
 
-        # Fallback for cores < 3.3: defer the response check to HITLTrigger on the triggerer.
+        # Fallback for Airflow versions < 3.3: defer the response check to HITLTrigger on the triggerer.
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,
@@ -235,7 +307,7 @@ class LLMApprovalMixin:
                 ),
             ),
             method_name="execute_complete",
-            kwargs={"generated_output": output},
+            kwargs=continuation,
         )
 
     @staticmethod
@@ -245,7 +317,13 @@ class LLMApprovalMixin:
             return "the approval timeout default"
         return responded_by_user["name"]
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> str:
+    def execute_complete(
+        self,
+        context: Context,
+        generated_output: str,
+        event: dict[str, Any],
+        decision: dict[str, Any] | None = None,
+    ) -> str:
         """
         Resume after human review.
 
@@ -256,6 +334,8 @@ class LLMApprovalMixin:
         :param generated_output: The output that was deferred for review.
         :param event: Trigger event payload containing ``chosen_options``,
             ``params_input``, ``responded_by_user``, and ``timedout``.
+        :param decision: The pending decision record passed to ``defer_for_approval``, if any.
+            The mixin does not read it; an operator that writes a record finalizes it.
         :raises HITLRejectException: If the reviewer, or the
             ``on_approval_timeout="reject"`` default, rejected the output.
         :raises HITLTriggerEventError: If the trigger reported an error.
@@ -310,7 +390,11 @@ class LLMApprovalMixin:
                             }
                         )
                 # Compact so an unchanged selection compares equal to generated_output
-                modified = json.dumps(modified, separators=(",", ":"))
+                modified = json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
+            elif isinstance(modified, dict):
+                # TODO: Drop once the HITL form stops parsing a string param that looks like JSON into an
+                # object (airflow-core ui/src/utils/hitl.ts); until then a model output comes back as a dict.
+                modified = _object_from_the_form_as_text(modified, generated_output)
             if modified is not None and not isinstance(modified, str):
                 # On the awaiting_input path nothing upstream schema-validates params_input
                 # (HITLTrigger did on the legacy path), so enforce the string contract here

@@ -26,7 +26,12 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.sdk import AirflowSensorTimeout, TaskDeferred, timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    TaskDeferred,
+    timezone,
+)
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.triggers.file import FileTrigger
 
@@ -281,3 +286,10 @@ class TestFileSensor:
             task.execute({})
 
         assert mock_poke.call_count == 1, "the sensor poked again after the sync path completed"
+
+    def test_execute_complete_failure_names_the_task_and_path(self):
+        """The message interpolates the task and path rather than rendering as a tuple of format args."""
+        sensor = FileSensor(task_id="waiting_for_drop", filepath="incoming_data.csv")
+
+        with pytest.raises(AirflowException, match="waiting_for_drop task failed as .*incoming_data.csv"):
+            sensor.execute_complete(context={}, event=False)

@@ -67,12 +67,12 @@ export const useAutoRefresh = ({
     },
   );
 
-  const pendingRuns = checkPendingRuns ? (dagRunData?.dag_runs ?? []).length >= 1 : true;
+  const pendingRuns = !checkPendingRuns || (dagRunData?.dag_runs ?? []).length >= 1;
 
-  const paused = Boolean(dagId) ? dag?.is_paused : false;
+  const paused = Boolean(dagId) && dag?.is_paused;
 
   const canRefresh = autoRefreshInterval !== undefined && !paused && pendingRuns;
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-  return (canRefresh ? autoRefreshInterval * 1000 : false) as number | false;
+  return (canRefresh && autoRefreshInterval * 1000) as number | false;
 };

@@ -199,3 +199,9 @@ class SyncCallback(Callback):
     @classmethod
     def serialized_fields(cls) -> tuple[str, ...]:
         return super().serialized_fields() + ("executor",)
+
+
+# The callback types a ``DeadlineAlert`` may hold.  ``DeadlineAlert.__init__`` refuses anything else
+# at Dag-parse time and the scheduler's decoder allow-lists exactly these by qualified class name, so
+# the two must not drift: both build from this.
+DEADLINE_CALLBACK_TYPES = (AsyncCallback, SyncCallback)

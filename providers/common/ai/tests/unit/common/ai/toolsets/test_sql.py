@@ -96,6 +96,16 @@ class TestSQLToolsetInit:
         ts = SQLToolset("my_pg")
         assert ts.id == "sql-my_pg"
 
+    @pytest.mark.parametrize("value", [None, []], ids=["none", "empty-list"])
+    def test_falsy_allowed_tables_raises(self, value):
+        """Only omitting the argument grants allow-all; no explicit value does."""
+        with pytest.raises(ValueError, match="allowed_tables must name at least one table"):
+            SQLToolset("my_pg", allowed_tables=value)
+
+    def test_omitted_allowed_tables_means_no_restriction(self):
+        ts = SQLToolset("my_pg")
+        assert ts._allowed_tables is None
+
 
 class TestSQLToolsetGetTools:
     def test_returns_four_tools(self):
@@ -113,6 +123,7 @@ class TestSQLToolsetGetTools:
         ("name", "valid_args"),
         [
             ("get_schema", {"table_name": "users"}),
+            ("get_schema", {"table_name": "users", "name_contains": "cust"}),
             ("query", {"sql": "SELECT 1"}),
             ("check_query", {"sql": "SELECT 1"}),
         ],
@@ -177,20 +188,73 @@ class TestSQLToolsetGetSchema:
         result = asyncio.run(
             ts.call_tool("get_schema", {"table_name": "users"}, ctx=MagicMock(), tool=MagicMock())
         )
-        columns = json.loads(result)
-        assert columns == [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "VARCHAR"}]
+        data = json.loads(result)
+        assert data == {
+            "columns": [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "VARCHAR"}],
+            "column_count": 2,
+        }
         mock_hook.get_table_schema.assert_called_once_with("users", schema=None)
 
+    def test_name_contains_filters_the_columns(self):
+        """``name_contains`` threads from the tool call through to the bounded result."""
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(
+            table_schema=[
+                {"name": "id", "type": "INTEGER"},
+                {"name": "customer_name", "type": "VARCHAR"},
+            ]
+        )
+
+        result = asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "users", "name_contains": "name"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        data = json.loads(result)
+        assert data["columns"] == [{"name": "customer_name", "type": "VARCHAR"}]
+        assert data["name_contains"] == "name"
+        assert data["total_columns"] == 2
+
+    @patch("airflow.providers.common.ai.toolsets.sql.build_schema_result", return_value="{}")
+    def test_get_schema_forwards_the_toolsets_bounds(self, mock_build):
+        """The toolset's own max_columns/max_result_bytes reach build_schema_result, not defaults."""
+        ts = SQLToolset("pg_default", max_columns=7, max_result_bytes=123)
+        ts._hook = _make_mock_db_hook()
+
+        asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "users", "name_contains": "id"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        kwargs = mock_build.call_args.kwargs
+        assert kwargs["max_columns"] == 7
+        assert kwargs["max_result_bytes"] == 123
+        assert kwargs["name_contains"] == "id"
+
     def test_blocks_table_not_in_allowed_list(self):
+        """The allow-list guard fires before any introspection or filtering."""
         ts = SQLToolset("pg_default", allowed_tables=["orders"])
         ts._hook = _make_mock_db_hook()
 
         result = asyncio.run(
-            ts.call_tool("get_schema", {"table_name": "secrets"}, ctx=MagicMock(), tool=MagicMock())
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "secrets", "name_contains": "pw"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
         )
         data = json.loads(result)
         assert "error" in data
         assert "secrets" in data["error"]
+        # The guard must short-circuit before touching the database.
+        ts._hook.get_table_schema.assert_not_called()
 
     def test_introspection_error_raises_model_retry(self):
         """A failure while reading a table's schema is returned to the agent as a retry."""
@@ -442,8 +506,110 @@ class TestSQLToolsetQuery:
         assert "list_tables" in message
         assert "get_schema" in message
 
+    @pytest.mark.enable_redact
+    def test_a_database_error_carrying_the_connection_password_reaches_the_model_masked(
+        self, registered_secret
+    ):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.run.side_effect = ConnectionError(
+            f'connection to "db:5432" failed: password "{registered_secret}" rejected'
+        )
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(
+                ts.call_tool(
+                    "query",
+                    {"sql": "SELECT 1"},
+                    ctx=MagicMock(spec=RunContext),
+                    tool=MagicMock(spec=ToolsetTool),
+                )
+            )
+
+        assert registered_secret not in exc_info.value.message
+        assert 'password "***" rejected' in exc_info.value.message
+
+    @pytest.mark.enable_redact
+    def test_a_row_carrying_the_connection_password_reaches_the_model_masked(self, registered_secret):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(records=[(1, f"dsn=postgres://app:{registered_secret}@db")])
+
+        result = asyncio.run(
+            ts.call_tool(
+                "query",
+                {"sql": "SELECT * FROM users"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+
+        assert registered_secret not in result
+        assert "postgres://app:***@db" in result
+
 
 class TestSQLToolsetCheckQuery:
+    @pytest.mark.parametrize(
+        ("allow_writes", "expected_valid"),
+        [(False, False), (True, True)],
+    )
+    def test_write_statement_validity_follows_allow_writes(self, allow_writes, expected_valid):
+        ts = SQLToolset("pg_default", allow_writes=allow_writes)
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool(
+                "check_query",
+                {"sql": "INSERT INTO users VALUES (3, 'Eve')"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        assert json.loads(result)["valid"] is expected_valid
+
+    def test_write_to_allowed_table_is_valid(self):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+
+        assert _run_check(ts, "INSERT INTO orders (id) VALUES (1)")["valid"] is True
+
+    def test_write_to_disallowed_table_is_invalid_and_names_the_table(self):
+        ts = SQLToolset("pg_default", allowed_tables=["orders"], allow_writes=True)
+        ts._hook = _make_mock_db_hook()
+
+        data = _run_check(ts, "INSERT INTO secret_salaries (id) VALUES (1)")
+
+        assert data["valid"] is False
+        assert "secret_salaries" in data["error"]
+
+    def test_malformed_write_is_invalid_for_check_query_but_still_reaches_the_hook_for_query(self):
+        """check_query syntax-checks writes; query without an allow-list leaves them unparsed."""
+        sql = "INSERT INTO users VALUES ("
+        ts = SQLToolset("pg_default", allow_writes=True)
+        ts._hook = _make_mock_db_hook(records=[], last_description=None)
+
+        assert _run_check(ts, sql)["valid"] is False
+
+        _run_query(ts, sql)
+        _assert_executed(ts._hook, sql)
+
+    @pytest.mark.parametrize(
+        ("toolset_kwargs", "expected_valid"),
+        [({}, True), ({"allowed_tables": ["users"]}, False)],
+    )
+    def test_multiple_statements_follow_query_when_writes_allowed(self, toolset_kwargs, expected_valid):
+        ts = SQLToolset("pg_default", allow_writes=True, **toolset_kwargs)
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool(
+                "check_query",
+                {"sql": "INSERT INTO users VALUES (1, 'a'); DELETE FROM users"},
+                ctx=MagicMock(),
+                tool=MagicMock(),
+            )
+        )
+        assert json.loads(result)["valid"] is expected_valid
+
     def test_valid_select(self):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
@@ -464,6 +630,20 @@ class TestSQLToolsetCheckQuery:
         data = json.loads(result)
         assert data["valid"] is False
         assert "error" in data
+
+    @pytest.mark.enable_redact
+    def test_an_error_carrying_a_secret_that_json_escapes_is_masked(self, register_secret):
+        secret = register_secret('db-pa"ss-91c3')
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+
+        result = asyncio.run(
+            ts.call_tool("check_query", {"sql": f"SELECT '{secret}' FROM"}, ctx=MagicMock(), tool=MagicMock())
+        )
+
+        data = json.loads(result)
+        assert data["valid"] is False
+        assert secret not in data["error"]
 
 
 class TestSQLToolsetHookResolution:
@@ -565,7 +745,7 @@ class TestSQLToolsetMultiSchema:
                 )
             )
         )
-        assert result == [{"name": "id", "type": "INTEGER"}]
+        assert result == {"columns": [{"name": "id", "type": "INTEGER"}], "column_count": 1}
         ts._hook.get_table_schema.assert_called_once_with("DEPLOYMENT_IMAGE_DETAILS", schema="MODEL_ASTRO")
 
     def test_get_schema_blocks_table_outside_allowed_schema(self):

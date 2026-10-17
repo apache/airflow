@@ -25,6 +25,7 @@ from unittest.mock import patch
 import pendulum
 import pytest
 import pytz
+import sqlalchemy as sa
 from cryptography.fernet import Fernet
 from sqlalchemy import delete, func, select
 
@@ -34,7 +35,6 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.trigger import handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -120,6 +120,23 @@ def test_fetch_trigger_ids_with_non_task_associations(session):
     session.commit()
     results = Trigger.fetch_trigger_ids_with_non_task_associations()
     assert results == {asset_trigger.id, callback_trigger.id}
+
+
+def test_fetch_assignments_maps_surviving_rows_to_their_triggerer(session):
+    owned = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})
+    owned.triggerer_id = 42
+    unassigned = Trigger(classpath="airflow.triggers.testing.SuccessTrigger2", kwargs={})
+    deleted = Trigger(classpath="airflow.triggers.testing.SuccessTrigger3", kwargs={})
+    session.add_all([owned, unassigned, deleted])
+    session.commit()
+    deleted_id = deleted.id
+    session.delete(deleted)
+    session.commit()
+
+    assignments = Trigger.fetch_assignments({owned.id, unassigned.id, deleted_id, deleted_id + 1000})
+
+    assert assignments == {owned.id: 42, unassigned.id: None}
+    assert Trigger.fetch_assignments(set()) == {}
 
 
 def test_clean_unused(session, dag_maker):
@@ -324,24 +341,33 @@ def test_handle_event_submit_fails_task_when_the_event_payload_cannot_be_seriali
     assert "event payload could not be serialized" in task_instance.next_kwargs["error"]
 
 
-def test_submit_failure(session, create_task_instance):
+@pytest.mark.parametrize(
+    ("caller_triggerer_id", "expected_state", "expected_next_method"),
+    [
+        pytest.param(None, State.SCHEDULED, "__fail__", id="unguarded"),
+        pytest.param(1, State.SCHEDULED, "__fail__", id="owning-triggerer"),
+        pytest.param(2, State.DEFERRED, None, id="previous-owner"),
+    ],
+)
+def test_submit_failure(
+    session, create_task_instance, caller_triggerer_id, expected_state, expected_next_method
+):
     """
     Tests that failures submitted to a trigger fail their dependent
-    task instances if not using a TaskEndEvent.
+    task instances if not using a TaskEndEvent, unless the caller no longer owns the trigger.
     """
-    # Make a trigger
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger.triggerer_id = 1
     session.add(trigger)
-    # Make a TaskInstance that's deferred and waiting on it
     task_instance = create_task_instance(task_id="fake", logical_date=timezone.utcnow(), state=State.DEFERRED)
     task_instance.trigger_id = trigger.id
     session.commit()
-    # Call submit_event
-    Trigger.submit_failure(trigger.id, session=session)
-    # Check that the task instance is now scheduled to fail
+
+    Trigger.submit_failure(trigger.id, triggerer_id=caller_triggerer_id, session=session)
+
     updated_task_instance = session.scalar(select(TaskInstance))
-    assert updated_task_instance.state == State.SCHEDULED
-    assert updated_task_instance.next_method == "__fail__"
+    assert updated_task_instance.state == expected_state
+    assert updated_task_instance.next_method == expected_next_method
 
 
 @pytest.mark.parametrize(
@@ -486,19 +512,25 @@ def test_submit_event_task_end_failed_respects_retries(
     assert ti.end_date is not None
 
     tih = session.scalars(
-        select(TaskInstanceHistory).where(
-            TaskInstanceHistory.dag_id == ti.dag_id,
-            TaskInstanceHistory.task_id == ti.task_id,
-            TaskInstanceHistory.run_id == ti.run_id,
+        select(TaskInstance)
+        .where(TaskInstance.working_set.is_(None))
+        .where(
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.run_id == ti.run_id,
         )
+        .execution_options(include_all_attempts=True)
     ).all()
     if expect_history_row:
         assert len(tih) == 1
         assert ti.id != old_ti_id
-        assert tih[0].task_instance_id == old_ti_id
+        assert tih[0].id == old_ti_id
+        assert tih[0].try_number == 1
+        assert ti.try_number == 2
     else:
         assert tih == []
         assert ti.id == old_ti_id
+        assert ti.try_number == 1
 
 
 @pytest.fixture
@@ -647,6 +679,51 @@ def test_assign_unassigned(session, create_triggerer, create_trigger, use_queues
         )
 
 
+@pytest.mark.parametrize("queue", [None, "callbacks"])
+def test_assign_unassigned_callbacks_preserves_healthy_owners(session, create_triggerer, time_machine, queue):
+    now = timezone.datetime(2026, 1, 1)
+    time_machine.move_to(now, tick=False)
+    queues = {queue} if queue else None
+    healthy_owner = create_triggerer(session, State.RUNNING, latest_heartbeat=now)
+    claiming_triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=now)
+    stale_owner = create_triggerer(
+        session, State.RUNNING, latest_heartbeat=now - datetime.timedelta(seconds=31)
+    )
+    finished_owner = create_triggerer(session, State.SUCCESS, latest_heartbeat=now, end_date=now)
+    session.flush()
+
+    expected_owners = {}
+    for owner, priority in (
+        (healthy_owner, 10),
+        (claiming_triggerer, 10),
+        (stale_owner, 1),
+        (finished_owner, 1),
+        (None, 1),
+    ):
+        callback = TriggererCallback(
+            callback_def=AsyncCallback("asyncio.sleep", kwargs={"delay": 60}, queue=queue),
+            priority_weight=priority,
+        )
+        callback.queue(session=session)
+        callback.trigger.triggerer_id = owner.id if owner else None
+        session.add(callback)
+        session.flush()
+        expected_owners[callback.trigger.id] = (
+            healthy_owner.id if owner is healthy_owner else claiming_triggerer.id
+        )
+    session.commit()
+
+    for triggerer in (claiming_triggerer, healthy_owner):
+        Trigger.assign_unassigned(
+            triggerer.id,
+            capacity=4,
+            health_check_threshold=30,
+            queues=queues,
+        )
+        session.expire_all()
+        assert dict(session.execute(select(Trigger.id, Trigger.triggerer_id)).all()) == expected_owners
+
+
 @pytest.mark.need_serialized_dag
 @conf_vars({("triggerer", "queues_enabled"): "True"})
 def test_assign_unassigned_with_qeueus(session, create_triggerer, create_trigger) -> None:
@@ -735,6 +812,36 @@ def test_queue_column_max_len_matches_ti_column_max_len() -> None:
     expected_queue_col_max_length_from_ti = TaskInstance.queue.property.columns[0].type.length
     trigger_queue_col_max_length = Trigger.queue.property.columns[0].type.length
     assert trigger_queue_col_max_length == expected_queue_col_max_length_from_ti
+
+
+@pytest.mark.need_serialized_dag
+def test_get_sorted_triggers_ignores_archived_task_instance(session, create_task_instance):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    task_instance = create_task_instance(task_id="archived_trigger_owner")
+    task_instance.trigger_id = trigger.id
+    task_instance.prepare_db_for_next_try(session)
+    session.commit()
+    statements = []
+
+    def capture_task_join(conn, cursor, statement, parameters, context, executemany):
+        if "join task_instance" in statement.lower():
+            statements.append(statement.lower())
+
+    connection = session.connection()
+    sa.event.listen(connection, "before_cursor_execute", capture_task_join)
+    try:
+        result = Trigger.get_sorted_triggers(
+            capacity=10, alive_triggerer_ids=[], queues=None, session=session
+        )
+    finally:
+        sa.event.remove(connection, "before_cursor_execute", capture_task_join)
+
+    assert task_instance.trigger_id is None
+    assert (trigger.id,) not in result
+    assert statements
+    assert all("working_set" in statement for statement in statements)
 
 
 @pytest.mark.need_serialized_dag
@@ -1150,7 +1257,7 @@ def test_decrypt_kwargs_roundtrips_datetime():
     so ``_decrypt_kwargs`` raised and the asset-watcher trigger could not be read back.
     """
     classpath = "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
-    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+    moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.UTC)
 
     dag_kwargs = encode_trigger({"classpath": classpath, "kwargs": {"moment": moment}})["kwargs"]
     decrypted = Trigger._decrypt_kwargs(Trigger.encrypt_kwargs(dag_kwargs))

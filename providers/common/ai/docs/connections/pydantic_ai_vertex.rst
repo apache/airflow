@@ -17,40 +17,23 @@
 
 .. _howto/connection:pydanticai_vertex:
 
-Pydantic AI (Google Vertex AI) Connection
-============================================
+Pydantic AI (Google Vertex AI) connection
+=========================================
 
 The ``pydanticai_vertex`` connection type configures access to
 `Google Vertex AI <https://cloud.google.com/vertex-ai>`__ via the pydantic-ai
 framework. It backs ``PydanticAIVertexHook``, the dedicated subclass of
 ``PydanticAIHook`` for Google Cloud's project/location/service-account
-credential shape — none of which fit the plain ``api_key`` + ``base_url``
+credential shape, which does not fit the plain ``api_key`` + ``base_url``
 shape that the generic :doc:`pydantic_ai` connection assumes. All fields live
 in ``extra``; the ``password`` and ``host`` fields are hidden in the connection
 form.
 
 .. note::
 
-    This connection type was previously named ``pydanticai-vertex``.
-
-    Connections stored as a URI or as JSON need no change: ``-`` is how ``_`` is
-    encoded in a URI scheme, so ``pydanticai-vertex`` is decoded to ``pydanticai_vertex``
-    on read and resolves as before. That covers ``AIRFLOW_CONN_*`` environment
-    variables and secrets backends such as HashiCorp Vault, AWS Secrets Manager and
-    GCP Secret Manager.
-
-    A connection whose type is stored verbatim does need updating, because the
-    hyphen is preserved and no longer matches a registered hook. That means rows in
-    the metadata database, including any created through the UI, and connections
-    imported in object form from a local file:
-
-    .. code-block:: bash
-
-        airflow connections get <conn_id> -o json    # confirm conn_type is 'pydanticai-vertex'
-        airflow connections delete <conn_id>
-        airflow connections add <conn_id> --conn-type pydanticai_vertex ...
-
-    In the UI, edit the connection and re-pick its type.
+    This connection type was previously named ``pydanticai-vertex``. Connections
+    stored as a URI or as JSON keep working; a type stored verbatim, such as a row
+    created in the UI, must be re-created. See :ref:`troubleshooting-conn-type-rename`.
 
 Default Connection IDs
 ----------------------
@@ -63,11 +46,19 @@ Configuring the Connection
 All fields below are ``extra`` (JSON) fields.
 
 Model
-    Google model identifier (e.g. ``google-cloud:gemini-2.0-flash``). The
-    ``google-cloud:`` prefix is required — it is what makes pydantic-ai
-    instantiate the ``GoogleCloudProvider``, which is what accepts this
-    hook's ``project`` / ``location`` / ``service_account_info`` fields (see
-    "Credentials" below).
+    Google model identifier (e.g. ``google-cloud:gemini-2.5-flash``, or the
+    bare ``gemini-2.5-flash``). A bare name is automatically resolved to
+    ``google-cloud:<name>``, instantiating the ``GoogleCloudProvider`` that
+    accepts this hook's ``project`` / ``location`` / ``service_account_info``
+    fields (see "Credentials" below) -- Vertex AI is this connection type's
+    default platform for a bare name, and that default holds regardless of
+    which credential fields are set on the connection: it is **not** inferred
+    from whether ``api_key`` is present, because ``api_key`` here can equally
+    mean Vertex AI Express Mode credentials (see "Credentials" below), so its
+    presence alone cannot tell the two platforms apart. To reach the
+    Generative Language API instead, prefix the model explicitly with
+    ``google:`` -- that spelling routes to a different provider regardless of
+    which fields this connection sets.
 
 GCP Project
     Google Cloud project ID. Falls back to the ``GOOGLE_CLOUD_PROJECT``
@@ -78,10 +69,8 @@ Location / Region
     ``GOOGLE_CLOUD_LOCATION`` environment variable.
 
 Force Vertex AI Mode
-    Legacy flag from pydantic-ai 1.x, where a single ``GoogleProvider`` took a
-    ``vertexai`` argument. Not needed here: the ``google-cloud:`` model prefix
-    above already makes ``GoogleCloudProvider`` hard-code ``vertexai=True``
-    unconditionally when it builds its client.
+    Not needed: the ``google-cloud:`` model prefix above already makes
+    ``GoogleCloudProvider`` build a Vertex AI client.
 
     .. note::
         This field is accepted for backward compatibility but has no effect:
@@ -103,10 +92,16 @@ API Key
 
 Service Account Info
     Service account key as an inline JSON object (with ``type``,
-    ``project_id``, ``private_key``, etc.) — not a file path.
+    ``project_id``, ``private_key``, etc.), not a file path.
 
 Custom Endpoint URL
     Override the Google API base URL (optional).
+
+Fallback Connections
+    Other connection IDs to fail over to, in order, while this provider is
+    unavailable. Stored in ``extra["fallback_conn_ids"]``. Entries may name any
+    ``pydanticai`` connection type, so one chain can span vendors. See
+    :doc:`/provider_fallback`.
 
 Credentials
 -----------
@@ -116,13 +111,13 @@ when more than one credential source is set at once, ``credentials`` /
 ``project`` / ``location`` take precedence over ``api_key`` (which is then
 ignored):
 
-- ``service_account_info`` — loaded into Google Cloud credentials and passed
+- ``service_account_info``: loaded into Google Cloud credentials and passed
   as ``credentials`` to the provider.
 - Application Default Credentials (``GOOGLE_APPLICATION_CREDENTIALS``,
-  ``gcloud auth application-default login``, Workload Identity, …) — used
+  ``gcloud auth application-default login``, Workload Identity, …), used
   automatically once ``project`` and/or ``location`` are set without
   ``service_account_info``.
-- ``api_key`` — for Vertex AI Express Mode, only used when none of the above
+- ``api_key``: for Vertex AI Express Mode, only used when none of the above
   are set.
 
 Examples
@@ -138,7 +133,7 @@ environment:
 
     {
         "conn_type": "pydanticai_vertex",
-        "extra": "{\"model\": \"google-cloud:gemini-2.0-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\"}"
+        "extra": "{\"model\": \"google-cloud:gemini-2.5-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\"}"
     }
 
 **Inline service account**
@@ -147,5 +142,5 @@ environment:
 
     {
         "conn_type": "pydanticai_vertex",
-        "extra": "{\"model\": \"google-cloud:gemini-2.0-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\", \"service_account_info\": {\"type\": \"service_account\", \"project_id\": \"my-gcp-project\", \"private_key\": \"<contents of the service account JSON key's private_key field>\", \"client_email\": \"sa@my-gcp-project.iam.gserviceaccount.com\"}}"
+        "extra": "{\"model\": \"google-cloud:gemini-2.5-flash\", \"project\": \"my-gcp-project\", \"location\": \"us-central1\", \"service_account_info\": {\"type\": \"service_account\", \"project_id\": \"my-gcp-project\", \"private_key\": \"<contents of the service account JSON key's private_key field>\", \"client_email\": \"sa@my-gcp-project.iam.gserviceaccount.com\"}}"
     }

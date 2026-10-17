@@ -23,8 +23,8 @@ min_airflow_version: "3.4"
 # if the two disagree.
 supervisor_schema_version: "2026-10-30"
 
-# The runtime terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); it does
-# not yet emit skipped, DeferTask, RescheduleTask, or AwaitInputTask.
+# The runtime terminates a task with SucceedTask, RetryTask, TaskState (failed/removed), or, for a
+# human-in-the-loop task, AwaitInputTask; it does not yet emit skipped, DeferTask, or RescheduleTask.
 states:
   success:
     supported: true
@@ -46,8 +46,9 @@ states:
     supported: false
     note: "runtime does not emit RescheduleTask yet"
   awaiting_input:
-    supported: false
-    note: "runtime does not emit AwaitInputTask yet"
+    supported: true
+    since: "3.4"
+    note: "approval() / hitl() in a native Dag"
   removed:
     supported: true
     since: "3.4"
@@ -59,6 +60,9 @@ capabilities:
     supported: true
     since: "3.4"
     note: "@task.stub"
+  taskflow-binding:
+    supported: false
+    note: "bind @task.stub literal/XCom args to the native handler"
   task-logging:
     supported: true
     since: "3.4"
@@ -72,8 +76,9 @@ capabilities:
     since: "3.4"
     note: "getConnection"
   variable-read-write:
-    supported: false
-    note: "getVariable only; no write over the comm socket yet"
+    supported: true
+    since: "3.4"
+    note: "getVariable / setVariable / deleteVariable"
   self-contained-bundle:
     supported: true
     since: "3.4"
@@ -82,8 +87,9 @@ capabilities:
     supported: false
     note: "no task-facing retry-policy API yet"
   task-state-store:
-    supported: false
-    note: "no task-facing state-store API yet"
+    supported: true
+    since: "3.4"
+    note: "taskStateStore.get / set / delete / clear"
   asset-state-store:
     supported: false
     note: "no task-facing state-store API yet"

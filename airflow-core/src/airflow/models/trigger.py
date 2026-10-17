@@ -305,9 +305,14 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
+    def submit_failure(
+        cls, trigger_id, exc=None, *, triggerer_id: int | None = None, session: Session = NEW_SESSION
+    ) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
+
+        With ``triggerer_id``, only act while that triggerer still owns the trigger: a reassigned
+        trigger is being run elsewhere, so a failure from its previous owner must not fail the task.
 
         Notably, we have to actually run the failure code from a worker as it may
         have linked callbacks, so hilariously we have to re-schedule the task
@@ -317,11 +322,12 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
         """
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
+        query = select(TaskInstance).where(
+            TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+        )
+        if triggerer_id is not None:
+            query = query.join(cls, cls.id == TaskInstance.trigger_id).where(cls.triggerer_id == triggerer_id)
+        for task_instance in session.scalars(query):
             # Add the error and set the next_method to the fail state
             if isinstance(exc, BaseException):
                 traceback = format_exception(type(exc), exc, exc.__traceback__)
@@ -367,6 +373,15 @@ class Trigger(Base):
                 query = query.filter(cls.team_name.is_(None))
 
         return list(session.scalars(query).all())
+
+    @classmethod
+    @provide_session
+    def fetch_assignments(
+        cls, ids: Iterable[int], *, session: Session = NEW_SESSION
+    ) -> dict[int, int | None]:
+        """Map each of ``ids`` that still has a trigger row to its current ``triggerer_id``."""
+        rows = session.execute(select(cls.id, cls.triggerer_id).where(cls.id.in_(ids)))
+        return {trigger_id: triggerer_id for trigger_id, triggerer_id in rows}
 
     @classmethod
     @provide_session
@@ -453,6 +468,7 @@ class Trigger(Base):
             # Callback triggers
             select(cls.id)
             .join(Callback, isouter=False)
+            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(Callback.priority_weight.desc(), cls.created_date),
             # Task Instance triggers
             select(cls.id)
@@ -639,22 +655,24 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     :param task_instance: The task instance to be submitted.
     :param session: The session to be used for the database callback sink.
     """
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+        TaskInstance as TIDataModel,
+        task_instance_to_runtime,
+    )
     from airflow.callbacks.callback_requests import TaskCallbackRequest
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+    from airflow.models.dagbag import DBDagBag
+    from airflow.models.task_coordinates import TaskCoordinateResolver
     from airflow.utils.state import TaskInstanceState
-
-    # Prevent the task from resuming on a worker.
-    task_instance.trigger_id = None
 
     callback_type = event.task_instance_state
     should_retry = False
+    dag_bag = DBDagBag()
 
     if event.task_instance_state == TaskInstanceState.FAILED:
         # Load the serialized task so retry eligibility matches the normal task path.
         try:
-            from airflow.models.dagbag import DBDagBag
-
-            dag = DBDagBag().get_dag_for_run(dag_run=task_instance.dag_run, session=session)
+            dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
             if dag is not None:
                 task_instance.task = dag.get_task(task_instance.task_id)
                 should_retry = task_instance.is_eligible_to_retry()
@@ -694,7 +712,11 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             )
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
-                ti=task_instance,
+                ti=task_instance_to_runtime(
+                    task_instance,
+                    model=TIDataModel,
+                    map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
+                ),
                 task_callback_type=callback_type,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
@@ -720,9 +742,10 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         task_instance.end_date = timezone.utcnow()
         task_instance.set_duration()
         task_instance.clear_next_method_args()
-        task_instance.prepare_db_for_next_try(session)
+        task_instance = task_instance.prepare_db_for_next_try(session)
         task_instance.state = TaskInstanceState.UP_FOR_RETRY
     else:
+        task_instance.trigger_id = None
         task_instance.set_state(event.task_instance_state, session=session)
 
     _push_xcoms_if_necessary()

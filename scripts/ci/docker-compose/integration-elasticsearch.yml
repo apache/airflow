@@ -19,6 +19,8 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.3.1
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       breeze.description: "Integration required for Elasticsearch hooks."
     environment:
       - discovery.type=single-node
@@ -33,6 +35,7 @@ services:
       interval: 10s
       timeout: 30s
       start_period: 60s
+      start_interval: 1s
       retries: 50
     restart: "on-failure"
 
@@ -45,3 +48,6 @@ services:
 
 volumes:
   elasticsearch-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

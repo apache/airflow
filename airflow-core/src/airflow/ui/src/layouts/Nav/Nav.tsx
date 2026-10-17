@@ -186,14 +186,14 @@ export const Nav = () => {
           icon={DagIcon}
           matchPaths={["dag_runs", "task_instances"]}
           title={translate("nav.dags")}
-          to="dags"
+          to="/dags"
         />
         <NavButton
           data-testid="nav-assets-link"
           disabled={!authLinks?.authorized_menu_items.includes("Assets")}
           icon={FiDatabase}
           title={translate("nav.assets")}
-          to="assets"
+          to="/assets"
         />
         <BrowseButton
           authorizedMenuItems={authLinks?.authorized_menu_items ?? []}

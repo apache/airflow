@@ -22,7 +22,8 @@ import re
 
 import pytest
 
-from airflow.sdk import DAG, result, task
+from airflow.sdk import DAG, result, task, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 
 
 def test_result_error_if_not_task():
@@ -67,3 +68,39 @@ def test_retain_returns_dag_result_when_task_is_expanded():
         foo.expand(x=[1, 2, 3])
 
     assert dag.get_task("foo").returns_dag_result is True
+
+
+@pytest.mark.parametrize("expanded", [False, True], ids=["plain", "expanded"])
+def test_result_rejects_task_inside_a_loop(expanded):
+    @result
+    @task
+    def inner(x=1):
+        return x
+
+    @task_group
+    def body():
+        if expanded:
+            inner.expand(x=[1, 2])
+        else:
+            inner()
+
+    with DAG("test_result_rejects_task_inside_a_loop"):
+        with pytest.raises(ValueError, match="'body.inner' is inside a loop"):
+            create_loop(body, max_iterations=2)
+
+
+def test_result_accepts_task_outside_a_loop():
+    @result
+    @task
+    def outside():
+        return 1
+
+    @task_group
+    def body():
+        task(lambda: 1, task_id="inner")()
+
+    with DAG("test_result_accepts_task_outside_a_loop") as dag:
+        create_loop(body, max_iterations=2)
+        outside()
+
+    assert dag.get_task("outside").returns_dag_result is True

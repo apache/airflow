@@ -44,7 +44,7 @@ Environment Variables
 
     The token used to authenticate with the Airflow API. This is only
     required if you are using the Airflow API and have not set up
-    authentication using a different method. If username and password hasn't been used.
+    authentication using a different method, such as a username and password.
 
 .. envvar:: AIRFLOW_CLI_ENVIRONMENT
 

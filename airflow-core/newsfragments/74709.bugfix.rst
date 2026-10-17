@@ -1,0 +1,1 @@
+Report a Dag whose timetable fails to load, for example because a custom timetable reads a missing Variable, as an import error in the UI. Previously the error stopped every Dag in the same file from being saved and was only visible in the Dag processor log.

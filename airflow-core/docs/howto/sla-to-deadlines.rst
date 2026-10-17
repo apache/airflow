@@ -21,7 +21,7 @@ Migrating from SLA to Deadline Alerts
 Two Different Paradigms
 -----------------------
 
-While the goal of the **SLA** and **Deadline Alerts** features are very similar, they use two very different approaches.
+While the goals of the **SLA** and **Deadline Alerts** features are very similar, they use two very different approaches.
 This guide will lay out the major differences and help you decide on the best approach for your use case.
 
 To begin with, we'll start by explaining the two approaches then go into how to find the right Deadline for your use case.

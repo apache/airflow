@@ -33,7 +33,7 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 
     base_url = http://my_host/myorg/airflow
 
-- Configure your reverse  proxy (e.g. nginx) to pass the url and http header as it for the Airflow webserver, without any rewrite, for example::
+- Configure your reverse proxy (e.g. nginx) to pass the url and http header as-is to the Airflow webserver, without any rewrite, for example::
 
       server {
         listen 80;

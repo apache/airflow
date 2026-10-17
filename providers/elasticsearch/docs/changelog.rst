@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+6.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Look up task logs by task try UUID (#74204)``
+* ``Fix Elasticsearch and OpenSearch response wrapper bugs (#73725)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 6.9.1
 .....
 

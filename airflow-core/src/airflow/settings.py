@@ -23,7 +23,7 @@ import logging
 import os
 import sys
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import cache, partial
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Literal
@@ -32,6 +32,7 @@ import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession as SAAsyncSession,
@@ -240,8 +241,28 @@ def load_policy_plugins(pm: pluggy.PluginManager):
     pm.load_setuptools_entrypoints("airflow.policy")
 
 
+def _translate_asyncpg_sslmode(async_uri: str) -> str:
+    """
+    Rename the libpq ``sslmode`` query param to asyncpg's ``ssl`` equivalent.
+
+    asyncpg has no ``sslmode`` connect arg -- SQLAlchemy's asyncpg dialect passes URL
+    query params straight to ``asyncpg.connect()``, which spells the option ``ssl`` and
+    accepts the same libpq mode strings (``disable``/``prefer``/``require``/``verify-ca``/
+    ``verify-full``). A sync Postgres URI commonly carries ``sslmode`` (the official Helm
+    chart sets it unconditionally), so the derived async URI must translate it; otherwise
+    every async DB call raises ``TypeError: connect() got an unexpected keyword argument
+    'sslmode'``.
+    """
+    url = make_url(async_uri)
+    if "sslmode" not in url.query:
+        return async_uri
+    query = dict(url.query)
+    query["ssl"] = query.pop("sslmode")
+    return url.set(query=query).render_as_string(hide_password=False)
+
+
 def _get_async_conn_uri_from_sync(sync_uri):
-    # Mapping of backend to async driver:
+    # Derive the async URI scheme from the sync one by swapping in the async driver:
     AIO_LIBS_MAPPING = {
         "sqlite": "aiosqlite",
         "postgresql": "psycopg_async" if _USE_PSYCOPG3 else "asyncpg",
@@ -251,9 +272,15 @@ def _get_async_conn_uri_from_sync(sync_uri):
     scheme, rest = sync_uri.split(":", maxsplit=1)
     scheme = scheme.split("+", maxsplit=1)[0]
     aiolib = AIO_LIBS_MAPPING.get(scheme)
-    if aiolib:
-        return f"{scheme}+{aiolib}:{rest}"
-    return sync_uri
+    if not aiolib:
+        return sync_uri
+    async_uri = f"{scheme}+{aiolib}:{rest}"
+    if aiolib == "asyncpg":
+        # asyncpg-only: it is not libpq-based and has no ``sslmode`` connect arg. A
+        # libpq-based async driver (e.g. psycopg3) understands ``sslmode`` natively and
+        # would in turn reject ``ssl``, so this translation must stay gated on asyncpg.
+        async_uri = _translate_asyncpg_sslmode(async_uri)
+    return async_uri
 
 
 def configure_vars():
@@ -348,14 +375,64 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     return True
 
 
+_PSYCOPG3_DRIVERS = frozenset({"psycopg", "psycopg_async"})
+
+
+def _psycopg3_connect_args(sql_alchemy_conn: str | None) -> dict[str, Any]:
+    """
+    Disable psycopg3's automatic server-side statement preparation.
+
+    psycopg3 prepares a statement server-side after ``prepare_threshold`` executions
+    (5 by default). Transaction pooling can route the next transaction to a different
+    server connection, so a pooler that does not itself track prepared statements fails
+    with ``InvalidSqlStatementName`` once a statement outlives the backend that prepared
+    it, or ``DuplicatePreparedStatement`` when a second client reuses the same generated
+    name. Preparation is only safe behind PgBouncer from 1.22 onwards, with
+    ``max_prepared_statements`` raised above 0 (its default until 1.24) and libpq 17 or
+    newer on the client; Airflow's chart sets ``pool_mode = transaction`` and ships 1.23.1
+    without that setting, so the recommended deployment is an affected one.
+
+    This disables preparation outright, not just the automatic threshold, so bulk
+    ``executemany`` writes re-parse per row rather than reusing one prepared statement.
+    Overridable via ``[database] sql_alchemy_connect_args``.
+
+    The driver is resolved through SQLAlchemy rather than matched against the URL prefix
+    so that it always agrees with the dialect that gets loaded: ``sql_alchemy_conn_async``
+    is taken verbatim from config without scheme normalization, and a bare
+    ``postgresql://`` resolves to psycopg on SQLAlchemy 2.1.
+    """
+    if not sql_alchemy_conn:
+        return {}
+    try:
+        driver = make_url(sql_alchemy_conn).get_driver_name()
+    except (ArgumentError, NoSuchModuleError):
+        # Leave it to create_engine, which reports a bad URL with far more context.
+        return {}
+    if driver not in _PSYCOPG3_DRIVERS:
+        return {}
+    return {"prepare_threshold": None}
+
+
 def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
-    key = {
-        "sync": "sql_alchemy_connect_args",
-        "async": "sql_alchemy_connect_args_async",
+    key, sql_alchemy_conn = {
+        "sync": ("sql_alchemy_connect_args", SQL_ALCHEMY_CONN),
+        "async": ("sql_alchemy_connect_args_async", SQL_ALCHEMY_CONN_ASYNC),
     }[mode]
-    if conf.has_option("database", key):
-        return conf.getimport("database", key)
-    return {}
+    defaults = _psycopg3_connect_args(sql_alchemy_conn)
+    if not conf.has_option("database", key):
+        return defaults
+    configured = conf.getimport("database", key)
+    if not isinstance(configured, Mapping):
+        if defaults:
+            log.warning(
+                "[database] %s is not a mapping, so the psycopg3 default "
+                "prepare_threshold=None was not applied. Engine creation will "
+                "fail unless it resolves to a mapping.",
+                key,
+            )
+        return configured
+    # Anything the operator sets wins, including putting prepare_threshold back.
+    return {**defaults, **configured}
 
 
 def create_metadata_engine(
@@ -401,13 +478,7 @@ def create_async_metadata_engine(
 
 
 def _configure_async_session() -> None:
-    """
-    Configure async SQLAlchemy session.
-
-    This exists so tests can reconfigure the session. How SQLAlchemy configures
-    this does not work well with Pytest and you can end up with issues when the
-    session and runs in a different event loop from the test itself.
-    """
+    """Configure the async engine and session factory."""
     global AsyncSession, async_engine
 
     if not SQL_ALCHEMY_CONN_ASYNC:
@@ -642,6 +713,12 @@ def dispose_orm(do_log: bool = True):
         async_engine.sync_engine.dispose()
         async_engine = None
         AsyncSession = None
+
+
+async def dispose_async_engine() -> None:
+    """Close checked-in connections on their event loop, retaining the engine and session factory."""
+    if async_engine is not None:
+        await async_engine.dispose()
 
 
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):
