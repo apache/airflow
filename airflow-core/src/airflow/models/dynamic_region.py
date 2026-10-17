@@ -448,10 +448,11 @@ def _set_slot_key(mapper: Mapper, connection: Connection, region: DynamicRegion)
 
 def _get_coordinates_cache(region: DynamicRegion) -> dict[UUID, tuple[UUID, bytes]]:
     """
-    Remember each region's coordinates until the transaction ends, so siblings cost one read of their parent.
+    Remember region coordinates up until the unit-of-work is flushed to the DB.
 
-    It is also how a region finds a parent added in the same flush: every ``before_insert`` hook runs
-    before the first ``INSERT``, so the parent is not in the database yet.
+    That is enough for siblings flushed together to read their parent once, and for a region to find a
+    parent added in the same flush: every ``before_insert`` hook runs before the first ``INSERT``, so the
+    parent is not in the database yet.
     """
     session = object_session(region)
     if TYPE_CHECKING:
@@ -505,6 +506,7 @@ def _set_region_coordinates(mapper: Mapper, connection: Connection, region: Dyna
     _get_coordinates_cache(region)[region.id] = (region.family_root_id, region.path)
 
 
+# Every flush runs in a subtransaction of its own, so this fires after each flush, not only at commit.
 @event.listens_for(Session, "after_transaction_end")
 def _forget_region_coordinates(session: Session, transaction: SessionTransaction) -> None:
     session.info.pop(_COORDINATES_CACHE_KEY, None)
@@ -575,8 +577,10 @@ def build_loop_family_legs(
     whose ``path`` starts with the family and the iteration. Pass ``iteration`` to keep one iteration, or
     leave it out for all of them.
 
-    Each leg is joined to :class:`DynamicRegion`, so a caller can add columns to both (the iteration of
-    a nested row is ``DynamicRegion.parent_region_index``) before combining them with ``UNION ALL``. The
+    Each leg is joined to :class:`DynamicRegion`, so a caller can add columns to both before combining
+    them with ``UNION ALL``. The iteration of a row in a region directly under the family is
+    ``DynamicRegion.parent_region_index``; deeper down, it is the 4-byte index that follows the family's
+    16-byte root in ``path``, as decoded in the :class:`DynamicRegion` docstring. The
     legs never overlap. They are separate statements because the planner can then drive each from its
     own index, which an ``OR`` across them does not allow.
     """

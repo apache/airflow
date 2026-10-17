@@ -776,10 +776,9 @@ def test_coordinates_of_a_rolled_back_region_are_forgotten(regional_tis, session
         add_region(session, run, forked_from_region_id=region_id)
 
 
-def test_coordinates_are_forgotten_when_the_transaction_commits(regional_tis, session):
+def test_coordinates_are_forgotten_after_the_flush(regional_tis, session):
     run, _ = regional_tis
-    session.delete(add_region(session, run))
-    session.commit()
+    add_region(session, run)
 
     assert _COORDINATES_CACHE_KEY not in session.info
 
