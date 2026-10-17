@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Annotated, Any, TypeVar
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, case, false, func, select
+from sqlalchemy.exc import IntegrityError
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -449,10 +450,16 @@ def get_dag_bundle_files(
 )
 def refresh_dag_bundle(bundle_name: str, session: SessionDep) -> DagBundleRefreshResponse:
     """Request an asynchronous Dag bundle refresh."""
-    session.add(
-        DagPriorityParsingRequest(
-            bundle_name=bundle_name,
-            relative_fileloc=None,
-        )
-    )
+    try:
+        with session.begin_nested():
+            session.add(
+                DagPriorityParsingRequest(
+                    bundle_name=bundle_name,
+                    relative_fileloc=None,
+                )
+            )
+            session.flush()
+    except IntegrityError:
+        # The deterministic request key means an equivalent refresh is already pending.
+        pass
     return DagBundleRefreshResponse(bundle_name=bundle_name)
