@@ -173,6 +173,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               <>
                 <ClearTaskInstanceButton
                   bg="bg"
+                  data-testid="clear-task-instance-button"
                   isHotkeyEnabled
                   onOpen={() => setClearOpen(true)}
                   taskInstance={taskInstance}
