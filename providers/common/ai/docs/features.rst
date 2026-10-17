@@ -272,7 +272,8 @@ toolset except
      - Gives a loop on the Anthropic SDK's ``tool_runner`` the toolsets.
      - ``anthropic``
    * - :doc:`OpenAI Agents SDK <frameworks/openai_agents>`
-     - Gives an OpenAI Agents SDK agent the toolsets.
+     - Gives an OpenAI Agents SDK agent the toolsets. Run through ``run_durably``, a retry
+       replays its completed calls.
      - None; install ``openai-agents``
    * - :doc:`LangChain <hooks/langchain>`
      - Builds LangChain chat and embedding models from a connection, and
