@@ -701,6 +701,6 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
 Limitations
 -----------
 
-* **A Python stub Dag is still required.** The Execution API does not yet carry Dag structure for non-Python
-  languages, so task names and dependencies are declared in Python with
-  :func:`@task.stub <airflow.sdk.task.stub>`. This is a documented known limitation.
+* **A Dag declared in Go cannot express everything yet.** Dag params, assets, dynamic task mapping and
+  human-in-the-loop tasks have no Go form. Declare such a Dag in Python, and implement its tasks in Go with
+  :func:`@task.stub <airflow.sdk.task.stub>`.
