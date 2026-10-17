@@ -97,3 +97,35 @@ class TestBaseNotifier:
             }
         )
         assert notifier.message == "task: some_task"
+
+    def test_render_template_fields_with_dag_without_get_template_env(self):
+        """Notifier must not crash when context['dag'] has no get_template_env (e.g. SerializedDAG)."""
+
+        class _FakeDag:
+            dag_id = "serialized_dag_id"
+            render_template_as_native_obj = False
+
+        notifier = MockNotifier(message="Dag {{ dag.dag_id }} failed")
+        context: Context = {"dag": _FakeDag()}
+        notifier.render_template_fields(context)
+        assert notifier.message == "Dag serialized_dag_id failed"
+
+    def test_notifier_call_with_dag_without_get_template_env_and_no_template_fields(self):
+        """Notifier with no template_fields must not crash when context['dag'] has no get_template_env."""
+
+        class _BareNotifier(BaseNotifier):
+            template_fields = ()
+            template_ext = ()
+
+            def notify(self, context: Context) -> None:
+                pass
+
+        class _FakeDag:
+            dag_id = "bare_serialized_dag"
+            render_template_as_native_obj = False
+
+        notifier = _BareNotifier()
+        notifier.notify = MagicMock()
+        context: Context = {"dag": _FakeDag()}
+        notifier(context)
+        notifier.notify.assert_called_once()
