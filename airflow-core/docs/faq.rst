@@ -484,7 +484,33 @@ important to watch DagRun activity status in time when introducing
 new ``depends_on_past=True``, unless you are planning on running a backfill
 for the new task(s).
 
-It is also important to note that the task's ``start_date`` is ignored in backfills.
+A task's ``start_date`` and ``end_date`` only limit scheduled runs. See
+:ref:`faq:task-date-bounds`.
+
+.. _faq:task-date-bounds:
+
+Which Dag runs do a task's ``start_date`` and ``end_date`` apply to?
+--------------------------------------------------------------------
+
+Only scheduled runs. When the scheduler creates a run whose ``logical_date`` falls before a
+task's ``start_date`` or after its ``end_date``, that task gets no task instance in the run.
+
+Runs created on request ignore these dates and create a task instance for every task:
+
+- manual runs triggered from the UI, CLI or REST API
+- backfills
+- runs created by ``TriggerDagRunOperator``
+- asset materialization runs
+
+Tasks that do not set their own ``start_date`` or ``end_date`` take them from the Dag, so the
+same applies to the Dag's dates. For example, a Dag with a ``start_date`` in the future has no
+scheduled runs yet, but a manual run executes all of its tasks. Likewise, setting ``end_date``
+stops a task from running in scheduled runs after that date, but a manual run still runs it.
+Remove the task from the Dag if it should not run at all.
+
+If such a task has ``depends_on_past=True`` and the Dag has ``catchup=False``, a manual run waits
+for the task instance of the previous Dag run, which the scheduler never created. Set
+``ignore_first_depends_on_past=True`` on the task to let its first task instance run.
 
 Using time zones
 ----------------

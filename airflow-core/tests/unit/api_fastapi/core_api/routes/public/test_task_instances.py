@@ -5646,7 +5646,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         self.create_task_instances(
             session=session, task_instances=[{"state": State.FAILED}], with_ti_history=True
         )
-        ti = session.scalars(select(TaskInstance)).one()
+        ti = session.scalars(select(TaskInstance).where(TaskInstance.task_id == "print_the_context")).one()
         ti.state = State.UP_FOR_RETRY
         session.commit()
 

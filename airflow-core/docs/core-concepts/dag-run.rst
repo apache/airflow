@@ -110,6 +110,10 @@ If your Dag logic needs the user-specified date for a manual run, use
 
 For upgrade guidance, see :ref:`data-interval-manual-triggering`.
 
+A task's ``start_date`` and ``end_date`` do not apply to manually triggered runs.
+Every task gets a task instance even when the run's ``logical_date`` falls outside
+those dates. See :ref:`faq:task-date-bounds`.
+
 Re-run Dag
 ''''''''''
 There can be cases where you will want to execute your Dag again. One such case is when the scheduled
