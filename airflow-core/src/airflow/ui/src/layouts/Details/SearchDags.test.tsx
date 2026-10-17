@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ReactNode } from "react";
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation, useMatches, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,43 +37,37 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return { ...(original as object), useMatches: vi.fn() };
 });
 
-const { loadedOption, selectedOption } = vi.hoisted<{
-  loadedOption: { current: DagSearchOption | undefined };
-  selectedOption: { current: DagSearchOption };
-}>(() => ({
-  loadedOption: { current: undefined },
-  selectedOption: {
-    current: {
-      isBackfillable: true,
-      label: "New Dag",
-      state: null,
-      value: "new_dag",
-    },
-  },
-}));
+const NEW_DAG: DagSearchOption = { isBackfillable: true, label: "New Dag", state: null, value: "new_dag" };
 
+// Renders the pieces this component actually drives: the control (which carries whatever the
+// caller put at its end, such as the match-anywhere toggle), the input, and the listed options.
 vi.mock("chakra-react-select", () => ({
-  AsyncSelect: ({
-    loadOptions,
+  chakraComponents: { Control: ({ children }: { readonly children: ReactNode }) => <div>{children}</div> },
+  Select: ({
+    components,
+    inputValue,
     onChange,
+    onInputChange,
+    options,
   }: {
-    readonly loadOptions: (input: string, callback: (options: Array<DagSearchOption>) => void) => void;
+    readonly components: { Control: (props: { readonly children: ReactNode }) => ReactNode };
+    readonly inputValue: string;
     readonly onChange: (option: DagSearchOption) => void;
+    readonly onInputChange: (value: string, meta: { action: string }) => void;
+    readonly options: Array<DagSearchOption>;
   }) => (
     <>
-      <button
-        onClick={() =>
-          loadOptions("", (options) => {
-            [loadedOption.current] = options;
-          })
-        }
-        type="button"
-      >
-        Load Dags
-      </button>
-      <button onClick={() => onChange(loadedOption.current ?? selectedOption.current)} type="button">
-        Select Dag
-      </button>
+      <components.Control>{undefined}</components.Control>
+      <input
+        aria-label="Search"
+        onChange={(event) => onInputChange(event.target.value, { action: "input-change" })}
+        value={inputValue}
+      />
+      {options.map((option) => (
+        <button key={option.value} onClick={() => onChange(option)} type="button">
+          {option.label}
+        </button>
+      ))}
     </>
   ),
 }));
@@ -94,16 +90,18 @@ const LocationDisplay = () => {
 };
 
 const renderSearch = ({
+  dags = [NEW_DAG],
   initialEntry,
   onClose = vi.fn(),
 }: {
+  dags?: Array<DagSearchOption>;
   initialEntry: string;
   onClose?: () => void;
 }) => {
   render(
     <BaseWrapper>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <SearchDags dags={[]} onClose={onClose} />
+        <SearchDags dags={dags} onClose={onClose} />
         <LocationDisplay />
       </MemoryRouter>
     </BaseWrapper>,
@@ -112,10 +110,13 @@ const renderSearch = ({
   return onClose;
 };
 
+const typeSearch = (value: string) =>
+  fireEvent.change(screen.getByLabelText("Search"), { target: { value } });
+
+const selectDag = (name = "New Dag") => fireEvent.click(screen.getByRole("button", { name }));
+
 describe("SearchDags", () => {
   beforeEach(() => {
-    loadedOption.current = undefined;
-    selectedOption.current = { ...selectedOption.current, isBackfillable: true };
     vi.mocked(useMatches).mockReturnValue([
       {
         data: undefined,
@@ -132,10 +133,59 @@ describe("SearchDags", () => {
     vi.restoreAllMocks();
   });
 
+  it("matches the start of the name by default", async () => {
+    const getDagsUi = vi.spyOn(DagService, "getDagsUi").mockResolvedValue({ dags: [], total_entries: 0 });
+
+    renderSearch({ initialEntry: "/dags/old_dag" });
+
+    typeSearch("cons");
+
+    await waitFor(() =>
+      expect(getDagsUi).toHaveBeenCalledWith(
+        expect.objectContaining({ dagDisplayNamePrefixPattern: "cons" }),
+      ),
+    );
+    expect(getDagsUi.mock.calls[0]?.[0]).not.toHaveProperty("dagDisplayNamePattern");
+  });
+
+  it("matches anywhere in the name once the option is on", async () => {
+    const getDagsUi = vi.spyOn(DagService, "getDagsUi").mockResolvedValue({ dags: [], total_entries: 0 });
+
+    // The toggle mirrors its choice into the URL, which is also how a shared link carries it.
+    renderSearch({ initialEntry: "/dags/old_dag?advanced_search=breadcrumb-dags" });
+
+    typeSearch("cons");
+
+    await waitFor(() =>
+      expect(getDagsUi).toHaveBeenCalledWith(expect.objectContaining({ dagDisplayNamePattern: "cons" })),
+    );
+    expect(getDagsUi.mock.calls[0]?.[0]).not.toHaveProperty("dagDisplayNamePrefixPattern");
+  });
+
+  it("re-runs the search it is showing when match-anywhere is turned on", async () => {
+    const getDagsUi = vi.spyOn(DagService, "getDagsUi").mockResolvedValue({ dags: [], total_entries: 0 });
+
+    renderSearch({ initialEntry: "/dags/old_dag" });
+
+    typeSearch("cons");
+    await waitFor(() =>
+      expect(getDagsUi).toHaveBeenCalledWith(
+        expect.objectContaining({ dagDisplayNamePrefixPattern: "cons" }),
+      ),
+    );
+
+    fireEvent.click(screen.getByTestId("advanced-search-toggle"));
+
+    // The text did not change, so only the toggle can have asked for this one.
+    await waitFor(() =>
+      expect(getDagsUi).toHaveBeenCalledWith(expect.objectContaining({ dagDisplayNamePattern: "cons" })),
+    );
+  });
+
   it("preserves the selected Dag tab when switching Dags", () => {
     const onClose = renderSearch({ initialEntry: "/dags/old_dag/details" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+    selectDag();
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag/details");
     expect(onClose).toHaveBeenCalled();
@@ -154,7 +204,7 @@ describe("SearchDags", () => {
     ]);
     renderSearch({ initialEntry: "/dags/old_dag/runs/run_1/tasks/task_1/details" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+    selectDag();
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag");
   });
@@ -172,7 +222,7 @@ describe("SearchDags", () => {
     ]);
     renderSearch({ initialEntry: "/dags/old_dag/backfills" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+    selectDag();
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag/backfills");
   });
@@ -232,11 +282,12 @@ describe("SearchDags", () => {
         pathname: "/dags/old_dag/backfills",
       },
     ]);
-    renderSearch({ initialEntry: "/dags/old_dag/backfills" });
+    // Nothing listed up front, so the only option on screen is the one the search returned.
+    renderSearch({ dags: [], initialEntry: "/dags/old_dag/backfills" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Load Dags" }));
-    await waitFor(() => expect(loadedOption.current?.isBackfillable).toBe(false));
-    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+    typeSearch("new");
+    await screen.findByRole("button", { name: "New Dag" });
+    selectDag();
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag");
   });
@@ -254,7 +305,7 @@ describe("SearchDags", () => {
     ]);
     renderSearch({ initialEntry: "/dags/old_dag/plugin/test/nested/detail/42" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+    selectDag();
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/new_dag");
   });
@@ -262,7 +313,7 @@ describe("SearchDags", () => {
   it("keeps browser back and forward history after switching Dags", () => {
     renderSearch({ initialEntry: "/dags/old_dag/details" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Select Dag" }));
+    selectDag();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByTestId("location").textContent).toBe("/dags/old_dag/details");
 

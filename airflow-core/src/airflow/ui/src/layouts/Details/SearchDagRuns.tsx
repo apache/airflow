@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Flex, Text } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { GroupBase, OptionsOrGroups, SingleValue } from "chakra-react-select";
+import type { SingleValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
@@ -56,6 +58,8 @@ export const SearchDagRuns = ({
   readonly runs: Array<DagRunSearchOption>;
 }) => {
   const { t: translate } = useTranslation(["dags", "common"]);
+  const [text, setText] = useState("");
+  const [found, setFound] = useState<Array<DagRunSearchOption>>();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { groupId, taskId } = useParams();
@@ -85,44 +89,45 @@ export const SearchDagRuns = ({
     void Promise.resolve(navigate(target));
   };
 
-  const searchDagRunsDebounced = useDebouncedCallback(
-    (
-      inputValue: string,
-      callback: (options: OptionsOrGroups<DagRunSearchOption, GroupBase<DagRunSearchOption>>) => void,
-    ) => {
-      void queryClient.fetchQuery({
+  const search = useDebouncedCallback((value: string) => {
+    void queryClient
+      .fetchQuery({
         queryFn: () =>
           DagRunService.getDagRuns({
             dagId,
             limit: SEARCH_LIMIT,
             orderBy: NEWEST_FIRST,
-            runIdPattern: inputValue,
-          }).then((matches: DAGRunCollectionResponse) => {
-            const options = matches.dag_runs.map(buildDagRunOption);
-
-            callback(options);
-
-            return options;
+            runIdPattern: value,
           }),
         queryKey: UseDagRunServiceGetDagRunsKeyFn({
           dagId,
           limit: SEARCH_LIMIT,
           orderBy: NEWEST_FIRST,
-          runIdPattern: inputValue,
+          runIdPattern: value,
         }),
         staleTime: 0,
-      });
-    },
-    300,
-  );
+      })
+      .then((matched: DAGRunCollectionResponse) => setFound(matched.dag_runs.map(buildDagRunOption)));
+  }, 300);
+
+  const onInputChange = (value: string) => {
+    setText(value);
+
+    if (value === "") {
+      search.cancel();
+      setFound(undefined);
+    } else {
+      search(value);
+    }
+  };
 
   return (
     <SearchSelect
-      defaultOptions={runs}
       formatOptionLabel={formatOptionLabel}
-      loadingMessage={translate("common:loading")}
-      loadOptions={searchDagRunsDebounced}
+      inputValue={text}
       onChange={onSelect}
+      onInputChange={onInputChange}
+      options={text === "" ? runs : (found ?? runs)}
       placeholder={translate("search.dagRuns")}
     />
   );
