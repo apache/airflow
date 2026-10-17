@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, setup, task, task_group, teardown
+from airflow.sdk import DAG, TriggerRule, setup, task, task_group, teardown
 from airflow.sdk.definitions.decorators.setup_teardown import context_wrapper
 from airflow.sdk.exceptions import AirflowException
 
@@ -217,6 +217,62 @@ class TestSetupTearDownTask:
         teardown_task = dag.task_group.children["mytask2"]
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun
+
+    @pytest.mark.parametrize(
+        "first_use",
+        [
+            pytest.param(lambda t: t(), id="call"),
+            pytest.param(lambda t: t.expand(x=[1, 2]), id="expand"),
+        ],
+    )
+    def test_teardown_trigger_rule_set_when_decorated_function_is_reused(self, first_use):
+        @teardown
+        def mytask(x=None):
+            print("I am a teardown task")
+
+        with DAG("test_teardown_trigger_rule_set_when_decorated_function_is_reused") as dag:
+            first_use(mytask)
+            mytask.override(task_id="mytask2")()
+
+        assert len(dag.task_group.children) == 2
+        for teardown_task in dag.task_group.children.values():
+            assert teardown_task.is_teardown
+            assert teardown_task.trigger_rule == TriggerRule.ALL_DONE_SETUP_SUCCESS
+
+    def test_teardown_on_failure_fail_dagrun_override_retained_when_called_twice(self):
+        @teardown
+        def mytask():
+            print("I am a teardown task")
+
+        mytask_fail_dagrun = mytask.override(on_failure_fail_dagrun=True)
+        with DAG("test_teardown_on_failure_fail_dagrun_override_retained_when_called_twice") as dag:
+            mytask_fail_dagrun()
+            mytask_fail_dagrun()
+
+        assert len(dag.task_group.children) == 2
+        for teardown_task in dag.task_group.children.values():
+            assert teardown_task.on_failure_fail_dagrun
+
+    def test_teardown_trigger_rule_set_when_mapped_with_expand_kwargs(self):
+        @teardown
+        def mytask(x):
+            print("I am a teardown task")
+
+        with DAG("test_teardown_trigger_rule_set_when_mapped_with_expand_kwargs") as dag:
+            mytask.expand_kwargs([{"x": 1}, {"x": 2}])
+
+        teardown_task = dag.task_group.children["mytask"]
+        assert teardown_task.is_teardown
+        assert teardown_task.trigger_rule == TriggerRule.ALL_DONE_SETUP_SUCCESS
+
+    def test_teardown_raises_when_trigger_rule_passed_with_expand_kwargs(self):
+        @teardown
+        def mytask(x):
+            print("I am a teardown task")
+
+        with DAG("test_teardown_raises_when_trigger_rule_passed_with_expand_kwargs"):
+            with pytest.raises(ValueError, match="Trigger rule not configurable for teardown tasks."):
+                mytask.override(trigger_rule=TriggerRule.ALL_DONE).expand_kwargs([{"x": 1}])
 
     def test_setup_teardown_mixed_up_in_a_dag(self):
         @setup
