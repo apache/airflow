@@ -56,6 +56,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.services.public.dag_run import patch_dag_run_note
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DRDataModel,
     DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
     LoopContext,
@@ -94,16 +95,23 @@ from airflow.api_fastapi.execution_api.services.task_instances import (
     get_arg_bindings,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
+from airflow.callbacks.callback_requests import TaskCallbackRequest
+from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import _resolve_version_data
+from airflow.models.hitl import HITLDetail
+from airflow.models.log import Log
+from airflow.models.taskinstance import (
+    TaskInstance as TI,
+    _stop_remaining_tasks,
+)
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun as DR, InvalidLoopDecision
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError, regional_expression
-from airflow.models.hitl import HITLDetail
-from airflow.models.log import Log
 from airflow.models.task_coordinates import (
     LOOP_GATE_OPERATOR,
     TaskCoordinateResolver,
@@ -111,7 +119,6 @@ from airflow.models.task_coordinates import (
     get_public_region,
     public_map_index_expression,
 )
-from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import build_xcom_read_query, xcom_entity
@@ -699,6 +706,7 @@ def ti_update_state(
 
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
+    ti: TI | None = None
     try:
         result = session.execute(query)
         if (
@@ -773,6 +781,56 @@ def ti_update_state(
                     task_id=task_id,
                 )
 
+    if updated_state in {
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.FAILED,
+        TaskInstanceState.UP_FOR_RETRY,
+    }:
+        if ti is None:
+            ti = session.scalar(select(TI).where(TI.id == task_instance_id))
+
+        if ti is not None:
+            dag = dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+
+            if dag is not None:
+                with contextlib.suppress(TaskNotFound):
+                    task = dag.get_task(ti.task_id)
+
+                    if task.is_stub is True:
+                        has_callback = {
+                            TaskInstanceState.SUCCESS: task.has_on_success_callback,
+                            TaskInstanceState.FAILED: task.has_on_failure_callback,
+                            TaskInstanceState.UP_FOR_RETRY: task.has_on_retry_callback,
+                        }[updated_state]
+
+                        if has_callback:
+                            bundle_name = (
+                                ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                            )
+                            bundle_version = (
+                                ti.dag_version.bundle_version
+                                if ti.dag_version and ti.dag_run.bundle_version is not None
+                                else ti.dag_run.bundle_version
+                            )
+                            version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+                            DatabaseCallbackSink().send(
+                                callback=TaskCallbackRequest(
+                                    filepath=ti.dag_model.relative_fileloc or "",
+                                    bundle_name=bundle_name,
+                                    bundle_version=bundle_version,
+                                    version_data=version_data,
+                                    ti=ti,
+                                    task_callback_type=updated_state,
+                                    context_from_server=TIRunContext(
+                                        dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                                        max_tries=ti.max_tries,
+                                        variables=[],
+                                        connections=[],
+                                        xcom_keys_to_clear=[],
+                                    ),
+                                ),
+                                session=session,
+                            )
     # Release the task_instance row lock before running listener callbacks.
     session.commit()
 

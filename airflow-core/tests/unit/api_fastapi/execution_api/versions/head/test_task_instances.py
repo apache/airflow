@@ -62,6 +62,7 @@ from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagRun, RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.callback import DagProcessorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -3199,6 +3200,104 @@ class TestTIUpdateState:
         assert ti.end_date == end_date
 
     @pytest.mark.parametrize(
+        ("state", "callback_attribute"),
+        [
+            (State.SUCCESS, "has_on_success_callback"),
+            (State.FAILED, "has_on_failure_callback"),
+            (State.UP_FOR_RETRY, "has_on_retry_callback"),
+        ],
+    )
+    def test_stub_task_state_change_enqueues_callback(
+        self, client, session, create_task_instance, mocker, state, callback_attribute
+    ):
+        ti = create_task_instance(
+            task_id="test_stub_callback",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        task = mocker.Mock(
+            is_stub=True,
+            has_on_success_callback=False,
+            has_on_failure_callback=False,
+            has_on_retry_callback=False,
+        )
+        setattr(task, callback_attribute, True)
+
+        dag = mocker.Mock()
+        dag.get_task.return_value = task
+
+        mocker.patch(
+            "airflow.models.dagbag.DBDagBag.get_dag_for_run",
+            return_value=dag,
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": state,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        requests = [
+            request
+            for request in session.scalars(select(DagProcessorCallback)).all()
+            if (
+                request.get_callback_request().ti.task_id == ti.task_id
+                and request.get_callback_request().task_callback_type == state
+            )
+        ]
+
+        assert len(requests) == 1
+        request = requests[0].get_callback_request()
+        assert request.task_callback_type == state
+        assert request.ti.task_id == ti.task_id
+
+    def test_stub_task_state_change_without_callback_does_not_enqueue(
+        self, client, session, create_task_instance, mocker
+    ):
+        ti = create_task_instance(
+            task_id="test_stub_callback",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        task = mocker.Mock(
+            is_stub=True,
+            has_on_success_callback=False,
+            has_on_failure_callback=False,
+            has_on_retry_callback=False,
+        )
+        dag = mocker.Mock()
+        dag.get_task.return_value = task
+        mocker.patch(
+            "airflow.models.dagbag.DBDagBag.get_dag_for_run",
+            return_value=dag,
+        )
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.SUCCESS,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        requests = [
+            request
+            for request in session.scalars(select(DagProcessorCallback)).all()
+            if request.get_callback_request().ti.id == ti.id
+        ]
+        assert requests == []
+
+    @pytest.mark.parametrize(
         ("payload", "expected_event"),
         [
             pytest.param(
@@ -4532,7 +4631,7 @@ class TestTIUpdateState:
         assert ti.end_date == DEFAULT_END_DATE
 
     def test_ti_update_state_to_failed_without_fail_fast(self, client, session, dag_maker):
-        """Test that SerializedDAG is NOT loaded when fail_fast=False (default)."""
+        """Test that a failed task checks the serialized Dag for callback metadata."""
         with dag_maker(dag_id="test_dag_no_fail_fast", serialized=True):
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
@@ -4554,8 +4653,7 @@ class TestTIUpdateState:
             )
 
             assert response.status_code == 204
-            # Verify SerializedDAG was NOT loaded (memory optimization)
-            mock_get_dag.assert_not_called()
+            mock_get_dag.assert_called_once()
 
         session.expire_all()
         ti = session.get(TaskInstance, ti.id)
