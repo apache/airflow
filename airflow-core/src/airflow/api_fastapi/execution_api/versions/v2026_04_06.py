@@ -133,27 +133,49 @@ _BUILTIN_VALUE_CLASSNAMES = frozenset(
 
 
 def _holds_only_builtin_values(value: Any) -> bool:
-    """Whether every class named anywhere in an encoded value is a built-in value type."""
+    """
+    Whether serde ``deserialize`` would rebuild nothing but built-in value types from an encoded value.
+
+    Mirrors how the decoder reads each dict, and fails safe: a dict it could misread, such as one
+    holding envelope keys alongside other keys, counts as not built-in.
+    """
     from airflow._shared.serialization import (
         CLASSNAME,
+        DATA,
         OLD_DATA,
         OLD_DICT,
         OLD_TYPE,
         OLD_TYPE_TO_FULL_QUALNAME,
+        VERSION,
     )
+
+    reserved_keys = {CLASSNAME, VERSION, DATA, OLD_TYPE, OLD_DATA}
+
+    def is_plain_builtin_dict(d: Any) -> bool:
+        return (
+            isinstance(d, dict)
+            and not d.keys() & reserved_keys
+            and all(_holds_only_builtin_values(item) for item in d.values())
+        )
 
     if isinstance(value, list):
         return all(_holds_only_builtin_values(item) for item in value)
     if not isinstance(value, dict):
         return True
-    if OLD_TYPE in value and OLD_DATA in value:
-        old_type = value[OLD_TYPE]
-        if old_type != OLD_DICT and OLD_TYPE_TO_FULL_QUALNAME.get(old_type) not in _BUILTIN_VALUE_CLASSNAMES:
-            return False
-        return _holds_only_builtin_values(value[OLD_DATA])
-    if CLASSNAME in value and value[CLASSNAME] not in _BUILTIN_VALUE_CLASSNAMES:
-        return False
-    return all(_holds_only_builtin_values(item) for item in value.values())
+    if _is_legacy_envelope(value):
+        if value[OLD_TYPE] == OLD_DICT:
+            # The decoder unwraps this envelope without checking the inner dict for another one.
+            return is_plain_builtin_dict(value[OLD_DATA])
+        return OLD_TYPE_TO_FULL_QUALNAME.get(
+            value[OLD_TYPE]
+        ) in _BUILTIN_VALUE_CLASSNAMES and _holds_only_builtin_values(value[OLD_DATA])
+    if CLASSNAME in value:
+        return (
+            value.keys() == {CLASSNAME, VERSION, DATA}
+            and value[CLASSNAME] in _BUILTIN_VALUE_CLASSNAMES
+            and _holds_only_builtin_values(value[DATA])
+        )
+    return is_plain_builtin_dict(value)
 
 
 _ASSET_CLASSNAME = "airflow.sdk.definitions.asset.Asset"
@@ -163,9 +185,9 @@ _ASSET_ALIAS_CLASSNAME = "airflow.sdk.definitions.asset.AssetAlias"
 class _UnconvertibleNextKwargsError(ValueError):
     """next_kwargs hold a value that cannot be translated to the legacy BaseSerialization format."""
 
-    def __init__(self, classname: str) -> None:
+    def __init__(self, what: str) -> None:
         super().__init__(
-            f"The deferred task cannot be resumed: its next_kwargs hold a value of type {classname!r}, "
+            f"The deferred task cannot be resumed: its next_kwargs hold {what}, "
             "which cannot be sent to this worker's Task SDK version. Upgrade the Task SDK on the worker."
         )
 
@@ -175,6 +197,25 @@ def _is_legacy_envelope(value: Any) -> bool:
     from airflow._shared.serialization import OLD_DATA, OLD_TYPE
 
     return isinstance(value, dict) and value.keys() == {OLD_TYPE, OLD_DATA}
+
+
+def _is_well_formed_legacy(value: Any) -> bool:
+    """Whether every dict in a BaseSerialization-encoded value is an envelope its decoder can read."""
+    from airflow._shared.serialization import OLD_DATA, OLD_DICT, OLD_TYPE
+    from airflow.serialization.enums import DagAttributeTypes as DAT
+
+    if isinstance(value, list):
+        return all(_is_well_formed_legacy(item) for item in value)
+    if not isinstance(value, dict):
+        return True
+    if not _is_legacy_envelope(value):
+        return False
+    data = value[OLD_DATA]
+    if value[OLD_TYPE] == OLD_DICT:
+        return isinstance(data, dict) and all(_is_well_formed_legacy(item) for item in data.values())
+    if value[OLD_TYPE] in (DAT.TUPLE, DAT.SET):
+        return isinstance(data, list) and _is_well_formed_legacy(data)
+    return True
 
 
 def _convert_to_legacy(value: Any) -> Any:
@@ -195,7 +236,7 @@ def _convert_to_legacy(value: Any) -> Any:
         return [_convert_to_legacy(item) for item in value]
     if CLASSNAME not in value:
         if _is_legacy_envelope(value):
-            raise _UnconvertibleNextKwargsError(str(value[OLD_TYPE]))
+            raise _UnconvertibleNextKwargsError(f"a value of type {str(value[OLD_TYPE])!r}")
         return {
             Encoding.TYPE: DAT.DICT,
             Encoding.VAR: {key: _convert_to_legacy(item) for key, item in value.items()},
@@ -219,7 +260,7 @@ def _convert_to_legacy(value: Any) -> Any:
         }
     if classname == _ASSET_ALIAS_CLASSNAME and isinstance(data, dict):
         return {Encoding.TYPE: DAT.ASSET_ALIAS, Encoding.VAR: {"name": data["name"], "group": data["group"]}}
-    raise _UnconvertibleNextKwargsError(str(classname))
+    raise _UnconvertibleNextKwargsError(f"a value of type {str(classname)!r}")
 
 
 class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
@@ -252,15 +293,16 @@ class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
         if next_kwargs is None:
             return
 
-        if _is_legacy_envelope(next_kwargs) and not _holds_only_builtin_values(next_kwargs):
-            # Already in BaseSerialization format (rolling upgrade, old data in DB)
-            return
-
         # Only built-in value types are rebuilt here; assets and asset aliases are translated
         # structurally. Anything else would be reconstructed by calling into its class in the API
         # server, so the task is resumed through the trigger-failure path instead, which old
         # workers report as a TaskDeferralError carrying this message.
         try:
+            if _is_legacy_envelope(next_kwargs):
+                if not _is_well_formed_legacy(next_kwargs):
+                    raise _UnconvertibleNextKwargsError("a malformed BaseSerialization-encoded value")
+                # Already in BaseSerialization format (rolling upgrade, old data in DB)
+                return
             response.body["next_kwargs"] = _convert_to_legacy(next_kwargs)
         except _UnconvertibleNextKwargsError as e:
             response.body["next_method"] = TRIGGER_FAIL_REPR

@@ -304,6 +304,10 @@ class TestNextKwargsBackwardCompat:
                 {"__type": "record", "__var": "resume", "asset": Asset("first")}, id="top-level-envelope-keys"
             ),
             pytest.param({"payload": {"__type": "record", "asset": Asset("first")}}, id="nested-type-key"),
+            pytest.param(
+                {"payload": {"__type": "dict", "__var": {"x": 1}, "asset": Asset("first")}},
+                id="nested-envelope-keys",
+            ),
         ],
     )
     def test_old_version_converts_dicts_with_legacy_keys(
@@ -369,6 +373,49 @@ class TestNextKwargsBackwardCompat:
         assert response.json()["next_method"] == "__fail__"
         error = BaseSerialization.deserialize(response.json()["next_kwargs"])["error"]
         assert "'builtins.frozenset'" in error
+
+    @pytest.mark.parametrize("nested", [False, True], ids=["top-level", "nested"])
+    def test_old_version_does_not_rebuild_classes_behind_legacy_envelopes(
+        self, old_ver_client, session, create_task_instance, monkeypatch, nested
+    ):
+        """A class envelope inside a legacy dict envelope is never decoded in the API server."""
+        payload = {
+            "__type": "dict",
+            "__var": {
+                "__type": "dict",
+                "__var": {},
+                "__classname__": "airflow.sdk.definitions.asset.AssetAlias",
+                "__version__": 0,
+                "__data__": {"name": "hidden", "group": "asset"},
+            },
+        }
+        ti = create_task_instance(
+            task_id="test_next_kwargs_hidden_class",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {"event": payload} if nested else payload
+        session.commit()
+
+        constructed = []
+        for cls in (Asset, AssetAlias):
+            original_init = cls.__init__
+
+            def spy(self, *args, _original_init=original_init, **kwargs):
+                constructed.append(type(self))
+                _original_init(self, *args, **kwargs)
+
+            monkeypatch.setattr(cls, "__init__", spy)
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        assert constructed == []
+        assert response.json()["next_method"] == "__fail__"
+        error = BaseSerialization.deserialize(response.json()["next_kwargs"])["error"]
+        assert error.startswith("The deferred task cannot be resumed")
 
     def test_old_version_fails_task_for_unconvertible_values(
         self, old_ver_client, session, create_task_instance, monkeypatch
