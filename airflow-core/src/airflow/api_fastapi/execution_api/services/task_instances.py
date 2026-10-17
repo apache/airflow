@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagbag import DBDagBag
+    from airflow.serialization.serialized_objects import SerializedOperator
 
 
 def client_supports_arg_bindings() -> bool:
@@ -44,6 +45,22 @@ def client_supports_arg_bindings() -> bool:
     return AddArgBindingsToTIRunContext.is_applied
 
 
+def get_stub_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOperator | None:
+    """
+    Return the task of *ti* from its Dag version if a language SDK runs it, else ``None``.
+
+    Both ``@task.stub`` tasks and the tasks of a Dag defined natively in a language SDK
+    serialize with ``is_stub=True``.
+    """
+    if ti.dag_version_id is None:
+        return None
+    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
+        return None
+    if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
+        return None
+    return task
+
+
 def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | None:
     """
     Extract the stub task's TaskFlow arg spec from its Dag version.
@@ -52,10 +69,18 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
     ``None`` here and keep the legacy ignored-args behavior; per-map-index delivery
     lands in a follow-up.
     """
-    if ti.dag_version_id is None:
-        return None
-    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
-        return None
-    if (task := dag.task_dict.get(ti.task_id)) is None or not task.is_stub:
+    if (task := get_stub_task(dag_bag, ti, session=session)) is None:
         return None
     return task.arg_bindings
+
+
+def get_language_sdk_execution_timeout(dag_bag: DBDagBag, ti: Any, *, session: Session) -> float | None:
+    """
+    Return the ``execution_timeout`` in seconds of a task that a language SDK runs.
+
+    Python tasks report their own timeout, so they get ``None``. Like the Python task
+    runner, a zero timeout means no timeout, and a negative one has already elapsed.
+    """
+    if (task := get_stub_task(dag_bag, ti, session=session)) is None or not task.execution_timeout:
+        return None
+    return max(task.execution_timeout.total_seconds(), 0.0)

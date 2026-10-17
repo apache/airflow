@@ -512,6 +512,16 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
+    execution_timeout: float | None = None
+    """
+    The task's ``execution_timeout`` in seconds, for tasks run by a language SDK.
+
+    Covers ``@task.stub`` tasks and the tasks of a Dag defined natively in a language SDK.
+    The supervisor arms its execution timeout deadline from it, as a fallback for runtimes
+    that do not send ``SetExecutionTimeout``. ``None`` for Python tasks, which report their
+    own timeout, and when no timeout is set.
+    """
+
     multi_team: bool = False
     """
     Whether the deployment runs in multi-team mode.
