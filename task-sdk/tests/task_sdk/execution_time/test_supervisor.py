@@ -145,6 +145,7 @@ from airflow.sdk.execution_time.comms import (
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
+    StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
@@ -1447,6 +1448,73 @@ class TestWatchedSubprocess:
                 client=make_client(transport=httpx2.MockTransport(handle_request)),
                 target=subprocess_main,
             )
+
+    def test_prepare_ti_context_leaves_listed_xcoms_to_python_task_runner(self, make_ti_context):
+        """
+        For Python tasks, the supervisor leaves the listed XComs to the Python task runner.
+
+        The task runner deletes them with XCom.delete, a call that also purges them from the XCom backend.
+        """
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append((request.method, request.url.path))
+            return httpx2.Response(200, json={})
+
+        proc = ActivitySubprocess(
+            process_log=MagicMock(spec=FilteringBoundLogger),
+            id=TI_ID,
+            pid=12345,
+            stdin=MagicMock(spec=socket.socket),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
+            process=MagicMock(spec=psutil.Process),
+        )
+        ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["return_value"]})
+        ti = TaskInstance(
+            id=TI_ID,
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+
+        try:
+            prepared = proc._prepare_ti_context(ti, ti_context)
+        finally:
+            proc.selector.close()
+        assert requests == []
+        assert prepared is not None
+        assert prepared.xcom_keys_to_clear == ["return_value"]
+
+    def test_python_task_process_gets_the_listed_xcom_keys(self, mocker, make_ti_context):
+        mock_client = MagicMock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context().model_copy(
+            update={"xcom_keys_to_clear": ["return_value"]}
+        )
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=mock_client,
+            target=lambda: None,
+        )
+        assert proc.wait() == 0
+
+        (startup,) = [c.args[1] for c in mock_send.call_args_list if isinstance(c.args[1], StartupDetails)]
+        assert startup.ti_context.xcom_keys_to_clear == ["return_value"]
+        mock_client.xcoms.delete.assert_not_called()
 
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
     def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
