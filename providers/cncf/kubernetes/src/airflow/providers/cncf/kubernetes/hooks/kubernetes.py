@@ -38,7 +38,6 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import (
     _disable_verify_ssl,
-    _enable_tcp_keepalive,
     _TimeoutAsyncK8sApiClient,
     _TimeoutK8sApiClient,
 )
@@ -279,8 +278,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         if disable_verify_ssl is True:
             _disable_verify_ssl()
-        if disable_tcp_keepalive is not True:
-            _enable_tcp_keepalive()
+        use_tcp_keepalive = disable_tcp_keepalive is not True
 
         if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
@@ -289,6 +287,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient(
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
+                should_enable_tcp_keepalive=use_tcp_keepalive,
             )
 
         if kubeconfig_path is not None:
@@ -302,6 +301,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient(
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
+                should_enable_tcp_keepalive=use_tcp_keepalive,
             )
 
         if kubeconfig is not None:
@@ -320,6 +320,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient(
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
+                should_enable_tcp_keepalive=use_tcp_keepalive,
             )
 
         if self.config_dict:
@@ -333,14 +334,21 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return _TimeoutK8sApiClient(
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
+                should_enable_tcp_keepalive=use_tcp_keepalive,
             )
 
         return self._get_default_client(
-            cluster_context=cluster_context, disable_verify_ssl=disable_verify_ssl
+            cluster_context=cluster_context,
+            disable_verify_ssl=disable_verify_ssl,
+            should_enable_tcp_keepalive=use_tcp_keepalive,
         )
 
     def _get_default_client(
-        self, *, cluster_context: str | None = None, disable_verify_ssl: bool | None = None
+        self,
+        *,
+        cluster_context: str | None = None,
+        disable_verify_ssl: bool | None = None,
+        should_enable_tcp_keepalive: bool = False,
     ) -> client.ApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
@@ -359,6 +367,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return _TimeoutK8sApiClient(
             configuration=self.client_configuration,
             disable_verify_ssl=disable_verify_ssl is True,
+            should_enable_tcp_keepalive=should_enable_tcp_keepalive,
         )
 
     @property

@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import socket
 import tempfile
 from asyncio import Future
 from unittest import mock
@@ -428,7 +429,7 @@ class TestKubernetesHook:
         ),
     )
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
-    @patch(f"{HOOK_MODULE}._enable_tcp_keepalive")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.enable_tcp_keepalive", autospec=True)
     def test_disable_tcp_keepalive(
         self,
         mock_enable,
@@ -444,6 +445,37 @@ class TestKubernetesHook:
         api_conn = kubernetes_hook.get_conn()
         assert mock_enable.called is expected
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+
+    @pytest.mark.platform("linux")
+    @pytest.mark.parametrize(
+        "config_source",
+        [
+            pytest.param("config_dict", id="config_dict"),
+            pytest.param("default_client", id="default_client"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("disable_tcp_keepalive", "expected"),
+        [(True, False), (False, True)],
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
+    def test_tcp_keepalive_reaches_client(self, config_source, disable_tcp_keepalive, expected):
+        """The keepalive socket options must end up on the client configuration, not only be requested."""
+        if config_source == "config_dict":
+            kubernetes_hook = KubernetesHook(
+                config_dict={"apiVersion": "v1", "kind": "Config"},
+                disable_tcp_keepalive=disable_tcp_keepalive,
+            )
+        else:
+            kubernetes_hook = KubernetesHook(disable_tcp_keepalive=disable_tcp_keepalive)
+
+        api_conn = kubernetes_hook.get_conn()
+
+        keepalive = (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        options = api_conn.configuration.socket_options or []
+        assert (keepalive in options) is expected
 
     @pytest.mark.parametrize(
         ("config_path_param", "conn_id", "call_path"),
@@ -619,7 +651,9 @@ class TestKubernetesHook:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri):
             kubernetes_hook = KubernetesHook(conn_id="kubernetes_default")
             kubernetes_hook.get_conn()
-            mock_get_client.assert_called_with(cluster_context="test", disable_verify_ssl=None)
+            mock_get_client.assert_called_with(
+                cluster_context="test", disable_verify_ssl=None, should_enable_tcp_keepalive=True
+            )
             assert kubernetes_hook.get_namespace() == "test"
 
     def test_missing_default_connection_is_ok(self, remove_default_conn, sdk_connection_not_found):
