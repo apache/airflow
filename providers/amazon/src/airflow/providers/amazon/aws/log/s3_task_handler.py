@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import codecs
 import inspect
 import logging
 import os
@@ -36,7 +37,19 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
+    from airflow.utils.log.file_task_handler import (
+        LogMessages,
+        LogResponse,
+        LogSourceInfo,
+        RawLogStream,
+        StreamingLogResponse,
+    )
+
+
+# Mirrors ``airflow.utils.log.file_task_handler.CHUNK_SIZE`` so that remote reads are chunked the
+# same way local log reads are. Not imported from core to avoid coupling the provider to a private
+# constant that older Airflow versions may not expose.
+CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
 
 
 @attrs.define
@@ -198,22 +211,65 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
                     return False
         return True
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
-        logs: list[str] = []
-        messages = []
+    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+        messages, log_streams = self.stream(relative_path, ti)
+        if not log_streams:
+            return messages, None
+
+        # Exhaust each stream into a single string, for callers that cannot consume a stream.
+        # The newline is added back per line so that the string is byte-identical to the object.
+        return messages, ["".join(f"{line}\n" for line in log_stream) for log_stream in log_streams]
+
+    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+        messages: list[str] = []
         bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, relative_path))
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
-        if keys:
-            keys = sorted(f"s3://{bucket}/{key}" for key in keys)
-            if AIRFLOW_V_3_0_PLUS:
-                messages = keys
-            else:
-                messages.append("Found logs in s3:")
-                messages.extend(f"  * {key}" for key in keys)
-            for key in keys:
-                logs.append(self.s3_read(key, return_error=True))
-            return messages, logs
-        return messages, None
+        if not keys:
+            return messages, []
+
+        keys = sorted(f"s3://{bucket}/{key}" for key in keys)
+        if AIRFLOW_V_3_0_PLUS:
+            messages = keys
+        else:
+            messages.append("Found logs in s3:")
+            messages.extend(f"  * {key}" for key in keys)
+
+        # The objects are not fetched here: each generator issues its GetObject on first use.
+        return messages, [self._get_log_stream(key) for key in keys]
+
+    def _get_log_stream(self, remote_log_location: str) -> RawLogStream:
+        r"""
+        Yield the lines of a remote log object without holding the whole object in memory.
+
+        Lines are split exactly like :func:`~airflow.utils.log.file_task_handler._stream_lines_by_chunk`
+        does for local logs: on ``"\n"`` only, with the trailing newline stripped, so the records the
+        log reader sees are the same ones it saw when this method read the object as a single string.
+
+        :param remote_log_location: the log's location in remote storage
+        :yield: Lines of the log object.
+        """
+        body = None
+        try:
+            body = self.hook.get_key(remote_log_location).get()["Body"]
+            # An incremental decoder keeps multi-byte characters intact across chunk boundaries.
+            decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+            buffer = ""
+            for chunk in body.iter_chunks(chunk_size=CHUNK_SIZE):
+                buffer += decoder.decode(chunk)
+                *lines, buffer = buffer.split("\n")
+                yield from lines
+            buffer += decoder.decode(b"", final=True)
+            if buffer:
+                yield from buffer.split("\n")
+        except Exception as error:
+            # Surface the failure as a log line instead of raising, so that a single unreadable
+            # object does not hide the logs of the other objects of the same task instance.
+            msg = f"Could not read logs from {remote_log_location} with error: {error}"
+            self.log.exception(msg)
+            yield msg
+        finally:
+            if body is not None:
+                body.close()
 
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
