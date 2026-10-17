@@ -58,8 +58,8 @@ class TestProjectStructure:
         """
         Assert every module in /providers/ has a corresponding test_ file in providers/providers.
         """
-        # The test below had a but for quite a while and we missed a lot of modules to have tess
-        # We should make sure that one goes to 0
+        # A long-standing bug in the test below allowed modules without tests to go undetected.
+        # This list tracks those modules and should shrink to zero as tests are added.
         OVERLOOKED_TESTS = [
             "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
