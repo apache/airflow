@@ -60,6 +60,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.fork_compare import get_fork_changes, is_fork_push
 from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
@@ -286,7 +287,18 @@ def selective_check(
             github_context = github_context_input.read()
         github_context_dict = json.loads(github_context) if github_context else {}
         github_event = GithubEvents(github_event_name)
-        if commit_ref is not None:
+        fork_push = is_fork_push(github_event, github_repository)
+        fork_changes_truncated = False
+        if fork_push and commit_ref is not None:
+            fork_changes = get_fork_changes(
+                fork_owner=github_repository.split("/")[0],
+                sha=commit_ref,
+                base=default_branch,
+            )
+            changed_files = fork_changes.files
+            fork_changes_truncated = fork_changes.truncated
+            console_print(f"\n[info]Changed files against apache/airflow:[/]\n{changed_files}\n")
+        elif commit_ref is not None:
             changed_files = get_changed_files(commit_ref=commit_ref)
         else:
             changed_files = ()
@@ -301,6 +313,8 @@ def selective_check(
             github_actor=github_actor,
             github_context_dict=github_context_dict,
             platform=ci_platform,
+            fork_push=fork_push,
+            fork_changes_truncated=fork_changes_truncated,
         )
         print(str(sc), file=sys.stderr)
     except Exception:

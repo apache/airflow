@@ -141,7 +141,11 @@ high-blast-radius signals:
 
 ```mermaid
 flowchart TD
-    A([_should_run_all_tests_and_versions]) --> B{event is<br/>PUSH / SCHEDULE / DISPATCH?}
+    A([_should_run_all_tests_and_versions]) --> T{fork push with<br/>truncated change set?}
+    T -->|yes| YES0[True<br/>run everything]
+    T -->|no| FP{fork push?}
+    FP -->|yes - treated as a pull request| E
+    FP -->|no| B{event is<br/>PUSH / SCHEDULE / DISPATCH?}
     B -->|yes| C{PUSH and only<br/>.txt/.md files changed?}
     C -->|yes| NO1[False<br/>skip full tests]
     C -->|no| D{PUSH and<br/>branch != main?}
@@ -325,6 +329,15 @@ flowchart TD
 6. **Scheduled nightly canary** (SCHEDULE on `apache/airflow`). Full matrix on all versions, every
    canary-only job. The most thorough run; it is what gives us confidence that the PR-time shortcuts
    never let a regression through.
+7. **Push in a contributor fork** (AIP-120, see
+   [Fork CI for external contributors](08_fork_ci_for_external_contributors.md)). The changed files
+   come from the cross-repository compare API against `apache/airflow`'s branch line of the pushed
+   code (breeze's default branch at that commit: `main`, or the release branch it was cut from),
+   not from `git diff-tree`, with a renamed file counted under both paths, and the run is selected
+   exactly like a pull request with those files. `is_committer_build` is always `False` because
+   forks have no self-hosted runners. When the file list reaches the compare API's 300-file cap,
+   or the compare fails, everything runs. The `pyproject.toml` and provider dependency checks still compare the pushed
+   commit with its parent, so in a fork they see only the last commit's changes.
 
 ## Troubleshooting: my CI run does too much
 
@@ -445,7 +458,9 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   checks are performed. See also [1] note below. Two exceptions narrow this: a PUSH that changed **only**
   `.txt`/`.md` files skips full tests, and a PUSH to a **release branch** (`v3-X-test`, i.e. not `main`)
   runs selective tests only (it is still a `canary` run, so its *relevant* unit tests run on default
-  versions). The high-level flow and worked examples for these cases are in
+  versions). A PUSH in a contributor fork is not a PUSH for this rule: it is selected like a pull
+  request against `apache/airflow`, and runs everything only when its change set reaches the
+  compare API's 300-file cap (a list of 300 may be missing files) or the compare fails. The high-level flow and worked examples for these cases are in
   [The decision pipeline](#the-decision-pipeline) and
   [Worked examples](#worked-examples-pull-requests-pushes-and-canary-runs) above.
 * Python, Kubernetes, Backend, Kind, Helm versions are limited to "defaults" only unless `Full tests` mode
@@ -675,6 +690,9 @@ Currently there is no difference because we are not using `self-hosted` runners 
 Runner Controller` but most of the jobs, committer builds will use "Self-hosted" runners by default,
 while non-committer builds will use "Public" runners. For committers, this can be overridden by setting the
 `use public runners` label in the PR.
+
+Pushes in a contributor fork are never committer builds, whoever pushes, because forks have no
+self-hosted runners.
 
 ## Changing behaviours of the CI runs by setting labels
 
