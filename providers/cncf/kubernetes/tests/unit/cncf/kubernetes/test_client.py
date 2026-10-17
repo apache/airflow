@@ -73,18 +73,36 @@ class TestClient:
         assert client.api_client.configuration.ssl_ca_cert == "/path/to/ca.crt"
 
     @pytest.mark.platform("linux")
-    def test_enable_tcp_keepalive(self):
+    @pytest.mark.parametrize(
+        ("config_overrides", "expected_idle", "expected_intvl", "expected_cnt"),
+        [
+            pytest.param({}, 120, 30, 6, id="defaults"),
+            pytest.param(
+                {
+                    ("kubernetes_executor", "tcp_keep_idle"): "60",
+                    ("kubernetes_executor", "tcp_keep_intvl"): "10",
+                    ("kubernetes_executor", "tcp_keep_cnt"): "3",
+                },
+                60,
+                10,
+                3,
+                id="custom",
+            ),
+        ],
+    )
+    def test_enable_tcp_keepalive(self, config_overrides, expected_idle, expected_intvl, expected_cnt):
         configuration = Configuration()
         configuration.socket_options = None
 
-        enable_tcp_keepalive(configuration)
+        with conf_vars(config_overrides):
+            enable_tcp_keepalive(configuration)
 
         assert configuration.socket_options == [
             (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
             (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
-            (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120),
-            (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30),
-            (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, expected_idle),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, expected_intvl),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, expected_cnt),
         ]
 
     @pytest.mark.platform("linux")
@@ -135,16 +153,29 @@ class TestClient:
             assert not pool_options or keepalive not in pool_options
 
     @pytest.mark.platform("linux")
+    @pytest.mark.parametrize("supply_configuration", [True, False])
+    @pytest.mark.parametrize("disable_verify_ssl", [True, False])
     @pytest.mark.parametrize("enabled", [True, False])
-    def test_timeout_api_client_tcp_keepalive(self, enabled):
-        default_options = Configuration.get_default_copy().socket_options
+    def test_timeout_api_client_configuration(self, enabled, disable_verify_ssl, supply_configuration):
+        default = Configuration.get_default_copy()
+        configuration = Configuration() if supply_configuration else None
+        expected_verify_ssl = False if disable_verify_ssl else (configuration or default).verify_ssl
 
-        api_client = _TimeoutK8sApiClient(should_enable_tcp_keepalive=enabled)
+        api_client = _TimeoutK8sApiClient(
+            configuration,
+            disable_verify_ssl=disable_verify_ssl,
+            should_enable_tcp_keepalive=enabled,
+        )
 
+        if supply_configuration:
+            assert api_client.configuration is configuration
+        assert api_client.configuration.verify_ssl is expected_verify_ssl
         keepalive = (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         options = api_client.configuration.socket_options or []
         assert (keepalive in options) is enabled
-        assert Configuration.get_default_copy().socket_options == default_options
+        unchanged_default = Configuration.get_default_copy()
+        assert unchanged_default.socket_options == default.socket_options
+        assert unchanged_default.verify_ssl == default.verify_ssl
 
     @pytest.mark.platform("linux")
     def test_deprecated_enable_tcp_keepalive_sets_default_configuration(self, restore_default_configuration):
