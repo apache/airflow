@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from airflow.providers.google.cloud.utils.field_validator import (
@@ -313,3 +315,37 @@ class TestGcpBodyFieldValidator:
 
         validator = GcpBodyFieldValidator(specification, "v1")
         validator.validate(body)
+
+    def test_validate_should_not_warn_for_field_matching_current_api_version(self, caplog):
+        # A field declared for the same api_version the validator runs with is a valid, known
+        # field. It must not be reported as "not specified in the validation specification".
+        specification = [
+            dict(name="name", allow_empty=False),
+            dict(name="versioned_field", optional=True, api_version="v1"),
+        ]
+        body = {"name": "value", "versioned_field": "present"}
+
+        validator = GcpBodyFieldValidator(specification, "v1")
+        with caplog.at_level(logging.WARNING):
+            validator.validate(body)
+
+        assert "versioned_field" not in caplog.text
+
+    def test_validate_should_not_warn_for_union_field_matching_current_api_version(self, caplog):
+        specification = [
+            dict(
+                name="an_union",
+                type="union",
+                fields=[
+                    dict(name="variant_current", regexp=r"^.+$", api_version="v1"),
+                    dict(name="variant_other", regexp=r"^.+$", api_version="v1beta2"),
+                ],
+            ),
+        ]
+        body = {"variant_current": "abc"}
+
+        validator = GcpBodyFieldValidator(specification, "v1")
+        with caplog.at_level(logging.WARNING):
+            validator.validate(body)
+
+        assert "variant_current" not in caplog.text
