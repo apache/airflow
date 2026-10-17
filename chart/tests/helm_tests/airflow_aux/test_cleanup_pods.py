@@ -333,9 +333,11 @@ class TestCleanupPods:
         )
 
         assert jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0]) == {
-            "tier": "airflow",
-            "component": "airflow-cleanup-pods",
-            "release": "release-name",
+            "app.kubernetes.io/component": "airflow-cleanup-pods",
+            "app.kubernetes.io/instance": "release-name",
+            "app.kubernetes.io/name": "airflow",
+            "app.kubernetes.io/part-of": "airflow",
+            "app.kubernetes.io/version": "3.3.1",
             "project": "airflow",
         }
 
