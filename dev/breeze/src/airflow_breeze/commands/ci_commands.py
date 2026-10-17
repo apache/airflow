@@ -41,6 +41,7 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.global_constants import (
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CI_AMD_PLATFORM,
     CI_PLATFORMS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -61,6 +62,7 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
 )
 from airflow_breeze.utils.fork_compare import get_fork_changes, is_fork_push
+from airflow_breeze.utils.git_remotes import find_remote, find_remote_for_repo, get_remotes
 from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
@@ -811,41 +813,12 @@ def upgrade(
     status_result = run_command(["git", "status", "--porcelain"], capture_output=True, text=True, check=False)
     is_clean = status_result.returncode == 0 and not status_result.stdout.strip()
 
-    # Check if we have the apache remote and get its name
-    remote_result = run_command(["git", "remote", "-v"], capture_output=True, text=True, check=False)
-    apache_remote_name = None
-    origin_remote_name = None
-    origin_repo = None  # Store the user's fork repo (e.g., "username/airflow")
-
-    if remote_result.returncode == 0:
-        # Parse remote output to find apache/airflow remote and origin remote
-        # Format: remote_name\turl (fetch|push)
-        for line in remote_result.stdout.splitlines():
-            parts = line.split()
-            if len(parts) >= 2:
-                remote_name = parts[0]
-                remote_url = parts[1]
-                if "apache/airflow" in remote_url and apache_remote_name is None:
-                    apache_remote_name = remote_name
-                # Also track origin remote for pushing
-                if remote_name == "origin" and origin_remote_name is None:
-                    origin_remote_name = remote_name
-                    # Extract repo from origin URL (supports both HTTPS and SSH formats)
-                    # HTTPS: https://github.com/username/airflow.git
-                    # SSH: git@github.com:username/airflow.git
-                    if "github.com" in remote_url:
-                        if "git@github.com:" in remote_url:
-                            # SSH format
-                            repo_part = remote_url.split("git@github.com:")[1]
-                        elif "github.com/" in remote_url:
-                            # HTTPS format
-                            repo_part = remote_url.split("github.com/")[1]
-                        else:
-                            repo_part = None
-
-                        if repo_part:
-                            # Remove .git suffix if present
-                            origin_repo = repo_part.replace(".git", "").strip()
+    remotes = get_remotes()
+    apache_remote = find_remote_for_repo(remotes, APACHE_AIRFLOW_GITHUB_REPOSITORY)
+    apache_remote_name = apache_remote.name if apache_remote else None
+    origin_remote = find_remote(remotes, "origin")
+    origin_remote_name = origin_remote.name if origin_remote else None
+    origin_repo = origin_remote.repo if origin_remote else None
 
     has_apache_remote = apache_remote_name is not None
 
@@ -1683,3 +1656,53 @@ def fork_ci_reconcile(config_path: Path | None, output_file: Path, run_url: str,
     if github_output:
         with open(github_output, "a") as f:
             f.write(get_ga_output("has-alerts", has_alerts) + "\n")
+
+
+@ci_group.command(
+    name="audit",
+    help="Check that your checkout and fork are set up for fork CI (AIP-120), and offer the fixes.",
+)
+@click.option("--fix", is_flag=True, help="Run the offered fix commands, each after confirmation.")
+@option_verbose
+@option_dry_run
+@option_answer
+def audit(fix: bool):
+    import shlex
+
+    import yaml
+    from rich.table import Table
+
+    from airflow_breeze.utils.ci_audit import CheckStatus, run_audit, run_tool
+    from airflow_breeze.utils.fork_ci_gate import load_config
+
+    asf_yaml = yaml.safe_load((AIRFLOW_ROOT_PATH / ".asf.yaml").read_text())
+    collaborators = frozenset((asf_yaml.get("github") or {}).get("collaborators") or [])
+    config = load_config(AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml")
+
+    def report():
+        results = run_audit(run=run_tool, config=config, collaborators=collaborators)
+        table = Table(title="Fork CI setup")
+        for column in ("#", "Check", "Status", "Finding", "Fix"):
+            table.add_column(column)
+        colors = {CheckStatus.OK: "green", CheckStatus.FAIL: "red", CheckStatus.INFO: "blue"}
+        for result in results:
+            table.add_row(
+                str(result.number),
+                result.name,
+                f"[{colors[result.status]}]{result.status.value}[/]",
+                result.finding,
+                "\n".join(result.fix),
+            )
+        get_console().print(table)
+        return results
+
+    failed = [result for result in report() if result.status == CheckStatus.FAIL]
+    if fix and any(result.fix for result in failed):
+        for result in failed:
+            if result.fix and user_confirm(f"Run the fix for '{result.name}': {'; '.join(result.fix)}?") == (
+                Answer.YES
+            ):
+                for command in result.fix:
+                    run_command(shlex.split(command), check=False)
+        failed = [result for result in report() if result.status == CheckStatus.FAIL]
+    sys.exit(1 if failed else 0)

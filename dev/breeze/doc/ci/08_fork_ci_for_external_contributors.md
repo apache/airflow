@@ -692,8 +692,8 @@ prints one row: status, finding, and the command that fixes it.
 |---|---|---|---|
 | 1 | `gh` present and authenticated | `gh auth status` succeeds, version at least `MIN_GH_VERSION` | install / `gh auth login` |
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
-| 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin` |
-| 4 | Who you are | classifies the user: committer (`GET /user/memberships/orgs/apache` active), collaborator (`.asf.yaml`), exempted (`[allowlist]`), pilot participant (`[pilot]`), external | informational |
+| 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds it |
+| 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (`GET /user/memberships/orgs/apache` active), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external | informational |
 | 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: state is not `active` | `gh workflow enable ci-amd.yml -R <fork>` or `gh workflow disable ...` |
 | 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than the configured threshold | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
@@ -704,7 +704,12 @@ confusing status. Forks of a public repository cannot be made private on GitHub,
 the only recommendation available.
 
 The remote-parsing block currently inside `breeze ci upgrade` is factored into
-`utils/git_remotes.py` and reused, so both commands agree on what a correct setup is.
+`utils/git_remotes.py` and reused, so both commands agree on what a correct setup is. A remote
+is recognised as a GitHub repository in every form git accepts (`http` or `https` with optional
+credentials, `www.` or a port, scp-like ssh, `ssh://` with an optional port, any case of the
+host), and only when the repository is the whole path, so `apache/airflow-site` is never taken
+for `apache/airflow`. A command the audit runs that is not installed, `gh` included, is reported
+as a failed check rather than a crash.
 
 ## Documentation changes
 
