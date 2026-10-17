@@ -1144,10 +1144,13 @@ class KubernetesPodOperator(BaseOperator):
                 pod_namespace,
                 pod_name,
             )
-            if event["status"] == "success":
-                # Trigger already observed the pod completed successfully;
-                # logs/XCom are unrecoverable but the task itself succeeded.
+            if event["status"] == "success" and not self.do_xcom_push:
+                # Trigger already observed the pod completed successfully and no
+                # XCom was expected; logs are unrecoverable but the task itself succeeded.
                 return
+            # The pod (and its XCom sidecar) is gone. When XCom was expected, silently
+            # succeeding would mark the task SUCCESS with no return_value XCom, breaking
+            # downstream tasks. Fail instead so retries recreate the pod and its result.
             raise PodNotFoundException(
                 f"Pod {pod_namespace}/{pod_name} not found after resuming from deferral"
             ) from e
