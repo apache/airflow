@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 import time_machine
 import uuid6
+from fastapi import HTTPException, status
 from sqlalchemy import delete, func, insert, select, update
 
 from airflow import plugins_manager
@@ -5138,6 +5139,40 @@ class TestBulkDagRuns:
         assert body["update"]["errors"] == []
         assert listener.state == [state]
         assert listener.dag_run_note_at_listener == expected_note
+
+    @mock.patch("airflow.api_fastapi.core_api.services.public.dag_run.get_dag_for_run", autospec=True)
+    def test_bulk_update_dag_not_found_keeps_note_and_state(self, mock_get_dag_for_run, test_client, session):
+        mock_get_dag_for_run.side_effect = HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{DAG1_ID}` was not found"
+        )
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        dag_run.note = ("old note", "not_test")
+        session.commit()
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"dag_run_id": DAG1_RUN2_ID, "state": "success", "note": "new note"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == []
+        assert body["update"]["errors"] == [
+            {"error": f"The Dag with ID: `{DAG1_ID}` was not found", "status_code": 404}
+        ]
+        session.expire_all()
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        assert dag_run.note == "old note"
+        assert dag_run.state == DAG1_RUN2_STATE
 
     def test_bulk_update_not_found_fails(self, test_client, session):
         """FAIL semantics: a single missing run fails the whole action and nothing is updated."""

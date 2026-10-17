@@ -486,11 +486,12 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
                     continue
                 dag_id, run_id = key
                 dag_run = dag_run_map[key]
+                if entity.state is not None:
+                    dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
                 # Apply "note" before "state" so listeners fired inside patch_dag_run_state() see the updated note.
                 if entity.note is not None:
                     patch_dag_run_note(dag_run=dag_run, note=entity.note, user_id=self.user.get_id())
                 if entity.state is not None:
-                    dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
                     patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
                 results.success.append(f"{dag_id}.{run_id}")
         except HTTPException as e:
