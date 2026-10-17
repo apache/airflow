@@ -3600,6 +3600,8 @@ dags:
     containerName: git-sync
     uid: 65533
 
+    # By default, git-sync runs as `uid`, disallows privilege escalation,
+    # and drops all capabilities.
     securityContexts:
       container: {}
 
