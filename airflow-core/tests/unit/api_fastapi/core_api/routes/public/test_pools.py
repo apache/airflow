@@ -1349,6 +1349,30 @@ class TestBulkPools(TestPoolsEndpoint):
         expected_error_names = {err["input"]["name"] for err in detail}
         assert sorted(expected_error_names) == ["pool_2", "pool_3"]
 
+    @pytest.mark.parametrize("action", ["create", "update"])
+    @pytest.mark.parametrize("name", ["", " ", "\t"])
+    def test_bulk_rejects_blank_name(self, test_client, session, action, name):
+        # The bulk endpoint validates its entities as PoolBody, so it picks up the same
+        # constraint as POST. One bad entity rejects the whole request before any action runs.
+        self.create_pools()
+        n_pools = session.scalar(select(func.count()).select_from(Pool))
+        response = test_client.patch(
+            "/pools",
+            json={
+                "actions": [
+                    {
+                        "action": action,
+                        "entities": [
+                            {"name": POOL1_NAME, "slots": 1, "include_deferred": False},
+                            {"name": name, "slots": 1, "include_deferred": False},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 422
+        assert session.scalar(select(func.count()).select_from(Pool)) == n_pools
+
     @conf_vars({("core", "multi_team"): "True"})
     def test_bulk_create_overwrite_preserves_unset_team_name(self, test_client, session):
         """A bulk create+overwrite that omits ``team_name`` must NOT reset an existing pool's
