@@ -618,22 +618,24 @@ bypass when both signals hold:
 1. **The run did project CI work.** Either the default branch's version of the run's workflow
    is not triggered by the run's event, which covers an injected workflow and a trigger the
    pull request added to an existing one (for example `pull_request` on `ci-arm.yml`, which
-   has no gate), or it is a `ci-amd.yml` run that has run for more than 5 minutes, finished or
-   still running, and whose jobs (`GET .../actions/runs/<id>/jobs`) show more than the gate: a
-   started job that was not skipped, other than `Fork CI gate` and the jobs that run in every
-   gated run (`Check if the run is needed`, which has no steps for pull requests, and the
-   `CI passed` job, named `CI passed (project CI not run)` when project CI was skipped and
-   `CI passed` when a newer push cancelled the run before `Build info` started), a missing or
-   duplicated gate job, one of those jobs appearing twice (either `CI passed` name counts as
-   the same job), or one of them running for more than 5 minutes. The last two cases catch
-   project CI work done in jobs renamed to one of their names. A job counts as started
-   only when a runner picked it up (a non-zero `runner_id`, or steps): a queued job reports its
-   creation as `started_at`, and a run cancelled by a newer push marks its never-started jobs
-   `completed` and `cancelled`, so a gate waiting for a runner would otherwise look like project
-   CI work. A running run is judged as it goes, so one
-   tampered to outlast the 6-hour window is still caught. A gate-only run finishes in about a
-   minute, so jobs are listed only for the rare long runs. The triggers are read from the
-   monitor's own checkout of `main`, so no API call is needed; a pull request into a release
+   has no gate), and one of its jobs started and was not skipped (judged as for `ci-amd.yml`
+   below when it is that workflow, and counted as work when the jobs cannot be listed), so a
+   fork-only workflow the pull request adds and guards off in `apache/airflow` does not count;
+   or it is a `ci-amd.yml` run that has run for more than 5 minutes, finished or still running,
+   and whose jobs (`GET .../actions/runs/<id>/jobs`) show more than the gate: a started job that
+   was not skipped, other than `Fork CI gate` and the jobs that run in every gated run
+   (`Check if the run is needed`, which has no steps for pull requests, and the `CI passed` job,
+   named `CI passed (project CI not run)` when project CI was skipped and `CI passed` when a
+   newer push cancelled the run before `Build info` started), a missing or duplicated gate job,
+   one of those jobs appearing twice (either `CI passed` name counts as the same job), or one of
+   them running for more than 5 minutes. The last two cases catch project CI work done in jobs
+   renamed to one of their names. A job counts as started only when a runner picked it up (a
+   non-zero `runner_id`, or steps): a queued job reports its creation as `started_at`, and a run
+   cancelled by a newer push marks its never-started jobs `completed` and `cancelled`, so a gate
+   waiting for a runner would otherwise look like project CI work. A running run is judged as it
+   goes, so one tampered to outlast the 6-hour window is still caught. A gate-only run finishes
+   in about a minute, so jobs are listed only for the rare long runs. The triggers are read from
+   the monitor's own checkout of `main`, so no API call is needed; a pull request into a release
    branch is judged by `main`'s workflows.
 2. **The run's own commit changes workflow files.** The compare of the base branch with that
    commit (`GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>`, first page only:
@@ -1095,7 +1097,8 @@ as a failed check rather than a crash.
   CI-defining files keeps the pull request a draft, decided once per commit) and the gate
   tampering check: a tampered run on an earlier commit is caught after a clean push, each
   signal alone does not close, short runs and gate-only jobs do not count, an in-progress
-  non-gate job, a removed, duplicated or long-running gate job and an injected workflow do,
+  non-gate job, a removed, duplicated or long-running gate job and an injected workflow with a
+  job that ran do, an added workflow whose jobs all skipped does not,
   runs before the last `use project ci` removal or the last reopen are ignored, an
   uncheckable 300-file change set is reported, `label_fork_ci` pull requests are exempt and
   `pilot` pull requests are checked. Discovery labels a pilot participant's

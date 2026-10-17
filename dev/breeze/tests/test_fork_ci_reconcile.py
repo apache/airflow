@@ -980,7 +980,7 @@ def test_finder_ignores_legitimate_runs(client, runs, jobs, compare_files, pr_ov
     ],
 )
 def test_finder_catches_triggers_the_base_branch_does_not_have(client, run):
-    finder = _finder(client, [run])
+    finder = _finder(client, [run], jobs=[_job("Tests", "success")])
 
     assert finder.find(_pr()) == "https://github.com/apache/airflow/actions/runs/9"
 
@@ -2168,3 +2168,10 @@ def test_new_comment_is_posted_before_the_state_comment_records_the_state(
 
     assert expected_text in client.create_comment.call_args.args[1]
     client.update_comment.assert_not_called()
+
+
+def test_finder_ignores_an_added_workflow_whose_jobs_all_skipped(client):
+    run = _run(9, path=".github/workflows/fork-only.yml", minutes=1)
+    finder = _finder(client, [run], jobs=[_job("Fork only"), _job("Also fork only")])
+
+    assert finder.find(_pr()) is None
