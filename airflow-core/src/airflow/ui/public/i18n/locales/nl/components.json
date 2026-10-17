@@ -74,6 +74,7 @@
     "lastDagRun_other": "Laatste {{count, number}} Dag Runs",
     "lastTaskInstance_one": "Laatste taakinstantie",
     "lastTaskInstance_other": "Laatste {{count, number}} taakinstanties",
+    "medianTotalDuration": "Totaal: {{duration}}",
     "queuedDuration": "Duur in de wachtrij",
     "runAfter": "Run na",
     "runDuration": "Run duur"
@@ -107,6 +108,10 @@
     "taskCount_other": "{{count, number}} taken",
     "taskGroup": "Taakgroep",
     "zoomToTask": "Zoom naar geselecteerde taak"
+  },
+  "jsonPreview": {
+    "items_one": "{{count, number}} item",
+    "items_other": "{{count, number}} items"
   },
   "limitedList": "+{{count, number}} meer",
   "limitedList.allItems": "Alle {{count, number}} items:",
@@ -161,12 +166,15 @@
     "dataInterval": "Gegevensinterval",
     "dataIntervalAuto": "Afgeleid van logische datum en tijdschema",
     "dataIntervalManual": "Specificeer handmatig",
+    "editConfigAndTrigger": "Bewerk configuratie en trigger",
     "intervalEnd": "Einde",
     "intervalStart": "Start",
     "loading": "Dag informatie aan het laden...",
     "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
     "manualRunDenied": "Handmatige runs zijn niet toegestaan voor deze Dag",
     "partitionKeyHelp": "Optioneel - geldt alleen voor gepartitioneerde Dags",
+    "recentConfig": "Recente configuraties",
+    "recentConfigPlaceholder": "Selecteer een recente configuratie",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
     "selectDescription": "Trigger een enkele run van deze Dag",
     "selectLabel": "Enkele Run",
@@ -180,7 +188,8 @@
         "title": "Dag Run getriggerd"
       }
     },
-    "triggerAgainWithConfig": "Trigger opnieuw met deze configuratie"
+    "triggerAgainWithConfig": "Trigger opnieuw met deze configuratie",
+    "triggerOptions": "Trigger opties"
   },
   "trimText": {
     "details": "Details",

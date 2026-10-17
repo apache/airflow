@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Alle gemapte indexen",
   "allRuns": "Alle Runs",
   "blockingDeps": {
     "dependency": "Afhankelijkheid",
@@ -43,6 +44,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Moet worden voltooid binnen {{interval}} van {{reference}}",
+    "completionRuleDynamic": "Moet worden voltooid binnen een variabel interval gemeten vanaf {{reference}}",
     "count_one": "{{count, number}} deadline",
     "count_other": "{{count, number}} deadlines",
     "referenceType": {
@@ -106,6 +108,37 @@
     "viewPreviousTry": "Bekijk logs voor vorige poging {{tryNumber}}",
     "waitingToRetry": "Poging {{tryNumber}} wacht om opnieuw te proberen.",
     "warning": "WARNING"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "Limiet: {{max}}",
+      "iterationsAxis": "Iteraties",
+      "stats": {
+        "capHits": "Limiet bereikt",
+        "medianIterations": "Mediaan iteraties"
+      },
+      "title": "Iteraties per run"
+    },
+    "iterationLabel": "Iteratie {{index}}",
+    "iterations": "Iteraties",
+    "outcome": "Resultaat",
+    "reason": {
+      "cap_reached": "Iteratielimiet bereikt ({{max}})",
+      "failed": "Mislukt bij iteratie {{index}}",
+      "iteration_failed": "Iteratie {{index}} mislukt in {{taskId}}",
+      "ran_to_cap": "Alle {{max}} toegestane iteraties uitgevoerd",
+      "removed": "Verwijderd",
+      "running": "Bezig",
+      "skipped": "Overgeslagen",
+      "stopped_early": "Vroegtijdig gestopt bij iteratie {{index}}"
+    },
+    "rules": {
+      "behaviour": "Gedrag",
+      "boundedFor": "Voert een vast aantal iteraties uit",
+      "exitCriteria": "Exit criteria",
+      "maxIterations": "Maximale iteraties",
+      "whileUntil": "Herhaalt totdat {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Ga terug",
@@ -286,10 +319,14 @@
       "provenance": "Herkomst",
       "unknown": "Onbekend"
     },
+    "limitReached": {
+      "description": "Er zijn meer wijzigingen dan het maximaal toegestane aantal wijzigingen. Verhoog de limiet om de rest te zien.",
+      "descriptionDefault": "Er zijn meer wijzigingen dan het standaardlimiet toestaat. Stel een hoger maximaal aantal wijzigingen in om de rest te zien.",
+      "title": "Toont alleen de eerste {{limit, number}} wijzigingen"
+    },
     "maxChanges": "Maximale wijzigingen",
     "maxChangesDefault": "Standaard",
     "noChanges": "Deze versies hebben dezelfde status.",
-    "observedState": "Waargenomen status",
     "observedStateBoundary": "Vergelijkt de huidig opgeslagen status, niet het bewijs van het aanmaakmoment. Bronvergelijking is niet beschikbaar voor historische versies; gebruik het tabblad Code om de bron te vergelijken.",
     "operations": {
       "added": "Toegevoegd",
@@ -298,20 +335,18 @@
     },
     "record_one": "Record",
     "record_other": "Records",
+    "schemaChange": "Gesserialiseerd schema {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "Selecteer twee versies om te zien wat er tussen veranderd is.",
     "summary_one": "{{count}} wijziging · geserializeerd schema {{baseSchema}} → {{targetSchema}}",
     "summary_other": "{{count}} wijzigingen · geserializeerd schema {{baseSchema}} → {{targetSchema}}",
+    "summaryAtLeast_one": "Minimaal {{count, number}} wijziging",
+    "summaryAtLeast_other": "Minimaal {{count, number}} wijzigingen",
     "target": "Vergelijk met",
-    "truncated": {
-      "description": "Wijzigingen op paden die niet worden weergegeven, zijn weggelaten om binnen de limiet te blijven, dus het aantal is een ondergrens.",
-      "title": "Sommige wijzigingen zijn niet teruggegeven"
-    },
     "unavailable": {
       "description": "Deze versies kunnnen niet worden vergeleken. Reden:",
       "title": "Vergelijking niet beschikbaar",
       "withoutReason": "Deze versies kunnen niet worden vergeleken."
     },
-    "valuesHidden": "Waarden verborgen",
-    "valuesShown": "Waarden weergegeven"
+    "valuesHidden": "Waarden verborgen"
   }
 }

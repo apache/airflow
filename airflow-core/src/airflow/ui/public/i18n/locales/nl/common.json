@@ -144,13 +144,19 @@
   "filter": "Filter",
   "filters": {
     "addFilter": "Filter toevoegen",
+    "allIterations": "Alle",
     "completedAt": "Voltooid op",
     "date": "Datum",
     "durationFrom": "Duur van",
     "durationTo": "Duur tot",
     "endTime": "Eindtijd",
+    "iteration": "Iteratie",
     "logicalDateFrom": "Van logische datum",
     "logicalDateTo": "Tot logische datum",
+    "loop": "Loop",
+    "loopAllIterations": "{{loop}} alle",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Selecteer een loop",
     "maxActiveRunsFrom": "Max actieve runs van",
     "maxActiveRunsTo": "Max actieve runs tot",
     "removeFilter": "Filter verwijderen",
@@ -160,6 +166,7 @@
     "selectDateRange": "Selecteer datumbereik",
     "selectDateTime": "Selecteer datum en tijd",
     "startTime": "Starttijd",
+    "switchIteration": "Wissel iteratie",
     "time": "Tijd"
   },
   "fullscreen": {
@@ -168,6 +175,7 @@
   "generateToken": "Genereer token",
   "includedIn": "Inbegrepen in",
   "key": "Sleutel",
+  "loading": "Laden…",
   "logLevel": {
     "hide": "Verberg logniveaus",
     "hotkey": "l",
@@ -219,8 +227,26 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Ontvangen Asset Events"
   },
+  "pause": "Pauzeer",
   "pendingDagRun_one": "{{count, number}} Wachtende Dag Run",
   "pendingDagRun_other": "{{count, number}} Wachtende Dag Runs",
+  "presetFilters": {
+    "deleteTitle": "Verwijder preset filter",
+    "deleteWarning": "Preset filters worden alleen in deze browser opgeslagen.",
+    "duplicate": "Het preset filter \"{{name}}\" slaat deze exacte setup al op.",
+    "empty": "Geen preset filters beschikbaar",
+    "info": {
+      "default": "Pin een preset filter als standaard en het wordt automatisch toegepast wanneer je op deze pagina komt zonder dat er filters zijn toegepast.",
+      "save": "Sla de huidige filters en sortering op als een genoemd preset filter, en schakel er op elk moment weer naar terug.",
+      "storage": "Preset filters zijn opgeslagen in deze browser."
+    },
+    "namePlaceholder": "Preset filter naam",
+    "nothingToSave": "Niets om op te slaan. Pas filters of sortering toe om een preset filter op te slaan.",
+    "save": "Opslaan",
+    "setDefault": "Stel in als standaard",
+    "title": "Preset filters",
+    "unsetDefault": "Standaardinstelling verwijderen"
+  },
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
@@ -271,6 +297,13 @@
         "label": "Standaard selectie bij wissen van taken"
       },
       "title": "Wissen"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Toon de recente taakstatussen van elke Dag in de Dags lijst. Schakel uit om het laden over te slaan, wat kan helpen bij deployments met veel Dags.",
+        "label": "Toon recente taken"
+      },
+      "title": "Dags lijst"
     },
     "description": "Deze voorkeuren worden alleen in deze browser opgeslagen en zijn van toepassing op de hele app.",
     "general": {
@@ -393,7 +426,9 @@
     "up_for_retry": "Wachtend op een nieuwe poging",
     "upstream_failed": "Upstream mislukt"
   },
-  "switchDag": "Schakel $t(dag_one) over",
+  "switchDag": "Wissel $t(dag_one)",
+  "switchDagRun": "Wissel $t(dagRun_one)",
+  "switchMapIndex": "Wissel $t(mapIndex)",
   "table": {
     "completedAt": "Voltooid op",
     "createdAt": "Aangemaakt op",
@@ -439,6 +474,9 @@
     "executorConfig": "Executor Configuratie",
     "hostname": "Hostname",
     "id": "ID",
+    "iteration": "Iteratie",
+    "loopDecision": "Beslissing",
+    "loopIterations": "Iteraties uitgevoerd",
     "maxTries": "Maximaal aantal pogingen",
     "pid": "PID",
     "pool": "Pool",
