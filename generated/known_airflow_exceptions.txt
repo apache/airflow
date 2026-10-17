@@ -72,7 +72,7 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::5
 providers/amazon/src/airflow/providers/amazon/aws/operators/ec2.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::7
 providers/amazon/src/airflow/providers/amazon/aws/operators/eks.py::12
-providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::24
+providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::23
 providers/amazon/src/airflow/providers/amazon/aws/operators/eventbridge.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/glue.py::6
 providers/amazon/src/airflow/providers/amazon/aws/operators/glue_crawler.py::1
