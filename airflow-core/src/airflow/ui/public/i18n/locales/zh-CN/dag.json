@@ -6,6 +6,7 @@
     "title": "依赖阻碍任务调度"
   },
   "calendar": {
+    "backfill": "回填",
     "daily": "每日",
     "hourly": "每小时",
     "legend": {
@@ -219,6 +220,7 @@
     "taskInstances": "任务实例",
     "taskStateStore": "任务存储",
     "tasks": "任务",
+    "versions": "版本",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -246,5 +248,67 @@
       "never": "永不"
     },
     "title": "任务存储"
+  },
+  "versions": {
+    "aboutThisComparison": "关于此比较",
+    "base": "比较起始版本",
+    "categories": {
+      "asset": "资源",
+      "authorization": "授权",
+      "callback": "回调",
+      "deadline": "截止期限",
+      "dependency": "依赖",
+      "metadata": "元数据",
+      "param": "参数",
+      "provenance": "来源",
+      "schedule": "调度",
+      "task": "任务",
+      "unknown": "未知"
+    },
+    "codeAccess": "查看值需要 Dag 代码访问权限",
+    "columns": {
+      "after": "之后",
+      "before": "之前",
+      "category": "类别",
+      "impact": "影响",
+      "occurrences": "出现次数",
+      "operation": "操作",
+      "path": "路径"
+    },
+    "heading": "版本 {{base}} → 版本 {{target}}",
+    "impacts": {
+      "authorization": "授权",
+      "execution": "执行",
+      "metadata": "元数据",
+      "provenance": "来源",
+      "unknown": "未知"
+    },
+    "maxChanges": "最大变更数",
+    "maxChangesDefault": "默认",
+    "noChanges": "这些版本保存的状态相同。",
+    "observedState": "当前存储状态",
+    "observedStateBoundary": "比较的是当前存储的状态，而非创建时的记录。历史版本无法进行源码比较；请使用代码选项卡比较源码。",
+    "operations": {
+      "added": "已添加",
+      "changed": "已修改",
+      "removed": "已移除"
+    },
+    "record_one": "记录",
+    "record_other": "记录",
+    "selectPrompt": "选择两个版本以查看它们之间的变更。",
+    "summary_one": "{{count}} 项变更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_other": "{{count}} 项变更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "target": "比较目标版本",
+    "truncated": {
+      "description": "为遵守数量限制，未显示路径上的变更已被省略，因此此计数只是下限。",
+      "title": "部分变更未返回"
+    },
+    "unavailable": {
+      "description": "无法比较这些版本。原因：",
+      "title": "无法比较",
+      "withoutReason": "无法比较这些版本。"
+    },
+    "valuesHidden": "值已隐藏",
+    "valuesShown": "值已显示"
   }
 }

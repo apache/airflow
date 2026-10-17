@@ -129,6 +129,17 @@
     "hide": "隐藏",
     "show": "显示"
   },
+  "pausedDag": {
+    "drain": "完成后暂停",
+    "drainDescription": "未完成的执行将继续，但不会创建新的定时执行。已暂停的回填仍保持暂停。所有未完成的执行结束后，Dag 将再次暂停。",
+    "keepPaused": "保持暂停",
+    "keepPausedDescription": "新建和未完成的执行将等待 Dag 取消暂停。",
+    "title": "Dag 已暂停",
+    "unfinishedRunsWillRun_one": "1 次未完成的 Dag 执行将开始或恢复。",
+    "unfinishedRunsWillRun_other": "{{count}} 次未完成的 Dag 执行将开始或恢复。",
+    "unpause": "取消暂停",
+    "unpauseDescription": "Dag 将启用：未完成的执行将继续，定时调度将恢复。已暂停的回填仍保持暂停。"
+  },
   "reparseDag": "重新解析 Dag",
   "slowestTaskInstances": {
     "empty": "此范围内没有已完成的任务实例",
@@ -153,6 +164,7 @@
     "dataInterval": "数据区间",
     "dataIntervalAuto": "根据逻辑日期和时间表自动推断",
     "dataIntervalManual": "手动指定",
+    "editConfigAndTrigger": "编辑配置并触发",
     "intervalEnd": "结束",
     "intervalStart": "开始",
     "loading": "正在加载 Dag 信息...",
@@ -172,7 +184,8 @@
         "title": "已触发 Dag 执行"
       }
     },
-    "triggerAgainWithConfig": "使用此配置再次触发"
+    "triggerAgainWithConfig": "使用此配置再次触发",
+    "triggerOptions": "触发选项"
   },
   "trimText": {
     "details": "详细信息",
@@ -189,6 +202,7 @@
   "versionSelect": {
     "allVersions": "所有版本",
     "dagVersion": "Dag 版本",
+    "placeholder": "选择版本",
     "versionCode": "v{{versionCode}}"
   }
 }

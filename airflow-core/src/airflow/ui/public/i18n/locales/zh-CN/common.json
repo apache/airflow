@@ -192,6 +192,7 @@
     "plugins": "插件",
     "security": "安全"
   },
+  "no": "否",
   "noItemsFound": "找不到 {{modelName}}",
   "note": {
     "add": "添加笔记",
@@ -303,6 +304,13 @@
         "label": "标记状态的默认选项"
       },
       "title": "标记状态"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) 各搜索框的设置和共享链接中的设置仍优先使用。",
+        "label": "默认在任意位置匹配"
+      },
+      "title": "搜索"
     },
     "taskInstance": {
       "defaultTab": {
@@ -463,9 +471,14 @@
     "title": "团队"
   },
   "timeRange": {
+    "anyTime": "不限时间",
+    "in": "在",
+    "last7Days": "最近 7 天",
     "last12Hours": "最近 12 小时",
     "last24Hours": "最近 24 小时",
+    "last30Days": "最近 30 天",
     "lastHour": "最近 1 小时",
+    "latestRun": "最近一次执行",
     "pastWeek": "过去一周"
   },
   "timestamp": {
@@ -558,5 +571,6 @@
     "tooltip": "按 {{hotkey}} 切换换行",
     "unwrap": "不换行",
     "wrap": "换行"
-  }
+  },
+  "yes": "是"
 }
