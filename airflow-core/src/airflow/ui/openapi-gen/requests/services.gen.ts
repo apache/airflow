@@ -247,6 +247,7 @@ export class AssetService {
      * @param data The data for the request.
      * @param data.assetId
      * @param data.before
+     * @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -258,7 +259,8 @@ export class AssetService {
                 asset_id: data.assetId
             },
             query: {
-                before: data.before
+                before: data.before,
+                partition_key: data.partitionKey
             },
             errors: {
                 401: 'Unauthorized',
@@ -325,6 +327,7 @@ export class AssetService {
      * @param data The data for the request.
      * @param data.dagId
      * @param data.before
+     * @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -336,7 +339,8 @@ export class AssetService {
                 dag_id: data.dagId
             },
             query: {
-                before: data.before
+                before: data.before,
+                partition_key: data.partitionKey
             },
             errors: {
                 400: 'Bad Request',
@@ -385,6 +389,7 @@ export class AssetService {
      * @param data.dagId
      * @param data.assetId
      * @param data.before
+     * @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
      * @returns void Successful Response
      * @throws ApiError
      */
@@ -397,7 +402,8 @@ export class AssetService {
                 asset_id: data.assetId
             },
             query: {
-                before: data.before
+                before: data.before,
+                partition_key: data.partitionKey
             },
             errors: {
                 400: 'Bad Request',
