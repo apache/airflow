@@ -990,6 +990,17 @@ class TestRefreshDagBundle:
         assert parsing_requests[0].relative_fileloc is None
         _check_last_log(session, dag_id=None, event="refresh_dag_bundle", logical_date=None)
 
+    def test_repeated_refresh_uses_existing_pending_request(self, auth_manager, session, test_client):
+        session.add(DagBundleModel(name="global-bundle"))
+        session.commit()
+        auth_manager.is_authorized_dag.return_value = True
+
+        first_response = test_client.post("/dagBundles/global-bundle/refresh")
+        second_response = test_client.post("/dagBundles/global-bundle/refresh")
+
+        assert first_response.status_code == second_response.status_code == 202
+        assert len(session.scalars(select(DagPriorityParsingRequest)).all()) == 1
+
     @conf_vars({("core", "multi_team"): "True"})
     def test_team_bundle_refresh_uses_team_permission(self, auth_manager, session, test_client, testing_team):
         bundle = DagBundleModel(name="team-bundle")
