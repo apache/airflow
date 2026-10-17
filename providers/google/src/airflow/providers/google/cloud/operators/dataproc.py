@@ -2419,9 +2419,9 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param batch_id: Optional. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/. (templated)
-    :param batch_id_prefix: Optional. Prefix for a generated unique batch ID.
-        The operator appends a random suffix to avoid collisions between retries.
-        Mutually exclusive with ``batch_id``. (templated)
+    :param batch_id_prefix: Optional. Prefix for a batch ID generated on each task attempt, in the form
+        ``<batch_id_prefix>-<8 hex characters>``, so a retried attempt submits a new batch.
+        Mutually exclusive with ``batch_id`` and ``request_id``. (templated)
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
         the first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -2620,6 +2620,10 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     def _resolve_requested_batch_id(self) -> str | None:
         if self.batch_id and self.batch_id_prefix:
             raise ValueError("batch_id and batch_id_prefix are mutually exclusive")
+        if self.batch_id_prefix and self.request_id:
+            # Dataproc returns the original operation for a repeated request_id, so a retried
+            # attempt would reattach to the previous batch despite its new batch ID.
+            raise ValueError("batch_id_prefix and request_id are mutually exclusive")
         if self.batch_id:
             return self.batch_id
         if self.batch_id_prefix:
@@ -2628,10 +2632,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
 
     @classmethod
     def _build_unique_batch_id_from_prefix(cls, batch_id_prefix: str) -> str:
-        prefix = str(batch_id_prefix)
-        if not prefix:
-            raise ValueError("batch_id_prefix must contain at least one valid character")
-        return f"{prefix}-{uuid.uuid4().hex[: cls._BATCH_ID_SUFFIX_LENGTH]}"
+        return f"{batch_id_prefix}-{uuid.uuid4().hex[: cls._BATCH_ID_SUFFIX_LENGTH]}"
 
     @cached_property
     def hook(self) -> DataprocHook:
@@ -2674,8 +2675,9 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     def retry_batch_creation(
         self,
         previous_batch_id: str,
-        requested_batch_id: str | None,
+        requested_batch_id: str | None = None,
     ):
+        requested_batch_id = requested_batch_id or self.batch_id
         self.log.info("Retrying creation process for batch_id %s", previous_batch_id)
         self.log.info("Deleting previous failed Batch")
         self.hook.delete_batch(

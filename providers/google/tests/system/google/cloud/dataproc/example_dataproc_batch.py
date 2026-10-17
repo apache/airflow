@@ -52,7 +52,7 @@ BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 BATCH_ID_2 = f"batch-{ENV_ID}-{DAG_ID}-2".replace("_", "-")
 BATCH_ID_3 = f"batch-{ENV_ID}-{DAG_ID}-3".replace("_", "-")
 BATCH_ID_4 = f"batch-{ENV_ID}-{DAG_ID}-4".replace("_", "-")
-BATCH_ID_PREFIX = f"batch-{ENV_ID}-{DAG_ID}-prefix".replace("_", "-")
+BATCH_ID_PREFIX = f"batch-{ENV_ID}-pfx".replace("_", "-")
 
 BATCH_CONFIG = {
     "spark_batch": {
