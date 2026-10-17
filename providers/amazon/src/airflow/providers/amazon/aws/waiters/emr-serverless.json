@@ -189,6 +189,25 @@
                     "state": "failure"
                 }
             ]
+        },
+        "serverless_session_terminated": {
+            "operation": "GetSession",
+            "delay": 10,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "TERMINATED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "session.state",
+                    "expected": "FAILED",
+                    "state": "failure"
+                }
+            ]
         }
     }
 }
