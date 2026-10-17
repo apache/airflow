@@ -666,7 +666,7 @@ class RedshiftResumeClusterOperator(AwsBaseOperator[RedshiftHook]):
                     self.log.info("Resumed cluster successfully")
                 elif cluster_state == "deleting":
                     raise AirflowException(
-                        "Unable to resume cluster since cluster is currently in status: %s", cluster_state
+                        f"Unable to resume cluster since cluster is currently in status: {cluster_state}"
                     )
                 else:
                     self.defer(

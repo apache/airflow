@@ -218,7 +218,7 @@ class KinesisAnalyticsV2StartApplicationOperator(AwsBaseOperator[KinesisAnalytic
 
         if validated_event["status"] != "success":
             raise AirflowException(
-                "Error while starting AWS Managed Service for Apache Flink application: %s", validated_event
+                f"Error while starting AWS Managed Service for Apache Flink application: {validated_event}"
             )
 
         response = self.hook.conn.describe_application(

@@ -300,7 +300,7 @@ class ListExperimentRunsOperator(GoogleCloudBaseOperator):
                 project_id=self.project_id, experiment_name=self.experiment_name, location=self.location
             )
         except exceptions.NotFound:
-            raise AirflowException("Experiment %s not found", self.experiment_name)
+            raise AirflowException(f"Experiment {self.experiment_name} not found")
 
         return [er.name for er in experiment_runs]
 
