@@ -20,7 +20,9 @@ import type { ReactNode } from "react";
 
 import { HStack, Icon, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiRepeat } from "react-icons/fi";
+import { MdLoop } from "react-icons/md";
+
+import { LoopDecisionReason } from "src/components/LoopDecisionReason";
 
 import { useLoopSummary } from "src/queries/useLoopSummary";
 
@@ -42,20 +44,28 @@ export const useLoopOutcomeStats = ({
     return [];
   }
 
+  // A running loop's newest pass has not decided yet, so an older pass's reason would misdescribe it.
+  const finalReason = summary.status === "running" ? undefined : summary.iterations.at(-1)?.decision_reason;
+
   return [
     {
       label: translate("loop.outcome"),
       value: (
-        <Text color={summary.status === "failed" ? "fg.error" : undefined}>
-          {reasonSentence(translate, summary)}
-        </Text>
+        <>
+          <Text color={summary.status === "failed" ? "fg.error" : undefined}>
+            {reasonSentence(translate, summary)}
+          </Text>
+          {finalReason === undefined ? undefined : (
+            <LoopDecisionReason color="fg.muted" reason={finalReason} />
+          )}
+        </>
       ),
     },
     {
       label: translate("loop.iterations"),
       value: (
         <HStack gap={1}>
-          <Icon aria-hidden as={FiRepeat} boxSize={3.5} />
+          <Icon aria-hidden as={MdLoop} boxSize={3.5} />
           <Text>
             {summary.iterations_ran}/{summary.max_iterations}
           </Text>

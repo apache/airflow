@@ -348,8 +348,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze build-docs": [
         {
-            "name": "Build scope (default is to build Python docs and spellcheck)",
-            "options": ["--docs-only", "--sdk-docs-only", "--spellcheck-only"],
+            "name": "Build scope (default is to build Python docs and check their spelling)",
+            "options": ["--sdk-docs-only"],
         },
         {
             "name": "Type of build",

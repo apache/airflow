@@ -69,6 +69,31 @@ class TestLLMBranchOperator:
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_builds_agent_with_model_settings_and_output_retries_only(
+        self, mock_hook_cls, mock_do_branch, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("task_a")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_do_branch.return_value = "task_a"
+
+        op = LLMBranchOperator(
+            task_id="test",
+            prompt="Pick a branch",
+            llm_conn_id="my_llm",
+            model_settings={"temperature": 0},
+            output_retries=2,
+        )
+        op.downstream_task_ids = {"task_a", "task_b"}
+        op.execute(MagicMock())
+
+        create_agent_kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert set(create_agent_kwargs) == {"output_type", "instructions", "model_settings", "retries"}
+        assert create_agent_kwargs["model_settings"] == {"temperature": 0}
+        assert create_agent_kwargs["retries"] == 2
+
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_single_branch(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """LLM returns a single enum member → do_branch receives a string."""
 

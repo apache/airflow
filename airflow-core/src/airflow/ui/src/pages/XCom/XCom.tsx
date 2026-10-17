@@ -239,6 +239,7 @@ export const XCom = () => {
     ...dagDisplayNameArg,
     dagId,
     dagRunId: runId,
+    excludeInternalKeys: true,
     limit: pagination.pageSize,
     logicalDateGte: logicalDateGte ?? undefined,
     logicalDateLte: logicalDateLte ?? undefined,
@@ -259,7 +260,7 @@ export const XCom = () => {
     ...xcomKeyArg,
   };
 
-  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
+  const { data, error, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
   const xcomEntries = data?.xcom_entries ?? [];
   const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
@@ -280,7 +281,6 @@ export const XCom = () => {
         displayMode="table"
         filterActions={<XComFilters />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:xcom.entry"
         onStateChange={setTableURLState}

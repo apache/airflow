@@ -43,7 +43,7 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.dynamic_region import LOOP_DECISION_KEY, DynamicRegion
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, DynamicRegion
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import clear_loop_task_instances, clear_task_instances, uuid7
@@ -1503,6 +1503,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             )
         session.commit()
         url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
+        # The UI filters by the loop the author named, not by a region. Keyed that way it spans
+        # every invocation, so a clear that forked the later passes does not lose them.
         params = {"loop_id": "body", "limit": 1}
         if cursor is not None:
             params["cursor"] = cursor
@@ -1510,15 +1512,30 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200, response.text
         assert response.json()["total_entries"] == 4
         assert len(response.json()["task_instances"]) == 1
+        # One pass covers the loop's own region at that index *and* the mapped expansion nested
+        # inside it, which sits at an index of its own.
         response = test_client.get(url, params={**params, "iteration": 2, "limit": 100})
         assert response.status_code == 200, response.text
         assert response.json()["total_entries"] == 2
         assert {ti["region_index"] for ti in response.json()["task_instances"]} == {2, 7}
         response = test_client.get(url, params={**params, "iteration": 0, "limit": 100})
         assert response.json()["total_entries"] == 2
+        # region_id names one region exactly; the logical scope of a pass is what loop_id and
+        # iteration are for, so this does not reach the expansion nested inside it.
+        exact = test_client.get(url, params={"region_id": str(replacement.id), "limit": 100})
+        assert exact.status_code == 200, exact.text
+        assert {ti["region_index"] for ti in exact.json()["task_instances"]} == {2}
 
     def test_iteration_filter_requires_loop(self, test_client):
         response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"iteration": 1})
+        assert response.status_code == 400
+
+    def test_loop_filter_requires_a_specific_dag_run(self, test_client):
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"loop_id": "body"})
+        assert response.status_code == 400
+
+    def test_region_index_requires_region_id(self, test_client):
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"region_index": 1})
         assert response.status_code == 400
 
     @pytest.mark.parametrize(
@@ -5443,6 +5460,53 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["total_entries"] == group_size
 
+    @pytest.mark.parametrize(
+        ("mapped", "task_id", "expected"),
+        [
+            pytest.param(False, "a", [("a", -1), ("b", -1), ("root", -1)], id="unmapped"),
+            pytest.param(True, ["a", 0], [("a", 0), ("b", -1), ("root", -1)], id="mapped"),
+        ],
+    )
+    @pytest.mark.parametrize("with_loop", [False, True], ids=["without-loop", "with-unrelated-loop"])
+    def test_clear_with_upstream_and_downstream_excludes_unrelated_tasks(
+        self, test_client, dag_maker, session, mapped, task_id, expected, with_loop
+    ):
+        """Upstream + downstream must not include other descendants of the upstream tasks."""
+
+        @task_group
+        def body():
+            BaseOperator(task_id="member")
+
+        dag_id = "clear_upstream_and_downstream"
+        with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1, serialized=True):
+            if with_loop:
+                create_loop(body, max_iterations=2)
+            root = BaseOperator(task_id="root")
+            if mapped:
+                a = MockOperator.partial(task_id="a").expand(arg2=["x", "y", "z"])
+            else:
+                a = BaseOperator(task_id="a")
+            b = BaseOperator(task_id="b")
+            other = BaseOperator(task_id="other")
+            root >> a >> b
+            root >> other
+        dr = dag_maker.create_dagrun(run_id="run1", logical_date=DEFAULT_DATETIME_1)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "only_failed": False,
+                "dag_run_id": dr.run_id,
+                "task_ids": [task_id],
+                "include_upstream": True,
+                "include_downstream": True,
+            },
+        )
+        assert response.status_code == 200
+        response_tis = response.json()["task_instances"]
+        assert sorted((ti["task_id"], ti["map_index"]) for ti in response_tis) == expected
+
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_history_without_dag_version_serializes_null(self, test_client, session):
@@ -5900,6 +5964,62 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         )
         assert current_last.state == (State.FAILED if dry_run else None)
 
+    def test_loop_mark_with_upstream_and_downstream_excludes_unrelated_tasks(
+        self, test_client, dag_maker, session
+    ):
+        @task_group
+        def body():
+            prepare = MockOperator(task_id="prepare")
+            combine = MockOperator(task_id="combine")
+            prepare >> MockOperator(task_id="process") >> combine
+            prepare >> MockOperator(task_id="audit") >> combine
+
+        with dag_maker("mark_loop_upstream_and_downstream", serialized=True):
+            start = MockOperator(task_id="start")
+            loop = create_loop(body, max_iterations=3)
+            start >> MockOperator(task_id="report")
+            start >> loop >> MockOperator(task_id="finish")
+        dr = dag_maker.create_dagrun()
+        root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        for index in (1, 2):
+            for loop_task in loop.iter_tasks():
+                session.add(
+                    TaskInstance(
+                        task=loop_task,
+                        run_id=dr.run_id,
+                        dag_version_id=dr.created_dag_version_id,
+                        region_id=root.id,
+                        region_index=index,
+                    )
+                )
+        session.flush()
+        for ti in dr.get_task_instances(session=session):
+            ti.set_state(State.SUCCESS, session=session)
+        session.commit()
+
+        response = test_client.patch(
+            f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances/body.process/dry_run",
+            json={
+                "new_state": "failed",
+                "region_id": str(root.id),
+                "region_index": 1,
+                "include_upstream": True,
+                "include_downstream": True,
+            },
+        )
+
+        assert response.status_code == 200, response.text
+        assert {
+            (item["task_id"], item.get("region_index")) for item in response.json()["task_instances"]
+        } == {
+            ("start", None),
+            ("body.prepare", 1),
+            ("body.process", 1),
+            ("body.combine", 1),
+            (loop.gate_task_id, 1),
+            ("finish", None),
+        }
+
     def test_loop_mark_without_coordinates_requires_a_region_and_index(self, test_client, loop_instances):
         dr, loop, root, tis = loop_instances
 
@@ -5966,7 +6086,7 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         assert tis["body.first", 0].note is None
         assert tis["body.first", 2].note is None
 
-    def test_manual_gate_success_after_rewind_stops_without_consuming_continue(
+    def test_manual_gate_success_after_rewind_stops_and_keeps_the_reason(
         self, test_client, session, loop_instances
     ):
         dr, loop, root, tis = loop_instances
@@ -5980,7 +6100,7 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
             )
         ).one()
         gate_id = gate.id
-        session.add(XComModelV2(task_instance_id=gate_id, key=LOOP_DECISION_KEY, value="continue"))
+        session.add(XComModelV2(task_instance_id=gate_id, key=LOOP_DECISION_REASON_KEY, value="stale"))
         session.commit()
 
         response = test_client.patch(
@@ -5992,7 +6112,9 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         session.expire_all()
         assert session.get(TaskInstance, gate_id).state == State.SUCCESS
         assert all(ti.region_index == 0 for ti in dr.get_task_instances(session=session))
-        assert not session.scalar(select(XComModelV2).where(XComModelV2.task_instance_id == gate_id))
+        assert session.scalars(
+            select(XComModelV2.value).where(XComModelV2.task_instance_id == gate_id)
+        ).all() == ["stale"]
 
     @pytest.mark.parametrize("outcome", ["success", "failed", "skipped"])
     def test_manual_terminal_settles_superseded_running_execution(

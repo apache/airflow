@@ -16,22 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ReactNode } from "react";
+import { type ReactNode, createContext, use } from "react";
 
 import { Box, Field } from "@chakra-ui/react";
-import type {
-  ChakraStylesConfig,
-  ControlProps,
-  GroupBase,
-  OptionsOrGroups,
-  SingleValue,
-} from "chakra-react-select";
-import { AsyncSelect, chakraComponents } from "chakra-react-select";
+import type { ChakraStylesConfig, ControlProps, GroupBase, SingleValue } from "chakra-react-select";
+import { Select, chakraComponents } from "chakra-react-select";
+import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
 
+// react-select builds its components from a stable map, so anything a caller wants inside the
+// control has to reach it some other way than a prop: rebuilding the control to close over one
+// would remount the input on every render and drop focus mid-keystroke.
+const ControlEndContext = createContext<ReactNode>(undefined);
+
 /**
- * Leads the input with the search affordance. react-select only renders indicators after the value
- * container, so an icon on the start side has to come from the control itself.
+ * Leads the input with the search affordance and closes it with whatever the caller put at the end.
+ * react-select only renders indicators after the value container, so an icon on the start side has
+ * to come from the control itself.
  */
 const SearchControl = <Option,>({ children, ...props }: ControlProps<Option, false>) => (
   <chakraComponents.Control {...props}>
@@ -39,49 +40,49 @@ const SearchControl = <Option,>({ children, ...props }: ControlProps<Option, fal
       <FiSearch />
     </Box>
     {children}
+    {use(ControlEndContext)}
   </chakraComponents.Control>
 );
 
-/** `DropdownIndicator` accepts `null` to opt out; `LoadingIndicator` only accepts a component. */
-const NoIndicator = () => null;
+/** The server decides what matches, so react-select must not filter the answer again. */
+const keepEveryOption = () => true;
 
 type Props<Option> = {
-  /**
-   * The options to list before anything is typed. Always an array, never `true`: `true` makes
-   * react-select call `loadOptions` from a mount effect and start out `isLoading`, so every open
-   * of a panel that unmounts on close is a spinner over an empty list. A fresh array replaces what
-   * is listed, which is how a live query keeps an open panel current.
-   */
-  readonly defaultOptions: Array<Option>;
+  /** Rendered at the end of the input, where an addon sits on a search field elsewhere. */
+  readonly controlEnd?: ReactNode;
   readonly formatOptionLabel: (option: Option) => ReactNode;
-  /**
-   * Shown while a search is in flight. react-select empties the list for the first search after
-   * the input is cleared, so without this the panel would render nothing at all in that window.
-   */
-  readonly loadingMessage: string;
-  readonly loadOptions: (
-    inputValue: string,
-    callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
-  ) => void;
+  readonly inputValue: string;
   readonly onChange: (selected: SingleValue<Option>) => void;
+  readonly onInputChange: (value: string) => void;
+  readonly options: Array<Option>;
   readonly placeholder: string;
 };
 
 /**
- * The search a breadcrumb switcher drops open. Its results are listed from the moment it mounts,
- * since the panel exists only to show them.
+ * The search a breadcrumb switcher drops open.
+ *
+ * The caller owns the input and what is listed for it, rather than react-select's async mode
+ * owning both: that only reloads from its own input handler, so a search could not be re-run when
+ * something other than the text changed it — such as turning match-anywhere on. Holding the text
+ * here also means the options on screen are whatever the caller last had, so a search in flight
+ * leaves the previous answer up instead of emptying the panel.
  */
 export const SearchSelect = <Option,>({
-  defaultOptions,
+  controlEnd,
   formatOptionLabel,
-  loadingMessage,
-  loadOptions,
+  inputValue,
   onChange,
+  onInputChange,
+  options,
   placeholder,
 }: Props<Option>) => {
+  const { t: translate } = useTranslation();
   // The popover is the card. Drop the floating menu's own positioning and chrome so the results
   // flow inside it directly under the input, instead of reading as a second card.
   const chakraStyles: ChakraStylesConfig<Option, false, GroupBase<Option>> = {
+    // Whatever the caller puts at the end of the control is an addon: it fills the control's
+    // height and reaches its edge, so the control itself gives up its end padding.
+    control: (provided) => ({ ...provided, overflow: "hidden", paddingInlineEnd: 0 }),
     menu: () => ({ marginTop: 2, width: "100%" }),
     menuList: (provided) => ({
       ...provided,
@@ -94,24 +95,30 @@ export const SearchSelect = <Option,>({
   };
 
   return (
-    <Field.Root>
-      <AsyncSelect<Option>
-        backspaceRemovesValue={true}
-        chakraStyles={chakraStyles}
-        // No spinner: the listed options are in hand before the panel opens, and a search
-        // replaces them once it answers. Only the window where react-select empties the list
-        // itself gets an affordance, and a line of text is enough for it.
-        components={{ Control: SearchControl, DropdownIndicator: null, LoadingIndicator: NoIndicator }}
-        defaultOptions={defaultOptions}
-        filterOption={undefined}
-        formatOptionLabel={formatOptionLabel}
-        loadingMessage={() => loadingMessage}
-        loadOptions={loadOptions}
-        menuIsOpen
-        onChange={onChange}
-        placeholder={placeholder}
-        value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
-      />
-    </Field.Root>
+    <ControlEndContext value={controlEnd}>
+      <Field.Root>
+        <Select<Option>
+          backspaceRemovesValue={true}
+          chakraStyles={chakraStyles}
+          components={{ Control: SearchControl, DropdownIndicator: null }}
+          filterOption={keepEveryOption}
+          formatOptionLabel={formatOptionLabel}
+          inputValue={inputValue}
+          menuIsOpen
+          noOptionsMessage={() => translate("table.noResultsFound")}
+          onChange={onChange}
+          // Only a keystroke is a new search; react-select also reports blur and menu close here,
+          // which would otherwise wipe the text while the panel is still open.
+          onInputChange={(value, { action }) => {
+            if (action === "input-change") {
+              onInputChange(value);
+            }
+          }}
+          options={options}
+          placeholder={placeholder}
+          value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
+        />
+      </Field.Root>
+    </ControlEndContext>
   );
 };

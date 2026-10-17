@@ -17,11 +17,15 @@
 ---
 default_stages: [pre-commit, pre-push]
 default_install_hook_types: [pre-commit, commit-msg]
-minimum_prek_version: '0.3.4'
+minimum_prek_version: '0.4.8'
 default_language_version:
   python: python3
   node: 22.19.0
   golang: 1.25.0
+default_env:
+  # Unless overridden, no hook defined in this file should change the resolutions in uv.lock; they use
+  # the committed ones. Hooks in nested configs do not inherit this and must pass --frozen to uv themselves.
+  UV_FROZEN: "1"
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -565,6 +569,7 @@ repos:
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
         stages: ['manual']
+        env: {UV_FROZEN: "0"}
         language: python
         files: >
           (?x)
@@ -577,6 +582,7 @@ repos:
         name: Upgrade curated dependency floors (manual)
         entry: ./scripts/ci/prek/upgrade_dependency_floors.py
         stages: ['manual']
+        env: {UV_FROZEN: "0"}
         language: python
         files: >
           (?x)
@@ -838,6 +844,8 @@ repos:
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/openapi-gen/|
           ^providers/edge3/src/airflow/providers/edge3/plugins/www/openapi-gen/|
+          ^devel-common/src/sphinx_exts/airflow_spelling\.py$|
+          ^devel-common/tests/unit/sphinx_exts/test_airflow_spelling\.py$|
           .*/dist/.*|
           \.go$|
           /go\.(mod|sum)$
@@ -1583,13 +1591,15 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
         require_serial: true
         # This is a fast regular hook that runs when any pyproject.toml changes.
-        # It runs locally with `--frozen` so the lock is only verified against pyproject.toml,
-        # never silently rewritten during a commit. If a pyproject.toml change makes the lock
-        # stale, the hook fails and the contributor must run `uv lock` explicitly and commit
-        # the refreshed uv.lock — which keeps lock updates intentional and reviewable.
+        # It runs `uv lock --check`, so the lock is verified against pyproject.toml but never
+        # rewritten during a commit. If a pyproject.toml change makes the lock stale, the hook
+        # fails and the contributor must run `uv lock` explicitly and commit the refreshed
+        # uv.lock — which keeps lock updates intentional and reviewable. UV_FROZEN is disabled
+        # because under it `--check` only validates the lock, it does not detect staleness.
       - id: update-uv-lock
         name: Update uv.lock
-        entry: uv lock --frozen
+        entry: uv lock --check
+        env: {UV_FROZEN: "0"}
         language: system
         files: >
           (?x)
@@ -1648,6 +1658,20 @@ repos:
         language: python
         pass_filenames: true
         files: ^(task-sdk/src/airflow/sdk/execution_time/(comms\.py|schema/.*\.py)|airflow-core/src/airflow/dag_processing/processor\.py)$
+        require_serial: true
+      - id: generate-yaml-importer-schema-snapshot
+        name: Regenerate YAML DAG importer schema snapshot
+        entry: uv run -p 3.12 --frozen --no-progress --project task-sdk -s scripts/ci/prek/generate_yaml_importer_schema.py
+        language: python
+        pass_filenames: false
+        files: ^task-sdk/src/airflow/sdk/importers/yaml_importer/(models|parser|versions/.*)\.py$
+        require_serial: true
+      - id: check-yaml-importer-schema-versions
+        name: Check YAML DAG importer schema changes have corresponding version updates
+        entry: ./scripts/ci/prek/check_yaml_importer_schema_versions.py
+        language: python
+        pass_filenames: true
+        files: ^task-sdk/src/airflow/sdk/importers/yaml_importer/(models\.py|schema\.json|versions/.*\.py)$
         require_serial: true
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client

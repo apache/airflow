@@ -32,6 +32,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TaskInstance,
     TerminalStateNonSuccess,
     TIRunContext,
+    TISuccessStatePayload,
     TITerminalStatePayload,
 )
 
@@ -122,6 +123,17 @@ class AddTerminalStateRetryReasonField(VersionChange):
     )
 
 
+class AddLoopDecisionField(VersionChange):
+    """Add the `loop_decision` field a loop gate reports with its terminal state."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TISuccessStatePayload).field("loop_decision").didnt_exist,
+        schema(TITerminalStatePayload).field("loop_decision").didnt_exist,
+    )
+
+
 class AddMultiTeamToTIRunContext(VersionChange):
     """Add ``multi_team`` so a worker can determine multi-team (e.g. for plugin scoping) without needing to trust its own config."""
 
@@ -133,3 +145,13 @@ class AddMultiTeamToTIRunContext(VersionChange):
     def remove_multi_team_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``multi_team`` from the run context for older clients."""
         response.body.pop("multi_team", None)
+
+
+class AddFirstTaskRescheduleStartDateField(VersionChange):
+    """Add the ``first_task_reschedule_start_date`` field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )

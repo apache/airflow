@@ -1185,7 +1185,7 @@ class TestCommands:
         client.update_client_authz_scope_permission.assert_called_once()
         payload = client.update_client_authz_scope_permission.call_args.kwargs["payload"]
         assert payload["policies"] == ["superadmin-policy"]
-        assert payload["resources"] == ["dag-team-a", "dag-team-b", "asset-global"]
+        assert payload["resources"] == ["dag-global", "dag-team-a", "dag-team-b", "asset-global"]
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_resource_permission")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_scope_permission")

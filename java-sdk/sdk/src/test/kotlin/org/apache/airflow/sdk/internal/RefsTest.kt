@@ -125,7 +125,7 @@ internal class RefsTest {
 
     assertEquals(
       "Wiring for Dag 'd' did not register task(s) 'x', 'y': " +
-        "every @Builder.Task method must be called in the @Builder.Deps class",
+        "every @Airflow.Task method must be called in the @Airflow.Deps class",
       error.message,
     )
   }
@@ -139,7 +139,7 @@ internal class RefsTest {
       }
 
     assertEquals(
-      "Task 't' was wired outside a @Builder.Deps class; the wiring view's methods " +
+      "Task 't' was wired outside an @Airflow.Deps class; the wiring view's methods " +
         "only record while the generated builder is running depends()",
       error.message,
     )

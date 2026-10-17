@@ -555,10 +555,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.TS_SDK_FILES: [
             # Documentation entry points and `.md` files do not affect the generated
-            # supervisor schema. `ts-sdk/docs/package.json` and its lock file are excluded
-            # too — they pin the docs toolchain's own dependencies and do not affect the SDK
-            # build.
-            r"^ts-sdk/(?!api-docs/)(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
+            # supervisor schema or the unit tests. `ts-sdk/docs/` is excluded too — it is the
+            # docs toolchain's own package, with its own tests that vitest does not run.
+            r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1354,6 +1353,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
+    def run_ts_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_FILES)
+
+    @cached_property
     def run_ts_sdk_docs(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
 
@@ -1922,7 +1925,6 @@ class SelectiveChecks:
     def skip_prek_hooks(self) -> str:
         prek_hooks_to_skip = set()
         prek_hooks_to_skip.add("identity")
-        prek_hooks_to_skip.add("update-uv-lock")
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             prek_hooks_to_skip.update(

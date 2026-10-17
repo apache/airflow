@@ -68,6 +68,17 @@
     "upcomingCount_one": "{{count, number}} 個即將到期的期限",
     "upcomingCount_other": "{{count, number}} 個即將到期的期限"
   },
+  "execution": {
+    "clearSelected": "清除已選取的執行項目",
+    "empty": "此次 Dag 執行沒有任何執行項目。",
+    "iteration": "{{node}} · 第 {{index}} 次迭代",
+    "mapped_one": "{{task}}（此頁面有 1 個映射任務）",
+    "mapped_other": "{{task}}（此頁面有 {{count, number}} 個映射任務）",
+    "page": "顯示第 {{start, number}}–{{end, number}} 個，共 {{total, number}} 個執行項目",
+    "runTasks": "此次 Dag 執行的任務",
+    "select": "選取 {{task}}",
+    "title": "執行項目"
+  },
   "extraLinks": "額外連結",
   "grid": {
     "buttons": {
@@ -107,6 +118,42 @@
     "viewPreviousTry": "檢視前一次（第 {{tryNumber}} 次）嘗試的日誌",
     "waitingToRetry": "第 {{tryNumber}} 次嘗試正在等待重試。",
     "warning": "WARNING"
+  },
+  "loop": {
+    "filter": {
+      "all": "所有迭代",
+      "invocation": "呼叫",
+      "label": "迭代"
+    },
+    "history": {
+      "capLabel": "上限：{{max}}",
+      "iterationsAxis": "迭代次數",
+      "stats": {
+        "capHits": "達到上限",
+        "medianIterations": "迭代次數中位數"
+      },
+      "title": "每次執行的迭代次數"
+    },
+    "iteration": "第 {{index}} 次迭代",
+    "iterations": "迭代次數",
+    "outcome": "結果",
+    "reason": {
+      "cap_reached": "已達迭代上限（{{max}}）",
+      "failed": "於第 {{index}} 次迭代失敗",
+      "iteration_failed": "第 {{index}} 次迭代於 {{taskId}} 失敗",
+      "ran_to_cap": "已執行全部 {{max}} 次允許的迭代",
+      "removed": "已移除",
+      "running": "執行中",
+      "skipped": "已跳過",
+      "stopped_early": "於第 {{index}} 次迭代提前停止"
+    },
+    "rules": {
+      "behaviour": "行為",
+      "boundedFor": "執行固定次數的迭代",
+      "exitCriteria": "結束條件",
+      "maxIterations": "最大迭代次數",
+      "whileUntil": "重複執行直到 {{criteria}}"
+    }
   },
   "notFound": {
     "back": "返回",
@@ -290,7 +337,6 @@
     "maxChanges": "變更數上限",
     "maxChangesDefault": "預設",
     "noChanges": "這些版本的狀態相同。",
-    "observedState": "目前儲存狀態",
     "observedStateBoundary": "比較的是目前儲存的狀態，而非建立當時的證據。歷史版本無法比較原始碼；請使用「程式碼」分頁比較原始碼。",
     "operations": {
       "added": "新增",
@@ -300,19 +346,14 @@
     "record_one": "記錄",
     "record_other": "記錄",
     "selectPrompt": "選擇兩個版本以查看它們之間的差異。",
-    "summary_one": "1 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "1 項變更",
+    "summary_other": "{{count, number}} 項變更",
     "target": "比較對象",
-    "truncated": {
-      "description": "為維持在上限內，未顯示的路徑上的變更已被捨棄，因此此數量僅為下限。",
-      "title": "部分變更未回傳"
-    },
     "unavailable": {
       "description": "無法比較這些版本。原因：",
       "title": "無法比較",
       "withoutReason": "無法比較這些版本。"
     },
-    "valuesHidden": "值已隱藏",
-    "valuesShown": "值已顯示"
+    "valuesHidden": "值已隱藏"
   }
 }

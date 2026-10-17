@@ -35,7 +35,7 @@ import time
 import weakref
 from collections import deque
 from collections.abc import Callable, Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
@@ -56,7 +56,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
-import httpx
+import httpx2
 import msgspec
 import psutil
 import structlog
@@ -172,6 +172,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_update_dag_run_note,
 )
 from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
+from airflow.sdk.log import _supervisor_comms
 
 try:
     from socket import send_fds
@@ -184,6 +185,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 _trace_propagator = TraceContextTextMapPropagator()
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from typing import Self
 
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -362,6 +364,19 @@ def _subprocess_main():
     from airflow.sdk.execution_time.task_runner import main
 
     main()
+
+
+def _import_task_runner_before_fork() -> None:
+    """
+    Import the task runner so that a child forked from this process inherits it.
+
+    Task and callback processes both import it, so importing it once here saves every forked child
+    from importing it again. It is not imported at module level because secrets lookups outside a
+    task import this module, and they must not load the task runtime.
+    """
+    # If it fails to import, the child imports it again and reports the error in its own log.
+    with suppress(ImportError):
+        import airflow.sdk.execution_time.task_runner  # noqa: F401
 
 
 def _reset_signals():
@@ -1140,7 +1155,8 @@ class WatchedSubprocess:
                 if request.context_carrier:
                     ctx = _trace_propagator.extract(request.context_carrier)
                     token = otel_context.attach(ctx)
-                self._handle_request(msg, log, request.id)
+                with self._request_scope(request):
+                    self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
                 error_details = e.response.json() if e.response else None
                 log.error(
@@ -1164,8 +1180,8 @@ class WatchedSubprocess:
                     request_id=request.id,
                 )
             except Exception as e:
-                # Generic exception handling so a transient network error (httpx.ConnectError /
-                # httpx.TimeoutException) or any other exception
+                # Generic exception handling so a transient network error (httpx2.ConnectError /
+                # httpx2.TimeoutException) or any other exception
                 # doesn't crash this generator and crash the IPC communication between supervisor and task.
                 log.exception(
                     "Unhandled exception while handling task request",
@@ -1188,6 +1204,10 @@ class WatchedSubprocess:
             finally:
                 if token is not None:
                     otel_context.detach(token)
+
+    def _request_scope(self, request: _RequestFrame) -> AbstractContextManager[None]:
+        """Return a context manager that wraps the handling of ``request``; subclasses override to scope API calls."""
+        return nullcontext()
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         if self._request_handlers is None:
@@ -1531,7 +1551,7 @@ def _ensure_client(
         yield client
         return
 
-    limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+    limits = httpx2.Limits(max_keepalive_connections=1, max_connections=10)
     new_client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
     log.debug("Connecting to execution API server", server=server)
     try:
@@ -1669,6 +1689,8 @@ class ActivitySubprocess(WatchedSubprocess):
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
         use_exec = target is _subprocess_main and _task_process_uses_exec()
+        if target is _subprocess_main and not use_exec:
+            _import_task_runner_before_fork()
         proc: Self = super().start(
             id=what.id,
             client=client,
@@ -1818,6 +1840,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     when=msg.end_date or datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     retry_reason=msg.retry_reason,
+                    loop_decision=msg.loop_decision,
                 )
             elif isinstance(msg, SucceedTask):
                 self.client.task_instances.succeed(
@@ -1826,6 +1849,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     task_outlets=msg.task_outlets,
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
+                    loop_decision=msg.loop_decision,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(
@@ -2919,14 +2943,9 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     # 1. Check for client context (SUPERVISOR_COMMS)
-    try:
-        from airflow.sdk.execution_time import task_runner
-
-        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
-            # Client context: task runner with SUPERVISOR_COMMS
-            return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-    except (ImportError, AttributeError):
-        pass
+    if _supervisor_comms() is not None:
+        # Client context: task runner with SUPERVISOR_COMMS
+        return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
     # 2. Check for explicit server context
     if os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server":
@@ -3152,6 +3171,17 @@ def supervise_task(
                 logger=logger or structlog.get_logger(logger_name="task").bind(),
                 error=e,
             )
+        except httpx2.RequestError as e:
+            if logger is not None:
+                logger.info("::endgroup::")
+                logger.error(
+                    "Could not reach the Execution API server. Verify the `[core] "
+                    "execution_api_server_url` (or `[api] base_url`) setting points at a reachable "
+                    "Airflow API server.",
+                    server=server,
+                    error=str(e),
+                )
+            raise
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()

@@ -5230,7 +5230,7 @@ class TestSchedulerJob:
 
             def mock_schedule_dag_run(*args, **kwargs):
                 mock_guard.reset_mock()
-                return None
+                return mock.create_autospec(DagCallbackRequest, instance=True)
 
             def mock_send_dag_callbacks_to_processor(*args, **kwargs):
                 mock_guard.return_value.__enter__.return_value.commit.assert_called()
@@ -5272,12 +5272,30 @@ class TestSchedulerJob:
 
         self.job_runner._do_scheduling(session)
 
-        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
-        self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
-        assert call_args[0].dag_id == dr.dag_id
-        assert call_args[1] is None
+        # No callback is built when no callbacks are set on the Dag, so nothing is sent
+        self.job_runner._send_dag_callbacks_to_processor.assert_not_called()
 
+        session.rollback()
+
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_do_scheduling_skips_dag_lookup_for_runs_without_callback(self, dag_maker, session):
+        """The callback loop does not load the Dag for runs that produced no callback."""
+        with dag_maker(
+            dag_id="test_do_scheduling_skips_dag_lookup_for_runs_without_callback", session=session
+        ):
+            EmptyOperator(task_id="dummy")
+        dag_maker.create_dagrun()
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        with (
+            mock.patch.object(self.job_runner, "_schedule_dag_run", autospec=True, return_value=None),
+            mock.patch.object(self.job_runner, "_send_dag_callbacks_to_processor", autospec=True) as send,
+            mock.patch.object(self.job_runner.scheduler_dag_bag, "get_dag_for_run", autospec=True) as get_dag,
+        ):
+            self.job_runner._do_scheduling(session)
+
+        get_dag.assert_not_called()
+        send.assert_not_called()
         session.rollback()
 
     @pytest.mark.parametrize(("state", "msg"), [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
@@ -5957,6 +5975,55 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_verify_integrity_updates_dag_version_for_waiting_tasks(self, dag_maker, session):
+        with dag_maker("test_version_update_with_waiting_task", serialized=False, session=session) as dag:
+            upstream = BashOperator(task_id="upstream", bash_command="echo upstream")
+            downstream = BashOperator(task_id="downstream", bash_command="echo downstream")
+            BashOperator(task_id="finished", bash_command="echo finished")
+            upstream >> downstream
+
+        dr = dag_maker.create_dagrun()
+        assert dr.bundle_version is None
+        upstream_ti = dr.get_task_instance("upstream", session=session)
+        upstream_ti.state = State.RUNNING
+        downstream_ti = dr.get_task_instance("downstream", session=session)
+        assert downstream_ti.state is None
+        original_version_id = downstream_ti.dag_version_id
+        finished_ti = dr.get_task_instance("finished", session=session)
+        finished_ti.state = State.SUCCESS
+        assert finished_ti.dag_version_id == original_version_id
+        session.commit()
+
+        downstream.bash_command = "echo updated downstream"
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG.from_dag(dag), bundle_name=dag_maker.bundle_name, session=session
+        )
+        session.commit()
+        latest_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
+        assert latest_version_id != original_version_id
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner._schedule_dag_run(dr, session)
+        session.commit()
+
+        session.refresh(upstream_ti)
+        session.refresh(downstream_ti)
+        session.refresh(finished_ti)
+        assert upstream_ti.dag_version_id == latest_version_id
+        assert downstream_ti.state is None
+        assert downstream_ti.dag_version_id == latest_version_id
+        assert finished_ti.state == State.SUCCESS
+        assert finished_ti.dag_version_id == original_version_id
+
+        upstream_ti.state = State.SUCCESS
+        session.commit()
+        self.job_runner._schedule_dag_run(dr, session)
+        session.commit()
+
+        session.refresh(downstream_ti)
+        assert downstream_ti.state == State.SCHEDULED
+        assert downstream_ti.dag_version_id == latest_version_id
+
     def test_verify_integrity_not_called_for_versioned_bundles(self, dag_maker, session):
         with dag_maker("test_verify_integrity_if_dag_not_changed") as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
@@ -6517,6 +6584,27 @@ class TestSchedulerJob:
         assert dr.state == State.QUEUED
         assert dr.start_date is None
         assert dr.creating_job_id == scheduler_job.id
+
+    def test_do_scheduling_creates_task_instances_for_scheduler_created_mapped_run(self, dag_maker, session):
+        """A Dag run the scheduler creates itself (not via dag_maker.create_dagrun()) for a
+        dynamically mapped task must get its mapped TaskInstances created.
+
+        Only reproducible through the real CommitProhibitorGuard installed by _do_scheduling:
+        other tests in this file exercise _create_dagruns_for_dags/_schedule_all_dag_runs
+        directly with the plain session cast as the guard (`cast("CommitProhibitorGuard",
+        session)`), which never installs the real before_commit listener.
+        """
+        with dag_maker(dag_id="test_scheduled_mapped_task", schedule="@once", session=session):
+            BashOperator.partial(task_id="mapped", bash_command="true").expand(env=[{"n": "1"}, {"n": "2"}])
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        self.job_runner._do_scheduling(session)
+
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == "test_scheduled_mapped_task")).one()
+        tis = dr.get_task_instances(session=session)
+        assert sorted(ti.map_index for ti in tis) == [0, 1]
 
     @pytest.mark.need_serialized_dag
     @conf_vars({("scheduler", "batch_asset_events"): "True"})
@@ -7388,6 +7476,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
+        good_callback = mock.create_autospec(DagCallbackRequest, instance=True)
         caplog.clear()
         with (
             caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
@@ -7397,7 +7486,7 @@ class TestSchedulerJob:
                 autospec=True,
                 side_effect=[
                     TypeError("simulated crash from corrupted task instance"),  # bad_run
-                    None,  # good_run
+                    good_callback,  # good_run
                 ],
             ) as mock_schedule,
         ):
@@ -7407,8 +7496,7 @@ class TestSchedulerJob:
                 result = self.job_runner._schedule_all_dag_runs(guard, [bad_run, good_run], session=session)
 
             # The good DAG run should have been processed despite the bad one failing
-            assert len(result) == 1
-            assert result[0][0] == good_run
+            assert result == [(good_run, good_callback)]
 
             # Both dag runs should have been attempted
             assert mock_schedule.call_count == 2

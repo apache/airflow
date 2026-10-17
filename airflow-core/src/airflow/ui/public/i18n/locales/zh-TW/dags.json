@@ -6,6 +6,11 @@
       "warning": "這將會刪除所有與此 Dag 相關的系統資料，包括 Dag 執行與任務。"
     }
   },
+  "draining": {
+    "badgeTooltip": "待目前的執行全部結束後，此 Dag 將自動暫停。",
+    "label": "完成後將暫停",
+    "tooltip": "{{dagDisplayName}} 會在目前的執行全部結束後自動暫停。點選以恢復排程。"
+  },
   "favoriteDag": "將 Dag 加入最愛",
   "filters": {
     "allRunTypes": "全部執行類型",
@@ -92,13 +97,15 @@
       "existingTasks": "清除現有任務",
       "future": "未來",
       "keepTaskState": "保留任務狀態並繼續",
+      "laterIterations": "後續迭代",
       "onlyFailed": "只清除失敗任務",
       "past": "過去",
       "preventRunningTasks": "若任務正在執行中，則防止重新執行",
       "queueNew": "排隊新任務",
       "runOnLatestVersion": "執行最新套件包版本",
       "runOnLatestVersionForced": "一律使用最新的套件包版本 — 沒有可回復的較舊版本",
-      "upstream": "上游"
+      "upstream": "上游",
+      "wholeExpansion": "整個展開"
     }
   },
   "runStateCounts": {
@@ -116,18 +123,10 @@
   "schedulingBanner": {
     "message": "待目前的執行全部結束後，此 Dag 將自動暫停。"
   },
-  "schedulingState": {
-    "active": "啟用中",
-    "draining": "完成後將暫停",
-    "drainingBadgeTooltip": "待目前的執行全部結束後，此 Dag 將自動暫停。",
-    "drainingTooltip": "{{dagDisplayName}} 會在目前的執行全部結束後自動暫停。點選以恢復排程。",
-    "label": "排程狀態",
-    "paused": "暫停",
-    "placeholder": "選擇排程狀態…"
-  },
   "search": {
     "advanced": "進階搜尋",
     "clear": "清除搜尋",
+    "dagRuns": "搜尋 $t(common:dagRun_other)",
     "dags": "搜尋 Dags",
     "hotkey": "+K",
     "tasks": "搜尋任務"

@@ -1,0 +1,1 @@
+A queued connection test with ``commit_on_success`` for a connection that did not exist when the test was queued no longer overwrites a connection with the same ID created in the meantime. The test is reported as failed with a message explaining that the tested values were not saved.

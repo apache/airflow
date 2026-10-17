@@ -944,7 +944,7 @@ def _update_admin_permission_resources(
         r["_id"]
         for r in resources
         if any(r["name"].startswith(f"{resource}:") for resource in TEAM_SCOPED_RESOURCE_NAMES)
-        or r["name"] in GLOBAL_SCOPED_RESOURCE_NAMES
+        or r["name"] in TEAM_SCOPED_RESOURCE_NAMES | GLOBAL_SCOPED_RESOURCE_NAMES
     ]
 
     existing_policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)

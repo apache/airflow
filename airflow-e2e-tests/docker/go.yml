@@ -30,6 +30,11 @@ services:
     environment:
       USER: airflow
       HOME: /home/airflow
+      # The dynamic Dag test swaps a YAML file and waits for the Dag IDs to change. Re-parse the
+      # bundle every few seconds, and mark a Dag stale soon after it leaves the YAML.
+      AIRFLOW__DAG_PROCESSOR__MIN_FILE_PROCESS_INTERVAL: '5'
+      AIRFLOW__DAG_PROCESSOR__STALE_DAG_THRESHOLD: '10'
+      AIRFLOW__SCHEDULER__PARSING_CLEANUP_INTERVAL: '5'
 
   airflow-worker:
     # The bundle is built with CGO_ENABLED=0, so the SDK's user.Current() call at
