@@ -130,15 +130,10 @@ def enable_tcp_keepalive(configuration: Configuration) -> None:
 
     This prevents connections from hanging indefinitely when an idle connection is timed out
     by services like cloud load balancers or firewalls. The options are set through
-    ``Configuration.socket_options``, which requires kubernetes>=36.0.1; on older clients a
-    warning is logged and the configuration is left unchanged.
+    ``Configuration.socket_options``, which the client passes on to its urllib3 pool manager.
 
     See https://github.com/apache/airflow/pull/11406 for the original discussion.
     """
-    if not hasattr(configuration, "socket_options"):
-        log.warning("Cannot enable TCP keepalive: it requires kubernetes>=36.0.1.")
-        return
-
     tcp_keep_idle = conf.getint("kubernetes_executor", "tcp_keep_idle")
     tcp_keep_intvl = conf.getint("kubernetes_executor", "tcp_keep_intvl")
     tcp_keep_cnt = conf.getint("kubernetes_executor", "tcp_keep_cnt")
