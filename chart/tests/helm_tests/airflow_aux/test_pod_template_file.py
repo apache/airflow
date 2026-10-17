@@ -56,6 +56,23 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].image", docs[0]) is not None
         assert jmespath.search("spec.containers[0].name", docs[0]) == "base"
 
+    @pytest.mark.parametrize(
+        "version_values",
+        [{}, {"airflowVersion": "3.2.2"}],
+        ids=["chart-default", "airflow-3.2.2"],
+    )
+    def test_should_not_add_metadata_database_env_to_task_container(self, version_values):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", **version_values},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        env_names = jmespath.search("spec.containers[0].env[*].name", docs[0])
+
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" not in env_names
+        assert "AIRFLOW_CONN_AIRFLOW_DB" not in env_names
+
     def test_should_add_an_init_container_if_git_sync_is_true(self):
         docs = render_chart(
             values={
