@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, Em
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import conf
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
@@ -38,6 +39,10 @@ if TYPE_CHECKING:
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.models.taskinstance import TaskInstance
     from airflow.utils.session import provide_session
+
+# Short interval (seconds) for polling a cancelled EMR Serverless job to a non-active state in
+# on_kill; kept well below the triggerer's on_kill_timeout so the wait completes before force-kill.
+_ON_KILL_CANCEL_POLL_INTERVAL = 2
 
 
 class EmrAddStepsTrigger(AwsBaseWaiterTrigger):
@@ -706,6 +711,12 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
         This hook is available in Airflow 3.3+ via BaseTrigger.on_kill().
         For older Airflow versions, the CancelledError handler in run() provides
         the same cancellation behavior.
+
+        After requesting the cancellation, wait until the run leaves its active states. A durable
+        retry reconnects to whatever run id is stored, so returning while the run still looks active
+        would let the retry reconnect to a run that is about to be cancelled and then fail. This
+        mirrors the synchronous ``EmrServerlessStartJobOperator.on_kill``, which also waits for a
+        terminal state.
         """
         if self.job_id and self.cancel_on_kill:
             self.log.info(
@@ -713,10 +724,32 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
                 self.application_id,
                 self.job_id,
             )
-            await sync_to_async(self.hook().conn.cancel_job_run)(
-                applicationId=self.application_id, jobRunId=self.job_id
-            )
-            self.log.info("EMR Serverless job %s cancelled successfully.", self.job_id)
+            conn = self.hook().conn
+            await sync_to_async(conn.cancel_job_run)(applicationId=self.application_id, jobRunId=self.job_id)
+            await self._wait_until_not_active(conn)
+
+    async def _wait_until_not_active(self, conn) -> None:
+        """Poll the job run until it leaves the active states, bounded by the triggerer on_kill_timeout."""
+        budget = conf.getint("triggerer", "on_kill_timeout", fallback=30) - _ON_KILL_CANCEL_POLL_INTERVAL
+        waited = 0
+        state = None
+        while waited < budget:
+            state = (
+                await sync_to_async(conn.get_job_run)(applicationId=self.application_id, jobRunId=self.job_id)
+            )["jobRun"]["state"]
+            if state not in EmrServerlessHook.JOB_INTERMEDIATE_STATES:
+                self.log.info(
+                    "EMR Serverless job %s reached state %s after cancellation.", self.job_id, state
+                )
+                return
+            await asyncio.sleep(_ON_KILL_CANCEL_POLL_INTERVAL)
+            waited += _ON_KILL_CANCEL_POLL_INTERVAL
+        self.log.warning(
+            "EMR Serverless job %s still in state %s after waiting %ss for cancellation to settle.",
+            self.job_id,
+            state,
+            waited,
+        )
 
 
 class EmrServerlessDeleteApplicationTrigger(AwsBaseWaiterTrigger):
