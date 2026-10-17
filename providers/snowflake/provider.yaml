@@ -196,6 +196,8 @@ connection-types:
             "token_endpoint": "token endpoint",
             "refresh_token": "refresh token",
             "scope": "scope",
+            "oauth_username": "IdP resource owner user name (password grant type)",
+            "oauth_password": "IdP resource owner user password (password grant type)",
             "proxy_host": "proxy.example.com",
             "proxy_port": "8080",
             "proxy_user": "proxy_username",
