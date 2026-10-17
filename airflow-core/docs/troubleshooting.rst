@@ -20,6 +20,135 @@
 Troubleshooting
 ===============
 
+How to debug your Airflow deployment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The sections below walk through Airflow deployment issues using David A. Wheeler's writeup
+of Agans' nine rules of debugging [1]_, with an Airflow-specific action for each rule. They are
+written as a general starting point; for the specific known failure modes already documented,
+see `Obscure task failures`_ below.
+
+Understand the system
+----------------------
+
+A minimal Airflow deployment is made up of a *scheduler*, a *Dag processor*, a *Dag bundle*,
+an *API server*, and a *metadata database*; larger deployments add *workers* and a *triggerer*.
+Each component can fail independently, and Airflow 3 removed the standalone webserver process
+in favor of the API server, and moved Dag parsing out of the scheduler and into its own
+*Dag processor* process. Before debugging a specific failure, know which of these components
+is involved. See :doc:`/core-concepts/overview` for the full component breakdown.
+
+Make it fail
+------------
+
+Reproduce the failure outside of the full scheduling loop before you start changing things:
+
+- ``airflow tasks test <dag_id> <task_id>`` runs a single task instance without checking its
+  dependencies. Leave out the optional ``logical_date_or_run_id`` argument, so the command creates
+  a throw-away Dag run and deletes it afterwards. If that argument matches an existing Dag run, the
+  command runs that run's real task instance and records the result in the database, overwriting
+  the task instance's state.
+- ``airflow dags test <dag_id> [logical_date]`` runs one full Dag run locally, without the
+  scheduler.
+
+Both commands run in your current process, so you can also attach a debugger to them; see
+:doc:`/core-concepts/debug` for running a Dag under ``pdb`` or an IDE debugger.
+
+``airflow tasks test`` reads the serialized Dag from the metadata database, so it only works for a
+Dag the Dag processor has already parsed. If the Dag fails to parse, start with
+``airflow dags list-import-errors`` instead.
+
+Quit thinking and look
+-----------------------
+
+Read the actual task log before guessing at a cause. Task logs are written on the worker that ran
+the task, under :ref:`logging.base_log_folder <config:logging__base_log_folder>` (by default
+``$AIRFLOW_HOME/logs/``), using the path
+``dag_id=<dag_id>/run_id=<run_id>/task_id=<task_id>/attempt=<n>.log`` (add a
+``map_index=<n>/`` segment for mapped tasks). The path is controlled by the
+:ref:`logging.log_filename_template <config:logging__log_filename_template>` setting, so check
+both settings if logs aren't where you expect them. If
+:doc:`remote logging </administration-and-deployment/logging-monitoring/logging-tasks>` is
+enabled, the log may only be available in the remote store. ``airflow tasks state <dag_id>
+<task_id> <logical_date_or_run_id>`` will confirm the recorded state of a task instance before you
+go looking at logs at all.
+
+Divide and conquer
+-------------------
+
+Narrow the failure down to a single component before digging further. These commands need access
+to the metadata database, so run them from a host that has it, such as the scheduler or API
+server, not from a worker:
+
+- ``airflow dags list-import-errors`` shows Dags the *Dag processor* failed to parse. A Dag
+  that fails to parse is a Dag-processor problem, not a scheduler problem, in Airflow 3.
+- ``airflow db check`` confirms the metadata database is reachable from the host you run it on.
+  Only the scheduler, Dag processor, and API server connect to the metadata database. Workers
+  talk to the API server at
+  :ref:`core.execution_api_server_url <config:core__execution_api_server_url>` instead, so for a
+  worker, check that it can reach that URL (for example,
+  ``curl http://<api-server>:8080/execution/health`` should return ``{"status": "healthy"}``).
+- ``airflow tasks failed-deps <dag_id> <task_id> <logical_date_or_run_id>`` shows the unmet
+  dependencies that are keeping the scheduler from queuing a task instance.
+
+To check the health of each component, see
+:doc:`/administration-and-deployment/logging-monitoring/check-health`, which covers the
+``/api/v2/monitor/health`` endpoint and ``airflow jobs check``.
+
+Change one thing at a time
+---------------------------
+
+When testing a fix, change a single variable and re-run ``airflow tasks test <dag_id> <task_id>``
+(without a run ID, so each attempt gets its own throw-away Dag run) or ``airflow dags test``
+before layering on the next change. ``airflow config get-value <section> <option>`` prints the
+effective value of a single configuration option, so you can confirm exactly what changed between
+runs instead of assuming.
+
+Keep an audit trail
+--------------------
+
+Record what you tried and what happened. ``airflow version`` records the exact version you were
+running; ``airflow dags show <dag_id> --save graph.png`` saves the task dependency graph for a
+Dag (this needs Graphviz installed: both the system package and the ``graphviz`` Python
+package); ``airflow tasks states-for-dag-run <dag_id> <logical_date_or_run_id>`` records the
+state of every task instance in a run. Keeping these alongside your notes makes it possible to
+tell later whether a change actually affected behavior.
+
+Check the plug
+---------------
+
+Before debugging further, check the things that are easy to overlook:
+
+- Is the Dag paused? ``airflow dags list`` includes an ``is_paused`` column.
+- Can the component you're debugging actually reach what it depends on? For the scheduler, Dag
+  processor, and API server, that's the metadata database (``airflow db check``). For a worker,
+  it's the API server at
+  :ref:`core.execution_api_server_url <config:core__execution_api_server_url>`.
+- Are you confusing the Dag's *logical date* with wall-clock time? A Dag run's ``logical_date``
+  is not the time the run actually started.
+
+Get a fresh view
+-----------------
+
+When asking someone else to look at a failure, give them something reproducible rather than a
+description: the exact command you ran, the ``airflow version`` output, the relevant log excerpt,
+and, if it's a Dag-structure question, a saved graph from ``airflow dags show``. A vague
+description is much harder for a second set of eyes to act on than a small, self-contained
+reproduction.
+
+If you didn't fix it, it ain't fixed
+-------------------------------------
+
+Confirm the fix by reproducing the original failure the same way you made it fail in the first
+place -- rerun the same ``airflow tasks test`` (without a run ID) or ``airflow dags test``
+invocation -- rather than assuming a code change or a passing unit test alone means the deployment
+issue is resolved. If the original failure was intermittent, re-run it more than once before
+calling it fixed.
+
+.. [1] David A. Wheeler, `Debugging: nine indispensable rules for finding even the most
+   elusive software and hardware problems <https://dwheeler.com/essays/debugging-agans.html>`__
+   (2004), summarizing David J. Agans' nine rules of debugging.
+
 Obscure task failures
 ^^^^^^^^^^^^^^^^^^^^^
 
