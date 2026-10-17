@@ -354,6 +354,8 @@ class TaskCoordinateResolver:
         for task_id in task_ids:
             self._regional_tasks[dag_id, run_id, task_id] = task_id in regional
 
+    # TODO: annotate the return type as Select[UUID] once the minimum SQLAlchemy is 2.1;
+    # 2.0 spells it Select[tuple[UUID]], which 2.1 rejects.
     def select_legacy_task_ids(
         self,
         *,
@@ -361,7 +363,7 @@ class TaskCoordinateResolver:
         run_id: str,
         task_ids: Collection[str],
         slots: Collection[tuple[str, int]],
-    ) -> Select[tuple[UUID]]:
+    ) -> Select:
         """Select, in one statement, the region-less task instances that the named tasks or slots address."""
         targets = []
         if task_ids:
@@ -728,9 +730,11 @@ class TaskCoordinateResolver:
             session=self.session,
         )
 
+    # TODO: annotate the return type as Select[UUID] once the minimum SQLAlchemy is 2.1;
+    # 2.0 spells it Select[tuple[UUID]], which 2.1 rejects.
     def select_skip_target_ids(
         self, *, caller: TaskInstance, task_id: str, map_indexes: int | None = None
-    ) -> Select[tuple[UUID]]:
+    ) -> Select:
         """
         Select the task instance ids a skip request from ``caller`` reaches for ``task_id``.
 
@@ -765,7 +769,9 @@ class TaskCoordinateResolver:
             map_indexes=map_indexes,
         )
 
-    def _select_loop_producer_ids(self, request: _ProducerRequest) -> Select[tuple[UUID]]:
+    # TODO: annotate the return type as Select[UUID] once the minimum SQLAlchemy is 2.1;
+    # 2.0 spells it Select[tuple[UUID]], which 2.1 rejects.
+    def _select_loop_producer_ids(self, request: _ProducerRequest) -> Select:
         if TYPE_CHECKING:
             assert request.loop_node_id is not None
         return select_loop_producer_ids(
@@ -777,6 +783,8 @@ class TaskCoordinateResolver:
             session=self.session,
         )
 
+    # TODO: annotate the return type as Select[UUID] once the minimum SQLAlchemy is 2.1;
+    # 2.0 spells it Select[tuple[UUID]], which 2.1 rejects.
     def select_producer_ids(
         self,
         *,
@@ -789,7 +797,7 @@ class TaskCoordinateResolver:
         map_indexes: int | Collection[int] | None = None,
         previous_iteration: bool = False,
         all_iterations: bool = False,
-    ) -> Select[tuple[UUID]]:
+    ) -> Select:
         """Select the task instance ids :meth:`resolve` returns, without loading the producers."""
         if region_index is not None and region_id is None:
             raise ValueError("region_index requires an explicit producer region_id")
