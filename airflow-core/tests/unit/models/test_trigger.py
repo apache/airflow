@@ -28,6 +28,7 @@ import pytz
 import sqlalchemy as sa
 from cryptography.fernet import Fernet
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
@@ -195,6 +196,41 @@ def test_clean_unused(session, dag_maker):
     results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
+
+
+def test_clean_unused_rolls_back_before_retrying(session):
+    """
+    A connection lost mid-UPDATE has to be rolled back before the statement is retried.
+
+    Otherwise the retry reuses the invalidated transaction and raises ``PendingRollbackError``,
+    which is not one of the retried exceptions, so it propagates and exits the triggerer.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.commit()
+
+    execute = session.execute
+    failures: list[OperationalError] = []
+
+    def execute_failing_once(*args, **kwargs):
+        if not failures:
+            dropped_connection = OperationalError(
+                statement="UPDATE task_instance SET trigger_id=NULL",
+                params=None,
+                orig=Exception("server closed the connection unexpectedly"),
+            )
+            failures.append(dropped_connection)
+            raise dropped_connection
+        return execute(*args, **kwargs)
+
+    with (
+        patch.object(session, "execute", side_effect=execute_failing_once),
+        patch.object(session, "rollback", wraps=session.rollback) as rollback,
+    ):
+        Trigger.clean_unused(session=session)
+
+    rollback.assert_called_once()
+    assert session.scalars(select(Trigger)).all() == []
 
 
 @patch.object(TriggererCallback, "handle_event")
