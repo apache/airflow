@@ -79,6 +79,33 @@ runs:
       run: |
         echo "Checking free space!"
         df -H
+    - name: "Restore CI image snapshot ${{ inputs.platform }}:${{ inputs.python }}"
+      continue-on-error: true
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+      with:
+        name: >-
+          ci-image-snapshot-v1-${{ inputs.python }}-${{
+          inputs.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+        path: "/mnt/"
+      id: restore-snapshot
+      if: >
+        github.event_name == 'pull_request' &&
+        inputs.image-type == 'ci' && inputs.image-stash-ref == ''
+    # Falls back to the image stash below whenever the snapshot does not fit this runner's daemon.
+    - name: "Unpack CI image snapshot ${{ inputs.platform }}:${{ inputs.python }}"
+      id: snapshot
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+      run: |
+        if ./scripts/ci/docker_data_root_snapshot.sh restore \
+            "/mnt/ci-image-snapshot-${PLATFORM//\//_}-${PYTHON}.tar.zst"; then
+          echo "restored=true" >> "${GITHUB_OUTPUT}"
+        else
+          echo "Falling back to loading the image stash"
+        fi
+      shell: bash
+      if: steps.restore-snapshot.outcome == 'success'
     - name: >
         Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}
         ${{ inputs.image-stash-ref != '' && format('built for ref {0}', inputs.image-stash-ref) || '' }}
@@ -90,6 +117,7 @@ runs:
         path: "/mnt/"
         only-current-branch: 'true'
         fail-on-download: 'true'
+      if: steps.snapshot.outputs.restored != 'true'
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}
@@ -98,3 +126,4 @@ runs:
       run: >
         breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
       shell: bash
+      if: steps.snapshot.outputs.restored != 'true'
