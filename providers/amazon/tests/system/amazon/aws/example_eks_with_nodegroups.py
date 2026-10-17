@@ -16,19 +16,26 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+from contextlib import contextmanager
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import boto3
+from kubernetes.client import V1Container, V1ObjectMeta, V1Pod, V1PodSpec
 
-from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
+from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
     EksCreateNodegroupOperator,
     EksDeleteClusterOperator,
     EksDeleteNodegroupOperator,
+    EksPodExecOperator,
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -49,7 +56,13 @@ except ImportError:
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from system.amazon.aws.utils.k8s import get_describe_pod_operator
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from kubernetes.client import CoreV1Api
+
 DAG_ID = "example_eks_with_nodegroups"
+EXPECTED_EXEC_OUTPUT = "command executed in existing EKS pod"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -76,6 +89,50 @@ def delete_launch_template(template_name: str):
     boto3.client("ec2").delete_launch_template(LaunchTemplateName=template_name)
 
 
+@contextmanager
+def get_eks_kubernetes_client(cluster_name: str) -> Generator[CoreV1Api, None, None]:
+    eks_hook = EksHook()
+    credentials = eks_hook.get_session().get_credentials()
+    if credentials is None:
+        raise RuntimeError("Unable to retrieve AWS credentials for the EKS system test.")
+    frozen_credentials = credentials.get_frozen_credentials()
+    with eks_hook._secure_credential_context(
+        frozen_credentials.access_key,
+        frozen_credentials.secret_key,
+        frozen_credentials.token,
+    ) as credentials_file:
+        with eks_hook.generate_config_file(cluster_name, "default", credentials_file) as config_file:
+            yield KubernetesHook(kubernetes_conn_id=None, config_file=config_file).core_v1_client
+
+
+@task
+def create_exec_pod(cluster_name: str, pod_name: str) -> None:
+    pod = V1Pod(
+        metadata=V1ObjectMeta(name=pod_name, namespace="default"),
+        spec=V1PodSpec(
+            containers=[V1Container(name="main", image="busybox:1.38.0", command=["sleep", "3600"])],
+            restart_policy="Never",
+        ),
+    )
+    with get_eks_kubernetes_client(cluster_name) as kube_client:
+        pod_manager = PodManager(kube_client=kube_client)
+        created_pod = pod_manager.create_pod(pod)
+        asyncio.run(pod_manager.await_pod_start(created_pod))
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_exec_pod(cluster_name: str, pod_name: str) -> None:
+    pod = V1Pod(metadata=V1ObjectMeta(name=pod_name, namespace="default"))
+    with get_eks_kubernetes_client(cluster_name) as kube_client:
+        PodManager(kube_client=kube_client).delete_pod(pod)
+
+
+@task
+def verify_exec_output(output: str) -> None:
+    if output != EXPECTED_EXEC_OUTPUT:
+        raise ValueError(f"Unexpected command output: {output!r}")
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -88,6 +145,7 @@ with DAG(
     cluster_name = f"{env_id}-cluster"
     nodegroup_name = f"{env_id}-nodegroup"
     launch_template_name = f"{env_id}-launch-template"
+    exec_pod_name = f"{env_id}-exec-pod"
 
     # [START howto_operator_eks_create_cluster]
     # Create an Amazon EKS Cluster control plane without attaching compute service.
@@ -151,6 +209,22 @@ with DAG(
     # it is cleaned anyway with the cluster later on.
     start_pod.is_delete_operator_pod = False
 
+    create_exec_pod_task = create_exec_pod(cluster_name, exec_pod_name)
+
+    # [START howto_operator_eks_pod_exec]
+    run_command = EksPodExecOperator(
+        task_id="run_command_in_existing_pod",
+        cluster_name=cluster_name,
+        pod_name=exec_pod_name,
+        command=["sh", "-c", f"printf '{EXPECTED_EXEC_OUTPUT}'"],
+        do_xcom_push=True,
+    )
+    # [END howto_operator_eks_pod_exec]
+
+    exec_output_is_valid = verify_exec_output(run_command.output)
+
+    delete_exec_pod_task = delete_exec_pod(cluster_name, exec_pod_name)
+
     describe_pod = get_describe_pod_operator(
         cluster_name, pod_name="{{ ti.xcom_pull(key='pod_name', task_ids='run_pod') }}"
     )
@@ -211,14 +285,30 @@ with DAG(
         # TEST SETUP
         test_context,
         create_launch_template(launch_template_name),
-        # TEST BODY
         create_cluster,
         await_create_cluster,
         create_nodegroup,
         await_create_nodegroup,
+    )
+    chain(
+        # TEST BODY: EksPodOperator
+        await_create_nodegroup,
         start_pod,
-        # TEST TEARDOWN
         describe_pod,
+        await_nodegroup_stable,
+    )
+    chain(
+        # TEST BODY: EksPodExecOperator
+        await_create_nodegroup,
+        create_exec_pod_task,
+        run_command,
+        exec_output_is_valid,
+        # TEST TEARDOWN
+        delete_exec_pod_task,
+        await_nodegroup_stable,
+    )
+    chain(
+        # TEST TEARDOWN
         await_nodegroup_stable,
         delete_nodegroup,  # part of the test AND teardown
         await_delete_nodegroup,
