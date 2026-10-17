@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -254,9 +255,29 @@ async def get_async_kube_client(
             cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
         if config_file is None:
             config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
-        await async_config.load_kube_config(
+        loader = await async_config.load_kube_config(
             config_file=config_file, context=cluster_context, client_configuration=configuration
         )
+        # An exec plugin that returns no expirationTimestamp gives a token that never expires. The loader
+        # only records an expiry when one is returned, so reloading would run the plugin on every request.
+        # Keep the token loaded above instead, as the sync client does.
+        exec_token_never_expires = "exec" in (getattr(loader, "_user", None) or {}) and not hasattr(
+            loader, "exec_plugin_expiry"
+        )
+        refresh_lock = asyncio.Lock()
+
+        async def refresh_api_key(client_configuration: async_client.Configuration) -> None:
+            if exec_token_never_expires:
+                return
+            async with refresh_lock:
+                # Reloading the kubeconfig must not overwrite the client's TLS overrides.
+                verify_ssl = client_configuration.verify_ssl
+                ssl_ca_cert = client_configuration.ssl_ca_cert
+                await loader.load_and_set(client_configuration)
+                client_configuration.verify_ssl = verify_ssl
+                client_configuration.ssl_ca_cert = ssl_ca_cert
+
+        configuration.refresh_api_key_hook = refresh_api_key
 
     ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
     if ssl_ca_cert:
