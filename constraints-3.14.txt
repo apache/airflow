@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-17T10:38:30.738044
+# This constraints file was automatically generated on 2026-10-17T20:59:56.208410
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -45,7 +45,7 @@ GitPython==3.2.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.4.3
-Markdown==3.11
+Markdown==3.11.1
 MarkupSafe==3.0.4
 PyAthena==4.0.0
 PyGithub==2.10.0
@@ -95,7 +95,7 @@ anyio==4.15.1
 apache-airflow-providers-airbyte==6.2.0
 apache-airflow-providers-akeyless==0.3.2
 apache-airflow-providers-alibaba==3.5.1
-apache-airflow-providers-amazon==9.37.0
+apache-airflow-providers-amazon==9.38.0
 apache-airflow-providers-anthropic==1.2.0
 apache-airflow-providers-apache-arrow==0.1.1
 apache-airflow-providers-apache-beam==6.3.1
@@ -122,13 +122,13 @@ apache-airflow-providers-cloudant==4.3.7
 apache-airflow-providers-cncf-kubernetes==10.24.0
 apache-airflow-providers-cohere==1.8.1
 apache-airflow-providers-common-ai==0.10.0
-apache-airflow-providers-common-compat==1.21.0
+apache-airflow-providers-common-compat==1.22.0
 apache-airflow-providers-common-io==1.10.1
 apache-airflow-providers-common-messaging==2.1.2
 apache-airflow-providers-common-sql==2.3.0
 apache-airflow-providers-databricks==7.22.0
 apache-airflow-providers-datadog==3.11.1
-apache-airflow-providers-dbt-cloud==4.10.0
+apache-airflow-providers-dbt-cloud==4.11.0
 apache-airflow-providers-dingding==3.10.1
 apache-airflow-providers-discord==3.12.4
 apache-airflow-providers-docker==4.6.1
@@ -141,7 +141,7 @@ apache-airflow-providers-facebook==3.9.6
 apache-airflow-providers-ftp==3.16.1
 apache-airflow-providers-git==1.0.1
 apache-airflow-providers-github==2.12.1
-apache-airflow-providers-google==22.6.0
+apache-airflow-providers-google==22.7.0
 apache-airflow-providers-grpc==3.10.1
 apache-airflow-providers-hashicorp==4.8.3
 apache-airflow-providers-http==6.3.0
@@ -275,7 +275,7 @@ colorlog==6.12.0
 comm==0.2.3
 confluent-kafka==2.16.0
 crcmod-plus==2.3.6
-cron_descriptor==2.1.1
+cron_descriptor==2.2.1
 croniter==6.2.4
 cryptography==50.0.2
 curlify==3.0.0
@@ -377,7 +377,7 @@ google-cloud-videointelligence==2.21.0
 google-cloud-vision==3.16.0
 google-cloud-workflows==1.24.0
 google-crc32c==1.9.0
-google-genai==2.30.0
+google-genai==2.30.1
 google-resumable-media==2.11.0
 googleapis-common-protos==1.75.5
 graphviz==0.21
@@ -460,8 +460,8 @@ limits==5.8.0
 linkify-it-py==2.2.0
 litellm==1.96.2
 lockfile==0.12.2
-logfire-api==5.1.1
-looker_sdk==26.18.0
+logfire-api==5.2.0
+looker_sdk==26.20.0
 lxml==6.1.3
 lz4==4.4.5
 markdown-it-py==4.2.0
@@ -473,15 +473,15 @@ mdurl==0.1.2
 memray==1.20.0
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.14.2
-microsoft-kiota-authentication-azure==1.14.2
+microsoft-kiota-abstractions==1.14.3
+microsoft-kiota-authentication-azure==1.14.3
 microsoft-kiota-http==1.12.3
-microsoft-kiota-serialization-json==1.14.2
-microsoft-kiota-serialization-text==1.14.2
+microsoft-kiota-serialization-json==1.14.3
+microsoft-kiota-serialization-text==1.14.3
 mistune==3.3.4
 mmh3==5.3.1
 modal==1.6.1
-more-itertools==11.1.0
+more-itertools==11.2.0
 msal-extensions==1.3.1
 msal==1.39.0
 msgpack==1.2.3
