@@ -177,6 +177,10 @@
       "type": "object",
       "properties": {
         "params": { "$ref": "#/definitions/params" },
+        "param_presets": {
+          "type": "object",
+          "additionalProperties": { "type": "object" }
+        },
         "dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
