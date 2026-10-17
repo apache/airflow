@@ -355,7 +355,9 @@ class TestDagFileProcessorManager:
         clear_db_import_errors()
         clear_db_dag_bundles()
 
-    @mock.patch("airflow.dag_processing.manager._get_bundle_config_source", autospec=True, return_value=None)
+    @mock.patch(
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled", autospec=True, return_value=False
+    )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_static_config_does_not_poll(self, mock_manager, mock_source):
         DagFileProcessorManager(max_runs=1)._reconcile_bundles(known_files={})
@@ -363,14 +365,15 @@ class TestDagFileProcessorManager:
 
     @pytest.mark.parametrize("filtered", [False, True])
     @mock.patch(
-        "airflow.dag_processing.manager._get_bundle_config_source",
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
         autospec=True,
-        return_value=("cmd", "fetch"),
+        return_value=True,
     )
+    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
     def test_reconcile_reuses_retained_bundles_and_cleans_removed_files(
-        self, mock_removed, mock_manager, mock_source, tmp_path, filtered
+        self, mock_removed, mock_manager, mock_refresh, mock_source, tmp_path, filtered
     ):
         removed, retained, added = [
             _make_bundle(tmp_path / name) for name in ("removed", "retained", "added")
@@ -392,6 +395,7 @@ class TestDagFileProcessorManager:
 
         processor._reconcile_bundles(known_files=known_files)
 
+        mock_refresh.assert_called_once_with()
         assert processor._dag_bundles == [added, retained]
         assert known_files == {"retained": set()}
         assert "removed" not in processor._bundle_versions
@@ -404,12 +408,13 @@ class TestDagFileProcessorManager:
         mock_removed.assert_called_once_with(processor, known_files=known_files)
 
     @mock.patch(
-        "airflow.dag_processing.manager._get_bundle_config_source",
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
         autospec=True,
-        return_value=("cmd", "fetch"),
+        return_value=True,
     )
+    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
-    def test_reconcile_retries_failed_construction(self, mock_manager, mock_source, tmp_path):
+    def test_reconcile_retries_failed_construction(self, mock_manager, mock_refresh, mock_source, tmp_path):
         added = _make_bundle(tmp_path)
         added.name = "added"
         bundles = mock_manager.return_value
@@ -426,13 +431,14 @@ class TestDagFileProcessorManager:
         ]
 
     @mock.patch(
-        "airflow.dag_processing.manager._get_bundle_config_source",
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
         autospec=True,
-        return_value=("cmd", "fetch"),
+        return_value=True,
     )
+    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_retries_template_persistence_after_sync_failure(
-        self, mock_manager, mock_source, tmp_path
+        self, mock_manager, mock_refresh, mock_source, tmp_path
     ):
         added = _make_bundle(tmp_path)
         added.name = "added"
