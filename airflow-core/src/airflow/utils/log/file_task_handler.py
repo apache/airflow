@@ -647,21 +647,22 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.DEFERRED,
         )
 
-        with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
-            log_pos = stream_accumulator.total_lines
-            out_stream = stream_accumulator.stream
+        out_metadata: LogMetadata = {"end_of_log": end_of_log}
+        if not end_of_log:
+            # Only an unfinished read needs log_pos for the continuation token, and counting
+            # lines drains the stream eagerly, so finished reads stream straight through.
+            with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
+                out_metadata["log_pos"] = stream_accumulator.total_lines
+                out_stream = stream_accumulator.stream
 
-            # skip log stream until the last position
-            if metadata and "log_pos" in metadata:
-                out_stream = islice(out_stream, metadata["log_pos"], None)
-            else:
-                # first time reading log, add messages before interleaved log stream
-                out_stream = chain(header, out_stream)
+        # skip log stream until the last position
+        if metadata and "log_pos" in metadata:
+            out_stream = islice(out_stream, metadata["log_pos"], None)
+        else:
+            # first time reading log, add messages before interleaved log stream
+            out_stream = chain(header, out_stream)
 
-            return out_stream, {
-                "end_of_log": end_of_log,
-                "log_pos": log_pos,
-            }
+        return out_stream, out_metadata
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
