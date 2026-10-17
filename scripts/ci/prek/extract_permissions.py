@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# ///
 """
 Extract permission requirements from FastAPI routes in Airflow REST API.
 
@@ -42,6 +45,13 @@ OUTPUT_RST = REPO_ROOT / "airflow-core/docs/security/api_permissions_ref.rst"
 
 # The global /api/v2 prefix comes from public_router in __init__.py
 API_PREFIX = "/api/v2"
+
+
+# ---------------------------------------------------------------------------
+# Errors
+# ---------------------------------------------------------------------------
+class RouteParseError(Exception):
+    """A route file could not be read or parsed, so its endpoints are unknown."""
 
 
 # ---------------------------------------------------------------------------
@@ -276,8 +286,10 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source)
     except (OSError, SyntaxError) as exc:
-        print(f"[WARN] Could not parse {path.name}: {exc}", file=sys.stderr)
-        return []
+        # Returning no entries here would quietly shrink a security reference that readers
+        # trust to be complete, and the caller has no way to tell that apart from a file
+        # that genuinely declares no routes.
+        raise RouteParseError(f"Could not parse {path}: {exc}") from exc
 
     # Build lookup tables for this file
     module_consts = _extract_module_string_constants(tree)
@@ -440,7 +452,7 @@ RST_HEADER = """\
     under the License.
 
 .. THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
-   Regenerate with:  python scripts/ci/prek/extract_permissions.py
+   Regenerate with:  uv run scripts/ci/prek/extract_permissions.py
    Trigger:          prek run generate-api-permissions-doc --all-files
 
 API Endpoint Permission Reference
@@ -517,7 +529,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    try:
+        entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    except RouteParseError as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        return 1
     content = render_rst(entries)
 
     if args.print_only:
@@ -527,14 +543,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         if not OUTPUT_RST.exists():
             print(
-                f"[FAIL] {OUTPUT_RST} does not exist. Run: python scripts/ci/prek/extract_permissions.py",
+                f"[FAIL] {OUTPUT_RST} does not exist. Run: uv run scripts/ci/prek/extract_permissions.py",
                 file=sys.stderr,
             )
             return 1
         existing = OUTPUT_RST.read_text(encoding="utf-8")
         if existing != content:
             print(
-                f"[FAIL] {OUTPUT_RST} is stale. Run: python scripts/ci/prek/extract_permissions.py",
+                f"[FAIL] {OUTPUT_RST} is stale. Run: uv run scripts/ci/prek/extract_permissions.py",
                 file=sys.stderr,
             )
             return 1
