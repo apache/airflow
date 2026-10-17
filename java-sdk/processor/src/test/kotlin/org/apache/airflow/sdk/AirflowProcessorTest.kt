@@ -1380,6 +1380,30 @@ class AirflowProcessorTest {
   }
 
   @Test
+  @DisplayName("let a wiring class label an edge with Flow.label, by simple name")
+  fun compileWiringThatLabelsAnEdge() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task public void extract() {}
+          @Airflow.Task public void load() {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { extract().before(Flow.label(load(), "rows")); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+  }
+
+  @Test
   @DisplayName("reject a task group ID that is not a plain identifier")
   fun rejectInvalidTaskGroupId() {
     val compilation =

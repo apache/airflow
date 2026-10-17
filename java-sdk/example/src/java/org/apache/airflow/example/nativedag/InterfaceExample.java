@@ -123,8 +123,12 @@ public class InterfaceExample {
     transform.after(extract);
     // With no task id given, a decider takes one from its class: "hasRows" and
     // "pickReport".
-    dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
+    var hasRows = dag.If(HasRows.class).after(transform).Then(load).Else(loadEmpty);
     dag.Switch(PickReport.class).after(transform).Case(reportLong).Case(reportShort);
+    // The Airflow UI shows these labels on the edges from hasRows. Then and
+    // Else already declared both of those edges. Declaring the edges again
+    // here only adds the labels.
+    hasRows.before(Deps.Flow.label(load, "rows found"), Deps.Flow.label(loadEmpty, "no rows"));
     load.before(trigger);
     return dag;
   }
