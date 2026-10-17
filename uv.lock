@@ -6020,7 +6020,7 @@ requires-dist = [
     { name = "google-cloud-dataflow-client", specifier = ">=0.12.0" },
     { name = "google-cloud-dataform", specifier = ">=0.10.0" },
     { name = "google-cloud-dataplex", specifier = ">=2.18.0" },
-    { name = "google-cloud-dataproc", specifier = ">=5.27.0" },
+    { name = "google-cloud-dataproc", specifier = ">=5.32.0" },
     { name = "google-cloud-dataproc-metastore", specifier = ">=1.22.0" },
     { name = "google-cloud-dlp", specifier = ">=3.35.0" },
     { name = "google-cloud-kms", specifier = ">=3.12.0" },

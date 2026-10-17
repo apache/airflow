@@ -117,6 +117,19 @@ class InstanceFlexibilityPolicy:
     instance_selection_list: list[InstanceSelection]
 
 
+@dataclass
+class MultiZoneConfig:
+    """
+    Configuration for multi-zonal clusters that can create instances across multiple Zones within the Region.
+
+    Representation for google.cloud.dataproc.v1#google.cloud.dataproc.v1.MultiZoneConfig.
+
+    :param target_shape: The distribution shape of the nodes in the multi-zonal cluster.
+    """
+
+    target_shape: str = "ANY"
+
+
 @deprecated(
     planned_removal_date="September 1, 2027",
     reason="Since passing cluster parameters by keyword in the DataprocCreateClusterOperator is scheduled "
@@ -742,6 +755,18 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
+        if isinstance(cluster_config, dict) and "gce_cluster_config" in cluster_config:
+            gce_cfg = cluster_config["gce_cluster_config"]
+            if isinstance(gce_cfg, dict):
+                if "multiZoneConfig" in gce_cfg:
+                    mz_cfg = gce_cfg.pop("multiZoneConfig")
+                    if isinstance(mz_cfg, MultiZoneConfig):
+                        mz_cfg = vars(mz_cfg)
+                    elif isinstance(mz_cfg, dict) and "targetShape" in mz_cfg:
+                        mz_cfg = {**mz_cfg, "target_shape": mz_cfg.pop("targetShape")}
+                    gce_cfg["multi_zone_config"] = mz_cfg
+                elif isinstance(gce_cfg.get("multi_zone_config"), MultiZoneConfig):
+                    gce_cfg["multi_zone_config"] = vars(gce_cfg["multi_zone_config"])
         self.cluster_config = cluster_config
         self.cluster_name = cluster_name
         self.labels = labels
