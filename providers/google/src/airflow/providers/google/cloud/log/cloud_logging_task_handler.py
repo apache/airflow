@@ -83,6 +83,8 @@ LABEL_DAG_ID = "dag_id"
 LABEL_LOGICAL_DATE = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
 LABEL_TRY_NUMBER = "try_number"
 LABEL_TI_ID = "ti_id"
+LABEL_RUN_ID = "run_id"
+LABEL_MAP_INDEX = "map_index"
 
 
 @attrs.define(kw_only=True)
@@ -217,11 +219,11 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
                 if task_id := event.get("task_id"):
                     labels[LABEL_TASK_ID] = str(task_id)
                 if run_id := event.get("run_id"):
-                    labels["run_id"] = str(run_id)
+                    labels[LABEL_RUN_ID] = str(run_id)
                 if try_number := event.get("try_number"):
                     labels[LABEL_TRY_NUMBER] = str(try_number)
-                if map_index := event.get("map_index"):
-                    labels["map_index"] = str(map_index)
+                if (map_index := event.get("map_index")) is not None:
+                    labels[LABEL_MAP_INDEX] = str(map_index)
 
             _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
             return event
@@ -276,6 +278,11 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             key: f"labels.{escape_label_key(key)}={escape_label_value(value)}"
             for key, value in ti_labels.items()
         }
+        if ti_labels.get(LABEL_MAP_INDEX) == "0":
+            # Earlier provider releases wrote no ``map_index`` label for map index 0.
+            label_conditions[LABEL_MAP_INDEX] = (
+                f"({label_conditions[LABEL_MAP_INDEX]} OR NOT labels.{LABEL_MAP_INDEX}:*)"
+            )
         ti_id_condition = label_conditions.pop(LABEL_TI_ID, None)
         # Before 3.4 a cleared task instance gets a new id, which can differ from the id its logs were written under.
         if ti_id_condition and AIRFLOW_V_3_4_PLUS:
@@ -330,14 +337,14 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
 
 def _task_instance_to_labels(ti) -> dict[str, str]:
     """Convert a task instance to Cloud Logging labels."""
-    labels = {
-        LABEL_TASK_ID: ti.task_id,
-        LABEL_DAG_ID: ti.dag_id,
-        LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat())
-        if AIRFLOW_V_3_0_PLUS
-        else str(ti.execution_date.isoformat()),
-        LABEL_TRY_NUMBER: str(ti.try_number),
-    }
+    labels = {LABEL_TASK_ID: ti.task_id, LABEL_DAG_ID: ti.dag_id}
+    if AIRFLOW_V_3_0_PLUS:
+        # Match the labels CloudLoggingRemoteLogIO.processors stamps; a run may have no logical date.
+        labels[LABEL_RUN_ID] = str(ti.run_id)
+        labels[LABEL_MAP_INDEX] = str(ti.map_index)
+    else:
+        labels[LABEL_LOGICAL_DATE] = str(ti.execution_date.isoformat())
+    labels[LABEL_TRY_NUMBER] = str(ti.try_number)
     # Before 3.4 a try can reuse the previous try's id, so only the other labels identify it.
     if AIRFLOW_V_3_4_PLUS and (ti_id := getattr(ti, "id", None)):
         labels[LABEL_TI_ID] = str(ti_id)
