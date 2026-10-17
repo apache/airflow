@@ -86,6 +86,10 @@ class GlueJobRunStoppedError(AirflowException):
     """Raised when a Glue job run finishes in a state that is not a real success."""
 
 
+class GlueJobRunStopTimeoutError(AirflowException):
+    """Raised when a previous Glue job run does not reach a terminal state after being stopped."""
+
+
 class DataSyncTaskNotFoundError(AirflowException):
     """Raised when a DataSync task could not be identified or created for the requested locations."""
 
