@@ -285,6 +285,15 @@ def _redact_json_argument(value: str) -> str:
     return json.dumps(_redact_structure(parsed))
 
 
+_URL_BYTES_TO_REMOVE = str.maketrans("", "", "\t\r\n")
+_C0_CONTROL_OR_SPACE = "".join(chr(i) for i in range(0x21))
+
+
+def _normalize_url_like_urlsplit(value: str) -> str:
+    """Drop the characters ``urlsplit`` ignores, so the inner URI is seen as ``Connection`` sees it."""
+    return value.translate(_URL_BYTES_TO_REMOVE).lstrip(_C0_CONTROL_OR_SPACE)
+
+
 def _redact_uri_argument(value: str) -> str:
     """
     Redact the secrets a URI command-line argument can carry.
@@ -295,7 +304,9 @@ def _redact_uri_argument(value: str) -> str:
     """
     from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+    value = _normalize_url_like_urlsplit(value)
     scheme, separator, rest = value.partition("://")
+    rest = _normalize_url_like_urlsplit(rest)
     # ``Connection`` accepts a protocol in the host: ``http://https://user:pass@host``. A ``://``
     # elsewhere (``?next=http://...``) does not make the URI double-scheme.
     if separator and re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", rest):
@@ -306,6 +317,9 @@ def _redact_uri_argument(value: str) -> str:
     except ValueError:
         return MASKED_VALUE
     netloc = parsed_uri.netloc
+    # Fail closed on credentials the parse did not recognise (``u:pa/ss@h`` splits the netloc).
+    if not has_password and re.search(r":[^@]*@", netloc + parsed_uri.path):
+        return MASKED_VALUE
     if has_password:
         userinfo, _, host = netloc.rpartition("@")
         netloc = f"{userinfo.partition(':')[0]}:{MASKED_VALUE}@{host}"
