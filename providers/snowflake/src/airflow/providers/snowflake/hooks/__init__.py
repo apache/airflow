@@ -24,6 +24,8 @@ __deprecated_classes = {
         "SnowflakeCortexAgentHook": (
             "airflow.providers.snowflake.hooks.cortex_agent.SnowflakeCortexAgentHook"
         ),
+        "CreateMode": "airflow.providers.snowflake.hooks.cortex_agent.CreateMode",
+        "JsonResponse": "airflow.providers.snowflake.hooks.cortex_agent.JsonResponse",
     },
     "snowflake_sql_api": {
         "SnowflakeSqlApiHook": ("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook"),
