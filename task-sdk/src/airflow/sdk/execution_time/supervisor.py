@@ -35,7 +35,7 @@ import time
 import weakref
 from collections import deque
 from collections.abc import Callable, Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
@@ -184,6 +184,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 _trace_propagator = TraceContextTextMapPropagator()
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from typing import Self
 
     from structlog.typing import FilteringBoundLogger, WrappedLogger
@@ -1140,7 +1141,8 @@ class WatchedSubprocess:
                 if request.context_carrier:
                     ctx = _trace_propagator.extract(request.context_carrier)
                     token = otel_context.attach(ctx)
-                self._handle_request(msg, log, request.id)
+                with self._request_scope(request):
+                    self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
                 error_details = e.response.json() if e.response else None
                 log.error(
@@ -1188,6 +1190,10 @@ class WatchedSubprocess:
             finally:
                 if token is not None:
                     otel_context.detach(token)
+
+    def _request_scope(self, request: _RequestFrame) -> AbstractContextManager[None]:
+        """Return a context manager that wraps the handling of ``request``; subclasses override to scope API calls."""
+        return nullcontext()
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         if self._request_handlers is None:
