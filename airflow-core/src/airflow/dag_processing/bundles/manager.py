@@ -129,13 +129,15 @@ def _get_bundle_config_source() -> tuple[str, str] | None:
     if env_key in os.environ:
         return None
     for suffix in ("cmd", "secret"):
-        if f"{env_key}_{suffix.upper()}" in os.environ:
-            return suffix, conf.get_mandatory_value(section, f"{key}_{suffix}")
+        env_option = f"{env_key}_{suffix.upper()}"
+        if env_option in os.environ:
+            return suffix, os.environ[env_option]
     if ConfigParser.has_option(conf, section, key):
         return None
     for suffix in ("cmd", "secret"):
-        if value := conf.get(section, f"{key}_{suffix}", fallback=None):
-            return suffix, value
+        option = f"{key}_{suffix}"
+        if ConfigParser.has_option(conf, section, option):
+            return suffix, ConfigParser.get(conf, section, option)
     return None
 
 
@@ -231,9 +233,7 @@ def _read_bundle_config_list() -> list[_ExternalBundleConfig]:
             raise _bundle_item_exc("The configured command or secret returned invalid JSON") from e
     else:
         config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
-    if not config_list:
-        if source is not None:
-            raise _bundle_item_exc("The configured command or secret returned an empty bundle list")
+    if source is None and not config_list:
         return []
     if not isinstance(config_list, list):
         raise AirflowConfigException(

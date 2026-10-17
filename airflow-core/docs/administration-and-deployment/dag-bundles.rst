@@ -59,12 +59,14 @@ literal environment variable overrides the command and secret variants.
 
 The Dag processor checks the list every :ref:`config:dag_processor__bundle_refresh_check_interval`
 seconds. Newly configured bundles begin processing, and removed bundles stop processing. Failed,
-invalid, blank, or empty-list reads retain the last accepted configuration. Consequently, this
-mechanism cannot remove the final configured bundle. A process starting without an accepted
-configuration cannot recover one from another process.
+invalid, or blank reads retain the last accepted configuration. A successful read containing
+``[]`` removes all configured bundles. A process starting without an accepted configuration
+cannot recover one from another process; an invalid or unavailable source prevents startup,
+while ``[]`` starts with no bundles.
 
 Use a new bundle name when changing a bundle's configuration. Publish complete lists atomically;
-a valid list that accidentally omits a bundle is treated as an intentional removal. Unchanged
+a valid list that accidentally omits a bundle is treated as an intentional removal. Commands
+must report failures with a nonzero exit status, rather than returning ``[]``. Unchanged
 bundle instances are reused. Failed bundle construction is retried without treating that bundle
 as removed. Database synchronization is retried before applying changes to the runtime list.
 

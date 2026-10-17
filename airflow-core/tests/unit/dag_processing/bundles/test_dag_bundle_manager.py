@@ -1914,9 +1914,9 @@ def test_command_config_reloads_additions_and_removals(dynamic_bundle_config):
 
 @pytest.mark.parametrize(
     "payload",
-    ["invalid json", "", " ", "[]", "null", "{}", "1", '[{"name":"incomplete"}]', None],
+    ["invalid json", "", " ", "null", "{}", "1", '[{"name":"incomplete"}]', None],
 )
-def test_command_reload_keeps_last_snapshot_on_failed_or_empty_read(dynamic_bundle_config, payload):
+def test_command_reload_keeps_last_snapshot_on_failed_or_blank_read(dynamic_bundle_config, payload):
     assert get_configured_bundle_names() == {"my-test-bundle"}
     if payload is None:
         dynamic_bundle_config.unlink()
@@ -1962,7 +1962,7 @@ def test_command_reads_shared_between_managers_and_rate_limited(
 
 
 @mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
-@pytest.mark.parametrize("unavailable", [None, "", "[]"])
+@pytest.mark.parametrize("unavailable", [None, "", " "])
 def test_secret_reload_does_not_fall_back_to_default_bundle(mock_secret, unavailable):
     with conf_vars(
         {
@@ -1979,6 +1979,75 @@ def test_secret_reload_does_not_fall_back_to_default_bundle(mock_secret, unavail
         mock_secret.return_value = json.dumps(SECOND_BUNDLE_CONFIG)
         _expire_bundle_config_snapshot()
         assert get_configured_bundle_names() == {"second-bundle"}
+
+
+@mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
+@pytest.mark.parametrize("source_kind", ["cmd", "secret"])
+@pytest.mark.parametrize("load_examples", [False, True])
+def test_dynamic_list_can_remove_and_restore_all_bundles(
+    mock_secret, dynamic_bundle_config, source_kind, load_examples
+):
+    with conf_vars(
+        {
+            ("core", "load_examples"): str(load_examples),
+            ("dag_processor", "dag_bundle_config_list_cmd"): (
+                f"cat {dynamic_bundle_config}" if source_kind == "cmd" else None
+            ),
+            ("dag_processor", "dag_bundle_config_list_secret"): (
+                "bundles/config" if source_kind == "secret" else None
+            ),
+        }
+    ):
+        mock_secret.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+        assert "my-test-bundle" in get_configured_bundle_names()
+
+        dynamic_bundle_config.write_text("[]")
+        mock_secret.return_value = "[]"
+        _expire_bundle_config_snapshot()
+        assert DagBundlesManager().get_all_bundle_names() == []
+        assert get_configured_bundle_team_names() == {}
+
+        _load_bundle_config_snapshot.cache_clear()
+        assert DagBundlesManager().get_all_bundle_names() == []
+
+        dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG))
+        mock_secret.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+        _expire_bundle_config_snapshot()
+        assert "my-test-bundle" in get_configured_bundle_names()
+
+
+@mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+@pytest.mark.parametrize("source_kind", ["cmd", "secret"])
+@pytest.mark.parametrize("source_location", ["environment", "config"])
+def test_dynamic_source_preserves_command_and_secret_values(
+    mock_command, mock_secret, monkeypatch, source_kind, source_location
+):
+    value = (
+        "fetch '$BUNDLE_CONFIG_ROOT/~/bundles'" if source_kind == "cmd" else "$BUNDLE_CONFIG_ROOT/~/bundles"
+    )
+    monkeypatch.setenv("BUNDLE_CONFIG_ROOT", "/expanded")
+    mock_command.return_value = mock_secret.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): None,
+            ("dag_processor", "dag_bundle_config_list_cmd"): None,
+            ("dag_processor", "dag_bundle_config_list_secret"): None,
+            ("dag_processor", "bundle_refresh_check_interval"): "5",
+        }
+    ):
+        if source_location == "environment":
+            monkeypatch.setenv(f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST_{source_kind.upper()}", value)
+        else:
+            conf.set("dag_processor", f"dag_bundle_config_list_{source_kind}", value)
+        assert get_configured_bundle_names() == {"my-test-bundle"}
+    if source_kind == "cmd":
+        mock_command.assert_called_once_with(value)
+        mock_secret.assert_not_called()
+    else:
+        mock_secret.assert_called_once_with(conf, value)
+        mock_command.assert_not_called()
 
 
 def test_literal_configuration_does_not_reload():
@@ -2044,8 +2113,8 @@ def test_sync_load_failure_keeps_existing_bundle_active(mock_get_bundle, clear_d
     assert existing.signed_url_template == "previous-template"
 
 
-@pytest.mark.parametrize("payload", ["[]", "null", "{}", "", "invalid JSON"])
-def test_dynamic_startup_requires_valid_nonempty_list(dynamic_bundle_config, payload):
+@pytest.mark.parametrize("payload", ["null", "{}", "", "invalid JSON"])
+def test_dynamic_startup_requires_valid_list(dynamic_bundle_config, payload):
     dynamic_bundle_config.write_text(payload)
     with pytest.raises(AirflowConfigException):
         DagBundlesManager()
