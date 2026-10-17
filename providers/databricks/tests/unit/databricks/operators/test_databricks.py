@@ -1674,6 +1674,52 @@ class TestDatabricksSubmitRunOperator:
         assert actual["notebook_task"]["base_parameters"] == {"explicit": "value"}
 
     @pytest.mark.parametrize(
+        ("parameters", "expected_named_parameters"),
+        [
+            pytest.param(["--date", "2024-01-01"], None, id="positional-parameters-set"),
+            pytest.param([], {"env": "prod"}, id="positional-parameters-empty"),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_submit_run_skips_param_injection_when_wheel_task_has_positional_parameters(
+        self, db_mock_class, parameters, expected_named_parameters
+    ):
+        """
+        ``python_wheel_task.parameters`` and ``python_wheel_task.named_parameters`` are mutually
+        exclusive in the Databricks API, so ``self.params`` must not be injected as
+        ``named_parameters`` when the user already passes positional ``parameters``
+        (regression test for GH-74095). An empty ``parameters`` list counts as unset.
+        """
+        op = DatabricksSubmitRunOperator(
+            durable=False,
+            task_id=TASK_ID,
+            tasks=[
+                {
+                    "task_key": "wheel",
+                    "python_wheel_task": {
+                        "package_name": "my_package",
+                        "entry_point": "main",
+                        "parameters": parameters,
+                    },
+                },
+                {"task_key": "nb", "notebook_task": {"notebook_path": "/n1"}},
+            ],
+            params={"env": "prod"},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = RUN_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "SUCCESS")
+
+        op.execute(None)
+
+        actual = db_mock.submit_run.call_args.args[0]
+        wheel_task = actual["tasks"][0]["python_wheel_task"]
+        assert wheel_task.get("named_parameters") == expected_named_parameters
+        assert wheel_task["parameters"] == parameters
+        # Other tasks in the same payload are still filled in.
+        assert actual["tasks"][1]["notebook_task"]["base_parameters"] == {"env": "prod"}
+
+    @pytest.mark.parametrize(
         ("params", "expected_named_parameters"),
         [
             pytest.param({"env": "prod", "start_date_str": None}, {"env": "prod"}, id="some-params-none"),
