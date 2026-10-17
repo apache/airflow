@@ -35,8 +35,8 @@ const FONT_TAGS =
   '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />' +
   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600;700&amp;family=Roboto:wght@400;500;600;700&amp;display=swap" />';
 
-const BASE = "/docs/ts-sdk/0.1.0-beta1";
-const VERSION = "0.1.0-beta1";
+const BASE = "/docs/ts-sdk/1.0.0-beta1";
+const VERSION = "1.0.0-beta1";
 
 describe("normalizeBasePath", () => {
   it("strips trailing slashes", () => {
