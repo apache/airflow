@@ -109,7 +109,14 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+from airflow.triggers.base import (
+    BaseEventTrigger,
+    BaseTrigger,
+    TaskFailedEvent,
+    TaskSkippedEvent,
+    TaskSuccessEvent,
+    TriggerEvent,
+)
 from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -3532,6 +3539,30 @@ def test_trigger_state_messages_round_trip_with_seqs():
     assert isinstance(decoded_sync, messages.TriggerStateSync)
     assert decoded_sync.events_persisted == [3, 9]
     assert decoded_sync.to_cancel == {5}
+
+
+@pytest.mark.parametrize("persist_seq", [None, 7])
+@pytest.mark.parametrize(
+    "event",
+    [
+        TriggerEvent({"changed": True}, partition_key="2026-10-16"),
+        TaskSuccessEvent(partition_key="2026-10-16"),
+        TaskFailedEvent(partition_key="2026-10-16"),
+        TaskSkippedEvent(partition_key="2026-10-16"),
+    ],
+)
+def test_partitioned_trigger_event_state_message_round_trip(persist_seq, event):
+    adapter = TypeAdapter(ToTriggerSupervisor)
+    changes = messages.TriggerStateChanges(events=[(1, event, persist_seq)])
+
+    decoded = adapter.validate_json(adapter.dump_json(changes))
+
+    assert isinstance(decoded, messages.TriggerStateChanges)
+    assert decoded.events is not None
+    assert decoded.events[0].event.partition_key == "2026-10-16"
+    assert type(decoded.events[0].event) is type(event)
+    assert decoded.events[0].event.payload == event.payload
+    assert decoded.events[0].persist_seq == persist_seq
 
 
 def test_handle_events_records_persist_confirmations(jobless_supervisor):

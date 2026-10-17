@@ -34,6 +34,18 @@ message queue, and triggers an asset update when a relevant event occurs.
 The ``watchers`` parameter in the ``Asset`` definition allows you to associate multiple ``AssetWatcher`` instances with an
 asset, enabling it to respond to various event sources.
 
+Publishing partitioned asset events
+------------------------------------
+
+A watcher trigger can set a native partition key when yielding an event::
+
+    yield TriggerEvent({"changed": True}, partition_key="2026-10-16")
+
+Airflow stores ``partition_key`` on the asset event for use by partition-aware schedules.
+The payload is still stored in ``extra["payload"]``. A ``partition_key`` inside the payload
+alone does not assign a native partition. Keys must contain a non-whitespace character and
+be at most 250 characters long. Omit the argument to publish an ordinary asset event.
+
 See the :doc:`common.messaging provider docs <apache-airflow-providers-common-messaging:triggers>` for more information and examples.
 
 Supported triggers for event-driven scheduling
