@@ -1821,3 +1821,48 @@ def test_deadline_callback_rejects_field_belonging_to_the_other_subclass(callbac
 
     with pytest.raises(ValueError, match=f"Unexpected deadline callback fields: {foreign_field}"):
         BaseSerialization.deserialize(serialized)
+
+
+class TestLazyDeserializedDagOwner:
+    @staticmethod
+    def _make_operator():
+        from airflow.sdk import BaseOperator
+
+        class MappableOperator(BaseOperator):
+            def __init__(self, x=None, **kwargs):
+                super().__init__(**kwargs)
+
+        return MappableOperator
+
+    def test_owner_from_mapped_only_dag(self):
+        from datetime import datetime
+
+        from airflow.sdk import DAG
+        from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+
+        operator_cls = self._make_operator()
+        with DAG(
+            "mapped_only",
+            default_args={"owner": "data-team"},
+            start_date=datetime(2026, 1, 1),
+            schedule=None,
+        ) as dag:
+            operator_cls.partial(task_id="mapped").expand(x=[1, 2])
+
+        data = DagSerialization.to_dict(dag)
+        assert LazyDeserializedDAG(data=data).owner == "data-team"
+
+    def test_owner_includes_mapped_and_non_mapped_tasks(self):
+        from datetime import datetime
+
+        from airflow.sdk import DAG
+        from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+
+        operator_cls = self._make_operator()
+        with DAG("mixed", start_date=datetime(2026, 1, 1), schedule=None) as dag:
+            operator_cls(task_id="plain", owner="plain-owner")
+            operator_cls.partial(task_id="mapped", owner="mapped-owner").expand(x=[1, 2])
+
+        data = DagSerialization.to_dict(dag)
+        owners = set(LazyDeserializedDAG(data=data).owner.split(", "))
+        assert owners == {"plain-owner", "mapped-owner"}
