@@ -408,6 +408,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
         Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
     :param stop_task_on_failure: If True, attempt to stop the ECS task if the Airflow task fails
         after the ECS task has started. (default: True)
+    :param stop_task_on_kill: If True, stop the ECS task when this operator's
+        ``on_kill`` callback runs. Set to False to leave the ECS task running.
+        Local log fetching is stopped in either case. This does not change
+        ``stop_task_on_failure`` or cancellation after deferral. (default: True)
     """
 
     ui_color = "#f0ede4"
@@ -473,6 +477,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         skip_on_exit_code: int | Container[int] | None = None,
         stop_task_on_failure: bool = True,
+        stop_task_on_kill: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -516,6 +521,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             else []
         )
         self.stop_task_on_failure = stop_task_on_failure
+        self.stop_task_on_kill = stop_task_on_kill
 
     @staticmethod
     def _get_ecs_task_id(task_arn: str | None) -> str | None:
@@ -813,11 +819,14 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     )
 
     def on_kill(self) -> None:
-        if not self.client or not self.arn:
-            return
-
         if self.task_log_fetcher:
             self.task_log_fetcher.stop()
+
+        if not self.stop_task_on_kill:
+            return
+
+        if not self.client or not self.arn:
+            return
 
         response = self.client.stop_task(
             cluster=self.cluster, task=self.arn, reason="Task killed by the user"
