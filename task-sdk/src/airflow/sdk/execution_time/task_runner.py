@@ -52,6 +52,7 @@ from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
+    LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -63,7 +64,7 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
-from airflow.sdk.definitions._internal.loop import LOOP_XCOM_PREFIX, is_loop_task_read_from_outside
+from airflow.sdk.definitions._internal.loop import is_loop_task_read_from_outside
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -238,6 +239,9 @@ class RuntimeTaskInstance(TaskInstance):
 
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
+
+    _loop_decision: LoopDecisionPayload | None = None
+    """A loop gate's evaluation of ``until``, reported with its terminal state."""
 
     max_tries: int = 0
     """The maximum number of retries for the task."""
@@ -1625,8 +1629,7 @@ def _run_task_and_map_outcome(
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
             for x in keys_to_delete:
                 log.debug("Clearing XCom with key", key=x)
-                backend = BaseXCom if x.startswith(LOOP_XCOM_PREFIX) else XCom
-                backend.delete(
+                XCom.delete(
                     key=x,
                     dag_id=ti.dag_id,
                     task_id=ti.task_id,
@@ -1708,6 +1711,7 @@ def _run_task_and_map_outcome(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
+            loop_decision=ti._loop_decision,
         )
         state = TaskInstanceState.FAILED
         error = e
@@ -1840,6 +1844,7 @@ def _handle_current_task_success(
         task_outlets=task_outlets,
         outlet_events=outlet_events,
         rendered_map_index=ti.rendered_map_index,
+        loop_decision=ti._loop_decision,
     )
     return msg, TaskInstanceState.SUCCESS
 

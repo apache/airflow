@@ -52,7 +52,8 @@ from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime
 
 SENTINEL_REGION_ID = UUID(int=0)
 LOOP_XCOM_PREFIX = "_airflow_loop_"
-LOOP_DECISION_KEY = f"{LOOP_XCOM_PREFIX}decision"
+LOOP_DECISION_REASON_KEY = f"{LOOP_XCOM_PREFIX}decision_reason"
+LOOP_DECISION_REASON_MAX_BYTES = 512
 
 if TYPE_CHECKING:
     from sqlalchemy import Select

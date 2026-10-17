@@ -598,9 +598,15 @@ def ti_update_state(
         and loop_group is not None
         and isinstance(ti_patch_payload, TISuccessStatePayload)
     ):
+        decision = ti_patch_payload.loop_decision
         try:
             loop_gate.dag_run.complete_loop_gate(
-                loop_gate, loop_group, TaskInstanceState.SUCCESS, session=session
+                loop_gate,
+                loop_group,
+                TaskInstanceState.SUCCESS,
+                stop=decision.stop if decision is not None else None,
+                reason=decision.reason if decision is not None else None,
+                session=session,
             )
             gate_completed = True
         except InvalidLoopDecision as error:
@@ -613,7 +619,7 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(
-        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason"},
+        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason", "loop_decision"},
         exclude_unset=True,
     )
     if "rendered_map_index" in data:
@@ -687,7 +693,17 @@ def ti_update_state(
         raise
 
     if loop_gate is not None and loop_group is not None and not gate_completed:
-        loop_gate.dag_run.complete_loop_gate(loop_gate, loop_group, updated_state, session=session)
+        decision = (
+            ti_patch_payload.loop_decision if isinstance(ti_patch_payload, TITerminalStatePayload) else None
+        )
+        loop_gate.dag_run.complete_loop_gate(
+            loop_gate,
+            loop_group,
+            updated_state,
+            stop=None,
+            reason=decision.reason if decision is not None else None,
+            session=session,
+        )
 
     if updated_state == TaskInstanceState.SUCCESS:
         if conf.getboolean("state_store", "clear_on_success"):

@@ -3156,6 +3156,10 @@ export type LoopIterationSummary = {
     state?: TaskInstanceState | null;
     start_date?: string | null;
     end_date?: string | null;
+    /**
+     * Why the loop's gate continued or stopped the loop at this iteration, if its until callable said.
+     */
+    decision_reason?: string;
 };
 
 /**
@@ -5228,6 +5232,10 @@ export type GetXcomEntriesData = {
     dagDisplayNamePrefixPattern?: string | null;
     dagId: string;
     dagRunId: string;
+    /**
+     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+     */
+    excludeInternalKeys?: boolean;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
