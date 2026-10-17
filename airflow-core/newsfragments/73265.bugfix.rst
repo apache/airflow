@@ -1,0 +1,1 @@
+Mask sensitive configuration values in the dry-run output of ``airflow config update``; use the new ``--show-sensitive`` flag to display them.
