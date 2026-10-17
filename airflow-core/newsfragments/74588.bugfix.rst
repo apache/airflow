@@ -1,0 +1,1 @@
+Fix ``LocalExecutor`` stalling all queued tasks when a worker is killed while holding the queue read lock (e.g. by the OOM killer). Each worker now has its own input queue.
