@@ -68,7 +68,9 @@ the runner still hands an exception from one of your own tools to the model. A r
 reaches ``max_iterations`` while the model is still calling tools has no answer, so
 ``tools.run`` raises
 :class:`~airflow.providers.common.ai.exceptions.ToolRunnerMaxIterationsError` and the
-task fails rather than returning an empty result.
+task fails rather than returning an empty result. A refusal has no answer either, but
+``tools.run`` returns it like any final message, so the task above checks for
+``stop_reason == "refusal"`` and raises, which fails the task.
 
 To reach Claude on Amazon Bedrock, Claude Platform on AWS, Google Vertex AI or Microsoft
 Foundry, build the
