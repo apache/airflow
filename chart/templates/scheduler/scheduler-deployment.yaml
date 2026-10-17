@@ -22,8 +22,12 @@
 ###########################################
 {{- if .Values.scheduler.enabled }}
 {{- $local := contains "Local" .Values.executor }}
+{{- $schedulerPersistence := .Values.scheduler.persistence }}
+{{- if not (has $schedulerPersistence.enabled (list true false)) }}
+{{- $schedulerPersistence = .Values.workers.celery.persistence }}
+{{- end }}
 # This is important because in $local mode, the scheduler assumes the role of the worker
-{{- $stateful := and $local .Values.workers.celery.persistence.enabled }}
+{{- $stateful := and $local $schedulerPersistence.enabled }}
 # We can skip Dags mounts on scheduler if dagProcessor is enabled, except with $local mode
 {{- $localOrDagProcessorDisabled := or (not .Values.dagProcessor.enabled) $local }}
 {{- $remoteLogging := or .Values.elasticsearch.enabled .Values.opensearch.enabled }}
@@ -66,8 +70,8 @@ spec:
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy: {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
   {{- end }}
-  {{- if and $stateful .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy }}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
+  {{- if and $stateful $schedulerPersistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml $schedulerPersistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
   {{- end }}
   {{- if and (not $stateful) .Values.scheduler.strategy }}
   strategy: {{- toYaml .Values.scheduler.strategy | nindent 4 }}
@@ -352,16 +356,16 @@ spec:
       kind: PersistentVolumeClaim
       metadata:
         name: logs
-        {{- if .Values.workers.celery.persistence.annotations }}
-        annotations: {{- toYaml .Values.workers.celery.persistence.annotations | nindent 10 }}
+        {{- if $schedulerPersistence.annotations }}
+        annotations: {{- toYaml $schedulerPersistence.annotations | nindent 10 }}
         {{- end }}
       spec:
-      {{- if .Values.workers.celery.persistence.storageClassName }}
-        storageClassName: {{ tpl .Values.workers.celery.persistence.storageClassName . | quote }}
+      {{- if $schedulerPersistence.storageClassName }}
+        storageClassName: {{ tpl $schedulerPersistence.storageClassName . | quote }}
       {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ .Values.workers.celery.persistence.size }}
+            storage: {{ $schedulerPersistence.size }}
   {{- end }}
   {{- end }}
