@@ -24,6 +24,7 @@ from unittest import mock
 from unittest.mock import call
 
 import pytest
+import yaml
 
 from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
@@ -44,6 +45,10 @@ from airflow_breeze.utils.docker_command_utils import (
     get_images_to_pull,
     prepare_docker_build_command,
     pull_images_with_retries,
+)
+from airflow_breeze.utils.path_utils import (
+    SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
 )
 
 
@@ -583,6 +588,60 @@ def test_down_finds_volumes_without_containers(docker_resources, tmp_path, prese
     assert removals == (
         [] if preserve_volumes else [["docker", "volume", "rm", "foobar-postgres14-db-volume"]]
     )
+
+
+@pytest.mark.parametrize(
+    "compose_file",
+    [SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH, SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH],
+    ids=lambda path: path.name,
+)
+def test_build_cache_volume_is_the_one_the_compose_files_mount(compose_file):
+    compose = yaml.safe_load(compose_file.read_text())
+    assert docker_command_utils.BUILD_CACHE_VOLUME in compose["volumes"]
+    assert (
+        f"{docker_command_utils.BUILD_CACHE_VOLUME}:/root/.cache" in compose["services"]["airflow"]["volumes"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("preserve_volumes", "cleanup_build_cache", "expected"),
+    [
+        (False, False, ["database", "deleted-worktree-cache"]),
+        (False, True, ["database", "cache", "deleted-worktree-cache"]),
+        (True, False, []),
+        (True, True, ["cache", "deleted-worktree-cache"]),
+    ],
+)
+def test_down_keeps_build_cache_volume_until_asked(
+    docker_resources, tmp_path, preserve_volumes, cleanup_build_cache, expected
+):
+    resources, run = docker_resources
+    cache = {"com.docker.compose.project": "breeze", "com.docker.compose.volume": "airflow-cache-volume"}
+    resources["volume"] = [
+        {
+            "Name": "database",
+            "Labels": {
+                "com.docker.compose.project": "breeze",
+                "com.docker.compose.volume": "root-airflow-volume",
+            },
+        },
+        {"Name": "cache", "Labels": cache},
+        {
+            "Name": "deleted-worktree-cache",
+            "Labels": {
+                **cache,
+                "org.apache.airflow.breeze": "true",
+                "org.apache.airflow.breeze.worktree": str(tmp_path / "deleted"),
+            },
+        },
+    ]
+
+    docker_command_utils.bring_compose_projects_down(
+        preserve_volumes=preserve_volumes, cleanup_build_cache=cleanup_build_cache
+    )
+
+    removals = [c.args[0] for c in run.call_args_list if c.args[0][2] == "rm"]
+    assert removals == ([["docker", "volume", "rm", *expected]] if expected else [])
 
 
 @pytest.mark.parametrize("failed_action", ["ls", "inspect", "stop", "rm"])

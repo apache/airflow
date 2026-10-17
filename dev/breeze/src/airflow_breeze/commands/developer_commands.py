@@ -1094,7 +1094,8 @@ def build_docs(
     name="down",
     help=(
         "Stop Breeze projects with no worktree, in this checkout, or belonging to deleted worktrees. "
-        "Removes containers, networks and volumes without changing local files or images. "
+        "Removes containers, networks and volumes, except the build cache volume. "
+        "Local files and images are not changed. "
         "Use --all-worktrees to include other checkouts, or --project-name for one exact project."
     ),
 )
@@ -1149,6 +1150,7 @@ def down(
     perform_environment_checks(cleanup_stale_worktrees=False)
     brought_down = bring_compose_projects_down(
         preserve_volumes=preserve_volumes,
+        cleanup_build_cache=cleanup_build_cache,
         all_worktrees=all_worktrees,
         only_project=project_name,
         current_worktree=str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else "",
@@ -1174,9 +1176,6 @@ def down(
                 shutil.rmtree(hook_dir)
     if cleanup_pycache:
         run_command(["docker", "volume", "rm", "--force", PYCACHE_VOLUME_NAME])
-    if cleanup_build_cache:
-        command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
-        run_command(command_to_execute)
 
 
 @main.command(name="exec", help="Joins the interactive shell of running airflow container.")
@@ -1306,7 +1305,9 @@ def doctor(ctx):
 
     bring_compose_projects_down(all_worktrees=True)
 
-    given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
+    given_answer = user_confirm(
+        "Are you sure with the removal of mypy cache, build cache volumes and build cache dir?"
+    )
     if given_answer == Answer.YES:
         console_print("\n[info]Cleaning mypy cache...\n")
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
@@ -1317,8 +1318,7 @@ def doctor(ctx):
             shutil.rmtree(local_mypy_cache)
 
         console_print("\n[info]Cleaning build cache...\n")
-        command_to_execute = ["docker", "volume", "rm", "--force", "airflow-cache-volume"]
-        run_command(command_to_execute)
+        bring_compose_projects_down(all_worktrees=True, preserve_volumes=True, cleanup_build_cache=True)
 
         console_print("\n[info]Deleting .build cache dir...\n")
         dirpath = Path(".build")

@@ -1021,9 +1021,15 @@ def _get_compose_resources(
     ], result.returncode != 0
 
 
+# Key of the `/root/.cache` volume in the compose files. Compose prefixes the real volume name with the
+# project name, so the volume is recognised by the `com.docker.compose.volume` label instead.
+BUILD_CACHE_VOLUME = "airflow-cache-volume"
+
+
 def bring_compose_projects_down(
     *,
     preserve_volumes: bool = False,
+    cleanup_build_cache: bool = False,
     all_worktrees: bool = False,
     only_project: str | None = None,
     current_worktree: str = "",
@@ -1033,12 +1039,13 @@ def bring_compose_projects_down(
     projects: set[str] = set()
     failed = False
     for kind in targets:
-        if kind == "volume" and preserve_volumes:
+        if kind == "volume" and preserve_volumes and not cleanup_build_cache:
             continue
         resources, discovery_failed = _get_compose_resources(kind, stale_only=stale_only)
         failed |= discovery_failed
         for identifier, labels in resources:
             project = labels["com.docker.compose.project"]
+            worktree = labels.get("org.apache.airflow.breeze.worktree", "")
             breeze_owned = labels.get("org.apache.airflow.breeze") == "true"
             legacy = (
                 "org.apache.airflow.breeze" not in labels
@@ -1053,12 +1060,18 @@ def bring_compose_projects_down(
             elif all_worktrees:
                 selected = breeze_owned or legacy
             else:
-                worktree = labels.get("org.apache.airflow.breeze.worktree", "")
                 selected = breeze_owned and (
                     (not stale_only and worktree in ("", current_worktree)) or _worktree_is_missing(worktree)
                 )
                 if not stale_only and legacy:
                     selected = True
+            if selected and kind == "volume":
+                if labels.get("com.docker.compose.volume") == BUILD_CACHE_VOLUME:
+                    # The build cache holds no state, so it outlives the project until it is asked for
+                    # explicitly. A deleted worktree will never use its cache again.
+                    selected = cleanup_build_cache or _worktree_is_missing(worktree)
+                else:
+                    selected = not preserve_volumes
             if selected:
                 targets[kind].append(identifier)
                 projects.add(project)
