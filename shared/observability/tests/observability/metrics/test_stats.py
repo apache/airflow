@@ -253,19 +253,20 @@ class TestDogStats:
             metric="empty_key", sample_rate=1, tags=[], value=1
         )
 
-    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 100.0])
-    def test_timer(self, time_mock):
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 0.0004])
+    def test_timer_sends_duration_in_milliseconds(self, time_mock):
         with self.dogstatsd.timer("empty_timer") as timer:
             pass
-        self.dogstatsd_client.timed.assert_called_once_with("empty_timer", tags=[])
-        expected_duration = 1000.0 * 100.0
-        assert expected_duration == timer.duration
-        assert time_mock.call_count == 2
+        assert timer.duration == pytest.approx(0.4)
+        self.dogstatsd_client.timing.assert_called_once_with(
+            metric="empty_timer", value=timer.duration, tags=[]
+        )
+        self.dogstatsd_client.timed.assert_not_called()
 
     def test_empty_timer(self):
         with self.dogstatsd.timer():
             pass
-        self.dogstatsd_client.timed.assert_not_called()
+        self.dogstatsd_client.timing.assert_not_called()
 
     def test_timing(self):
         import datetime
