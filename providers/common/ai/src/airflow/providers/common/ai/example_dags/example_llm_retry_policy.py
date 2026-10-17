@@ -102,7 +102,8 @@ try:
     # demands more certainty than the rest. Under a bar the answer is discarded and the
     # fallback rules, then the task's own retry settings, decide instead. The bars come from
     # a calibration run on jev-1.13.0: correct picks landed at 0.89 and above, wrong ones
-    # at 0.47 to 0.69, with one wrong ``permanent`` at 0.90 that no sensible bar catches.
+    # at 0.47 to 0.69, with one wrong ``permanent`` at 0.90 that no bar catches here without
+    # also discarding correct picks.
     snowflake_policy = ClassifierRetryPolicy(
         llm_conn_id="decision_default",
         min_confidence=0.8,
@@ -137,8 +138,9 @@ try:
     # The three layers chained. The decision model answers the clear cases cheaply. When it is
     # unsure or unreachable, a text model reasons about the failure and decides retry and delay
     # itself. When that model is unreachable too, the rules decide. With a text model to ask, a
-    # wrong ``permanent`` costs more than an escalation, so its bar goes up to 0.95; that also
-    # catches the wrong ``permanent`` at 0.90 from the calibration run.
+    # wrong ``permanent`` costs more than an escalation, so its bar goes up to 0.95. That catches
+    # the wrong ``permanent`` at 0.90 from the calibration run, and a correct pick under 0.95
+    # costs one text-model call rather than the task.
     escalating_policy = ClassifierRetryPolicy(
         llm_conn_id="decision_default",
         min_confidence=0.8,

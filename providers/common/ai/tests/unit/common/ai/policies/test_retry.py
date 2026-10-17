@@ -692,13 +692,15 @@ def _truncated_read(*, explicit: bool = True) -> Exception:
     )
 
 
-def _prompt_for(mock_hook_cls, policy_cls, exception, **kwargs) -> str:
+def _prompt_for(
+    mock_hook_cls, policy_cls, exception, *, try_number: int = 2, max_tries: int = 4, **kwargs
+) -> str:
     """Evaluate ``exception`` under a ``policy_cls`` built with ``kwargs`` and return the prompt the model got."""
     if policy_cls is ClassifierRetryPolicy:
         agent = _install(mock_hook_cls, _agent("data"))
     else:
         agent = _install(mock_hook_cls, _open_agent("data", should_retry=False))
-    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=2, max_tries=4)
+    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=try_number, max_tries=max_tries)
     return agent.run_sync.call_args.args[0]
 
 
@@ -722,22 +724,26 @@ class TestPrompt:
             pytest.param(3, 3, "attempt 3 of 4", id="after-clear"),
         ],
     )
-    @pytest.mark.parametrize("policy_cls", [ClassifierRetryPolicy, LLMRetryPolicy])
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
     @patch(HOOK, autospec=True)
     def test_prompt_counts_the_first_try_in_the_attempt_total(
         self, mock_hook_cls, policy_cls, try_number, max_tries, expected
     ):
-        """``max_tries`` is the task's retry count, so the attempt total the model reads is one more."""
-        if policy_cls is ClassifierRetryPolicy:
-            agent = _install(mock_hook_cls, _agent("data"))
-        else:
-            agent = _install(mock_hook_cls, _open_agent("data", should_retry=False))
+        """
+        ``max_tries`` is the last try number that may still retry, so the final attempt is one more.
 
-        policy_cls(llm_conn_id="test").evaluate(
-            ValueError("bad column type"), try_number=try_number, max_tries=max_tries
+        It equals ``retries`` on a fresh run; a clear adds the tries already used, so a ``retries=1``
+        task cleared after two tries runs try 3 with ``max_tries=3``.
+        """
+        prompt = _prompt_for(
+            mock_hook_cls,
+            policy_cls,
+            ValueError("bad column type"),
+            try_number=try_number,
+            max_tries=max_tries,
         )
 
-        assert f"({expected})" in agent.run_sync.call_args.args[0]
+        assert f"({expected})" in prompt
 
     @pytest.mark.enable_redact
     @patch(HOOK, autospec=True)
