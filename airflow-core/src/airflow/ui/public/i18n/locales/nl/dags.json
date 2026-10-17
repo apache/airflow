@@ -6,6 +6,11 @@
       "warning": "Dit zal alle metadata gerelateerd aan de Dag verwijderen, inclusief Runs en Tasks."
     }
   },
+  "draining": {
+    "badgeTooltip": "Deze Dag pauzeert zodra de lopende Dag runs zijn voltooid.",
+    "label": "Leegmaken",
+    "tooltip": "Maak {{dagDisplayName}} leeg — pauzeert zodra de lopende Dag runs zijn voltooid. Klik om te hervatten."
+  },
   "favoriteDag": "Favoriete Dag",
   "filters": {
     "allRunTypes": "Alle Run types",
@@ -15,14 +20,36 @@
       "favorite": "Favoriet",
       "unfavorite": "Verwijder Favoriet"
     },
+    "favoriteState": "Favoriete status",
+    "favoriteStatePlaceholder": "Selecteer favoriete status…",
+    "noTimetableTypesFound": "Geen timetable types gevonden",
     "paused": {
       "active": "Actief",
       "all": "Alles",
       "paused": "Gepauzeerd"
     },
-    "runIdPatternFilter": "Zoek Dag Runs"
+    "pausedPlaceholder": "Selecteer gepauzeerde status…",
+    "pausedState": "Gepauzeerde status",
+    "requiresHitlAction": "Vereist HITL actie",
+    "runIdPatternFilter": "Zoek Dag Runs",
+    "runState": "Run status",
+    "runStatePlaceholder": "Selecteer run status…",
+    "timetableType": "Timetable type"
+  },
+  "folders": {
+    "all": "Alle Dags",
+    "empty": "Geen mappen",
+    "hide": "Verberg mappen",
+    "show": "Toon mappen",
+    "title": "Mappen"
   },
   "ownerLink": "Eigenaarslink voor {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Status van taken van alle lopende Dag runs of, als er geen loopt, van de meest recente run. Je kan dit uitschakelen in je gebruikersinstellingen.",
+    "label": "Recente taken",
+    "loading": "Recente taakstatus aantallen aan het laden",
+    "tooltip": "{{state}}: {{formattedCount}} — klik om taken te filteren"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Geen taken gevonden.",
@@ -62,25 +89,47 @@
         "failed": "Druk op Shift+F om te markeren als mislukt",
         "success": "Druk op Shift+S om te markeren als succesvol"
       },
+      "skippedInfo": "Het markeren van een taakinstantie als overgeslagen registreert dat deze opzettelijk niet is uitgevoerd. Downstream taken worden nog steeds geëvalueerd op basis van hun triggerregels: met de standaardregel \"all_success\" worden ze ook overgeslagen. Alleen taakinstanties die nog niet zijn gestart kunnen worden overgeslagen en alleen deze taakinstantie wordt beïnvloed.",
       "title": "Markeer {{type}} als {{state}}"
     },
     "options": {
       "downstream": "Downstream",
       "existingTasks": "Wis bestaande taken",
       "future": "Toekomst",
+      "keepTaskState": "Behoud taakstatus en hervat",
+      "laterIterations": "Latere iteraties",
       "onlyFailed": "Wis enkel mislukte taken",
       "past": "Verleden",
       "preventRunningTasks": "Voorkom opnieuw uitvoeren als taak bezig is",
       "queueNew": "Zet nieuwe taken in de wachtrij",
       "runOnLatestVersion": "Voer uit met de nieuwste bundelversie",
-      "upstream": "Upstream"
+      "runOnLatestVersionForced": "Gebruik altijd de laatste — er is geen eerdere versie om naar terug te gaan",
+      "upstream": "Upstream",
+      "wholeExpansion": "Volledige expansie"
     }
+  },
+  "runStateCounts": {
+    "label": "Run statussen",
+    "loading": "Run status aantallen aan het laden",
+    "tooltip": "{{state}}: {{formattedCount}} — klik om runs te filteren"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Annuleer leegmaken",
+    "drain": "Leegmaken en vervolgens pauzeren",
+    "drainPrompt": "Deze Dag heeft lopende Dag runs. Leegmaken laat ze voltooien voordat de Dag pauzeert; nu pauzeren stopt de planning onmiddellijk zonder te wachten.",
+    "pauseNow": "Nu pauzeren",
+    "pauseSelected": "Pauzeer / Leegmaken"
+  },
+  "schedulingBanner": {
+    "message": "Deze Dag is aan het leegmaken. Het zal pauzeren zodra de lopende Dag runs zijn voltooid."
   },
   "search": {
     "advanced": "Geavanceerd zoeken",
     "clear": "Zoekopdracht wissen",
+    "dagRuns": "Zoek $t(common:dagRun_other)",
     "dags": "Zoek Dags",
     "hotkey": "+K",
+    "mapIndexes": "Zoek $t(common:mapIndex)",
     "tasks": "Zoek taken"
   },
   "sort": {
@@ -88,9 +137,9 @@
       "asc": "Sorteer op weergavenaam (A-Z)",
       "desc": "Sorteer op weergavenaam (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sorteer op laatste Run startdatum (Eerste-Laatste)",
-      "desc": "Sorteer op laatste Run startdatum (Laatste-Eerste)"
+    "lastRunAfter": {
+      "asc": "Sorteer op laatste Run na (Eerste-Laatste)",
+      "desc": "Sorteer op laatste Run na (Laatste-Eerste)"
     },
     "lastRunState": {
       "asc": "Sorteer op laatste Run status (A-Z)",
