@@ -9549,6 +9549,19 @@ export const $UpdateHITLDetailPayload = {
             additionalProperties: true,
             type: 'object',
             title: 'Params Input'
+        },
+        request_created_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Request Created At',
+            description: 'The ``created_at`` of the request this response answers, exactly as the GET endpoint returned it. When the task has since replaced its request (it asked again after a resume, retry or clear), the response is refused with 409 instead of answering a request the user did not see. Leave it out to answer whatever request is waiting.'
         }
     },
     type: 'object',
@@ -12098,6 +12111,29 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Loop Iterations Count'
+        },
+        latest_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Region Id'
+        },
+        latest_region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Region Index'
         }
     },
     type: 'object',
@@ -12150,6 +12186,11 @@ export const $LoopIterationSummary = {
             type: 'integer',
             title: 'Index'
         },
+        task_count: {
+            type: 'integer',
+            title: 'Task Count',
+            default: 0
+        },
         state: {
             anyOf: [
                 {
@@ -12183,6 +12224,11 @@ export const $LoopIterationSummary = {
                 }
             ],
             title: 'End Date'
+        },
+        decision_reason: {
+            type: 'string',
+            title: 'Decision Reason',
+            description: "Why the loop's gate continued or stopped the loop at this iteration, if its until callable said."
         }
     },
     type: 'object',

@@ -24,6 +24,30 @@
 
 .. towncrier release notes start
 
+Airflow 3.4.0 (unreleased)
+--------------------------
+
+.. note::
+  Downgrading to any version earlier than 3.4.0 can be slow, depending on the number of
+  XCom rows that have been written after upgrading. Upgrading was tested on a
+  300m row XCom table, so please don't worry about upgrade time (we made sure
+  that the XCom *data* didn't get touched or read during migration to keep it
+  fast).
+
+  This is because this release contains a migration that starts storing new XCom
+  rows in an xcom_v2 table, and in order to downgrade we have to move those over
+  to the old table, and there is no way of doing this without copying the
+  written xcom values.
+
+  The downgrade refuses to continue when it finds data it cannot map back
+  safely. Each migration commits separately, so the later 3.4.0 migrations
+  have already been reversed at that point: fix the data and re-run the
+  downgrade, or run ``airflow db migrate`` to return to 3.4.
+
+  On MySQL a failure after those checks leaves the schema partly downgraded,
+  as MySQL cannot roll back DDL. Taking a backup before attempting the
+  downgrade on MySQL is advised, so it can be restored in that case.
+
 Airflow 3.3.2 (2026-09-17)
 --------------------------
 

@@ -28,19 +28,12 @@ from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
-
     from airflow.sdk import Context
 
 
 class LLMFileAnalysisOperator(LLMOperator):
     """
     Analyze files from object storage or local storage using a single LLM call.
-
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
 
     The operator resolves ``file_path`` via
     :class:`~airflow.providers.common.compat.sdk.ObjectStoragePath`, normalizes
@@ -60,8 +53,10 @@ class LLMFileAnalysisOperator(LLMOperator):
         for how blank entries in the list are dropped.
     :param system_prompt: Additional instructions appended to the built-in
         file-analysis system prompt.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
+    :param model_settings: Pydantic AI ``ModelSettings`` for the model call, such as
+        ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
     :param file_path: File or prefix to analyze.
     :param file_conn_id: Optional connection ID for the storage backend.
         Overrides a connection embedded in ``file_path``.
@@ -168,10 +163,9 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent: Agent[object, Any] = self.llm_hook.create_agent(
+        agent = self._create_agent(
             output_type=self.output_type,
             instructions=self._build_system_prompt(),
-            **self.agent_params,
         )
         result = self._run_llm(context, agent, request.user_content, usage_limits=usage_limits)
         output = result.output

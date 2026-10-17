@@ -22,11 +22,7 @@ import { FiSidebar } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type {
-  DagRunState,
-  DagSchedulingState,
-  DAGWithLatestDagRunsResponse,
-} from "openapi/requests/types.gen";
+import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
 import { ActionBar, IconButton, Tooltip } from "src/system-components";
 
@@ -37,6 +33,10 @@ import type { CardDef } from "src/components/DataTable/types";
 import { SelectionProvider, useRowSelection } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import {
+  pausedStateFromSearchParams,
+  pausedStateToQuery,
+} from "src/components/FilterBar/filters/pausedStateParams";
 import { SearchBar } from "src/components/SearchBar";
 
 import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_FOLDERS_KEY } from "src/constants/localStorage";
@@ -70,8 +70,6 @@ const {
   NEEDS_REVIEW,
   OFFSET,
   OWNERS,
-  PAUSED,
-  SCHEDULING_STATE,
   TAGS,
   TAGS_MATCH_MODE,
   TEAMS,
@@ -113,8 +111,10 @@ export const DagsList = () => {
 
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
-  const showPaused = searchParams.get(PAUSED);
-  const schedulingState = searchParams.get(SCHEDULING_STATE) as DagSchedulingState | null;
+  // Derived through the pill's own mapping so the query can never filter on more than the pill
+  // shows. A legacy ``scheduling_state=active`` has no choice to represent it, and would
+  // otherwise narrow the list with nothing on screen saying why.
+  const { paused, schedulingState } = pausedStateToQuery(pausedStateFromSearchParams(searchParams));
   const showFavorites = searchParams.get(FAVORITE);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
@@ -182,17 +182,8 @@ export const DagsList = () => {
     setSearchParams(searchParams);
   };
 
-  // No param means no paused filtering. usePausedDefault seeds the configured default on load,
-  // so an absent param after that is the user having removed the pill to see every Dag.
-  let paused = undefined;
   let isFavorite = undefined;
   let pendingHitl = undefined;
-
-  if (showPaused === "true") {
-    paused = true;
-  } else if (showPaused === "false") {
-    paused = false;
-  }
 
   if (showFavorites === "true") {
     isFavorite = true;
@@ -222,7 +213,7 @@ export const DagsList = () => {
     paused,
     pendingHitl,
     relativeFilelocPrefix: selectedFolder,
-    schedulingState: schedulingState ?? undefined,
+    schedulingState,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
     teams: teams.length > 0 ? teams : undefined,

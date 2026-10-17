@@ -30,6 +30,7 @@ import {
   MdDateRange,
   MdHistory,
   MdHourglassEmpty,
+  MdLoop,
   MdPause,
   MdPendingActions,
   MdPlayArrow,
@@ -43,9 +44,15 @@ import { useTeamsServiceListTeams } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 
 import type { FilterConfig } from "src/components/FilterBar";
+import { LoopFilter } from "src/components/FilterBar/filters/LoopFilter";
 import { RunStateFilter } from "src/components/FilterBar/filters/RunStateFilter";
 import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
 import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableTypeFilter";
+import { loopFromSearchParams, loopToSearchParams } from "src/components/FilterBar/filters/loopParams";
+import {
+  pausedStateFromSearchParams,
+  pausedStateToSearchParams,
+} from "src/components/FilterBar/filters/pausedStateParams";
 import {
   runStateFromSearchParams,
   runStateToSearchParams,
@@ -302,6 +309,15 @@ export const useFilterConfigs = () => {
       startKey: SearchParamsKeys.LOGICAL_DATE_GTE,
       type: FilterTypes.DATERANGE,
     },
+    [SearchParamsKeys.LOOP]: {
+      EditorComponent: LoopFilter,
+      fromSearchParams: loopFromSearchParams,
+      icon: <MdLoop />,
+      label: translate("common:filters.loop"),
+      placeholder: translate("common:filters.loopPlaceholder"),
+      toSearchParams: loopToSearchParams,
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.MAP_INDEX]: {
       icon: <LuBrackets />,
       label: translate("common:mapIndex"),
@@ -364,13 +380,16 @@ export const useFilterConfigs = () => {
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.PAUSED]: {
+      fromSearchParams: pausedStateFromSearchParams,
       icon: <MdPause />,
       label: translate("dags:filters.pausedState"),
       options: [
-        { label: translate("dags:filters.paused.active"), value: "false" },
-        { label: translate("dags:filters.paused.paused"), value: "true" },
+        { label: translate("dags:filters.paused.active"), value: "not_paused" },
+        { label: translate("dags:draining.label"), value: "draining" },
+        { label: translate("dags:filters.paused.paused"), value: "paused" },
       ],
       placeholder: translate("dags:filters.pausedPlaceholder"),
+      toSearchParams: pausedStateToSearchParams,
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.POOL_NAME_PATTERN]: {
@@ -467,17 +486,6 @@ export const useFilterConfigs = () => {
         ),
         value: option.value,
       })),
-      type: FilterTypes.SELECT,
-    },
-    [SearchParamsKeys.SCHEDULING_STATE]: {
-      icon: <MdSchedule />,
-      label: translate("dags:schedulingState.label"),
-      options: [
-        { label: translate("dags:schedulingState.active"), value: "active" },
-        { label: translate("dags:schedulingState.draining"), value: "draining" },
-        { label: translate("dags:schedulingState.paused"), value: "paused" },
-      ],
-      placeholder: translate("dags:schedulingState.placeholder"),
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.START_DATE_RANGE]: {

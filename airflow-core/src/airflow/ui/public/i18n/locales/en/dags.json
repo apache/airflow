@@ -6,6 +6,11 @@
       "warning": "This will remove all metadata related to the $t(common:dag_one), including Runs and $t(common:task_other)."
     }
   },
+  "draining": {
+    "badgeTooltip": "This Dag pauses once its running Dag runs finish.",
+    "label": "Draining",
+    "tooltip": "Draining {{dagDisplayName}} — pauses once running Dag runs finish. Click to resume."
+  },
   "favoriteDag": "Favorite $t(common:dag_one)",
   "filters": {
     "allRunTypes": "All Run Types",
@@ -118,21 +123,13 @@
   "schedulingBanner": {
     "message": "This Dag is draining. It will pause once its running Dag runs finish."
   },
-  "schedulingState": {
-    "active": "Active",
-    "draining": "Draining",
-    "drainingBadgeTooltip": "This Dag pauses once its running Dag runs finish.",
-    "drainingTooltip": "Draining {{dagDisplayName}} — pauses once running Dag runs finish. Click to resume.",
-    "label": "Scheduling state",
-    "paused": "Paused",
-    "placeholder": "Select scheduling state…"
-  },
   "search": {
     "advanced": "Advanced Search",
     "clear": "Clear search",
     "dagRuns": "Search $t(common:dagRun_other)",
     "dags": "Search $t(common:dag_other)",
     "hotkey": "+K",
+    "mapIndexes": "Search $t(common:mapIndex)",
     "tasks": "Search $t(common:task_other)"
   },
   "sort": {

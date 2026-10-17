@@ -6,6 +6,11 @@
       "warning": "這將會刪除所有與此 Dag 相關的系統資料，包括 Dag 執行與任務。"
     }
   },
+  "draining": {
+    "badgeTooltip": "待目前的執行全部結束後，此 Dag 將自動暫停。",
+    "label": "完成後將暫停",
+    "tooltip": "{{dagDisplayName}} 會在目前的執行全部結束後自動暫停。點選以恢復排程。"
+  },
   "favoriteDag": "將 Dag 加入最愛",
   "filters": {
     "allRunTypes": "全部執行類型",
@@ -117,15 +122,6 @@
   },
   "schedulingBanner": {
     "message": "待目前的執行全部結束後，此 Dag 將自動暫停。"
-  },
-  "schedulingState": {
-    "active": "啟用中",
-    "draining": "完成後將暫停",
-    "drainingBadgeTooltip": "待目前的執行全部結束後，此 Dag 將自動暫停。",
-    "drainingTooltip": "{{dagDisplayName}} 會在目前的執行全部結束後自動暫停。點選以恢復排程。",
-    "label": "排程狀態",
-    "paused": "暫停",
-    "placeholder": "選擇排程狀態…"
   },
   "search": {
     "advanced": "進階搜尋",

@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "All Map Indexes",
   "allRuns": "All Runs",
   "blockingDeps": {
     "dependency": "Dependency",
@@ -68,17 +69,6 @@
     "upcomingCount_one": "{{count, number}} Upcoming Deadline",
     "upcomingCount_other": "{{count, number}} Upcoming Deadlines"
   },
-  "execution": {
-    "clearSelected": "Clear selected executions",
-    "empty": "No executions in this run.",
-    "iteration": "{{node}} · Iteration {{index}}",
-    "mapped_one": "{{task}} ({{count, number}} mapped task on this page)",
-    "mapped_other": "{{task}} ({{count, number}} mapped tasks on this page)",
-    "page": "Showing {{start, number}}–{{end, number}} of {{total, number}} executions",
-    "runTasks": "Run tasks",
-    "select": "Select {{task}}",
-    "title": "Execution"
-  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
@@ -120,11 +110,6 @@
     "warning": "WARNING"
   },
   "loop": {
-    "filter": {
-      "all": "All iterations",
-      "invocation": "Invocation",
-      "label": "Iteration"
-    },
     "history": {
       "capLabel": "Limit: {{max}}",
       "iterationsAxis": "Iterations",
@@ -134,7 +119,7 @@
       },
       "title": "Iterations per run"
     },
-    "iteration": "Iteration {{index}}",
+    "iterationLabel": "Iteration {{index}}",
     "iterations": "Iterations",
     "outcome": "Outcome",
     "reason": {
@@ -334,10 +319,14 @@
       "provenance": "Provenance",
       "unknown": "Unknown"
     },
+    "limitReached": {
+      "description": "There are more changes than the Max changes limit allows. Raise the limit to see the rest.",
+      "descriptionDefault": "There are more changes than the default limit allows. Set Max changes higher to see the rest.",
+      "title": "Showing only the first {{limit, number}} changes"
+    },
     "maxChanges": "Max changes",
     "maxChangesDefault": "Default",
     "noChanges": "These versions hold the same state.",
-    "observedState": "Observed state",
     "observedStateBoundary": "Compares currently stored state, not creation-time evidence. Source comparison is unavailable for historical versions; use the Code tab to compare source.",
     "operations": {
       "added": "Added",
@@ -346,20 +335,18 @@
     },
     "record_one": "Record",
     "record_other": "Records",
+    "schemaChange": "Serialized schema {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "Select two versions to see what changed between them.",
-    "summary_one": "{{count, number}} change · serialized schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} changes · serialized schema {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "{{count, number}} change",
+    "summary_other": "{{count, number}} changes",
+    "summaryAtLeast_one": "At least {{count, number}} change",
+    "summaryAtLeast_other": "At least {{count, number}} changes",
     "target": "Compare to",
-    "truncated": {
-      "description": "Changes at paths not shown were dropped to stay within the limit, so the count is a lower bound.",
-      "title": "Some changes were not returned"
-    },
     "unavailable": {
       "description": "These versions could not be compared. Reason:",
       "title": "Comparison unavailable",
       "withoutReason": "These versions could not be compared."
     },
-    "valuesHidden": "Values hidden",
-    "valuesShown": "Values shown"
+    "valuesHidden": "Values hidden"
   }
 }

@@ -79,6 +79,18 @@ def test_each_flag_maps_to_its_commands(flag: str):
     assert commands == [command for _, command, _ in FLAG_COMMANDS[flag]]
 
 
+def test_agent_framework_commands_cover_every_framework_in_the_ci_matrix():
+    workflow = AIRFLOW_ROOT_PATH / ".github" / "workflows" / "agent-framework-tests.yml"
+    matrix = yaml.safe_load(workflow.read_text())["jobs"]["tests"]["strategy"]["matrix"]["framework"]
+
+    frameworks = [
+        shlex.split(shlex.split(command)[-1])[-1]
+        for _, command, _ in FLAG_COMMANDS["run_agent_framework_tests"]
+    ]
+
+    assert sorted(frameworks) == sorted(matrix)
+
+
 def test_docs_only_change_mirrors_the_ci_cell():
     files = ("airflow-core/docs/index.rst",)
     sc = _selective_checks(files)

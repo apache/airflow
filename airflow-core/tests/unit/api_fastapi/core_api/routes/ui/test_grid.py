@@ -45,7 +45,7 @@ from airflow.models.taskinstance import (
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import task, task_group
+from airflow.sdk import LoopDecision, task, task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -886,6 +886,8 @@ class TestGetGridDataEndpoint:
         }
         for ti in expected["task_instances"]:
             ti["loop_iterations_count"] = None
+            ti["latest_region_id"] = None
+            ti["latest_region_index"] = None
         for obj in actual, expected:
             tis = obj["task_instances"]
             tis[:] = sorted(tis, key=lambda x: x["task_id"])
@@ -993,6 +995,8 @@ class TestGetGridDataEndpoint:
         ]
         for ti in expected:
             ti["loop_iterations_count"] = None
+            ti["latest_region_id"] = None
+            ti["latest_region_index"] = None
         expected = sort_dict(expected)
         actual = sort_dict(actual)
         assert actual == expected
@@ -1325,6 +1329,42 @@ class TestGetGridDataEndpoint:
 class TestGetLoopSummaryEndpoint:
     gate_task_id = "body.__loop_gate"
 
+    @pytest.mark.parametrize(
+        ("until", "expected"),
+        [
+            (
+                lambda loop: LoopDecision(stop=loop.index >= 1, reason=f"iteration {loop.index} decided"),
+                ["iteration 0 decided", "iteration 1 decided"],
+            ),
+            (lambda loop: loop.index >= 1, [None, None]),
+            (lambda loop: LoopDecision(stop=loop.index >= 1), [None, None]),
+        ],
+        ids=["with_reason", "plain_bool", "decision_without_reason"],
+    )
+    def test_loop_summary_reports_the_reason_of_each_iteration(self, test_client, dag_maker, until, expected):
+        @task
+        def work():
+            return 1
+
+        @task_group
+        def body():
+            work()
+
+        with dag_maker(serialized=False) as dag:
+            body.loop(max_iterations=3, until=until)
+        run = dag.test()
+
+        response = test_client.get(f"/grid/loop/{run.dag_id}/{run.run_id}/body")
+
+        assert response.status_code == 200, response.text
+        iterations = response.json()["iterations"]
+        assert [iteration.get("decision_reason") for iteration in iterations] == expected
+        assert all(
+            "decision_reason" not in iteration
+            for iteration in iterations
+            if iteration.get("decision_reason") is None
+        )
+
     @pytest.fixture
     def executed_fixed_loop(self, dag_maker):
         @task
@@ -1527,6 +1567,34 @@ class TestGetLoopSummaryEndpoint:
         assert next(ti for ti in tasks if ti["task_id"] == "body")["loop_iterations_count"] == 2
         assert summary["iterations_ran"] == 2
 
+    def test_grid_counts_every_pass_but_links_to_the_newest(self, test_client, executed_fixed_loop, session):
+        run = executed_fixed_loop
+        # Clearing one pass without its later iterations puts an earlier pass back to work while
+        # a later one stays finished.
+        for ti in session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == run.dag_id,
+                TaskInstance.run_id == run.run_id,
+                TaskInstance.task_id == "body.work",
+                TaskInstance.region_index == 0,
+            )
+        ):
+            ti.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{run.dag_id}", params={"run_ids": [run.run_id]})
+        by_task_id = {ti["task_id"]: ti for ti in json.loads(response.text)["task_instances"]}
+
+        # States are aggregated onto the group. The cell stands for the loop's work, so the
+        # re-running pass shows rather than being hidden behind the finished later ones.
+        assert by_task_id["body"]["child_states"]["running"] == 1
+        # The later passes still count; a floor rather than a total, so the loop's own gate
+        # tasks do not pin this.
+        assert by_task_id["body"]["child_states"]["success"] >= 2
+        # The coordinate is recorded per row, and a link still has to address one, so it stays
+        # on the newest pass even though an earlier one is the thing now running.
+        assert by_task_id["body.work"]["latest_region_index"] == 2
+
     def test_loop_history_reads_runs_in_a_fixed_number_of_queries(self, test_client, dag_maker, session):
         @task
         def work():
@@ -1573,11 +1641,13 @@ class TestGetLoopSummaryEndpoint:
         with (
             capture_orm_selects("task_instance") as all_runs_tis,
             capture_orm_selects("dynamic_region") as all_runs_regions,
+            capture_orm_selects("xcom_v2") as all_runs_xcoms,
         ):
             response = test_client.get(path, params={"limit": 3})
 
         assert len(all_runs_tis) == len(one_run_tis)
         assert len(all_runs_regions) == len(one_run_regions)
+        assert all_runs_xcoms == []
         assert [(run["run_id"], run["status"]) for run in response.json()["runs"]] == [
             ("history_0", "ran_to_cap"),
             ("history_1", "failed"),

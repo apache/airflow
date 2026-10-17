@@ -337,7 +337,6 @@
     "maxChanges": "變更數上限",
     "maxChangesDefault": "預設",
     "noChanges": "這些版本的狀態相同。",
-    "observedState": "目前儲存狀態",
     "observedStateBoundary": "比較的是目前儲存的狀態，而非建立當時的證據。歷史版本無法比較原始碼；請使用「程式碼」分頁比較原始碼。",
     "operations": {
       "added": "新增",
@@ -347,19 +346,14 @@
     "record_one": "記錄",
     "record_other": "記錄",
     "selectPrompt": "選擇兩個版本以查看它們之間的差異。",
-    "summary_one": "1 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} 項變更 · 序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "summary_one": "1 項變更",
+    "summary_other": "{{count, number}} 項變更",
     "target": "比較對象",
-    "truncated": {
-      "description": "為維持在上限內，未顯示的路徑上的變更已被捨棄，因此此數量僅為下限。",
-      "title": "部分變更未回傳"
-    },
     "unavailable": {
       "description": "無法比較這些版本。原因：",
       "title": "無法比較",
       "withoutReason": "無法比較這些版本。"
     },
-    "valuesHidden": "值已隱藏",
-    "valuesShown": "值已顯示"
+    "valuesHidden": "值已隱藏"
   }
 }
