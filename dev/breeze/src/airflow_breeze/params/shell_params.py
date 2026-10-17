@@ -598,7 +598,8 @@ services:
     @property
     def postgres_data_volume_path(self) -> str:
         """The ``VOLUME`` the postgres image declares; it moved from ``data/`` to its parent in 18."""
-        if self.backend == "postgres" and int(self.postgres_version) >= 18:
+        postgres_major = re.match(r"\d+", self.postgres_version)
+        if self.backend == "postgres" and postgres_major and int(postgres_major.group()) >= 18:
             return "/var/lib/postgresql"
         return "/var/lib/postgresql/data"
 
