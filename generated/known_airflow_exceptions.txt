@@ -127,6 +127,7 @@ providers/amazon/src/airflow/providers/amazon/aws/utils/waiter_with_logging.py::
 providers/amazon/tests/unit/amazon/aws/operators/test_ecs.py::1
 providers/apache/beam/src/airflow/providers/apache/beam/hooks/beam.py::8
 providers/apache/beam/src/airflow/providers/apache/beam/operators/beam.py::4
+providers/apache/beam/tests/unit/apache/beam/hooks/test_beam.py::1
 providers/apache/druid/src/airflow/providers/apache/druid/hooks/druid.py::4
 providers/apache/flink/src/airflow/providers/apache/flink/sensors/flink_kubernetes.py::1
 providers/apache/hive/src/airflow/providers/apache/hive/hooks/hive.py::9
