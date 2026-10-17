@@ -22,7 +22,11 @@ from unittest import mock as async_mock
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
+from airflow.providers.amazon.aws.triggers.s3 import (
+    S3KeysUnchangedTrigger,
+    S3KeyTrigger,
+    S3KeyUpdateTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 
@@ -256,3 +260,201 @@ class TestS3KeysUnchangedTrigger:
         # TriggerEvent was not returned
         assert task.done() is False
         asyncio.get_event_loop().stop()
+
+
+def _head(etag, last_modified=None, size=None):
+    """Build a head_object response pointing at ``etag``. ``None`` means the key is absent."""
+    if etag is None:
+        return None
+    return {"ETag": etag, "LastModified": last_modified, "ContentLength": size}
+
+
+async def _collect(trigger, count, timeout=10.0):
+    """Pull up to ``count`` payloads off the trigger, giving up after ``timeout``."""
+    from contextlib import aclosing, suppress
+
+    payloads = []
+    generator = trigger.run()
+    async with aclosing(generator):
+
+        async def pump():
+            async for event in generator:
+                payloads.append(event.payload)
+                if len(payloads) >= count:
+                    return
+
+        with suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(pump(), timeout=timeout)
+    return payloads
+
+
+@async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
+class TestS3KeyUpdateTrigger:
+    @staticmethod
+    def _conn(mock_get_async_conn):
+        mock_get_async_conn.return_value.__aenter__.return_value = async_mock.AsyncMock()
+
+    def test_serialize_round_trip(self, mock_get_async_conn):
+        trigger = S3KeyUpdateTrigger(
+            bucket_name="my-bucket",
+            bucket_key="reports/daily.csv",
+            aws_conn_id="my_conn",
+            poke_interval=5,
+            region_name="eu-west-1",
+        )
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == "airflow.providers.amazon.aws.triggers.s3.S3KeyUpdateTrigger"
+        assert kwargs == {
+            "bucket_name": "my-bucket",
+            "bucket_key": "reports/daily.csv",
+            "aws_conn_id": "my_conn",
+            "poke_interval": 5,
+            "region_name": "eu-west-1",
+            "verify": None,
+            "botocore_config": None,
+            "last_seen_etag": None,
+            "hook_params": {},
+        }
+        assert S3KeyUpdateTrigger(**kwargs).serialize() == (classpath, kwargs)
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async",
+        new_callable=async_mock.AsyncMock,
+    )
+    async def test_emits_current_object_on_first_poll(self, mock_head, mock_get_async_conn):
+        """With no watermark the current object is itself the first event."""
+        self._conn(mock_get_async_conn)
+        mock_head.side_effect = [_head('"aaa"')]
+        trigger = S3KeyUpdateTrigger(bucket_name="b", bucket_key="k", poke_interval=0.01)
+
+        payloads = await _collect(trigger, 1)
+
+        assert [(p["etag"], p["previous_etag"]) for p in payloads] == [('"aaa"', None)]
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async",
+        new_callable=async_mock.AsyncMock,
+    )
+    async def test_silent_while_etag_unchanged(self, mock_head, mock_get_async_conn):
+        """An object that has not changed must not schedule anything."""
+        self._conn(mock_get_async_conn)
+        mock_head.return_value = _head('"aaa"')
+        trigger = S3KeyUpdateTrigger(
+            bucket_name="b", bucket_key="k", poke_interval=0.01, last_seen_etag='"aaa"'
+        )
+
+        payloads = await _collect(trigger, 1, timeout=0.2)
+
+        assert payloads == []
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async",
+        new_callable=async_mock.AsyncMock,
+    )
+    async def test_emits_once_per_update(self, mock_head, mock_get_async_conn):
+        """Each new ETag produces exactly one event carrying the ETag it replaced."""
+        self._conn(mock_get_async_conn)
+        mock_head.side_effect = [_head('"aaa"'), _head('"bbb"'), _head('"bbb"'), _head('"ccc"')]
+        trigger = S3KeyUpdateTrigger(
+            bucket_name="b", bucket_key="k", poke_interval=0.01, last_seen_etag='"aaa"'
+        )
+
+        payloads = await _collect(trigger, 2)
+
+        assert [(p["previous_etag"], p["etag"]) for p in payloads] == [('"aaa"', '"bbb"'), ('"bbb"', '"ccc"')]
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async",
+        new_callable=async_mock.AsyncMock,
+    )
+    async def test_silent_while_key_absent(self, mock_head, mock_get_async_conn):
+        """Watching a key that does not exist yet waits for it rather than failing."""
+        self._conn(mock_get_async_conn)
+        mock_head.return_value = _head(None)
+        trigger = S3KeyUpdateTrigger(bucket_name="b", bucket_key="k", poke_interval=0.01)
+
+        payloads = await _collect(trigger, 1, timeout=0.2)
+
+        assert payloads == []
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async",
+        new_callable=async_mock.AsyncMock,
+    )
+    async def test_fires_once_the_key_appears(self, mock_head, mock_get_async_conn):
+        self._conn(mock_get_async_conn)
+        mock_head.side_effect = [_head(None), _head(None), _head('"aaa"')]
+        trigger = S3KeyUpdateTrigger(bucket_name="b", bucket_key="k", poke_interval=0.01)
+
+        payloads = await _collect(trigger, 1)
+
+        assert [p["etag"] for p in payloads] == ['"aaa"']
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async",
+        new_callable=async_mock.AsyncMock,
+    )
+    async def test_event_payload_fields(self, mock_head, mock_get_async_conn):
+        """The event reports bucket, key, size and an ISO-8601 last_modified."""
+        self._conn(mock_get_async_conn)
+        mock_head.side_effect = [_head('"aaa"', last_modified=datetime(2026, 10, 5, 12, 0, 0), size=42)]
+        trigger = S3KeyUpdateTrigger(bucket_name="b", bucket_key="k", poke_interval=0.01)
+
+        payloads = await _collect(trigger, 1)
+
+        assert payloads == [
+            {
+                "bucket_name": "b",
+                "bucket_key": "k",
+                "etag": '"aaa"',
+                "previous_etag": None,
+                "last_modified": "2026-10-05T12:00:00",
+                "size": 42,
+            }
+        ]
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async",
+        new_callable=async_mock.AsyncMock,
+    )
+    async def test_resumes_from_the_stored_watermark(self, mock_head, mock_get_async_conn):
+        """A restarted triggerer must not re-emit an object it already reported."""
+        self._conn(mock_get_async_conn)
+        store = async_mock.MagicMock()
+        store.get.return_value = '"bbb"'
+        mock_head.return_value = _head('"bbb"')
+        trigger = S3KeyUpdateTrigger(
+            bucket_name="b", bucket_key="k", poke_interval=0.01, last_seen_etag='"aaa"'
+        )
+        trigger.asset_state_store = store
+
+        payloads = await _collect(trigger, 1, timeout=0.2)
+
+        assert payloads == []
+        store.get.assert_called_once_with("etag")
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async",
+        new_callable=async_mock.AsyncMock,
+    )
+    async def test_persists_the_watermark_on_each_event(self, mock_head, mock_get_async_conn):
+        self._conn(mock_get_async_conn)
+        store = async_mock.MagicMock()
+        store.get.return_value = None
+        mock_head.side_effect = [_head('"aaa"'), _head('"bbb"'), _head('"bbb"')]
+        trigger = S3KeyUpdateTrigger(bucket_name="b", bucket_key="k", poke_interval=0.01)
+        trigger.asset_state_store = store
+
+        payloads = await _collect(trigger, 2)
+
+        assert [p["etag"] for p in payloads] == ['"aaa"', '"bbb"']
+        assert [c.args for c in store.set.call_args_list] == [("etag", '"aaa"'), ("etag", '"bbb"')]

@@ -22,10 +22,14 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.triggers import BaseEventTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+# Key under which the last-reported object fingerprint is persisted in the asset state store.
+WATERMARK_KEY = "etag"
 
 
 class S3KeyTrigger(BaseTrigger):
@@ -266,3 +270,141 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                     await asyncio.sleep(self.polling_period_seconds)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
+
+
+class S3KeyUpdateTrigger(BaseEventTrigger):
+    """
+    Fire an event whenever a single S3 object is updated.
+
+    Polls ``head_object`` for ``bucket_key`` and emits an event when the object's ``ETag``
+    differs from the one the trigger last reported, which makes an upload to that key usable
+    as a scheduling signal::
+
+        from airflow.sdk import Asset, AssetWatcher
+
+        report = Asset(
+            "daily_report",
+            watchers=[
+                AssetWatcher(
+                    name="daily_report_updates",
+                    trigger=S3KeyUpdateTrigger(bucket_name="my-bucket", bucket_key="reports/daily.csv"),
+                )
+            ],
+        )
+
+
+        @dag(schedule=[report])
+        def downstream(): ...
+
+    The last-reported ``ETag`` is persisted in the asset state store, so a triggerer restart
+    does not re-emit an unchanged object. On the first poll — and after a restart when no
+    watermark was kept — the current object is itself the first event, so ``previous_etag`` is
+    ``None``. A task that must not run twice for one upload keys on ``etag``.
+
+    The event carries ``bucket_name``, ``bucket_key``, ``etag``, ``previous_etag``,
+    ``last_modified`` (ISO-8601) and ``size``. A missing key is not an error: the trigger stays
+    silent and keeps polling until the object appears.
+
+    Updates are detected by ``ETag`` (the object's content fingerprint), so re-uploading
+    byte-identical content does not fire. For a versioned bucket where every upload must fire,
+    enable bucket versioning and the ``ETag`` still changes per upload.
+
+    :param bucket_name: Name of the S3 bucket.
+    :param bucket_key: Key of the object to watch.
+    :param aws_conn_id: Reference to the S3 connection.
+    :param poke_interval: Seconds between polls.
+    :param region_name: AWS region for the hook.
+    :param verify: Whether to verify SSL certificates for the S3 connection.
+    :param botocore_config: Configuration dictionary for the underlying botocore client.
+    :param last_seen_etag: ETag already reported. Leave unset to treat the current object as
+        the first event.
+    :param hook_params: Additional parameters passed to the hook.
+    """
+
+    def __init__(
+        self,
+        *,
+        bucket_name: str,
+        bucket_key: str,
+        aws_conn_id: str | None = "aws_default",
+        poke_interval: float = 60,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+        last_seen_etag: str | None = None,
+        hook_params: dict | None = None,
+    ) -> None:
+        super().__init__()
+        self.bucket_name = bucket_name
+        self.bucket_key = bucket_key
+        self.aws_conn_id = aws_conn_id
+        self.poke_interval = poke_interval
+        self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
+        self.last_seen_etag = last_seen_etag
+        self.hook_params = hook_params or {}
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize S3KeyUpdateTrigger arguments and classpath."""
+        return (
+            "airflow.providers.amazon.aws.triggers.s3.S3KeyUpdateTrigger",
+            {
+                "bucket_name": self.bucket_name,
+                "bucket_key": self.bucket_key,
+                "aws_conn_id": self.aws_conn_id,
+                "poke_interval": self.poke_interval,
+                "region_name": self.region_name,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
+                "last_seen_etag": self.last_seen_etag,
+                "hook_params": self.hook_params,
+            },
+        )
+
+    @cached_property
+    def hook(self) -> S3Hook:
+        return S3Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+            **self.hook_params,
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Poll the object and emit an event each time its ETag changes."""
+        # serialize() is captured once when the trigger row is created, so a value mutated on
+        # self is lost when the triggerer restarts and the current object would be re-emitted as
+        # an update. The watermark survives that; the kwarg only seeds the first run.
+        store = getattr(self, "asset_state_store", None)
+        if store is not None:
+            stored = await asyncio.to_thread(store.get, WATERMARK_KEY)
+            if stored is not None:
+                self.last_seen_etag = stored
+
+        async with await self.hook.get_async_conn() as client:
+            while True:
+                head = await self.hook.get_head_object_async(
+                    client=client, key=self.bucket_key, bucket_name=self.bucket_name
+                )
+                if head is not None:
+                    etag = head.get("ETag")
+                    if etag is not None and etag != self.last_seen_etag:
+                        previous, self.last_seen_etag = self.last_seen_etag, etag
+                        if store is not None:
+                            await asyncio.to_thread(store.set, WATERMARK_KEY, etag)
+                        last_modified = head.get("LastModified")
+                        yield TriggerEvent(
+                            {
+                                "bucket_name": self.bucket_name,
+                                "bucket_key": self.bucket_key,
+                                "etag": etag,
+                                "previous_etag": previous,
+                                "last_modified": last_modified.isoformat()
+                                if last_modified is not None
+                                else None,
+                                "size": head.get("ContentLength"),
+                            }
+                        )
+                await asyncio.sleep(self.poke_interval)
