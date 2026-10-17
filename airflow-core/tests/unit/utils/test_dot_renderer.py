@@ -44,9 +44,6 @@ pytestmark = pytest.mark.db_test
 
 
 class TestDotRenderer:
-    def setup_class(self):
-        clear_db_dags()
-
     def teardown_method(self):
         clear_db_dags()
 
