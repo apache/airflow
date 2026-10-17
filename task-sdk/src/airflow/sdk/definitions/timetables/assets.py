@@ -77,6 +77,10 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
     partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
     default_partition_mapper: PartitionMapper = IdentityMapper()
+    # Opt-in refire on late/corrected partition events: "rerun" (clear + re-run the
+    # existing DagRun, attempts increment) or "newrun" (a new DagRun per refire).
+    # None = fire once (default, no behavior change).
+    refire_policy: str | None = None
 
     # The factory needs the partition mappers to be initialized first.
     batch_asset_events: bool = attrs.field(

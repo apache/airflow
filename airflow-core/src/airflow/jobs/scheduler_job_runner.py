@@ -115,7 +115,7 @@ from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
@@ -2610,6 +2610,45 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=apdr.target_dag_id,
                     carried_partition_date=apdr.partition_date,
                 )
+            # Refire Semantics A ("rerun"): clear + re-queue the existing DagRun for this
+            # (dag, partition_key) instead of creating a new one, so a late/corrected
+            # event reprocesses in the same DagRun (attempts increment).
+            if getattr(timetable, "refire_policy", None) == "rerun":
+                existing_run = session.scalar(
+                    select(DagRun)
+                    .where(
+                        DagRun.dag_id == apdr.target_dag_id,
+                        DagRun.partition_key == apdr.partition_key,
+                    )
+                    .order_by(DagRun.id.desc())
+                    .limit(1)
+                )
+                if existing_run is not None:
+                    tis = session.scalars(
+                        select(TaskInstance).where(
+                            TaskInstance.dag_id == existing_run.dag_id,
+                            TaskInstance.run_id == existing_run.run_id,
+                        )
+                    ).all()
+                    clear_task_instances(list(tis), session, dag_run_state=DagRunState.QUEUED)
+                    existing_ids = {ev.id for ev in existing_run.consumed_asset_events}
+                    for ev in session.scalars(
+                        select(AssetEvent).where(
+                            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                            PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
+                        )
+                    ):
+                        if ev.id not in existing_ids:
+                            existing_run.consumed_asset_events.append(ev)
+                    apdr.created_dag_run_id = existing_run.id
+                    session.flush()
+                    self.log.info(
+                        "Refire(rerun): cleared and re-queued run %s for dag %s partition_key %s",
+                        existing_run.run_id,
+                        apdr.target_dag_id,
+                        apdr.partition_key,
+                    )
+                    continue
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after

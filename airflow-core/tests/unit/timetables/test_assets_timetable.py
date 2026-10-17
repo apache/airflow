@@ -569,6 +569,19 @@ def test_batch_asset_events_roundtrip(timetable_type, batch_asset_events):
     assert deserialized.asset_condition == ensure_serialized_asset(asset)
 
 
+@pytest.mark.parametrize("refire_policy", [None, "rerun", "newrun"])
+@pytest.mark.parametrize("timetable_type", [PartitionedAssetTimetable, SdkPartitionedAssetTimetable])
+def test_refire_policy_roundtrip(timetable_type, refire_policy):
+    asset = Asset("test")
+    timetable = timetable_type(assets=asset, refire_policy=refire_policy)
+
+    serialized = encode_timetable(timetable)
+    deserialized = decode_timetable(serialized)
+
+    assert serialized["__var"]["refire_policy"] == refire_policy
+    assert deserialized.refire_policy == refire_policy
+
+
 @pytest.mark.parametrize("configured", [False, True])
 @pytest.mark.parametrize("explicit", [None, False, True])
 @pytest.mark.parametrize(
