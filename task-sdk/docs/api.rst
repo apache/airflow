@@ -216,6 +216,8 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.CronTriggerTimetable
 
+.. autoapiclass:: airflow.sdk.JitteredCronTimetable
+
 .. autoapiclass:: airflow.sdk.CronPartitionTimetable
 
 .. autoapiclass:: airflow.sdk.DeltaDataIntervalTimetable
