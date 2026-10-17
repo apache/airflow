@@ -18,7 +18,8 @@
  */
 /**
  * DAG run API helpers — trigger, create, set state, poll, delete, cleanup.
- * Includes task-instance state polling since TIs belong to a DAG run.
+ * Includes task-instance state polling since TIs belong to a DAG run, and Dag-level
+ * pause toggling since unpausing is a precondition for a run to be scheduled.
  */
 import { expect } from "@playwright/test";
 
@@ -175,6 +176,29 @@ export async function apiSetDagRunState(
 
     if (response.status() !== 409 && !response.ok()) {
       throw new Error(`Set Dag run state failed (${response.status()})`);
+    }
+  }).toPass({ intervals: [2000, 3000, 5000], timeout: 60_000 });
+}
+
+/**
+ * Pause or unpause a Dag via the API.
+ *
+ * The compose stack the E2E suite runs against sets
+ * `AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true`, so a spec that expects the
+ * scheduler to actually run its Dag must unpause it before triggering.
+ */
+export async function apiSetDagPaused(source: RequestLike, dagId: string, isPaused: boolean): Promise<void> {
+  const request = getRequestContext(source);
+
+  await expect(async () => {
+    const response = await request.patch(`${baseUrl}/api/v2/dags/${dagId}`, {
+      data: { is_paused: isPaused },
+      headers: { "Content-Type": "application/json" },
+      timeout: 10_000,
+    });
+
+    if (!response.ok()) {
+      throw new Error(`Set Dag paused state failed (${response.status()})`);
     }
   }).toPass({ intervals: [2000, 3000, 5000], timeout: 60_000 });
 }
