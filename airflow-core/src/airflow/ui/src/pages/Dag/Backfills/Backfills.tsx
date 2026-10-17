@@ -39,6 +39,7 @@ import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
 
 const {
+  ACTIVE: ACTIVE_PARAM,
   COMPLETED_AT_GTE: COMPLETED_AT_GTE_PARAM,
   COMPLETED_AT_LTE: COMPLETED_AT_LTE_PARAM,
   CREATED_AT_GTE: CREATED_AT_GTE_PARAM,
@@ -158,6 +159,8 @@ export const Backfills = () => {
 
   const [searchParams] = useSearchParams();
 
+  const activeParam = searchParams.get(ACTIVE_PARAM);
+  const active = activeParam === "true" || activeParam === "false" ? activeParam === "true" : undefined;
   const fromDateGte = searchParams.get(FROM_DATE_GTE_PARAM);
   const fromDateLte = searchParams.get(FROM_DATE_LTE_PARAM);
   const toDateGte = searchParams.get(TO_DATE_GTE_PARAM);
@@ -174,6 +177,7 @@ export const Backfills = () => {
   const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
 
   const { data, error, isLoading } = useBackfillServiceListBackfillsUi({
+    active,
     completedAtGte: completedAtGte ?? undefined,
     completedAtLte: completedAtLte ?? undefined,
     createdAtGte: createdAtGte ?? undefined,
