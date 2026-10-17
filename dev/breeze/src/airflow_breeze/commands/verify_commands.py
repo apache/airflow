@@ -20,6 +20,7 @@ import contextlib
 import io
 import json
 import re
+import shlex
 import sys
 from subprocess import CompletedProcess
 
@@ -28,21 +29,28 @@ from rich.markup import escape
 from rich.table import Table
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.commands.common_options import option_verbose
+from airflow_breeze.commands.common_options import option_dry_run, option_verbose
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.console import get_console, get_stderr_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.reproduce_ci import SKIP_LOCAL_REPRODUCTION
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.shared_options import get_verbose
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.verification_plan import LeanSelectiveChecks, build_local_verification_plan
 
 APACHE_AIRFLOW_URL = re.compile(r"github\.com[:/]apache/airflow(\.git)?/?$")
 
 
 def _run_git(*args: str) -> CompletedProcess:
-    return run_command(["git", *args], capture_output=True, text=True, check=False, cwd=AIRFLOW_ROOT_PATH)
+    return run_command(
+        ["git", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=AIRFLOW_ROOT_PATH,
+        dry_run_override=False,
+    )
 
 
 def find_default_base_ref() -> str | None:
@@ -59,13 +67,22 @@ def find_default_base_ref() -> str | None:
     return None
 
 
-def has_merged_commits_missing_from(base_ref: str) -> bool:
-    """Whether a merge on the branch brought in commits that ``base_ref`` does not have, as after
-    GitHub's "Update branch" when the local copy of the target branch was not fetched since."""
+def has_target_branch_commits_missing_from(base_ref: str) -> bool:
+    """Whether the branch holds target-branch commits that ``base_ref`` lacks, so they would count as changes.
+
+    A merge brings them in, as after GitHub's "Update branch" when the local copy was not fetched
+    since. A rebase or fast-forward onto the apache/airflow remote does too, when ``base_ref`` is an
+    older copy such as a local branch.
+    """
     for line in _run_git("rev-list", "--merges", "--parents", f"{base_ref}..HEAD").stdout.splitlines():
         for merged_parent in line.split()[2:]:
             if _run_git("merge-base", "--is-ancestor", merged_parent, base_ref).returncode != 0:
                 return True
+    apache_ref = find_default_base_ref()
+    if apache_ref and apache_ref != base_ref:
+        fork_point = _run_git("merge-base", apache_ref, "HEAD").stdout.strip()
+        if fork_point and _run_git("merge-base", "--is-ancestor", fork_point, base_ref).returncode != 0:
+            return True
     return False
 
 
@@ -86,9 +103,20 @@ def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
     return tuple(sorted(set(changed)))
 
 
+def run_verification_commands(commands: list[str]) -> list[int]:
+    """Run each command in a shell from the repository root, carrying on after a failure."""
+    return_codes = []
+    for index, command in enumerate(commands, start=1):
+        get_console().print(f"\n[info]({index}/{len(commands)}) {escape(command)}[/]\n", soft_wrap=True)
+        return_codes.append(
+            run_command(["bash", "-c", command], check=False, cwd=AIRFLOW_ROOT_PATH).returncode
+        )
+    return return_codes
+
+
 @main.command(
     name="verify",
-    help="List the local verification CI would require for the current changes. Nothing is executed.",
+    help="Run the local verification CI would require for the current changes. Pass --dry-run to only list it.",
 )
 @click.option(
     "--base-ref",
@@ -102,7 +130,13 @@ def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
     help="List everything CI runs for the default matrix cell except static checks, including the full "
     "suite CI adds when a change touches CI tooling or dependency files.",
 )
-@click.option("--json", "as_json", is_flag=True, help="Print machine-readable JSON instead of a table.")
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    help="Print the list as machine-readable JSON instead of a table. Nothing is run.",
+)
+@option_dry_run
 @option_verbose
 @click.pass_context
 def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
@@ -136,10 +170,11 @@ def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
             f"No git remote points at apache/airflow, so changes are compared with the local "
             f"{AIRFLOW_BRANCH} branch."
         )
-    if has_merged_commits_missing_from(base_ref):
+    base_is_stale = has_target_branch_commits_missing_from(base_ref)
+    if base_is_stale:
         warnings.append(
-            f"Your branch has merged commits that are not in {base_ref}, so they are listed as your "
-            f"changes. Update {base_ref} (for example with git fetch) and run again."
+            f"{base_ref} is older than the target-branch commits your branch already has, so they are "
+            f"listed as your changes. Update {base_ref} (for example with git fetch) and run again."
         )
     if as_json:
         print(json.dumps(result, indent=2))
@@ -163,12 +198,16 @@ def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
     console.print(
         "\n[info]Static checks are not listed. Run prek as usual. It picks the hooks for the changed files.[/]"
     )
-    if result["manual_prek_hooks"]:
+    manual_prek_commands = [
+        f"prek run --stage manual {hook} --from-ref {shlex.quote(base_ref)}"
+        for hook in result["manual_prek_hooks"]
+    ]
+    if manual_prek_commands:
         console.print(
             "\n[warning]CI also runs these prek hooks, which a default prek install does not run:[/]"
         )
-        for hook in result["manual_prek_hooks"]:
-            console.print(escape(f"prek run --stage manual {hook} --from-ref {base_ref}"), soft_wrap=True)
+        for command in manual_prek_commands:
+            console.print(escape(command), soft_wrap=True)
     if result["full_tests_needed"] and not full:
         console.print(
             "\n[warning]CI also runs the full suite for this change because it touches CI tooling or "
@@ -178,3 +217,26 @@ def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
         f"\n[warning]Covers Python {result['default_python_version']} on sqlite only; other Python versions, "
         "Postgres, MySQL, the provider compatibility matrix and CI-only jobs run in CI.[/]"
     )
+    if get_dry_run():
+        return
+    if base_is_stale:
+        console.print(
+            f"\n[error]Not running the list, because {base_ref} is out of date and the list includes commits "
+            f"that are not yours. Update {base_ref} and run again, or pass --dry-run to only list it.[/]"
+        )
+        sys.exit(1)
+    commands = [item["command"] for item in result["items"]] + manual_prek_commands
+    if not commands:
+        console.print("\n[info]Nothing to run.[/]")
+        return
+    failed = [
+        command
+        for command, return_code in zip(commands, run_verification_commands(commands))
+        if return_code != 0
+    ]
+    if failed:
+        console.print(f"\n[error]{len(failed)} of {len(commands)} command(s) failed:[/]")
+        for command in failed:
+            console.print(escape(command), soft_wrap=True)
+        sys.exit(1)
+    console.print(f"\n[success]All {len(commands)} command(s) passed.[/]")
