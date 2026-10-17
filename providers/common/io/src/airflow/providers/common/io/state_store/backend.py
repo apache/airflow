@@ -17,12 +17,16 @@
 from __future__ import annotations
 
 import asyncio
+import errno
+import io
 import json
 from functools import cache
 from typing import TYPE_CHECKING
 from urllib.parse import quote, urlsplit
 
 import fsspec.utils
+from fsspec.asyn import AsyncFileSystem
+from fsspec.compression import compr
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_4_PLUS
@@ -38,6 +42,7 @@ if TYPE_CHECKING:
 
 
 from airflow.sdk import ObjectStoragePath
+from airflow.sdk.lineage import get_hook_lineage_collector
 from airflow.sdk.state import AssetScope, BaseStoreBackend, TaskScope
 
 SECTION = "common.io"
@@ -111,6 +116,53 @@ def _read_from_object_storage(path: ObjectStoragePath) -> str | None:
             return f.read().decode("utf-8")
     except FileNotFoundError:
         return None
+
+
+async def _aread_from_object_storage(path: ObjectStoragePath) -> str | None:
+    fs = path.fs
+    compression = fsspec.utils.infer_compression(path.path)
+    if not isinstance(fs, AsyncFileSystem) or fs.asynchronous or compression not in (None, "gzip"):
+        return _read_from_object_storage(path)
+    try:
+        from s3fs import S3FileSystem
+        from s3fs.core import FileExpired, _inner_fetch
+    except ImportError:
+        return _read_from_object_storage(path)
+    # Only the standard S3 implementation has been checked against this read contract.
+    # Custom filesystems, version-aware reads and other codecs retain fs.open().
+    if type(fs) is not S3FileSystem or fs.version_aware or getattr(fs, "local_expiry_check", True):
+        return _read_from_object_storage(path)
+    if (
+        getattr(fs.open, "__func__", None) is not S3FileSystem.open
+        or getattr(fs._open, "__func__", None) is not S3FileSystem._open
+    ):
+        return _read_from_object_storage(path)
+    try:
+        details = await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(fs._info(path.path), fs.loop))
+        if details["type"] != "file":
+            return _read_from_object_storage(path)
+        get_hook_lineage_collector().add_input_asset(context=path, uri=str(path))
+        bucket, key, version = fs.split_path(path.path)
+        read_kw = {"RequestPayer": "requester" if fs.requester_pays else None}
+        if "ETag" in details:
+            read_kw["IfMatch"] = details["ETag"]
+        if details["size"]:
+            try:
+                data = await asyncio.wrap_future(
+                    asyncio.run_coroutine_threadsafe(
+                        _inner_fetch(fs, bucket, key, version, 0, details["size"], read_kw, details), fs.loop
+                    )
+                )
+            except OSError as error:
+                if error.errno == errno.EINVAL and "pre-conditions" in str(error):
+                    raise FileExpired(filename=details["name"], e_tag=details.get("ETag")) from error
+                raise
+        else:
+            data = b""
+    except FileNotFoundError:
+        return None
+    with compr[compression](io.BytesIO(data), mode="r") as stream:
+        return stream.read().decode("utf-8")
 
 
 def _is_storage_ref(value: str) -> bool:
@@ -239,4 +291,28 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
             if data is not None:
                 return json.loads(data)
             return None
+        return json.loads(stored)
+
+    async def adeserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
+        if (
+            getattr(self.deserialize_task_state_store_from_ref, "__func__", None)
+            is not StateStoreObjectStorageBackend.deserialize_task_state_store_from_ref
+        ):
+            return self.deserialize_task_state_store_from_ref(stored)
+        return await self._adeserialize_ref(stored)
+
+    async def adeserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:
+        if (
+            getattr(self.deserialize_asset_state_store_from_ref, "__func__", None)
+            is not StateStoreObjectStorageBackend.deserialize_asset_state_store_from_ref
+        ):
+            return self.deserialize_asset_state_store_from_ref(stored)
+        return await self._adeserialize_ref(stored)
+
+    async def _adeserialize_ref(self, stored: str) -> JsonValue:
+        if not stored:
+            return None
+        if _is_storage_ref(stored):
+            data = await _aread_from_object_storage(ObjectStoragePath(stored))
+            return json.loads(data) if data is not None else None
         return json.loads(stored)
