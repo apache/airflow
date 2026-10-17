@@ -62,10 +62,10 @@ def test_redact_extra_rejects_non_json(extra):
 
 class TestRedactProviderSensitiveExtra:
     """
-    ``extra`` fields a provider declares sensitive are masked for that connection type only.
+    ``extra`` fields a provider declares sensitive are masked on every connection.
 
-    The name-based masking cannot tell that ``config`` is a secret for one connection type and
-    harmless for others, so the provider's own declaration decides.
+    Not only on that provider's type: after a ``conn_type`` change the stored ``extra`` still holds
+    the previous type's secrets.
     """
 
     @pytest.fixture(autouse=True)
@@ -87,9 +87,9 @@ class TestRedactProviderSensitiveExtra:
         extra = self._extra("apprise", {"extra__apprise__config": "secret-config"})
         assert extra == {"extra__apprise__config": "***"}
 
-    def test_leaves_same_name_alone_for_other_connection_types(self):
-        extra = self._extra("generic", {"config": "not-a-secret"})
-        assert extra == {"config": "not-a-secret"}
+    @pytest.mark.parametrize("key", ["config", "extra__apprise__config"])
+    def test_masks_declared_field_on_other_connection_types(self, key):
+        assert self._extra("http", {key: "secret-config"}) == {key: "***"}
 
     def test_leaves_empty_declared_field_alone(self):
         assert self._extra("apprise", {"config": ""}) == {"config": ""}

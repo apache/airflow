@@ -1060,6 +1060,40 @@ class TestPatchConnection(TestConnectionEndpoint):
         db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
         assert json.loads(db_conn.extra) == {"config": "***"}
 
+    @mock.patch(
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        autospec=True,
+        return_value={"apprise": frozenset({"config"})},
+    )
+    @pytest.mark.parametrize(
+        ("extra", "params"),
+        [
+            pytest.param({}, {}, id="extra-omitted"),
+            pytest.param(
+                {"extra": '{"config": "new"}'}, {"update_mask": ["conn_type"]}, id="extra-masked-out"
+            ),
+        ],
+    )
+    def test_patch_type_change_keeps_stored_provider_sensitive_extra_masked(
+        self, _, test_client, session, extra, params
+    ):
+        session.add(
+            Connection(conn_id=TEST_CONN_ID, conn_type="apprise", extra='{"config": "secret-config"}')
+        )
+        session.commit()
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": "http", **extra},
+            params=params,
+        )
+
+        assert response.status_code == 200
+        assert response.json()["conn_type"] == "http"
+        assert json.loads(response.json()["extra"]) == {"config": "***"}
+        get_response = test_client.get(f"/connections/{TEST_CONN_ID}")
+        assert json.loads(get_response.json()["extra"]) == {"config": "***"}
+
     def test_patch_with_update_mask_validates_extra_as_json(self, test_client):
         """When update_mask includes 'extra', the extra field validator should still reject invalid JSON."""
         self.create_connection()

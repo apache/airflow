@@ -79,7 +79,7 @@ def update_orm_from_pydantic(
             merged_extra = merge(json.loads(pydantic_conn.extra), old_extra)
             # A secret declared by one provider must not be handed to another type's hook.
             if orm_conn.conn_type == stored_conn_type:
-                merged_extra = restore_provider_sensitive_extra(merged_extra, old_extra, stored_conn_type)
+                merged_extra = restore_provider_sensitive_extra(merged_extra, old_extra)
             orm_conn.set_extra(json.dumps(merged_extra))
         except json.JSONDecodeError:
             # We can't merge fields in an unstructured `extra`

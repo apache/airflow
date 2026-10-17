@@ -40,8 +40,8 @@ def _sensitive_extra_fields() -> dict[str, frozenset[str]]:
 
     Providers mark a connection field as a secret with ``format: password`` in their
     ``conn-fields``. The name-based masking in ``redact`` cannot use that knowledge, because it
-    only sees the field name, and a name such as ``config`` is a secret for one connection type
-    and harmless for others. Read from provider metadata, without importing any hook.
+    only knows a fixed list of secret names, and ``config`` is not one of them. Read from provider
+    metadata, without importing any hook.
     """
     from airflow.providers_manager import ProvidersManager
 
@@ -54,24 +54,32 @@ def _sensitive_extra_fields() -> dict[str, frozenset[str]]:
     return {conn_type: frozenset(names) for conn_type, names in fields.items()}
 
 
-def _is_provider_sensitive_extra_key(conn_type: str, key: str) -> bool:
-    sensitive = _sensitive_extra_fields().get(conn_type, frozenset())
-    return key.removeprefix(f"extra__{conn_type}__") in sensitive
+def _is_provider_sensitive_extra_key(key: str) -> bool:
+    """
+    Tell whether any provider declares ``key`` sensitive, as a plain or ``extra__<type>__`` name.
+
+    Not limited to the connection's current type: after a ``conn_type`` change the stored
+    ``extra`` still holds the previous type's secrets, and the new type does not declare them.
+    """
+    return any(
+        key.removeprefix(f"extra__{conn_type}__") in names
+        for conn_type, names in _sensitive_extra_fields().items()
+    )
 
 
-def restore_provider_sensitive_extra(extra: Any, stored_extra: Any, conn_type: str | None) -> Any:
+def restore_provider_sensitive_extra(extra: Any, stored_extra: Any) -> Any:
     """
     Put back the stored value of provider-declared sensitive ``extra`` fields submitted as the mask.
 
-    ``merge`` only restores keys whose name is sensitive for every connection type, so the keys
-    masked by ``ConnectionResponse.redact_provider_sensitive_extra`` would otherwise be saved as
-    the mask when a client sends a response's ``extra`` back.
+    ``merge`` only restores keys on its fixed list of secret names, so the keys masked by
+    ``ConnectionResponse.redact_provider_sensitive_extra`` would otherwise be saved as the mask
+    when a client sends a response's ``extra`` back.
     """
-    if not conn_type or not isinstance(extra, dict) or not isinstance(stored_extra, dict):
+    if not isinstance(extra, dict) or not isinstance(stored_extra, dict):
         return extra
     return {
         key: stored_extra[key]
-        if value == _MASK and key in stored_extra and _is_provider_sensitive_extra_key(conn_type, key)
+        if value == _MASK and key in stored_extra and _is_provider_sensitive_extra_key(key)
         else value
         for key, value in extra.items()
     }
@@ -101,14 +109,14 @@ class ConnectionResponse(BaseModel):
 
     @model_validator(mode="after")
     def redact_provider_sensitive_extra(self) -> ConnectionResponse:
-        """Mask the ``extra`` fields the connection type's provider declares sensitive."""
-        if not self.extra or not _sensitive_extra_fields().get(self.conn_type):
+        """Mask the ``extra`` fields any provider declares sensitive."""
+        if not self.extra or not _sensitive_extra_fields():
             return self
         extra = json.loads(self.extra)
         if not isinstance(extra, dict):
             return self
         for key, value in extra.items():
-            if _is_provider_sensitive_extra_key(self.conn_type, key) and value not in (None, ""):
+            if _is_provider_sensitive_extra_key(key) and value not in (None, ""):
                 extra[key] = _MASK
         self.extra = json.dumps(extra)
         return self
