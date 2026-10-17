@@ -69,17 +69,6 @@
     "upcomingCount_one": "{{count, number}} Upcoming Deadline",
     "upcomingCount_other": "{{count, number}} Upcoming Deadlines"
   },
-  "execution": {
-    "clearSelected": "Clear selected executions",
-    "empty": "No executions in this run.",
-    "iteration": "{{node}} · Iteration {{index}}",
-    "mapped_one": "{{task}} ({{count, number}} mapped task on this page)",
-    "mapped_other": "{{task}} ({{count, number}} mapped tasks on this page)",
-    "page": "Showing {{start, number}}–{{end, number}} of {{total, number}} executions",
-    "runTasks": "Run tasks",
-    "select": "Select {{task}}",
-    "title": "Execution"
-  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
@@ -121,11 +110,6 @@
     "warning": "WARNING"
   },
   "loop": {
-    "filter": {
-      "all": "All iterations",
-      "invocation": "Invocation",
-      "label": "Iteration"
-    },
     "history": {
       "capLabel": "Limit: {{max}}",
       "iterationsAxis": "Iterations",
@@ -135,7 +119,7 @@
       },
       "title": "Iterations per run"
     },
-    "iteration": "Iteration {{index}}",
+    "iterationLabel": "Iteration {{index}}",
     "iterations": "Iterations",
     "outcome": "Outcome",
     "reason": {

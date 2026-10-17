@@ -94,7 +94,7 @@ export const LoopHistoryChart = ({ groupId }: { readonly groupId: string }) => {
                 const params = new URLSearchParams();
 
                 if (run.loop_region_id !== null && run.loop_region_id !== undefined) {
-                  params.set(SearchParamsKeys.LOOP_REGION_ID, run.loop_region_id);
+                  params.set(SearchParamsKeys.REGION_ID, run.loop_region_id);
                 }
                 void navigate(`/dags/${dagId}/runs/${run.run_id}/tasks/group/${groupId}?${params}`);
               }
