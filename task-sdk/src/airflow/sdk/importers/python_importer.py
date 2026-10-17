@@ -196,6 +196,10 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
                 )
             )
             return result
+        finally:
+            # Reset on failure too: DagContext.pop() looks this name up in sys.modules, which
+            # no longer holds a module that failed to load.
+            DagContext.current_autoregister_module_name = None
 
         for warn_msg in captured_warnings:
             category = warn_msg.category.__name__
@@ -323,7 +327,6 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         }
         top_level_dags.update(DagContext.autoregistered_dags)
 
-        DagContext.current_autoregister_module_name = None
         DagContext.autoregistered_dags.clear()
 
         for dag, _mod in top_level_dags:
