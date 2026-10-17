@@ -34,6 +34,7 @@
     "form": {
       "connectionIdRequired": "Connectie ID is verplicht",
       "connectionIdRequirement": "Connectie ID kan niet bestaan uit enkel spaties",
+      "connectionTypeFields": "{{connectionType}} velden",
       "connectionTypeRequired": "Connectie type is verplicht",
       "extraFieldsJson": "Extra velden JSON",
       "helperText": "Ontbreekt het connectietype? Controleer of je het bijbehorende Airflow Providers Package hebt geïnstalleerd.",
