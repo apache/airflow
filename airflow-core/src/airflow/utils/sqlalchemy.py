@@ -690,7 +690,14 @@ class CommitProhibitorGuard:
     def __init__(self, session: Session):
         self.session = session
 
-    def _validate_commit(self, _):
+    def _validate_commit(self, session):
+        # before_commit fires for a SAVEPOINT release too, not just session.commit(). A
+        # savepoint release ends neither the outer transaction nor its row locks, so it can't
+        # break the HA locks this guard protects -- skip the check while one is open. This
+        # covers session.commit() and savepoint exits; nothing under this guard commits a
+        # transaction handle directly today, which would bypass this check.
+        if session.in_nested_transaction():
+            return
         if self.expected_commit:
             self.expected_commit = False
             return
