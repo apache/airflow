@@ -36,7 +36,7 @@ This is a provider package for ``common.ai`` provider. All classes for this prov
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <htt  ps://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.0.0/>`_.
 
 Installation
 ------------
