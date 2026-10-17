@@ -126,11 +126,6 @@ as a task failure.
     Two different toolset objects share an id, so durable replay could not tell their
     recorded calls apart. Give each its own ``id=``. See :doc:`durable_execution`.
 
-``durable=True cannot pause a run for tool approval or external execution``
-    A durable run cannot pause, so a toolset wrapped with ``.approval_required()``, a tool
-    marked ``requires_approval=True`` or an ``ExternalToolset`` is refused when the Dag
-    loads. Remove ``durable=True`` or the approval requirement. See :doc:`tool_approval`.
-
 ``durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both.``
     ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
     ``capabilities`` would record every step twice. Drop one of them.

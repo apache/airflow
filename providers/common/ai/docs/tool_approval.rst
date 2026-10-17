@@ -209,8 +209,7 @@ Requirements and limits
   capability, or a ``SandboxToolset`` that
   provisions its own sandbox. Each
   assumes the run finishes in one go; that sandbox, for one, is destroyed when the
-  run pauses. With any of them, a marked tool fails the task (with ``durable=True``, the
-  Dag fails to load instead), except under code mode,
+  run pauses. With any of them, a marked tool fails the task, except under code mode,
   where a marked tool called from ``run_code`` does not run and the model may carry on
   without it (see :doc:`code_mode`). A ``SandboxToolset``
   attached to a sandbox another task owns keeps its files through the pause, so it

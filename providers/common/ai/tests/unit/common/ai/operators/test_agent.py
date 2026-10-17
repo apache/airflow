@@ -20,7 +20,6 @@ import asyncio
 import dataclasses
 import json
 import logging
-import re
 import sys
 from contextlib import nullcontext
 from datetime import timedelta
@@ -37,6 +36,7 @@ from pydantic_ai.capabilities import (
     AbstractCapability,
     CapabilityOrdering,
     CombinedCapability,
+    HandleDeferredToolCalls,
     PrefixTools,
     Thinking,
     Toolset,
@@ -56,10 +56,8 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.wrapper import WrapperModel
-from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset
 from pydantic_ai.toolsets.combined import CombinedToolset
-from pydantic_ai.toolsets.external import ExternalToolset
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
@@ -1758,10 +1756,7 @@ class TestAgentOperatorDurable:
                 id="toolset-capability",
             ),
             pytest.param(
-                {
-                    "toolsets": [FunctionToolset(id="orders")],
-                    "agent_params": {"toolsets": [FunctionToolset(id="orders")]},
-                },
+                {"agent_params": {"toolsets": [FunctionToolset(id="orders"), FunctionToolset(id="orders")]}},
                 id="agent-params",
             ),
         ],
@@ -1769,6 +1764,16 @@ class TestAgentOperatorDurable:
     def test_durable_refuses_two_toolsets_with_the_same_id(self, kwargs):
         with pytest.raises(ValueError, match="more than one toolset has the id 'orders'"):
             AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, **kwargs)
+
+    def test_durable_ignores_agent_params_toolsets_that_toolsets_overrides(self):
+        AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            toolsets=[FunctionToolset(id="orders")],
+            agent_params={"toolsets": [FunctionToolset(id="orders")]},
+        )
 
     def test_durable_accepts_one_toolset_passed_twice(self):
         orders = FunctionToolset(id="orders")
@@ -1782,44 +1787,12 @@ class TestAgentOperatorDurable:
             capabilities=[Toolset(orders)],
         )
 
-    @pytest.mark.parametrize(
-        ("kwargs", "named"),
-        [
-            pytest.param(
-                {"toolsets": [FunctionToolset(id="shop").approval_required()]},
-                ".approval_required()",
-                id="approval-required-toolset",
-            ),
-            pytest.param(
-                {"toolsets": [FunctionToolset([Tool(_refund, requires_approval=True)], id="shop")]},
-                "_refund",
-                id="tool-requires-approval",
-            ),
-            pytest.param(
-                {"agent_params": {"tools": [Tool(_refund, requires_approval=True)]}},
-                "_refund",
-                id="agent-params-tool",
-            ),
-            pytest.param(
-                {"toolsets": [ExternalToolset([ToolDefinition(name="slow_job")], id="jobs")]},
-                "slow_job",
-                id="external-toolset",
-            ),
-        ],
-    )
-    def test_durable_refuses_a_tool_that_needs_approval_or_external_execution(self, kwargs, named):
-        with pytest.raises(ValueError, match=rf"cannot pause a run .* {re.escape(named)}"):
-            AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, **kwargs)
-
-    def test_durable_fails_a_tool_that_raises_approval_required_without_a_second_model_call(self):
+    def test_durable_fails_a_tool_that_raises_approval_required_with_unsupported_tool_deferral_error(self):
         def refund() -> str:
             raise ApprovalRequired
 
-        model_calls = []
-
         def model(messages, info):
-            model_calls.append(1)
-            return ModelResponse(parts=[ToolCallPart("refund", {})])
+            return ModelResponse(parts=[ToolCallPart("refund", {})], usage=RequestUsage(input_tokens=7))
 
         op = AgentOperator(
             task_id="t",
@@ -1831,6 +1804,7 @@ class TestAgentOperatorDurable:
         )
         op.llm_hook = MagicMock(spec=["create_agent"])
         op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model), **kw)
+        context = _make_context(ti=_make_ti(id="ti-1", try_number=1))
 
         with (
             patch.object(
@@ -1838,9 +1812,50 @@ class TestAgentOperatorDurable:
             ),
             pytest.raises(UnsupportedToolDeferralError, match=r"need approval \(refund\)"),
         ):
-            op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
+            op.execute(context=context)
 
-        assert len(model_calls) == 1
+        pushed = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushed["usage"]["input_tokens"] == 7
+
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(
+                FunctionToolset(tools=[_refund], id="shop").approval_required(), id="approval-required"
+            ),
+            pytest.param(
+                FunctionToolset(tools=[Tool(_refund, requires_approval=True)], id="shop"), id="tool"
+            ),
+        ],
+    )
+    def test_durable_runs_a_tool_needing_approval_that_a_handler_settles_inline(self, toolset):
+        def model(messages, info):
+            if len(messages) == 1:
+                return ModelResponse(parts=[ToolCallPart("_refund", {"order_id": 4411})])
+            return ModelResponse(parts=[TextPart("done")])
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=True,
+            enable_tool_logging=False,
+            toolsets=[toolset],
+            capabilities=[
+                HandleDeferredToolCalls(handler=lambda ctx, req: req.build_results(approve_all=True))
+            ],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model), **kw)
+
+        with patch.object(
+            AgentOperator, "_build_durable_storage", autospec=True, return_value=MemoryStorage()
+        ):
+            output = op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
+
+        assert output == "done"
 
     @pytest.mark.parametrize(
         "kwargs",
