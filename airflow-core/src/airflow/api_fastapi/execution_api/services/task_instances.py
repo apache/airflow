@@ -78,9 +78,9 @@ def get_language_sdk_execution_timeout(dag_bag: DBDagBag, ti: Any, *, session: S
     """
     Return the ``execution_timeout`` in seconds of a task that a language SDK runs.
 
-    A Python task parses its Dag file and reports its own timeout, so it gets ``None`` here.
-    A zero timeout also returns ``None``, as the Python task runner treats it as no timeout.
+    Python tasks report their own timeout, so they get ``None``. Like the Python task
+    runner, a zero timeout means no timeout, and a negative one has already elapsed.
     """
     if (task := get_stub_task(dag_bag, ti, session=session)) is None or not task.execution_timeout:
         return None
-    return task.execution_timeout.total_seconds()
+    return max(task.execution_timeout.total_seconds(), 0.0)

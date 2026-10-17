@@ -1157,6 +1157,9 @@ class TestTIRunState:
             pytest.param(task.stub(execution_timeout=timedelta(seconds=90)), 90.0, id="stub-with-timeout"),
             pytest.param(task.stub, None, id="stub-without-timeout"),
             pytest.param(task.stub(execution_timeout=timedelta(0)), None, id="stub-zero-timeout"),
+            pytest.param(
+                task.stub(execution_timeout=timedelta(seconds=-30)), 0.0, id="stub-negative-timeout"
+            ),
             pytest.param(task(execution_timeout=timedelta(seconds=10)), None, id="python-task"),
         ],
     )
