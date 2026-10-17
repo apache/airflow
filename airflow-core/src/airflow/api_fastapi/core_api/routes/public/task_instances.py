@@ -1283,6 +1283,7 @@ def post_clear_task_instances(
                         run_on_latest_version=resolved_run_on_latest,
                         prevent_running_task=body.prevent_running_task,
                         whole_task_keys=whole_task_keys,
+                        ignore_upstream_deps=body.ignore_upstream_deps,
                     )
                 task_instances = cleared
             else:
@@ -1293,6 +1294,7 @@ def post_clear_task_instances(
                     run_on_latest_version=resolved_run_on_latest,
                     prevent_running_task=body.prevent_running_task,
                     whole_task_keys=whole_task_keys,
+                    ignore_upstream_deps=body.ignore_upstream_deps,
                 )
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e

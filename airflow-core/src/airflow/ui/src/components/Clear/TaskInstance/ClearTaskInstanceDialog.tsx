@@ -29,7 +29,7 @@ import type {
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 
-import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+import { Alert, Checkbox, Modal, SegmentedControl } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { taskInstanceKey } from "src/components/ActionAccordion/columns";
@@ -47,6 +47,7 @@ import { useClearTaskInstancesDryRuns } from "src/queries/useClearTaskInstancesD
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
+import { resolveClearOptions } from "./forceRun";
 import { getRunOnLatestVersionState } from "./runOnLatestVersion";
 
 /**
@@ -167,12 +168,9 @@ const ClearTaskInstanceDialog = (props: Props) => {
     ? [...clearTaskInstanceDefaultOptions, LATER_ITERATIONS]
     : clearTaskInstanceDefaultOptions;
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(initialOptions);
+  const [forceRun, setForceRun] = useState(false);
 
-  const onlyFailed = selectedOptions.includes("onlyFailed");
-  const past = selectedOptions.includes("past");
-  const future = selectedOptions.includes("future");
-  const upstream = selectedOptions.includes("upstream");
-  const downstream = selectedOptions.includes("downstream");
+  const { downstream, future, onlyFailed, past, upstream } = resolveClearOptions(selectedOptions, forceRun);
   const laterLoopIterations = selectedOptions.includes(LATER_ITERATIONS);
   const wholeExpansions = selectedOptions.includes(WHOLE_EXPANSION);
   const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
@@ -198,6 +196,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const onCloseDialog = () => {
     setNote(initialNote);
     setKeepTaskState(keepTaskStateDefault);
+    setForceRun(false);
     closeDialog();
   };
 
@@ -361,6 +360,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
           note: noteChanged ? note : undefined,
           ...(keepTaskState ? { keep_task_state: true } : {}),
           ...(preventRunningTask ? { prevent_running_task: true } : {}),
+          ...(forceRun ? { ignore_upstream_deps: true } : {}),
         },
       });
     }
@@ -395,6 +395,9 @@ const ClearTaskInstanceDialog = (props: Props) => {
               onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
             >
               {translate("dags:runAndTaskActions.options.preventRunningTasks")}
+            </Checkbox>
+            <Checkbox checked={forceRun} onCheckedChange={(event) => setForceRun(Boolean(event.checked))}>
+              {translate("dags:runAndTaskActions.options.forceRun")}
             </Checkbox>
             {shouldShowRunOnLatestOption ? (
               <Checkbox
@@ -451,14 +454,17 @@ const ClearTaskInstanceDialog = (props: Props) => {
                 value: "future",
               },
               {
+                disabled: forceRun,
                 label: translate("dags:runAndTaskActions.options.upstream"),
                 value: "upstream",
               },
               {
+                disabled: forceRun,
                 label: translate("dags:runAndTaskActions.options.downstream"),
                 value: "downstream",
               },
               {
+                disabled: forceRun,
                 label: translate("dags:runAndTaskActions.options.onlyFailed"),
                 value: "onlyFailed",
               },
@@ -482,6 +488,9 @@ const ClearTaskInstanceDialog = (props: Props) => {
           />
         </Flex>
         <ErrorAlert error={dryRunError} />
+        {forceRun ? (
+          <Alert status="warning" title={translate("dags:runAndTaskActions.forceRunWarning")} />
+        ) : undefined}
         <ActionAccordion
           affectedTasks={data}
           groupByRunId={!singleRun}

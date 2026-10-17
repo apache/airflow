@@ -57,21 +57,25 @@ const SegmentedControl = ({ defaultValues, multiple = false, onChange, options }
       mb={3}
       p={1}
     >
-      {options.map(({ disabled, label, value }: Option) => (
-        <Button
-          _hover={{ backgroundColor: "bg.emphasized" }}
-          bg={selectedOptions.includes(value) ? "bg.panel" : undefined}
-          borderColor={selectedOptions.includes(value) ? "border.emphasized" : "transparent"}
-          borderWidth={selectedOptions.includes(value) ? 1 : 0}
-          disabled={disabled}
-          key={value}
-          onClick={() => onClick(value)}
-          size="md"
-          variant="ghost"
-        >
-          {label}
-        </Button>
-      ))}
+      {options.map(({ disabled, label, value }: Option) => {
+        const isSelected = !disabled && selectedOptions.includes(value);
+
+        return (
+          <Button
+            _hover={{ backgroundColor: "bg.emphasized" }}
+            bg={isSelected ? "bg.panel" : undefined}
+            borderColor={isSelected ? "border.emphasized" : "transparent"}
+            borderWidth={isSelected ? 1 : 0}
+            disabled={disabled}
+            key={value}
+            onClick={() => onClick(value)}
+            size="md"
+            variant="ghost"
+          >
+            {label}
+          </Button>
+        );
+      })}
     </Group>
   );
 };

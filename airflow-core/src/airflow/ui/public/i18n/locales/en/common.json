@@ -472,6 +472,7 @@
     "dagVersion": "Dag Version",
     "executor": "Executor",
     "executorConfig": "Executor Config",
+    "forceRun": "Force Run",
     "hostname": "Hostname",
     "id": "ID",
     "iteration": "Iteration",
