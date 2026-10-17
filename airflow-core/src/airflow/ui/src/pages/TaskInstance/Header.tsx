@@ -34,6 +34,7 @@ import { LoopDecisionReason } from "src/components/LoopDecisionReason";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
 import ReactMarkdown from "src/components/ReactMarkdown";
+import { SmoothOperatorButton } from "src/components/SmoothOperator/SmoothOperator";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
@@ -162,6 +163,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               variant="outline"
             />
             <MarkTaskInstanceAsButton bg="bg" isHotkeyEnabled taskInstance={taskInstance} variant="outline" />
+            <SmoothOperatorButton operatorName={taskInstance.operator_name} taskId={taskInstance.task_id} />
           </>
         }
         icon={<MdOutlineTask />}
