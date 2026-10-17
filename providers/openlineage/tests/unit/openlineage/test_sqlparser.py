@@ -24,12 +24,17 @@ from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import column_lineage_dataset, schema_dataset
 from openlineage.common.sql import DbTableMeta
 
+from airflow.providers.common.compat.sdk import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.openlineage.sqlparser import (
     DatabaseInfo,
     GetTableSchemasParams,
     SQLParser,
+    get_default_schema,
     get_openlineage_facets_with_sql,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 DB_NAME = "FOOD_DELIVERY"
 DB_SCHEMA_NAME = "PUBLIC"
@@ -527,3 +532,59 @@ class TestGetOpenlineageFacetsWithSql:
 
         hook.get_connection.assert_not_called()
         hook.get_openlineage_database_info.assert_not_called()
+
+    @conf_vars({("openlineage", "sql_use_external_connection"): "False"})
+    @mock.patch("airflow.providers.openlineage.sqlparser.SQLParser.generate_openlineage_metadata_from_sql")
+    def test_sql_use_external_connection_disabled_skips_db_calls(self, mock_generate):
+        hook = MagicMock(spec=DbApiHook)
+        hook.get_openlineage_database_dialect.return_value = "postgres"
+
+        get_openlineage_facets_with_sql(
+            hook=hook,
+            sql="SELECT 1",
+            conn_id="conn",
+            database=None,
+            use_connection=True,
+            connection=Connection(conn_id="conn", conn_type="postgres"),
+            database_info=DatabaseInfo(scheme="postgres", authority="host:5432"),
+        )
+
+        hook.get_sqlalchemy_engine.assert_not_called()
+        hook.get_openlineage_default_schema.assert_not_called()
+        assert mock_generate.call_args.kwargs["use_connection"] is False
+        assert mock_generate.call_args.kwargs["sqlalchemy_engine"] is None
+
+
+class TestGetDefaultSchema:
+    @pytest.mark.parametrize(
+        ("dialect", "login", "expected"),
+        [
+            ("postgres", None, "public"),
+            ("redshift", None, "public"),
+            ("mssql", None, "dbo"),
+            ("oracle", "scott", "SCOTT"),
+        ],
+    )
+    def test_offline_default_schema_does_not_call_hook(self, dialect, login, expected):
+        hook = MagicMock(spec=DbApiHook)
+        connection = Connection(conn_id="conn", conn_type=dialect, login=login)
+
+        assert get_default_schema(hook, connection, dialect, use_external_connection=False) == expected
+        hook.get_openlineage_default_schema.assert_not_called()
+
+    @pytest.mark.parametrize("dialect", ["snowflake", "oracle"])
+    def test_offline_without_static_default_uses_hook(self, dialect):
+        hook = MagicMock(spec=DbApiHook)
+        hook.get_openlineage_default_schema.return_value = "hook_schema"
+        connection = Connection(conn_id="conn", conn_type=dialect)
+
+        assert get_default_schema(hook, connection, dialect, use_external_connection=False) == "hook_schema"
+
+    def test_external_connection_enabled_uses_hook(self):
+        hook = MagicMock(spec=DbApiHook)
+        hook.get_openlineage_default_schema.return_value = "current_schema"
+        connection = Connection(conn_id="conn", conn_type="postgres")
+
+        assert get_default_schema(hook, connection, "postgres", use_external_connection=True) == (
+            "current_schema"
+        )

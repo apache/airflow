@@ -109,19 +109,6 @@ from tests_common.test_utils.version_compat import (
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
 
-
-@pytest.mark.parametrize(
-    ("config_value", "expected"),
-    [
-        ("True", True),
-        ("False", False),
-    ],
-)
-def test_should_use_external_connection_follows_config(config_value, expected):
-    with conf_vars({("openlineage", "sql_use_external_connection"): config_value}):
-        assert should_use_external_connection(None) is expected
-
-
 if AIRFLOW_V_3_4_PLUS:
     from airflow.models.dagbag import DBDagBag
     from airflow.models.dynamic_region import DynamicRegion
@@ -5410,3 +5397,15 @@ class TestNextQueryCounterFromContext:
         assert len(second) == 8
         assert first != second  # random per call
         assert "OpenLineage encountered an error when retrieving query counter from context" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("config_value", "expected"),
+    [
+        ("True", True),
+        ("False", False),
+    ],
+)
+def test_should_use_external_connection_follows_config(config_value, expected):
+    with conf_vars({("openlineage", "sql_use_external_connection"): config_value}):
+        assert should_use_external_connection(None) is expected
