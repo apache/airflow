@@ -261,10 +261,6 @@ Stable API Permissions
      - Assets.can_delete
      - Op
    * - ``/api/v2/assets/{asset_id}/queuedEvents``
-     - DELETE
-     - DAGs.can_edit
-     - User
-   * - ``/api/v2/assets/{asset_id}/queuedEvents``
      - GET
      - Assets.can_read
      - Viewer
