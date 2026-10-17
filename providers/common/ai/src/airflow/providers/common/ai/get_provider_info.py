@@ -175,6 +175,7 @@ def get_provider_info():
                     "Pydantic AI Gateway",
                     "SambaNova",
                     "Snowflake Cortex",
+                    "System One servers",
                     "Together AI",
                     "TypeSafe",
                     "Vercel AI Gateway",
