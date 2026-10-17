@@ -7622,7 +7622,7 @@
                             "x-docsSection": "Kubernetes"
                         },
                         "container": {
-                            "description": "Container security context definition for the OTel Collector.",
+                            "description": "Container security context definition for the OTel Collector. By default, privilege escalation is disabled and all capabilities are dropped unless `securityContexts.disableDefaults` is enabled.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
