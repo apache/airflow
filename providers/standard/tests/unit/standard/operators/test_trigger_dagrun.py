@@ -41,6 +41,7 @@ from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
 
 if AIRFLOW_V_3_0_PLUS:
@@ -53,6 +54,9 @@ DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 DEFAULT_RUN_ID = "testing_run_id"
 TEST_DAG_ID = "testdag"
 TRIGGERED_DAG_ID = "triggerdag"
+RUN_TYPE_CASES = [pytest.param(False, DagRunType.MANUAL, id="pre-3.3")]
+if AIRFLOW_V_3_3_PLUS:
+    RUN_TYPE_CASES.append(pytest.param(True, DagRunType.OPERATOR_TRIGGERED, id="3.3+"))
 DAG_SCRIPT = f"""\
 from datetime import datetime
 from airflow.models import DAG
@@ -135,21 +139,24 @@ class TestDagRunOperator:
             if getattr(exc_info, "note", None) is not None:
                 assert exc_info.value.note == "Test note"
 
+            expected_run_type = DagRunType.OPERATOR_TRIGGERED if AIRFLOW_V_3_3_PLUS else DagRunType.MANUAL
             expected_run_id = DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, run_after=task.run_after
+                run_type=expected_run_type, run_after=task.run_after
             ).rsplit("_", 1)[0]
             # rsplit because last few characters are random.
             assert exc_info.value.dag_run_id.rsplit("_", 1)[0] == expected_run_id
             assert task.trigger_run_id.rsplit("_", 1)[0] == expected_run_id  # run_id is saved as attribute
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
-    def test_trigger_dagrun(self):
+    @pytest.mark.parametrize(("airflow_v_3_3_plus", "expected_run_type"), RUN_TYPE_CASES)
+    def test_trigger_dagrun(self, monkeypatch, airflow_v_3_3_plus, expected_run_type):
         """
         Test TriggerDagRunOperator.
 
         We only verify that the operator runs and raises correct exception. The actual execution logic
         after the exception is in Task SDK code.
         """
+        monkeypatch.setattr(f"{TRIGGER_OP_PATH}.AIRFLOW_V_3_3_PLUS", airflow_v_3_3_plus)
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
             task = TriggerDagRunOperator(
                 task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, conf={"foo": "bar"}, note="Test note"
@@ -171,7 +178,7 @@ class TestDagRunOperator:
                 assert exc_info.value.note == "Test note"
 
             expected_run_id = DagRun.generate_run_id(
-                run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
+                run_type=expected_run_type, run_after=timezone.utcnow()
             ).rsplit("_", 1)[0]
             # rsplit because last few characters are random.
             assert exc_info.value.dag_run_id == expected_run_id
