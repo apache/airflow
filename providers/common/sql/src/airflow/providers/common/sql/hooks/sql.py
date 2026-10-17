@@ -197,6 +197,8 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
+        # The cursor executing a statement right now (set by ``_run_command``), used by ``cancel_query``
+        self._running_cursor: Any = None
         self._insert_statement_format: str | None = kwargs.get("insert_statement_format")
         self._replace_statement_format: str | None = kwargs.get("replace_statement_format")
         self._escape_word_format: str | None = kwargs.get("escape_word_format")
@@ -895,13 +897,23 @@ class DbApiHook(BaseHook):
         if self.log_sql:
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
 
-        if parameters:
-            # If we're using psycopg3, we might need to handle parameters differently
-            if hasattr(cur, "__module__") and "psycopg" in cur.__module__ and isinstance(parameters, list):
-                parameters = tuple(parameters)
-            cur.execute(sql_statement, parameters)
-        else:
-            cur.execute(sql_statement)
+        # Keep a reference to the cursor while the statement is in flight, so that ``cancel_query`` can
+        # reach it when the task is killed in the middle of a long-running statement.
+        self._running_cursor = cur
+        try:
+            if parameters:
+                # If we're using psycopg3, we might need to handle parameters differently
+                if (
+                    hasattr(cur, "__module__")
+                    and "psycopg" in cur.__module__
+                    and isinstance(parameters, list)
+                ):
+                    parameters = tuple(parameters)
+                cur.execute(sql_statement, parameters)
+            else:
+                cur.execute(sql_statement)
+        finally:
+            self._running_cursor = None
 
         send_sql_hook_lineage(
             context=self,
@@ -912,6 +924,42 @@ class DbApiHook(BaseHook):
 
         if (row_count := handlers.get_row_count(cur)) is not None:
             self.log.info("Rows affected: %s", row_count)
+
+    def cancel_query(self) -> bool:
+        """
+        Cancel the SQL statement that this hook is currently executing, if there is one.
+
+        :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` calls this method from
+        ``on_kill`` when the task instance is killed while a statement is still running, so that the
+        database stops working on a query whose result nobody is waiting for anymore.
+
+        The default implementation relies on the cancellation extensions offered by many DB-API drivers:
+        ``cursor.cancel()`` is used when the cursor provides it, otherwise ``connection.cancel()`` is used
+        when the cursor exposes its connection and the connection provides it (e.g. ``psycopg2``,
+        ``psycopg`` or ``oracledb``). Hooks for databases whose driver has no such extension can override
+        this method and cancel the statement in a database specific way, for example by issuing a
+        ``KILL QUERY`` command on a separate connection.
+
+        :return: ``True`` if a cancellation request was sent to the database, ``False`` if no statement
+            is running or the driver does not support cancelling a running statement.
+        """
+        # getattr: a subclass that does not call ``DbApiHook.__init__`` should still get the no-op path
+        cur = getattr(self, "_running_cursor", None)
+        if cur is None:
+            self.log.info("No SQL statement is currently running, there is nothing to cancel.")
+            return False
+        for name, target in (("cursor", cur), ("connection", getattr(cur, "connection", None))):
+            cancel = getattr(target, "cancel", None)
+            if callable(cancel):
+                self.log.info("Cancelling the running SQL statement through %s.cancel()", name)
+                cancel()
+                return True
+        self.log.warning(
+            "The database driver used by %s does not support cancelling a running SQL statement; "
+            "the statement keeps running on the database until it completes.",
+            type(self).__name__,
+        )
+        return False
 
     def set_autocommit(self, conn, autocommit):
         """Set the autocommit flag on the connection."""
