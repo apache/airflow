@@ -25,6 +25,7 @@ import {
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
+  label,
   type DagSpec,
   type TaskRef,
   type TaskSpec,
@@ -560,6 +561,75 @@ describe("Dag", () => {
         { upstream: "load", downstream: "cleanup" },
         { upstream: "transform", downstream: "cleanup" },
       ]);
+    });
+
+    it("labels each edge of a fan-out from its own endpoint", () => {
+      const { dag, refs } = placedDag("d", "check", "process", "notify");
+
+      refs.check!.before(label(refs.process!, "rows found"), label(refs.notify!, "no rows"));
+      refs.notify!.after(label(refs.process!, "after processing"));
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "check", downstream: "process", label: "rows found" },
+        { upstream: "check", downstream: "notify", label: "no rows" },
+        { upstream: "process", downstream: "notify", label: "after processing" },
+      ]);
+    });
+
+    it("replaces a label on a redrawn edge, and keeps it on an unlabelled redraw", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(label(refs.cleanup!, "first"));
+      refs.load!.before(label(refs.cleanup!, "second"));
+      refs.cleanup!.after(refs.load!);
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "cleanup", label: "second" },
+      ]);
+    });
+
+    it("leaves the label out of an unlabelled edge", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+
+      expect(getDagOrderEdges(dag)).toStrictEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it.each(["before", "after"] as const)("rejects %s() called on a label", (verb) => {
+      const { refs } = placedDag("d", "load", "cleanup");
+
+      expect(() => label(refs.load!, "rows")[verb](refs.cleanup!)).toThrowError(
+        `label(..., "rows") on "load" of Dag "d" names the edge drawn to it, ` +
+          `so pass it to before() or after() rather than calling ${verb}() on it`,
+      );
+    });
+
+    it.each([
+      ["undefined", undefined],
+      ["an object", { dagId: "d", taskId: "load" }],
+    ])("rejects a label on %s", (described, node) => {
+      expect(() => label(node as never, "rows")).toThrowError(
+        `label() takes a task or task group reference, not ${described}`,
+      );
+    });
+
+    it("rejects a label that is not a string", () => {
+      const { refs } = placedDag("d", "load");
+
+      expect(() => label(refs.load!, 42 as never)).toThrowError(
+        "label() takes a string to name the edge with, not the number 42",
+      );
+    });
+
+    it("rejects a label from another copy of the SDK", () => {
+      const { refs } = placedDag("d", "load", "cleanup");
+      const foreign = { dagId: "d", before: () => foreign, after: () => foreign };
+      Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.LabelledNode"), { value: true });
+
+      expect(() => refs.load!.before(foreign)).toThrowError(
+        /before\(\) on Dag "d" was given a label\(\) that comes from a different copy/,
+      );
     });
 
     it.each([
