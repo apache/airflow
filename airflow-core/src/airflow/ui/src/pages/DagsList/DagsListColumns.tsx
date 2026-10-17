@@ -184,6 +184,7 @@ export const createColumns = (
   {
     accessorKey: "is_paused",
     cell: PauseCell,
+    enableHiding: false,
     enableSorting: false,
     header: "",
     meta: {
@@ -237,12 +238,14 @@ export const createColumns = (
   {
     accessorKey: "pending_actions",
     cell: PendingActionsCell,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
   {
     accessorKey: "trigger",
     cell: TriggerCell,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -256,6 +259,7 @@ export const createColumns = (
   {
     accessorKey: "delete",
     cell: DeleteCell,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
