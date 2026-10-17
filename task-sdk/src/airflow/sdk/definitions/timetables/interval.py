@@ -41,6 +41,12 @@ class CronDataIntervalTimetable(CronMixin, BaseTimetable):
     Using this class is equivalent to supplying a cron expression dire
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+
+    Optional ``seed``/``max_jitter`` jitter (see ``CronMixin``) shifts every cron boundary by a
+    fixed per-Dag offset. Because the boundaries define the data interval, the whole window moves
+    by that offset: it keeps its length and consecutive runs stay contiguous, but it no longer
+    starts exactly on the cron time (e.g. 00:35 to 00:35 instead of 00:00 to 00:00). Keep
+    ``max_jitter`` small relative to the schedule period.
     """
 
 
