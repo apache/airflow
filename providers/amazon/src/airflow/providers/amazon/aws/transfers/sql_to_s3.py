@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import enum
 import gzip
+import importlib.util
 import io
 import warnings
 from collections import namedtuple
@@ -220,7 +221,23 @@ class SqlToS3Operator(BaseOperator):
                 return path[: -len(suffix)]
         return path
 
+    def _ensure_parquet_engine(self) -> None:
+        needs_parquet = self.file_format == FILE_FORMAT.PARQUET or (
+            ("dtype_backend", "pyarrow") in self.read_kwargs.items()
+        )
+        if self.df_type != "pandas" or not needs_parquet:
+            return
+        if any(importlib.util.find_spec(engine) for engine in ("pyarrow", "fastparquet")):
+            return
+
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+        raise AirflowOptionalProviderFeatureException(
+            "Parquet support needs pyarrow or fastparquet. Install apache-airflow-providers-amazon[parquet]."
+        )
+
     def execute(self, context: Context) -> None:
+        self._ensure_parquet_engine()
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = sql_hook.get_df(
