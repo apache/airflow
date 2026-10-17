@@ -675,7 +675,7 @@ class TestGKEKubernetesHookPod:
             (False, True),
         ),
     )
-    @mock.patch(GKE_STRING.format("enable_tcp_keepalive"))
+    @mock.patch(GKE_STRING.format("enable_tcp_keepalive"), autospec=True)
     def test_disable_tcp_keepalive(
         self,
         mock_enable,
