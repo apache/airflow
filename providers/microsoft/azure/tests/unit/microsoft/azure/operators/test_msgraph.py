@@ -20,20 +20,26 @@ import json
 import locale
 import warnings
 from base64 import b64encode
+from io import BytesIO
 from os.path import dirname
 from typing import Any
 from unittest import mock
 
 import pytest
+from msgraph_core import APIVersion
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, Context, timezone
+from airflow.models.trigger import Trigger
+from airflow.providers.common.compat.sdk import DAG, AirflowException, Context, TaskDeferred, timezone
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
+from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
 from airflow.triggers.base import TriggerEvent
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
-from tests_common.test_utils.operators.run_deferrable import execute_operator
+from tests_common.test_utils.operators.run_deferrable import execute_operator, run_trigger
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.microsoft.azure.test_utils import (
     mock_json_response,
     mock_response,
@@ -510,3 +516,248 @@ class TestMSGraphAsyncOperator:
                 == "response"
             )
             assert len(recorded_warnings) == 0
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The triggerer renders templated fields from Airflow 3.3")
+class TestMSGraphAsyncOperatorStartFromTrigger:
+    def test_start_from_trigger_builds_the_trigger_arguments(self):
+        operator = MSGraphAsyncOperator(
+            task_id="user_messages",
+            conn_id="{{ params.conn_id }}",
+            url="users/{user_id}/messages",
+            response_type="bytes",
+            path_parameters={"user_id": "{{ params.user_id }}"},
+            url_template="{+baseurl}/users/{user_id}/messages{?%24top}",
+            method="POST",
+            query_parameters={"$top": 12},
+            headers={"ConsistencyLevel": "eventual"},
+            data={"subject": "{{ ds }}"},
+            timeout=30,
+            proxies={"https": "http://proxy:3128"},
+            scopes=["https://graph.microsoft.com/.default"],
+            api_version=APIVersion.beta,
+            start_from_trigger=True,
+        )
+
+        assert operator.start_from_trigger is True
+        assert operator.start_trigger_args.trigger_cls == (
+            "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
+        )
+        assert operator.start_trigger_args.next_method == "execute_complete"
+        assert operator.start_trigger_args.next_kwargs is None
+        assert operator.start_trigger_args.timeout is None
+        assert operator.start_trigger_args.trigger_kwargs == {
+            "url": "users/{user_id}/messages",
+            "response_type": "bytes",
+            "path_parameters": {"user_id": "{{ params.user_id }}"},
+            "url_template": "{+baseurl}/users/{user_id}/messages{?%24top}",
+            "method": "POST",
+            "query_parameters": {"$top": 12},
+            "headers": {"ConsistencyLevel": "eventual"},
+            "data": {"subject": "{{ ds }}"},
+            "conn_id": "{{ params.conn_id }}",
+            "timeout": 30,
+            "proxies": {"https": "http://proxy:3128"},
+            "scopes": ["https://graph.microsoft.com/.default"],
+            "api_version": "beta",
+            "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
+        }
+        # The enum itself would not survive the serialized Dag, its value does.
+        assert type(operator.start_trigger_args.trigger_kwargs["api_version"]) is str
+
+    def test_start_from_trigger_defers_the_same_trigger_as_execute(self):
+        operator = MSGraphAsyncOperator(
+            task_id="user_messages",
+            conn_id="msgraph_api",
+            url="users/{user_id}/messages",
+            path_parameters={"user_id": "{{ params.user_id }}"},
+            query_parameters={"$top": 12},
+            api_version=APIVersion.beta,
+            start_from_trigger=True,
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(context=Context())
+
+        trigger = MSGraphTrigger(**operator.start_trigger_args.trigger_kwargs)
+
+        assert trigger.serialize() == deferred.value.trigger.serialize()
+        assert operator.start_trigger_args.next_method == deferred.value.method_name
+
+    @pytest.mark.parametrize(
+        "arguments",
+        [
+            pytest.param(lambda upstream: {"url": upstream.output}, id="xcom-arg"),
+            pytest.param(
+                lambda upstream: {"path_parameters": {"user_id": upstream.output}}, id="nested-xcom-arg"
+            ),
+            pytest.param(
+                lambda upstream: {"query_parameters": {"$select": [upstream.output]}},
+                id="xcom-arg-in-list",
+            ),
+            pytest.param(
+                lambda upstream: {"path_parameters": lambda context, jinja_env: {"user_id": "me"}},
+                id="callable",
+            ),
+            pytest.param(lambda upstream: {"data": BytesIO(b"content")}, id="file-like-object"),
+        ],
+    )
+    def test_start_from_trigger_falls_back_to_the_worker(self, arguments):
+        with DAG(dag_id="msgraph_start_from_trigger", schedule=None):
+            upstream = MSGraphAsyncOperator(task_id="upstream", conn_id="msgraph_api", url="users")
+            operator = MSGraphAsyncOperator(
+                **{
+                    "task_id": "user_messages",
+                    "conn_id": "msgraph_api",
+                    "url": "users/{user_id}/messages",
+                    "start_from_trigger": True,
+                    **arguments(upstream),
+                }
+            )
+
+        assert operator.start_from_trigger is False
+        assert operator.start_trigger_args is None
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.msgraph.AIRFLOW_V_3_3_PLUS", False)
+    def test_start_from_trigger_needs_airflow_3_3(self):
+        operator = MSGraphAsyncOperator(
+            task_id="users", conn_id="msgraph_api", url="users", start_from_trigger=True
+        )
+
+        assert operator.start_from_trigger is False
+        assert operator.start_trigger_args is None
+
+    def test_start_trigger_args_are_not_shared_between_tasks(self):
+        users = MSGraphAsyncOperator(
+            task_id="users", conn_id="msgraph_api", url="users", start_from_trigger=True
+        )
+        groups = MSGraphAsyncOperator(
+            task_id="groups", conn_id="msgraph_api", url="groups", start_from_trigger=True
+        )
+        sites = MSGraphAsyncOperator(task_id="sites", conn_id="msgraph_api", url="sites")
+
+        assert users.start_trigger_args is not groups.start_trigger_args
+        assert users.start_trigger_args.trigger_kwargs["url"] == "users"
+        assert groups.start_trigger_args.trigger_kwargs["url"] == "groups"
+        assert sites.start_from_trigger is False
+        assert sites.start_trigger_args is None
+        assert MSGraphAsyncOperator.start_from_trigger is False
+        assert MSGraphAsyncOperator.start_trigger_args is None
+
+    def test_mapped_task_has_no_start_trigger_args(self):
+        with DAG(dag_id="msgraph_start_from_trigger", schedule=None):
+            mapped = MSGraphAsyncOperator.partial(
+                task_id="users", conn_id="msgraph_api", start_from_trigger=True
+            ).expand(url=["users", "groups"])
+
+        # The scheduler cannot expand the arguments of a mapped task, and without them it leaves
+        # the task to a worker.
+        assert mapped.start_trigger_args is None
+
+    @pytest.mark.db_test
+    @pytest.mark.need_serialized_dag
+    def test_scheduler_defers_the_task_to_the_triggerer(self, dag_maker, session):
+        with dag_maker(session=session):
+            users = MSGraphAsyncOperator(
+                task_id="users",
+                conn_id="msgraph_api",
+                url="users/{{ params.user_id }}",
+                query_parameters={"$top": 12},
+                start_from_trigger=True,
+            )
+            MSGraphAsyncOperator(
+                task_id="messages", conn_id="msgraph_api", url=users.output, start_from_trigger=True
+            )
+
+        dag_run = dag_maker.create_dagrun()
+        task_instances = {}
+        for task_id in ("users", "messages"):
+            task_instances[task_id] = dag_run.get_task_instance(task_id, session=session)
+            task_instances[task_id].task = dag_run.dag.get_task(task_id)
+
+        dag_run.schedule_tis(task_instances.values(), session=session)
+
+        assert task_instances["users"].state == TaskInstanceState.DEFERRED
+        assert task_instances["users"].next_method == "execute_complete"
+        assert task_instances["users"].trigger_timeout is None
+        trigger = session.get(Trigger, task_instances["users"].trigger_id)
+        assert trigger.classpath == "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
+        assert trigger.kwargs == users.start_trigger_args.trigger_kwargs
+        # The task which takes its url from an XCom still starts on a worker.
+        session.refresh(task_instances["messages"])
+        assert task_instances["messages"].state == TaskInstanceState.SCHEDULED
+        assert task_instances["messages"].trigger_id is None
+
+    @pytest.mark.db_test
+    def test_triggerer_renders_the_templated_fields(self, create_task_instance):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        users.pop("@odata.nextLink")
+        operator = MSGraphAsyncOperator(
+            task_id="user_messages",
+            conn_id="{{ conn_id }}",
+            url="users/{user_id}/messages",
+            path_parameters={"user_id": "{{ user_id }}"},
+            query_parameters={"$top": "{{ top }}"},
+            headers={"ConsistencyLevel": "{{ consistency }}"},
+            start_from_trigger=True,
+        )
+        task_instance = create_task_instance(
+            task=operator, start_from_trigger=True, start_trigger_args=operator.start_trigger_args
+        )
+        trigger = MSGraphTrigger(**operator.start_trigger_args.trigger_kwargs)
+
+        trigger.task_instance = task_instance
+
+        assert trigger.template_fields == MSGraphAsyncOperator.template_fields
+
+        trigger.render_template_fields(
+            context={"conn_id": "msgraph_api", "user_id": "me", "top": 12, "consistency": "eventual"}
+        )
+
+        assert trigger.conn_id == "msgraph_api"
+        assert trigger.path_parameters == {"user_id": "me"}
+        assert trigger.query_parameters == {"$top": "12"}
+        assert trigger.headers == {"ConsistencyLevel": "eventual"}
+
+        with patch_hook_and_request_adapter(mock_json_response(200, users)) as (
+            *_,
+            mock_get_http_response,
+        ):
+            events = run_trigger(trigger)
+
+        request = mock_get_http_response.call_args.args[0]
+
+        assert request.url == "users/me/messages?%24top=12"
+        assert request.headers.try_get("ConsistencyLevel") == {"eventual"}
+        assert events[0].payload["status"] == "success"
+        assert events[0].payload["response"] == json.dumps(users)
+
+    def test_execute_when_started_from_the_trigger(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with (
+            patch_hook_and_request_adapter(response) as (*_, mock_get_http_response),
+            mock.patch.object(MSGraphAsyncOperator, "execute", autospec=True) as mock_execute,
+        ):
+            operator = MSGraphAsyncOperator(
+                task_id="users",
+                conn_id="msgraph_api",
+                url="{{ ti.task_id }}",
+                result_processor=lambda result, **context: result.get("value"),
+                start_from_trigger=True,
+            )
+
+            results, events = execute_operator(operator)
+
+        # The first page is requested by the trigger the scheduler created, with the url it rendered
+        # itself, and the worker only takes over from there to follow the pagination.
+        mock_execute.assert_not_called()
+        assert mock_get_http_response.call_args_list[0].args[0].url == "users"
+        assert mock_get_http_response.call_count == 2
+        assert results == users.get("value") + next_users.get("value")
+        assert [event.payload["response"] for event in events] == [
+            json.dumps(users),
+            json.dumps(next_users),
+        ]

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.providers.microsoft.azure.operators.msgraph import execute_callable
+from airflow.providers.microsoft.azure.operators.msgraph import build_start_trigger_args, execute_callable
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 
 if TYPE_CHECKING:
@@ -57,6 +57,10 @@ class MSGraphSensor(BaseSensorOperator):
         `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
+    :param start_from_trigger: Start the task directly from the triggerer, without first running it on a
+        worker (default is False).  This requires Airflow 3.3 or later, and arguments which only hold plain
+        values: when an argument is an ``XComArg``, a callable or a file-like object, the task starts on a
+        worker as usual.  The templated fields are then rendered by the triggerer.
     """
 
     template_fields: Sequence[str] = (
@@ -88,6 +92,7 @@ class MSGraphSensor(BaseSensorOperator):
         result_processor: Callable[[Any, Context], Any] = lambda result, **context: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         retry_delay: timedelta | float = 60,
+        start_from_trigger: bool = False,
         **kwargs,
     ):
         super().__init__(retry_delay=retry_delay, **kwargs)
@@ -106,6 +111,13 @@ class MSGraphSensor(BaseSensorOperator):
         self.event_processor = event_processor
         self.result_processor = result_processor
         self.serializer = serializer()
+        # The scheduler defers the task itself here, and it only knows the timeout it is handed.
+        self.start_trigger_args = (
+            build_start_trigger_args(self, timeout=timedelta(seconds=self.timeout))
+            if start_from_trigger
+            else None
+        )
+        self.start_from_trigger = self.start_trigger_args is not None
 
     def execute(self, context: Context):
         self.defer(
