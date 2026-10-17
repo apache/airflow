@@ -4784,7 +4784,48 @@ def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session
     dr = session.scalar(select(DagRun))
     assert dr.state == DagRunState.FAILED
 
+def test_work_task_failure_when_teardown_succeeds_and_on_success_is_false(
+    dag_maker, session
+):
+    with dag_maker():
 
+        @setup
+        def setuptask():
+            pass
+
+        @teardown(
+            on_failure_fail_dagrun=True,
+            on_success_succeed_dagrun=False,
+        )
+        def teardown_task():
+            pass
+
+        @task
+        def mytask():
+            pass
+
+        with setuptask() >> teardown_task():
+            mytask()
+
+    dr = dag_maker.create_dagrun()
+    s1 = dr.get_task_instance(task_id="setuptask")
+    td1 = dr.get_task_instance(task_id="teardown_task")
+    t1 = dr.get_task_instance(task_id="mytask")
+
+    s1.state = TaskInstanceState.SUCCESS
+    td1.state = TaskInstanceState.SUCCESS
+    t1.state = TaskInstanceState.FAILED
+
+    session.merge(s1)
+    session.merge(td1)
+    session.merge(t1)
+    session.flush()
+
+    dr.update_state()
+    session.flush()
+
+    dr = session.scalar(select(DagRun))
+    assert dr.state == DagRunState.FAILED
 def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session):
     with dag_maker():
 
