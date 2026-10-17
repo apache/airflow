@@ -34,7 +34,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-snowflake/operators/snowflake.rst",
                     "/docs/apache-airflow-providers-snowflake/operators/snowpark.rst",
                     "/docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst",
-                    "/docs/apache-airflow-providers-snowflake/operators/snowflake_cortex_agent.rst",
+                    "/docs/apache-airflow-providers-snowflake/operators/cortex_agent.rst",
                 ],
                 "logo": "/docs/integration-logos/Snowflake.png",
                 "tags": ["service"],
@@ -47,7 +47,7 @@ def get_provider_info():
                     "airflow.providers.snowflake.operators.snowflake",
                     "airflow.providers.snowflake.operators.snowpark",
                     "airflow.providers.snowflake.operators.snowpark_containers",
-                    "airflow.providers.snowflake.operators.snowflake_cortex_agent",
+                    "airflow.providers.snowflake.operators.cortex_agent",
                 ],
             }
         ],
@@ -77,10 +77,10 @@ def get_provider_info():
             {
                 "integration-name": "Snowflake",
                 "python-modules": [
-                    "airflow.providers.snowflake.hooks.snowflake",
-                    "airflow.providers.snowflake.hooks.snowflake_sql_api",
-                    "airflow.providers.snowflake.hooks.snowflake_cortex_agent",
                     "airflow.providers.snowflake.hooks.cortex_model",
+                    "airflow.providers.snowflake.hooks.snowflake",
+                    "airflow.providers.snowflake.hooks.sql_api",
+                    "airflow.providers.snowflake.hooks.cortex_agent",
                 ],
             }
         ],
