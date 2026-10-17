@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from cadwyn import VersionChange, schema
 
-from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
+from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     TaskInstance,
@@ -118,4 +118,14 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
+
+
+class AddTeamNameToDagFileParseRequest(VersionChange):
+    """Add the team name to Dag file parse requests."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagFileParseRequest).field("team_name").didnt_exist,
     )

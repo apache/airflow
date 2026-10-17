@@ -27,7 +27,12 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_token_command
-from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
+from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.source import (
+    DagBundleMetadata,
+    DagBundleSource,
+    _load_bundle_config_snapshot,
+)
 
 from tests_common.test_utils.config import conf_vars
 
@@ -90,6 +95,23 @@ class TestDagProcessorTokenCommand:
         claims = _decode(token_file.read_text())
         assert claims["dag_bundles"] == ["bundle_b"]
         assert claims["exp"] - claims["iat"] == 120
+
+    @pytest.mark.parametrize("requested", [False, True])
+    @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
+    @mock.patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
+    def test_grants_custom_source_bundles_without_constructing_them(self, mock_load, tmp_path, requested):
+        source = mock.create_autospec(DagBundleSource, instance=True)
+        source.get_configured_bundle_metadata.return_value = [DagBundleMetadata(name="custom-bundle")]
+        mock_load.return_value = source
+        token_file = tmp_path / "token"
+        args = ["--token-file", str(token_file)]
+        if requested:
+            args.extend(["-B", "custom-bundle"])
+
+        self._run(*args)
+
+        assert _decode(token_file.read_text())["dag_bundles"] == ["custom-bundle"]
+        source.get_bundle.assert_not_called()
 
     def test_rejects_an_unknown_bundle(self, tmp_path):
         token_file = tmp_path / "token"

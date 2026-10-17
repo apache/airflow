@@ -112,7 +112,7 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
 # behind forever and a restarted replica adds a second one. The denominator is therefore taken from
 # the declared work partition instead, which is unaffected by how replicas come and go:
 #
-# * Dag processor -- the bundles in ``[dag_processor] dag_bundle_config_list``.
+# * Dag processor -- the bundles returned by the configured Dag bundle source.
 # * Triggerer -- the team scopes those bundles declare, since a triggerer only picks up triggers for
 #   its own team (see ``Trigger.ids_for_triggerer``).
 # * Scheduler -- schedulers are symmetric, so there is no partition and no partial state to report.
