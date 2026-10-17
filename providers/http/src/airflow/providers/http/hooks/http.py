@@ -60,6 +60,21 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     return (base_url or "") + (endpoint or "")
 
 
+def _url_with_port(url: str, port: int | None) -> str:
+    """
+    Add ``port`` to the host part of ``url``.
+
+    The connection host may be a full URL with a path (``https://example.com/api``), so the port
+    cannot simply be appended to it. A port that is already part of ``url`` is kept.
+    """
+    if not port:
+        return url
+    parsed = urlparse(url)
+    if parsed.port is not None:
+        return url
+    return parsed._replace(netloc=f"{parsed.netloc}:{port}").geturl()
+
+
 def _order_srv_targets(answers: Iterable[SRV]) -> list[tuple[str, int]]:
     """
     Order resolved DNS SRV records into the sequence of ``(host, port)`` targets to try.
@@ -281,8 +296,7 @@ class HttpHook(BaseHook):
             self.base_url = host
         else:
             self.base_url = f"{schema}://{host}" if host else f"{schema}://"
-        if connection.port:
-            self.base_url = f"{self.base_url}:{connection.port}"
+        self.base_url = _url_with_port(self.base_url, connection.port)
         parsed = urlparse(self.base_url)
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
@@ -770,8 +784,7 @@ class HttpAsyncHook(BaseHook):
                     schema = conn.schema or "http"
                     base_url = f"{schema}://{conn.host or ''}"
 
-                if conn.port:
-                    base_url += f":{conn.port}"
+                base_url = _url_with_port(base_url, conn.port)
 
                 if conn.login:
                     auth = self.auth_type(conn.login, conn.password)

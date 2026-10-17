@@ -436,6 +436,25 @@ class TestHttpHook:
         hook.get_conn({})
         assert hook.base_url == "https://localhost:8080"
 
+    @pytest.mark.parametrize(
+        ("host", "port", "expected_base_url"),
+        [
+            ("https://api.example.com/v1", 8443, "https://api.example.com:8443/v1"),
+            ("api.example.com/v1/", 8080, "http://api.example.com:8080/v1/"),
+            ("https://api.example.com:8443/v1", 8443, "https://api.example.com:8443/v1"),
+        ],
+    )
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_connection_port_with_host_path(self, mock_get_connection, host, port, expected_base_url):
+        mock_get_connection.return_value = Connection(
+            conn_id="http_default", conn_type="http", host=host, port=port
+        )
+        hook = HttpHook()
+        hook.get_conn({})
+
+        assert hook.base_url == expected_base_url
+        assert hook.url_from_endpoint("users") == f"{expected_base_url.rstrip('/')}/users"
+
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_host_encoded_http_connection(self, mock_get_connection):
         conn = Connection(conn_id="http_default", conn_type="http", host="http://localhost")
@@ -1367,6 +1386,22 @@ class TestHttpAsyncHookSrvLookup:
         config = await hook.config()
 
         assert all(isinstance(value, str) for value in config.headers.values())
+
+    @pytest.mark.asyncio
+    async def test_config_port_with_host_path(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_async_host_path",
+                conn_type="http",
+                host="https://api.example.com/v1",
+                port=8443,
+            )
+        )
+        hook = HttpAsyncHook(http_conn_id="http_async_host_path", method="GET")
+
+        config = await hook.config()
+
+        assert config.base_url == "https://api.example.com:8443/v1"
 
     @pytest.mark.asyncio
     async def test_resolve_srv_targets_async_dns_failure_raises(self):
