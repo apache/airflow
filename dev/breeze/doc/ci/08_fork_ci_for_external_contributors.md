@@ -530,7 +530,10 @@ bypass when both signals hold:
 1. **The run did project CI work.** Either the default branch's version of the run's workflow
    is not triggered by the run's event, which covers an injected workflow and a trigger the
    pull request added to an existing one (for example `pull_request` on `ci-arm.yml`, which
-   has no gate), or it is a `ci-amd.yml` run that lasted more than 5 minutes and whose jobs
+   has no gate), and one of its jobs was not skipped (judged as for `ci-amd.yml` below when it
+   is that workflow, and counted as work when the jobs cannot be listed), so a fork-only
+   workflow the pull request adds and guards off in `apache/airflow` does not count; or it is
+   a `ci-amd.yml` run that lasted more than 5 minutes and whose jobs
    (`GET .../actions/runs/<id>/jobs`) show more than the gate: a job other than `Fork CI gate`
    that was not skipped, a missing or duplicated gate job, or a gate job that ran for more
    than 5 minutes. The last case catches project CI work done in a job renamed to the gate's
@@ -817,7 +820,8 @@ as a failed check rather than a crash.
   CI-defining files keeps the pull request a draft, decided once per commit) and the gate
   tampering check: a tampered run on an earlier commit is caught after a clean push, each
   signal alone does not close, short runs and gate-only jobs do not count, an in-progress
-  non-gate job, a removed, duplicated or long-running gate job and an injected workflow do,
+  non-gate job, a removed, duplicated or long-running gate job and an injected workflow with a
+  job that ran do, an added workflow whose jobs all skipped does not,
   runs before the last `use project ci` removal or the last reopen are ignored, an
   uncheckable 300-file change set is reported, `label_fork_ci` pull requests are exempt and
   `pilot` pull requests are checked. Discovery labels a pilot participant's

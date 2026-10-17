@@ -892,8 +892,8 @@ class BypassFinder:
     signals of the design must hold for a run: it did project CI work, and its own commit changes
     `.github/workflows/`. A run did project CI work when the base branch's version of its
     workflow is not triggered by the run's event (an injected workflow, or a trigger the pull
-    request added to an existing one, such as `pull_request` on ci-arm.yml), or when it is a long
-    ci-amd.yml run whose jobs show more than the gate.
+    request added to an existing one, such as `pull_request` on ci-arm.yml) and a job of it ran,
+    or when it is a long ci-amd.yml run whose jobs show more than the gate.
     """
 
     def __init__(
@@ -926,21 +926,33 @@ class BypassFinder:
         self._did_project_ci: dict[int, bool] = {}
         self._changes_workflows: dict[tuple[str, str], bool | None] = {}
 
+    def _list_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
+        return self._client.rest_get(
+            f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
+            paginate=True,
+            items_key="jobs",
+        )
+
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
         if run.id not in self._did_project_ci:
             if run.event not in self._base_triggers.get(run.workflow_file, frozenset()):
-                # Counts even when every job skipped; tracked at
-                # https://github.com/apache/airflow/issues/74905
-                result = True
+                # A workflow or trigger the base branch does not have, for example a fork-only
+                # workflow the pull request adds, did no work in apache/airflow if its jobs all
+                # skipped there. Jobs that cannot be listed count as work.
+                try:
+                    jobs = self._list_jobs(run)
+                except GitHubError:
+                    result = True
+                else:
+                    result = (
+                        jobs_show_project_ci(jobs, self._now)
+                        if run.workflow_file == CI_WORKFLOW_FILE
+                        else any(job.get("conclusion") != "skipped" for job in jobs)
+                    )
             elif run.workflow_file != CI_WORKFLOW_FILE or not run.is_long_running(self._now):
                 result = False
             else:
-                jobs = self._client.rest_get(
-                    f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                    paginate=True,
-                    items_key="jobs",
-                )
-                result = jobs_show_project_ci(jobs, self._now)
+                result = jobs_show_project_ci(self._list_jobs(run), self._now)
             self._did_project_ci[run.id] = result
         return self._did_project_ci[run.id]
 
