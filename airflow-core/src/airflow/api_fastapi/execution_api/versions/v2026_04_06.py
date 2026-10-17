@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
@@ -194,6 +195,19 @@ def _convert_to_legacy(value: Any) -> Any:
         }
     classname = value[CLASSNAME]
     data = value.get(DATA)
+    # The legacy format has no frozenset; a set is the closest type older workers can decode.
+    collection_types = {
+        "builtins.tuple": DAT.TUPLE,
+        "builtins.set": DAT.SET,
+        "builtins.frozenset": DAT.SET,
+    }
+    if classname in collection_types and isinstance(data, list):
+        items = [_convert_to_legacy(item) for item in data]
+        if collection_types[classname] == DAT.SET:
+            # Mirrors BaseSerialization.serialize, which sorts set items when they are comparable.
+            with contextlib.suppress(TypeError):
+                items = sorted(items)
+        return {Encoding.TYPE: collection_types[classname], Encoding.VAR: items}
     if classname == _ASSET_CLASSNAME and isinstance(data, dict) and not data.get("watchers"):
         return {
             Encoding.TYPE: DAT.ASSET,

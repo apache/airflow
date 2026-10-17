@@ -22,6 +22,7 @@ from dataclasses import dataclass
 import pytest
 
 from airflow._shared.timezones import timezone
+from airflow.sdk import Asset, AssetAlias
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.state import DagRunState, State
 
@@ -202,7 +203,6 @@ class TestNextKwargsBackwardCompat:
         self, old_ver_client, session, create_task_instance, monkeypatch
     ):
         """Assets and asset aliases reach old workers in the legacy format without being rebuilt here."""
-        from airflow.sdk import Asset, AssetAlias
         from airflow.sdk.serde import serialize as serde_serialize
 
         original = {
@@ -246,6 +246,57 @@ class TestNextKwargsBackwardCompat:
         assert (result["alias"].name, result["alias"].group) == ("resume-alias", "asset")
         assert result["event"] == TIMESTAMP
 
+    @pytest.mark.parametrize(
+        "assets",
+        [
+            pytest.param((Asset("first"), Asset("second")), id="tuple-of-assets"),
+            pytest.param({Asset("first"), Asset("second")}, id="set-of-assets"),
+            pytest.param({AssetAlias("resume-alias")}, id="set-with-alias"),
+        ],
+    )
+    def test_old_version_translates_asset_collections_without_constructing_them(
+        self, old_ver_client, session, create_task_instance, monkeypatch, assets
+    ):
+        """Tuples and sets of assets reach old workers in the legacy format without being rebuilt here."""
+        from airflow.sdk.serde import serialize as serde_serialize
+
+        original = {"assets": assets}
+        expected = BaseSerialization.serialize(original)
+
+        ti = create_task_instance(
+            task_id="test_next_kwargs_asset_collections",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = serde_serialize(original)
+        session.commit()
+
+        constructed = []
+        for cls in (Asset, AssetAlias):
+            original_init = cls.__init__
+
+            def spy(self, *args, _original_init=original_init, **kwargs):
+                constructed.append(type(self))
+                _original_init(self, *args, **kwargs)
+
+            monkeypatch.setattr(cls, "__init__", spy)
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        assert constructed == []
+        assert response.json()["next_method"] == "execute_complete"
+        next_kwargs = response.json()["next_kwargs"]
+        assert next_kwargs == expected
+        # Decoded per item: core's decoder builds unhashable SerializedAssetAlias, so it cannot rebuild
+        # a set of aliases; older workers decode into hashable Task SDK classes.
+        decoded = [BaseSerialization.deserialize(item) for item in next_kwargs["__var"]["assets"]["__var"]]
+        assert sorted((type(a).__name__, a.name) for a in decoded) == sorted(
+            (f"Serialized{type(a).__name__}", a.name) for a in assets
+        )
+
     def test_old_version_fails_task_for_unconvertible_values(
         self, old_ver_client, session, create_task_instance, monkeypatch
     ):
@@ -283,7 +334,6 @@ class TestNextKwargsBackwardCompat:
         self, old_ver_client, session, create_task_instance
     ):
         """Rolling upgrade: BaseSerialization-format assets already in the DB are returned as stored."""
-        from airflow.sdk import Asset
 
         stored = BaseSerialization.serialize({"asset": Asset("resume-data")})
         ti = create_task_instance(
