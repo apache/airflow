@@ -80,6 +80,14 @@ If you are deploying an image from a private repository, you need to create a se
 Using Git-Sync
 --------------
 
+By default, Git-Sync waits ``dags.gitSync.period`` (``5s``) after each failed
+synchronization before retrying. With the default Git-Sync image,
+``dags.gitSync.maxFailures`` is ``5``, allowing four retries before the process
+exits after five consecutive failures. A successful synchronization resets the
+failure counter. This applies to both sidecar and init containers.
+Set ``dags.gitSync.maxFailures`` to ``0`` to exit on the first failure,
+or ``-1`` to retry indefinitely.
+
 Mounting Dags using Git-Sync sidecar with persistence enabled
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

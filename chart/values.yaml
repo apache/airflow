@@ -3535,8 +3535,9 @@ dags:
 
     depth: 1
 
-    # The number of consecutive failures allowed before aborting
-    maxFailures: 0
+    # The number of consecutive failures before aborting.
+    # Set to 0 to abort on the first failure, or -1 to retry indefinitely.
+    maxFailures: 5
 
     # Subpath within the repo where dags are located.
     # Should be "" if dags are at repo root
