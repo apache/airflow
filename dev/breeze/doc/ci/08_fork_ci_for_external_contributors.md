@@ -488,7 +488,10 @@ The decision is read back from the `Fork CI / Tests (AMD)` commit status on the 
 which only `apache/airflow`'s own tokens can write, so it is made once per commit and cannot be
 forged through a comment. The changed files depend on the base branch as well, so a decision
 recorded before the pull request was last retargeted (a `BaseRefChangedEvent` in the timeline
-newer than the status) is made again, and the status is written again to date it.
+newer than the status) is made again, and the status is written again to date it. A commit status
+belongs to the commit, so it cannot hold one decision per base: when another gated pull
+request with a different base has the same head commit, both are `green_unverified` and wait
+for a maintainer, reported to Slack once.
 
 This is a guard against the cheapest way to fake a green run, not a guarantee. Any change can
 weaken the tests it ships with (a `conftest.py` that skips tests, for example), exactly as it
