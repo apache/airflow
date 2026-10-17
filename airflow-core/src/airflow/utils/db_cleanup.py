@@ -224,6 +224,9 @@ config_list: list[_TableConfig] = [
         recency_column_name="last_parsed_time",
         dependent_tables=["dag_version", "deadline"],
         dag_id_column_name="dag_id",
+        # Deleting a Dag cascades to versions that surviving task instances may still pin.
+        skip_if_referenced=[("task_instance", "dag_id")],
+        referenced_pk_column="dag_id",
     ),
     _TableConfig(
         table_name="dag_run",
