@@ -510,6 +510,7 @@ pull requests without a fork run for their head commit, not by the total.
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | draft | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; labelled `needs project ci` |
 | setup_required or awaiting_push for `close_after_days` | unchanged | unchanged | unchanged | close with a new comment; reopening restarts the clock |
 | **ungated**: the base branch has no gate, for example after retargeting to an older release branch | undraft\* | unchanged | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
+| **gate_modified**: the pull request changes the fork CI gate (see "Gate protection") | draft | remove | `error` (red), link to the pull request's changed files | post a **new** comment explaining why, then close; checked after gate tampering, before the fork state |
 | **gate_bypassed**: a recorded project CI run of the pull request's branch bypassed the gate (see "Gate tampering") | draft | remove | `error` (red), link to the project CI run that should not have happened | post a **new** comment explaining why, then close; takes precedence over every row above |
 
 \* only if the last convert-to-draft event on the pull request was by `github-actions[bot]`;
@@ -681,6 +682,46 @@ triggers a fresh `pull_request` run in `apache/airflow` in which only `gate` exe
 signal 1 no longer holds and the pull request re-enters the fork state machine. `use project
 ci` releases it like any other gated pull request; a maintainer who wants to keep an external
 workflow change has to leave that label on.
+
+### Gate protection
+
+The gate decides where a pull request's CI runs, so a pull request whose CI runs in a fork must
+not change it: the change would decide where its own CI runs, and a maintainer reviewing it later
+would be reviewing a pull request that already escaped the gate. For every pull request the
+tampering check applies to (`external` and `pilot`), the reconciler lists the changed files once
+per head commit, counting a renamed file under both paths, and closes the pull request
+with a comment explaining why when it changes any of:
+
+- `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`, the reconciler modules
+  `fork_ci_reconcile.py`, `fork_ci_github.py` and `fork_ci_messages.py`, or
+  `.github/workflows/fork-ci-monitor.yml`;
+- `.github/fork-ci-gate.toml`, other than adding, changing or removing the author's own
+  `[pilot]` entry, which is how contributors join and leave the pilot (the configuration is
+  parsed from the head commit and compared with its version at the pull request's merge base,
+  so comments and later changes on the base branch do not count);
+- the `gate` job of `.github/workflows/ci-amd.yml`, the `needs` and `if` that make
+  `build-info` depend on it, the set of jobs that do not depend on the gate (directly or through
+  other jobs), or the workflow-level `on`, `defaults`, `env`, `permissions` and `concurrency` (the head and merge-base versions are parsed and those parts
+  compared, so other changes to the workflow are left to the green-trust check; a head version
+  that does not parse as a workflow counts as a change).
+
+A changed-file listing at GitHub's 3000-file cap may leave out a gate file, so such a pull
+request is closed as one whose gate change cannot be checked.
+
+The state comment's marker records `"gate_checked": true` with the head commit only when this
+check ran for it, so a marker written before the check existed, or while `use fork ci` exempted
+the pull request, does not count, and a retarget since the state began makes it check again.
+The changed files are listed for the pull request as it is when listed, so the head commit is
+read again afterwards: if it moved, nothing is recorded and the next run checks the new one.
+
+The state is `gate_modified`: the pull request is drafted, loses `ready for maintainer review`
+and `needs project ci`, gets an `error` status linking its changed files, and the closure is
+reported to Slack as an attention item. Gate tampering is checked first and wins. As for gate
+tampering, only a reopen by someone other than the author counts: an open pull request whose
+marker says `gate_modified` and that was not reopened since is closed again, and a maintainer's
+reopen without restoring the gate closes it again on the next run. A maintainer who wants the
+change adds `use project ci`, which releases the pull request before any of these checks. Each
+of these files carries a comment saying so.
 
 ### State comment
 

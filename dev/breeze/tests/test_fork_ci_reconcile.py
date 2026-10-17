@@ -44,6 +44,8 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     DraftChange,
     ForkObservation,
     ForkState,
+    GateChangeFinder,
+    HeadMovedError,
     JobStatusReporter,
     Plan,
     PullRequestSnapshot,
@@ -60,6 +62,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     find_heads_shared_across_bases,
     find_state_comment,
     is_gated_skip_run,
+    is_own_pilot_change,
     jobs_show_project_ci,
     load_workflow_triggers,
     parse_pull_request,
@@ -97,8 +100,8 @@ def _pr(**overrides) -> PullRequestSnapshot:
     return PullRequestSnapshot(**values)
 
 
-def _marker(state: str, *, days_ago: float = 0, sha: str = "abc123") -> Marker:
-    return Marker(state=state, sha=sha, since=NOW - timedelta(days=days_ago))
+def _marker(state: str, *, days_ago: float = 0, sha: str = "abc123", gate_checked: bool = False) -> Marker:
+    return Marker(state=state, sha=sha, since=NOW - timedelta(days=days_ago), gate_checked=gate_checked)
 
 
 def _classify(
@@ -110,6 +113,7 @@ def _classify(
     config=CONFIG,
     behind=None,
     head_shared_across_bases=False,
+    gate_change=None,
 ):
     find_bypass = mock.Mock(return_value=bypass_run)
     changes = mock.Mock(return_value=changes_ci_files)
@@ -123,6 +127,7 @@ def _classify(
         changes_ci_files=changes,
         count_behind=mock.Mock(return_value=behind),
         head_shared_across_bases=head_shared_across_bases,
+        find_gate_change=lambda: gate_change,
     )
     return plan, find_bypass, changes
 
@@ -590,7 +595,7 @@ def test_unfinished_tampering_closure_is_retried(pr_overrides, expected_link):
 
 
 def test_since_is_kept_while_state_is_unchanged():
-    marker = Marker("setup_required", "abc123", NOW - timedelta(days=2))
+    marker = Marker("setup_required", "abc123", NOW - timedelta(days=2), gate_checked=True)
 
     plan, _, _ = _classify(_pr(marker=marker), ForkObservation(workflow_state="disabled_fork"))
 
@@ -1224,6 +1229,11 @@ def test_parse_pull_request_reads_timeline_status_and_marker():
                     "label": {"name": "use project ci"},
                 },
                 {
+                    "__typename": "UnlabeledEvent",
+                    "createdAt": "2026-11-03T12:00:00Z",
+                    "label": {"name": "use fork ci"},
+                },
+                {
                     "__typename": "ConvertToDraftEvent",
                     "createdAt": "2026-11-04T00:00:00Z",
                     "actor": {"login": "github-actions"},
@@ -1586,6 +1596,10 @@ def test_run_reconcile_isolates_failures_and_reports_them(client, tmp_path):
             if len(workflow_state_calls) == 1:
                 raise GitHubError("gh api failed: HTTP 500")
             return {"state": "disabled_fork"}
+        if path.endswith("/files?per_page=100"):
+            return []
+        if path.startswith(f"repos/{REPO}/pulls/"):
+            return {"head": {"sha": f"sha{path.rsplit('/', 1)[1]}"}}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
@@ -1632,6 +1646,10 @@ def test_run_reconcile_rereads_workflow_state_while_awaiting_push(client, tmp_pa
     def rest_get(path, paginate=False, items_key=None):
         if path == "repos/someone/my-airflow/actions/workflows/ci-amd.yml":
             return {"state": "disabled_manually"}
+        if path.endswith("/files?per_page=100"):
+            return []
+        if path.startswith(f"repos/{REPO}/pulls/"):
+            return {"head": {"sha": "sha1"}}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
@@ -2297,3 +2315,288 @@ def test_run_reconcile_tells_the_finder_which_bases_are_gated(
     client.rest_get.side_effect = rest_get
 
     assert mock_finder.call_args.kwargs["is_gated_base"](base_ref) is expected
+
+
+def test_a_change_to_the_gate_closes():
+    pr = _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"))
+
+    plan, _, _ = _classify(pr, GREEN, gate_change="it changes `x`")
+
+    assert plan.state == ForkState.GATE_MODIFIED
+    assert plan.close is True
+    assert plan.draft is True
+    assert plan.remove_labels == ["ready for maintainer review"]
+    assert plan.status == (
+        "error",
+        "https://github.com/apache/airflow/pull/42/files",
+        "Pull request changes the fork CI gate - see the comment",
+    )
+    assert "changes the fork CI gate: it changes `x`" in plan.new_comments[0]
+    assert '"state": "gate_modified"' in plan.marker_comment
+    assert len(plan.attention) == 1
+
+
+@pytest.mark.parametrize(
+    ("pr_overrides", "checked"),
+    [
+        pytest.param({}, True, id="new-pull-request"),
+        pytest.param({"marker": _marker("running", sha="older")}, True, id="new-head-commit"),
+        pytest.param(
+            {"marker": _marker("running", gate_checked=True)}, False, id="head-commit-already-checked"
+        ),
+        pytest.param({"marker": _marker("running")}, True, id="marker-from-before-the-check"),
+        pytest.param(
+            {"marker": _marker("gate_modified", days_ago=1), "last_reopened_at": NOW},
+            True,
+            id="reopened-by-maintainer",
+        ),
+        pytest.param(
+            {"author_association": "MEMBER", "labels": ("fork ci required", "use fork ci")},
+            False,
+            id="committer-on-fork-ci",
+        ),
+        pytest.param({"marker": _marker("released")}, True, id="released-without-a-check"),
+        pytest.param({"marker": _marker("ungated")}, True, id="ungated-without-a-check"),
+        pytest.param(
+            {
+                "marker": _marker("running", days_ago=1, gate_checked=True),
+                "last_base_change_at": NOW - timedelta(hours=1),
+            },
+            True,
+            id="retargeted-since",
+        ),
+    ],
+)
+def test_gate_change_is_checked_once_per_head_commit(pr_overrides, checked):
+    find = mock.Mock(return_value=None)
+    classify(
+        _pr(**pr_overrides),
+        GREEN,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_gate_change=find,
+    )
+
+    assert find.called is checked
+
+
+def test_unfinished_gate_change_closure_is_retried():
+    plan, _, _ = _classify(_pr(marker=_marker("gate_modified", days_ago=1)), GREEN, gate_change=None)
+
+    assert plan.state == ForkState.GATE_MODIFIED
+    assert plan.close is True
+    assert "Closing this pull request because it changes the fork CI gate." in plan.new_comments[0]
+
+
+PILOT_BASE = "enabled = true\n[pilot]\nother = 2026-10-01T00:00:00Z\n"
+
+
+@pytest.mark.parametrize(
+    ("head_text", "expected"),
+    [
+        pytest.param(
+            "enabled = true\n[pilot]\nother = 2026-10-01T00:00:00Z\nSomeone = 2026-12-01T00:00:00Z\n",
+            True,
+            id="adds-own-entry",
+        ),
+        pytest.param("enabled = true\n", False, id="removes-another-entry"),
+        pytest.param(
+            "enabled = false\n[pilot]\nother = 2026-10-01T00:00:00Z\nsomeone = 2026-12-01T00:00:00Z\n",
+            False,
+            id="also-switches-the-gate-off",
+        ),
+        pytest.param("enabled = [", False, id="unparsable"),
+        pytest.param("pilot = []\n", False, id="wrong-shape"),
+        pytest.param(None, False, id="deleted"),
+    ],
+)
+def test_is_own_pilot_change(head_text, expected):
+    assert is_own_pilot_change(PILOT_BASE, head_text, "someone") is expected
+
+
+CI_AMD = """
+on: [push, pull_request]
+jobs:
+  gate:
+    steps: [{run: gate}]
+  build-info:
+    needs: [gate]
+    if: needs.gate.outputs.project-ci == 'true'
+  tests:
+    needs: [build-info]
+    steps: [{run: tests}]
+"""
+
+
+GATE_JOB_CHANGE = (
+    "it changes the `gate` job of `.github/workflows/ci-amd.yml`, which jobs depend on it, "
+    "or the workflow-level triggers or settings it runs with"
+)
+
+
+def _gate_change_finder(client, changed, head_files, base_files=None, head_sha="abc123"):
+    base_files = {
+        ".github/workflows/ci-amd.yml": CI_AMD,
+        ".github/fork-ci-gate.toml": PILOT_BASE,
+        **(base_files or {}),
+    }
+
+    def rest_get(path, paginate=False, items_key=None):
+        if path.endswith("/files?per_page=100"):
+            return changed
+        if "/compare/" in path:
+            return {"merge_base_commit": {"sha": "merge-base"}}
+        if path == f"repos/{REPO}/pulls/42":
+            return {"head": {"sha": head_sha}}
+        repo_name, rest = path.removeprefix("repos/").split("/contents/")
+        name, ref = rest.split("?ref=")
+        files = base_files if (repo_name, ref) == (REPO, "merge-base") else head_files
+        if name not in files:
+            raise GitHubError("gh api failed: HTTP 404: Not Found")
+        return {"content": base64.b64encode(files[name].encode()).decode()}
+
+    client.rest_get.side_effect = rest_get
+    return GateChangeFinder(client, repo=REPO)
+
+
+@pytest.mark.parametrize(
+    ("changed", "head_files", "expected"),
+    [
+        pytest.param(
+            [{"filename": "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py"}],
+            {},
+            "it changes `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`",
+            id="gate-code",
+        ),
+        pytest.param(
+            [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/fork-ci-monitor.yml"}],
+            {},
+            "it changes `.github/workflows/fork-ci-monitor.yml`",
+            id="monitor-moved-away",
+        ),
+        pytest.param(
+            [{"filename": ".github/fork-ci-gate.toml"}],
+            {".github/fork-ci-gate.toml": "enabled = false\n"},
+            "it changes `.github/fork-ci-gate.toml` beyond the author's own `[pilot]` entry",
+            id="gate-config",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {".github/workflows/ci-amd.yml": CI_AMD.replace("[gate]", "[]")},
+            GATE_JOB_CHANGE,
+            id="gate-unwired",
+        ),
+        pytest.param(
+            [{"filename": ".github/fork-ci-gate.toml"}, {"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/fork-ci-gate.toml": (
+                    "enabled = true\n[pilot]\nother = 2026-10-01T00:00:00Z\nsomeone = 2026-12-01T00:00:00Z\n"
+                ),
+                ".github/workflows/ci-amd.yml": CI_AMD.replace("run: tests", "run: more-tests"),
+            },
+            None,
+            id="own-pilot-entry-and-other-ci-change",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {".github/workflows/ci-amd.yml": "jobs: [broken"},
+            GATE_JOB_CHANGE,
+            id="workflow-unparsable",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {".github/workflows/ci-amd.yml": "jobs: [one, two]\n"},
+            GATE_JOB_CHANGE,
+            id="jobs-not-a-mapping",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {".github/workflows/ci-amd.yml": "defaults:\n  run:\n    working-directory: /tmp\n" + CI_AMD},
+            GATE_JOB_CHANGE,
+            id="workflow-defaults",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {".github/workflows/ci-amd.yml": CI_AMD.replace("needs: [build-info]", "needs: []")},
+            GATE_JOB_CHANGE,
+            id="job-freed-from-the-gate",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD.replace(
+                    "[push, pull_request]", "[push, pull_request, issue_comment]"
+                )
+            },
+            GATE_JOB_CHANGE,
+            id="trigger-added",
+        ),
+        pytest.param(
+            [{"filename": f"airflow-core/f{i}.py"} for i in range(3000)],
+            {},
+            "it changes 3000 or more files, more than GitHub lists, so the gate cannot be checked",
+            id="listing-at-cap",
+        ),
+    ],
+)
+def test_gate_change_finder(client, changed, head_files, expected):
+    finder = _gate_change_finder(client, changed, head_files)
+
+    assert finder.find(_pr()) == expected
+
+
+@pytest.mark.parametrize(
+    ("pr_overrides", "gate_checked"),
+    [
+        pytest.param({}, True, id="checked"),
+        pytest.param(
+            {"author_association": "MEMBER", "labels": ("fork ci required", "use fork ci")},
+            False,
+            id="exempt-with-use-fork-ci",
+        ),
+    ],
+)
+def test_marker_records_whether_the_gate_was_checked(pr_overrides, gate_checked):
+    plan, _, _ = _classify(_pr(**pr_overrides), ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL))
+
+    assert ('"gate_checked": true' in plan.marker_comment) is gate_checked
+
+
+def test_gate_change_finder_aborts_when_the_head_moved(client):
+    finder = _gate_change_finder(client, [], {}, head_sha="newer")
+
+    with pytest.raises(HeadMovedError, match="head moved from abc123 to newer"):
+        finder.find(_pr())
+
+
+def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path):
+    output = tmp_path / "slack-message.json"
+    client.graphql.side_effect = [
+        _search_result(),
+        _search_result(),
+        _search_result(_pr_node(1)),
+        {"pr0": {"object": None}},
+    ]
+    client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
+
+    def rest_get(path, paginate=False, items_key=None):
+        if path.endswith("/actions/workflows/ci-amd.yml"):
+            return {"state": "active"}
+        if path == f"repos/{REPO}/pulls/1/files?per_page=100":
+            return []
+        if path == f"repos/{REPO}/pulls/1":
+            return {"head": {"sha": "moved"}}
+        raise AssertionError(path)
+
+    client.rest_get.side_effect = rest_get
+
+    has_alerts = run_reconcile(
+        client, CONFIG, now=NOW, run_url="https://run", output_file=output, workflows_dir=tmp_path
+    )
+
+    assert has_alerts is False
+    client.set_status.assert_not_called()
+    client.create_comment.assert_not_called()
