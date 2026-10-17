@@ -21,10 +21,10 @@ import contextlib
 import datetime
 import time
 import traceback
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import tenacity
 from asgiref.sync import sync_to_async
@@ -88,6 +88,9 @@ class KubernetesPodTrigger(BaseTrigger):
     :param base_container_name: The container whose logs / status the trigger watches.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param get_logs: get the stdout of the container as logs of the tasks.
+    :param init_container_logs: list of init containers whose logs should be streamed once
+        the pod leaves the ``Pending`` phase. Set to ``True`` to fetch logs for all init
+        containers. If ``None`` or empty, init container logs are not fetched.
     :param startup_timeout: timeout in seconds to start up the pod.
     :param startup_check_interval: interval in seconds to check if the pod has already started.
     :param schedule_timeout: timeout in seconds to schedule pod in cluster.
@@ -117,6 +120,7 @@ class KubernetesPodTrigger(BaseTrigger):
         config_dict: dict | None = None,
         in_cluster: bool | None = None,
         get_logs: bool = True,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         startup_timeout: int = 120,
         startup_check_interval: float = 5,
         schedule_timeout: int = 120,
@@ -139,6 +143,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.config_dict = config_dict
         self.in_cluster = in_cluster
         self.get_logs = get_logs
+        self.init_container_logs = init_container_logs
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
         self.schedule_timeout = schedule_timeout
@@ -166,6 +171,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "config_dict": self.config_dict,
                 "in_cluster": self.in_cluster,
                 "get_logs": self.get_logs,
+                "init_container_logs": self.init_container_logs,
                 "startup_timeout": self.startup_timeout,
                 "startup_check_interval": self.startup_check_interval,
                 "schedule_timeout": self.schedule_timeout,
@@ -343,6 +349,12 @@ class KubernetesPodTrigger(BaseTrigger):
             events_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await events_task
+
+        if self.init_container_logs:
+            await self.pod_manager.fetch_requested_init_container_logs(
+                pod=pod,
+                init_containers=self.init_container_logs,
+            )
 
         return self.define_pod_container_state(await self._get_pod())
 
