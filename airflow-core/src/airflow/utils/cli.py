@@ -316,7 +316,7 @@ def _redact_uri_argument(value: str) -> str:
     (``?api_key=...``) and sensitive entries of the URL-encoded ``__extra__`` JSON that
     connection URIs accept.
     """
-    from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+    from urllib.parse import parse_qsl, unquote, urlencode, urlparse, urlunparse
 
     value = _normalize_url_like_urlsplit(value)
     scheme, separator, rest = value.partition("://")
@@ -337,7 +337,9 @@ def _redact_uri_argument(value: str) -> str:
     after_authority = urlunparse(
         ("", "", parsed_uri.path, parsed_uri.params, parsed_uri.query, parsed_uri.fragment)
     )
-    if re.search(r":.*@", after_authority if has_password else rest if separator else value):
+    unlocated = after_authority if has_password else rest if separator else value
+    # ``Connection`` decodes query values, so ``u%3Apass%40host`` is a credential too.
+    if any(re.search(r":.*@", text) for text in (unlocated, unquote(unlocated))):
         return MASKED_VALUE
     query = parsed_uri.query
     params = parse_qsl(query, keep_blank_values=True) if query else []
