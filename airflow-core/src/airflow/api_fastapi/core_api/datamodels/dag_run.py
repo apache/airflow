@@ -22,10 +22,11 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
+from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, field_validator, model_validator
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
@@ -33,6 +34,20 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
+
+
+def check_conf_reserved_keys(conf: dict | None, *, root: str) -> dict | None:
+    """Reject a Dag run conf holding reserved serialization keys, as XCom and HITL values do."""
+    # Conf reaches code that runs a full serde decode (e.g. the Deadline callback context). Unlike
+    # XCom, nothing parses a string conf value back into a container, so strings stay unchecked.
+    found = find_reserved_keys(conf, root=root)
+    if found is not None:
+        path, keys = found
+        raise ValueError(
+            f"{path} contains reserved serialization keys: {', '.join(keys)}. "
+            "These keys are reserved for internal use."
+        )
+    return conf
 
 
 class DagRunMutableStates(str, Enum):
@@ -243,6 +258,11 @@ class TriggerDAGRunPostBody(StrictBaseModel):
         "and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining "
         "to complete. Requires the same permission as pausing the Dag.",
     )
+
+    @field_validator("conf")
+    @classmethod
+    def _check_reserved_keys(cls, conf: dict | None) -> dict | None:
+        return check_conf_reserved_keys(conf, root="conf")
 
     @model_validator(mode="after")
     def check_data_intervals(self):
