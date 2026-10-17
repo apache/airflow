@@ -30,6 +30,8 @@ export type ParamSpec = {
   value: unknown;
 };
 
+export type ParamReference = { $data: string };
+
 export type ParamSchema = {
   // TODO define the structure on API as generated code
   const: string | undefined;
@@ -37,6 +39,8 @@ export type ParamSchema = {
   enum: Array<boolean | number | string | null> | undefined;
   examples: Array<string> | undefined;
   format: string | undefined;
+  formatExclusiveMinimum?: ParamReference;
+  formatMinimum?: ParamReference;
   items: Record<string, unknown> | undefined;
   maximum: number | undefined;
   maxLength: number | undefined;
