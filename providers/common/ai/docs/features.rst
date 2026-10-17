@@ -126,7 +126,7 @@ checklist.
        ``apache.iceberg`` extra for Iceberg
    * - :doc:`AgentSkillsToolset <toolsets/skills>`
      - Loads ``SKILL.md`` instruction bundles when the model asks for one.
-     - ``skills``; on Airflow 2, install ``pydantic-ai-skills``
+     - ``skills``; on Airflow 2, install ``pydantic-ai-skills>=1.2.0,<2``
    * - :doc:`SandboxToolset <sandbox/index>`
      - Gives the agent a shell and a filesystem in an isolated sandbox: a hosted
        service, a server you run, or a microVM on your machine for local development.

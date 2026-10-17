@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -228,6 +229,22 @@ class TestMissingExtra:
         with patch.dict(sys.modules, {"pydantic_ai_skills": None}):
             with pytest.raises(ValueError, match=r"\[skills\]"):
                 asyncio.run(toolset.__aenter__())
+
+    def test_unsupported_installed_version_names_version_and_range(self, tmp_path):
+        """pydantic-ai-skills 2.x imports but has no SkillsToolset; the error must not blame the extra."""
+        agent = Agent(
+            FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("done")])),
+            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
+        )
+        without_skills_toolset = types.ModuleType("pydantic_ai_skills")
+        with (
+            patch.dict(sys.modules, {"pydantic_ai_skills": without_skills_toolset}),
+            patch("importlib.metadata.version", autospec=True, return_value="2.1.0"),
+        ):
+            with pytest.raises(
+                ValueError, match=r"pydantic-ai-skills>=1\.2\.0,<2, but pydantic-ai-skills 2\.1\.0"
+            ):
+                agent.run_sync("go")
 
 
 async def _enter_exit(toolset):
