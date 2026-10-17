@@ -177,7 +177,15 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             method_name: str,
             event: structlog.typing.EventDict,
         ):
-            if not logger or not relative_path_from_logger(logger):
+            if not logger:
+                return event
+            try:
+                log_path = relative_path_from_logger(logger)
+            except ValueError:
+                # Skip log files outside ``base_log_folder``, such as a Dag processor log directory configured
+                # elsewhere, as ``upload_to_remote`` does.
+                return event
+            if not log_path:
                 return event
 
             name = event.get("logger_name") or event.get("logger", "")
