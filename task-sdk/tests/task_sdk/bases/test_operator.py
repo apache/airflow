@@ -798,6 +798,49 @@ class TestBaseOperator:
         assert len(warnings) == 1
         assert isinstance(task.template_fields, list)
 
+    def test_template_fields_extra_class_level_merges_into_template_fields(self):
+        """Extras declared on the class appear in ``template_fields`` after init."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1",)
+            template_fields_extra = frozenset({"arg2", "arg3"})
+
+        task = ExtraTemplateOperator(task_id="op1", arg1="{{ x }}", arg2="{{ y }}", arg3="{{ z }}")
+
+        rendered = sorted(task.template_fields)
+        assert rendered == ["arg1", "arg2", "arg3"]
+
+    def test_template_fields_extra_renders_extra_string_fields(self):
+        """Jinja rendering picks up ``template_fields_extra`` as well."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1",)
+            template_fields_extra = frozenset({"arg2"})
+
+        task = ExtraTemplateOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ foo }}-extra")
+
+        task.render_template_fields(context={"foo": "rendered"})
+
+        assert task.arg1 == "rendered"
+        assert task.arg2 == "rendered-extra"
+
+    def test_template_fields_extra_creates_xcomarg_upstream_dependency(self):
+        """XComArg in an extra field wires up an upstream relationship."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1",)
+            template_fields_extra = frozenset({"arg2"})
+
+        with DAG(dag_id="extra_xcomarg", schedule=None):
+            upstream = BaseOperator(task_id="upstream")
+            downstream = ExtraTemplateOperator(task_id="downstream", arg1="static", arg2=upstream.output)
+
+        assert upstream.task_id in downstream.upstream_task_ids
+
+    def test_template_fields_extra_empty_frozenset_is_default(self):
+        """``template_fields_extra`` defaults to an empty frozenset."""
+        assert BaseOperator.template_fields_extra == frozenset()
+
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""
         task = BaseOperator(task_id="op1")
