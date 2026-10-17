@@ -421,6 +421,35 @@ class TestCliConfigCommands:
 
         assert any(expected_message in call for call in calls) is expect_issue
 
+    @pytest.mark.parametrize("option", ["local_task_job_heartbeat_sec", "task_instance_heartbeat_sec"])
+    @patch("rich.print")
+    def test_lint_detects_removed_task_heartbeat_options(self, mock_rich_print, option, api_client_maker):
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="scheduler",
+                    options=[ConfigOption(key=option, value="10")],
+                )
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.lint(
+            self.parser.parse_args(["config", "lint"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        expected_message = f"Removed `{option}` configuration parameter from `scheduler` section."
+
+        assert any(expected_message in call for call in calls)
+
     @patch("airflowctl.api.client.Credentials.load")
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_CONFIG"})
