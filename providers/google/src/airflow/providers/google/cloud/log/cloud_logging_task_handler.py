@@ -30,7 +30,7 @@ from collections.abc import Collection
 from datetime import datetime
 from functools import cached_property
 from logging import getLogRecordFactory
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlsplit
 
@@ -255,7 +255,8 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         """Read logs from Cloud Logging using task instance labels."""
         ti_labels = _task_instance_to_labels(ti)
-        log_filter = self.prepare_log_filter(ti_labels, log_path=relative_path)
+        # The writer's path went through ``pathlib``, which drops empty and ``.`` segments.
+        log_filter = self.prepare_log_filter(ti_labels, log_path=PurePosixPath(relative_path).as_posix())
         messages, end_of_log, _ = self.read_logs(log_filter, next_page_token=None, all_pages=True)
         return [f"Reading remote log from Cloud Logging for {relative_path}"], [messages] if messages else []
 
@@ -287,17 +288,25 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             )
         ti_id_condition = label_conditions.pop(LABEL_TI_ID, None)
         # Before 3.4 a cleared task instance gets a new id, which can differ from the id its logs were written under.
-        if ti_id_condition and AIRFLOW_V_3_4_PLUS:
+        match_ti_id = bool(ti_id_condition) and AIRFLOW_V_3_4_PLUS
+        if match_ti_id:
             # Entries written before the ``ti_id`` label existed are matched by the other labels.
             legacy_conditions = [*label_conditions.values(), f"NOT labels.{LABEL_TI_ID}:*"]
             task_filters = [f"({ti_id_condition} OR ({' AND '.join(legacy_conditions)}))"]
         else:
             task_filters = list(label_conditions.values())
         if log_path:
-            # Lines without task context, such as a task's stdout, carry only the log path label.
-            # Cloud Logging binds OR tighter than AND, so the task filters must be grouped.
+            # Workers before 3.4 ship a task's stdout and the supervisor's own lines without task context.
+            # The path is matched only for such lines, so other tries that wrote to the same path stay out.
+            path_conditions = [
+                f"labels.{LABEL_LOG_PATH}={escape_label_value(log_path)}",
+                f"NOT labels.{LABEL_TASK_ID}:*",
+            ]
+            if match_ti_id:
+                path_conditions.append(f"NOT labels.{LABEL_TI_ID}:*")
+            # Cloud Logging binds OR tighter than AND, so each side of the OR must be grouped.
             task_filter = task_filters[0] if len(task_filters) == 1 else f"({' AND '.join(task_filters)})"
-            task_filters = [f"({task_filter} OR labels.{LABEL_LOG_PATH}={escape_label_value(log_path)})"]
+            task_filters = [f"({task_filter} OR ({' AND '.join(path_conditions)}))"]
         log_filters.extend(task_filters)
         return "\n".join(log_filters)
 

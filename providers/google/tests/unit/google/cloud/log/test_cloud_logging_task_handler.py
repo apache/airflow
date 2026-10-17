@@ -220,11 +220,12 @@ class TestCloudLoggingRemoteLogIO:
         else:
             ti.execution_date = timezone.datetime(2016, 1, 1)
 
-        messages, logs = self.io.read("dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1.log", ti)
+        messages, logs = self.io.read("dag_id=test_dag/run_id=run1//task_id=test_task/./attempt=1.log", ti)
 
         assert len(messages) == 1
         assert "Cloud Logging" in messages[0]
         assert logs == ["MSG1\nMSG2"]
+        # The reader normalises the path the way the writer's pathlib path does.
         log_filter = mock_client.return_value.list_log_entries.call_args.kwargs["request"].filter
         assert 'labels.log_path="dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1.log"' in log_filter
 
@@ -445,13 +446,14 @@ class TestCloudLoggingRemoteLogIO:
             pytest.param(
                 False,
                 '((labels.task_id="test_task" AND labels.try_number="1") '
-                'OR labels.log_path="dag_id=d/attempt=1.log")',
+                'OR (labels.log_path="dag_id=d/attempt=1.log" AND NOT labels.task_id:*))',
                 id="before-3.4",
             ),
             pytest.param(
                 True,
                 '((labels.ti_id="abc" OR (labels.task_id="test_task" AND labels.try_number="1" '
-                'AND NOT labels.ti_id:*)) OR labels.log_path="dag_id=d/attempt=1.log")',
+                "AND NOT labels.ti_id:*)) "
+                'OR (labels.log_path="dag_id=d/attempt=1.log" AND NOT labels.task_id:* AND NOT labels.ti_id:*))',
                 id="3.4-or-later",
             ),
         ],
