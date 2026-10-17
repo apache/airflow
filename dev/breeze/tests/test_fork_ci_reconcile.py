@@ -57,6 +57,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     drop_reported,
     fetch_fork_observations,
     fetch_workflow_state,
+    find_heads_shared_across_bases,
     find_state_comment,
     is_gated_skip_run,
     jobs_show_project_ci,
@@ -100,7 +101,16 @@ def _marker(state: str, *, days_ago: float = 0, sha: str = "abc123") -> Marker:
     return Marker(state=state, sha=sha, since=NOW - timedelta(days=days_ago))
 
 
-def _classify(pr, fork=None, *, bypass_run=None, changes_ci_files=False, config=CONFIG, behind=None):
+def _classify(
+    pr,
+    fork=None,
+    *,
+    bypass_run=None,
+    changes_ci_files=False,
+    config=CONFIG,
+    behind=None,
+    head_shared_across_bases=False,
+):
     find_bypass = mock.Mock(return_value=bypass_run)
     changes = mock.Mock(return_value=changes_ci_files)
     plan = classify(
@@ -112,6 +122,7 @@ def _classify(pr, fork=None, *, bypass_run=None, changes_ci_files=False, config=
         find_bypass_run=find_bypass,
         changes_ci_files=changes,
         count_behind=mock.Mock(return_value=behind),
+        head_shared_across_bases=head_shared_across_bases,
     )
     return plan, find_bypass, changes
 
@@ -400,6 +411,28 @@ def test_green_trust_is_decided_again_after_retargeting(status_created_at, lists
     assert plan.state == ForkState.GREEN
     assert changes.called is lists_files
     assert (plan.status == GREEN_STATUS) is reposts_status
+
+
+def test_green_is_not_trusted_for_a_head_shared_across_bases():
+    plan, _, changes = _classify(
+        _pr(current_status=GREEN_STATUS), GREEN, changes_ci_files=False, head_shared_across_bases=True
+    )
+
+    assert plan.state == ForkState.GREEN_UNVERIFIED
+    assert plan.add_labels == ["needs project ci"]
+    assert len(plan.attention) == 1
+    changes.assert_not_called()
+
+
+def test_find_heads_shared_across_bases():
+    prs = [
+        _pr(number=1, head_sha="a", base_ref="main"),
+        _pr(number=2, head_sha="a", base_ref="v3-1-test"),
+        _pr(number=3, head_sha="b", base_ref="main"),
+        _pr(number=4, head_sha="b", base_ref="main"),
+    ]
+
+    assert find_heads_shared_across_bases(prs) == {"a"}
 
 
 @pytest.mark.parametrize(
