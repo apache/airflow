@@ -54,6 +54,7 @@
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Add the final release tag in git](#add-the-final-release-tag-in-git)
   - [Publish documentation](#publish-documentation)
+  - [Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
   - [Close the testing status issue](#close-the-testing-status-issue)
@@ -259,6 +260,8 @@ and security team should be pinged to review and resolve them.
 ## Check PyPI history of new providers
 
 Do this before starting the wave, for every provider in it that has never been released to PyPI.
+Note these providers down: each one also needs an entry in the airflow-site docs index when the wave
+is published (see [Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers)).
 
 PyPI never allows a filename to be reused, even after the file, its release or its whole project was
 deleted. If an earlier, deleted incarnation of `apache-airflow-providers-<PROVIDER>` uploaded a version,
@@ -2057,17 +2060,42 @@ not be needed unless there is some problem with workflow automation above)
 > manual intervention. If you need to rebuild the registry independently, trigger the `registry-build.yml`
 > workflow manually. See [`registry/README.md`](../registry/README.md) for details.
 
-### Update airflow-site index for new providers
+## Update airflow-site index for new providers
 
-If this release adds a brand-new provider, also update
-`airflow-site/landing-pages/site/content/en/docs/_index.md` in the
-`apache/airflow-site` repository. The "Active providers" list there is
-maintained manually, so new providers will not appear on the public docs index
-until that file is updated and the live site refresh completes.
+Do this for every wave that releases a provider for the first time. This step is easy to miss:
+DuckDB, IBM Db2, IBM MQ and Modal were released without it and stayed off the public
+index until it was fixed in [apache/airflow-site#1690](https://github.com/apache/airflow-site/pull/1690).
+
+The "Active providers" list on the [documentation index](https://airflow.apache.org/docs/#providers-packages)
+comes from `landing-pages/site/content/en/docs/_index.md` in
+[`apache/airflow-site`](https://github.com/apache/airflow-site). Nothing generates it, so a new
+provider does not appear there until someone adds it by hand.
+
+List the released providers missing from the index (run from the `apache/airflow` checkout,
+with `airflow-site` cloned next to it):
+
+```shell script
+comm -23 \
+  <(git ls-files 'providers/*provider.yaml' | grep -v '/src/\|/tests/' \
+      | sed 's#^providers/##; s#/provider.yaml$##; s#/#-#g' | sort) \
+  <(grep -o 'apache-airflow-providers-[a-z0-9-]*' ../airflow-site/landing-pages/site/content/en/docs/_index.md \
+      | sed 's#^apache-airflow-providers-##' | sort -u)
+```
+
+Skip any listed provider that is not released yet (`state: not-ready` in its `provider.yaml`,
+or not part of this wave). Add one entry per released provider, in alphabetical order by
+the provider's `name:` from `provider.yaml`, keeping the blank line between entries:
+
+```html
+  <li><a href="/docs/apache-airflow-providers-<provider-id>/stable/index.html"><code><Provider name></code></a></li>
+```
+
+`<provider-id>` is the provider path with `/` replaced by `-` (e.g. `ibm-db2`).
 
 To avoid publishing the provider in the site index too early, keep the
-`apache/airflow-site` change unmerged until the live release window, then merge
-it immediately before or together with the `live` refresh step above.
+`apache/airflow-site` PR unmerged until the live release window, then merge
+it immediately before or together with the `live` refresh step in
+[Publish documentation](#publish-documentation).
 
 ## Update providers metadata
 

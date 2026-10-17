@@ -796,6 +796,12 @@ provider-by-provider:
   packages and versions from the PR diff (Phase 4b). Reviewers reliably catch
   all of these, so fix them before handing off.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
+- **List every provider in this wave that is an initial release** (no prior
+  release tag — the Phase 1 `note`/`error` case) and remind the release
+  manager that each needs an entry in the `apache/airflow-site` docs index
+  before the wave is published live. The list there is maintained by hand and
+  this step has been missed before; follow
+  [Update airflow-site index for new providers](../../../dev/README_RELEASE_PROVIDERS.md#update-airflow-site-index-for-new-providers).
 
 Stop here. Do not commit, do not push — the release manager opens the PR
 themselves following the regular release workflow in
