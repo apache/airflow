@@ -27,6 +27,7 @@ from unittest import mock
 from unittest.mock import Mock, PropertyMock
 
 import pytest
+import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -1575,6 +1576,7 @@ class TestPytestSnowflakeHook:
         """
 
         mock_requests_post.return_value = Mock(
+            spec=requests.Response,
             status_code=200,
             json=lambda: {"access_token": "dummy_token", "expires_in": 600},
         )
@@ -1587,6 +1589,7 @@ class TestPytestSnowflakeHook:
                 "account": "airflow",
                 "authenticator": "oauth",
                 "grant_type": "password",
+                "token_endpoint": "https://localhost",
                 "oauth_username": "user1",
                 "oauth_password": "password1",
             },
@@ -1606,6 +1609,76 @@ class TestPytestSnowflakeHook:
         assert called_data["grant_type"] == "password"
         assert called_data["username"] == "user1"
         assert called_data["password"] == "password1"
+
+    def test_get_conn_params_should_fail_on_lack_of_oauth_password_for_grant_type_password(self):
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "authenticator": "oauth",
+                "grant_type": "password",
+                "token_endpoint": "https://localhost",
+                "oauth_username": "test1",
+            },
+        }
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            pytest.raises(
+                ValueError, match="Resource owner user password must be provided for password grant type"
+            ),
+        ):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
+
+    def test_get_conn_params_should_fail_on_lack_of_oauth_username_for_grant_type_password(self):
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "authenticator": "oauth",
+                "token_endpoint": "https://localhost",
+                "grant_type": "password",
+                "oauth_password": "pass1",
+            },
+        }
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            pytest.raises(
+                ValueError, match="Resource owner user name must be provided for password grant type"
+            ),
+        ):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
+
+    def test_get_conn_params_should_fail_on_lack_of_token_endpoint_for_grant_type_password(self):
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "authenticator": "oauth",
+                "grant_type": "password",
+                "oauth_username": "test1",
+                "oauth_password": "pass1",
+            },
+        }
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            pytest.raises(ValueError, match="Token endpoint must be provided for password grant type"),
+        ):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
 
     @mock.patch("requests.post")
     def test_get_oauth_token_without_scope(self, mock_requests_post):

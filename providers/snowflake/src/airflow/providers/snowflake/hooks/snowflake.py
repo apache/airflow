@@ -325,8 +325,8 @@ class SnowflakeHook(DbApiHook):
                         "token_endpoint": "token endpoint",
                         "refresh_token": "refresh token",
                         "scope": "scope",
-                        "oauth_username": "oauth_username",
-                        "oauth_password": "oauth_password",
+                        "oauth_username": "IdP resource owner user name (password grant type)",
+                        "oauth_password": "IdP resource owner user password (password grant type)",
                         "proxy_host": "proxy.example.com",
                         "proxy_port": "8080",
                         "proxy_user": "proxy_username",
@@ -482,6 +482,8 @@ class SnowflakeHook(DbApiHook):
             conn_config.pop("login", None)
             conn_config.pop("user", None)
             conn_config.pop("password", None)
+            conn_config.pop("oauth_username", None)
+            conn_config.pop("oauth_password", None)
         return conn_config
 
     def _build_base_conn_config(
@@ -634,15 +636,30 @@ class SnowflakeHook(DbApiHook):
             )
 
             if conn_config.get("grant_type") == "password":
-                conn_config["oauth_username"] = self._get_field(
-                    extra_dict,
-                    "oauth_username",
+                conn_config["oauth_username"] = (
+                    self._get_field(
+                        extra_dict,
+                        "oauth_username",
+                    )
+                    or ""
                 )
 
-                conn_config["oauth_password"] = self._get_field(
-                    extra_dict,
-                    "oauth_password",
+                if len(conn_config["oauth_username"]) == 0:
+                    raise ValueError("Resource owner user name must be provided for password grant type")
+
+                conn_config["oauth_password"] = (
+                    self._get_field(
+                        extra_dict,
+                        "oauth_password",
+                    )
+                    or ""
                 )
+
+                if len(conn_config["oauth_password"]) == 0:
+                    raise ValueError("Resource owner user password must be provided for password grant type")
+
+                if len(conn_config["token_endpoint"]) == 0:
+                    raise ValueError("Token endpoint must be provided for password grant type")
 
             conn_config["client_id"] = conn.login
             conn_config["client_secret"] = conn.password
