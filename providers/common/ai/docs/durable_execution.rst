@@ -81,6 +81,9 @@ the id on the toolset itself:
 
     ValueError: durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders'): durable replay records each tool call under it. Set it on the toolset itself, and pass a function that builds a toolset as DynamicToolset(function, id=...); the id of a Toolset capability around a toolset does not reach it.
 
+It also refuses two different toolsets with the same id, which would file their calls
+under one name; passing one toolset object in two places is fine.
+
 Keep an id stable once tasks run with it: a retry finds its recorded tool calls by it.
 The provider's own toolsets (``SQLToolset``, ``HookToolset`` and the rest) and tools
 passed as ``agent_params={"tools": [...]}`` need nothing. A capability that contributes
@@ -181,9 +184,12 @@ The journal records:
 
 A tool that raises ``ModelRetry``, ``ToolFailed``, ``ApprovalRequired`` or
 ``CallDeferred`` replays as the same signal. ``AgentOperator`` does not support tool
-approval or deferred tools with ``durable=True``, so there such a call fails the task
-with ``UnsupportedToolDeferralError``, as it would without ``durable``. A tool that raises
-any other exception runs again on retry.
+approval or deferred tools with ``durable=True``. A toolset wrapped with
+``.approval_required()``, a tool marked ``requires_approval=True`` and an
+``ExternalToolset`` are refused with ``ValueError`` when the Dag is parsed, and a tool
+that raises ``ApprovalRequired`` or ``CallDeferred`` itself fails the task with
+``UnsupportedToolDeferralError``. A tool that raises any other exception runs again on
+retry.
 
 A task can run more than one agent, and an agent's tool can run another agent; each
 agent run is replayed on its own, and one a tool started is replayed under that tool

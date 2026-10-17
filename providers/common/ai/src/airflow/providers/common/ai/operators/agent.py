@@ -29,10 +29,13 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn
 
 from pydantic import BaseModel, TypeAdapter
-from pydantic_ai import DeferredToolRequests, DeferredToolResults, ToolDenied
+from pydantic_ai import DeferredToolRequests, DeferredToolResults, Tool, ToolDenied
 from pydantic_ai.capabilities import AbstractCapability, Toolset, WrapperCapability
 from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, ToolCallPart
 from pydantic_ai.toolsets.abstract import AbstractToolset
+from pydantic_ai.toolsets.approval_required import ApprovalRequiredToolset
+from pydantic_ai.toolsets.external import ExternalToolset
+from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.durable.capability import DURABLE_UNIT_TOOLSETS, AirflowDurability
@@ -444,7 +447,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     Not available together with ``durable``, ``enable_hitl_review``, a ``CodeMode``
     capability, or a ``SandboxToolset``
     that provisions its own sandbox; there, a tool that requires approval fails
-    the task as before, except one called from inside ``CodeMode``'s ``run_code``,
+    the task as before (``durable`` refuses a toolset that declares one when the Dag is
+    parsed), except one called from inside ``CodeMode``'s ``run_code``,
     which does not run and is reported back to the model. A ``SandboxToolset`` attached to a
     sandbox another task owns is fine: the sandbox outlives the pause.
 
@@ -581,6 +585,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         if durable:
             self._require_durable_toolset_ids()
+            self._reject_durable_tool_deferral()
 
         self.enable_hitl_review = enable_hitl_review
         self.max_hitl_iterations = max_hitl_iterations
@@ -612,12 +617,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         toolset's results as soon as the list is reordered. Checked here so the Dag fails
         to load rather than at the first run.
         """
-        missing = {
-            type(leaf).__name__
+        units = [
+            leaf
             for toolset in self._declared_toolsets()
             for leaf in iter_toolsets(toolset)
-            if isinstance(leaf, DURABLE_UNIT_TOOLSETS) and leaf.id is None
-        }
+            if isinstance(leaf, DURABLE_UNIT_TOOLSETS)
+        ]
+        missing = {type(leaf).__name__ for leaf in units if leaf.id is None}
         # A function that builds a toolset per run becomes a DynamicToolset with no id.
         if any(
             not isinstance(toolset, AbstractToolset)
@@ -631,6 +637,51 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 "Set it on the toolset itself, and pass a function that builds a toolset as "
                 "DynamicToolset(function, id=...); the id of a Toolset capability around a toolset "
                 "does not reach it."
+            )
+        # One instance listed twice is one toolset to pydantic-ai; two instances sharing an id
+        # would have their recorded calls filed under one name.
+        first_by_id: dict[str, AbstractToolset[Any]] = {}
+        duplicates = sorted(
+            leaf.id
+            for leaf in units
+            if leaf.id is not None and first_by_id.setdefault(leaf.id, leaf) is not leaf
+        )
+        if duplicates:
+            raise ValueError(
+                f"durable=True needs a unique id on each toolset, but more than one toolset has the id "
+                f"{' or '.join(map(repr, dict.fromkeys(duplicates)))}: durable replay records each tool call "
+                "under its toolset's id, so a retry could not tell their calls apart."
+            )
+
+    def _reject_durable_tool_deferral(self) -> None:
+        """
+        Refuse a tool that needs approval or external execution under ``durable=True``.
+
+        A durable run cannot pause for an approval, so such a call would fail the task only
+        after the model asked for it. Checked here so the Dag fails to load instead. A tool
+        that raises ``ApprovalRequired`` or ``CallDeferred`` itself is not visible until it
+        runs; that call fails the task with ``UnsupportedToolDeferralError`` (see
+        ``_agent_output_type``).
+        """
+        deferring: set[str] = set()
+        for toolset in self._declared_toolsets():
+            for leaf in iter_toolsets(toolset):
+                if isinstance(leaf, ApprovalRequiredToolset):
+                    deferring.add("a toolset wrapped with .approval_required()")
+                elif isinstance(leaf, ExternalToolset):
+                    deferring.update(tool_def.name for tool_def in leaf.tool_defs)
+                elif isinstance(leaf, FunctionToolset):
+                    deferring.update(name for name, tool in leaf.tools.items() if tool.requires_approval)
+        deferring.update(
+            tool.name
+            for tool in self.agent_params.get("tools") or ()
+            if isinstance(tool, Tool) and tool.requires_approval
+        )
+        if deferring:
+            raise ValueError(
+                "durable=True cannot pause a run for tool approval or external execution, so it "
+                f"cannot be used with {', '.join(sorted(deferring))}. Remove durable=True or the "
+                "approval requirement."
             )
 
     def _reject_sandbox_without_continuity(self, *, durable: bool, enable_hitl_review: bool) -> None:
@@ -829,13 +880,15 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
     def _agent_output_type(self) -> Any:
         """
-        Return ``output_type``, plus ``DeferredToolRequests`` when tool approval is supported.
+        Return ``output_type``, plus ``DeferredToolRequests`` when tool approval is supported or ``durable``.
 
         pydantic-ai drops ``DeferredToolRequests`` from the output schema the model sees;
-        it only lets the run end on a tool call awaiting approval. ``self.output_type`` is
-        left alone because it is part of the serialized Dag.
+        it only lets the run end on a tool call awaiting approval. A durable run cannot pause,
+        but ending it there lets ``_pause_for_tool_approval`` fail the task with
+        ``UnsupportedToolDeferralError`` instead of pydantic-ai's ``UserError``.
+        ``self.output_type`` is left alone because it is part of the serialized Dag.
         """
-        if not self._supports_tool_approval():
+        if not (self._supports_tool_approval() or self.durable):
             return self.output_type
         declared = self.output_type if isinstance(self.output_type, (list, tuple)) else [self.output_type]
         return [*declared, DeferredToolRequests]

@@ -739,7 +739,6 @@ class TestWhenApprovalApplies:
     @pytest.mark.parametrize(
         "kwargs",
         [
-            pytest.param({"durable": True}, id="durable"),
             pytest.param({"enable_hitl_review": True}, id="hitl_review"),
             pytest.param({"toolsets": [SandboxToolset(_NoopBackend())]}, id="sandbox"),
             pytest.param(
@@ -751,6 +750,12 @@ class TestWhenApprovalApplies:
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", **kwargs)
 
         assert op._agent_output_type() is str
+
+    def test_durable_adds_deferred_tool_requests_so_a_deferred_call_ends_the_run(self):
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True)
+
+        assert op._agent_output_type() == [str, DeferredToolRequests]
+        assert op.output_type is str
 
     def test_on_tool_approval_timeout_rejects_unknown_values(self):
         with pytest.raises(ValueError, match="on_tool_approval_timeout"):
