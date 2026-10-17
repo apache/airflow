@@ -1,0 +1,17 @@
+Default PgBouncer image updated to PgBouncer 1.25.2 and PgBouncer exporter image to 0.21.0
+
+The default PgBouncer image is now ``airflow-pgbouncer-2026.10.13-1.25.2``, previously it was
+``airflow-pgbouncer-2026.04.17-1.23.1``. It fixes CVE-2026-6664, CVE-2026-6665 and CVE-2026-6666.
+The default PgBouncer exporter image is now ``airflow-pgbouncer-exporter-2026.10.13-0.21.0``,
+previously it was ``airflow-pgbouncer-exporter-2026.04.17-0.18.0``, built with Go 1.27.2. Exporter
+0.21.0 is required to scrape PgBouncer 1.24 and later; its metric names are unchanged.
+
+PgBouncer 1.24 and 1.25 change some behaviour. If needed, previous values can be restored through
+``pgbouncer.extraIni``:
+
+* Prepared statement support is enabled by default (``max_prepared_statements = 200``).
+* ``default_pool_size = 0`` now means an unlimited pool size.
+* ``reserve_pool`` is renamed to ``reserve_pool_size`` (the old name remains an alias).
+* The default ``server_check_query`` is now empty instead of ``select 1``.
+* ``KILL_CLIENT`` is restricted to users listed in ``admin_users``.
+* A custom ``auth_query`` must take the password's ``VALID UNTIL`` into account (CVE-2025-2291).
