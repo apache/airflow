@@ -1718,7 +1718,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti.handle_failure(error=msg, session=session)
                         continue
                     cls.logger().exception("Marking task instance %s as %s", ti, state)
-                    ti.set_state(state)
+                    ti.set_state(state, session=session)
                     continue
                 ti.task = task
                 if task.has_on_retry_callback or task.has_on_failure_callback:
