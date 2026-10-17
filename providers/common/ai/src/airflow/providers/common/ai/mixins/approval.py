@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 from jinja2 import TemplateError
 
 from airflow.providers.common.ai.utils.output_type import dump_output_to_json
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
@@ -37,6 +38,8 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from pydantic_ai.messages import UserContent
 
     from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
@@ -114,11 +117,9 @@ class DeferForApprovalProtocol(Protocol):
     on_approval_timeout: Literal["fail", "approve", "reject"]
     approval_notifiers: Sequence[BaseNotifier]
     approval_assigned_users: list[HITLUser]
-    prompt: str
+    prompt: str | Sequence[UserContent]
     task_id: str
     defer: Any
-
-    def validate_approval_prompt(self) -> None: ...
 
 
 class LLMApprovalMixin:
@@ -167,24 +168,12 @@ class LLMApprovalMixin:
     - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
     - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
     - ``approval_assigned_users`` (``list[HITLUser]``)
-    - ``prompt`` (``str``)
+    - ``prompt`` (``str`` or ``Sequence[UserContent]``)
     """
 
     APPROVE = "Approve"
     REJECT = "Reject"
     TIMEOUT_DEFAULTS: ClassVar[dict[str, list[str]]] = {"approve": [APPROVE], "reject": [REJECT]}
-
-    def validate_approval_prompt(self: DeferForApprovalProtocol) -> None:
-        """Fail fast when the prompt cannot be rendered as text in the approval review body."""
-        if not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                "The approval review body renders the prompt as text; passing a "
-                "Sequence[UserContent] would expose object reprs (and any embedded "
-                "bytes) in the human review UI. Return a str prompt, or disable "
-                "require_approval."
-            )
 
     def defer_for_approval(
         self: DeferForApprovalProtocol,
@@ -227,8 +216,6 @@ class LLMApprovalMixin:
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
         from airflow.sdk.timezone import utcnow
 
-        self.validate_approval_prompt()
-
         raw_output = output
         # JSON round-trip: execute_complete validates the string back into output_type.
         output = dump_output_to_json(output)
@@ -240,7 +227,7 @@ class LLMApprovalMixin:
             subject = f"Review output for task `{self.task_id}`"
 
         if body is None:
-            body = f"```\nPrompt: {self.prompt}\n\n{output}\n```"
+            body = f"```\nPrompt: {describe_prompt(self.prompt)}\n\n{output}\n```"
 
         hitl_params: dict[str, dict[str, Any]] = {}
         if self.allow_modifications:
