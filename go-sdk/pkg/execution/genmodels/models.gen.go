@@ -397,6 +397,9 @@ type DagFileParseRequest struct {
 	// File corresponds to the JSON schema field "file".
 	File string `msgpack:"file"`
 
+	// TeamName corresponds to the JSON schema field "team_name".
+	TeamName interface{} `msgpack:"team_name,omitempty"`
+
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }

@@ -290,11 +290,11 @@ def test_parse(test_dags_dir: Path, make_ti_context, coordinates, map_index):
     assert ti.map_index == map_index
 
 
-@mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
-def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
+@pytest.mark.parametrize("team_name", [None, "team_a"])
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
+def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context, team_name):
     """Test that checks that the BundleDagBag is constructed as expected during parsing"""
-    mock_bag_instance = mock.Mock()
-    mock_dagbag.return_value = mock_bag_instance
+    mock_bag_instance = mock_dagbag.return_value
     mock_dag = mock.Mock(spec=DAG)
     mock_task = mock.Mock(spec=BaseOperator)
     # The worker walks dag.tasks to register declared deserialization classes;
@@ -322,6 +322,7 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
         start_date=timezone.utcnow(),
         sentry_integration="",
     )
+    what.ti_context.dag_run.team_name = team_name
 
     with patch.dict(
         os.environ,
@@ -345,6 +346,7 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
         load_op_links=False,
         bundle_path=test_dags_dir,
         bundle_name="my-bundle",
+        team_name=team_name,
     )
 
 

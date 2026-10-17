@@ -294,7 +294,7 @@ class CoordinatorManager:
             ):
                 raise InvalidCoordinatorError(
                     f"[sdk] coordinators {key!r} sets task_handler_bundle_name={bundle_name!r}, "
-                    f"which is not a bundle in [dag_processor] dag_bundle_config_list"
+                    f"which is not a configured Dag bundle"
                 )
         return cls(coordinator_specs=coordinator_specs, queue_to_coordinator=queue_to_coordinator)
 
