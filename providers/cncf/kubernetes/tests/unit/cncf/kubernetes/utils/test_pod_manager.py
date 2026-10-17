@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 import time_machine
+from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
@@ -41,6 +42,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     detect_pod_terminate_early_issues,
     log_pod_event,
     parse_log_line,
+    pod_uid_precondition,
 )
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 
@@ -262,6 +264,41 @@ class TestPodManager:
     )
     def test_parse_log_level(self, message, expected_level):
         assert _parse_log_level(message) == expected_level
+
+    @pytest.mark.parametrize(
+        "uid",
+        [
+            pytest.param("4057eb7b-8483-4064-8779-ecc230861cf1", id="observed-pod"),
+            pytest.param(None, id="never-created"),
+        ],
+    )
+    def test_delete_pod_pins_the_request_to_the_observed_pod(self, uid):
+        """A pod name only identifies a pod while it exists, so the uid has to carry the request."""
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="my-pod", namespace="default", uid=uid))
+
+        self.pod_manager.delete_pod(pod)
+
+        _, kwargs = self.mock_kube_client.delete_namespaced_pod.call_args
+        preconditions = kwargs["body"].preconditions
+        assert (preconditions.uid if preconditions else None) == uid
+
+    def test_delete_pod_treats_a_failed_precondition_as_already_deleted(self):
+        """
+        A 409 from the precondition is final, unlike the 409 the retry decorator treats as transient.
+
+        It says the name belongs to a different pod now, so the pod this call was about is gone and
+        retrying the same request can only keep failing.
+        """
+        self.mock_kube_client.delete_namespaced_pod.side_effect = ApiException(status=409)
+        pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="my-pod", namespace="default", uid="stale-uid"))
+
+        self.pod_manager.delete_pod(pod)
+
+        assert self.mock_kube_client.delete_namespaced_pod.call_count == 1
+
+    def test_pod_uid_precondition_without_metadata(self):
+        """``build_pod_request_obj`` output can reach a delete path before it was ever created."""
+        assert pod_uid_precondition(k8s.V1Pod()) is None
 
     def test_log_message_uses_detected_log_level(self):
         """_log_message should forward ERROR lines at ERROR level, not INFO."""

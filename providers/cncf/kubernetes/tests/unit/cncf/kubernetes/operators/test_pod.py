@@ -907,6 +907,32 @@ class TestKubernetesPodOperator:
 
         assert result == should_delete
 
+    def test_on_kill_pins_the_delete_to_the_pod_it_started(self):
+        """A pod that took the name over after ours went away must not be killed in its place."""
+        k = KubernetesPodOperator(name="test", task_id="task", image="ubuntu:16.04")
+        k.pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="pod-name", namespace="default", uid="4057eb7b-8483-4064-8779-ecc230861cf1"
+            )
+        )
+        k.client = MagicMock()
+
+        k.on_kill()
+
+        _, kwargs = k.client.delete_namespaced_pod.call_args
+        assert kwargs["body"].preconditions.uid == "4057eb7b-8483-4064-8779-ecc230861cf1"
+
+    def test_on_kill_leaves_a_replaced_pod_alone(self):
+        """The 409 the precondition earns means the pod is gone, so it is not an error or a retry."""
+        k = KubernetesPodOperator(name="test", task_id="task", image="ubuntu:16.04")
+        k.pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name", namespace="default", uid="stale-uid"))
+        k.client = MagicMock()
+        k.client.delete_namespaced_pod.side_effect = ApiException(status=409)
+
+        k.on_kill()
+
+        assert k.client.delete_namespaced_pod.call_count == 1
+
     @pytest.mark.parametrize(
         "pod_phase",
         [

@@ -128,6 +128,21 @@ def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
     return isinstance(exc, ApiException) and exc.status and str(exc.status) == "401"
 
 
+def pod_uid_precondition(pod: V1Pod) -> client.V1Preconditions | None:
+    """
+    Return the delete precondition pinning a request to the pod that was observed.
+
+    A pod name is only unique while the pod exists, so a request carrying just name and namespace
+    can land on a replacement that took the name over. The uid pins the request to the pod the
+    caller actually saw; the API server answers 409 instead of acting on a different one.
+
+    Returns ``None`` for a pod that was never created (no uid to pin to), which leaves the request
+    unconditional as before.
+    """
+    uid = pod.metadata.uid if pod.metadata else None
+    return client.V1Preconditions(uid=uid) if uid else None
+
+
 def log_pod_event(
     pod_manager: PodManager | AsyncPodManager, event: CoreV1Event, seen_events: set[str]
 ) -> None:
@@ -431,11 +446,14 @@ class PodManager(LoggingMixin):
         """Delete POD."""
         try:
             self._client.delete_namespaced_pod(
-                pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions()
+                pod.metadata.name,
+                pod.metadata.namespace,
+                body=client.V1DeleteOptions(preconditions=pod_uid_precondition(pod)),
             )
         except ApiException as e:
-            # If the pod is already deleted
-            if str(e.status) != "404":
+            # 404: the pod is already deleted. 409: the uid precondition failed, so the name now
+            # belongs to a different pod and the one we observed is gone either way.
+            if str(e.status) not in ("404", "409"):
                 raise
 
     @generic_api_retry

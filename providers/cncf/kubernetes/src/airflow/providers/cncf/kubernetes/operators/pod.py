@@ -85,6 +85,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodNotFoundException,
     PodPhase,
     detect_pod_terminate_early_issues,
+    pod_uid_precondition,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
@@ -1597,6 +1598,7 @@ class KubernetesPodOperator(BaseOperator):
             kwargs = {
                 "name": pod.metadata.name,
                 "namespace": pod.metadata.namespace,
+                "body": k8s.V1DeleteOptions(preconditions=pod_uid_precondition(pod)),
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
@@ -1607,8 +1609,13 @@ class KubernetesPodOperator(BaseOperator):
 
             try:
                 _delete_with_retry()
-            except kubernetes.client.exceptions.ApiException:
-                self.log.exception("Unable to delete pod %s", self.pod.metadata.name)
+            except kubernetes.client.exceptions.ApiException as e:
+                if str(e.status) == "409":
+                    # The uid precondition failed: this name belongs to a different pod now, so the
+                    # one this task started is already gone.
+                    self.log.info("Pod %s was already replaced, nothing to delete", pod.metadata.name)
+                else:
+                    self.log.exception("Unable to delete pod %s", self.pod.metadata.name)
 
     def build_pod_request_obj(self, context: Context | None = None, *, dry_run: bool = False) -> k8s.V1Pod:
         """
