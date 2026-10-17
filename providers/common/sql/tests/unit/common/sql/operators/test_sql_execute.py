@@ -370,12 +370,12 @@ FORGOT TO COMMENT"""
     )
 
 
-@mock.patch("airflow.providers.openlineage.sqlparser.SQLParser.generate_openlineage_metadata_from_sql")
-def test_openlineage_sql_use_external_connection_config(mock_generate):
+def _create_openlineage_operator_and_hook():
     class DBApiHookForTests(DbApiHook):
         conn_name_attr = "sql_default"
         get_conn = MagicMock(name="conn")
         get_sqlalchemy_engine = MagicMock(name="sqlalchemy_engine")
+        get_openlineage_default_schema = MagicMock(name="default_schema")
         get_connection = MagicMock(
             return_value=Connection(conn_id="sql_default", conn_type="postgresql", host="host", port=5432)
         )
@@ -385,22 +385,43 @@ def test_openlineage_sql_use_external_connection_config(mock_generate):
 
             return DatabaseInfo(scheme="sqlscheme", authority="host:5432")
 
+        def get_openlineage_database_dialect(self, connection):
+            return "postgres"
+
     dbapi_hook = DBApiHookForTests()
 
     class SQLExecuteQueryOperatorForTest(SQLExecuteQueryOperator):
         def get_db_hook(self):
             return dbapi_hook
 
-    mock_generate.return_value = OperatorLineage()
-
     op = SQLExecuteQueryOperatorForTest(task_id=TASK_ID, sql="SELECT * FROM test_table")
+    return op, dbapi_hook
 
-    with conf_vars({("openlineage", "sql_use_external_connection"): "False"}):
-        op.get_openlineage_facets_on_start()
+
+@conf_vars({("openlineage", "sql_use_external_connection"): "False"})
+@mock.patch("airflow.providers.openlineage.sqlparser.SQLParser.generate_openlineage_metadata_from_sql")
+def test_openlineage_sql_use_external_connection_config(mock_generate):
+    mock_generate.return_value = OperatorLineage()
+    op, dbapi_hook = _create_openlineage_operator_and_hook()
+
+    op.get_openlineage_facets_on_start()
 
     assert mock_generate.call_args.kwargs["use_connection"] is False
     assert mock_generate.call_args.kwargs["sqlalchemy_engine"] is None
     assert dbapi_hook.get_sqlalchemy_engine.call_count == 0
+    assert dbapi_hook.get_openlineage_default_schema.call_count == 0
+
+
+@mock.patch("airflow.providers.openlineage.sqlparser.SQLParser.generate_openlineage_metadata_from_sql")
+def test_openlineage_default_schema_without_offline_default_schema_support(mock_generate, monkeypatch):
+    monkeypatch.delattr("airflow.providers.openlineage.sqlparser.get_default_schema")
+    mock_generate.return_value = OperatorLineage()
+    op, dbapi_hook = _create_openlineage_operator_and_hook()
+
+    op.get_openlineage_facets_on_start()
+
+    assert dbapi_hook.get_openlineage_default_schema.call_count == 1
+    mock_generate.assert_called_once()
 
 
 def test_with_no_openlineage_provider():

@@ -128,7 +128,7 @@ def get_provider_info():
                         "version_added": "2.20.0",
                     },
                     "sql_use_external_connection": {
-                        "description": "Whether SQL OpenLineage extraction may use the external database connection to retrieve table\nschema information such as column names and types. Disable this option to avoid additional\ndatabase metadata queries, for example when information_schema lookups are slow or unreliable.\nWhen disabled, OpenLineage can still extract table-level lineage from SQL parsing, but dataset\nschema facets may be less complete.\n",
+                        "description": "Whether SQL OpenLineage extraction may use the external database connection to retrieve table\nschema information such as column names and types. Disable this option to avoid additional\ndatabase metadata queries, for example when information_schema lookups are slow or unreliable.\nWhen disabled, OpenLineage can still extract table-level lineage from SQL parsing, but dataset\nschema facets may be less complete. The current schema is also not queried from the database;\na static default is used instead for Postgres and Redshift (public), MSSQL (dbo) and Oracle\n(connection login). Oracle connections without a login still query the current schema.\n",
                         "default": "True",
                         "example": None,
                         "type": "boolean",
