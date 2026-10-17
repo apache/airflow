@@ -37,9 +37,9 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.ai.skills import SkillSource, _materialize_skills
 from airflow.providers.common.ai.utils.toolset_base import validate_max_retries
 
-# pydantic-ai-skills 2.0 replaced SkillsToolset with a capability-based API, so the
+# pydantic-ai-skills 2.0 removed SkillsToolset, leaving only SkillsCapability, so the
 # ``skills`` extra caps it below 2.
-SUPPORTED_PYDANTIC_AI_SKILLS = ">=1.2.0,<2"
+_SUPPORTED_PYDANTIC_AI_SKILLS = ">=1.2.0,<2"
 
 try:
     from pydantic_ai.toolsets.abstract import AbstractToolset
@@ -129,10 +129,10 @@ class AgentSkillsToolset(AbstractToolset):
             ) from e
         if not hasattr(pydantic_ai_skills, "SkillsToolset"):
             raise ValueError(
-                f"AgentSkillsToolset needs pydantic-ai-skills{SUPPORTED_PYDANTIC_AI_SKILLS}, but "
+                f"AgentSkillsToolset needs pydantic-ai-skills{_SUPPORTED_PYDANTIC_AI_SKILLS}, but "
                 f"pydantic-ai-skills {metadata.version('pydantic-ai-skills')} is installed and has no "
                 "SkillsToolset. Install a supported version: "
-                f"pip install 'pydantic-ai-skills{SUPPORTED_PYDANTIC_AI_SKILLS}'."
+                f"pip install 'pydantic-ai-skills{_SUPPORTED_PYDANTIC_AI_SKILLS}'."
             )
         SkillsToolset = pydantic_ai_skills.SkillsToolset
 
