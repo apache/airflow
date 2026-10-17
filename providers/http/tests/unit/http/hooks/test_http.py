@@ -614,9 +614,22 @@ class TestHttpHook:
         [
             pytest.param("https://example.org", "/v1/test", "https://example.org/v1/test", id="both-set"),
             pytest.param("", "http://foo/bar/v1/test", "http://foo/bar/v1/test", id="only-endpoint"),
+            pytest.param("https://example.org/v1", "test", "https://example.org/v1/test", id="no-slash"),
+            pytest.param("https://example.org/v1/", "test", "https://example.org/v1/test", id="base-slash"),
+            pytest.param(
+                "https://example.org/v1/", "/test", "https://example.org/v1/test", id="slash-on-both-sides"
+            ),
+            pytest.param(
+                "https://example.org/v1//", "//test", "https://example.org/v1/test", id="repeated-slashes"
+            ),
+            pytest.param("https://example.org/v1/", "", "https://example.org/v1/", id="only-base"),
+            pytest.param("https://example.org/v1/", None, "https://example.org/v1/", id="endpoint-none"),
+            # A connection without a host leaves the authority empty, so the base url is the
+            # scheme separator itself and must not be mistaken for a trailing path slash.
+            pytest.param("https://", "/v1/test", "https:///v1/test", id="scheme-only-base"),
         ],
     )
-    def test_url_from_endpoint(self, base_url: str, endpoint: str, expected_url: str):
+    def test_url_from_endpoint(self, base_url: str, endpoint: str | None, expected_url: str):
         hook = HttpHook()
         hook.base_url = base_url
         hook._base_url_initialized = True  # Mark as initialized to prevent lazy loading
