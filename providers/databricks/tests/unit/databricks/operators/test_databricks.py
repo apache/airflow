@@ -1395,6 +1395,40 @@ class TestDatabricksSubmitRunOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_not_called()
 
+    def test_outlets_warn_when_not_waiting(self, caplog):
+        DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            json={"run_name": "test"},
+            outlets=["test-outlet"],
+            wait_for_termination=False,
+        )
+
+        assert (
+            "outlets are set with wait_for_termination=False. The asset event will mean the "
+            "Databricks run was submitted, not that the table was refreshed."
+        ) in caplog.text
+
+    def test_empty_outlets_do_not_warn(self, caplog):
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            json={"run_name": "test"},
+            outlets=[],
+            wait_for_termination=False,
+        )
+
+        assert op.outlets == []
+        assert "outlets are set with wait_for_termination=False" not in caplog.text
+
+    def test_outlets_do_not_warn_when_waiting(self, caplog):
+        DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            json={"run_name": "test"},
+            outlets=["test-outlet"],
+            wait_for_termination=True,
+        )
+
+        assert "outlets are set with wait_for_termination=False" not in caplog.text
+
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
         """
@@ -2839,6 +2873,40 @@ class TestDatabricksRunNowOperator:
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_not_called()
 
+    def test_outlets_warn_when_not_waiting(self, caplog):
+        DatabricksRunNowOperator(
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            outlets=["test-outlet"],
+            wait_for_termination=False,
+        )
+
+        assert (
+            "outlets are set with wait_for_termination=False. The asset event will mean the "
+            "Databricks run was submitted, not that the table was refreshed."
+        ) in caplog.text
+
+    def test_empty_outlets_do_not_warn(self, caplog):
+        op = DatabricksRunNowOperator(
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            outlets=[],
+            wait_for_termination=False,
+        )
+
+        assert op.outlets == []
+        assert "outlets are set with wait_for_termination=False" not in caplog.text
+
+    def test_outlets_do_not_warn_when_waiting(self, caplog):
+        DatabricksRunNowOperator(
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            outlets=["test-outlet"],
+            wait_for_termination=True,
+        )
+
+        assert "outlets are set with wait_for_termination=False" not in caplog.text
+
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_init_exception_with_job_name_and_job_id(self, db_mock_class):
         exception_message = "Argument 'job_name' is not allowed with argument 'job_id'"
@@ -3764,6 +3832,43 @@ class TestDatabricksSQLStatementsOperator:
         )
 
         assert op.wait_for_termination
+
+    def test_outlets_warn_when_not_waiting(self, caplog):
+        DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            outlets=["test-outlet"],
+            wait_for_termination=False,
+        )
+
+        assert (
+            "outlets are set with wait_for_termination=False. The asset event will mean the "
+            "SQL statement was submitted, not that the table was refreshed."
+        ) in caplog.text
+
+    def test_empty_outlets_do_not_warn(self, caplog):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            outlets=[],
+            wait_for_termination=False,
+        )
+
+        assert op.outlets == []
+        assert "outlets are set with wait_for_termination=False" not in caplog.text
+
+    def test_outlets_do_not_warn_when_waiting(self, caplog):
+        DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="select * from test.test;",
+            warehouse_id=WAREHOUSE_ID,
+            outlets=["test-outlet"],
+            wait_for_termination=True,
+        )
+
+        assert "outlets are set with wait_for_termination=False" not in caplog.text
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_no_wait_for_termination(self, db_mock_class):
