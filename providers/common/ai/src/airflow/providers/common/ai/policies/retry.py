@@ -335,8 +335,10 @@ class _ModelRetryPolicy(RetryPolicy):
                 text = f"{text[: self.max_exception_length]}... (truncated)"
         if not self.include_traceback:
             text = f"{type(exception).__name__}: {text}"
+        # ``max_tries`` counts retries, not tries: with ``retries=1`` the first try is "1 of 2".
         return (
-            f"Classify this error from a data pipeline task (attempt {try_number} of {max_tries}):\n\n{text}"
+            "Classify this error from a data pipeline task "
+            f"(attempt {try_number} of {max_tries + 1}):\n\n{text}"
         )
 
     def _run(

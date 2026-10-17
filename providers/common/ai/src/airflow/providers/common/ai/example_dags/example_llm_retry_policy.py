@@ -136,11 +136,16 @@ try:
     # [START howto_retry_policy_escalation]
     # The three layers chained. The decision model answers the clear cases cheaply. When it is
     # unsure or unreachable, a text model reasons about the failure and decides retry and delay
-    # itself. When that model is unreachable too, the rules decide.
+    # itself. When that model is unreachable too, the rules decide. With a text model to ask, a
+    # wrong ``permanent`` costs more than an escalation, so its bar goes up to 0.95; that also
+    # catches the wrong ``permanent`` at 0.90 from the calibration run.
     escalating_policy = ClassifierRetryPolicy(
         llm_conn_id="decision_default",
         min_confidence=0.8,
-        categories=snowflake_policy.categories,
+        categories={
+            **snowflake_policy.categories,
+            "permanent": replace(snowflake_policy.categories["permanent"], min_confidence=0.95),
+        },
         fallback_policy=LLMRetryPolicy(llm_conn_id="pydanticai_default", timeout=30.0),
         fallback_rules=[
             RetryRule(exception=ConnectionError, action=RetryAction.RETRY, retry_delay=timedelta(seconds=30)),
@@ -162,7 +167,11 @@ try:
 
         @task(retries=3, retry_delay=timedelta(minutes=1), retry_policy=escalating_policy)
         def task_ambiguous():
-            """Reads as more than one category; under the bar the text model decides, then the rules."""
+            """
+            Names no symptom, so the classifier is unsure and the text model decides.
+
+            jev-1.13.0 picks ``permanent`` for it at about 0.8 to 0.9, under that category's 0.95 bar here.
+            """
             raise RuntimeError("Query failed: an unexpected error occurred while processing the request.")
 
         task_warehouse_suspended()
