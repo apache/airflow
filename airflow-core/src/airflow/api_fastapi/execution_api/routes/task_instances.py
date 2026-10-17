@@ -38,8 +38,9 @@ from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, exists, func, or_, tuple_, union, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, contains_eager, joinedload
-from sqlalchemy.sql import select
+from sqlalchemy.sql import Select, select
 from sqlalchemy.sql.dml import Update
 from structlog.contextvars import bind_contextvars
 
@@ -47,7 +48,7 @@ from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag_async
 from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -106,6 +107,7 @@ from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.task_coordinates import (
     LOOP_GATE_OPERATOR,
+    AsyncTaskCoordinateResolver,
     TaskCoordinateResolver,
     build_coordinate_filters,
     get_public_region,
@@ -1462,40 +1464,25 @@ async def get_previous_successful_dagrun(
     return PrevSuccessfulDagRunResponse.model_validate(dag_run)
 
 
-def _find_superseded_ids(
-    session: Session, dag_id: str, tasks: Collection[tuple[str, str]], dag_bag: DBDagBag
-) -> set[UUID]:
-    """
-    Find the live rows of ``tasks`` (``(run_id, task_id)`` pairs) that a later loop pass supersedes.
+def _build_live_tasks_query(dag_id: str, tasks: Collection[tuple[str, str]]) -> Select:
+    return select(
+        TI.id,
+        TI.dag_id,
+        TI.run_id,
+        TI.task_id,
+        TI.region_id,
+        TI.region_index,
+        TI.dag_version_id,
+        public_map_index_expression(TI).label("slot"),
+    ).where(
+        TI.working_set.is_(True),
+        TI.dag_id == dag_id,
+        tuple_(TI.run_id, TI.task_id).in_(list(tasks)),
+    )
 
-    A task inside a loop keeps every pass live, so callers that name a task without a pass get its latest
-    one, whatever map index, state or run they filter on: the latest pass is chosen among every live row of
-    the task in the run. Two live rows of that pass in one slot leave it ambiguous.
-    """
-    if not tasks:
-        return set()
-    live = session.execute(
-        select(
-            TI.id,
-            TI.dag_id,
-            TI.run_id,
-            TI.task_id,
-            TI.region_id,
-            TI.region_index,
-            TI.dag_version_id,
-            public_map_index_expression(TI).label("slot"),
-        ).where(
-            TI.working_set.is_(True),
-            TI.dag_id == dag_id,
-            tuple_(TI.run_id, TI.task_id).in_(list(tasks)),
-        )
-    ).all()
-    try:
-        passes = TaskCoordinateResolver(dag_bag, session).get_loop_passes(live)
-    except ValueError as error:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot"
-        ) from error
+
+def _find_superseded_in_passes(live: Sequence[Any], passes: Sequence[int | None]) -> set[UUID]:
+    """Find the ``live`` rows that a later loop pass of their task supersedes."""
     rows_by_task: dict[tuple[str, str], list[tuple[Any, int | None]]] = defaultdict(list)
     for row, loop_pass in zip(live, passes):
         rows_by_task[row.run_id, row.task_id].append((row, loop_pass))
@@ -1515,6 +1502,44 @@ def _find_superseded_ids(
     return superseded
 
 
+def _find_superseded_ids(
+    session: Session, dag_id: str, tasks: Collection[tuple[str, str]], dag_bag: DBDagBag
+) -> set[UUID]:
+    """
+    Find the live rows of ``tasks`` (``(run_id, task_id)`` pairs) that a later loop pass supersedes.
+
+    A task inside a loop keeps every pass live, so callers that name a task without a pass get its latest
+    one, whatever map index, state or run they filter on: the latest pass is chosen among every live row of
+    the task in the run. Two live rows of that pass in one slot leave it ambiguous.
+    """
+    if not tasks:
+        return set()
+    live = session.execute(_build_live_tasks_query(dag_id, tasks)).all()
+    try:
+        passes = TaskCoordinateResolver(dag_bag, session).get_loop_passes(live)
+    except ValueError as error:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot"
+        ) from error
+    return _find_superseded_in_passes(live, passes)
+
+
+async def _find_superseded_ids_async(
+    session: AsyncSession, dag_id: str, tasks: Collection[tuple[str, str]], dag_bag: DBDagBag
+) -> set[UUID]:
+    """Find the live rows of ``tasks`` that a later loop pass supersedes, using an async session."""
+    if not tasks:
+        return set()
+    live = (await session.execute(_build_live_tasks_query(dag_id, tasks))).all()
+    try:
+        passes = await AsyncTaskCoordinateResolver(dag_bag, session).get_loop_passes(live)
+    except ValueError as error:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Multiple live task instances share a task slot"
+        ) from error
+    return _find_superseded_in_passes(live, passes)
+
+
 @router.get(
     "/count",
     status_code=status.HTTP_200_OK,
@@ -1526,9 +1551,9 @@ def _find_superseded_ids(
         ]
     ),
 )
-def get_task_instance_count(
+async def get_task_instance_count(
     dag_id: str,
-    session: SessionDep,
+    session: AsyncSessionDep,
     dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -1550,21 +1575,23 @@ def get_task_instance_count(
         conditions.append(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(
+        group_ti_ids = await _get_group_tasks(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
         )
 
-        if not group_tasks:
+        if not group_ti_ids:
             # If no task group tasks found, default to checking the task group ID itself
             # This matches the behavior in _get_external_task_group_task_ids
             conditions.extend([TI.task_id == task_group_id, public_map_index_expression(TI) == -1])
         else:
-            conditions.append(TI.id.in_(ti.id for ti in group_tasks))
+            conditions.append(TI.id.in_(group_ti_ids))
 
-    regional_tasks = session.execute(
-        select(TI.run_id, TI.task_id).where(*conditions, TI.region_id != SENTINEL_REGION_ID).distinct()
+    regional_tasks = (
+        await session.execute(
+            select(TI.run_id, TI.task_id).where(*conditions, TI.region_id != SENTINEL_REGION_ID).distinct()
+        )
     ).tuples()
-    if superseded := _find_superseded_ids(session, dag_id, set(regional_tasks), dag_bag):
+    if superseded := await _find_superseded_ids_async(session, dag_id, set(regional_tasks), dag_bag):
         conditions.append(TI.id.not_in(superseded))
 
     if states:
@@ -1577,7 +1604,7 @@ def get_task_instance_count(
         else:
             conditions.append(TI.state.in_(states))
 
-    return session.scalar(select(func.count()).select_from(TI).where(*conditions)) or 0
+    return await session.scalar(select(func.count()).select_from(TI).where(*conditions)) or 0
 
 
 _MAX_PREVIOUS_TIS_SCANNED = 500
@@ -1700,6 +1727,17 @@ def _has_loop_iterations(resolver: TaskCoordinateResolver, ti: TI, iterations: l
         return False
 
 
+# Hydrating full TaskInstance entities would block the API event loop on large runs.
+_TI_STATE_COLUMNS = (
+    TI.id,
+    TI.run_id,
+    TI.task_id,
+    TI.state,
+    TI.region_id,
+    public_map_index_expression(TI),
+)
+
+
 @router.get(
     "/states",
     status_code=status.HTTP_200_OK,
@@ -1711,9 +1749,9 @@ def _has_loop_iterations(resolver: TaskCoordinateResolver, ti: TI, iterations: l
         ]
     ),
 )
-def get_task_instance_states(
+async def get_task_instance_states(
     dag_id: str,
-    session: SessionDep,
+    session: AsyncSessionDep,
     dag_bag: DagBagDep,
     map_index: Annotated[int | None, Query()] = None,
     task_ids: Annotated[list[str] | None, Query()] = None,
@@ -1725,7 +1763,7 @@ def get_task_instance_states(
     run_id_task_state_map: dict[str, dict[str, Any]] = defaultdict(dict)
 
     coordinates = build_coordinate_filters(TI, map_index=map_index)
-    query = select(TI, public_map_index_expression(TI)).where(TI.dag_id == dag_id, *coordinates)
+    query = select(*_TI_STATE_COLUMNS).where(TI.dag_id == dag_id, *coordinates)
 
     if task_ids:
         query = query.where(TI.task_id.in_(task_ids))
@@ -1736,30 +1774,39 @@ def get_task_instance_states(
     if run_ids:
         query = query.where(TI.run_id.in_(run_ids))
 
-    results = session.execute(query).tuples().all()
+    results: list[Any] = []
+    # Without task_ids, task_group_id replaces the Dag-wide match instead of extending it.
+    if task_ids or not task_group_id:
+        # Partitions yield the event loop between batches on large runs.
+        streamed = await session.stream(query.execution_options(yield_per=500))
+        try:
+            async for partition in streamed.partitions():
+                results.extend(partition)
+        finally:
+            await streamed.close()
 
     if task_group_id:
-        group_tasks = _get_group_tasks(
+        group_ti_ids = await _get_group_tasks(
             dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
         )
+        group_query = select(*_TI_STATE_COLUMNS).where(TI.id.in_(group_ti_ids), *coordinates)
+        results.extend((await session.execute(group_query)).all())
 
-        group_query = select(TI, public_map_index_expression(TI)).where(
-            TI.id.in_(ti.id for ti in group_tasks), *coordinates
-        )
-        group_results = session.execute(group_query).tuples().all()
-        results = [*results, *group_results] if task_ids else group_results
-
-    superseded = _find_superseded_ids(
+    superseded = await _find_superseded_ids_async(
         session,
         dag_id,
-        {(task.run_id, task.task_id) for task, _ in results if task.region_id != SENTINEL_REGION_ID},
+        {
+            (run_id, task_id)
+            for _, run_id, task_id, _, region_id, _ in results
+            if region_id != SENTINEL_REGION_ID
+        },
         dag_bag,
     )
-    for task, public_index in results:
-        if task.id in superseded:
+    for ti_id, run_id, task_id, state, _, public_index in results:
+        if ti_id in superseded:
             continue
-        key = task.task_id if public_index < 0 else f"{task.task_id}_{public_index}"
-        run_id_task_state_map[task.run_id][key] = task.state
+        key = task_id if public_index < 0 else f"{task_id}_{public_index}"
+        run_id_task_state_map[run_id][key] = state
 
     return TaskStatesResponse(task_states=run_id_task_state_map)
 
@@ -1809,17 +1856,17 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     return max_tries != 0 and try_number <= max_tries
 
 
-def _get_group_tasks(
+async def _get_group_tasks(
     dag_id: str,
     task_group_id: str,
-    session: SessionDep,
+    session: AsyncSession,
     dag_bag: DagBagDep,
     logical_dates=None,
     run_ids=None,
     map_index: int | None = None,
-):
+) -> Sequence[UUID]:
     # Get all tasks in the task group
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
+    dag = await get_latest_version_of_dag_async(dag_bag, dag_id, session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
         raise HTTPException(
@@ -1830,18 +1877,19 @@ def _get_group_tasks(
             },
         )
 
-    # First get all task instances to get the task_id, map_index pairs
-    group_tasks = session.scalars(
-        select(TI).where(
-            TI.dag_id == dag_id,
-            TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
-            *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
-            *([TI.run_id.in_(run_ids)] if run_ids else []),
-            *([public_map_index_expression(TI) == map_index] if map_index is not None else []),
+    group_ti_ids = (
+        await session.scalars(
+            select(TI.id).where(
+                TI.dag_id == dag_id,
+                TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
+                *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
+                *([TI.run_id.in_(run_ids)] if run_ids else []),
+                *([public_map_index_expression(TI) == map_index] if map_index is not None else []),
+            )
         )
     ).all()
 
-    return group_tasks
+    return group_ti_ids
 
 
 @ti_id_router.get(
