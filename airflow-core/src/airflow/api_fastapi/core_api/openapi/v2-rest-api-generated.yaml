@@ -14783,6 +14783,11 @@ components:
           type: integer
           title: Active Runs Count
           default: 0
+        is_at_max_active_runs:
+          type: boolean
+          title: Is At Max Active Runs
+          description: Whether this Dag is currently at its max_active_runs limit,
+            counting running and queued runs (backfill runs excluded).
         team_name:
           anyOf:
           - type: string
@@ -14854,6 +14859,7 @@ components:
       - timezone
       - last_parsed
       - default_args
+      - is_at_max_active_runs
       - latest_dag_version
       - is_backfillable
       - file_token
