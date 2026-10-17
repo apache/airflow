@@ -97,10 +97,20 @@ class FTPHook(BaseHook):
         return self.conn
 
     def close_conn(self):
-        """Close the connection; an error will occur if the connection was never opened."""
+        """Close an open connection even if the server has disconnected."""
         conn = self.conn
-        conn.quit()
+        if conn is None:
+            return
         self.conn = None
+        try:
+            conn.quit()
+        except (EOFError, OSError):
+            pass
+        except ftplib.error_temp as error:
+            if str(error)[:3] != "421":
+                raise
+        finally:
+            conn.close()
 
     def describe_directory(self, path: str) -> dict:
         """
