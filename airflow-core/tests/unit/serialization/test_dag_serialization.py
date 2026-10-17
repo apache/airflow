@@ -1665,6 +1665,7 @@ class TestStringifiedDAGs:
             "max_active_tis_per_dagrun": None,
             "max_retry_delay": None,
             "on_failure_fail_dagrun": False,
+            "on_success_succeed_dagrun": True,
             "outlets": [],
             "owner": "airflow",
             "params": {},

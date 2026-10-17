@@ -240,6 +240,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "max_retry_delay",
         "multiple_outputs",
         "on_failure_fail_dagrun",
+        "on_success_succeed_dagrun",
         "op_kwargs_expand_input",
         "outlets",
         "owner",

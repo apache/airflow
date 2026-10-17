@@ -58,7 +58,9 @@ def setup_task(func: Callable) -> Callable:
     return func
 
 
-def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callable:
+def teardown_task(
+    _func=None, *, on_failure_fail_dagrun: bool = False, on_success_succeed_dagrun: bool = True
+) -> Callable:
     """
     Decorate a function to mark it as a teardown task.
 
@@ -82,6 +84,7 @@ def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callab
 
         func.is_teardown = True
         func.on_failure_fail_dagrun = on_failure_fail_dagrun
+        func.on_success_succeed_dagrun = on_success_succeed_dagrun
         return func
 
     if _func is None:
