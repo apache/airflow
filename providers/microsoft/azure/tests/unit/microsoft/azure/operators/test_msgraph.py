@@ -27,8 +27,14 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, Context, timezone
-from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
+from airflow.providers.common.compat.sdk import AirflowException, Context, TaskDeferred, timezone
+from airflow.providers.microsoft.azure.operators.msgraph import (
+    COMPLETED_KEY,
+    CURSOR_KEY,
+    PAGE_KEY_PREFIX,
+    MSGraphAsyncOperator,
+    execute_callable,
+)
 from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
@@ -39,6 +45,34 @@ from unit.microsoft.azure.test_utils import (
     mock_response,
     patch_hook_and_request_adapter,
 )
+
+
+class TaskStateStore:
+    """In-memory stand-in for ``context["task_state_store"]``."""
+
+    def __init__(self, **values):
+        self.values = dict(values)
+
+    def get(self, key, default=None):
+        return self.values.get(key, default)
+
+    def set(self, key, value, *, retention=None):
+        self.values[key] = value
+
+
+def users_event(name: str) -> dict[str, Any]:
+    users = load_json_from_resources(dirname(__file__), "..", "resources", name)
+    return {"status": "success", "type": "builtins.dict", "response": json.dumps(users)}
+
+
+def users_operator(**kwargs) -> MSGraphAsyncOperator:
+    return MSGraphAsyncOperator(
+        task_id="users_delta",
+        conn_id="msgraph_api",
+        url="users/delta()",
+        result_processor=lambda result, **context: result.get("value"),
+        **kwargs,
+    )
 
 
 class TestMSGraphAsyncOperator:
@@ -510,3 +544,97 @@ class TestMSGraphAsyncOperator:
                 == "response"
             )
             assert len(recorded_warnings) == 0
+
+
+class TestDurableMSGraphAsyncOperator:
+    def test_keeps_the_page_and_the_link_to_the_next_one(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore()
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute_complete(context=context, event=users_event("users.json"))
+
+        users = json.loads(users_event("users.json")["response"])
+        assert task_state_store.values == {
+            f"{PAGE_KEY_PREFIX}0": users["value"],
+            CURSOR_KEY: {"url": users["@odata.nextLink"], "query_parameters": None, "pages": 1},
+        }
+        assert exc.value.trigger.url == users["@odata.nextLink"]
+        context["ti"].xcom_push.assert_not_called()
+
+    def test_execute_resumes_at_the_kept_link(self):
+        operator = users_operator(durable=True, query_parameters={"$top": 12})
+        cursor = {
+            "url": "users/delta()?$skiptoken=abc",
+            "query_parameters": {"$top": 12, "$skip": 12},
+            "pages": 1,
+        }
+        context = {"ti": mock.MagicMock(), "task_state_store": TaskStateStore(**{CURSOR_KEY: cursor})}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
+
+        assert exc.value.trigger.url == cursor["url"]
+        assert exc.value.trigger.query_parameters == cursor["query_parameters"]
+        assert exc.value.trigger.pagination_link is True
+        assert exc.value.kwargs == {"query_parameters": cursor["query_parameters"]}
+        assert exc.value.method_name == "execute_complete"
+
+    def test_last_page_returns_the_kept_pages_and_itself(self):
+        operator = users_operator(durable=True)
+        first_page = json.loads(users_event("users.json")["response"])["value"]
+        last_page = json.loads(users_event("next_users.json")["response"])["value"]
+        task_state_store = TaskStateStore(
+            **{
+                f"{PAGE_KEY_PREFIX}0": first_page,
+                CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        results = operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert results == first_page + last_page
+        assert COMPLETED_KEY not in task_state_store.values
+
+    def test_keeps_the_result_of_a_request_that_is_not_a_get(self):
+        operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
+        task_state_store = TaskStateStore()
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        results = operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert task_state_store.values == {COMPLETED_KEY: {"result": results}}
+
+    def test_execute_returns_the_kept_result_without_sending_the_request_again(self):
+        operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
+        context = {
+            "ti": mock.MagicMock(),
+            "task_state_store": TaskStateStore(**{COMPLETED_KEY: {"result": [{"id": "1"}]}}),
+        }
+
+        with mock.patch.object(operator, "defer") as mock_defer:
+            assert operator.execute(context) == [{"id": "1"}]
+
+        mock_defer.assert_not_called()
+
+    def test_not_durable_leaves_the_task_state_store_alone(self):
+        operator = users_operator()
+        task_state_store = TaskStateStore()
+        context = mock_context(task=operator)
+        context["task_state_store"] = task_state_store
+
+        with pytest.raises(TaskDeferred):
+            operator.execute_complete(context=context, event=users_event("users.json"))
+
+        assert task_state_store.values == {}
+
+    def test_durable_without_task_state_store_keeps_pages_in_xcom(self):
+        operator = users_operator(durable=True)
+        context = mock_context(task=operator)
+
+        with pytest.raises(TaskDeferred):
+            operator.execute_complete(context=context, event=users_event("users.json"))
+
+        assert context["ti"].xcom_pull(task_ids=operator.task_id, dag_id=operator.dag_id, key="return_value")
