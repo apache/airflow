@@ -270,6 +270,12 @@ repos:
         files: ^\.github/workflows/ci-(arm|amd)\.yml$
         pass_filenames: false
         require_serial: true
+      - id: check-fork-ci-gate-config
+        name: Check fork CI gate configuration is valid and pilot instants are in the future
+        entry: ./scripts/ci/prek/check_fork_ci_gate_config.py
+        language: python
+        files: ^\.github/fork-ci-gate\.toml$|^dev/breeze/src/airflow_breeze/utils/fork_ci_gate\.py$
+        pass_filenames: false
       - id: check-java-sdk-version-in-sync
         name: Check Java SDK JDK version is consistent across build files
         entry: ./scripts/ci/prek/check_java_sdk_version_in_sync.py
