@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing, contextmanager
 from datetime import datetime, timedelta
 from functools import cached_property
+from importlib.metadata import version
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
@@ -33,6 +34,7 @@ import requests
 import tenacity
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from packaging.version import Version
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 from sqlalchemy import create_engine
@@ -292,6 +294,9 @@ class SnowflakeHook(DbApiHook):
             "workload_identity_provider": StringField(
                 lazy_gettext("Workload Identity Provider"), widget=BS3TextFieldWidget()
             ),
+            "workload_identity_impersonation_path": StringField(
+                lazy_gettext("Workload Identity Impersonation Path"), widget=BS3TextFieldWidget()
+            ),
             "insecure_mode": BooleanField(
                 label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
             ),
@@ -345,6 +350,7 @@ class SnowflakeHook(DbApiHook):
                 "private_key_file": "Path of snowflake private key (PEM Format)",
                 "private_key_content": "Content to snowflake private key (PEM format)",
                 "workload_identity_provider": "AWS, AZURE, GCP or OIDC",
+                "workload_identity_impersonation_path": "Comma-separated role ARNs (AWS) or service accounts (GCP)",
                 "insecure_mode": "insecure mode",
                 "proxy_host": "Proxy server hostname",
                 "proxy_port": "Proxy server port",
@@ -578,6 +584,24 @@ class SnowflakeHook(DbApiHook):
 
         if token_file_path:
             conn_config["token_file_path"] = token_file_path
+
+        impersonation_path = self._get_field(extra_dict, "workload_identity_impersonation_path") or []
+
+        if isinstance(impersonation_path, str):
+            impersonation_path = impersonation_path.split(",")
+        if not isinstance(impersonation_path, list):
+            raise ValueError(
+                "workload_identity_impersonation_path must be a list or a comma-separated string"
+            )
+        impersonation_path = [str(step).strip() for step in impersonation_path if str(step).strip()]
+
+        if impersonation_path:
+            if Version(version("snowflake-connector-python")) < Version("4.0.0"):
+                raise AirflowOptionalProviderFeatureException(
+                    "workload_identity_impersonation_path is not supported by the installed "
+                    "snowflake-connector-python. Please upgrade snowflake-connector-python>=4.0.0"
+                )
+            conn_config["workload_identity_impersonation_path"] = impersonation_path
 
     def _add_authentication_config(
         self,
@@ -815,6 +839,7 @@ class SnowflakeHook(DbApiHook):
                     "client_store_temporary_credential",
                     "json_result_force_utf8_decoding",
                     "ocsp_fail_open",
+                    "workload_identity_impersonation_path",
                     "proxy_host",
                     "proxy_port",
                     "proxy_user",
@@ -849,7 +874,7 @@ class SnowflakeHook(DbApiHook):
         if "ocsp_fail_open" in conn_params:
             engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["ocsp_fail_open"] = conn_params["ocsp_fail_open"]
-        for key in ["session_parameters", "private_key"]:
+        for key in ["session_parameters", "private_key", "workload_identity_impersonation_path"]:
             if conn_params.get(key):
                 engine_kwargs.setdefault("connect_args", {})
                 engine_kwargs["connect_args"][key] = conn_params[key]
