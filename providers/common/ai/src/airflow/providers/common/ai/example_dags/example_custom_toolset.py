@@ -40,13 +40,22 @@ if TYPE_CHECKING:
 class PackageArgs(TypedDict):
     """The arguments of get_package."""
 
-    name: Annotated[str, Field(description="The distribution name, such as apache-airflow.")]
+    # A pattern keeps the model's input to a valid name, so it cannot reach another path on the host.
+    name: Annotated[
+        str,
+        Field(
+            description="The distribution name, such as apache-airflow.",
+            pattern=r"^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$",
+        ),
+    ]
 
 
 class ReleaseArgs(PackageArgs):
     """The arguments of get_release."""
 
-    version: Annotated[str, Field(description="An exact version, such as 3.1.0.")]
+    version: Annotated[
+        str, Field(description="An exact version, such as 3.1.0.", pattern=r"^[A-Za-z0-9.!+_-]+$")
+    ]
 
 
 # Each tool's description, and the adapter that gives its arguments' JSON schema and validator.
@@ -104,9 +113,10 @@ class PyPIToolset(AirflowToolset):
             raise ValueError(f"Unknown tool: {name!r}")
 
         hook = HttpHook(method="GET", http_conn_id=self.http_conn_id)
-        # HttpHook.run blocks. run_blocking runs it in a thread, one hook call at a time.
+        # HttpHook.run blocks. run_blocking runs it in a thread, one hook call at a time, so
+        # give it a timeout: a stalled request would hold up every other blocking call.
         response = await self.run_blocking(
-            hook.run, f"pypi/{path}/json", extra_options={"check_response": False}
+            hook.run, f"pypi/{path}/json", extra_options={"check_response": False, "timeout": 30}
         )
         if response.status_code == 404:
             # The model named something that does not exist; it reads this and can try again.

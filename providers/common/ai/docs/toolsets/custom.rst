@@ -78,17 +78,20 @@ What a subclass implements
 ``id``
     A name for the toolset. With ``durable=True``, each call is recorded under it, and a
     retry finds the calls an earlier attempt recorded by it. If the id changes between
-    attempts, the retry finds nothing to replay and makes those calls again. Deriving it
-    from the connection ID, as the example does, gives each connection's toolset its own.
+    attempts, the retry stops matching the earlier attempt at the first call to this
+    toolset, and that call and every step after it, model requests included, run again.
+    Deriving it from the connection ID, as the example does, gives each connection's
+    toolset its own.
 
 ``get_tools``
     The tools the model is offered, keyed by name. Each ``ToolDefinition`` carries the
     description and the JSON schema of the arguments, which are all the model knows about
     the tool. ``args_validator`` checks the model's arguments before ``execute_tool``
-    runs, and arguments that fail it go back to the model to correct. A pydantic
-    ``TypeAdapter`` over a ``TypedDict`` gives the schema, and a pydantic-core
-    ``SchemaValidator`` built from its ``core_schema`` is the validator. Import
-    ``TypedDict`` from ``typing_extensions``. On Python before 3.12, building a
+    runs, and arguments that fail it go back to the model to correct. The example's
+    ``pattern`` constraints keep a name or version from changing the URL the hook calls.
+    A pydantic ``TypeAdapter`` over a ``TypedDict`` gives the schema, and a pydantic-core
+    ``SchemaValidator`` built from its ``core_schema`` is the validator.
+    Import ``TypedDict`` from ``typing_extensions``. On Python before 3.12, building a
     ``TypeAdapter`` over a ``typing.TypedDict`` raises ``PydanticUserError: Please use
     `typing_extensions.TypedDict` instead of `typing.TypedDict` on Python < 3.12.``, and
     the Dag file fails to import.
