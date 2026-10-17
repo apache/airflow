@@ -38,8 +38,12 @@ const DAG_RUN_STATES: ReadonlySet<string> = new Set<DagRunState>([
 export interface TriggerDagRunSpec {
   /** Identifier of the Dag to trigger. */
   readonly dagId: string;
-  /** Run ID for the triggered run; generated from the trigger time when unset. */
+  /** Run ID for the triggered run; generated from runAfter or logicalDate when unset. */
   readonly runId?: string;
+  /** Logical date of the triggered run; null creates a run without a logical date. */
+  readonly logicalDate?: Date | null;
+  /** Earliest time at which the triggered run may start. */
+  readonly runAfter?: Date;
   /** Configuration the triggered run is started with. */
   readonly conf?: Readonly<Record<string, JsonValue>>;
   /** Clear an existing run with the same ID instead of failing. */
@@ -70,6 +74,8 @@ export interface TriggerDagRunSpec {
 export interface TriggerDagRunTask extends Operator<void, void> {
   readonly dagId: string;
   readonly runId: string | undefined;
+  readonly logicalDate: Date | null | undefined;
+  readonly runAfter: Date | undefined;
   readonly conf: Readonly<Record<string, JsonValue>> | undefined;
   readonly resetDagRun: boolean;
   readonly waitForCompletion: boolean;
@@ -85,6 +91,8 @@ export interface TriggerDagRunTask extends Operator<void, void> {
 const OPTION_NAMES: ReadonlySet<string> = new Set<keyof TriggerDagRunSpec>([
   "dagId",
   "runId",
+  "logicalDate",
+  "runAfter",
   "conf",
   "resetDagRun",
   "waitForCompletion",
@@ -119,6 +127,13 @@ function checkType(name: string, value: unknown, type: "string" | "boolean"): vo
   }
 }
 
+function checkDate(name: string, value: unknown, allowNull = false): void {
+  if (value === undefined || (allowNull && value === null)) return;
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    throw new Error(`triggerDagRun(...) option "${name}" must be a valid Date`);
+  }
+}
+
 /**
  * A task that triggers another Dag's run, passed to `dag.task` in place of a handler.
  *
@@ -143,6 +158,8 @@ export function triggerDagRun(spec: TriggerDagRunSpec): TriggerDagRunTask {
   }
   checkType("runId", options["runId"], "string");
   checkType("note", options["note"], "string");
+  checkDate("logicalDate", options["logicalDate"], true);
+  checkDate("runAfter", options["runAfter"]);
   for (const flag of [
     "resetDagRun",
     "waitForCompletion",
@@ -161,6 +178,8 @@ export function triggerDagRun(spec: TriggerDagRunSpec): TriggerDagRunTask {
   const task: TriggerDagRunTask = {
     dagId: options["dagId"],
     runId: (options["runId"] as string | undefined) || undefined,
+    logicalDate: options["logicalDate"] as Date | null | undefined,
+    runAfter: options["runAfter"] as Date | undefined,
     conf: conf as TriggerDagRunTask["conf"],
     resetDagRun: options["resetDagRun"] === true,
     waitForCompletion: options["waitForCompletion"] === true,

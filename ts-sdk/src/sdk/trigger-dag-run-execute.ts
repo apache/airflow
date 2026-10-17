@@ -19,6 +19,7 @@
 
 // Mirrors `TriggerDagRunOperator.execute` and `execute_complete` in the standard provider.
 
+import { randomInt } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { isPlainRecord } from "./dag.js";
 import type { OperatorContext, OperatorOutcome } from "./operator.js";
@@ -34,8 +35,17 @@ export async function executeTriggerDagRun(
   op: OperatorContext,
 ): Promise<OperatorOutcome> {
   const { client, logs } = op;
-  const logicalDate = new Date();
-  const runId = trigger.runId ?? `manual__${pythonIsoformat(logicalDate)}`;
+  const logicalDate =
+    trigger.logicalDate === undefined
+      ? trigger.runAfter === undefined
+        ? new Date()
+        : null
+      : trigger.logicalDate;
+  const runAfter = trigger.runAfter?.toISOString();
+  const runId =
+    trigger.runId ??
+    `manual__${pythonIsoformat(runAfter ? trigger.runAfter! : (logicalDate ?? new Date()))}` +
+      (logicalDate === null ? `_${randomString(8)}` : "");
 
   if (trigger.failWhenDagIsPaused && (await client.isDagPaused(trigger.dagId))) {
     return op.fail(`Dag ${trigger.dagId} is paused`);
@@ -47,8 +57,8 @@ export async function executeTriggerDagRun(
     client.triggerDagRun({
       dag_id: trigger.dagId,
       run_id: runId,
-      logical_date: logicalDate.toISOString(),
-      run_after: null,
+      logical_date: logicalDate?.toISOString() ?? null,
+      ...(runAfter === undefined ? {} : { run_after: runAfter }),
       conf: (trigger.conf as Record<string, unknown> | undefined) ?? null,
       reset_dag_run: trigger.resetDagRun,
       note: trigger.note ?? null,
@@ -167,6 +177,11 @@ function pythonIsoformat(date: Date): string {
   const millis = date.getUTCMilliseconds();
   const fraction = millis === 0 ? "" : `.${String(millis * 1000).padStart(6, "0")}`;
   return `${seconds}${fraction}+00:00`;
+}
+
+function randomString(length: number): string {
+  const choices = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from({ length }, () => choices[randomInt(choices.length)]).join("");
 }
 
 /** `build_airflow_dagrun_url`, on `[api] base_url` from the environment, or "/" when unset. */
