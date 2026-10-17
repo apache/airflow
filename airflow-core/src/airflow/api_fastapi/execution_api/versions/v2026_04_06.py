@@ -180,6 +180,7 @@ def _holds_only_builtin_values(value: Any) -> bool:
 
 _ASSET_CLASSNAME = "airflow.sdk.definitions.asset.Asset"
 _ASSET_ALIAS_CLASSNAME = "airflow.sdk.definitions.asset.AssetAlias"
+_ASSET_ACCESS_CONTROL_CLASSNAME = "airflow.sdk.definitions.asset.access_control.AssetAccessControl"
 
 
 class _UnconvertibleNextKwargsError(ValueError):
@@ -253,14 +254,61 @@ def _convert_to_legacy(value: Any) -> Any:
             with contextlib.suppress(TypeError):
                 items = sorted(items)
         return {Encoding.TYPE: collection_types[classname], Encoding.VAR: items}
-    if classname == _ASSET_CLASSNAME and isinstance(data, dict) and not data.get("watchers"):
-        return {
-            Encoding.TYPE: DAT.ASSET,
-            Encoding.VAR: {key: data[key] for key in ("name", "uri", "group", "extra")},
-        }
-    if classname == _ASSET_ALIAS_CLASSNAME and isinstance(data, dict):
+    if classname == _ASSET_CLASSNAME:
+        return {Encoding.TYPE: DAT.ASSET, Encoding.VAR: _translate_asset(data)}
+    if classname == _ASSET_ALIAS_CLASSNAME and isinstance(data, dict) and data.keys() == {"name", "group"}:
         return {Encoding.TYPE: DAT.ASSET_ALIAS, Encoding.VAR: {"name": data["name"], "group": data["group"]}}
     raise _UnconvertibleNextKwargsError(f"a value of type {str(classname)!r}")
+
+
+def _is_plain_json(value: Any) -> bool:
+    """Whether a serde-encoded value holds only JSON values, with no class envelope anywhere."""
+    from airflow._shared.serialization import CLASSNAME
+
+    if isinstance(value, list):
+        return all(_is_plain_json(item) for item in value)
+    if isinstance(value, dict):
+        return CLASSNAME not in value and all(_is_plain_json(item) for item in value.values())
+    return value is None or isinstance(value, (str, int, float, bool))
+
+
+def _is_team_list(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(team, str) for team in value)
+
+
+def _translate_asset(data: Any) -> dict[str, Any]:
+    """Build the legacy encoding of an Asset from its serde data, field for field as ``encode_asset_like``."""
+    from airflow._shared.serialization import CLASSNAME, DATA
+
+    unconvertible = _UnconvertibleNextKwargsError(f"a value of type {_ASSET_CLASSNAME!r}")
+    required = {"name", "uri", "group", "extra"}
+    if (
+        not isinstance(data, dict)
+        or not required <= data.keys() <= required | {"watchers", "access_control"}
+        or data.get("watchers")
+        or not _is_plain_json(data["extra"])
+    ):
+        raise unconvertible
+    var = {key: data[key] for key in ("name", "uri", "group", "extra")}
+
+    if (envelope := data.get("access_control")) is None:
+        return var
+    if not isinstance(envelope, dict) or envelope.get(CLASSNAME) != _ASSET_ACCESS_CONTROL_CLASSNAME:
+        raise unconvertible
+    ac = envelope.get(DATA)
+    if (
+        not isinstance(ac, dict)
+        or ac.keys() != {"producer_teams", "consumer_teams", "allow_global"}
+        or not _is_team_list(ac["producer_teams"])
+        or not (ac["consumer_teams"] is None or _is_team_list(ac["consumer_teams"]))
+        or not isinstance(ac["allow_global"], bool)
+    ):
+        raise unconvertible
+    if ac["producer_teams"] or ac["consumer_teams"] is not None or not ac["allow_global"]:
+        var["access_control"] = {"producer_teams": ac["producer_teams"], "allow_global": ac["allow_global"]}
+        if ac["consumer_teams"] is not None:
+            var["access_control"]["consumer_teams"] = ac["consumer_teams"]
+    return var
 
 
 class ModifyDeferredTaskKwargsToJsonValue(VersionChange):

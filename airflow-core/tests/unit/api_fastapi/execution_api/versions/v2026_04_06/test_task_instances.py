@@ -23,6 +23,7 @@ import pytest
 
 from airflow._shared.timezones import timezone
 from airflow.sdk import Asset, AssetAlias
+from airflow.sdk.definitions.asset.access_control import AssetAccessControl
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.state import DagRunState, State
 
@@ -245,6 +246,63 @@ class TestNextKwargsBackwardCompat:
         ]
         assert (result["alias"].name, result["alias"].group) == ("resume-alias", "asset")
         assert result["event"] == TIMESTAMP
+
+    @pytest.mark.parametrize(
+        ("access_control", "expected_access_control"),
+        [
+            pytest.param(
+                AssetAccessControl(producer_teams=["team_a"], allow_global=False),
+                {"producer_teams": ["team_a"], "allow_global": False},
+                id="producers-only",
+            ),
+            pytest.param(
+                AssetAccessControl(consumer_teams=["team_b"]),
+                {"producer_teams": [], "allow_global": True, "consumer_teams": ["team_b"]},
+                id="consumers",
+            ),
+        ],
+    )
+    def test_old_version_keeps_asset_access_control(
+        self,
+        old_ver_client,
+        session,
+        create_task_instance,
+        monkeypatch,
+        access_control,
+        expected_access_control,
+    ):
+        """Asset access restrictions survive the translation without the classes being rebuilt here."""
+        from airflow.sdk.serde import serialize as serde_serialize
+
+        original = {"asset": Asset("restricted", access_control=access_control)}
+        ti = create_task_instance(
+            task_id="test_next_kwargs_access_control",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = serde_serialize(original)
+        session.commit()
+
+        constructed = []
+        for cls in (Asset, AssetAccessControl):
+            original_init = cls.__init__
+
+            def spy(self, *args, _original_init=original_init, **kwargs):
+                constructed.append(type(self))
+                _original_init(self, *args, **kwargs)
+
+            monkeypatch.setattr(cls, "__init__", spy)
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        assert constructed == []
+        assert response.json()["next_method"] == "execute_complete"
+        next_kwargs = response.json()["next_kwargs"]
+        assert next_kwargs == BaseSerialization.serialize(original)
+        assert BaseSerialization.deserialize(next_kwargs)["asset"].access_control == expected_access_control
 
     @pytest.mark.parametrize(
         "assets",
