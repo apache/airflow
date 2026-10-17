@@ -12098,6 +12098,29 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Loop Iterations Count'
+        },
+        latest_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Region Id'
+        },
+        latest_region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Region Index'
         }
     },
     type: 'object',
@@ -12149,6 +12172,11 @@ export const $LoopIterationSummary = {
         index: {
             type: 'integer',
             title: 'Index'
+        },
+        task_count: {
+            type: 'integer',
+            title: 'Task Count',
+            default: 0
         },
         state: {
             anyOf: [
