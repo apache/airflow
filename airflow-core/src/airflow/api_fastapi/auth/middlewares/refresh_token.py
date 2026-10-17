@@ -17,9 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import HTTPException, Request
+from typing import TYPE_CHECKING
+
+from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import MutableHeaders
 
 from airflow.api_fastapi.app import get_auth_manager, get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -31,8 +34,15 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.configuration import conf
 
+if TYPE_CHECKING:
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-class JWTRefreshMiddleware(BaseHTTPMiddleware):
+# Unauthenticated endpoints that never read the user, so resolving it there would only cost a
+# JWT decode and a revocation lookup on every health check and UI boot.
+UNAUTHENTICATED_PATHS = frozenset(["/api/v2/monitor/health", "/api/v2/version"])
+
+
+class JWTRefreshMiddleware:
     """
     Middleware to handle JWT token refresh.
 
@@ -41,62 +51,100 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
     2. Calls ``refresh_user`` method from auth manager with the user
     3. If ``refresh_user`` returns a user, generate a JWT token based upon this user and send it in the
        response as cookie
+
+    Requests to ``UNAUTHENTICATED_PATHS`` or under ``skip_path_prefixes`` (paths relative to the
+    root path) are passed through untouched.
     """
 
-    async def dispatch(self, request: Request, call_next):
-        new_token = None
+    def __init__(self, app: ASGIApp, skip_path_prefixes: tuple[str, ...] = ()) -> None:
+        self.app = app
+        self.skip_path_prefixes = skip_path_prefixes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or self._is_skipped(scope):
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope)
         current_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
+        if current_token is None:
+            await self.app(scope, receive, send)
+            return
+
+        new_token = None
         try:
-            if current_token is not None:
-                try:
-                    new_user, current_user = await self._refresh_user(current_token)
-                    if user := (new_user or current_user):
-                        # Stamp the trust sentinel alongside the user so `get_user()`
-                        # can distinguish this trusted assignment from a stray write
-                        # by unrelated middleware.
-                        request.state.user = user
-                        request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
-                    if new_user:
-                        # If we created a new user, serialize it and set it as a cookie
-                        new_token = get_auth_manager().generate_jwt(new_user)
-                except (HTTPException, AuthManagerRefreshTokenExpiredException):
-                    # Receive a HTTPException when the Airflow token is expired
-                    # Receive a AuthManagerRefreshTokenExpiredException when the potential underlying refresh
-                    # token used by the auth manager is expired
-                    new_token = ""
+            new_user, current_user = await self._refresh_user(current_token)
+            if user := (new_user or current_user):
+                # Stamp the trust sentinel alongside the user so `get_user()`
+                # can distinguish this trusted assignment from a stray write
+                # by unrelated middleware.
+                request.state.user = user
+                request.state.user_authenticated_via = USER_INJECTED_BY_TRUSTED_MIDDLEWARE
+            if new_user:
+                # If we created a new user, serialize it and set it as a cookie
+                new_token = get_auth_manager().generate_jwt(new_user)
+        except (HTTPException, AuthManagerRefreshTokenExpiredException):
+            # Receive a HTTPException when the Airflow token is expired
+            # Receive a AuthManagerRefreshTokenExpiredException when the potential underlying refresh
+            # token used by the auth manager is expired
+            new_token = ""
 
-            response = await call_next(request)
+        cookie_headers = self._build_cookie_headers(request, new_token) if new_token is not None else []
+        response_started = False
 
-            if new_token is not None:
-                cookie_path = get_cookie_path()
-                secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-                response.set_cookie(
-                    COOKIE_NAME_JWT_TOKEN,
-                    new_token,
-                    path=cookie_path,
-                    httponly=True,
-                    secure=secure,
-                    samesite="lax",
-                    max_age=0 if new_token == "" else None,
-                )
-                # Clear any stale _token cookie at root path "/".
-                # Older Airflow instances may have set the cookie there;
-                # without this, the root-path cookie keeps being sent on
-                # every request, causing an infinite redirect loop.
-                if cookie_path != "/":
-                    response.delete_cookie(
-                        key=COOKIE_NAME_JWT_TOKEN,
-                        path="/",
-                        httponly=True,
-                        secure=secure,
-                        samesite="lax",
-                    )
+        async def send_with_cookies(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+                headers = MutableHeaders(scope=message)
+                for value in cookie_headers:
+                    headers.append("set-cookie", value)
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_with_cookies)
         except HTTPException as exc:
-            # If any HTTPException is raised during user resolution or refresh, return it as response
-            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-        return response
+            if response_started:
+                raise
+            # An HTTPException escaping the inner middlewares is returned as a response
+            response = JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+            await response(scope, receive, send)
+
+    def _is_skipped(self, scope: Scope) -> bool:
+        path = scope["path"].removeprefix(scope.get("root_path", ""))
+        return path in UNAUTHENTICATED_PATHS or path.startswith(self.skip_path_prefixes)
+
+    @staticmethod
+    def _build_cookie_headers(request: Request, new_token: str) -> list[str]:
+        cookie_path = get_cookie_path()
+        secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+        # Only used to render the Set-Cookie header values
+        response = Response()
+        response.set_cookie(
+            COOKIE_NAME_JWT_TOKEN,
+            new_token,
+            path=cookie_path,
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+            max_age=0 if new_token == "" else None,
+        )
+        # Clear any stale _token cookie at root path "/".
+        # Older Airflow instances may have set the cookie there;
+        # without this, the root-path cookie keeps being sent on
+        # every request, causing an infinite redirect loop.
+        if cookie_path != "/":
+            response.delete_cookie(
+                key=COOKIE_NAME_JWT_TOKEN,
+                path="/",
+                httponly=True,
+                secure=secure,
+                samesite="lax",
+            )
+        return [value.decode("latin-1") for key, value in response.raw_headers if key == b"set-cookie"]
 
     @staticmethod
     async def _refresh_user(current_token: str) -> tuple[BaseUser | None, BaseUser | None]:
         user = await resolve_user_from_token(current_token)
-        return get_auth_manager().refresh_user(user=user), user
+        # Auth managers may do blocking I/O here (e.g. calling an identity provider)
+        return await run_in_threadpool(get_auth_manager().refresh_user, user=user), user
