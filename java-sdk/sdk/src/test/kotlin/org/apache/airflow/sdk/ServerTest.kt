@@ -27,23 +27,75 @@ import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.Frame
 import org.apache.airflow.sdk.execution.IncomingFrame
+import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.RawFrame
+import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TaskState
+import org.apache.airflow.sdk.execution.pollSignals
+import org.apache.airflow.sdk.execution.withSignalRecorder
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
+import sun.misc.Signal
 import java.io.ByteArrayOutputStream
+import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 private class ServerNoopTask : Task {
   override fun execute(
     context: Context,
     client: Client,
   ) = Unit
+}
+
+/** What the tasks below report to the test that runs them. */
+private val taskEvents = LinkedBlockingQueue<String>()
+
+/** Releases [NeverCheckingTask]. */
+private val releaseTask = LinkedBlockingQueue<String>()
+
+/**
+ * Waits for a stop request and records what its context showed. Tests use this task to signal the
+ * JVM while a task is running.
+ */
+class StopAwareTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    // Check before reporting "started". The test raises SIGTERM as soon as it reads "started", so by
+    // then the task has checked and the runtime keeps the signal.
+    taskEvents.put("isCancelled() returned ${context.isCancelled()}")
+    taskEvents.put("started")
+    taskEvents.put("awaitCancellation returned ${context.awaitCancellation(Duration.ofSeconds(20))}")
+    taskEvents.put("isCancelled() returned ${context.isCancelled()}")
+  }
+}
+
+class CheckOnceTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    taskEvents.put("isCancelled() returned ${context.isCancelled()}")
+  }
+}
+
+/** Runs until the test releases it, without ever checking for a stop request. */
+class NeverCheckingTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    taskEvents.put("started")
+    releaseTask.poll(20, TimeUnit.SECONDS)
+  }
 }
 
 class ServerTest {
@@ -102,6 +154,173 @@ class ServerTest {
     Assertions.assertEquals(TaskState.State.REMOVED, (result.body as TaskState).state)
     comm.close()
   }
+
+  /**
+   * Runs [taskClass] as task "a" of Dag "c" through [CoordinatorServer.dispatchTask] and returns the
+   * result that the task reports. A thread that plays the supervisor sends the startup details, calls
+   * [whileRunning], reads the result, and calls [beforeAck] before it acknowledges the result.
+   */
+  private fun dispatchTask(
+    taskClass: Class<out Task>,
+    whileRunning: () -> Unit = {},
+    beforeAck: () -> Unit = {},
+  ): IncomingFrame {
+    taskEvents.clear()
+    LogSender.messages.clear()
+    val toServer = ByteChannel(autoFlush = true)
+    val fromServer = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toServer, fromServer)
+    val server = CoordinatorServer(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
+    val reported = ArrayBlockingQueue<IncomingFrame>(1)
+    val supervisor =
+      thread(isDaemon = true) {
+        runBlocking {
+          // Deliver the StartupDetails frame (id 2, dag_id "c", task_id "a").
+          toServer.writeFrame(hexToBytes(STARTUP_HEX))
+          whileRunning()
+          val prefix = fromServer.readByteArray(4)
+          val payload = fromServer.readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+          val result = CoordinatorComm.decode(payload)
+          reported.put(result)
+          beforeAck()
+          toServer.writeFrame(ackFrame(result.id))
+        }
+      }
+
+    runBlocking { server.dispatchTask(Bundle(listOf(DagDef("c").addTask(TaskDef("a", taskClass)))), comm) }
+    supervisor.join()
+    comm.close()
+    return reported.take()
+  }
+
+  /** The events the runtime logged for the stop signals it got, in order. */
+  private fun signalLogs(): List<String> = LogSender.messages.map { it.event }.filter { it in SIGNAL_EVENTS }
+
+  /**
+   * Waits until the runtime has logged [count] stop signals. By then the runtime has decided what to
+   * do with each signal.
+   */
+  private fun awaitSignalLogs(count: Int) {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+    while (signalLogs().size < count && System.nanoTime() < deadline) Thread.sleep(10)
+  }
+
+  /** Waits until the running task reports [event], and drops any events the task reported earlier. */
+  private fun awaitTaskEvent(event: String) {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20)
+    while (System.nanoTime() < deadline && taskEvents.poll(100, TimeUnit.MILLISECONDS) != event) Unit
+  }
+
+  /** Waits until [count] SIGTERM handler threads are blocked, for example on a lock the test holds. */
+  private fun awaitBlockedSignalHandlers(count: Int) {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+    while (System.nanoTime() < deadline) {
+      val blocked = Thread.getAllStackTraces().keys.count { it.name == "SIGTERM handler" && it.state == Thread.State.BLOCKED }
+      if (blocked >= count) return
+      Thread.sleep(10)
+    }
+  }
+
+  @Test
+  @DisplayName("Should let a task that waits for a stop request see SIGTERM, and leave a second SIGTERM to the JVM")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun runningTaskSeesStopSignal() =
+    withSignalRecorder("TERM") { recorded ->
+      val result =
+        dispatchTask(
+          StopAwareTask::class.java,
+          whileRunning = {
+            awaitTaskEvent("started")
+            Signal.raise(Signal("TERM"))
+          },
+          beforeAck = {
+            Signal.raise(Signal("TERM"))
+            awaitSignalLogs(2)
+          },
+        )
+
+      Assertions.assertEquals(
+        listOf("awaitCancellation returned true", "isCancelled() returned true"),
+        taskEvents.toList(),
+        "the task should see the first SIGTERM through its context",
+      )
+      Assertions.assertInstanceOf(SucceedTask::class.java, result.body, "the task returned, so its success is reported")
+      Assertions.assertEquals(listOf("Asking the task to stop", "Letting the JVM handle the signal"), signalLogs())
+      Assertions.assertEquals(listOf("SIGTERM"), pollSignals(recorded, 1), "the second SIGTERM should reach the JVM's handler")
+    }
+
+  @Test
+  @DisplayName("Should hold the first SIGTERM until the result is reported when the task checked for a stop request")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun signalWhileReportingIsHeld() =
+    withSignalRecorder("TERM") { recorded ->
+      val result =
+        dispatchTask(
+          CheckOnceTask::class.java,
+          beforeAck = {
+            // The runtime is still waiting for this acknowledgement, so it has not finished reporting yet.
+            Signal.raise(Signal("TERM"))
+            awaitSignalLogs(1)
+          },
+        )
+
+      Assertions.assertInstanceOf(SucceedTask::class.java, result.body)
+      Assertions.assertEquals(listOf("Asking the task to stop"), signalLogs())
+      Assertions.assertNull(recorded.poll(), "SIGTERM should reach the runtime until it has reported the result")
+      Signal.raise(Signal("TERM"))
+      Assertions.assertEquals(
+        listOf("SIGTERM"),
+        pollSignals(recorded, 1),
+        "after the result is reported, SIGTERM should go back to the handler that was there before",
+      )
+    }
+
+  @Test
+  @DisplayName("Should leave SIGTERM to the JVM when the task never checks for a stop request")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun signalGoesToTheJvmWhenTaskNeverChecks() =
+    withSignalRecorder("TERM") { recorded ->
+      val handedBack = LinkedBlockingQueue<String>()
+      dispatchTask(
+        NeverCheckingTask::class.java,
+        whileRunning = {
+          awaitTaskEvent("started")
+          Signal.raise(Signal("TERM"))
+          handedBack.put(recorded.poll(10, TimeUnit.SECONDS) ?: "nothing")
+          releaseTask.put("done")
+        },
+      )
+
+      Assertions.assertEquals("SIGTERM", handedBack.take(), "SIGTERM should reach the JVM's handler while the task runs")
+      Assertions.assertEquals(listOf("Letting the JVM handle the signal"), signalLogs())
+    }
+
+  @Test
+  @DisplayName("Should take only one of two SIGTERMs that arrive together, and leave the other to the JVM")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun takesOnlyOneOfTwoSignals() =
+    withSignalRecorder("TERM") { recorded ->
+      dispatchTask(
+        StopAwareTask::class.java,
+        whileRunning = {
+          awaitTaskEvent("started")
+          // Each handler decides whether to take its signal and then logs, which needs this lock.
+          // Holding the lock stops both handlers after they decide and before they finish.
+          synchronized(LogSender) {
+            Signal.raise(Signal("TERM"))
+            Signal.raise(Signal("TERM"))
+            awaitBlockedSignalHandlers(2)
+          }
+        },
+      )
+
+      Assertions.assertEquals(
+        listOf("Asking the task to stop", "Letting the JVM handle the signal"),
+        signalLogs().sorted(),
+        "one SIGTERM should be taken for the task and the other left to the JVM",
+      )
+      Assertions.assertEquals(listOf("SIGTERM"), pollSignals(recorded, 1), "one SIGTERM should reach the JVM's handler")
+    }
 
   @Test
   @DisplayName("Should fail when the initial frame is not startup details")
@@ -176,6 +395,8 @@ class ServerTest {
   }
 
   private companion object {
+    val SIGNAL_EVENTS = setOf("Asking the task to stop", "Letting the JVM handle the signal")
+
     // [2, msg, null] with msg coming from
     // https://github.com/astronomer/airflow/blob/f39c8da8/task-sdk/tests/task_sdk/execution_time/test_comms.py#L73-L108
     val STARTUP_HEX =
