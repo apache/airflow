@@ -72,6 +72,9 @@ dependencies = [
 "openlineage" = [
     "apache-airflow-providers-openlineage"
 ]
+"mssql-python" = [
+    "mssql-python>=1.15.0"
+]
 
 [dependency-groups]
 dev = [
