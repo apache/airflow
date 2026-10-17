@@ -162,6 +162,18 @@ _URI_OPTIONS: dict[str, tuple[str, ...]] = {
     "conn_uri": ("--conn-uri",),
     "broker_api": ("-a", "--broker-api"),
 }
+# Short options of the commands that take one of the short options above, as
+# ``(boolean flags, options taking a value)``, so a cluster such as ``-vpVALUE`` is walked the
+# way argparse reads it. Keep in sync with the command definitions in ``cli_config`` and the
+# FAB and Celery providers. Commands missing here are masked conservatively.
+_SHORT_OPTION_ARITY: dict[tuple[str, str], tuple[str, str]] = {
+    ("users", "create"): ("v", "eflpru"),
+    ("users", "reset-password"): ("v", "epu"),
+    ("celery", "flower"): ("Dv", "AHaclpu"),
+    ("dags", "trigger"): ("v", "clor"),
+    ("dags", "test"): ("v", "Bcf"),
+    ("tasks", "test"): ("mv", "Bt"),
+}
 
 
 def _should_hide_key(key) -> bool:
@@ -198,7 +210,7 @@ def _find_option_values(
     option_strings: tuple[str, ...],
     *,
     allow_abbrev: bool,
-    other_values: frozenset[str] = frozenset(),
+    short_option_arity: tuple[str, str] | None = None,
 ) -> list[tuple[int, str]]:
     """
     Locate every value given for an option in a recorded command, in any accepted spelling.
@@ -212,10 +224,11 @@ def _find_option_values(
     Abbreviations and short options are only matched with ``allow_abbrev``, i.e. when the
     parsed namespace confirms the command takes this option.
 
-    A short option can also follow grouped flags (``-vpVALUE``, ``-vp VALUE``). The cluster is
-    walked until the option is found, unless the rest of the cluster is one of
-    ``other_values``, i.e. the parsed value of a preceding short option (``-uapple`` for a
-    username ``apple``).
+    A short option can also follow grouped flags (``-vpVALUE``, ``-vp VALUE``). With the
+    command's ``short_option_arity`` the cluster is walked as argparse does: boolean flags are
+    skipped and any other option ends the cluster by consuming its rest (``-uapple`` is a
+    username). Without it, every character before the option is taken as a flag, which may
+    mask more than the value but never less.
     """
     long_options = [o for o in option_strings if o.startswith("--")]
     short_options = [o for o in option_strings if not o.startswith("--")] if allow_abbrev else []
@@ -235,7 +248,7 @@ def _find_option_values(
             elif idx + 1 < len(command):
                 positions.append((idx + 1, ""))
         elif argument.startswith("-") and short_options:
-            prefix = _find_short_option_prefix(argument, short_options, other_values)
+            prefix = _find_short_option_prefix(argument, short_options, short_option_arity)
             if prefix is None:
                 continue
             if prefix:
@@ -246,7 +259,7 @@ def _find_option_values(
 
 
 def _find_short_option_prefix(
-    argument: str, short_options: list[str], other_values: frozenset[str]
+    argument: str, short_options: list[str], short_option_arity: tuple[str, str] | None
 ) -> str | None:
     """
     Return the part of a short-option token that precedes the option value.
@@ -256,13 +269,14 @@ def _find_short_option_prefix(
     """
     for pos in range(1, len(argument)):
         char = argument[pos]
-        if not char.isalnum() or (pos > 1 and argument[pos:] in other_values):
-            return None
         if f"-{char}" in short_options:
             rest = argument[pos + 1 :]
             if not rest:
                 return ""
             return argument[: pos + 1] + ("=" if rest.startswith("=") else "")
+        is_flag = char in short_option_arity[0] if short_option_arity else char.isalnum()
+        if not is_flag:
+            return None
     return None
 
 
@@ -317,16 +331,23 @@ def _redact_uri_argument(value: str) -> str:
     except ValueError:
         return MASKED_VALUE
     netloc = parsed_uri.netloc
-    # Fail closed on credentials the parse did not recognise (``u:pa/ss@h`` splits the netloc).
-    if not has_password and re.search(r":[^@]*@", netloc + parsed_uri.path):
+    query = parsed_uri.query
+    params = parse_qsl(query, keep_blank_values=True) if query else []
+    # Fail closed on ``user:pass@`` the parse did not take as credentials: one ``u:pa/ss@h`` splits
+    # across netloc and path, or one sits after the authority. ``__extra__`` is redacted as JSON.
+    unparsed_parts = [
+        parsed_uri.path if has_password else netloc + parsed_uri.path,
+        parsed_uri.params,
+        parsed_uri.fragment,
+        *(f"{key}={item}" for key, item in params if key != "__extra__"),
+    ]
+    if any(re.search(r":[^@]*@", part) for part in unparsed_parts):
         return MASKED_VALUE
     if has_password:
         userinfo, _, host = netloc.rpartition("@")
         netloc = f"{userinfo.partition(':')[0]}:{MASKED_VALUE}@{host}"
 
-    query = parsed_uri.query
-    if query:
-        params = parse_qsl(query, keep_blank_values=True)
+    if params:
         redacted_params = []
         for key, item in params:
             if key == "__extra__":
@@ -359,10 +380,6 @@ def _mask_value_token(argument: str, value: str, redact) -> str:
     return argument
 
 
-def _get_other_string_values(parsed: dict, dest: str) -> frozenset[str]:
-    return frozenset(v for k, v in parsed.items() if k != dest and isinstance(v, str) and v)
-
-
 def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
     """
     Mask secrets supplied through any supported argument spelling in the recorded command line.
@@ -372,6 +389,9 @@ def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
     """
     parsed = vars(namespace) if isinstance(namespace, Namespace) else {}
     full_command = list(full_command)
+    short_option_arity = (
+        _SHORT_OPTION_ARITY.get((full_command[1], full_command[2])) if len(full_command) > 2 else None
+    )
 
     # argparse stores a default for every option of the command, so presence in the namespace,
     # not the truthiness of the last value, tells whether the command takes the option: a final
@@ -384,7 +404,7 @@ def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
             full_command,
             option_strings,
             allow_abbrev=True,
-            other_values=_get_other_string_values(parsed, dest),
+            short_option_arity=short_option_arity,
         ):
             full_command[idx] = prefix + MASKED_VALUE
         if isinstance(value, str) and value:
@@ -399,7 +419,7 @@ def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
                 full_command,
                 option_strings,
                 allow_abbrev=dest in parsed,
-                other_values=_get_other_string_values(parsed, dest),
+                short_option_arity=short_option_arity,
             ):
                 full_command[idx] = prefix + redact(full_command[idx][len(prefix) :])
             if isinstance(value, str) and value:

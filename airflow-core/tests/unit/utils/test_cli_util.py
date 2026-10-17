@@ -705,6 +705,30 @@ class TestCliUtil:
                 id="conn-uri-unparsed-credentials",
             ),
             pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-uri", "http://u:pw@h/db#u:S3CRET@h2"],
+                {"conn_id": "c1", "conn_uri": "http://u:pw@h/db#u:S3CRET@h2"},
+                ["airflow", "connections", "add", "c1", "--conn-uri", MASKED],
+                id="conn-uri-credentials-in-fragment",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-uri", "http://h/db?target=u:S3CRET@h2"],
+                {"conn_id": "c1", "conn_uri": "http://h/db?target=u:S3CRET@h2"},
+                ["airflow", "connections", "add", "c1", "--conn-uri", MASKED],
+                id="conn-uri-credentials-in-query-value",
+            ),
+            pytest.param(
+                ["airflow", "users", "reset-password", "-u", "p", "-vp", "FIRST", "-p", "S3CRET"],
+                {"username": "p", "verbose": True, "password": "S3CRET"},
+                ["airflow", "users", "reset-password", "-u", "p", "-vp", MASKED, "-p", MASKED],
+                id="grouped-short-flags-username-equals-cluster-tail",
+            ),
+            pytest.param(
+                ["airflow", "users", "reset-password", "-u", "p", "-vpFIRST", "-p", "S3CRET"],
+                {"username": "p", "verbose": True, "password": "S3CRET"},
+                ["airflow", "users", "reset-password", "-u", "p", f"-vp{MASKED}", "-p", MASKED],
+                id="grouped-short-flags-attached-username-p",
+            ),
+            pytest.param(
                 [
                     "airflow",
                     "connections",
