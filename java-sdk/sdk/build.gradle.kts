@@ -257,7 +257,7 @@ abstract class SyncDagSchemaTask : DefaultTask() {
 
 // Generate the Dag-authoring DSL surface from the Dag serialization schema:
 //
-//  - org.apache.airflow.sdk.Builder and its nested Dag / Task annotations,
+//  - org.apache.airflow.sdk.Airflow and its nested Dag / Task annotations,
 //    whose configuration attributes mirror the scalar keys of the schema's
 //    "dag" and "operator" definitions (the annotation processor lowers
 //    explicitly-set attributes into DagDef.config / TaskDef.config calls), and
@@ -508,7 +508,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                 "    /** ${f.doc} */\n    val ${f.attribute}: ${f.attrType} = ${f.attrDefault},"
             }
 
-        outDir.resolve("org/apache/airflow/sdk").apply { mkdirs() }.resolve("Builder.kt").writeText(
+        outDir.resolve("org/apache/airflow/sdk").apply { mkdirs() }.resolve("Airflow.kt").writeText(
             """
             |package org.apache.airflow.sdk
             |
@@ -524,16 +524,16 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * Example:
             | *
             | * ```java
-            | * @Builder.Dag(id = "my_pipeline", schedule = "@daily")
+            | * @Airflow.Dag(id = "my_pipeline", schedule = "@daily")
             | * public class MyPipeline {
             | *
-            | *     @Builder.Task(id = "extract", retries = 2)
+            | *     @Airflow.Task(id = "extract", retries = 2)
             | *     public long extract(Client client) { ... }
             | *
-            | *     @Builder.Task(id = "transform")
+            | *     @Airflow.Task(id = "transform")
             | *     public long transform(Client client, long extracted) { ... }
             | *
-            | *     @Builder.Deps
+            | *     @Airflow.Deps
             | *     static class Wiring implements MyPipelineDeps {
             | *       void depends() { transform(extract()); }
             | *     }
@@ -546,7 +546,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * the arguments bound at that call site take their place. Keyword
             | * arguments bind by name instead through a single [TaskInput] parameter.
             | */
-            |class Builder internal constructor() {
+            |class Airflow internal constructor() {
             |  /**
             |   * Annotation to automate a Dag-builder pattern.
             |   *
@@ -590,10 +590,10 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * [TaskRef], so each side is named where the Dag is wired:
             |   *
             |   * ```java
-            |   * @Builder.If(id = "has_rows")
+            |   * @Airflow.If(id = "has_rows")
             |   * public boolean hasRows(long rows) { return rows > 0; }
             |   *
-            |   * @Builder.Deps
+            |   * @Airflow.Deps
             |   * static class Wiring implements EtlDeps {
             |   *   void depends() { hasRows(extract()).Then(load()).Else(reportEmpty()); }
             |   * }
@@ -623,12 +623,12 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * [SwitchRef], so the cases are listed where the Dag is wired:
             |   *
             |   * ```java
-            |   * @Builder.Switch(id = "pick_path")
+            |   * @Airflow.Switch(id = "pick_path")
             |   * public Class<? extends Task> pickPath(long rows) {
             |   *   return rows > 1000 ? EtlBuilder.HandleLong.class : EtlBuilder.HandleShort.class;
             |   * }
             |   *
-            |   * @Builder.Deps
+            |   * @Airflow.Deps
             |   * static class Wiring implements EtlDeps {
             |   *   void depends() { pickPath(extract()).Case(handleLong()).Case(handleShort()); }
             |   * }
@@ -658,7 +658,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * to rather than an id it owns:
             |   *
             |   * ```java
-            |   * @Builder.TaskHandler(dag = "etl", task = "score")
+            |   * @Airflow.TaskHandler(dag = "etl", task = "score")
             |   * public long score(Client client, long rows) { ... }
             |   * ```
             |   *
@@ -687,7 +687,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * wire an ordering-only one:
             |   *
             |   * ```java
-            |   * @Builder.Deps
+            |   * @Airflow.Deps
             |   * static class Wiring implements EtlPipelineDeps {
             |   *   void depends() {
             |   *     var rows = extract();
@@ -716,14 +716,14 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * task `Staging.stage`:
             |   *
             |   * ```java
-            |   * @Builder.TaskGroup
+            |   * @Airflow.TaskGroup
             |   * static class Staging {
-            |   *   @Builder.Task
+            |   *   @Airflow.Task
             |   *   public long stage(long rows) { ... }
             |   *
-            |   *   @Builder.TaskGroup(id = "checks")
+            |   *   @Airflow.TaskGroup(id = "checks")
             |   *   static class Checks {
-            |   *     @Builder.Task
+            |   *     @Airflow.Task
             |   *     public void nulls(long staged) { ... }
             |   *   }
             |   * }
@@ -770,7 +770,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |/**
             | * Configuration keys accepted by `DagDef.config` and `TaskDef.config`,
             | * keyed by Dag serialization schema property name. Public so that the
-            | * annotation processor can lower `@Builder.Dag` / `@Builder.Task`
+            | * annotation processor can lower `@Airflow.Dag` / `@Airflow.Task`
             | * attributes onto the same tables; not user-facing API.
             | */
             |object SchemaFields {
@@ -822,7 +822,7 @@ val syncDagSchema by tasks.registering(SyncDagSchemaTask::class) {
 
 tasks.register<GenerateDagDslTask>("generateDagDsl") {
     dependsOn(syncDagSchema)
-    description = "Generate the Builder.Dag/Builder.Task annotations and SchemaFields from the Dag serialization schema"
+    description = "Generate the Airflow.Dag/Airflow.Task annotations and SchemaFields from the Dag serialization schema"
     schemaFile = dagSchemaInput
     targetDirectory = dagDslDir
 }
