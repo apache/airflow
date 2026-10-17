@@ -225,6 +225,8 @@ class TestCloudLoggingRemoteLogIO:
         assert len(messages) == 1
         assert "Cloud Logging" in messages[0]
         assert logs == ["MSG1\nMSG2"]
+        log_filter = mock_client.return_value.list_log_entries.call_args.kwargs["request"].filter
+        assert 'labels.log_path="dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1.log"' in log_filter
 
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
@@ -377,6 +379,7 @@ class TestCloudLoggingRemoteLogIO:
                 "run_id": "test_run_id",
                 "try_number": "2",
                 "map_index": "-1",
+                "log_path": "some/path.py",
             }
 
     @mock.patch(
@@ -432,6 +435,42 @@ class TestCloudLoggingRemoteLogIO:
             )
 
         assert log_filter.splitlines()[2:] == expected_conditions
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    @pytest.mark.parametrize(
+        ("is_airflow_3_4_plus", "expected_condition"),
+        [
+            pytest.param(
+                False,
+                '((labels.task_id="test_task" AND labels.try_number="1") '
+                'OR labels.log_path="dag_id=d/attempt=1.log")',
+                id="before-3.4",
+            ),
+            pytest.param(
+                True,
+                '((labels.ti_id="abc" OR (labels.task_id="test_task" AND labels.try_number="1" '
+                'AND NOT labels.ti_id:*)) OR labels.log_path="dag_id=d/attempt=1.log")',
+                id="3.4-or-later",
+            ),
+        ],
+    )
+    def test_prepare_log_filter_matches_log_path(
+        self, mock_get_creds_and_project_id, is_airflow_3_4_plus, expected_condition
+    ):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        with mock.patch(
+            "airflow.providers.google.cloud.log.cloud_logging_task_handler.AIRFLOW_V_3_4_PLUS",
+            is_airflow_3_4_plus,
+        ):
+            log_filter = self.io.prepare_log_filter(
+                {"task_id": "test_task", "try_number": "1", "ti_id": "abc"},
+                log_path="dag_id=d/attempt=1.log",
+            )
+
+        assert log_filter.splitlines()[2:] == [expected_condition]
 
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"

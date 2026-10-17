@@ -85,6 +85,7 @@ LABEL_TRY_NUMBER = "try_number"
 LABEL_TI_ID = "ti_id"
 LABEL_RUN_ID = "run_id"
 LABEL_MAP_INDEX = "map_index"
+LABEL_LOG_PATH = "log_path"
 
 
 @attrs.define(kw_only=True)
@@ -179,7 +180,7 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             method_name: str,
             event: structlog.typing.EventDict,
         ):
-            if not logger or not relative_path_from_logger(logger):
+            if not logger or not (log_path := relative_path_from_logger(logger)):
                 return event
 
             name = event.get("logger_name") or event.get("logger", "")
@@ -225,6 +226,7 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
                 if (map_index := event.get("map_index")) is not None:
                     labels[LABEL_MAP_INDEX] = str(map_index)
 
+            labels[LABEL_LOG_PATH] = str(log_path)
             _transport.send(record, str(msg.get("event", "")), resource=self.resource, labels=labels)
             return event
 
@@ -253,11 +255,11 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         """Read logs from Cloud Logging using task instance labels."""
         ti_labels = _task_instance_to_labels(ti)
-        log_filter = self.prepare_log_filter(ti_labels)
+        log_filter = self.prepare_log_filter(ti_labels, log_path=relative_path)
         messages, end_of_log, _ = self.read_logs(log_filter, next_page_token=None, all_pages=True)
         return [f"Reading remote log from Cloud Logging for {relative_path}"], [messages] if messages else []
 
-    def prepare_log_filter(self, ti_labels: dict[str, str]) -> str:
+    def prepare_log_filter(self, ti_labels: dict[str, str], log_path: str | None = None) -> str:
         def escape_label_key(key: str) -> str:
             return f'"{key}"' if "." in key else key
 
@@ -288,9 +290,15 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
         if ti_id_condition and AIRFLOW_V_3_4_PLUS:
             # Entries written before the ``ti_id`` label existed are matched by the other labels.
             legacy_conditions = [*label_conditions.values(), f"NOT labels.{LABEL_TI_ID}:*"]
-            log_filters.append(f"({ti_id_condition} OR ({' AND '.join(legacy_conditions)}))")
+            task_filters = [f"({ti_id_condition} OR ({' AND '.join(legacy_conditions)}))"]
         else:
-            log_filters.extend(label_conditions.values())
+            task_filters = list(label_conditions.values())
+        if log_path:
+            # Lines without task context, such as a task's stdout, carry only the log path label.
+            # Cloud Logging binds OR tighter than AND, so the task filters must be grouped.
+            task_filter = task_filters[0] if len(task_filters) == 1 else f"({' AND '.join(task_filters)})"
+            task_filters = [f"({task_filter} OR labels.{LABEL_LOG_PATH}={escape_label_value(log_path)})"]
+        log_filters.extend(task_filters)
         return "\n".join(log_filters)
 
     def read_logs(
