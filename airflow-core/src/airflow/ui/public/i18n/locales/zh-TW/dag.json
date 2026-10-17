@@ -350,10 +350,6 @@
     "summary_one": "1 項變更",
     "summary_other": "{{count, number}} 項變更",
     "target": "比較對象",
-    "truncated": {
-      "description": "為維持在上限內，未顯示的路徑上的變更已被捨棄，因此此數量僅為下限。",
-      "title": "部分變更未回傳"
-    },
     "unavailable": {
       "description": "無法比較這些版本。原因：",
       "title": "無法比較",

@@ -314,10 +314,6 @@
     "summary_one": "{{count, number}} changement",
     "summary_other": "{{count, number}} changements",
     "target": "Comparer avec",
-    "truncated": {
-      "description": "Les changements aux chemins non affichés ont été supprimés pour rester dans la limite, donc le nombre est une borne inférieure.",
-      "title": "Certains changements n'ont pas été renvoyés"
-    },
     "unavailable": {
       "description": "Ces versions n'ont pas pu être comparées. Raison :",
       "title": "Comparaison indisponible",
