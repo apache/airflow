@@ -857,6 +857,64 @@ class TestBaseOperator:
         """``template_fields_extra`` defaults to an empty frozenset."""
         assert BaseOperator.template_fields_extra == frozenset()
 
+    @pytest.mark.parametrize(
+        ("fields", "extras", "expected"),
+        [
+            pytest.param(
+                ("arg1", "arg2"),
+                frozenset({"arg2", "arg3"}),
+                ["arg1", "arg2", "arg3"],
+                id="extras-partly-overlap-template_fields",
+            ),
+            pytest.param(
+                ("arg1", "arg2"),
+                frozenset({"arg1", "arg2", "arg3"}),
+                ["arg1", "arg2", "arg3"],
+                id="extras-fully-overlap-template_fields",
+            ),
+            pytest.param(
+                ("arg3", "arg1", "arg2"),
+                frozenset({"arg2", "arg1"}),
+                ["arg3", "arg1", "arg2"],
+                id="extras-and-template_fields-reverse-order",
+            ),
+            pytest.param(
+                ("arg1", "arg2"),
+                frozenset(),
+                ["arg1", "arg2"],
+                id="extras-empty",
+            ),
+        ],
+    )
+    def test_template_fields_extra_preserves_order_and_deduplicates(self, fields, extras, expected):
+        """Extras merged into ``template_fields`` keep first-seen order and drop duplicates."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = fields
+            template_fields_extra = extras
+
+        task = ExtraTemplateOperator(task_id="op1")
+
+        assert list(task.template_fields) == expected
+
+    def test_template_fields_extra_preserves_order_and_deduplicates_through_mapped_operator(self):
+        """The mapped-operator path applies the same merge, so the mapped task sees the same list."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1", "arg2")
+            template_fields_extra = frozenset({"arg2", "arg3"})
+
+            def __init__(self, arg1: str = "", arg2: str = "", arg3: str = "", **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+                self.arg2 = arg2
+                self.arg3 = arg3
+
+        with DAG(dag_id="mapped_extra_order", schedule=None):
+            mapped = ExtraTemplateOperator.partial(task_id="m").expand(arg1=["a", "b"])
+
+        assert list(mapped.template_fields) == ["arg1", "arg2", "arg3"]
+
     def test_template_fields_extra_propagates_through_mapped_operator(self):
         """``partial().expand()`` carries ``template_fields_extra`` and merges into ``template_fields``."""
 
