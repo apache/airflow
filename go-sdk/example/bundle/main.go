@@ -119,6 +119,9 @@ func extract(actx airflow.Context) (any, error) {
 				"logical_date", dagRun.LogicalDate,
 				"data_interval_start", dagRun.DataIntervalStart,
 				"data_interval_end", dagRun.DataIntervalEnd,
+				"run_after", dagRun.RunAfter,
+				"run_type", dagRun.RunType,
+				"conf", dagRun.Conf,
 			),
 		),
 	)
