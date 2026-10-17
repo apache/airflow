@@ -23,7 +23,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, insert, or_, select
+from sqlalchemy import exc, func, insert, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -46,7 +46,7 @@ from airflow.models.asset import (
 )
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
-from airflow.utils.helpers import is_container, prune_dict
+from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
@@ -65,6 +65,10 @@ if TYPE_CHECKING:
     from airflow.timetables.simple import PartitionedAssetTimetable
 
 log = structlog.get_logger(__name__)
+
+# Keys per ``IN (...)`` when looking up APDRs, kept under SQLite's historical limit of 999
+# bound parameters per statement.
+_APDR_LOOKUP_CHUNK_SIZE = 500
 
 
 @contextmanager
@@ -580,6 +584,7 @@ class AssetManager(LoggingMixin):
             return
 
         global_cap = conf.getint("scheduler", "partition_mapper_max_downstream_keys")
+        asset_model: AssetModel | None = None
         for target_dag in partition_dags:
             if TYPE_CHECKING:
                 assert partition_key is not None
@@ -594,8 +599,11 @@ class AssetManager(LoggingMixin):
 
             fingerprint = compute_rollup_fingerprint(timetable)
 
-            if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
-                raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
+            # The asset is the same for every target Dag; load it once, on first use.
+            if asset_model is None:
+                asset_model = session.scalar(select(AssetModel).where(AssetModel.id == asset_id))
+                if asset_model is None:
+                    raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
 
             mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
             try:
@@ -687,16 +695,16 @@ class AssetManager(LoggingMixin):
                 )
                 target_partition_date = None
 
-            for target_key in target_keys:
-                apdr = cls._get_or_create_apdr(
-                    target_key=target_key,
-                    target_partition_date=target_partition_date,
-                    target_dag=target_dag,
-                    rollup_fingerprint=fingerprint,
-                    asset_id=asset_id,
-                    allow_reuse=timetable.batch_asset_events,
-                    session=session,
-                )
+            apdrs = cls._get_or_create_apdrs(
+                target_keys=target_keys,
+                target_partition_date=target_partition_date,
+                target_dag=target_dag,
+                rollup_fingerprint=fingerprint,
+                asset_id=asset_id,
+                allow_reuse=timetable.batch_asset_events,
+                session=session,
+            )
+            for target_key, apdr in zip(target_keys, apdrs, strict=True):
                 log_record = PartitionedAssetKeyLog(
                     asset_id=asset_id,
                     asset_event_id=event.id,
@@ -752,66 +760,122 @@ class AssetManager(LoggingMixin):
         is ``False``), a new APDR is always created so each event gets its own APDR
         and the scheduler produces one DagRun per event.
         """
+        [apdr] = cls._get_or_create_apdrs(
+            target_keys=[target_key],
+            target_partition_date=target_partition_date,
+            target_dag=target_dag,
+            rollup_fingerprint=rollup_fingerprint,
+            asset_id=asset_id,
+            allow_reuse=allow_reuse,
+            session=session,
+        )
+        return apdr
+
+    @classmethod
+    def _get_or_create_apdrs(
+        cls,
+        *,
+        target_keys: list[str],
+        target_partition_date: datetime | None,
+        target_dag: DagModel,
+        rollup_fingerprint: dict,
+        asset_id: int,
+        allow_reuse: bool,
+        session: Session,
+    ) -> list[AssetPartitionDagRun]:
+        """
+        Get or create the APDR of every key in ``target_keys``, in the same order.
+
+        Behaves as :meth:`_get_or_create_apdr` once per key, but a fan-out mapper can produce
+        up to ``partition_mapper_max_downstream_keys`` keys from one event, so the AssetModel
+        lock is taken once (it is held until the transaction ends either way), the latest APDR
+        of every key is read in one query per chunk, and new APDRs are flushed together.
+        When reuse is allowed, a repeated key resolves to the same APDR, as it would one at a time.
+        """
         with _lock_asset_model(session=session, asset_id=asset_id):
-            latest_apdr: AssetPartitionDagRun | None = None
-            if allow_reuse:
-                latest_apdr = session.scalar(
-                    select(AssetPartitionDagRun)
-                    .where(
-                        AssetPartitionDagRun.partition_key == target_key,
-                        AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
-                    )
-                    .order_by(AssetPartitionDagRun.id.desc())
-                    .limit(1)
+            latest_by_key = (
+                cls._latest_apdrs_by_key(
+                    target_keys=target_keys, target_dag_id=target_dag.dag_id, session=session
                 )
-            if latest_apdr and latest_apdr.created_dag_run_id is None:
-                existing_partition_date = latest_apdr.partition_date
-                if existing_partition_date is None:
-                    # No carried date yet; adopt the incoming one if present (no conflict
-                    # to resolve). Keeps a later identity event's date from being dropped.
-                    if target_partition_date is not None:
-                        latest_apdr.partition_date = target_partition_date
-                        session.flush()
-                elif target_partition_date is not None and existing_partition_date != target_partition_date:
-                    # Two contributing events carry conflicting partition_dates for the same
-                    # (target_key, target_dag). Choosing one would be order-dependent, so
-                    # suppress: the consumer DagRun gets partition_date=None rather than a
-                    # wrong, unstable value.
-                    log.warning(
-                        "Conflicting partition_date carried for the same target key; "
-                        "suppressing it so the consumer DagRun's partition_date is None. "
-                        "The producing assets likely disagree on the partition's datetime.",
-                        target_dag_id=target_dag.dag_id,
-                        target_key=target_key,
-                        existing_partition_date=existing_partition_date,
-                        incoming_partition_date=target_partition_date,
+                if allow_reuse
+                else {}
+            )
+            apdrs: list[AssetPartitionDagRun] = []
+            for target_key in target_keys:
+                latest_apdr = latest_by_key.get(target_key) if allow_reuse else None
+                if latest_apdr and latest_apdr.created_dag_run_id is None:
+                    existing_partition_date = latest_apdr.partition_date
+                    if existing_partition_date is None:
+                        # No carried date yet; adopt the incoming one if present (no conflict
+                        # to resolve). Keeps a later identity event's date from being dropped.
+                        if target_partition_date is not None:
+                            latest_apdr.partition_date = target_partition_date
+                    elif (
+                        target_partition_date is not None and existing_partition_date != target_partition_date
+                    ):
+                        # Two contributing events carry conflicting partition_dates for the same
+                        # (target_key, target_dag). Choosing one would be order-dependent, so
+                        # suppress: the consumer DagRun gets partition_date=None rather than a
+                        # wrong, unstable value.
+                        log.warning(
+                            "Conflicting partition_date carried for the same target key; "
+                            "suppressing it so the consumer DagRun's partition_date is None. "
+                            "The producing assets likely disagree on the partition's datetime.",
+                            target_dag_id=target_dag.dag_id,
+                            target_key=target_key,
+                            existing_partition_date=existing_partition_date,
+                            incoming_partition_date=target_partition_date,
+                        )
+                        latest_apdr.partition_date = None
+                    cls.logger().debug(
+                        "Existing APDR found for key %s dag_id %s",
+                        target_key,
+                        target_dag.dag_id,
+                        exc_info=True,
                     )
-                    latest_apdr.partition_date = None
-                    session.flush()
+                    apdrs.append(latest_apdr)
+                    continue
+
+                apdr = AssetPartitionDagRun(
+                    target_dag_id=target_dag.dag_id,
+                    created_dag_run_id=None,
+                    partition_key=target_key,
+                    partition_date=target_partition_date,
+                    rollup_fingerprint=rollup_fingerprint,
+                )
+                session.add(apdr)
+                latest_by_key[target_key] = apdr
                 cls.logger().debug(
-                    "Existing APDR found for key %s dag_id %s",
+                    "No existing APDR found. Create APDR for key %s dag_id %s",
                     target_key,
                     target_dag.dag_id,
                     exc_info=True,
                 )
-                return latest_apdr
-
-            apdr = AssetPartitionDagRun(
-                target_dag_id=target_dag.dag_id,
-                created_dag_run_id=None,
-                partition_key=target_key,
-                partition_date=target_partition_date,
-                rollup_fingerprint=rollup_fingerprint,
-            )
-            session.add(apdr)
+                apdrs.append(apdr)
+            # Writes the date updates and the new APDRs, and assigns the ids callers log against.
             session.flush()
-            cls.logger().debug(
-                "No existing APDR found. Create APDR for key %s dag_id %s",
-                target_key,
-                target_dag.dag_id,
-                exc_info=True,
+            return apdrs
+
+    @staticmethod
+    def _latest_apdrs_by_key(
+        *, target_keys: list[str], target_dag_id: str, session: Session
+    ) -> dict[str, AssetPartitionDagRun]:
+        """Return the newest APDR of each of ``target_keys`` for ``target_dag_id`` that has one."""
+        latest: dict[str, AssetPartitionDagRun] = {}
+        for keys in chunks(sorted(set(target_keys)), _APDR_LOOKUP_CHUNK_SIZE):
+            newest_ids = (
+                select(func.max(AssetPartitionDagRun.id))
+                .where(
+                    AssetPartitionDagRun.target_dag_id == target_dag_id,
+                    AssetPartitionDagRun.partition_key.in_(keys),
+                )
+                .group_by(AssetPartitionDagRun.partition_key)
             )
-            return apdr
+            for apdr in session.scalars(
+                select(AssetPartitionDagRun).where(AssetPartitionDagRun.id.in_(newest_ids))
+            ):
+                latest[apdr.partition_key] = apdr
+        return latest
 
     @classmethod
     def _queue_dagruns_nonpartitioned(

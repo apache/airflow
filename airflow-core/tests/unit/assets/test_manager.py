@@ -55,7 +55,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
-from tests_common.test_utils.asserts import capture_orm_selects
+from tests_common.test_utils.asserts import capture_orm_selects, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_apdr,
@@ -580,6 +580,66 @@ class TestAssetManager:
         recovered = AssetManager._get_or_create_apdr(target_partition_date=date_2, **kwargs)
         assert recovered.id == first.id
         assert recovered.partition_date == date_2
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize("allow_reuse", [True, False])
+    def test_get_or_create_apdrs_reuses_pending_and_dedupes_in_order(self, session, allow_reuse):
+        """The batch returns one APDR per key, in order, reusing pending APDRs and repeated keys."""
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_batch", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        kwargs = dict(
+            target_partition_date=None,
+            target_dag=testing_dag,
+            rollup_fingerprint={"asset-1|test://asset1/": {"__type": "FanOutMapper", "__var": {}}},
+            asset_id=asm.id,
+            allow_reuse=True,
+            session=session,
+        )
+        pending = AssetManager._get_or_create_apdr(target_key="a", **kwargs)
+
+        kwargs["allow_reuse"] = allow_reuse
+        apdrs = AssetManager._get_or_create_apdrs(target_keys=["b", "a", "c", "b"], **kwargs)
+
+        assert [apdr.partition_key for apdr in apdrs] == ["b", "a", "c", "b"]
+        assert (apdrs[1].id == pending.id) is allow_reuse
+        assert (apdrs[3].id == apdrs[0].id) is allow_reuse
+        assert all(apdr.id is not None for apdr in apdrs)
+        assert session.scalar(
+            select(func.count())
+            .select_from(AssetPartitionDagRun)
+            .where(AssetPartitionDagRun.target_dag_id == "testing_dag_batch")
+        ) == (3 if allow_reuse else 5)
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdrs_query_count_does_not_grow_with_keys(self, session):
+        """A fan-out's keys cost a fixed number of statements, not a lock and a lookup per key."""
+        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag_batch_queries", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
+        kwargs = dict(
+            target_partition_date=None,
+            target_dag=testing_dag,
+            rollup_fingerprint={"asset-1|test://asset1/": {"__type": "FanOutMapper", "__var": {}}},
+            asset_id=asm.id,
+            allow_reuse=True,
+            session=session,
+        )
+
+        few_keys = [f"few-{i}" for i in range(2)]
+        many_keys = [f"many-{i}" for i in range(200)]
+        # Create the APDRs first, so the measured calls below only lock and look them up.
+        AssetManager._get_or_create_apdrs(target_keys=few_keys, **kwargs)
+        AssetManager._get_or_create_apdrs(target_keys=many_keys, **kwargs)
+
+        def queries_for(keys: list[str]) -> int:
+            with count_queries(session=session) as result:
+                AssetManager._get_or_create_apdrs(target_keys=keys, **kwargs)
+            return sum(result.values())
+
+        assert queries_for(many_keys) == queries_for(few_keys)
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_carry_partition_date_failure_degrades_to_none(self, session, dag_maker, mock_task_instance):
