@@ -452,7 +452,10 @@ class TestDagFileProcessorManager:
         ]
 
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
-    def test_reconcile_repairs_stale_writer_only_when_unfiltered(self, tmp_path, bundle_names_to_parse):
+    @pytest.mark.parametrize("remove_all", [False, True])
+    def test_reconcile_repairs_stale_writer_only_when_unfiltered(
+        self, tmp_path, bundle_names_to_parse, remove_all
+    ):
         configs = [
             {
                 "name": f"bundle-{name}",
@@ -473,7 +476,7 @@ class TestDagFileProcessorManager:
             processor = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=bundle_names_to_parse)
             processor.sync_bundles()
             processor._dag_bundles = processor.get_all_bundles()
-            config_file.write_text(json.dumps(configs[1:]))
+            config_file.write_text(json.dumps([] if remove_all else configs[1:]))
             processor._reconcile_bundles(known_files={})
             with create_session() as session:
                 bundle_a = session.get(DagBundleModel, "bundle-a")
@@ -493,7 +496,9 @@ class TestDagFileProcessorManager:
             with create_session() as session:
                 assert session.get(DagBundleModel, "bundle-a").active is bool(bundle_names_to_parse)
                 assert session.get(DagModel, "removed_bundle_dag").is_stale is (not bundle_names_to_parse)
-            assert [bundle.name for bundle in processor._dag_bundles] == ["bundle-b"]
+                if remove_all:
+                    assert session.get(DagBundleModel, "bundle-b").active is bool(bundle_names_to_parse)
+            assert [bundle.name for bundle in processor._dag_bundles] == ([] if remove_all else ["bundle-b"])
 
     def mock_processor(self, start_time: float | None = None) -> tuple[DagFileProcessorProcess, socket]:
         proc = MagicMock()
