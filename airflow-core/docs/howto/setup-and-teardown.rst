@@ -153,8 +153,12 @@ task before it failed, and succeeds only when both succeed:
 
 .. code-block:: python
 
-  create_cluster >> run_query >> delete_cluster.as_teardown(
-      setups=create_cluster, on_failure_fail_dagrun=True, on_success_succeed_dagrun=False
+  (
+      create_cluster
+      >> run_query
+      >> delete_cluster.as_teardown(
+          setups=create_cluster, on_failure_fail_dagrun=True, on_success_succeed_dagrun=False
+      )
   )
 
 Authoring with task groups
