@@ -643,6 +643,352 @@ class TestDagRunOperator:
             # Verify _get_openlineage_parent_info was called with ti
             mock_get_parent_info.assert_called_once_with(ti=mock_ti)
 
+    def test_auto_clear_failed_tasks_defaults_to_false(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+        )
+
+        assert task.auto_clear_failed_tasks is False  # @AC-FR001-01
+
+    def test_auto_clear_failed_tasks_accepts_true(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=True,
+        )
+
+        assert task.auto_clear_failed_tasks is True  # @AC-FR001-01
+
+    def test_auto_clear_failed_tasks_non_bool_raises_type_error(self):
+        with pytest.raises(TypeError, match="auto_clear_failed_tasks must be a bool"):
+            TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                auto_clear_failed_tasks="yes",
+            )  # @AC-FR001-03
+
+    def test_auto_clear_failed_tasks_with_deferrable_raises_value_error(self):
+        with pytest.raises(ValueError, match="auto_clear_failed_tasks is not supported with deferrable"):
+            TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                auto_clear_failed_tasks=True,
+                deferrable=True,
+            )  # @AC-FR008-01
+
+    @pytest.mark.parametrize(
+        ("state", "expected"),
+        [
+            (DagRunState.FAILED, True),
+            (DagRunState.SUCCESS, False),
+            (DagRunState.RUNNING, False),
+            (DagRunState.QUEUED, False),
+        ],
+    )
+    def test_child_run_terminally_failed_only_true_for_failed_state(self, state, expected):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+        )
+        dag_run = mock.MagicMock()
+        dag_run.state = state
+
+        assert task._child_run_terminally_failed(dag_run) is expected  # @AC-FR009-02
+
+    def test_child_run_terminally_failed_honours_custom_failed_states(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            failed_states=[DagRunState.QUEUED],
+        )
+        dag_run = mock.MagicMock()
+        dag_run.state = DagRunState.QUEUED
+
+        assert task._child_run_terminally_failed(dag_run) is True
+
+    def test_reset_dag_run_wins_precedence_when_both_flags_set(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            reset_dag_run=True,
+            auto_clear_failed_tasks=True,
+        )
+        dag_run = mock.MagicMock()
+        dag_run.state = DagRunState.FAILED
+
+        assert task._resolve_already_exists_action(dag_run) == "reset"  # @AC-FR007-01
+
+    def test_auto_clear_resolved_when_only_auto_clear_and_failed(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=True,
+        )
+        dag_run = mock.MagicMock()
+        dag_run.state = DagRunState.FAILED
+
+        assert task._resolve_already_exists_action(dag_run) == "auto_clear"  # @AC-FR002-01
+
+    def test_legacy_action_when_auto_clear_but_run_not_terminally_failed(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=True,
+        )
+        dag_run = mock.MagicMock()
+        dag_run.state = DagRunState.RUNNING
+
+        assert task._resolve_already_exists_action(dag_run) == "legacy"  # @AC-FR009-01
+
+    def test_legacy_action_when_no_flags_set(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+        )
+        dag_run = mock.MagicMock()
+        dag_run.state = DagRunState.FAILED
+
+        assert task._resolve_already_exists_action(dag_run) == "legacy"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    @pytest.mark.parametrize(
+        ("reset_dag_run", "auto_clear_failed_tasks", "expected"),
+        [
+            (False, False, False),
+            (True, False, False),
+            (False, True, True),
+            (True, True, False),
+        ],
+    )
+    def test_af3_emits_only_failed_and_downstream_for_each_precedence_combination(
+        self, reset_dag_run, auto_clear_failed_tasks, expected
+    ):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            reset_dag_run=reset_dag_run,
+            auto_clear_failed_tasks=auto_clear_failed_tasks,
+            openlineage_inject_parent_info=False,
+        )
+
+        with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2999-01-01"):
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+        assert exc_info.value.only_failed_and_downstream is expected
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    def test_af3_reset_dag_run_wins_over_auto_clear_when_both_set(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            reset_dag_run=True,
+            auto_clear_failed_tasks=True,
+            openlineage_inject_parent_info=False,
+        )
+
+        with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2999-01-01"):
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+        assert exc_info.value.reset_dag_run is True
+        assert exc_info.value.only_failed_and_downstream is False
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    def test_af3_failed_only_emission_raises_when_core_below_capability_marker(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=True,
+            openlineage_inject_parent_info=False,
+        )
+
+        with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2026-11-12"):
+            with pytest.raises(NotImplementedError, match="auto_clear_failed_tasks"):
+                task.execute(context={})
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    def test_af3_whole_run_emission_not_gated_on_capability_marker(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            reset_dag_run=True,
+            openlineage_inject_parent_info=False,
+        )
+
+        with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2000-01-01"):
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+        assert exc_info.value.reset_dag_run is True
+        assert exc_info.value.only_failed_and_downstream is False
+
+    @pytest.mark.parametrize(
+        ("auto_clear_failed_tasks", "wait_for_completion"),
+        [
+            pytest.param(True, False, id="defer-guard-only"),
+            pytest.param(True, True, id="defer-guard-with-wait"),
+        ],
+    )
+    def test_auto_clear_with_deferrable_fails_fast_at_init(
+        self, auto_clear_failed_tasks, wait_for_completion
+    ):
+        with pytest.raises(ValueError, match="auto_clear_failed_tasks is not supported with deferrable"):
+            TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                auto_clear_failed_tasks=auto_clear_failed_tasks,
+                wait_for_completion=wait_for_completion,
+                deferrable=True,
+            )  # @AC-FR008-01
+
+    def test_auto_clear_with_deferrable_never_defers(self):
+        # The guarded config must fail fast at construction and never reach a deferral, so no
+        # DagStateTrigger deferral / deferred DagRun / triggerer slot can result.
+        with mock.patch.object(TriggerDagRunOperator, "defer", autospec=True) as mock_defer:
+            with pytest.raises(ValueError, match="auto_clear_failed_tasks is not supported with deferrable"):
+                TriggerDagRunOperator(
+                    task_id="test_task",
+                    trigger_dag_id=TRIGGERED_DAG_ID,
+                    auto_clear_failed_tasks=True,
+                    wait_for_completion=True,
+                    deferrable=True,
+                )
+
+        mock_defer.assert_not_called()  # @AC-FR008-02
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    def test_auto_clear_sync_mode_proceeds_normally(self):
+        # Control case: with deferrable=False the guard does not fire and the sync path runs.
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=True,
+            deferrable=False,
+            openlineage_inject_parent_info=False,
+        )
+
+        assert task.auto_clear_failed_tasks is True
+        assert task.deferrable is False
+
+        with mock.patch.object(TriggerDagRunOperator, "defer", autospec=True) as mock_defer:
+            with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2999-01-01"):
+                with pytest.raises(DagRunTriggerException) as exc_info:
+                    task.execute(context={})
+
+        mock_defer.assert_not_called()
+        assert exc_info.value.only_failed_and_downstream is True  # @AC-FR008-02
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    def test_off_path_emits_whole_run_signal_identically(self):
+        # With auto_clear off, the emitted signal must be byte-for-byte the legacy whole-run request.
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=False,
+            openlineage_inject_parent_info=False,
+        )
+
+        with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2999-01-01"):
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+        assert exc_info.value.only_failed_and_downstream is False  # @AC-FR002-04
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    def test_off_path_does_not_gate_on_capability_marker(self):
+        # Off-path must never consult the capability marker, so an old core still triggers normally.
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=False,
+            openlineage_inject_parent_info=False,
+        )
+
+        with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2000-01-01"):
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={})
+
+        assert exc_info.value.only_failed_and_downstream is False
+
+    def test_resolver_yields_exactly_one_clear_across_precedence_matrix(self):
+        # Whole grid of (reset_dag_run, auto_clear_failed_tasks): at most one clear, reset wins.
+        expected = {
+            (False, False): "legacy",
+            (True, False): "reset",
+            (False, True): "auto_clear",
+            (True, True): "reset",
+        }
+        dag_run = mock.MagicMock()
+        dag_run.state = DagRunState.FAILED
+        for (reset_dag_run, auto_clear_failed_tasks), action in expected.items():
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                reset_dag_run=reset_dag_run,
+                auto_clear_failed_tasks=auto_clear_failed_tasks,
+            )
+            assert task._resolve_already_exists_action(dag_run) == action  # @AC-FR007-01
+
+    @pytest.mark.parametrize(
+        ("state", "expected_action"),
+        [
+            (DagRunState.RUNNING, "legacy"),
+            (DagRunState.QUEUED, "legacy"),
+            (DagRunState.SUCCESS, "legacy"),
+            (DagRunState.FAILED, "auto_clear"),
+        ],
+    )
+    def test_auto_clear_only_acts_on_terminal_failed_run(self, state, expected_action):
+        # Non-terminal / non-failed child never resolves to a clear; only a failed run does.
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=True,
+        )
+        dag_run = mock.MagicMock()
+        dag_run.state = state
+
+        assert task._resolve_already_exists_action(dag_run) == expected_action  # @AC-FR009-01
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    def test_auto_clear_emits_audit_log_with_dag_and_run_id(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            trigger_run_id="custom_run_id",
+            auto_clear_failed_tasks=True,
+            openlineage_inject_parent_info=False,
+        )
+
+        with mock.patch.object(task.log, "info") as mock_info:
+            with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2999-01-01"):
+                with pytest.raises(DagRunTriggerException):
+                    task.execute(context={})
+
+        audit_calls = [c for c in mock_info.mock_calls if "failed-only clear" in str(c.args[0])]
+        assert len(audit_calls) == 1
+        logged = audit_calls[0].args
+        assert TRIGGERED_DAG_ID in logged
+        assert "custom_run_id" in logged  # @AC-FR006-01
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="AF3 signal emission path")
+    def test_off_path_emits_no_auto_clear_audit_log(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            auto_clear_failed_tasks=False,
+            openlineage_inject_parent_info=False,
+        )
+
+        with mock.patch.object(task.log, "info") as mock_info:
+            with mock.patch(f"{TRIGGER_OP_PATH}.API_VERSION", "2999-01-01"):
+                with pytest.raises(DagRunTriggerException):
+                    task.execute(context={})
+
+        assert not [c for c in mock_info.mock_calls if "failed-only clear" in str(c.args[0])]  # @AC-FR006-02
+
 
 # TODO: To be removed once the provider drops support for Airflow 2
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
@@ -939,6 +1285,108 @@ class TestDagRunOperatorAF2:
             dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
             assert len(dag_runs) == expected_dagruns_count
             assert dag_runs[0].external_trigger
+
+    def test_auto_clear_failed_tasks_clears_only_failed_for_terminal_run(self, dag_maker):
+        logical_date = DEFAULT_DATE
+        run_id = "dummy_run_id"
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=run_id,
+                logical_date=logical_date,
+                auto_clear_failed_tasks=True,
+            )
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self.f_name)
+        dag_maker.create_dagrun()
+        dag_run = DagRun(
+            dag_id=TRIGGERED_DAG_ID,
+            execution_date=logical_date,
+            state=DagRunState.FAILED,
+            run_type="manual",
+            run_id=run_id,
+        )
+        dag_maker.session.add(dag_run)
+        dag_maker.session.commit()
+
+        with mock.patch("airflow.models.serialized_dag.SerializedDagModel.get_dag") as mock_get_dag:
+            task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+
+        mock_get_dag.return_value.clear.assert_called_once_with(
+            run_id=run_id, only_failed=True
+        )  # @AC-FR002-01
+
+        dag_runs = dag_maker.session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
+        assert len(dag_runs) == 1
+
+    def test_auto_clear_failed_tasks_noop_when_run_not_failed(self, dag_maker):
+        logical_date = DEFAULT_DATE
+        run_id = "dummy_run_id"
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=run_id,
+                logical_date=logical_date,
+                auto_clear_failed_tasks=True,
+                skip_when_already_exists=True,
+            )
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self.f_name)
+        dag_maker.create_dagrun()
+        dag_run = DagRun(
+            dag_id=TRIGGERED_DAG_ID,
+            execution_date=logical_date,
+            state=DagRunState.SUCCESS,
+            run_type="manual",
+            run_id=run_id,
+        )
+        dag_maker.session.add(dag_run)
+        dag_maker.session.commit()
+
+        with mock.patch("airflow.models.serialized_dag.SerializedDagModel.get_dag") as mock_get_dag:
+            task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+
+        mock_get_dag.return_value.clear.assert_not_called()  # @AC-FR009-01
+
+    def test_reset_dag_run_wins_over_auto_clear(self, dag_maker):
+        logical_date = DEFAULT_DATE
+        run_id = "dummy_run_id"
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=run_id,
+                logical_date=logical_date,
+                reset_dag_run=True,
+                auto_clear_failed_tasks=True,
+            )
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self.f_name)
+        dag_maker.create_dagrun()
+        dag_run = DagRun(
+            dag_id=TRIGGERED_DAG_ID,
+            execution_date=logical_date,
+            state=DagRunState.FAILED,
+            run_type="manual",
+            run_id=run_id,
+        )
+        dag_maker.session.add(dag_run)
+        dag_maker.session.commit()
+
+        with mock.patch("airflow.models.serialized_dag.SerializedDagModel.get_dag") as mock_get_dag:
+            task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+
+        mock_get_dag.return_value.clear.assert_called_once_with(
+            start_date=dag_run.logical_date, end_date=dag_run.logical_date
+        )  # @AC-FR007-02
 
     def test_trigger_dagrun_with_wait_for_completion_true(self, dag_maker):
         """Test TriggerDagRunOperator with wait_for_completion."""
@@ -1396,3 +1844,118 @@ class TestDagRunOperatorAF2:
             assert dagrun.conf == injected_conf
             # Verify _get_openlineage_parent_info was called
             mock_get_parent_info.assert_called_once()
+
+    def _seed_existing_run(self, dag_maker, run_id, logical_date, state):
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self.f_name)
+        dag_maker.create_dagrun()
+        dag_run = DagRun(
+            dag_id=TRIGGERED_DAG_ID,
+            execution_date=logical_date,
+            state=state,
+            run_type="manual",
+            run_id=run_id,
+        )
+        dag_maker.session.add(dag_run)
+        dag_maker.session.commit()
+        return dag_run
+
+    def test_off_path_never_clears_and_matches_legacy_raise(self, dag_maker):
+        # auto_clear_failed_tasks=False must behave exactly like today: no clear, DagRunAlreadyExists.
+        logical_date = DEFAULT_DATE
+        run_id = "dummy_run_id"
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=run_id,
+                logical_date=logical_date,
+                auto_clear_failed_tasks=False,
+            )
+        self._seed_existing_run(dag_maker, run_id, logical_date, DagRunState.FAILED)
+
+        with mock.patch("airflow.models.serialized_dag.SerializedDagModel.get_dag") as mock_get_dag:
+            with pytest.raises(DagRunAlreadyExists):
+                task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+
+        mock_get_dag.return_value.clear.assert_not_called()  # @AC-FR002-04
+
+    def test_combined_mixed_run_clears_only_failed_and_downstream(self, dag_maker):
+        # Succeeded upstream is preserved (whole-run clear NOT used); only failed+downstream cleared.
+        logical_date = DEFAULT_DATE
+        run_id = "dummy_run_id"
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=run_id,
+                logical_date=logical_date,
+                auto_clear_failed_tasks=True,
+            )
+        self._seed_existing_run(dag_maker, run_id, logical_date, DagRunState.FAILED)
+
+        with mock.patch("airflow.models.serialized_dag.SerializedDagModel.get_dag") as mock_get_dag:
+            task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+
+        mock_clear = mock_get_dag.return_value.clear
+        mock_clear.assert_called_once_with(run_id=run_id, only_failed=True)  # @AC-FR003-02
+        # A whole-run clear (start_date/end_date) would wipe succeeded upstream — it must not be used.
+        _, kwargs = mock_clear.call_args
+        assert "start_date" not in kwargs and "end_date" not in kwargs
+
+        dag_runs = dag_maker.session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
+        assert len(dag_runs) == 1  # @AC-FR004-01
+
+    def test_repeated_failure_is_bounded_and_never_falsely_succeeds(self, dag_maker):
+        # Re-running against a still-failed run clears once per execute; it never loops or flips to success.
+        logical_date = DEFAULT_DATE
+        run_id = "dummy_run_id"
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=run_id,
+                logical_date=logical_date,
+                auto_clear_failed_tasks=True,
+            )
+        self._seed_existing_run(dag_maker, run_id, logical_date, DagRunState.FAILED)
+
+        with mock.patch("airflow.models.serialized_dag.SerializedDagModel.get_dag") as mock_get_dag:
+            task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+            task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+
+        # Each execute performs at most one clear; no re-clear loop within a single execute.
+        assert mock_get_dag.return_value.clear.call_count == 2  # @AC-FR005-01
+
+        dag_runs = dag_maker.session.scalars(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID)).all()
+        assert len(dag_runs) == 1  # @AC-FR005-02
+
+    def test_auto_clear_writes_audit_log_row(self, dag_maker):
+        logical_date = DEFAULT_DATE
+        run_id = "dummy_run_id"
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=run_id,
+                logical_date=logical_date,
+                auto_clear_failed_tasks=True,
+            )
+        self._seed_existing_run(dag_maker, run_id, logical_date, DagRunState.FAILED)
+
+        with mock.patch("airflow.models.serialized_dag.SerializedDagModel.get_dag"):
+            with mock.patch.object(task.log, "info") as mock_info:
+                task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
+
+        audit_calls = [c for c in mock_info.mock_calls if "Auto-clearing failed tasks" in str(c.args[0])]
+        assert len(audit_calls) == 1
+        logged = audit_calls[0].args
+        assert TRIGGERED_DAG_ID in logged and run_id in logged  # @AC-FR006-01
