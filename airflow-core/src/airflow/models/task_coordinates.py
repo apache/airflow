@@ -69,14 +69,30 @@ class _ProducerRequest:
 
 
 class TaskCoordinate(Protocol):
-    """Stored task identity shared by live and retained task data."""
+    """
+    Stored task identity shared by live and retained task data.
 
-    dag_id: str
-    run_id: str
-    task_id: str
-    region_id: UUID
-    region_index: int
-    dag_version_id: UUID | None
+    Read-only on purpose: resolvers only ever read coordinates, and declaring them as
+    properties lets immutable views (such as a frozen dataclass) satisfy the protocol.
+    """
+
+    @property
+    def dag_id(self) -> str: ...
+
+    @property
+    def run_id(self) -> str: ...
+
+    @property
+    def task_id(self) -> str: ...
+
+    @property
+    def region_id(self) -> UUID: ...
+
+    @property
+    def region_index(self) -> int: ...
+
+    @property
+    def dag_version_id(self) -> UUID | None: ...
 
 
 def enclosing_loop(task: SerializedOperator) -> SerializedLoopTaskGroup | None:
