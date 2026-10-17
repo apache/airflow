@@ -1365,6 +1365,84 @@ class TestKubernetesPodOperator:
 
         await_init_mock.assert_not_called()
 
+    def _pod_with_base_state(
+        self, phase: str, *, running: bool = False, terminated: bool = False
+    ) -> k8s.V1Pod:
+        state = k8s.V1ContainerState()
+        if running:
+            state.running = k8s.V1ContainerStateRunning()
+        if terminated:
+            state.terminated = k8s.V1ContainerStateTerminated(exit_code=0)
+        return k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="fresh-squeeze", namespace="default"),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base", image="img")]),
+            status=k8s.V1PodStatus(
+                phase=phase,
+                container_statuses=[
+                    k8s.V1ContainerStatus(
+                        name="base",
+                        image="img",
+                        image_id="img",
+                        ready=False,
+                        restart_count=0,
+                        state=state,
+                    )
+                ],
+            ),
+        )
+
+    @patch(f"{POD_MANAGER_MODULE}.asyncio.sleep", new_callable=mock.AsyncMock)
+    @patch(f"{POD_MANAGER_CLASS}.read_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None)
+    def test_execute_relaunches_when_pod_404s_before_start(self, find_pod_mock, read_pod_mock, sleep_mock):
+        self.await_pod_patch.stop()
+        self.watch_pod_events_mock.side_effect = mock.AsyncMock()
+        running = self._pod_with_base_state(PodPhase.RUNNING)
+        finished = self._pod_with_base_state(PodPhase.SUCCEEDED, terminated=True)
+        responses: list[k8s.V1Pod | ApiException] = [ApiException(status=404), running, finished]
+
+        def _read(pod):
+            if responses:
+                item = responses.pop(0)
+                if isinstance(item, ApiException):
+                    raise item
+                return item
+            return finished
+
+        read_pod_mock.side_effect = _read
+        k = KubernetesPodOperator(task_id="task", name="fresh-squeeze", get_logs=False, retries=0)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+        self.await_pod_mock.return_value = finished
+
+        k.execute(context=context)
+
+        assert self.create_mock.call_count == 2
+        find_pod_mock.assert_called()
+        sleep_mock.assert_not_called()
+
+    @patch(f"{POD_MANAGER_MODULE}.asyncio.sleep", new_callable=mock.AsyncMock)
+    @patch(f"{POD_MANAGER_CLASS}.read_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None)
+    def test_execute_does_not_relaunch_when_started_pod_404s(self, find_pod_mock, read_pod_mock, sleep_mock):
+        self.await_pod_patch.stop()
+        self.watch_pod_events_mock.side_effect = mock.AsyncMock()
+        read_pod_mock.side_effect = [
+            self._pod_with_base_state(PodPhase.PENDING, running=True),
+            ApiException(status=404),
+        ]
+        k = KubernetesPodOperator(task_id="task", name="fresh-squeeze", get_logs=False, retries=0)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(ApiException) as raised:
+            k.execute(context=context)
+
+        assert str(raised.value.status) == "404"
+        assert self.create_mock.call_count == 1
+        find_pod_mock.assert_called()
+        sleep_mock.assert_called()
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize("should_fail", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import datetime
 import inspect
 import json
@@ -118,6 +119,10 @@ KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 # Key used to persist/retrieve a submitted pod's identity in task_state_store across retries.
 # Renaming this on a deployed operator breaks in flight retries because the old key is already stored.
 POD_IDENTIFIER_STATE_KEY = "pod_identifier"
+
+# A deleted standalone pod is not recreated by the API server. Relaunch at most this
+# many times, and only while the pod has not been observed started (retries=0 included).
+_POD_PREEMPTION_MAX_ATTEMPTS = 3
 
 
 class PodEventType(Enum):
@@ -796,6 +801,7 @@ class KubernetesPodOperator(BaseOperator):
                         schedule_timeout=self.schedule_timeout_seconds,
                         startup_timeout=self.startup_timeout_seconds,
                         check_interval=self.startup_check_interval_seconds,
+                        base_container_name=self.base_container_name,
                     )
                 finally:
                     # Stop watching events
@@ -809,6 +815,48 @@ class KubernetesPodOperator(BaseOperator):
                 self._read_pod_container_states(pod, reraise=False)
                 self._read_pod_events(pod, reraise=False)
             raise
+
+    def _await_pod_start_or_relaunch(self, context: Context) -> None:
+        """Launch a replacement when the pod 404s before its base container has started."""
+        for attempt in range(_POD_PREEMPTION_MAX_ATTEMPTS):
+            try:
+                self.await_pod_start(pod=self.pod)
+                return
+            except ApiException as exc:
+                observed_started = getattr(self.pod_manager, "_startup_observed_started", False)
+                if (
+                    str(exc.status) != "404"
+                    or observed_started
+                    or attempt == _POD_PREEMPTION_MAX_ATTEMPTS - 1
+                ):
+                    raise
+            self.log.warning(
+                "Pod %s disappeared before it started. Launching a replacement (%s/%s).",
+                self.pod.metadata.name,
+                attempt + 2,
+                _POD_PREEMPTION_MAX_ATTEMPTS,
+            )
+            replacement = copy.deepcopy(self.pod_request_obj)
+            if self.name and self.random_name_suffix:
+                replacement.metadata.name = add_unique_suffix(name=self.name)
+            elif not self.name:
+                replacement.metadata.name = create_unique_id(
+                    task_id=self.task_id, unique=True, max_length=POD_NAME_MAX_LENGTH
+                )
+            self.pod_request_obj = replacement
+            self.pod = self.get_or_create_pod(pod_request_obj=replacement, context=context)
+            ti = context["ti"]
+            ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+            ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+            self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
+            for callback in self.callbacks:
+                callback.on_pod_creation(
+                    pod=self.remote_pod,
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                    context=context,
+                    operator=self,
+                )
 
     def extract_xcom(self, pod: k8s.V1Pod, *, ignore_kill_failure: bool = True) -> dict[Any, Any] | None:
         """
@@ -868,7 +916,7 @@ class KubernetesPodOperator(BaseOperator):
                     operator=self,
                 )
 
-            self.await_pod_start(pod=self.pod)
+            self._await_pod_start_or_relaunch(context)
 
             self.await_init_containers_completion(pod=self.pod)
             if self.callbacks:

@@ -145,12 +145,30 @@ def log_pod_event(
         pod_manager.log.info("The Pod has an Event: %s from %s", event.message, involved_object.field_path)
 
 
+def _base_container_may_have_run(pod: V1Pod, base_container_name: str) -> bool:
+    """Return whether this pod's phase or base container shows the workload may have started."""
+    status = getattr(pod, "status", None)
+    if getattr(status, "phase", None) in (PodPhase.RUNNING, PodPhase.SUCCEEDED, PodPhase.FAILED):
+        return True
+    container_statuses = getattr(status, "container_statuses", None)
+    if not isinstance(container_statuses, list):
+        return False
+    for container_status in container_statuses:
+        if getattr(container_status, "name", None) != base_container_name:
+            continue
+        state = getattr(container_status, "state", None)
+        if getattr(state, "running", None) is not None or getattr(state, "terminated", None) is not None:
+            return True
+    return False
+
+
 async def await_pod_start(
     pod_manager: PodManager | AsyncPodManager,
     pod: V1Pod,
     schedule_timeout: int = 120,
     startup_timeout: int = 120,
     check_interval: float = 1,
+    base_container_name: str = "base",
 ):
     """
     Monitor the startup phase of a Kubernetes pod, waiting for it to leave the ``Pending`` state.
@@ -162,16 +180,21 @@ async def await_pod_start(
     :param schedule_timeout: Maximum time (in seconds) to wait for the pod to be scheduled.
     :param startup_timeout: Maximum time (in seconds) to wait for the pod to start running after being scheduled.
     :param check_interval: Interval (in seconds) between status checks.
+    :param base_container_name: Container whose start means the workload may have run.
     """
     pod_manager.log.info("::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False
     start_check_time = time.time()
     is_async = isinstance(pod_manager, AsyncPodManager)
+    # Read by KubernetesPodOperator to decide whether a 404 may launch a replacement.
+    setattr(pod_manager, "_startup_observed_started", False)
     while True:
         if is_async:
             remote_pod = await pod_manager.read_pod(pod)
         else:
             remote_pod = pod_manager.read_pod(pod)
+        if _base_container_may_have_run(remote_pod, base_container_name):
+            setattr(pod_manager, "_startup_observed_started", True)
         pod_status = remote_pod.status
 
         if pod_status.phase == PodPhase.FAILED and pod_status.container_statuses is None:
@@ -457,7 +480,12 @@ class PodManager(LoggingMixin):
             await asyncio.sleep(check_interval)
 
     async def await_pod_start(
-        self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: int = 1
+        self,
+        pod: V1Pod,
+        schedule_timeout: int = 120,
+        startup_timeout: int = 120,
+        check_interval: int = 1,
+        base_container_name: str = "base",
     ) -> None:
         """
         Wait for the pod to reach phase other than ``Pending``.
@@ -468,6 +496,7 @@ class PodManager(LoggingMixin):
         :param startup_timeout: Timeout (in seconds) for startup of the pod
             (if pod is pending for too long after being scheduled, fails task)
         :param check_interval: Interval (in seconds) between checks
+        :param base_container_name: Container whose start means the workload may have run.
         :return:
         """
         await await_pod_start(
@@ -476,6 +505,7 @@ class PodManager(LoggingMixin):
             schedule_timeout=schedule_timeout,
             startup_timeout=startup_timeout,
             check_interval=check_interval,
+            base_container_name=base_container_name,
         )
 
     def _log_message(
