@@ -79,7 +79,7 @@ Extra (optional)
       is ``OIDC``. The connector reads the token from this file, which suits projected or rotated tokens
       (for example a Kubernetes service-account token).
     * ``token_endpoint``: Specify token endpoint for external OAuth provider.
-    * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``, ``password`` (for external IdP token_endooint only).
+    * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``, ``password`` (for external IdP token_endpoint only).
     * ``scope``: Specify OAuth scope to include in the access token request for any OAuth grant type.
     * ``oauth_username``: Specify IdP resource owner user name which is used for OAuth to include in the access token request for password OAuth grant type.
     * ``oauth_password``: Specify IdP resource owner user password which is used for OAuth to include in the access token request for password OAuth grant type.
