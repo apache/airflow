@@ -90,7 +90,6 @@ class _LLMFileAnalysisDecoratedOperator(DecoratedOperator, LLMFileAnalysisOperat
                 "The returned value from the @task.llm_file_analysis callable must be a non-empty string."
             )
 
-        self.render_template_fields(context)
         return LLMFileAnalysisOperator.execute(self, context)
 
 

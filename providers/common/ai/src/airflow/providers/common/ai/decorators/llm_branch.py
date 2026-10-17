@@ -99,7 +99,6 @@ class _LLMBranchDecoratedOperator(DecoratedOperator, LLMBranchOperator):
             feature_enabled=self._may_review,
         )
 
-        self.render_template_fields(context)
         return LLMBranchOperator.execute(self, context)
 
 

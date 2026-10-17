@@ -83,6 +83,10 @@ the prompt string; all other parameters are passed to the operator.
     :start-after: [START howto_decorator_agent]
     :end-before: [END howto_decorator_agent]
 
+The text the function returns is sent to the model as-is. It is not rendered as a
+Jinja template, so braces such as ``{{ ... }}`` or ``{% ... %}`` in it reach the model
+unchanged. Build the prompt from the task context inside the function instead.
+
 .. _howto/operator:agent-multimodal:
 
 Multimodal prompts

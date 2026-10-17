@@ -56,13 +56,13 @@ class _LLMBatchDecoratedOperator(DecoratedOperator, LLMBatchOperator):
     for a new one. A callable that embeds ``datetime.now()`` looks like new
     input on every retry.
 
-    Unlike ``@task.llm``, the returned prompts are **not** rendered as Jinja
-    templates. Batch inputs are typically bulk text the Dag author did not
-    write, where a stray ``{{`` or ``{%`` would either fail the whole batch or
-    resolve ``var``/``conn`` accessors against Airflow secrets. Anything
-    dynamic belongs in the callable, which receives the task context. The
-    operator's other template fields (``result_path``, ``system_prompt``,
-    ``model_id``, ``llm_conn_id``) are rendered as usual.
+    As with the other ``common.ai`` decorators, the returned prompts are **not**
+    rendered as Jinja templates. Batch inputs are typically bulk text the Dag author
+    did not write, where a stray ``{{`` or ``{%`` would either fail the whole batch
+    or resolve ``var``/``conn`` accessors against Airflow secrets. Anything dynamic
+    belongs in the callable, which receives the task context. The operator's other
+    template fields (``result_path``, ``system_prompt``, ``model_id``,
+    ``llm_conn_id``) are rendered as usual.
 
     :param python_callable: A reference to a callable that returns the batch's inputs.
     :param op_args: Positional arguments for the callable.
