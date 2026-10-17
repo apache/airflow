@@ -33,6 +33,7 @@ from airflow_breeze.commands.common_options import (
     option_docker_host,
     option_dry_run,
     option_forward_credentials,
+    option_forward_ports_by_default,
     option_github_repository,
     option_max_time,
     option_mysql_version,
@@ -112,6 +113,7 @@ class MainGroupWithAliases(BreezeGroup):
 @option_docker_host
 @option_dry_run
 @option_forward_credentials
+@option_forward_ports_by_default
 @option_github_repository
 @option_all_integration
 @option_max_time
