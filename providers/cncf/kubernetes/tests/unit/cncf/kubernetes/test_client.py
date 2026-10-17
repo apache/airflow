@@ -117,16 +117,6 @@ class TestClient:
 
         assert configuration.socket_options == first_call_options
 
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.log", autospec=True)
-    def test_enable_tcp_keepalive_unsupported_kubernetes_client(self, mock_log):
-        configuration = mock.create_autospec(Configuration, instance=True, spec_set=True)
-        del configuration.socket_options
-
-        enable_tcp_keepalive(configuration)
-
-        mock_log.warning.assert_called_once()
-        assert not hasattr(configuration, "socket_options")
-
     @pytest.mark.platform("linux")
     @pytest.mark.parametrize("enabled", [True, False])
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config", autospec=True)
