@@ -26,7 +26,8 @@ from airflow.providers.amazon.aws.utils.mixins import (
     aws_template_fields,
     normalize_botocore_config,
 )
-from airflow.sdk.serde import serialize
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
 def test_aws_template_fields():
@@ -80,11 +81,20 @@ class TestNormalizeBotocoreConfig:
 
         assert normalize_botocore_config(config) is config
 
-    def test_operator_configured_with_config_object_can_be_deferred(self):
-        """A ``Config`` cannot cross serde, so the deferred half of the task never receives one."""
+    def test_operator_resolves_config_object_to_a_mapping(self):
         op = FakeBotocoreConfigOperator(task_id="fake", botocore_config=Config(read_timeout=120))
 
         assert op.botocore_config == {"read_timeout": 120}
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="Trigger arguments go through airflow.sdk.serde from Airflow 3.2.0"
+    )
+    def test_operator_settings_can_cross_the_trigger_boundary(self):
+        """A ``Config`` cannot cross serde, so the deferred half of the task never receives one."""
+        from airflow.sdk.serde import serialize
+
+        op = FakeBotocoreConfigOperator(task_id="fake", botocore_config=Config(read_timeout=120))
+
         assert serialize({"botocore_config": op.botocore_config}) == {
             "botocore_config": {"read_timeout": 120}
         }
