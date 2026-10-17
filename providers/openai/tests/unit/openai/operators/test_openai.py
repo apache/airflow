@@ -918,20 +918,39 @@ class TestOpenAIResponseOperatorStructuredOutput:
                 key="usage", value={**usage.model_dump(mode="json"), "try_number": 2}
             )
 
-    def test_rejected_response_still_records_id_and_usage(self):
+    @pytest.mark.parametrize(
+        ("response_kwargs", "expected_error"),
+        [
+            pytest.param(
+                {"refusal": "I cannot help with that request."},
+                "did not return a structured output",
+                id="refusal",
+            ),
+            pytest.param(
+                {
+                    "output_parsed": _StructuredPerson(name="Alice"),
+                    "status": "incomplete",
+                    "incomplete_details": IncompleteDetails(reason="max_output_tokens"),
+                },
+                "did not complete",
+                id="incomplete",
+            ),
+        ],
+    )
+    def test_rejected_response_still_records_id_and_usage(self, response_kwargs, expected_error):
         # The API call behind a rejected response was still billed, so its id and token usage
-        # are pushed before the structured output is checked.
+        # are pushed before the status and the structured output are checked.
         operator, hook = self._operator()
         usage = _build_usage()
         hook.parse_response.return_value = _build_parsed_response(
-            response_id="resp_refused", refusal="I cannot help with that request.", usage=usage
+            response_id="resp_rejected", usage=usage, **response_kwargs
         )
         context = _build_execute_context()
 
-        with pytest.raises(ValueError, match="did not return a structured output"):
+        with pytest.raises(ValueError, match=expected_error):
             operator.execute(context)
 
-        context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_refused")
+        context["ti"].xcom_push.assert_any_call(key="response_id", value="resp_rejected")
         context["ti"].xcom_push.assert_any_call(
             key="usage", value={**usage.model_dump(mode="json"), "try_number": 1}
         )
