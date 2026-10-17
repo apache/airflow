@@ -260,7 +260,14 @@ def _load_entrypoint_plugins(
 
     plugins: list[AirflowPlugin] = []
     import_errors: dict[str, str] = {}
+    seen_entry_points: set[metadata.EntryPoint] = set()
     for entry_point, dist in entry_points_with_dist("airflow.plugins"):
+        # A distribution is returned once per sys.path entry it is found on. RHEL/Fedora venvs put
+        # both lib64/ and lib/ site-packages on sys.path with lib64 symlinked to lib, so without this
+        # every entry-point plugin is loaded twice and the second copy is reported as a duplicate.
+        if entry_point in seen_entry_points:
+            continue
+        seen_entry_points.add(entry_point)
         log.debug("Importing entry_point plugin %s", entry_point.name)
         if incompatibility_reason and dist.metadata and (reason := incompatibility_reason(dist)):
             log.warning(reason)
