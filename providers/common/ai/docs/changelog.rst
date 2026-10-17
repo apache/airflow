@@ -218,6 +218,8 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Keep the custom-toolset example's version from changing the PyPI path (#74935)``
+* ``Fix stale Common AI docs and add a guide to writing a toolset (#74904)``
 * ``Document progressive tool disclosure for Common AI toolsets (#74736)``
 * ``Walk through the reviewer's side of Common AI approval gates (#74737)``
 * ``Run the OpenAI Agents adapter tests in the agent framework CI job (#74768)``
@@ -252,6 +254,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare ad-hoc providers release 2026-10-17 (#74933)``
    * ``Prepare ad-hoc providers release 2026-10-14 (#74733)``
    * ``Add sqlglot drift tripwires for common.ai read-only SQL validation (#74487)``
    * ``Test that deferred capability ids stay out of Common AI durable fingerprints (#74423)``
