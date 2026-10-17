@@ -218,7 +218,7 @@ Misc
 Doc-only
 ~~~~~~~~
 
-* ``Keep the custom-toolset example's version from changing the PyPI path (#74935)``
+* ``Keep the custom-toolset example's version from changing the PyPI path (#74939)``
 * ``Fix stale Common AI docs and add a guide to writing a toolset (#74904)``
 * ``Document progressive tool disclosure for Common AI toolsets (#74736)``
 * ``Walk through the reviewer's side of Common AI approval gates (#74737)``
@@ -254,6 +254,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Add the Common AI docs fixes to the 1.0.0 changelog (#74937)``
    * ``Prepare ad-hoc providers release 2026-10-17 (#74933)``
    * ``Prepare ad-hoc providers release 2026-10-14 (#74733)``
    * ``Add sqlglot drift tripwires for common.ai read-only SQL validation (#74487)``
