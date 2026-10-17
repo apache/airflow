@@ -316,7 +316,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
     def execute_complete(self, context: Context, event: dict, **kwargs):
         if event.get("status") == "readmitted":
             self.log.info("Job preempted but now readmitted. Re-deferring to restart pod discovery.")
-            self.job = self.hook.get_job_status(job_name=self.name, namespace=self.namespace)
+            self.job = self.hook.get_job_status(job_name=event["name"], namespace=event["namespace"])
             self.job_request_obj = self.build_job_request_obj(context)
             self.pod_request_obj = self.build_pod_request_obj(context)
             self.pods = self.get_pods(pod_request_obj=self.pod_request_obj, context=context)

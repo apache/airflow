@@ -960,6 +960,50 @@ class TestKubernetesJobOperator:
         mock_ti.xcom_push.assert_called_once_with(key="job", value=mock_job)
 
     @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.execute_deferrable"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_pod_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"), new_callable=mock.PropertyMock)
+    def test_execute_complete_readmitted_uses_event_job_identity(
+        self, mock_hook_prop, mock_build_job_req, mock_build_pod_req, mock_get_pods, mock_execute_deferrable
+    ):
+        """execute_complete must use the Job identity from the trigger event, not self.name/self.namespace.
+
+        When a Job name is auto-generated (job- prefix + random suffix), self.name holds the
+        template/base name, not the actual Kubernetes resource name. Using self.name/self.namespace
+        to fetch the job status on readmission would target the wrong resource.
+        """
+        mock_hook = mock_hook_prop.return_value
+
+        # Simulate a concrete K8s name that differs from the operator's template name.
+        actual_job_name = "job-myjob-a1b2c3d4"
+        actual_namespace = "prod-namespace"
+
+        mock_job = mock.MagicMock(spec=k8s.V1Job)
+        mock_hook.get_job_status.return_value = mock_job
+        mock_get_pods.return_value = [mock.MagicMock()]
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            name="myjob",
+            namespace="default",
+            wait_until_job_complete=True,
+            deferrable=True,
+        )
+
+        event = {
+            "status": "readmitted",
+            "name": actual_job_name,
+            "namespace": actual_namespace,
+            "message": "Job preempted and readmitted",
+        }
+        op.execute_complete(context={"ti": mock.MagicMock()}, event=event)
+
+        # Must use the concrete identity from the event, not the operator's template name/namespace.
+        mock_hook.get_job_status.assert_called_once_with(job_name=actual_job_name, namespace=actual_namespace)
+        mock_execute_deferrable.assert_called_once()
+
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
     def test_execute_complete_pod_not_found_skips_logs(self, mock_hook, mocked_write_logs):

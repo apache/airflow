@@ -121,23 +121,6 @@ class KubernetesJobTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job status and yield a TriggerEvent."""
-        if self.do_xcom_push:
-            xcom_results = []
-            for pod_name in self.pod_names:
-                pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
-                await self.hook.wait_until_container_complete(
-                    name=pod_name, namespace=self.pod_namespace, container_name=self.base_container_name
-                )
-                self.log.info("Checking if xcom sidecar container is started.")
-                await self.hook.wait_until_container_started(
-                    name=pod_name,
-                    namespace=self.pod_namespace,
-                    container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
-                )
-                self.log.info("Extracting result from xcom sidecar container.")
-                loop = asyncio.get_running_loop()
-                xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
-                xcom_results.append(xcom_result)
         while True:
             job: V1Job = await self.hook.wait_until_job_complete(
                 name=self.job_name,
@@ -166,6 +149,24 @@ class KubernetesJobTrigger(BaseTrigger):
                     }
                 )
                 return
+
+        xcom_results = []
+        if self.do_xcom_push:
+            for pod_name in self.pod_names:
+                pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
+                await self.hook.wait_until_container_complete(
+                    name=pod_name, namespace=self.pod_namespace, container_name=self.base_container_name
+                )
+                self.log.info("Checking if xcom sidecar container is started.")
+                await self.hook.wait_until_container_started(
+                    name=pod_name,
+                    namespace=self.pod_namespace,
+                    container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
+                )
+                self.log.info("Extracting result from xcom sidecar container.")
+                loop = asyncio.get_running_loop()
+                xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
+                xcom_results.append(xcom_result)
 
         job_dict = job.to_dict()
         error_message = self.hook.is_job_failed(job=job)
