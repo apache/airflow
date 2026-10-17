@@ -4878,6 +4878,17 @@ components:
           - type: integer
           - type: 'null'
           title: Loop Iterations Count
+        latest_region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Latest Region Id
+        latest_region_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Latest Region Index
       type: object
       required:
       - task_id
@@ -4938,6 +4949,10 @@ components:
         index:
           type: integer
           title: Index
+        task_count:
+          type: integer
+          title: Task Count
+          default: 0
         state:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
@@ -4954,6 +4969,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        decision_reason:
+          type: string
+          title: Decision Reason
+          description: Why the loop's gate continued or stopped the loop at this iteration,
+            if its until callable said.
       type: object
       required:
       - index

@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
-import type { BackfillResponse, ReprocessBehavior } from "openapi/requests/types.gen";
+import type { BackfillResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
@@ -31,8 +31,9 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
+import { isReprocessBehavior } from "src/constants/reprocessBehaviourParams";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { type DurationFormat, isOneOf, useDurationFormat } from "src/utils";
+import { type DurationFormat, useDurationFormat } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
@@ -52,12 +53,6 @@ const {
   TO_DATE_GTE: TO_DATE_GTE_PARAM,
   TO_DATE_LTE: TO_DATE_LTE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
-
-const isReprocessBehavior = isOneOf([
-  "failed",
-  "completed",
-  "none",
-] as const satisfies ReadonlyArray<ReprocessBehavior>);
 
 type ColumnProps = {
   readonly onSelectBackfill: (backfillId: number) => void;

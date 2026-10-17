@@ -3135,9 +3135,9 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.regionId
      * @param data.regionIndex
+     * @param data.loopId Task group id of a loop; matches every instance it produced.
+     * @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
-     * @param data.loopId
-     * @param data.iteration
      * @param data.taskId
      * @param data.runAfterGte
      * @param data.runAfterGt
@@ -3204,9 +3204,9 @@ export class TaskInstanceService {
             query: {
                 region_id: data.regionId,
                 region_index: data.regionIndex,
-                cursor: data.cursor,
                 loop_id: data.loopId,
                 iteration: data.iteration,
+                cursor: data.cursor,
                 task_id: data.taskId,
                 run_after_gte: data.runAfterGte,
                 run_after_gt: data.runAfterGt,
@@ -4761,6 +4761,7 @@ export class XcomService {
      * @param data.mapIndex
      * @param data.regionId
      * @param data.regionIndex
+     * @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
      * @param data.limit
      * @param data.offset
      * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4799,6 +4800,7 @@ export class XcomService {
                 map_index: data.mapIndex,
                 region_id: data.regionId,
                 region_index: data.regionIndex,
+                exclude_internal_keys: data.excludeInternalKeys,
                 limit: data.limit,
                 offset: data.offset,
                 xcom_key_pattern: data.xcomKeyPattern,

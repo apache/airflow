@@ -30,7 +30,8 @@ them again. Only the steps the failed attempt never finished run live.
 Durable execution only helps a task that has retries. To decide *whether* a failure is
 worth retrying, see :doc:`retry_policies`; a retried ``LLMBatchOperator`` re-attaches to
 its running batch instead (:ref:`llm-batch-reattach`). To resume a Strands Agents agent on a
-retry, see :ref:`howto/frameworks:strands-durable`.
+retry, see :ref:`howto/frameworks:strands-durable`; for an OpenAI Agents SDK agent, see
+:ref:`howto/frameworks:openai-agents-durable`.
 
 Turn it on
 ----------
@@ -151,6 +152,20 @@ other capabilities. Tool calls already running alongside the failed one still re
 step that raised and that the run recovered from, such as a tool error the model was
 told about, does not stop the steps after it from replaying.
 
+A run can also fail on the model's answers rather than in a step: pydantic-ai raises
+``UnexpectedModelBehavior`` when the model keeps giving answers a tool rejects with
+``ModelRetry``, or output that fails validation, past its retry limit. Those answers are
+recorded, so replaying them would only reach the same error. The retry instead replays
+the steps before the model's last request and asks the model again from there. The
+earlier rejected answers still count against the retry limit, so each Airflow retry gives
+the model one more answer, with the rejections it already got in its history. Tool calls
+the last answer made run again if the model asks for them again, including calls that
+succeeded alongside the one that was rejected. The task log names the step:
+
+.. code-block:: text
+
+    Durable: the run took a different path from the previous attempt; this step and every step after it run again position=2 step=analyst__model.request reason=the model's answers from this step on failed the previous attempt, so it is asked again
+
 Some steps have no request to fingerprint: another capability's
 ``@durable_operation``, or tool discovery. Such a step replays on its name, and only when
 the step before it also replayed.
@@ -178,6 +193,82 @@ attempt recorded beyond where the last one went, so a task cleared later starts 
 In a plain ``@task``, which has no such moment, the capability deletes a run's journal
 as soon as that run succeeds: after a failure, only the run that failed replays, and
 the agents that ran before it run again.
+
+Values that are not plain JSON
+------------------------------
+
+Plain JSON tool arguments and settings are hashed as they are. Anything else is
+fingerprinted from pydantic's JSON rendering, so ordinary types that are not JSON, such
+as a ``datetime`` or ``Decimal`` tool argument, a dataclass in ``tool_choice``, the
+bytes in a ``BinaryContent`` or a dict keyed by date, fingerprint normally. Bytes in
+tool arguments and settings are rendered as base64, so binary data that is not valid
+UTF-8 fingerprints too; bytes inside a pydantic model follow that model's
+``ser_json_bytes`` setting instead, which renders them as UTF-8 text by default. Because
+a tool call is fingerprinted from how its arguments render, a field excluded from
+serialization and a secret value, which renders masked, take no part in it.
+
+The members of a ``set`` are ordered before hashing. A set of strings iterates in an
+order that changes from one process to the next, and every attempt is a new process, so
+without this a step holding one would never match on retry. A list that a serializer
+produces is hashed as the serializer produced it, so a set that a serializer turns into
+a list may not match on retry. The one list that is re-sorted is the output of a
+JSON-only serializer (``when_used="json"``) that returns the members of a set: it cannot
+be told from the set itself, so ``["z-first", "a"]`` hashes as ``["a", "z-first"]``.
+
+A request cannot be fingerprinted when:
+
+- two distinct dict keys render alike, such as ``1`` and ``"1"``, since the fingerprint
+  could then not tell those payloads apart;
+- a set whose order changes between processes cannot be found in the rendering, because
+  its members have different shapes, or because a JSON-only serializer renamed or
+  reshaped it, even one that also sorts it;
+- a value would render through an iterator, since rendering would consume it. A
+  parameter annotated ``Iterable[...]`` is the usual case: pydantic validates it lazily,
+  and reading it to hash it would consume input the tool has not read yet. Tool
+  arguments are rendered from copies, so fingerprinting never changes what the tool
+  receives, and an argument that cannot be copied is not fingerprinted either;
+- pydantic cannot render a value at all.
+
+Such a step is handled like a step with no request to fingerprint: it replays on its
+name, and only when the step before it replayed. The task log names it with a
+``could not fingerprint model request`` or ``could not fingerprint tool call`` warning.
+On the model path the cause is rarely confined to one step. ``model_settings`` and the
+tool definitions travel with every request, and a value that enters the message
+history, for example in a tool return, is carried into every later request, so every
+model step from that point on is replayed without verification.
+
+A set of models or dataclass instances, and from pydantic 2.13 a dict keyed by a model
+or dataclass instance, is a special case. In a tool argument or a setting it cannot be
+fingerprinted. In the message history it is rendered, and the history is then hashed
+from its JSON rendering alone: nothing in it is ordered and nothing is refused, so a set
+of strings elsewhere in that history can make the run diverge at that step on retry.
+
+.. _durable-code-mode:
+
+Code mode
+---------
+
+With pydantic-ai-harness's ``CodeMode`` (:doc:`code_mode`), the model sends Python to one
+``run_code`` tool, and the snippet calls the agent's tools as functions. ``run_code`` is
+not a step of its own: the retry runs each snippet again, and the tool calls the snippet
+makes replay from the journal one by one, so a snippet that called three tools is three
+recorded steps. When the snippet returns what it returned before, the model request after
+it replays too.
+
+A call the snippet makes replays only when the call at that position in the journal has
+the same tool, arguments and call id. Code mode numbers a snippet's calls in the order the
+snippet makes them, so when calls under ``asyncio.gather`` reach the journal in another
+order on the retry, the first call out of place and every step after it run live. A call
+never gets the result recorded for another one.
+
+The snippet's own code is not recorded. Whatever it does outside a tool call happens again
+on the retry, such as writing to a directory shared through ``mount`` or calling an
+``os_access`` handler, and if what it reads that way has changed, the tool calls it makes
+next differ and run live. Keep side effects in tools, whose results are recorded.
+
+``CodeMode``'s ``eager`` and ``speculate`` options start tool calls while the model is
+still writing the snippet. Both are off while the run is durable, so a retry runs the
+finished snippet the way the previous attempt did.
 
 What the task log shows
 -----------------------
@@ -236,7 +327,8 @@ Durable execution records what a tool returned. A replayed tool's code does not 
 side effect it had (a file written, a message sent) is not repeated.
 A tool that fails *before* its result is recorded runs again on retry, so a tool that
 sent an email and then raised sends it again. The same holds when the worker dies
-between a tool's side effect and the write of its result. Make tools with side effects
+between a tool's side effect and the write of its result, and for the tool calls of a
+model answer that the retry asks for again after the model ran out of retries. Make tools with side effects
 idempotent: check whether the work already happened, or let a database constraint
 reject the duplicate.
 
@@ -256,9 +348,9 @@ the step, and a retry runs it again.
 Limitations
 -----------
 
-- ``durable=True`` cannot be combined with ``enable_hitl_review``, a pydantic-ai-harness
-  ``CodeMode`` capability, a ``SandboxToolset`` or tool approval. ``AgentOperator`` raises
-  ``ValueError`` for the first three when the Dag is parsed.
+- ``durable=True`` cannot be combined with ``enable_hitl_review``, a ``SandboxToolset``
+  or tool approval. ``AgentOperator`` raises ``ValueError`` for the first two when the Dag
+  is parsed.
 - A task instance that is retried across an upgrade of this provider from a version
   without ``AirflowDurability`` runs its steps live once: the journal keys changed.
 

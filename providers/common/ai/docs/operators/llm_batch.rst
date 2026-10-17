@@ -159,6 +159,12 @@ it means Anthropic Messages keys (``temperature``, ``top_k``, ``metadata``, ``th
 The operator does not validate these; an unknown key surfaces as a per-request ``error`` row
 from the provider, or as a failed batch when the provider rejects the whole input file.
 
+``request_params`` is templated: every string inside the dict is rendered, so a value can come
+from a Variable, a param or an upstream XCom. Jinja hands back a string, so a numeric parameter
+written as a template needs ``render_template_as_native_obj=True`` on the Dag. The rendered values
+feed the re-attach fingerprint, so the same rule as ``result_path`` applies: a value that changes
+between attempts of one task instance makes a retry pay for a new batch.
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
     :language: python
     :start-after: [START howto_operator_llm_batch_provider_params]

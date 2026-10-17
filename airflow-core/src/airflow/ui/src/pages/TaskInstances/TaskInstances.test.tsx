@@ -70,6 +70,15 @@ vi.mock("openapi/queries", async (importOriginal) => {
   };
 });
 
+// The loop filter now only applies where the page is inside that loop, so the table has to
+// know which loops the Dag declares.
+vi.mock("src/queries/useIsLoopGroup", () => ({
+  // Membership comes from the structure now, so the mock answers per node rather than
+  // claiming every page is inside the loop.
+  useLoopGroupIds: (nodeId?: string) =>
+    nodeId === undefined || nodeId === "batch" || nodeId.startsWith("batch.") ? ["batch"] : [],
+}));
+
 vi.mock("./TaskInstancesFilter", () => ({
   TaskInstancesFilter: () => null,
 }));
@@ -238,33 +247,34 @@ describe("TaskInstances", () => {
     expect(screen.getByText("eu-west")).toBeInTheDocument();
   });
 
-  it("keeps loop iteration filters separate from mapped slot filters", () => {
-    mockParams.groupId = "loop";
-    mockSearchParams = new URLSearchParams("map_index=1");
+  it("drops a stale iteration that no loop in the URL counts", () => {
+    mockSearchParams = new URLSearchParams("iteration=3");
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
-    render(<TaskInstances iteration="3" loopGroupId="loop" />, { wrapper: Wrapper });
+    render(<TaskInstances />, { wrapper: Wrapper });
     expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        iteration: 3,
-        loopId: "loop",
-        mapIndex: [1],
-      }),
+      expect.objectContaining({ iteration: undefined, loopId: undefined }),
       undefined,
       expect.any(Object),
     );
   });
-  it("does not fetch a loop group's list before its iteration is known", () => {
-    mockParams.groupId = "loop";
+
+  it("sends the pair once a loop names the pass", () => {
+    // Dotted ids mean a task inside the loop is named for it, which is what puts it in scope.
+    mockParams.taskId = "batch.member";
+    mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
-    render(<TaskInstances loopGroupId="loop" />, { wrapper: Wrapper });
+    render(<TaskInstances />, { wrapper: Wrapper });
     expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({ iteration: undefined, loopId: "loop" }),
+      expect.objectContaining({ iteration: 3, loopId: "batch" }),
       undefined,
-      expect.objectContaining({ enabled: false }),
+      expect.any(Object),
     );
   });
-  it("ignores stale loop selectors outside a loop group", () => {
-    mockSearchParams = new URLSearchParams("iteration=3");
+
+  it("ignores a loop carried in from a page outside it", () => {
+    // The filter now survives navigation, so an unrelated task must not inherit the scope.
+    mockParams.taskId = "unrelated_task";
+    mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
     render(<TaskInstances />, { wrapper: Wrapper });
     expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(

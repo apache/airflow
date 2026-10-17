@@ -135,7 +135,7 @@ class DagFileParsingResult(BaseModel):
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
-ToManager = Annotated[
+ToManagerMessage = (
     DagFileParsingResult
     | GetConnection
     | GetVariable
@@ -151,9 +151,10 @@ ToManager = Annotated[
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
-    | MaskSecret,
-    Field(discriminator="type"),
-]
+    | MaskSecret
+)
+
+ToManager = Annotated[ToManagerMessage, Field(discriminator="type")]
 
 ToDagProcessor = Annotated[
     DagFileParseRequest
@@ -586,7 +587,6 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     )
     """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
-    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
     client: Client | None = None
@@ -711,6 +711,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
 
     client: Client
+    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,

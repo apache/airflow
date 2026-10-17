@@ -368,8 +368,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         Cannot be combined with a ``SandboxToolset`` (raises), attached or
         not: a replayed tool result describes a workspace state the replay did
         not reproduce, and the first call that misses the cache runs against
-        whatever the sandbox holds now. Cannot be combined with a pydantic-ai-harness
-        ``CodeMode`` capability (raises).
+        whatever the sandbox holds now. With a pydantic-ai-harness ``CodeMode``
+        capability, a retry runs each ``run_code`` snippet again and replays the
+        tool calls it makes; ``CodeMode``'s ``eager`` and ``speculate`` options are
+        off while the run is durable.
     :param cache_prompt: When ``True`` (default), asks the provider to cache the
         tool definitions, system prompt and conversation so far, so the next
         request in the run -- and a mapped task's other instances within the
@@ -559,12 +561,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
-
-        if durable and _contains_code_mode(self._declared_capabilities):
-            # Code mode collapses tools into one ``run_code`` tool and lets the model emit
-            # arbitrary Python, whose nested tool calls the journal does not see as steps of
-            # their own. Reject the combination rather than replay a partial ``run_code``.
-            raise ValueError("durable=True cannot be used with a CodeMode capability.")
 
         if durable and any(
             isinstance(capability, AirflowDurability) for capability in self._declared_capabilities
@@ -782,6 +778,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # pydantic-ai wraps capability hooks in list order, so merging the two lists
             # would pick an order the Dag author never wrote down.
             raise ValueError("Pass capabilities either as capabilities=... or in agent_params, not both.")
+        # create_agent adds a MaskingCapability that masks every tool call. The toolsets are
+        # masked here as well because toolset wrappers a capability adds (get_wrapper_toolset,
+        # as ToolLoggingCapability does) run below the capability hooks and would otherwise see
+        # the unmasked result. The durable journal masks what it records on its own.
         if self.toolsets:
             toolsets: list[AbstractToolset] = [ensure_masked(ts) for ts in self.toolsets]
             extra_kwargs["toolsets"] = toolsets
@@ -1406,8 +1406,5 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # shared, is the seeded cumulative object, not what this call alone contributed.
         log_run_summary(self.log, result, usage=regen_usage)
 
-        output = result.output
-        self._output_under_review = output
-        if isinstance(output, BaseModel):
-            output = output.model_dump_json()
-        return str(output), result.all_messages()
+        self._output_under_review = result.output
+        return self._to_string(result.output), result.all_messages()

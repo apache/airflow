@@ -103,6 +103,9 @@ class LLMBatchOperator(BaseOperator):
         conflicting keys. The keys the operator manages (``model``, the
         messages, the token cap and the structured-output directive) cannot
         be overridden from here.
+        Templated: every string inside the dict is rendered, and Jinja hands back
+        a string, so a numeric parameter written as a template needs
+        ``render_template_as_native_obj=True`` on the Dag.
     :param poll_interval: Seconds between status checks. Minimum 30.
     :param timeout: Seconds to wait for the batch to reach a terminal state,
         measured from submission. Default 24 hours. When a retry re-attaches
@@ -141,7 +144,14 @@ class LLMBatchOperator(BaseOperator):
         ``"24h"`` is offered by the API today. Ignored by Anthropic.
     """
 
-    template_fields: Sequence[str] = ("requests", "result_path", "system_prompt", "model_id", "llm_conn_id")
+    template_fields: Sequence[str] = (
+        "requests",
+        "result_path",
+        "system_prompt",
+        "model_id",
+        "llm_conn_id",
+        "request_params",
+    )
 
     def __init__(
         self,

@@ -66,16 +66,16 @@ capability from pydantic-ai's documentation works on ``AgentOperator`` as is:
 .. code-block:: python
 
     from pydantic_ai.capabilities import ProcessHistory
-    from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
+    from pydantic_ai.messages import ModelMessage, ModelRequest, RetryPromptPart, ToolReturnPart
 
 
     def keep_recent(messages: list[ModelMessage]) -> list[ModelMessage]:
         tail = messages[-10:]
-        # Start at a request without tool returns, so no tool return is left
-        # without its tool call.
+        # Start at a user turn. A tail that begins at a request holding only tool
+        # returns or retries (mid-run) loses the user's question.
         for i, message in enumerate(tail):
             if isinstance(message, ModelRequest) and not any(
-                isinstance(part, ToolReturnPart) for part in message.parts
+                isinstance(part, (ToolReturnPart, RetryPromptPart)) for part in message.parts
             ):
                 return tail[i:]
         return messages
@@ -98,7 +98,8 @@ object-storage XCom backend for long sessions.
 The operator has no built-in cross-session memory. To let an agent use facts
 from earlier sessions, store them yourself, load them in an upstream task (the
 same load, run, store pattern as above), and put them in the prompt or the
-instructions.
+instructions. To let the agent keep its own notes across Dag runs instead, see
+:doc:`memory`.
 
 Related pydantic-ai documentation
 ---------------------------------

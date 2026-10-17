@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+1.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'mask_secret' to the common.compat SDK helpers (#70766)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.21.0
 ......
 

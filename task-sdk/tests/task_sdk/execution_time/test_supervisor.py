@@ -68,6 +68,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -2676,7 +2677,9 @@ REQUEST_TEST_CASES = [
     ),
     RequestTestCase(
         message=SucceedTask(
-            end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
+            end_date=timezone.parse("2024-10-31T12:00:00Z"),
+            rendered_map_index="test success task",
+            loop_decision=LoopDecisionPayload(stop=True, reason="converged"),
         ),
         client_mock=ClientMock(
             method_path="task_instances.succeed",
@@ -2686,6 +2689,7 @@ REQUEST_TEST_CASES = [
                 "task_outlets": None,
                 "when": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test success task",
+                "loop_decision": LoopDecisionPayload(stop=True, reason="converged"),
             },
         ),
         test_id="succeed_task",
@@ -4741,15 +4745,21 @@ class TestHandleRequest:
         proc.client.task_instances.finish.assert_called_once()
         assert proc._pending_terminal_state_msg is None
 
-    def test_task_state_retry_reason_forwarded_to_finish(self, watched_subprocess, mocker):
-        """A TaskState message's retry_reason must reach the deferred finish() call."""
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            {"retry_reason": "auth error, do not retry"},
+            {"loop_decision": LoopDecisionPayload(stop=False, reason="error 0.2")},
+        ],
+        ids=["retry_reason", "loop_decision"],
+    )
+    def test_task_state_extras_forwarded_to_finish(self, watched_subprocess, mocker, extra):
+        """Optional TaskState fields must reach the deferred finish() call."""
         watched_subprocess, _ = watched_subprocess
         watched_subprocess._exit_code = 0
 
         msg = TaskState(
-            state=TaskInstanceState.FAILED,
-            end_date=timezone.parse("2024-10-31T12:00:00Z"),
-            retry_reason="auth error, do not retry",
+            state=TaskInstanceState.FAILED, end_date=timezone.parse("2024-10-31T12:00:00Z"), **extra
         )
         watched_subprocess._handle_request(msg, mocker.Mock(), req_id=1)
 
@@ -4760,7 +4770,7 @@ class TestHandleRequest:
             state=TaskInstanceState.FAILED,
             when=mocker.ANY,
             rendered_map_index=None,
-            retry_reason="auth error, do not retry",
+            **{"retry_reason": None, "loop_decision": None, **extra},
         )
 
 
