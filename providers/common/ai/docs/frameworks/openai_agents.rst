@@ -142,11 +142,79 @@ To turn the SDK's tracing off altogether, call ``agents.set_tracing_disabled(Tru
 ``OPENAI_AGENTS_DISABLE_TRACING=1`` in the worker's environment. That stops
 ``AirflowTraceProcessor`` from receiving anything too.
 
+.. _howto/frameworks:openai-agents-durable:
+
+Durable execution
+-----------------
+
+When a task that calls ``Runner.run`` fails and Airflow retries it, the agent starts
+again from the prompt: every model call is paid for again, and every tool call happens
+again. On a task with ``retries``, run the agent with
+:func:`~airflow.providers.common.ai.durable.openai_agents.run_durably_sync`, or
+:func:`~airflow.providers.common.ai.durable.openai_agents.run_durably` from async code,
+instead. They take the same arguments as ``Runner.run_sync`` and ``Runner.run``, except
+``previous_response_id``, ``conversation_id`` and ``auto_previous_response_id``, which they
+refuse: with them OpenAI keeps the conversation, and a replayed call never reaches it.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_openai_agents_durable.py
+    :language: python
+    :start-after: [START example_openai_agents_durable]
+    :end-before: [END example_openai_agents_durable]
+
+Each model call and function tool call is recorded in the task instance's durable
+journal as it completes, the journal ``AgentOperator(durable=True)`` uses (see
+:doc:`../durable_execution`). On Airflow 3.3 and later the journal is kept in the task
+state store; on earlier versions, set ``[common.ai] durable_cache_path`` to where it is
+kept. Once the run succeeds, what was recorded is deleted, so clearing the task later
+starts over. Outside a task there is nothing to replay into, and the agent runs as
+``Runner.run`` runs it.
+
+What a retry replays
+^^^^^^^^^^^^^^^^^^^^
+
+On a retry the agent runs again from the start, and each call that asks what the failed
+try asked, in the same order, returns what it returned then: the calls of every model
+given by name or in ``run_config``, the model and function tools of the starting agent
+and of the agents in its ``handoffs`` list, and an agent used through ``as_tool``, as one
+call. Recorded tool results pass through Airflow's secret masker before they are saved,
+and a replayed model call reports no token usage.
+
+From the first call that differs, that call and every call after it run live:
+
+- A retry whose prompt, instructions, model settings or tools differ from the failed
+  try's runs everything live from the first call that sees the difference.
+- When the run failed because of the model's answers (``MaxTurnsExceeded``,
+  ``ModelBehaviorError``, ``ModelRefusalError``, or an output or tool input guardrail),
+  replaying those answers would fail it the same way, so the retry asks the model again
+  from its last request.
+
+What always runs live
+^^^^^^^^^^^^^^^^^^^^^
+
+- A call that was running when the try failed, so tools that change data must still be
+  safe to repeat.
+- A tool call that failed, including one whose exception ``failure_error_function`` turned
+  into text for the model. A ``ModelBehaviorError`` that a tool raises, such as arguments
+  that fail validation with ``failure_error_function=None``, counts as the tool's failure:
+  the tool call runs again, but the answer that asked for it replays.
+- Tools other than function tools: hosted tools such as web search, the tools of
+  ``mcp_servers``, and shell and computer tools.
+- A function tool whose ``needs_approval`` is a function, since the SDK checks the
+  arguments it approved only through its own invoker.
+- The function tools of an agent reached through ``handoff()``, and its model too unless
+  the agent's ``model`` is a model name or not set.
+- A streamed run.
+- Every call, when the run has a ``session``: the SDK adds the failed try's prompt to it
+  before the first model call, so that call no longer asks what it asked then.
+
+A ``SandboxToolset`` without ``attach_to`` is destroyed when the try ends, so the retry
+starts with a new, empty sandbox that the replayed conversation does not describe.
+
 Differences from ``AgentOperator``
 ----------------------------------
 
-- A task retry runs the agent again from the start, so tools that change data must be
-  safe to repeat.
+- A task retry runs the agent again from the start unless it runs through
+  ``run_durably``; see :ref:`howto/frameworks:openai-agents-durable`.
 - There is no human review step like ``AgentOperator(enable_hitl_review=True)``, and the
   SDK's own ``needs_approval`` interruptions are not connected to Airflow's approval UI.
 
