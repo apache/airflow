@@ -55,7 +55,7 @@ TEST_COMMANDS = [
     # Assets commands
     "assets list",
     "assets get 1",
-    "assets create-event --asset-id=1",
+    "assets create-event 1",
     "assets set-state-store 1 test_key test_value",
     "assets get-state-store 1 test_key",
     "assets list-state-store 1",
@@ -69,13 +69,13 @@ TEST_COMMANDS = [
     "config list",
     "config lint",
     # Connections commands
-    "connections create --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
+    "connections create test_con mysql --password=TEST_PASS -o json",
     "connections list",
     "connections list -o yaml",
     "connections list -o table",
     "connections get test_con",
     "connections get test_con -o json",
-    "connections update --connection-id=test_con --conn-type=postgres",
+    "connections update test_con postgres",
     "connections import tests/airflowctl_tests/fixtures/test_connections.json",
     "connections delete test_con",
     "connections delete test_import_conn",
@@ -126,7 +126,7 @@ TEST_COMMANDS = [
     # Jobs commands
     "jobs list",
     # Pools commands
-    "pools create --name=test_pool --slots=5",
+    "pools create test_pool 5",
     "pools list",
     "pools get test_pool",
     "pools get test_pool -o yaml",
@@ -138,11 +138,11 @@ TEST_COMMANDS = [
     # Providers commands
     "providers list",
     # Variables commands
-    "variables create --key=test_key --value=test_value",
+    "variables create test_key test_value",
     "variables list",
     "variables get test_key",
     "variables get test_key -o table",
-    "variables update --key=test_key --value=updated_value",
+    "variables update test_key updated_value",
     "variables import tests/airflowctl_tests/fixtures/test_variables.json",
     "variables delete test_key",
     "variables delete test_import_var",
