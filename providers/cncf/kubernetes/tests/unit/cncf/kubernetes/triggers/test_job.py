@@ -105,7 +105,7 @@ class TestKubernetesJobTrigger:
         event_actual = await trigger.run().asend(None)
 
         mock_hook.wait_until_job_complete.assert_called_once_with(
-            name=JOB_NAME, namespace=NAMESPACE, poll_interval=poll_interval
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=poll_interval, return_on_suspension=True
         )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
@@ -178,7 +178,7 @@ class TestKubernetesJobTrigger:
         event_actual = await trigger.run().asend(None)
 
         mock_hook.wait_until_job_complete.assert_called_once_with(
-            name=JOB_NAME, namespace=NAMESPACE, poll_interval=POLL_INTERVAL
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=POLL_INTERVAL, return_on_suspension=True
         )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
@@ -210,3 +210,105 @@ class TestKubernetesJobTrigger:
             cluster_context=CLUSTER_CONTEXT,
         )
         assert hook_actual == hook_expected
+
+    @pytest.mark.asyncio
+    @mock.patch(TRIGGER_PATH.format("AsyncKubernetesHook"))
+    @mock.patch("asyncio.sleep")
+    async def test_run_preemption_and_readmission(self, mock_sleep, mock_hook_cls, trigger):
+        mock_hook = mock_hook_cls.return_value
+        mock_wait_until_job_complete = mock.AsyncMock()
+        mock_get_job_status = mock.AsyncMock()
+        mock_hook.wait_until_job_complete = mock_wait_until_job_complete
+        mock_hook.get_job_status = mock_get_job_status
+        mock_hook.is_job_complete.return_value = False
+
+        job_suspended = mock.MagicMock(spec=k8s.V1Job)
+        job_suspended.metadata.name = JOB_NAME
+        job_suspended.metadata.namespace = NAMESPACE
+        job_suspended.spec.suspend = True
+        job_suspended.status.active = 0
+        job_suspended.status.succeeded = 0
+        job_suspended.status.failed = 0
+
+        job_readmitted = mock.MagicMock(spec=k8s.V1Job)
+        job_readmitted.metadata.name = JOB_NAME
+        job_readmitted.metadata.namespace = NAMESPACE
+        job_readmitted.spec.suspend = False
+        job_readmitted.status.active = 1
+
+        mock_wait_until_job_complete.return_value = job_suspended
+        mock_get_job_status.side_effect = [job_suspended, job_readmitted]
+
+        event = await trigger.run().asend(None)
+
+        mock_wait_until_job_complete.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=trigger.poll_interval, return_on_suspension=True
+        )
+        assert mock_get_job_status.call_count == 2
+        mock_get_job_status.assert_called_with(name=JOB_NAME, namespace=NAMESPACE)
+        assert event == TriggerEvent(
+            {
+                "name": JOB_NAME,
+                "namespace": NAMESPACE,
+                "status": "readmitted",
+                "message": "Job preempted and readmitted",
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(TRIGGER_PATH.format("AsyncKubernetesHook"))
+    @mock.patch("asyncio.sleep")
+    async def test_run_preemption_with_xcom_push_does_not_read_stale_pods(self, mock_sleep, mock_hook_cls):
+        """XCom extraction must not run during preemption - only after the job fully completes.
+
+        Before the fix, the XCom block executed before the job-completion loop using the initially
+        discovered (stale) pod names. If Kueue deleted those pods during preemption, the sidecar
+        wait would hang or 404. After the fix, XCom is deferred until post-loop, so a trigger
+        that yields "readmitted" must never touch wait_until_container_complete or extract_xcom.
+        """
+        mock_hook = mock_hook_cls.return_value
+        mock_wait_until_job_complete = mock.AsyncMock()
+        mock_get_job_status = mock.AsyncMock()
+        mock_hook.wait_until_job_complete = mock_wait_until_job_complete
+        mock_hook.get_job_status = mock_get_job_status
+        mock_hook.is_job_complete.return_value = False
+
+        job_suspended = mock.MagicMock(spec=k8s.V1Job)
+        job_suspended.metadata.name = JOB_NAME
+        job_suspended.metadata.namespace = NAMESPACE
+        job_suspended.spec.suspend = True
+        job_suspended.status.active = 0
+
+        job_readmitted = mock.MagicMock(spec=k8s.V1Job)
+        job_readmitted.metadata.name = JOB_NAME
+        job_readmitted.metadata.namespace = NAMESPACE
+        job_readmitted.spec.suspend = False
+        job_readmitted.status.active = 1
+
+        mock_wait_until_job_complete.return_value = job_suspended
+        mock_get_job_status.side_effect = [job_suspended, job_readmitted]
+
+        xcom_trigger = KubernetesJobTrigger(
+            job_name=JOB_NAME,
+            job_namespace=NAMESPACE,
+            pod_names=[POD_NAME],
+            pod_namespace=NAMESPACE,
+            base_container_name=CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_file=CONFIG_FILE,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            do_xcom_push=True,
+        )
+
+        event = await xcom_trigger.run().asend(None)
+
+        # The trigger must yield a "readmitted" event and return - never reaching the XCom block.
+        assert event.payload["status"] == "readmitted"
+
+        # XCom-related hook methods must never be called during the preemption path.
+        mock_hook.wait_until_container_complete.assert_not_called()
+        mock_hook.wait_until_container_started.assert_not_called()
+        mock_hook.get_pod.assert_not_called()

@@ -628,23 +628,30 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job_status(
-            name=job_name, namespace=namespace, pretty=True
-        )
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
 
-    def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
+    def wait_until_job_complete(
+        self, job_name: str, namespace: str, job_poll_interval: float = 10, return_on_suspension: bool = False
+    ) -> V1Job:
         """
         Block job of specified name and namespace until it is complete or failed.
 
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
         :param job_poll_interval: Interval in seconds between polling the job status
+        :param return_on_suspension: If True, return the Job if it is suspended with no active pods.
         :return: Job object
         """
         while True:
             self.log.info("Requesting status for the job '%s' ", job_name)
             job: V1Job = self.get_job_status(job_name=job_name, namespace=namespace)
             if self.is_job_complete(job=job):
+                return job
+            if (
+                return_on_suspension
+                and getattr(job.spec, "suspend", False)
+                and not (job.status and job.status.active)
+            ):
                 return job
             self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", job_name, job_poll_interval)
             sleep(job_poll_interval)
@@ -1321,25 +1328,34 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         async with self.get_conn() as connection:
             v1_api = async_client.BatchV1Api(connection)
-            job: V1Job = await v1_api.read_namespaced_job_status(
+            job: V1Job = await v1_api.read_namespaced_job(
                 name=name,
                 namespace=namespace,
             )
         return job
 
-    async def wait_until_job_complete(self, name: str, namespace: str, poll_interval: float = 10) -> V1Job:
+    async def wait_until_job_complete(
+        self, name: str, namespace: str, poll_interval: float = 10, return_on_suspension: bool = False
+    ) -> V1Job:
         """
         Block job of specified name and namespace until it is complete or failed.
 
         :param name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
         :param poll_interval: Interval in seconds between polling the job status
+        :param return_on_suspension: If True, return the Job if it is suspended with no active pods.
         :return: Job object
         """
         while True:
             self.log.info("Requesting status for the job '%s' ", name)
             job: V1Job = await self.get_job_status(name=name, namespace=namespace)
             if self.is_job_complete(job=job):
+                return job
+            if (
+                return_on_suspension
+                and getattr(job.spec, "suspend", False)
+                and not (job.status and job.status.active)
+            ):
                 return job
             self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", name, poll_interval)
             await asyncio.sleep(poll_interval)

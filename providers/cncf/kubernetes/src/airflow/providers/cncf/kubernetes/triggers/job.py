@@ -121,8 +121,37 @@ class KubernetesJobTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job status and yield a TriggerEvent."""
+        while True:
+            job: V1Job = await self.hook.wait_until_job_complete(
+                name=self.job_name,
+                namespace=self.job_namespace,
+                poll_interval=self.poll_interval,
+                return_on_suspension=True,
+            )
+            if self.hook.is_job_complete(job=job):
+                break
+
+            if getattr(job.spec, "suspend", False) and not (job.status and job.status.active):
+                self.log.info(
+                    "Job %s was preempted and suspended. Waiting for readmission.", job.metadata.name
+                )
+                while getattr(job.spec, "suspend", False) and not (job.status and job.status.active):
+                    await asyncio.sleep(self.poll_interval)
+                    job = await self.hook.get_job_status(name=self.job_name, namespace=self.job_namespace)
+
+                self.log.info("Job %s was readmitted.", job.metadata.name)
+                yield TriggerEvent(
+                    {
+                        "name": job.metadata.name,
+                        "namespace": job.metadata.namespace,
+                        "status": "readmitted",
+                        "message": "Job preempted and readmitted",
+                    }
+                )
+                return
+
+        xcom_results = []
         if self.do_xcom_push:
-            xcom_results = []
             for pod_name in self.pod_names:
                 pod = await self.hook.get_pod(name=pod_name, namespace=self.pod_namespace)
                 await self.hook.wait_until_container_complete(
@@ -138,9 +167,7 @@ class KubernetesJobTrigger(BaseTrigger):
                 loop = asyncio.get_running_loop()
                 xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
                 xcom_results.append(xcom_result)
-        job: V1Job = await self.hook.wait_until_job_complete(
-            name=self.job_name, namespace=self.job_namespace, poll_interval=self.poll_interval
-        )
+
         job_dict = job.to_dict()
         error_message = self.hook.is_job_failed(job=job)
         yield TriggerEvent(
