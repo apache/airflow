@@ -297,6 +297,79 @@ class TestNextKwargsBackwardCompat:
             (f"Serialized{type(a).__name__}", a.name) for a in assets
         )
 
+    @pytest.mark.parametrize(
+        "original",
+        [
+            pytest.param(
+                {"__type": "record", "__var": "resume", "asset": Asset("first")}, id="top-level-envelope-keys"
+            ),
+            pytest.param({"payload": {"__type": "record", "asset": Asset("first")}}, id="nested-type-key"),
+        ],
+    )
+    def test_old_version_converts_dicts_with_legacy_keys(
+        self, old_ver_client, session, create_task_instance, original
+    ):
+        """Dicts that merely contain ``__type``/``__var`` keys are user data, not legacy envelopes."""
+        from airflow.sdk.serde import serialize as serde_serialize
+
+        ti = create_task_instance(
+            task_id="test_next_kwargs_legacy_keys",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = serde_serialize(original)
+        session.commit()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        assert response.json()["next_method"] == "execute_complete"
+        next_kwargs = response.json()["next_kwargs"]
+        assert next_kwargs == BaseSerialization.serialize(original)
+        assert BaseSerialization.deserialize(next_kwargs).keys() == original.keys()
+
+    @pytest.mark.parametrize(
+        "assets",
+        [
+            pytest.param(frozenset({Asset("first")}), id="frozenset"),
+            pytest.param({frozenset({Asset("first")})}, id="frozenset-in-set"),
+        ],
+    )
+    def test_old_version_fails_task_for_frozenset_of_assets(
+        self, old_ver_client, session, create_task_instance, monkeypatch, assets
+    ):
+        """The legacy format has no frozenset, so a frozenset of assets resumes through a clear failure."""
+        from airflow.sdk.serde import serialize as serde_serialize
+
+        ti = create_task_instance(
+            task_id="test_next_kwargs_frozenset_assets",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = serde_serialize({"assets": assets})
+        session.commit()
+
+        constructed = []
+        original_init = Asset.__init__
+
+        def spy(self, *args, **kwargs):
+            constructed.append(True)
+            original_init(self, *args, **kwargs)
+
+        monkeypatch.setattr(Asset, "__init__", spy)
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        assert constructed == []
+        assert response.json()["next_method"] == "__fail__"
+        error = BaseSerialization.deserialize(response.json()["next_kwargs"])["error"]
+        assert "'builtins.frozenset'" in error
+
     def test_old_version_fails_task_for_unconvertible_values(
         self, old_ver_client, session, create_task_instance, monkeypatch
     ):

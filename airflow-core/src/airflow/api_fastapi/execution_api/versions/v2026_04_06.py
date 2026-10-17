@@ -170,6 +170,13 @@ class _UnconvertibleNextKwargsError(ValueError):
         )
 
 
+def _is_legacy_envelope(value: Any) -> bool:
+    """Whether a value is a BaseSerialization ``{"__type": ..., "__var": ...}`` envelope."""
+    from airflow._shared.serialization import OLD_DATA, OLD_TYPE
+
+    return isinstance(value, dict) and value.keys() == {OLD_TYPE, OLD_DATA}
+
+
 def _convert_to_legacy(value: Any) -> Any:
     """
     Translate a serde-encoded value to the legacy BaseSerialization encoding.
@@ -187,7 +194,7 @@ def _convert_to_legacy(value: Any) -> Any:
     if isinstance(value, list):
         return [_convert_to_legacy(item) for item in value]
     if CLASSNAME not in value:
-        if OLD_TYPE in value:
+        if _is_legacy_envelope(value):
             raise _UnconvertibleNextKwargsError(str(value[OLD_TYPE]))
         return {
             Encoding.TYPE: DAT.DICT,
@@ -195,12 +202,9 @@ def _convert_to_legacy(value: Any) -> Any:
         }
     classname = value[CLASSNAME]
     data = value.get(DATA)
-    # The legacy format has no frozenset; a set is the closest type older workers can decode.
-    collection_types = {
-        "builtins.tuple": DAT.TUPLE,
-        "builtins.set": DAT.SET,
-        "builtins.frozenset": DAT.SET,
-    }
+    # No frozenset: the legacy format has none, and sending a set instead breaks nesting it in a set.
+    # Frozensets of built-in values never get here; they are handled with the other built-ins.
+    collection_types = {"builtins.tuple": DAT.TUPLE, "builtins.set": DAT.SET}
     if classname in collection_types and isinstance(data, list):
         items = [_convert_to_legacy(item) for item in data]
         if collection_types[classname] == DAT.SET:
@@ -241,7 +245,6 @@ class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
         timedelta, etc.), then re-serialize with BaseSerialization so old workers get
         proper typed values instead of raw {"__classname__": ...} dicts.
         """
-        from airflow._shared.serialization import OLD_DATA, OLD_TYPE
         from airflow.models.trigger import TRIGGER_FAIL_REPR
         from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -249,11 +252,7 @@ class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
         if next_kwargs is None:
             return
 
-        if (
-            OLD_TYPE in next_kwargs
-            and OLD_DATA in next_kwargs
-            and not _holds_only_builtin_values(next_kwargs)
-        ):
+        if _is_legacy_envelope(next_kwargs) and not _holds_only_builtin_values(next_kwargs):
             # Already in BaseSerialization format (rolling upgrade, old data in DB)
             return
 
