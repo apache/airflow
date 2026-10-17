@@ -175,6 +175,7 @@ internal class DagDefTest {
         .config("dagrun_timeout", Duration.ofMinutes(5))
         .config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"))
         .config("tags", listOf("a", "b"))
+        .config("queue", "java")
 
     Assertions.assertEquals(
       mapOf(
@@ -185,6 +186,7 @@ internal class DagDefTest {
         "dagrun_timeout" to Duration.ofMinutes(5),
         "start_date" to OffsetDateTime.parse("2026-01-01T00:00:00Z"),
         "tags" to listOf("a", "b"),
+        "queue" to "java",
       ),
       dag.dagConfig,
     )
@@ -224,6 +226,19 @@ internal class DagDefTest {
       }
 
     Assertions.assertEquals("Value for Dag config key 'description' must not be null", error.message)
+  }
+
+  @Test
+  @DisplayName("Should reject a blank dag queue")
+  fun shouldRejectBlankDagQueue() {
+    for (queue in listOf("", "  ")) {
+      val error =
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+          DagDef("dag").config("queue", queue)
+        }
+
+      Assertions.assertEquals("Dag config key 'queue' must not be blank", error.message)
+    }
   }
 
   @Test

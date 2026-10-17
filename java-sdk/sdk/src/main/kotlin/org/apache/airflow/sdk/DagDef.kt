@@ -81,19 +81,24 @@ class DagDef(
    * mismatched value types are rejected on the call, so mistakes surface where
    * the Dag is defined.
    *
+   * `"queue"` is the one key Airflow's Dag has no setting for.
+   * It is the queue every task of the Dag runs on, unless the task sets its own `"queue"`, and it cannot be blank.
+   *
    * @param key Airflow Dag setting name.
    * @param value Value matching the key's schema type. Durations take
    *    [java.time.Duration], date-times [java.time.OffsetDateTime] or
    *    [java.time.Instant], string arrays any `Iterable` of `String`.
    * @return This Dag, for chaining.
-   * @throws IllegalArgumentException if the key is unknown or the value type
-   *    does not match.
+   * @throws IllegalArgumentException if the key is unknown, the value type
+   *    does not match, or `"queue"` is blank.
    */
   fun config(
     key: String,
     value: Any?,
   ): DagDef {
-    dagConfig[key] = checkConfigValue("Dag", SchemaFields.DAG, key, value)
+    val checked = checkConfigValue("Dag", SchemaFields.DAG, key, value)
+    require(key != "queue" || (checked as String).isNotBlank()) { "Dag config key 'queue' must not be blank" }
+    dagConfig[key] = checked
     return this
   }
 

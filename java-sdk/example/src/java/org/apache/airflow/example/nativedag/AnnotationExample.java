@@ -31,6 +31,7 @@ import org.apache.airflow.sdk.*;
     id = "java_native_annotation_example",
     description = "Pure-Java Dag authored with annotations",
     schedule = "@daily",
+    queue = "java",
     startDate = "2026-01-01T00:00:00Z",
     catchup = false,
     tags = {"example", "java-sdk"})
