@@ -44,6 +44,7 @@ from airflow.providers.http.exceptions import HttpSrvLookupException
 from airflow.providers.http.hooks.http import (
     HttpAsyncHook,
     HttpHook,
+    _ConnectionHeaderSession,
     _order_srv_targets,
     _process_extra_options_from_connection,
 )
@@ -1385,3 +1386,87 @@ class TestHttpAsyncHookSrvLookup:
         with mock.patch.dict(sys.modules, {"dns": None, "dns.asyncresolver": None, "dns.exception": None}):
             with pytest.raises(HttpSrvLookupException, match="dnspython"):
                 await hook._resolve_srv_targets_async("_http._tcp.example.com")
+
+
+class TestConnectionHeadersAcrossRedirects:
+    """Connection-supplied headers must not follow a redirect to a different host.
+
+    ``requests`` strips only ``Authorization`` (``Session.rebuild_auth``), so a credential
+    carried in a differently-named header — the documented ``extra``-field pattern — would
+    otherwise be replayed to whatever host the redirect points at.
+    """
+
+    @staticmethod
+    def _redirect(session, old_url, new_url):
+        original = requests.Request("GET", old_url).prepare()
+        response = Response()
+        response.request = original
+        prepared = requests.Request("GET", new_url).prepare()
+        prepared.headers.update(session.headers)
+        session.rebuild_auth(prepared, response)
+        return prepared.headers
+
+    def test_connection_headers_dropped_on_cross_host_redirect(self):
+        session = _ConnectionHeaderSession()
+        session.headers.update({"X-API-Key": "secret", "Accept": "application/json"})
+        session.connection_header_keys.update({"X-API-Key", "Accept"})
+
+        headers = self._redirect(session, "https://original.example.com/a", "https://evil.example.com/b")
+
+        assert "X-API-Key" not in headers
+        assert "Accept" not in headers
+
+    def test_connection_headers_kept_on_same_host_redirect(self):
+        session = _ConnectionHeaderSession()
+        session.headers.update({"X-API-Key": "secret"})
+        session.connection_header_keys.update({"X-API-Key"})
+
+        headers = self._redirect(session, "https://example.com/a", "https://example.com/b")
+
+        assert headers["X-API-Key"] == "secret"
+
+    def test_caller_supplied_headers_are_not_dropped(self):
+        """Only headers that came from the connection are stripped."""
+        session = _ConnectionHeaderSession()
+        session.headers.update({"X-Caller": "kept"})
+
+        headers = self._redirect(session, "https://original.example.com/a", "https://evil.example.com/b")
+
+        assert headers["X-Caller"] == "kept"
+
+    @mock.patch(
+        "airflow.providers.http.hooks.http.HttpHook.get_connection",
+        side_effect=get_airflow_connection_with_extra({"X-API-Key": "secret"}),
+    )
+    def test_get_conn_records_connection_header_keys(self, mock_get_connection):
+        hook = HttpHook()
+        session = hook.get_conn()
+
+        assert isinstance(session, _ConnectionHeaderSession)
+        assert "x-api-key" in session.connection_header_keys
+
+    @pytest.mark.parametrize("accept_key", ["Accept", "accept", "ACCEPT"])
+    @mock.patch(
+        "airflow.providers.http.hooks.http.HttpHook.get_connection",
+        side_effect=get_airflow_connection_with_extra({"X-API-Key": "secret", "Accept": "application/json"}),
+    )
+    def test_caller_header_overriding_connection_header_is_kept(self, mock_get_connection, accept_key):
+        session = HttpHook().get_conn(headers={accept_key: "text/csv"})
+
+        headers = self._redirect(session, "https://original.example.com/a", "https://evil.example.com/b")
+
+        assert headers["Accept"] == "text/csv"
+        assert "X-API-Key" not in headers
+
+    @mock.patch("requests.sessions.get_netrc_auth", autospec=True, return_value=("netrc-user", "netrc-pass"))
+    @mock.patch(
+        "airflow.providers.http.hooks.http.HttpHook.get_connection",
+        side_effect=get_airflow_connection_with_extra({"Authorization": "Bearer connection-token"}),
+    )
+    def test_destination_netrc_auth_survives_cross_host_redirect(self, mock_get_connection, mock_netrc):
+        session = HttpHook().get_conn()
+
+        headers = self._redirect(session, "https://original.example.com/a", "https://other.example.com/b")
+
+        mock_netrc.assert_called_once_with("https://other.example.com/b")
+        assert headers["Authorization"] == requests.auth._basic_auth_str("netrc-user", "netrc-pass")
