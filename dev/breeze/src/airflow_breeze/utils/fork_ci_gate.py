@@ -22,6 +22,11 @@ to CI in the contributor's fork. See dev/breeze/doc/ci/08_fork_ci_for_external_c
 
 The gate job in ``ci-amd.yml`` runs this file with the runner's ``python3`` from a sparse
 checkout, without installing breeze, so it must only import from the standard library.
+
+This file is part of the fork CI gate. A pull request whose CI runs in the contributor's fork
+must not change it, because the change would decide where its own CI runs: the fork CI
+monitor closes such a pull request with a comment explaining why. See "Gate protection" in
+the document above.
 """
 
 from __future__ import annotations
