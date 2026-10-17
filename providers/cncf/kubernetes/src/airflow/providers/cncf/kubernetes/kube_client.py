@@ -19,10 +19,12 @@
 from __future__ import annotations
 
 import logging
+import socket
 import warnings
 from typing import Any
 
 import urllib3.util
+from urllib3.connection import HTTPConnection
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import conf
@@ -62,9 +64,10 @@ try:
         """
         Wrapper around kubernetes sync ApiClient to set default timeout.
 
-        When *disable_verify_ssl* is True the TLS certificate check is turned off
-        on the *client_configuration* that is passed (or on a fresh default copy)
-        so that callers do not need to repeat this logic at every call-site.
+        When *disable_verify_ssl* is True the TLS certificate check is turned off, and when
+        *should_enable_tcp_keepalive* is True TCP keepalive is enabled, on the *configuration*
+        that is passed (or on a fresh default copy) so that callers do not need to repeat
+        this logic at every call-site.
         """
 
         def __init__(
@@ -123,65 +126,47 @@ except ImportError as e:
 
 def enable_tcp_keepalive(configuration: Configuration) -> None:
     """
-    Enable TCP keepalive mechanism on the provided Kubernetes client configuration.
+    Enable TCP keepalive on the Kubernetes client ``configuration``.
 
-    This prevents urllib3 connections from hanging indefinitely when an idle
-    connection is timed out by services like cloud load balancers or firewalls.
+    This prevents connections from hanging indefinitely when an idle connection is timed out
+    by services like cloud load balancers or firewalls. The options are set through
+    ``Configuration.socket_options``, which requires kubernetes>=36.0.1; on older clients a
+    warning is logged and the configuration is left unchanged.
 
-    Uses the ``socket_options`` field on the Kubernetes ``Configuration`` object
-    (kubernetes >= 36.0.0), which is threaded through to the underlying urllib3
-    ``PoolManager`` and ``HTTPConnection``. Falls back to monkey-patching urllib3
-    connection defaults for older kubernetes clients where ``socket_options`` is
-    not available.
-
-    See https://github.com/apache/airflow/pull/11406 for the original discussion
-    and https://github.com/apache/airflow/issues/68396 for the urllib3 v2 fix.
-
-    Please ping @michalmisiewicz or @dimberman in the PR if you want to modify this function.
+    See https://github.com/apache/airflow/pull/11406 for the original discussion.
     """
-    import socket
+    if not hasattr(configuration, "socket_options"):
+        log.warning("Cannot enable TCP keepalive: it requires kubernetes>=36.0.1.")
+        return
 
     tcp_keep_idle = conf.getint("kubernetes_executor", "tcp_keep_idle")
     tcp_keep_intvl = conf.getint("kubernetes_executor", "tcp_keep_intvl")
     tcp_keep_cnt = conf.getint("kubernetes_executor", "tcp_keep_cnt")
 
-    socket_options: list[tuple[int, int, int | bytes]] = [
-        (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
-        (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
-    ]
+    keepalive_options: list[tuple[int, int, int | bytes]] = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
 
     if hasattr(socket, "TCP_KEEPIDLE"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
     else:
         log.debug("Unable to set TCP_KEEPIDLE on this platform")
 
     if hasattr(socket, "TCP_KEEPINTVL"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
     else:
         log.debug("Unable to set TCP_KEEPINTVL on this platform")
 
     if hasattr(socket, "TCP_KEEPCNT"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
     else:
         log.debug("Unable to set TCP_KEEPCNT on this platform")
 
-    if hasattr(configuration, "socket_options"):
-        configuration.socket_options = socket_options
-        return
-
-    # kubernetes client < 36.0.0: fall back to monkey-patching urllib3 defaults.
-    # Note: this only works with urllib3 < 2.0 where the default argument is
-    # evaluated per-connection rather than at import time.
-    from urllib3.connection import HTTPConnection, HTTPSConnection
-
-    if not hasattr(HTTPSConnection, "default_socket_options"):
-        log.debug("urllib3 connection class has no default_socket_options; skipping TCP keepalive")
-        return
-
-    existing_options = list(HTTPSConnection.default_socket_options)
-    HTTPSConnection.default_socket_options = existing_options + socket_options
-    if hasattr(HTTPConnection, "default_socket_options"):
-        HTTPConnection.default_socket_options = existing_options + socket_options
+    base_options = configuration.socket_options
+    if base_options is None:
+        base_options = HTTPConnection.default_socket_options
+    overridden = {(level, optname) for level, optname, _ in keepalive_options}
+    configuration.socket_options = [
+        option for option in base_options if (option[0], option[1]) not in overridden
+    ] + keepalive_options
 
 
 def _enable_tcp_keepalive(configuration: Configuration | None = None) -> None:
@@ -196,9 +181,12 @@ def _enable_tcp_keepalive(configuration: Configuration | None = None) -> None:
         AirflowProviderDeprecationWarning,
         stacklevel=2,
     )
+    set_default = configuration is None
     if configuration is None:
         configuration = _get_default_configuration()
     enable_tcp_keepalive(configuration)
+    if set_default:
+        Configuration.set_default(configuration)
 
 
 def get_kube_client(

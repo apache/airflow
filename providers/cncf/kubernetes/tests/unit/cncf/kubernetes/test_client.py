@@ -16,18 +16,29 @@
 # under the License.
 from __future__ import annotations
 
+import socket
 from unittest import mock
 
 import pytest
 from kubernetes.client import Configuration
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.kube_client import (
     _disable_verify_ssl,
+    _enable_tcp_keepalive,
+    _TimeoutK8sApiClient,
     enable_tcp_keepalive,
     get_kube_client,
 )
 
 from tests_common.test_utils.config import conf_vars
+
+
+@pytest.fixture
+def restore_default_configuration():
+    original = Configuration.get_default_copy()
+    yield
+    Configuration.set_default(original)
 
 
 class TestClient:
@@ -63,22 +74,96 @@ class TestClient:
 
     @pytest.mark.platform("linux")
     def test_enable_tcp_keepalive(self):
-        import socket
-
         configuration = Configuration()
-        if not hasattr(configuration, "socket_options"):
-            pytest.skip("Configuration.socket_options requires kubernetes client >= 36.0.0")
-
-        assert configuration.socket_options is None
+        configuration.socket_options = None
 
         enable_tcp_keepalive(configuration)
 
-        assert configuration.socket_options is not None
-        assert configuration.socket_options[0] == (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        assert configuration.socket_options[1] == (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        assert configuration.socket_options[2] == (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120)
-        assert configuration.socket_options[3] == (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30)
-        assert configuration.socket_options[4] == (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
+        assert configuration.socket_options == [
+            (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
+            (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6),
+        ]
+
+    @pytest.mark.platform("linux")
+    def test_enable_tcp_keepalive_preserves_existing_options(self):
+        configuration = Configuration()
+        configuration.socket_options = [
+            (socket.SOL_SOCKET, socket.SO_RCVBUF, 1234),
+            (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 0),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 5),
+        ]
+
+        enable_tcp_keepalive(configuration)
+
+        assert configuration.socket_options == [
+            (socket.SOL_SOCKET, socket.SO_RCVBUF, 1234),
+            (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30),
+            (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6),
+        ]
+
+    @pytest.mark.platform("linux")
+    def test_enable_tcp_keepalive_is_idempotent(self):
+        configuration = Configuration()
+        configuration.socket_options = None
+
+        enable_tcp_keepalive(configuration)
+        first_call_options = list(configuration.socket_options)
+        enable_tcp_keepalive(configuration)
+
+        assert configuration.socket_options == first_call_options
+
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.log", autospec=True)
+    def test_enable_tcp_keepalive_unsupported_kubernetes_client(self, mock_log):
+        configuration = mock.create_autospec(Configuration, instance=True, spec_set=True)
+        del configuration.socket_options
+
+        enable_tcp_keepalive(configuration)
+
+        mock_log.warning.assert_called_once()
+        assert not hasattr(configuration, "socket_options")
+
+    @pytest.mark.platform("linux")
+    @pytest.mark.parametrize("enabled", [True, False])
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config", autospec=True)
+    def test_get_kube_client_tcp_keepalive(self, mock_config, enabled):
+        with conf_vars({("kubernetes_executor", "enable_tcp_keepalive"): str(enabled)}):
+            client = get_kube_client(in_cluster=False)
+
+        configuration_options = client.api_client.configuration.socket_options
+        pool_options = client.api_client.rest_client.pool_manager.connection_pool_kw.get("socket_options")
+        keepalive = (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        if enabled:
+            assert keepalive in configuration_options
+            assert keepalive in pool_options
+        else:
+            assert not configuration_options or keepalive not in configuration_options
+            assert not pool_options or keepalive not in pool_options
+
+    @pytest.mark.platform("linux")
+    @pytest.mark.parametrize("enabled", [True, False])
+    def test_timeout_api_client_tcp_keepalive(self, enabled):
+        default_options = Configuration.get_default_copy().socket_options
+
+        api_client = _TimeoutK8sApiClient(should_enable_tcp_keepalive=enabled)
+
+        keepalive = (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        options = api_client.configuration.socket_options or []
+        assert (keepalive in options) is enabled
+        assert Configuration.get_default_copy().socket_options == default_options
+
+    @pytest.mark.platform("linux")
+    def test_deprecated_enable_tcp_keepalive_sets_default_configuration(self, restore_default_configuration):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            _enable_tcp_keepalive()
+
+        options = Configuration.get_default_copy().socket_options
+        assert (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1) in options
+        assert (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120) in options
 
     def test_disable_verify_ssl(self):
         configuration = Configuration()
