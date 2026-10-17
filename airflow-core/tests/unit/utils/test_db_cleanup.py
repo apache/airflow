@@ -680,6 +680,97 @@ class TestDBCleanup:
             ]
             assert len(archives) == expected_archives
 
+    @pytest.mark.parametrize(
+        ("batch_size", "clean_before_days", "expected_found_line", "expected_delete_lines"),
+        [
+            pytest.param(
+                None,
+                5,
+                "Found 5 rows in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run...",
+                    "Deleted 5 rows from dag_run.",
+                ],
+                id="unbatched",
+            ),
+            pytest.param(
+                2,
+                5,
+                "Found 5 rows in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run (batch 1, max 2 rows)...",
+                    "Deleted 2 rows from dag_run (batch 1).",
+                    "Performing Delete from dag_run (batch 2, max 2 rows)...",
+                    "Deleted 2 rows from dag_run (batch 2).",
+                    "Performing Delete from dag_run (batch 3, max 2 rows)...",
+                    "Deleted 1 row from dag_run (batch 3).",
+                ],
+                id="batched",
+            ),
+            pytest.param(
+                None,
+                1,
+                "Found 1 row in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run...",
+                    "Deleted 1 row from dag_run.",
+                ],
+                id="singular",
+            ),
+        ],
+    )
+    def test_cleanup_progress_names_table(
+        self, batch_size, clean_before_days, expected_found_line, expected_delete_lines, capsys
+    ):
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        create_tis(base_date=base_date, num_tis=10)
+
+        with create_session() as session:
+            for name in _get_archived_table_names(["dag_run"], session):
+                session.execute(text(f"DROP TABLE IF EXISTS {name}"))
+
+            capsys.readouterr()
+            _cleanup_table(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=base_date.add(days=clean_before_days),
+                dry_run=False,
+                session=session,
+                table_names=["dag_run"],
+                skip_archive=False,
+                batch_size=batch_size,
+            )
+
+        output_lines = capsys.readouterr().out.splitlines()
+        assert expected_found_line in output_lines
+        for line in expected_delete_lines:
+            assert line in output_lines
+        moving_lines = [line for line in output_lines if line.startswith("Moving data")]
+        assert moving_lines
+        assert all(
+            line.startswith(f"Moving data from dag_run to table {ARCHIVE_TABLE_PREFIX}dag_run__")
+            for line in moving_lines
+        )
+        assert output_lines[-1] == "Finished Performing Delete from dag_run"
+
+    @patch("airflow.utils.db_cleanup._build_query", autospec=True)
+    def test_cleanup_progress_uses_schema_qualified_table_name(self, build_query_mock, capsys):
+        build_query_mock.return_value = select(literal(1))
+        orm_model = Table("log", MetaData(), schema="audit")
+
+        with create_session() as session:
+            _cleanup_table(
+                orm_model=orm_model,
+                recency_column=None,
+                keep_last=False,
+                keep_last_filters=None,
+                keep_last_group_by=None,
+                clean_before_timestamp=pendulum.DateTime(2022, 1, 1, tzinfo=UTC),
+                dry_run=True,
+                session=session,
+            )
+
+        assert "Found 1 row in table audit.log meeting deletion criteria." in capsys.readouterr().out
+
     def test_dag_version_cleanup_skips_versions_pinned_by_task_instance(self):
         """db clean must skip dag_version rows still referenced by a task instance.
 
