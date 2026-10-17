@@ -76,7 +76,10 @@ export const useEditPool = (
       parsedDescription = editPoolRequestBody.description;
       updateMask.push("description");
     }
-    if (editPoolRequestBody.include_deferred !== initialPool.include_deferred) {
+    if (
+      editPoolRequestBody.include_deferred !== undefined &&
+      editPoolRequestBody.include_deferred !== initialPool.include_deferred
+    ) {
       updateMask.push("include_deferred");
     }
     if (editPoolRequestBody.team_name !== initialPool.team_name) {
