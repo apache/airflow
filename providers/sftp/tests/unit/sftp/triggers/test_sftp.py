@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import datetime
 import importlib
-import time
 import warnings
 from unittest import mock
 
@@ -37,6 +36,30 @@ except ImportError:
     WARNING_CATEGORY = DeprecationWarning
 else:
     WARNING_CATEGORY = DeprecatedImportWarning
+
+
+@pytest.fixture
+def default_timezone(request):
+    prev_tz = (
+        timezone._Timezone.initialized_timezone.name
+        if hasattr(timezone._Timezone.initialized_timezone, "name")
+        else "UTC"
+    )
+    timezone.initialize(request.param)
+    yield request.param
+    timezone.initialize(prev_tz)
+
+
+async def _first_event_or_none(trigger: SFTPTrigger) -> TriggerEvent | None:
+    """Return the trigger's first event, or ``None`` if it sleeps (no file was sensed)."""
+    with mock.patch("airflow.providers.sftp.triggers.sftp.asyncio.sleep", side_effect=asyncio.CancelledError):
+        generator = trigger.run()
+        try:
+            return await anext(generator)
+        except asyncio.CancelledError:
+            return None
+        finally:
+            await generator.aclose()
 
 
 class TestSFTPTrigger:
@@ -91,6 +114,59 @@ class TestSFTPTrigger:
         trigger.newer_than = "2024-01-01T00:00:00"
         # Property is cached, so mutating newer_than afterwards has no effect on it.
         assert trigger.newer_than_utc is first_access
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("default_timezone", ["UTC", "America/New_York"], indirect=True)
+    @pytest.mark.parametrize(
+        ("newer_than", "expected_sensed"),
+        [
+            # 20240101120000 is 2024-01-01 12:00:00 UTC.
+            (datetime.datetime(2024, 1, 1, 10, 0, tzinfo=datetime.UTC), True),
+            (datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.UTC), True),
+            (datetime.datetime(2024, 1, 1, 14, 0, tzinfo=datetime.UTC), False),
+        ],
+    )
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_mod_time")
+    async def test_newer_than_without_file_pattern_is_timezone_independent(
+        self, mock_mod_time, default_timezone, newer_than, expected_sensed
+    ):
+        """The single-file comparison must not depend on ``core.default_timezone``."""
+        mock_mod_time.return_value = "20240101120000"
+        trigger = SFTPTrigger(path="test/path/test.txt", sftp_conn_id="sftp_default", newer_than=newer_than)
+
+        event = await _first_event_or_none(trigger)
+
+        if expected_sensed:
+            assert event == TriggerEvent({"status": "success", "message": "Sensed file: test/path/test.txt"})
+        else:
+            assert event is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("default_timezone", ["UTC", "America/New_York"], indirect=True)
+    @pytest.mark.parametrize(
+        ("newer_than", "expected_sensed"),
+        [
+            (datetime.datetime(2024, 1, 1, 10, 0, tzinfo=datetime.UTC), True),
+            (datetime.datetime(2024, 1, 1, 12, 0, tzinfo=datetime.UTC), True),
+            (datetime.datetime(2024, 1, 1, 14, 0, tzinfo=datetime.UTC), False),
+        ],
+    )
+    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_files_and_attrs_by_pattern")
+    async def test_newer_than_with_file_pattern_is_timezone_independent(
+        self, mock_get_files_by_pattern, default_timezone, newer_than, expected_sensed
+    ):
+        """The file-pattern comparison must not depend on ``core.default_timezone``."""
+        mock_get_files_by_pattern.return_value = [SFTPName("file.txt", attrs=SFTPAttrs(mtime=1704110400))]
+        trigger = SFTPTrigger(
+            path="test/path/", sftp_conn_id="sftp_default", file_pattern="*.txt", newer_than=newer_than
+        )
+
+        event = await _first_event_or_none(trigger)
+
+        if expected_sensed:
+            assert event == TriggerEvent({"status": "success", "message": "Sensed 1 files: ['file.txt']"})
+        else:
+            assert event is None
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -151,8 +227,8 @@ class TestSFTPTrigger:
         Test SFTPTrigger run method by mocking the file path, without file pattern, and with newer then datetime
         assert that a TriggerEvent with a success status is yielded.
         """
-        mock_mod_time.return_value = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+        mock_mod_time.return_value = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d%H%M%S")
+        yesterday = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=1)
         trigger = SFTPTrigger(
             path="test/path/test.txt", sftp_conn_id="sftp_default", file_pattern="", newer_than=yesterday
         )
@@ -175,7 +251,7 @@ class TestSFTPTrigger:
         indicating that the task needs to be deferred
         """
         mock_get_files_by_pattern.return_value = [SFTPName("my_test_file.txt", attrs=SFTPAttrs(mtime=49129))]
-        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+        yesterday = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=1)
         trigger = SFTPTrigger(
             path="test/path/", sftp_conn_id="sftp_default", file_pattern="my_test_file", newer_than=yesterday
         )
@@ -195,9 +271,8 @@ class TestSFTPTrigger:
         mock the datetime as greater then the last modified date and make the trigger task in running
         state and assert to success
         """
-        today_time = time.time()
-        mock_mod_time.return_value = datetime.date.fromtimestamp(today_time).strftime("%Y%m%d%H%M%S")
-        newer_then_time = datetime.datetime.now() + datetime.timedelta(hours=1)
+        mock_mod_time.return_value = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d%H%M%S")
+        newer_then_time = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)
         trigger = SFTPTrigger(
             path="test/path/test.txt",
             sftp_conn_id="sftp_default",
