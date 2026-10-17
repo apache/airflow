@@ -25,8 +25,10 @@ from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
+from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
@@ -239,16 +241,27 @@ class Trigger(Base):
         Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
         Afterward we can drop the triggers not referenced by anyone.
         """
-        # Update all task instances with trigger IDs that are not DEFERRED to remove them
+        # Update all task instances with trigger IDs that are not DEFERRED to remove them.
+        # A transient DB disconnect raises DBAPIError and leaves the session in a
+        # "pending rollback" state; without an explicit rollback here, the next retry
+        # attempt reuses that invalidated transaction and raises PendingRollbackError,
+        # which run_with_db_retries() does not match. Mirrors retry_db_transaction in
+        # airflow/utils/retries.py, which cannot be used here because clean_unused is
+        # already decorated with @provide_session.
         for attempt in run_with_db_retries():
             with attempt:
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
+                try:
+                    session.execute(
+                        update(TaskInstance)
+                        .where(
+                            TaskInstance.state != TaskInstanceState.DEFERRED,
+                            TaskInstance.trigger_id.is_not(None),
+                        )
+                        .values(trigger_id=None)
                     )
-                    .values(trigger_id=None)
-                )
+                except (DBAPIError, StaleDataError):
+                    session.rollback()
+                    raise
 
         # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
         ids = select(cls.id).where(
