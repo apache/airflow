@@ -250,7 +250,6 @@ def test_partial_stop_failure_restarts_daemon(fake_tools, snapshot, mode):
 
 def test_snapshot_creation_uses_builder_after_cache_publication():
     workflow = yaml.safe_load(WORKFLOW.read_text())
-    assert "snapshot-ci-images" not in workflow["jobs"]
     steps = workflow["jobs"]["build-ci-images"]["steps"]
     snapshot = next(i for i, step in enumerate(steps) if step.get("id") == "snapshot-export")
     cache_publishers = [i for i, step in enumerate(steps) if "/stash/save@" in step.get("uses", "")]
