@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-mssql``
 
-The package supports the following python versions: 3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14,3.15
 
 Requirements
 ------------
@@ -58,6 +58,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``pymssql``                                 ``>=2.3.5; python_version < "3.14"``
 ``pymssql``                                 ``>=2.3.13; python_version >= "3.14"``
+``pymssql``                                 ``>=2.4.1; python_version >= "3.15"``
 ``methodtools``                             ``>=0.4.7``
 ==========================================  ======================================
 

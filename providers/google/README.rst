@@ -182,10 +182,10 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-====================  =====================================================
+====================  =========================================================================
 Extra                 Dependencies
-====================  =====================================================
-``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
+====================  =========================================================================
+``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2; python_version != "3.15"``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.22.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
@@ -208,7 +208,7 @@ Extra                 Dependencies
 ``standard``          ``apache-airflow-providers-standard``
 ``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-====================  =====================================================
+====================  =========================================================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.7.0/changelog.html>`_.

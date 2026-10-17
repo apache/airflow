@@ -49,7 +49,7 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
     "3.13"  # "highest complete" python version (where all providers are included)
@@ -528,7 +528,7 @@ PRODUCTION_IMAGE = False
 # 2. Once we stop cherry-picking to the last release branch that supports it (that branch then only
 #    gets fixes applied directly), remove it from this list. Release branches keep their own copy
 #    of this list, so their CI and image builds are not affected.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
 ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
@@ -908,6 +908,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.12": "3.12.14",
     "3.13": "3.13.15",
     "3.14": "3.14.7",
+    "3.15": "3.15.0",
 }
 
 # Number of slices for low dep tests

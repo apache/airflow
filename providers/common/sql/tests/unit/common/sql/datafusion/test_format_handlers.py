@@ -20,14 +20,19 @@ from io import FileIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pyiceberg.table import Table
 
-from airflow.providers.common.sql.config import DataSourceConfig, FormatType
-from airflow.providers.common.sql.datafusion.exceptions import (
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("pyiceberg")
+
+from pyiceberg.table import Table  # noqa: E402
+
+from airflow.providers.common.sql.config import DataSourceConfig, FormatType  # noqa: E402
+from airflow.providers.common.sql.datafusion.exceptions import (  # noqa: E402
     FileFormatRegistrationException,
     IcebergRegistrationException,
 )
-from airflow.providers.common.sql.datafusion.format_handlers import (
+from airflow.providers.common.sql.datafusion.format_handlers import (  # noqa: E402
     AvroFormatHandler,
     CsvFormatHandler,
     IcebergFormatHandler,

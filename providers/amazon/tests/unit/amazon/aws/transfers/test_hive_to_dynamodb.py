@@ -21,14 +21,18 @@ import datetime
 import json
 from unittest import mock
 
-import pandas as pd
-import polars as pl
-import pytest
-from moto import mock_aws
+from tests_common.test_utils.markers import skip_module_on_python_315_without
 
-import airflow.providers.amazon.aws.transfers.hive_to_dynamodb
-from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+skip_module_on_python_315_without("airflow.providers.apache.hive")
+
+import pandas as pd  # noqa: E402
+import polars as pl  # noqa: E402
+import pytest  # noqa: E402
+from moto import mock_aws  # noqa: E402
+
+import airflow.providers.amazon.aws.transfers.hive_to_dynamodb  # noqa: E402
+from airflow.models.dag import DAG  # noqa: E402
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook  # noqa: E402
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

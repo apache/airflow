@@ -19,13 +19,17 @@ from __future__ import annotations
 import json
 from unittest import mock
 
-import duckdb
-import pytest
+from tests_common.test_utils.markers import skip_module_on_python_315_without
 
-from airflow.models.connection import Connection
-from airflow.providers.amazon.aws.hooks.duckdb import AwsDuckDBHook
-from airflow.providers.duckdb.hooks.duckdb import DuckDBHook
-from airflow.providers.duckdb.operators.duckdb import DuckDBExecuteQueryOperator
+skip_module_on_python_315_without("duckdb")
+
+import duckdb  # noqa: E402
+import pytest  # noqa: E402
+
+from airflow.models.connection import Connection  # noqa: E402
+from airflow.providers.amazon.aws.hooks.duckdb import AwsDuckDBHook  # noqa: E402
+from airflow.providers.duckdb.hooks.duckdb import DuckDBHook  # noqa: E402
+from airflow.providers.duckdb.operators.duckdb import DuckDBExecuteQueryOperator  # noqa: E402
 
 GET_CONNECTION = "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook.get_connection"
 AWS_BASE_HOOK = "airflow.providers.amazon.aws.hooks.duckdb.AwsBaseHook"

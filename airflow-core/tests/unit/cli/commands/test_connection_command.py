@@ -37,7 +37,7 @@ from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, xfail_on_python_315
 
 pytestmark = pytest.mark.db_test
 
@@ -643,6 +643,9 @@ class TestCliAddConnections:
                     "extra": None,
                 },
                 id="individual-parts",
+                marks=xfail_on_python_315(
+                    "The apache.hive provider that registers hive_metastore is excluded on Python 3.15"
+                ),
             ),
             pytest.param(
                 [
@@ -669,6 +672,9 @@ class TestCliAddConnections:
                     "extra": '{"extra": "yes"}',
                 },
                 id="empty-uri-with-conn-type-and-extra",
+                marks=xfail_on_python_315(
+                    "The google provider that registers google_cloud_platform is excluded on Python 3.15"
+                ),
             ),
             pytest.param(
                 ["connections", "add", "new6", "--conn-uri", "aws://?region_name=foo-bar-1"],

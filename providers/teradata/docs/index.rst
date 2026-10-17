@@ -139,14 +139,14 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-teradata[microsoft.azure]
 
 
-===================  ============================================
+===================  ===============================================================================
 Extra                Dependencies
-===================  ============================================
-``microsoft.azure``  ``apache-airflow-providers-microsoft-azure``
+===================  ===============================================================================
+``microsoft.azure``  ``apache-airflow-providers-microsoft-azure; python_version != "3.15"``
 ``amazon``           ``apache-airflow-providers-amazon``
-``sqlalchemy``       ``sqlalchemy>=1.4.54,!=2.1.0``
+``sqlalchemy``       ``sqlalchemy>=1.4.54,!=2.1.0``, ``sqlalchemy>=2.1.4; python_version >= "3.15"``
 ``ssh``              ``apache-airflow-providers-ssh``
-===================  ============================================
+===================  ===============================================================================
 
 Downloading official packages
 -----------------------------

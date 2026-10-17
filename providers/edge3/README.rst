@@ -57,21 +57,22 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-edge3``
 
-The package supports the following python versions: 3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14,3.15
 
 Requirements
 ------------
 
-==========================================  ===================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  ===================
+==========================================  ======================================
 ``apache-airflow``                          ``>=3.0.0,!=3.1.0``
 ``apache-airflow-providers-common-compat``  ``>=1.15.0``
 ``pydantic``                                ``>=2.11.0``
 ``retryhttp``                               ``>=1.4.0``
 ``aiofiles``                                ``>=23.2.0``
 ``aiohttp``                                 ``>=3.14.0``
-==========================================  ===================
+``aiohttp``                                 ``>=3.14.4; python_version >= "3.15"``
+==========================================  ======================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/5.0.0/changelog.html>`_.
