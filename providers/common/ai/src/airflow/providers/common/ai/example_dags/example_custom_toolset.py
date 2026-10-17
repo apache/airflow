@@ -54,7 +54,7 @@ class ReleaseArgs(PackageArgs):
     """The arguments of get_release."""
 
     version: Annotated[
-        str, Field(description="An exact version, such as 3.1.0.", pattern=r"^[A-Za-z0-9.!+_-]+$")
+        str, Field(description="An exact version, such as 3.1.0.", pattern=r"^[A-Za-z0-9][A-Za-z0-9.!+_-]*$")
     ]
 
 
