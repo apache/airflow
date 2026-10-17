@@ -122,6 +122,10 @@ as a task failure.
     the Dag loads. Set ``id=`` on the toolset itself; an id on a ``Toolset`` capability
     around it does not reach it. See :doc:`durable_execution`.
 
+``durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders'``
+    Two different toolset objects share an id, so durable replay could not tell their
+    recorded calls apart. Give each its own ``id=``. See :doc:`durable_execution`.
+
 ``durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both.``
     ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
     ``capabilities`` would record every step twice. Drop one of them.

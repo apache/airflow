@@ -82,6 +82,9 @@ the id on the toolset itself:
 
     ValueError: durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders'): durable replay records each tool call under it. Set it on the toolset itself, and pass a function that builds a toolset as DynamicToolset(function, id=...); the id of a Toolset capability around a toolset does not reach it.
 
+It also refuses two different toolsets with the same id, which would file their calls
+under one name; passing one toolset object in two places is fine.
+
 Keep an id stable once tasks run with it: a retry finds its recorded tool calls by it.
 The provider's own toolsets (``SQLToolset``, ``HookToolset`` and the rest) and tools
 passed as ``agent_params={"tools": [...]}`` need nothing. A capability that contributes
