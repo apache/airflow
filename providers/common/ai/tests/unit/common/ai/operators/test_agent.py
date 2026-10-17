@@ -24,13 +24,14 @@ import sys
 from contextlib import nullcontext
 from datetime import timedelta
 from decimal import Decimal
+from enum import Enum
 from types import ModuleType, SimpleNamespace
 from typing import Any, NewType
 from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 from uuid import UUID
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 from pydantic_ai import Agent, DeferredToolRequests, RunContext, Tool, ToolOutput
 from pydantic_ai.capabilities import (
     AbstractCapability,
@@ -106,7 +107,11 @@ from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
 try:
-    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+    from airflow.sdk.serde import (
+        SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
+        deserialize,
+        serialize,
+    )
 except ImportError:
     _CORE_WALKER = False
 
@@ -127,6 +132,15 @@ def _summarize(text: str) -> Summary:
 
 SummaryAlias = TypeAliasType("SummaryAlias", Summary)
 SummaryNewType = NewType("SummaryNewType", Summary)
+
+
+class SummaryKind(Enum):
+    SHORT = "short"
+
+
+class LinkedSummary(BaseModel):
+    kind: SummaryKind
+    url: HttpUrl
 
 
 def _make_mock_agent(output, make_mock_run_result, *, cost=None):
@@ -1034,6 +1048,99 @@ class TestAgentOperatorExecute:
         assert result.text == "Great"
         assert result.score == 0.95
 
+    @pytest.mark.parametrize(
+        "output_type",
+        [
+            pytest.param([Summary, int], id="list-of-output-types"),
+            pytest.param(ToolOutput(Summary), id="output-marker"),
+            pytest.param(_summarize, id="output-function"),
+            pytest.param(SummaryAlias, id="type-alias"),
+            pytest.param(SummaryNewType, id="new-type"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_dumps_a_model_the_worker_does_not_register(
+        self, mock_hook_cls, make_mock_run_result, output_type
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            Summary(text="ok"), make_mock_run_result
+        )
+        op = AgentOperator(
+            task_id="test", prompt="Analyze this", llm_conn_id="my_llm", output_type=output_type
+        )
+
+        result = op.execute(context=MagicMock())
+
+        assert result == {"text": "ok", "score": 0.0}
+
+    @requires_typed_xcom
+    @pytest.mark.parametrize(
+        ("output_type", "output", "expected", "serialize_output"),
+        [
+            pytest.param(
+                ToolOutput(list[Summary]),
+                [Summary(text="ok")],
+                [{"text": "ok", "score": 0.0}],
+                False,
+                id="list-in-output-marker",
+            ),
+            pytest.param(
+                [list[Summary], int],
+                [Summary(text="ok")],
+                [{"text": "ok", "score": 0.0}],
+                False,
+                id="list-in-list-of-output-types",
+            ),
+            pytest.param(
+                ToolOutput(tuple[Summary, int]),
+                (Summary(text="ok"), 1),
+                ({"text": "ok", "score": 0.0}, 1),
+                False,
+                id="tuple-in-output-marker",
+            ),
+            pytest.param(
+                ToolOutput(dict[str, Summary]),
+                {"a": Summary(text="ok")},
+                {"a": {"text": "ok", "score": 0.0}},
+                False,
+                id="dict-in-output-marker",
+            ),
+            pytest.param(
+                ToolOutput(list[Summary]),
+                [Summary(text="ok")],
+                [{"text": "ok", "score": 0.0}],
+                True,
+                id="list-in-output-marker-with-serialize-output",
+            ),
+            pytest.param(
+                ToolOutput(LinkedSummary),
+                LinkedSummary(kind=SummaryKind.SHORT, url=HttpUrl("https://example.com/a")),
+                {"kind": "short", "url": "https://example.com/a"},
+                False,
+                id="enum-and-url-fields",
+            ),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_pushes_each_model_the_worker_does_not_register_as_json(
+        self, mock_hook_cls, make_mock_run_result, output_type, output, expected, serialize_output
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            output, make_mock_run_result
+        )
+        op = AgentOperator(
+            task_id="test",
+            prompt="Analyze this",
+            llm_conn_id="my_llm",
+            output_type=output_type,
+            serialize_output=serialize_output,
+        )
+
+        result = op.execute(context=MagicMock())
+
+        assert result == expected
+        assert deserialize(serialize(result)) == expected
+
     def test_declares_output_type_for_deserialization(self):
         """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization."""
         assert "output_type" in AgentOperator.deserialization_allowed_class_fields
@@ -1103,14 +1210,14 @@ class TestAgentOperatorExecute:
     def test_execute_with_enable_hitl_review_delegates_to_run_hitl_review(
         self, mock_hook_cls, mock_run_hitl, make_mock_run_result
     ):
-        """When enable_hitl_review=True, execute delegates to run_hitl_review with output and message_history."""
+        """execute returns the agent's output instead of run_hitl_review's text."""
         msg_history = [MagicMock()]
         mock_result = make_mock_run_result("Initial output")
         mock_result.all_messages.return_value = msg_history
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = "Initial output"
+        mock_run_hitl.return_value = "Approved output"
 
         op = AgentOperator(
             task_id="test",
@@ -1131,7 +1238,7 @@ class TestAgentOperatorExecute:
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_execute_with_hitl_rehydrates_base_model(
+    def test_execute_with_hitl_returns_the_model_instance(
         self, mock_hook_cls, mock_run_hitl, make_mock_run_result
     ):
         """When enable_hitl_review=True and output_type is BaseModel, execute returns the model instance."""
@@ -1139,7 +1246,6 @@ class TestAgentOperatorExecute:
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = mock_result
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        # run_hitl_review returns JSON string (as stored in session.current_output)
         mock_run_hitl.return_value = '{"text": "Approved summary", "score": 0.9}'
 
         op = AgentOperator(
