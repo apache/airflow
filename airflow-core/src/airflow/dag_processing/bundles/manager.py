@@ -25,7 +25,7 @@ import time
 import warnings
 from collections import defaultdict
 from configparser import ConfigParser
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -123,7 +123,7 @@ class _BundleConfigSnapshot:
     last_checked: float = field(default_factory=lambda: time.monotonic())
 
 
-def _get_bundle_config_source() -> tuple[str, str] | None:
+def _get_bundle_config_reload_option() -> tuple[str, str] | None:
     section, key = "dag_processor", "dag_bundle_config_list"
     env_key = "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST"
     if env_key in os.environ:
@@ -153,18 +153,35 @@ def _create_bundle_config_snapshot(bundle_config_list: list[_ExternalBundleConfi
     )
 
 
+def is_bundle_config_reload_enabled() -> bool:
+    """Return whether bundle configuration comes from a command or secrets backend."""
+    return _get_bundle_config_reload_option() is not None
+
+
 @functools.cache
-def _load_bundle_config_snapshot() -> _BundleConfigSnapshot:
+def _load_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfigSnapshot:
     """Read the initial bundle snapshot, shared by managers in this process."""
+    if metadata_only:
+        return replace(_load_bundle_config_snapshot())
     return _create_bundle_config_snapshot(_read_bundle_config_list())
 
 
-def _get_bundle_config_snapshot() -> _BundleConfigSnapshot:
-    snapshot = _load_bundle_config_snapshot()
-    if _get_bundle_config_source() is None:
+def _get_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfigSnapshot:
+    if metadata_only:
+        return _load_bundle_config_snapshot(metadata_only=True)
+    return _load_bundle_config_snapshot()
+
+
+def _refresh_bundle_config_snapshot(
+    *, force: bool = False, metadata_only: bool = False
+) -> _BundleConfigSnapshot:
+    snapshot = _get_bundle_config_snapshot(metadata_only=metadata_only)
+    if not is_bundle_config_reload_enabled():
         return snapshot
     now = time.monotonic()
-    if now - snapshot.last_checked < conf.getint("dag_processor", "bundle_refresh_check_interval"):
+    if not force and now - snapshot.last_checked < conf.getint(
+        "dag_processor", "bundle_refresh_check_interval"
+    ):
         return snapshot
     snapshot.last_checked = now
     try:
@@ -182,11 +199,14 @@ def _get_bundle_config_snapshot() -> _BundleConfigSnapshot:
                         f"Use a new bundle name when changing configuration for '{config.name}'"
                     )
                 continue
-            if config.team_name and not conf.getboolean("core", "multi_team"):
-                raise _bundle_item_exc("Bundle teams require multi-team mode")
-            _InternalBundleConfig(
-                bundle_class=import_string(config.classpath), kwargs=config.kwargs, team_name=config.team_name
-            )
+            if not metadata_only:
+                if config.team_name and not conf.getboolean("core", "multi_team"):
+                    raise _bundle_item_exc("Bundle teams require multi-team mode")
+                _InternalBundleConfig(
+                    bundle_class=import_string(config.classpath),
+                    kwargs=config.kwargs,
+                    team_name=config.team_name,
+                )
         current = _create_bundle_config_snapshot(config_list)
     except Exception:
         log.exception("Could not reload Dag bundle configuration; keeping the last accepted list")
@@ -221,7 +241,7 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
 
 
 def _read_bundle_config_list() -> list[_ExternalBundleConfig]:
-    if source := _get_bundle_config_source():
+    if source := _get_bundle_config_reload_option():
         # Normal config lookup can silently fall back to defaults when a secret is missing.
         kind, value = source
         raw = run_command(value) if kind == "cmd" else conf._get_config_value_from_secret_backend(value)
@@ -244,8 +264,8 @@ def _read_bundle_config_list() -> list[_ExternalBundleConfig]:
 
 
 def get_configured_bundle_names() -> frozenset[str]:
-    """Get the names in the accepted Dag bundle configuration."""
-    return _get_bundle_config_snapshot().names
+    """Get configured Dag bundle names without importing their classes."""
+    return _refresh_bundle_config_snapshot(metadata_only=True).names
 
 
 def get_configured_bundle_team_names() -> dict[str, str | None]:
@@ -259,8 +279,8 @@ def get_configured_bundle_team_names() -> dict[str, str | None]:
 
     :return: mapping of bundle name to team name, ``None`` for bundles that are not team scoped.
     """
-    if _get_bundle_config_source() is not None:
-        return dict(_get_bundle_config_snapshot().team_names)
+    if _get_bundle_config_reload_option() is not None:
+        return dict(_refresh_bundle_config_snapshot(metadata_only=True).team_names)
     return {cfg.name: cfg.team_name for cfg in _read_bundle_config_list()}
 
 
@@ -778,6 +798,16 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
+    def _refresh_config(self, *, bundle_name: str | None = None) -> None:
+        if not is_bundle_config_reload_enabled():
+            return
+        snapshot = _get_bundle_config_snapshot()
+        if bundle_name is None or bundle_name not in snapshot.names:
+            snapshot = _refresh_bundle_config_snapshot(force=bundle_name is not None)
+        if self._bundle_config.keys() != snapshot.names:
+            self._bundle_config = {}
+            self.parse_config()
+
     def get_bundle(
         self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None
     ) -> BaseDagBundle:
@@ -790,6 +820,7 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
+        self._refresh_config(bundle_name=name)
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
@@ -802,10 +833,10 @@ class DagBundlesManager(LoggingMixin):
         """
         Return whether *name* is a configured Dag bundle.
 
-        Initial configuration checks only read names. Dynamic reloads retain the
-        last accepted list if a newly configured bundle class cannot be imported.
+        Only configuration metadata is read; bundle classes need not be installed
+        in the process performing this check.
         """
-        return name in _get_bundle_config_snapshot().names
+        return name in get_configured_bundle_names()
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
@@ -813,6 +844,7 @@ class DagBundlesManager(LoggingMixin):
 
         :return: list of DAG bundles.
         """
+        self._refresh_config()
         for name, cfg in self._bundle_config.items():
             try:
                 yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)

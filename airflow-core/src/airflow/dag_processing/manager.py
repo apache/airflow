@@ -54,7 +54,11 @@ from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
     unpack_bundle_version,
 )
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _get_bundle_config_source
+from airflow.dag_processing.bundles.manager import (
+    DagBundlesManager,
+    _refresh_bundle_config_snapshot,
+    is_bundle_config_reload_enabled,
+)
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -1005,9 +1009,10 @@ class DagFileProcessorManager(LoggingMixin):
             self._add_new_files_to_queue(known_files=known_files)
 
     def _reconcile_bundles(self, known_files: dict[str, set[DagFileInfo]]) -> None:
-        if _get_bundle_config_source() is None:
+        if not is_bundle_config_reload_enabled():
             return
         try:
+            _refresh_bundle_config_snapshot()
             dag_bundle_manager = DagBundlesManager()
         except Exception:
             self.log.exception("Could not load Dag bundles; keeping the current bundles")
