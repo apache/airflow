@@ -104,7 +104,7 @@ async def test_read_errors_propagate(hook, trigger, error):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("error", [None, AzureError("stop failed")])
+@pytest.mark.parametrize("error", [None, AzureError("stop failed"), TimeoutError("stop timed out")])
 @time_machine.travel(datetime(2026, 1, 1, tzinfo=UTC), tick=False)
 async def test_expired_deadline_on_redistributed_trigger(hook, error):
     original = AzureContainerAppsJobTrigger(
@@ -117,6 +117,7 @@ async def test_expired_deadline_on_redistributed_trigger(hook, error):
     trigger = AzureContainerAppsJobTrigger(**original.serialize()[1])
     hook.async_stop_execution.side_effect = error
     events = [event async for event in trigger.run()]
+    assert len(events) == 1
     assert events[0].payload["status"] == "error"
     assert "timed out" in events[0].payload["message"]
     hook.async_get_execution.assert_not_called()
@@ -158,7 +159,7 @@ async def test_terminal_lookup_must_finish_before_deadline(clock, hook, trigger,
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("enabled", [True, False])
-@pytest.mark.parametrize("error", [None, AzureError("stop failed")])
+@pytest.mark.parametrize("error", [None, AzureError("stop failed"), TimeoutError("stop timed out")])
 async def test_explicit_termination(hook, trigger, enabled, error):
     trigger.cancel_on_termination = enabled
     hook.async_stop_execution.side_effect = error

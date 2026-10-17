@@ -63,7 +63,8 @@ to release the worker while the triggerer polls using the native async Azure SDK
 to poll on the worker. The default poll interval is 60 seconds. Optional ``timeout_seconds``
 limits the wait after submission. Deferred timeouts keep their original UTC deadline across
 triggerer restarts; elapsed time within each process uses a monotonic clock.
-Status lookups, including execution history pages, use the remaining deadline budget.
+Status lookups, including execution history pages and synchronous SDK retry sleeps, use the
+remaining deadline budget.
 Results returned after the deadline are treated as timeouts, even if Azure reports success.
 
 Both modes follow only the submitted execution. Running, processing, unknown, and empty statuses
@@ -77,7 +78,10 @@ Reads and exact-execution stops use bounded SDK retries.
 
 On timeout the operator stops the execution best effort and reports failure, even when
 ``cancel_on_termination=False``. Explicit worker termination also stops it by default.
-Synchronous cancellation can wait for the bounded SDK request to return.
+Timeout handling permits up to 10 additional seconds for a best-effort stop request.
+Stops disable SDK operation polling: Azure accepting the request does not confirm that
+the execution has finished stopping. Synchronous cancellation applies this budget to SDK
+transport timeouts and retry sleeps; asynchronous cancellation also bounds the complete request.
 Deferred manual cancellation requires an Airflow version whose triggerer invokes ``BaseTrigger.on_kill``;
 older supported versions keep the Azure execution running after a deferred task is manually failed,
 cleared, or marked successful. On those versions, stop it in Azure. This provider does not increase

@@ -89,7 +89,7 @@ def test_invalid_completion_event(operator, event):
         operator.execute_complete({}, event)
 
 
-@pytest.mark.parametrize("stop_error", [None, AzureError("stop failed")])
+@pytest.mark.parametrize("stop_error", [None, AzureError("stop failed"), TimeoutError("stop timed out")])
 @patch(f"{MODULE}.time.monotonic", autospec=True, side_effect=[0, 1, 3, 4])
 @patch(f"{MODULE}.time.sleep", autospec=True)
 def test_worker_timeout_cancels_even_when_termination_cancellation_disabled(
@@ -140,7 +140,7 @@ def test_worker_lookup_timeout_only_translated_after_deadline(clock, operator, f
 
 
 @pytest.mark.parametrize("enabled", [False, True])
-@pytest.mark.parametrize("stop_error", [None, AzureError("stop failed")])
+@pytest.mark.parametrize("stop_error", [None, AzureError("stop failed"), TimeoutError("stop timed out")])
 def test_worker_termination(operator, enabled, stop_error):
     operator.cancel_on_termination = enabled
     operator.on_kill()

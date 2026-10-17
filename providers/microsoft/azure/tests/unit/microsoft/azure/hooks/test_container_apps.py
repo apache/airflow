@@ -24,8 +24,11 @@ from unittest.mock import create_autospec, patch
 
 import pytest
 import time_machine
-from azure.core.exceptions import AzureError, ResourceNotFoundError
+from azure.core.credentials import AccessToken, TokenCredential
+from azure.core.exceptions import AzureError, ResourceNotFoundError, ServiceResponseTimeoutError
 from azure.core.paging import ItemPaged
+from azure.core.pipeline import Pipeline
+from azure.core.pipeline.transport import HttpRequest, HttpResponse, HttpTransport
 from azure.core.polling import AsyncLROPoller, LROPoller
 from azure.mgmt.appcontainers import ContainerAppsAPIClient
 from azure.mgmt.appcontainers.aio import ContainerAppsAPIClient as AsyncContainerAppsAPIClient
@@ -52,6 +55,7 @@ from airflow.providers.microsoft.azure.exceptions import AzureContainerAppsJobEx
 from airflow.providers.microsoft.azure.hooks.container_apps import (
     AzureContainerAppsJobAsyncHook,
     AzureContainerAppsJobHook,
+    _DeadlineRetryPolicy,
     build_execution_template,
     get_execution_result,
 )
@@ -59,6 +63,122 @@ from airflow.providers.microsoft.azure.operators.container_apps import AzureCont
 from airflow.providers.microsoft.azure.triggers.container_apps import AzureContainerAppsJobTrigger
 
 MODULE = "airflow.providers.microsoft.azure.hooks.container_apps"
+
+
+class RecordingResponse(HttpResponse):
+    def __init__(self, request, status, headers, payload):
+        super().__init__(request, None)
+        self.status_code = status
+        self.headers = {"Content-Type": "application/json", **headers}
+        self.content_type = "application/json"
+        self.payload = payload
+
+    def body(self):
+        return json.dumps(self.payload).encode()
+
+    def json(self):
+        return self.payload
+
+    def iter_bytes(self):
+        yield self.body()
+
+    def read(self):
+        return self.body()
+
+
+class RecordingTransport(HttpTransport):
+    def __init__(self, responses, request_seconds=0):
+        self.responses = iter(responses)
+        self.request_seconds = request_seconds
+        self.elapsed = 0
+        self.requests = []
+        self.sleeps = []
+
+    def open(self):
+        pass
+
+    def close(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    def send(self, request, **kwargs):
+        self.requests.append((request, kwargs))
+        self.elapsed += self.request_seconds
+        response = next(self.responses)
+        if isinstance(response, Exception):
+            raise response
+        return RecordingResponse(request, *response)
+
+    def sleep(self, duration):
+        self.sleeps.append(duration)
+        self.elapsed += duration
+
+
+@pytest.mark.parametrize(
+    ("responses", "timeout", "request_seconds", "sleeps", "timed_out"),
+    [
+        ([(429, {"Retry-After": "120"}, {})], 5, 0, [5], True),
+        ([(503, {}, {}), (503, {}, {})], 1, 0, [1], True),
+        ([(503, {}, {}), (503, {}, {}), (200, {}, {})], 5, 0, [2], False),
+        ([(429, {"Retry-After": "2"}, {}), (200, {}, {})], 5, 0, [2], False),
+        ([(429, {"Retry-After": "120"}, {}), (200, {}, {})], None, 0, [120], False),
+        ([ServiceResponseTimeoutError("read failed"), (200, {}, {})], 5, 0, [], False),
+        ([(503, {}, {})], 5, 5, [], True),
+    ],
+)
+@patch(f"{MODULE}.time", autospec=True)
+def test_retry_sleeps_respect_request_deadline(clock, responses, timeout, request_seconds, sleeps, timed_out):
+    transport = RecordingTransport(responses, request_seconds=request_seconds)
+    clock.monotonic.side_effect = lambda: transport.elapsed
+    policy = _DeadlineRetryPolicy(retry_total=3, retry_backoff_factor=1)
+    options = {} if timeout is None else {"timeout": timeout}
+    with Pipeline(transport=transport, policies=[policy]) as pipeline:
+        if timed_out:
+            with pytest.raises(TimeoutError, match="retry deadline expired"):
+                pipeline.run(HttpRequest("GET", "https://management.azure.com/executions"), **options)
+        else:
+            response = pipeline.run(HttpRequest("GET", "https://management.azure.com/executions"), **options)
+            assert response.http_response.status_code == 200
+    assert transport.sleeps == sleeps
+    assert len(transport.requests) == len(responses)
+
+
+@patch.object(AzureContainerAppsJobHook, "get_client", autospec=True)
+@patch(f"{MODULE}.time", autospec=True)
+def test_history_page_retry_uses_remaining_deadline(clock, get_client):
+    transport = RecordingTransport(
+        [
+            (404, {}, {"error": {"code": "NotFound", "message": "not found"}}),
+            (
+                200,
+                {},
+                {
+                    "value": [{"name": "other"}],
+                    "nextLink": "https://management.azure.com/history-next-page",
+                },
+            ),
+            (429, {"Retry-After": "120"}, {}),
+        ],
+        request_seconds=1,
+    )
+    clock.monotonic.side_effect = lambda: transport.elapsed
+    credential = create_autospec(TokenCredential, instance=True)
+    credential.get_token.return_value = AccessToken("token", 4102444800)
+    with ContainerAppsAPIClient(
+        credential, "subscription", transport=transport, retry_policy=_DeadlineRetryPolicy(retry_total=3)
+    ) as sdk_client:
+        get_client.return_value.__enter__.return_value = sdk_client
+        with pytest.raises(TimeoutError, match="retry deadline expired"):
+            AzureContainerAppsJobHook().get_execution("group", "job", "execution", timeout_seconds=5)
+    assert transport.sleeps == [2]
+    assert transport.elapsed == 5
+    assert len(transport.requests) == 3
+    assert "history-next-page" in transport.requests[-1][0].url
 
 
 @pytest.fixture
@@ -363,7 +483,7 @@ def test_lookup_deadline_prevents_further_requests(clock, hook, client, ticks):
 def test_worker_timeout_during_history_stops_submitted_execution(
     hook_clock, worker_clock, hook, client, ticks
 ):
-    hook_clock.monotonic.side_effect = ticks
+    hook_clock.monotonic.side_effect = [*ticks, 10, 10]
     worker_clock.monotonic.side_effect = [0, 0, 10]
     client.job_execution.side_effect = ResourceNotFoundError()
     client.jobs_executions.list.side_effect = lambda **kwargs: ItemPaged(
@@ -381,18 +501,107 @@ def test_worker_timeout_during_history_stops_submitted_execution(
         operator.execute({})
     client.jobs.begin_start.assert_called_once()
     client.jobs.begin_stop_execution.assert_called_once_with(
-        resource_group_name="group", job_name="job", job_execution_name="execution"
+        resource_group_name="group",
+        job_name="job",
+        job_execution_name="execution",
+        polling=False,
+        timeout=10,
+        connection_timeout=10,
+        read_timeout=10,
     )
     worker_clock.sleep.assert_not_called()
 
 
-def test_direct_lookup_and_exact_stop(hook, client):
+@patch(f"{MODULE}.time", autospec=True)
+def test_direct_lookup_and_exact_stop(clock, hook, client):
+    clock.monotonic.return_value = 0
     assert hook.get_execution("group", "job", "execution") is client.job_execution.return_value
     hook.stop_execution("group", "job", "execution")
     client.jobs.begin_stop_execution.assert_called_once_with(
-        resource_group_name="group", job_name="job", job_execution_name="execution"
+        resource_group_name="group",
+        job_name="job",
+        job_execution_name="execution",
+        polling=False,
+        timeout=10,
+        connection_timeout=10,
+        read_timeout=10,
     )
+    client.jobs.begin_stop_execution.return_value.result.assert_not_called()
     client.jobs_executions.list.assert_not_called()
+
+
+@pytest.mark.parametrize("timeout_seconds", [0, -1])
+def test_stop_rejects_invalid_timeout(hook, client, timeout_seconds):
+    with pytest.raises(ValueError, match="timeout_seconds"):
+        hook.stop_execution("group", "job", "execution", timeout_seconds=timeout_seconds)
+    client.jobs.begin_stop_execution.assert_not_called()
+
+
+@pytest.mark.parametrize("error", [AzureError("stop failed"), TimeoutError("stop timed out")])
+def test_stop_submission_errors_propagate(hook, client, error):
+    client.jobs.begin_stop_execution.side_effect = error
+    with pytest.raises(type(error), match=str(error)):
+        hook.stop_execution("group", "job", "execution")
+    assert client.jobs.begin_stop_execution.call_args.kwargs["polling"] is False
+    client.jobs.begin_stop_execution.return_value.result.assert_not_called()
+
+
+@patch(f"{MODULE}.time", autospec=True)
+def test_stop_budget_includes_client_setup(clock, hook, client):
+    clock.monotonic.side_effect = [0, 4]
+    hook.stop_execution("group", "job", "execution", timeout_seconds=5)
+    client.jobs.begin_stop_execution.assert_called_once_with(
+        resource_group_name="group",
+        job_name="job",
+        job_execution_name="execution",
+        polling=False,
+        timeout=1,
+        connection_timeout=1,
+        read_timeout=1,
+    )
+
+
+@patch(f"{MODULE}.time", autospec=True)
+def test_stop_does_not_request_after_budget_expires(clock, hook, client):
+    clock.monotonic.side_effect = [0, 10]
+    with pytest.raises(TimeoutError, match="stop request timed out"):
+        hook.stop_execution("group", "job", "execution")
+    client.jobs.begin_stop_execution.assert_not_called()
+
+
+@patch.object(AzureContainerAppsJobHook, "get_client", autospec=True)
+@patch("azure.core.polling._poller.threading.Thread", autospec=True)
+def test_stop_acceptance_does_not_start_background_polling(thread, get_client):
+    transport = RecordingTransport([(202, {"Location": "https://management.azure.com/stop-operation"}, {})])
+    credential = create_autospec(TokenCredential, instance=True)
+    credential.get_token.return_value = AccessToken("token", 4102444800)
+    with ContainerAppsAPIClient(credential, "subscription", transport=transport) as sdk_client:
+        get_client.return_value.__enter__.return_value = sdk_client
+        AzureContainerAppsJobHook().stop_execution("group", "job", "execution")
+    assert len(transport.requests) == 1
+    request, options = transport.requests[0]
+    assert request.method == "POST"
+    assert "/executions/execution/stop" in request.url
+    assert 0 < options["read_timeout"] <= 10
+    thread.assert_not_called()
+
+
+@patch.object(AzureContainerAppsJobHook, "get_client", autospec=True)
+@patch(f"{MODULE}.time", autospec=True)
+def test_sync_stop_request_has_transport_deadline(clock, get_client):
+    transport = RecordingTransport([ServiceResponseTimeoutError("stop timed out")], request_seconds=10)
+    clock.monotonic.side_effect = lambda: transport.elapsed
+    credential = create_autospec(TokenCredential, instance=True)
+    credential.get_token.return_value = AccessToken("token", 4102444800)
+    with ContainerAppsAPIClient(
+        credential, "subscription", transport=transport, retry_policy=_DeadlineRetryPolicy(retry_total=3)
+    ) as sdk_client:
+        get_client.return_value.__enter__.return_value = sdk_client
+        with pytest.raises(ServiceResponseTimeoutError, match="stop timed out"):
+            AzureContainerAppsJobHook().stop_execution("group", "job", "execution")
+    assert transport.elapsed == 10
+    assert len(transport.requests) == 1
+    assert transport.requests[0][1]["read_timeout"] == 10
 
 
 def test_lookup_errors_propagate(hook, client):
@@ -454,7 +663,7 @@ async def test_deferred_deadline_interrupts_complete_lookup(
     clock.monotonic.return_value = 0
     hook_factory.return_value = async_hook
     timeout = asyncio.Timeout(None)
-    timeout_factory.return_value = timeout
+    timeout_factory.side_effect = [timeout, asyncio.Timeout(None)]
     cancelled = asyncio.Event()
 
     async def block():
@@ -491,9 +700,9 @@ async def test_deferred_deadline_interrupts_complete_lookup(
     assert len(events) == 1
     assert events[0].payload["status"] == "error"
     assert "timed out" in events[0].payload["message"]
-    timeout_factory.assert_called_once_with(60)
+    assert [call.args for call in timeout_factory.call_args_list] == [(60,), (10,)]
     async_client.jobs.begin_stop_execution.assert_awaited_once_with(
-        resource_group_name="group", job_name="job", job_execution_name="execution"
+        resource_group_name="group", job_name="job", job_execution_name="execution", polling=False
     )
 
 
@@ -505,12 +714,59 @@ async def test_async_lookup_stop_and_errors(async_hook, async_client):
     )
     await async_hook.async_stop_execution("group", "job", "execution")
     async_client.jobs.begin_stop_execution.assert_awaited_once_with(
-        resource_group_name="group", job_name="job", job_execution_name="execution"
+        resource_group_name="group", job_name="job", job_execution_name="execution", polling=False
     )
-    async_client.jobs.begin_stop_execution.return_value.result.assert_awaited_once()
+    async_client.jobs.begin_stop_execution.return_value.result.assert_not_awaited()
     async_client.job_execution.side_effect = RuntimeError("unexpected")
     with pytest.raises(RuntimeError, match="unexpected"):
         await async_hook.async_get_execution("group", "job", "execution")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("timeout_seconds", [0, -1])
+async def test_async_stop_rejects_invalid_timeout(async_hook, async_client, timeout_seconds):
+    with pytest.raises(ValueError, match="timeout_seconds"):
+        await async_hook.async_stop_execution("group", "job", "execution", timeout_seconds=timeout_seconds)
+    async_client.jobs.begin_stop_execution.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error", [AzureError("stop failed"), TimeoutError("stop timed out")])
+async def test_async_stop_submission_errors_propagate(async_hook, async_client, error):
+    async_client.jobs.begin_stop_execution.side_effect = error
+    with pytest.raises(type(error), match=str(error)):
+        await async_hook.async_stop_execution("group", "job", "execution")
+    assert async_client.jobs.begin_stop_execution.call_args.kwargs["polling"] is False
+    async_client.jobs.begin_stop_execution.return_value.result.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch(f"{MODULE}.asyncio.timeout", autospec=True)
+async def test_async_stop_deadline_cancels_pending_submission(timeout_factory, async_hook, async_client):
+    timeout = asyncio.Timeout(None)
+    timeout_factory.return_value = timeout
+    cancelled = asyncio.Event()
+
+    async def block(**kwargs):
+        timeout.reschedule(asyncio.get_running_loop().time())
+        try:
+            await asyncio.Future()
+        finally:
+            cancelled.set()
+
+    async_client.jobs.begin_stop_execution.side_effect = block
+    with pytest.raises(TimeoutError):
+        await async_hook.async_stop_execution("group", "job", "execution", timeout_seconds=3)
+    assert cancelled.is_set()
+    timeout_factory.assert_called_once_with(3)
+    async_client.jobs.begin_stop_execution.return_value.result.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_async_stop_preserves_external_cancellation(async_hook, async_client):
+    async_client.jobs.begin_stop_execution.side_effect = asyncio.CancelledError()
+    with pytest.raises(asyncio.CancelledError):
+        await async_hook.async_stop_execution("group", "job", "execution")
 
 
 @pytest.mark.asyncio

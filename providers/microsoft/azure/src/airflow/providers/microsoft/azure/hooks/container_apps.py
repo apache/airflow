@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
@@ -47,11 +48,47 @@ from airflow.providers.microsoft.azure.utils import (
 
 if TYPE_CHECKING:
     from azure.core.paging import PageIterator
+    from azure.core.pipeline import PipelineResponse
+    from azure.core.pipeline.transport import HttpTransport
     from azure.identity import DefaultAzureCredential
     from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
     from azure.mgmt.appcontainers.models import Container, InitContainer
 
     from airflow.sdk import Connection
+
+
+_STOP_TIMEOUT_SECONDS = 10
+
+
+class _DeadlineRetryPolicy(RetryPolicy):
+    """Include SDK retry sleeps in an explicitly supplied request timeout."""
+
+    def configure_retries(self, options: dict[str, Any]) -> dict[str, Any]:
+        timeout = options.get("timeout")
+        settings = super().configure_retries(options)
+        if timeout is not None:
+            settings["deadline"] = time.monotonic() + timeout
+        return settings
+
+    def sleep(
+        self,
+        settings: dict[str, Any],
+        transport: HttpTransport,
+        response: PipelineResponse | None = None,
+    ) -> None:
+        deadline = settings.get("deadline")
+        if deadline is None:
+            super().sleep(settings, transport, response)
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Azure request retry deadline expired")
+        delay = self.get_retry_after(response) if response is not None else None
+        delay = delay or self.get_backoff_time(settings)
+        if delay > 0:
+            transport.sleep(min(delay, remaining))
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Azure request retry deadline expired")
 
 
 def build_execution_template(
@@ -170,7 +207,7 @@ class AzureContainerAppsJobHook(AzureBaseHook):
             with ContainerAppsAPIClient(
                 credential=credential,
                 subscription_id=subscription_id,
-                retry_policy=RetryPolicy(
+                retry_policy=_DeadlineRetryPolicy(
                     retry_total=retries, retry_connect=retries, retry_read=retries, retry_status=retries
                 ),
             ) as client:
@@ -255,12 +292,31 @@ class AzureContainerAppsJobHook(AzureBaseHook):
                     if not continuation_token:
                         return None
 
-    def stop_execution(self, resource_group: str, job_name: str, execution_name: str) -> None:
-        """Stop only the specified execution, with bounded SDK retries."""
+    def stop_execution(
+        self,
+        resource_group: str,
+        job_name: str,
+        execution_name: str,
+        *,
+        timeout_seconds: float = _STOP_TIMEOUT_SECONDS,
+    ) -> None:
+        """Request an exact execution stop within the SDK timeout, without polling for completion."""
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be greater than zero")
+        expires_at = time.monotonic() + timeout_seconds
         with self.get_client() as client:
+            remaining = expires_at - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"Execution {execution_name!r} stop request timed out")
             client.jobs.begin_stop_execution(
-                resource_group_name=resource_group, job_name=job_name, job_execution_name=execution_name
-            ).result()
+                resource_group_name=resource_group,
+                job_name=job_name,
+                job_execution_name=execution_name,
+                polling=False,
+                timeout=remaining,
+                connection_timeout=remaining,
+                read_timeout=remaining,
+            )
 
 
 class AzureContainerAppsJobAsyncHook(AzureContainerAppsJobHook):
@@ -307,10 +363,22 @@ class AzureContainerAppsJobAsyncHook(AzureContainerAppsJobHook):
                         return execution
                 return None
 
-    async def async_stop_execution(self, resource_group: str, job_name: str, execution_name: str) -> None:
-        """Stop only the specified execution using the native async SDK."""
-        async with self.get_async_client() as client:
-            poller = await client.jobs.begin_stop_execution(
-                resource_group_name=resource_group, job_name=job_name, job_execution_name=execution_name
-            )
-            await poller.result()
+    async def async_stop_execution(
+        self,
+        resource_group: str,
+        job_name: str,
+        execution_name: str,
+        *,
+        timeout_seconds: float = _STOP_TIMEOUT_SECONDS,
+    ) -> None:
+        """Request an exact execution stop within the timeout, without polling for completion."""
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be greater than zero")
+        async with asyncio.timeout(timeout_seconds):
+            async with self.get_async_client() as client:
+                await client.jobs.begin_stop_execution(
+                    resource_group_name=resource_group,
+                    job_name=job_name,
+                    job_execution_name=execution_name,
+                    polling=False,
+                )

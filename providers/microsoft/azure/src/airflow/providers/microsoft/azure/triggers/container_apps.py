@@ -135,7 +135,7 @@ class AzureContainerAppsJobTrigger(BaseTrigger):
         try:
             hook = AzureContainerAppsJobAsyncHook(self.azure_conn_id, self.subscription_id)
             await hook.async_stop_execution(self.resource_group, self.job_name, self.execution_name)
-        except AzureError:
+        except (AzureError, TimeoutError):
             self.log.warning("Failed to stop execution %s", self.execution_name, exc_info=True)
 
     async def on_kill(self) -> None:

@@ -203,7 +203,7 @@ class AzureContainerAppsJobOperator(BaseOperator):
             return
         try:
             self.hook.stop_execution(self.resource_group, self.job_name, self._execution_name)
-        except AzureError:
+        except (AzureError, TimeoutError):
             self.log.warning("Failed to stop execution %s", self._execution_name, exc_info=True)
 
     def on_kill(self) -> None:
