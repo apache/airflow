@@ -161,6 +161,26 @@ If it cannot determine which milestone should be added, it also adds a comment t
   :width: 100%
   :alt: Milestone Tag Assistant
 
+Reconciling pull requests gated to fork CI
+------------------------------------------
+
+Pull requests from external contributors can run their CI in the contributor's fork instead of in
+``apache/airflow`` (AIP-120). The ``fork-ci-reconcile`` command, run every 15 minutes by the
+``fork-ci-monitor.yml`` workflow, is the only place that changes those pull requests: it labels newly
+gated pull requests ``fork ci required``, keeps them in draft until the fork run is green, maintains
+one state comment and a ``Fork CI / Tests (AMD)`` commit status linking to the run in the fork, closes
+pull requests without fork CI activity for a week, closes gated pull requests that made project CI run
+by changing workflows, and writes everything it could not classify to a Slack message. With
+``--dry-run`` it prints the changes instead of applying them. See
+`Fork CI for external contributors <ci/08_fork_ci_for_external_contributors.md>`_ for the design.
+
+These are all available flags of ``fork-ci-reconcile`` command:
+
+.. image:: ./images/output_ci_fork-ci-reconcile.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_fork-ci-reconcile.svg
+  :width: 100%
+  :alt: Breeze ci fork-ci-reconcile
+
 -----
 
 Next step: Follow the `Release management tasks <09_release_management_tasks.rst>`_ guide to learn how

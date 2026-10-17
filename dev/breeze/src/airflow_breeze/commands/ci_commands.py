@@ -1633,3 +1633,53 @@ def set_milestone(
         console_print(f"[success]Added notification comment to PR #{pr_number}[/]")
     except Exception as e:
         console_print(f"[warning]Failed to add notification comment to PR #{pr_number}: {e}[/]")
+
+
+@ci_group.command(
+    name="fork-ci-reconcile",
+    help="Reconcile pull requests whose CI runs in contributor forks (AIP-120). Run on a schedule.",
+)
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Fork CI gate configuration. Defaults to .github/fork-ci-gate.toml in the Airflow sources.",
+)
+@click.option(
+    "--output-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default="slack-message.json",
+    show_default=True,
+    envvar="OUTPUT_FILE",
+    help="Where the Slack message is written when there are items for maintainers.",
+)
+@click.option(
+    "--run-url",
+    default="",
+    envvar="RUN_URL",
+    help="URL of the workflow run, linked from the Slack message.",
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def fork_ci_reconcile(config_path: Path | None, output_file: Path, run_url: str, github_repository: str):
+    from datetime import UTC, datetime
+
+    from airflow_breeze.utils.fork_ci_gate import load_config
+    from airflow_breeze.utils.fork_ci_github import GitHubClient
+    from airflow_breeze.utils.fork_ci_reconcile import run_reconcile
+    from airflow_breeze.utils.github import get_ga_output
+    from airflow_breeze.utils.shared_options import get_dry_run
+
+    has_alerts = run_reconcile(
+        GitHubClient(github_repository, dry_run=get_dry_run()),
+        load_config(config_path or AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml"),
+        now=datetime.now(tz=UTC),
+        run_url=run_url,
+        output_file=output_file,
+        workflows_dir=AIRFLOW_ROOT_PATH / ".github" / "workflows",
+    )
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a") as f:
+            f.write(get_ga_output("has-alerts", has_alerts) + "\n")
