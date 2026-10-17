@@ -472,8 +472,6 @@ def classify(
     plan.state = state
     since = marker.since if marker and marker.state == state.value else now
 
-    # The marker records awaiting_push before the nudge is posted, so a failed post is not retried;
-    # tracked at https://github.com/apache/airflow/issues/74908
     if marker and marker.state == ForkState.SETUP_REQUIRED.value and state == ForkState.AWAITING_PUSH:
         plan.new_comments.append(nudge_comment(fork=pr.head_repo))
 
@@ -1035,6 +1033,11 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Non
     for label in plan.remove_labels:
         if label != LABEL_FORK_CI_REQUIRED:
             client.remove_label(pr.number, label)
+    # New comments go before the state comment records the new state: the state recorded there is
+    # what the next run compares with, so a failure on the way posts them again rather than never.
+    # They carry no marker, so the state comment stays the earliest bot comment with one.
+    for comment in plan.new_comments:
+        client.create_comment(pr.number, comment)
     if plan.marker_comment is not None:
         if pr.marker_comment_id is not None:
             client.update_comment(pr.number, pr.marker_comment_id, plan.marker_comment)
@@ -1042,8 +1045,6 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Non
             client.create_comment(pr.number, plan.marker_comment)
     if plan.status is not None:
         client.set_status(pr.number, pr.head_sha, *plan.status)
-    for comment in plan.new_comments:
-        client.create_comment(pr.number, comment)
     if plan.draft is False:
         client.mark_ready(pr.number, pr.node_id)
     if plan.close:
