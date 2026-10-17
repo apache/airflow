@@ -642,7 +642,10 @@ def get_task_instances(
     ] = None,
     iteration: Annotated[
         int | None,
-        Query(ge=0, description="Narrow ``loop_id`` to a single pass of that loop."),
+        Query(
+            ge=1,
+            description="Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.",
+        ),
     ] = None,
     cursor: str | None = Query(
         None,

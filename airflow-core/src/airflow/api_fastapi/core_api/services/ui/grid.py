@@ -443,7 +443,7 @@ def summarize_loop_run(
                     end_date=max(ends) if ends and all(s in State.finished for s in states) else None,
                 )
             )
-        latest = max(iterations, default=-1)
+        latest = max(iterations, default=0)
         last_gate = next((ti for ti in iterations.get(latest, []) if ti.task_id == group.gate_task_id), None)
         active = any(ti.state not in State.finished for tasks in iterations.values() for ti in tasks)
         status: Literal["running", "stopped_early", "ran_to_cap", "failed", "skipped", "removed"] = "running"
@@ -459,7 +459,7 @@ def summarize_loop_run(
             elif last_gate.state == TaskInstanceState.UPSTREAM_FAILED:
                 status = "failed"
             elif last_gate.state == TaskInstanceState.SUCCESS:
-                if latest + 1 == group.max_iterations:
+                if latest == group.max_iterations:
                     status = "ran_to_cap"
                     if not group.has_until:
                         reason = "cap_reached"

@@ -30,6 +30,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
     from airflow.sdk.definitions.loop import LoopDecision
 
+# Loop iterations are numbered from one; mirrors airflow.models.dynamic_region.FIRST_LOOP_ITERATION.
+FIRST_LOOP_ITERATION = 1
 LOOP_DECISION_REASON_MAX_BYTES = 512
 
 

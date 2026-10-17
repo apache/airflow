@@ -23,7 +23,10 @@ import attrs
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.api.datamodels._generated import LoopDecisionPayload
 from airflow.sdk.bases.decorator import determine_kwargs
-from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
+from airflow.sdk.definitions._internal.loop import (
+    FIRST_LOOP_ITERATION,
+    LOOP_DECISION_REASON_MAX_BYTES,
+)
 from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import AirflowFailException
@@ -56,7 +59,7 @@ class LoopContextAccessor:
 
     @property
     def previous(self) -> Any:
-        return None if self.index == 0 else self._result(previous_iteration=True)
+        return None if self.index == FIRST_LOOP_ITERATION else self._result(previous_iteration=True)
 
     @property
     def result(self) -> Any:
@@ -82,7 +85,7 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
     ti = cast("RuntimeTaskInstance", context["ti"])
     reason: str | None = None
     if gate.until is None:
-        stop = loop.index + 1 >= loop.max_iterations
+        stop = loop.index >= loop.max_iterations
     else:
         match result := gate.until(**determine_kwargs(gate.until, (), context)):
             case bool():
@@ -117,7 +120,7 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
             raise AirflowFailException("LoopDecision reason cannot contain NUL bytes")
     ti._loop_decision = LoopDecisionPayload(stop=stop, reason=reason)
     suffix = "" if reason is None else f": {reason}"
-    if not stop and loop.index + 1 >= loop.max_iterations:
+    if not stop and loop.index >= loop.max_iterations:
         raise LoopMaxIterationsExceeded(
             f"Loop condition remained false at max_iterations={loop.max_iterations}{suffix}"
         )
