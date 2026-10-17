@@ -46,7 +46,6 @@ PersistentVolumeClaims for two worker sets:
    executor: CeleryExecutor
    workers:
      celery:
-       enableDefault: false
        sets:
          - name: analytics
            queue: analytics
@@ -70,8 +69,11 @@ PersistentVolumeClaims for two worker sets:
                readOnly: true
 
 Create both PersistentVolumeClaims before deploying the chart, and route tasks
-to the corresponding queue. ``enableDefault: false`` disables the default worker
-set, so this example creates only the ``analytics`` and ``research`` sets.
+to the corresponding queue. The default worker set remains enabled to consume
+tasks sent to the ``default`` queue. Each set inherits replica and autoscaling
+settings. If its pods can run on multiple nodes, use a claim that supports
+read-only mounts from multiple nodes, such as ``ReadOnlyMany``, with a compatible
+storage driver.
 Non-empty list overrides such as ``extraVolumes`` and ``extraVolumeMounts`` replace
 the inherited list, so include all additional volumes and mounts needed by each
 set. An empty list retains the inherited value.
