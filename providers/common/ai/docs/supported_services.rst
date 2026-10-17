@@ -56,7 +56,7 @@ Toolsets
        :class:`~airflow.sdk.ObjectStoragePath` can open), read-only
    * - :doc:`SandboxToolset <sandbox/index>`
      - Modal, Islo, OpenSandbox, OpenShell, Boat and Docker Sandboxes (sbx), through the
-       shipped :doc:`backends <sandbox/backends>`; other services can be added with a
+       shipped backends; other services can be added with a
        ``SandboxBackend`` subclass
    * - :doc:`AgentSkillsToolset <toolsets/skills>`
      - Agent skills from local paths and remote Git repositories
