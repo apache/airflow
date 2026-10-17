@@ -3616,6 +3616,8 @@ def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try
     ti.refresh_from_task(dag.get_task("task"))
     ti.state = state
     ti.try_number = try_number
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
     session.commit()
     ti_id = ti.id
 
@@ -3623,7 +3625,11 @@ def test_schedule_tis_preserves_allocated_attempt(dag_maker, session, state, try
     session.flush()
     session.expire_all()
 
-    assert session.get(TI, ti_id).try_number == try_number
+    scheduled = session.get(TI, ti_id)
+    assert scheduled.try_number == try_number
+    # The finished try keeps these in task_instance_history; the new one must not inherit them.
+    assert scheduled.retry_reason is None
+    assert scheduled.retry_delay_override is None
 
 
 def test_schedule_tis_up_for_reschedule_does_not_increment_try_number(dag_maker, session):
@@ -3838,6 +3844,44 @@ def test_schedule_tis_start_trigger(dag_maker, session):
     ti.task = dr.dag.get_task("test_task")
     dr.schedule_tis((ti,), session=session)
     assert ti.state == TaskInstanceState.DEFERRED
+
+
+@pytest.mark.need_serialized_dag
+def test_schedule_tis_start_trigger_clears_retry_policy_columns(dag_maker, session):
+    """A start_from_trigger retry defers before schedule_tis' UPDATE, so defer_task must clear."""
+
+    class TestOperator(BaseOperator):
+        start_trigger_args = StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger",
+            trigger_kwargs=None,
+            next_method="execute_complete",
+            timeout=None,
+        )
+        start_from_trigger = True
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.start_trigger_args.trigger_kwargs = {}
+
+        def execute_complete(self):
+            pass
+
+    with dag_maker(session=session):
+        TestOperator(task_id="test_task")
+
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance("test_task")
+    ti.task = dr.dag.get_task("test_task")
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.retry_reason = "rate limit"
+    ti.retry_delay_override = 300.0
+    session.commit()
+
+    dr.schedule_tis((ti,), session=session)
+
+    assert ti.state == TaskInstanceState.DEFERRED
+    assert ti.retry_reason is None
+    assert ti.retry_delay_override is None
 
 
 @pytest.mark.need_serialized_dag

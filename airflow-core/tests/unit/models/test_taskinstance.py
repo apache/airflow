@@ -5105,6 +5105,32 @@ def test_clear_task_instances_resets_context_carrier(dag_maker, session):
 
 
 @pytest.mark.db_test
+def test_clear_task_instances_clears_retry_policy_columns(dag_maker, session):
+    """Neither column may survive the clear."""
+    with dag_maker("test_clear_retry_policy_columns"):
+        EmptyOperator(task_id="t1")
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("t1", session=session)
+    ti.state = TaskInstanceState.FAILED
+    ti.retry_reason = "auth error, do not retry"
+    ti.retry_delay_override = 300.0
+    session.flush()
+    old_id = ti.id
+
+    clear_task_instances([ti], session)
+    session.flush()
+
+    assert ti.retry_reason is None
+    assert ti.retry_delay_override is None
+    # The cleared try keeps its own values, so the reset cannot move above the archive.
+    history = session.scalar(
+        select(TaskInstanceHistory).where(TaskInstanceHistory.task_instance_id == old_id)
+    )
+    assert history.retry_reason == "auth error, do not retry"
+    assert history.retry_delay_override == 300.0
+
+
+@pytest.mark.db_test
 def test_clear_task_instances_preserves_detail_level(dag_maker, session):
     """clear_task_instances should produce a new context_carrier that keeps the detail level from dag run conf."""
     from airflow._shared.observability.traces import (

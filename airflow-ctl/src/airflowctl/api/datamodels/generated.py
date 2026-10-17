@@ -2680,7 +2680,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     state_reason: Annotated[
         str | None,
         Field(
-            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            description="The reason the task instance reached its current state, as recorded by a retry policy. Describes the attempt that is currently recorded on the row: it is cleared when the task is cleared and when the next attempt is scheduled or deferred.",
             title="State Reason",
         ),
     ] = None
@@ -2733,7 +2733,7 @@ class TaskInstanceResponse(BaseModel):
     state_reason: Annotated[
         str | None,
         Field(
-            description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.",
+            description="The reason the task instance reached its current state, as recorded by a retry policy. Describes the attempt that is currently recorded on the row: it is cleared when the task is cleared and when the next attempt is scheduled or deferred.",
             title="State Reason",
         ),
     ] = None
