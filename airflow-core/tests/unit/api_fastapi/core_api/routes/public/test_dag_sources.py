@@ -206,6 +206,7 @@ class TestGetDAGSource:
             relative_fileloc=requested.relative_fileloc,
             bundle_name=requested.bundle_name,
             is_paused=False,
+            is_stale=False,
         )
         session.add(colocated)
         session.commit()
@@ -253,3 +254,33 @@ class TestGetDAGSource:
             "dag_display_name": TEST_DAG_DISPLAY_NAME,
             "language": "python",
         }
+
+    @pytest.mark.parametrize(
+        ("requested_is_stale", "expect_redacted"),
+        [(False, False), (True, True)],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_sources.get_auth_manager")
+    def test_source_access_when_unreadable_colocated_dag_is_stale(
+        self,
+        mock_get_auth_manager,
+        test_client,
+        test_dag,
+        colocated_unreadable_dag,
+        session,
+        requested_is_stale,
+        expect_redacted,
+    ):
+        requested = session.scalar(select(DagModel).where(DagModel.dag_id == TEST_DAG_ID))
+        requested.is_stale = requested_is_stale
+        colocated_unreadable_dag.is_stale = True
+        session.commit()
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.return_value = {TEST_DAG_ID}
+
+        response: Response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "application/json"}
+        )
+
+        assert response.status_code == 200
+        expected_content = REDACTED_SOURCE if expect_redacted else self._get_dag_file_code(test_dag.fileloc)
+        assert response.json()["content"] == expected_content
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.assert_called_once_with(user=mock.ANY)

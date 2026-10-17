@@ -82,21 +82,25 @@ def get_dag_source(
     # ``(relative_fileloc, bundle_name)`` -- the same keying
     # ``import_error.py`` uses for its equivalent check -- and redact the
     # response when any co-located Dag is not in the caller's readable set.
+    # A stale Dag's stored source may still define stale siblings, so keep
+    # those in the check. Always include the requested Dag to avoid skipping
+    # authorization when no other Dags remain.
     content = dag_version.dag_code.source_code
     dag_model = dag_version.dag_model
     if dag_model is not None and dag_model.relative_fileloc:
-        file_dag_ids = set(
+        file_dag_ids = {dag_id}
+        file_dag_ids.update(
             session.scalars(
                 select(DagModel.dag_id).where(
                     DagModel.relative_fileloc == dag_model.relative_fileloc,
                     DagModel.bundle_name == dag_model.bundle_name,
+                    DagModel.is_stale.in_([False, dag_model.is_stale]),
                 )
             ).all()
         )
-        if file_dag_ids:
-            readable_dag_ids = get_auth_manager().get_authorized_dag_ids(user=user)
-            if not file_dag_ids.issubset(readable_dag_ids):
-                content = REDACTED_SOURCE
+        readable_dag_ids = get_auth_manager().get_authorized_dag_ids(user=user)
+        if not file_dag_ids.issubset(readable_dag_ids):
+            content = REDACTED_SOURCE
 
     dag_source_model = DAGSourceResponse(
         dag_id=dag_id,
