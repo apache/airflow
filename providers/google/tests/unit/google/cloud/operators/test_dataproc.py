@@ -61,6 +61,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocUpdateClusterOperator,
     InstanceFlexibilityPolicy,
     InstanceSelection,
+    MultiZoneConfig,
 )
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
@@ -1005,6 +1006,64 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         assert op.cluster_name == "cluster_name"
         assert op.cluster_config["worker_config"]["num_instances"] == 2
         assert "zones/zone" in op.cluster_config["master_config"]["machine_type_uri"]
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_multi_zone_cluster(self, mock_hook, to_dict_mock):
+        multi_zone_cluster_config = {
+            "gce_cluster_config": {
+                "multi_zone_config": MultiZoneConfig(target_shape="ANY"),
+            },
+            "master_config": {
+                "num_instances": 1,
+                "machine_type_uri": "e2-standard-2",
+            },
+            "worker_config": {
+                "num_instances": 2,
+                "machine_type_uri": "e2-standard-2",
+            },
+        }
+        mock_hook.return_value.create_cluster.result.return_value = None
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT,
+            cluster_config=multi_zone_cluster_config,
+            request_id=REQUEST_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=self.mock_context)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_cluster.assert_called_once_with(
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            cluster_config={
+                "gce_cluster_config": {
+                    "multi_zone_config": {"target_shape": "ANY"},
+                },
+                "master_config": {
+                    "num_instances": 1,
+                    "machine_type_uri": "e2-standard-2",
+                },
+                "worker_config": {
+                    "num_instances": 2,
+                    "machine_type_uri": "e2-standard-2",
+                },
+            },
+            labels=LABELS,
+            virtual_cluster_config=None,
+        )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
