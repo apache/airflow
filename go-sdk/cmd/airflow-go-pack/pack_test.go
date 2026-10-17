@@ -481,6 +481,61 @@ func TestRunPack_PacksABundleWithNoDags(t *testing.T) {
 	assert.Contains(t, stdout.String(), "task_handler_dags=0, native_dags=0")
 }
 
+// --strict turns the "nothing registered" warning into a packing failure.
+func TestRunPack_StrictFailsWhenNoDagsRegistered(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "generated")
+	require.NoError(t, os.WriteFile(exe, []byte("generated-binary-bytes"), 0o755))
+	source := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
+	meta := filepath.Join(dir, "airflow-metadata.json")
+	require.NoError(t, os.WriteFile(meta, []byte(
+		`{"airflow_bundle_metadata_version":"1.0",`+
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-10-30"},`+
+			`"dags":{}}`,
+	), 0o644))
+	out := filepath.Join(dir, "bundle")
+
+	var stdout, stderr bytes.Buffer
+	err := runPack(&stdout, &stderr, &packOptions{
+		executable:      exe,
+		source:          source,
+		airflowMetadata: meta,
+		output:          out,
+		strict:          true,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no Dags or task handlers were registered")
+	assert.NoFileExists(t, out)
+}
+
+// --strict does not fail when a task handler Dag is registered.
+func TestRunPack_StrictPacksABundleWithTaskHandlerDags(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "handlers")
+	require.NoError(t, os.WriteFile(exe, []byte("handlers-binary-bytes"), 0o755))
+	source := filepath.Join(dir, "main.go")
+	require.NoError(t, os.WriteFile(source, []byte("package main\nfunc main() {}\n"), 0o644))
+	meta := filepath.Join(dir, "airflow-metadata.json")
+	require.NoError(t, os.WriteFile(meta, []byte(
+		`{"airflow_bundle_metadata_version":"1.0",`+
+			`"sdk":{"language":"go","version":"0.1.0","supervisor_schema_version":"2026-10-30"},`+
+			`"dags":{"py_etl":{"tasks":["extract"]}}}`,
+	), 0o644))
+	out := filepath.Join(dir, "bundle")
+
+	var stdout, stderr bytes.Buffer
+	err := runPack(&stdout, &stderr, &packOptions{
+		executable:      exe,
+		source:          source,
+		airflowMetadata: meta,
+		output:          out,
+		strict:          true,
+	})
+	require.NoError(t, err)
+	assert.Contains(t, stdout.String(), "task_handler_dags=1, native_dags=0")
+}
+
 // --airflow-metadata also accepts a YAML manifest, not only the JSON the
 // binary prints.
 func TestRunPack_AcceptsYAMLMetadataFile(t *testing.T) {

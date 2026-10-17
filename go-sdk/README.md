@@ -255,6 +255,10 @@ the full range of task states, and alternate XCom backends without implementing 
   Use `--output <path>` to write the packed bundle straight into the directory of the Dag bundle the
   coordinator scans (`task_handler_bundle_name`), and pass extra `go build` flags after `--`.
 
+  Pass `--strict` to fail packing when the bundle registers no Dags or task handlers at pack
+  time. Without it the packer only prints a warning, which is the right default for bundles
+  that generate their Dags at run time.
+
   For cross-compiling (e.g. deploy to a Linux host from an Apple-silicon (darwin/arm64) machine), pass `--goos`/`--goarch` and the
   packer cross-builds for you:
 
