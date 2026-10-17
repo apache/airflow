@@ -3365,6 +3365,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable Kubernetes liveness probe.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "initialDelaySeconds": {
                             "description": "Number of seconds after the container has started before liveness probes are initiated.",
                             "type": "integer",
@@ -3385,8 +3390,24 @@
                             "type": "integer",
                             "default": 60
                         },
+                        "successThreshold": {
+                            "description": "Minimum consecutive successes for the probe to be considered successful after having failed. Minimum value is 1.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Optional duration in seconds the pod needs to terminate gracefully upon probe failure.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "command": {
-                            "description": "Command for LivenessProbe",
+                            "description": "Command for the exec probe handler. If not set, the built-in scheduler job check is used.",
                             "type": [
                                 "array",
                                 "null"
@@ -3398,6 +3419,104 @@
                                     "string"
                                 ]
                             }
+                        },
+                        "httpGet": {
+                            "description": "HTTP get action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.HTTPGetAction",
+                            "default": null
+                        },
+                        "tcpSocket": {
+                            "description": "TCP socket action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.TCPSocketAction",
+                            "default": null
+                        },
+                        "grpc": {
+                            "description": "gRPC action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.GRPCAction",
+                            "default": null
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration for scheduler container. Disabled by default since the scheduler does not serve traffic.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable Kubernetes readiness probe.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before readiness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        },
+                        "successThreshold": {
+                            "description": "Minimum consecutive successes for the probe to be considered successful after having failed. Minimum value is 1.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Optional duration in seconds the pod needs to terminate gracefully upon probe failure.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "command": {
+                            "description": "Command for the exec probe handler. If not set, the built-in scheduler job check is used.",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "default": null,
+                            "items": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ]
+                            }
+                        },
+                        "httpGet": {
+                            "description": "HTTP get action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.HTTPGetAction",
+                            "default": null
+                        },
+                        "tcpSocket": {
+                            "description": "TCP socket action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.TCPSocketAction",
+                            "default": null
+                        },
+                        "grpc": {
+                            "description": "gRPC action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.GRPCAction",
+                            "default": null
                         }
                     }
                 },
@@ -3406,6 +3525,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable Kubernetes startup probe.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "initialDelaySeconds": {
                             "description": "Number of seconds after the container has started before startup probes are initiated.",
                             "type": "integer",
@@ -3426,8 +3550,24 @@
                             "type": "integer",
                             "default": 10
                         },
+                        "successThreshold": {
+                            "description": "Minimum consecutive successes for the probe to be considered successful after having failed. Minimum value is 1.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "terminationGracePeriodSeconds": {
+                            "description": "Optional duration in seconds the pod needs to terminate gracefully upon probe failure.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "command": {
-                            "description": "Command for LivenessProbe",
+                            "description": "Command for the exec probe handler. If not set, the built-in scheduler job check is used.",
                             "type": [
                                 "array",
                                 "null"
@@ -3439,6 +3579,24 @@
                                     "string"
                                 ]
                             }
+                        },
+                        "httpGet": {
+                            "description": "HTTP get action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.HTTPGetAction",
+                            "default": null
+                        },
+                        "tcpSocket": {
+                            "description": "TCP socket action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.TCPSocketAction",
+                            "default": null
+                        },
+                        "grpc": {
+                            "description": "gRPC action for the probe. When set, it replaces the default exec handler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.GRPCAction",
+                            "default": null
                         }
                     }
                 },
