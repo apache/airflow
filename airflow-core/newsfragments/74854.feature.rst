@@ -1,0 +1,1 @@
+Added a ``dag.schedule_overdue_seconds`` gauge, tagged by ``dag_id``, reporting how long a time-scheduled Dag has been due while ``max_active_runs`` prevents its next run from being created. It is only emitted for Dags in that state.

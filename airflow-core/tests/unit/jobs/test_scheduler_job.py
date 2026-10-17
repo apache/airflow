@@ -11484,6 +11484,45 @@ class TestSchedulerJob:
 
         assert recorded == [("scheduler.dagruns.running", 2.0, {"dag_id": "metric_dag"})]
 
+    def test_emit_schedule_overdue_metric(self, dag_maker, monkeypatch, session):
+        """Only due, time-scheduled Dags held back by max_active_runs are emitted."""
+        for dag_id in ("blocked_dag", "free_dag", "not_due_dag"):
+            with dag_maker(dag_id, schedule="@hourly", max_active_runs=1, session=session):
+                pass
+        now = timezone.utcnow()
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id.in_(["blocked_dag", "free_dag"]))
+            .values(next_dagrun_create_after=now - timedelta(minutes=10))
+        )
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == "not_due_dag")
+            .values(next_dagrun_create_after=now + timedelta(minutes=10))
+        )
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id.in_(["blocked_dag", "not_due_dag"]))
+            .values(exceeds_max_non_backfill=True)
+        )
+        session.flush()
+
+        recorded: list[tuple[str, float, dict | None]] = []
+
+        def _fake_gauge(metric: str, value: float, *_, tags=None, **__):
+            recorded.append((metric, value, tags))
+
+        monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+        self.job_runner._emit_schedule_overdue_metric(session=session)
+
+        assert [(metric, tags) for metric, _, tags in recorded] == [
+            ("dag.schedule_overdue_seconds", {"dag_id": "blocked_dag"})
+        ]
+        assert recorded[0][1] >= 600
+
     # Multi-team scheduling tests
     def test_multi_team_get_team_names_for_dag_ids_success(self, dag_maker, session):
         """Test successful team name resolution for multiple DAG IDs."""
