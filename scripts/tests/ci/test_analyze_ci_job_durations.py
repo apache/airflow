@@ -156,6 +156,77 @@ class TestDetectRegression:
         assert durations_module.detect_regression([], [1, 2], 0.25, 300) is None
         assert durations_module.detect_regression([1], [], 0.25, 300) is None
 
+    def test_a_recovered_blip_is_not_flagged(self, durations_module):
+        """The 2026-09-22 MySQL 8.4:3.13 alert: 25m, 33m, 34m over a 25m baseline.
+
+        The latest median is 33m, but the most recent run was already back at baseline —
+        two slow nights, not a regression.
+        """
+        regression = durations_module.detect_regression(
+            latest_values=[1500, 1980, 2040],
+            baseline_values=[1440, 1500, 1560, 1440, 1500, 1500, 1620],
+            rel_threshold=0.25,
+            min_abs_increase_seconds=360,
+            require_sustained=True,
+        )
+        assert regression is None
+
+    def test_a_sustained_climb_is_flagged(self, durations_module):
+        """The same window's Deps 3.10 alert: 31m, 33m, 27m over an 18m baseline."""
+        regression = durations_module.detect_regression(
+            latest_values=[1860, 1980, 1620],
+            baseline_values=[960, 1020, 1080, 1080, 1380, 1020, 960],
+            rel_threshold=0.25,
+            min_abs_increase_seconds=360,
+            require_sustained=True,
+        )
+        assert regression is not None
+        assert regression["latest"] == 1860
+
+    def test_the_same_blip_is_flagged_without_the_sustained_gate(self, durations_module):
+        """Guards the gate itself: the blip clears the margin and the floor on its own."""
+        regression = durations_module.detect_regression(
+            latest_values=[1500, 1980, 2040],
+            baseline_values=[1440, 1500, 1560, 1440, 1500, 1500, 1620],
+            rel_threshold=0.25,
+            min_abs_increase_seconds=360,
+        )
+        assert regression is not None
+
+    def test_reports_the_usual_range(self, durations_module):
+        regression = durations_module.detect_regression(
+            latest_values=[2700],
+            baseline_values=[1500, 1700, 1800, 1900, 2000],
+            rel_threshold=0.25,
+            min_abs_increase_seconds=300,
+        )
+        assert regression is not None
+        assert regression["usual_range"] == (1700, 1900)
+
+
+class TestUsualRange:
+    def test_middle_half_of_the_values(self, durations_module):
+        assert durations_module.usual_range([10, 20, 30, 40]) == (20, 40)
+
+    def test_excludes_a_single_extreme(self, durations_module):
+        """A cache-cold 58-minute night must not be reported as part of the usual band."""
+        low, high = durations_module.usual_range([16, 17, 18, 18, 17, 16, 58])
+        assert (low, high) == (16, 18)
+
+    def test_single_value(self, durations_module):
+        assert durations_module.usual_range([42]) == (42, 42)
+
+
+class TestIsSustained:
+    def test_true_when_every_run_is_above_the_threshold(self, durations_module):
+        assert durations_module.is_sustained([1860, 1980, 1620], 1080, 0.25) is True
+
+    def test_false_when_one_run_is_back_at_baseline(self, durations_module):
+        assert durations_module.is_sustained([1500, 1980, 2040], 1500, 0.25) is False
+
+    def test_true_for_a_single_latest_run(self, durations_module):
+        assert durations_module.is_sustained([2000], 1000, 0.25) is True
+
 
 class TestGetRecentRuns:
     def _runs_payload(self):
@@ -429,6 +500,7 @@ class TestAnalyzeJobs:
             min_baseline_runs=5,
             rel_threshold=0.25,
             min_abs_increase_seconds=180,
+            require_sustained=True,
         )
         names = [r["job"] for r in regressions]
         # slow-job regressed; stable-job did not; new-job lacks baseline samples
@@ -452,6 +524,7 @@ class TestAnalyzeJobs:
             min_baseline_runs=5,
             rel_threshold=0.25,
             min_abs_increase_seconds=60,
+            require_sustained=True,
         )
         assert regressions == []
 
@@ -487,6 +560,7 @@ class TestAnalyzeJobs:
             min_baseline_runs=5,
             rel_threshold=0.25,
             min_abs_increase_seconds=360,
+            require_sustained=True,
         )
         assert regressions == []
 
@@ -643,6 +717,56 @@ class TestFormatSlackMessage:
         assert "image build slow for 3.0 days" in text_blob
         assert "18m 00s" in json.dumps(msg)  # 1080s latest
         assert "image build slow" in msg["text"].lower()
+
+    def test_reports_the_last_runs_and_the_spread(self, durations_module):
+        """The alert has to carry the evidence: what the job did on each recent run."""
+        msg = durations_module.format_slack_message(
+            repo="apache/airflow",
+            workflow="ci-amd.yml",
+            branch="main",
+            overall_regression=None,
+            job_regressions=[
+                {
+                    "job": "Tests",
+                    "latest": 1500,
+                    "baseline": 1000,
+                    "increase": 500,
+                    "rel_increase": 0.5,
+                    "usual_range": (960, 1080),
+                    "recent_values": [1500, 1020, 960, 1080],
+                }
+            ],
+            image_build_regression=None,
+            recent_runs=[
+                {
+                    "run_number": 102,
+                    "html_url": "https://example/2",
+                    "duration": 2700,
+                    "adjusted_duration": 2400,
+                    "created_at": "2026-09-21T13:58:37Z",
+                },
+                {
+                    "run_number": 101,
+                    "html_url": "https://example/1",
+                    "duration": 2500,
+                    "adjusted_duration": 2200,
+                    "created_at": "2026-09-21T01:58:37Z",
+                },
+            ],
+            rel_threshold=0.25,
+            channel="internal-airflow-ci-cd",
+        )
+        # Read the block text directly: json.dumps escapes the non-ASCII separators away.
+        blob = "\n".join(
+            block["text"]["text"] for block in msg["blocks"] if block.get("text", {}).get("text")
+        )
+        assert "usually 16m 00s–18m 00s" in blob
+        assert "last runs (newest first): 25m · 17m · 16m · 18m" in blob
+        assert "Last 2 runs" in blob
+        assert "median 38m 20s, usually 36m 40s–40m 00s" in blob
+        # Both the figure the trend is measured on and the raw wall-clock, per run.
+        assert "Sep 21 13:58 — 40m 00s (wall-clock 45m 00s)" in blob
+        assert "Sep 21 01:58 — 36m 40s (wall-clock 41m 40s)" in blob
 
     def test_omits_image_build_section_when_none(self, durations_module):
         msg = durations_module.format_slack_message(
