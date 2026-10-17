@@ -100,10 +100,19 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         that back. It is an equality and not ``LIKE 'lower%'`` so it resolves under the same
         collation as the bounds — ``LIKE`` is case-insensitive on SQLite and MySQL ``_ci``
         columns, and would keep leaking case variants.
+
+        Only an ASCII prefix gets bounds. They are derived by incrementing a code point, which
+        assumes the column sorts in code-point order; under PostgreSQL's libc collations
+        (``en_US.utf8``) non-ASCII characters sort by collation weights instead, and a value that
+        does start with the prefix can fall outside the derived range — searching ``카페`` drops
+        ``카페매출집계``. For a non-ASCII prefix the equality carries the filter on its own: no
+        range scan, but no missing rows either.
         """
-        clauses: list[ColumnElement[bool]] = [column >= lower]
-        if upper is not None:
-            clauses.append(column < upper)
+        clauses: list[ColumnElement[bool]] = []
+        if lower.isascii():
+            clauses.append(column >= lower)
+            if upper is not None:
+                clauses.append(column < upper)
         clauses.append(func.substr(column, 1, len(lower)) == lower)
         return clauses
 
