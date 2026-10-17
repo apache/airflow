@@ -2200,6 +2200,32 @@ class TestAsyncGCSToBigQueryOperator:
         trigger_cls = session.scalar(select(Trigger.classpath).where(Trigger.id == ti.trigger_id))
         assert trigger_cls == "airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger"
 
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryInsertJobTrigger"))
+    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator.defer"))
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_execute_deferrable_hands_cancel_on_kill_to_the_trigger(self, hook, mock_defer, trigger):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            schema_fields=SCHEMA_FIELDS,
+            external_table=False,
+            autodetect=True,
+            deferrable=True,
+            cancel_on_kill=False,
+            project_id=JOB_PROJECT_ID,
+        )
+
+        operator.execute(context=MagicMock())
+
+        assert trigger.call_args.kwargs["cancel_on_kill"] is False
+
     @pytest.mark.db_test
     def test_execute_without_external_table_async_should_throw_ex_when_event_status_error(
         self, create_task_instance, session
