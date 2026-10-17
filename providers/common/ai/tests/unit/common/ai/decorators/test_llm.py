@@ -40,6 +40,8 @@ if AIRFLOW_V_3_3_PLUS:
 else:
     ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
 
+DownstreamTasks = Enum("DownstreamTasks", {"positive": "positive"})
+
 
 class TestLLMDecoratedOperator:
     def test_custom_operator_name(self):
@@ -151,7 +153,7 @@ class TestLLMDecoratedOperator:
         pytest.param(
             _LLMBranchDecoratedOperator,
             {},
-            Enum("DownstreamTasks", {"positive": "positive"}).positive,
+            DownstreamTasks.positive,
             id="llm_branch",
         ),
         pytest.param(
