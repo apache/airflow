@@ -53,8 +53,8 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Add the final release tag in git](#add-the-final-release-tag-in-git)
-  - [Publish documentation](#publish-documentation)
   - [Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers)
+  - [Publish documentation](#publish-documentation)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
   - [Close the testing status issue](#close-the-testing-status-issue)
@@ -1993,6 +1993,52 @@ Then confirm each pushed tag resolves to the wave commit (`^{}` dereferences the
 git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
+## Update airflow-site index for new providers
+
+Do this before publishing the documentation of every wave that releases a provider for the first
+time. This step is easy to miss: DuckDB, IBM Db2, IBM MQ and Modal were released without it and stayed
+off the public index until it was fixed in
+[apache/airflow-site#1690](https://github.com/apache/airflow-site/pull/1690).
+
+The "Active providers" list on the [documentation index](https://airflow.apache.org/docs/#providers-packages)
+comes from `landing-pages/site/content/en/docs/_index.md` in
+[`apache/airflow-site`](https://github.com/apache/airflow-site). Nothing generates it, so a new
+provider does not appear there until someone adds it by hand.
+
+List the released providers missing from the index (run from the `apache/airflow` checkout,
+with `airflow-site` cloned next to it):
+
+```shell script
+comm -23 \
+  <(git ls-files 'providers/*provider.yaml' | grep -v '/src/\|/tests/' \
+      | sed 's#^providers/##; s#/provider.yaml$##; s#/#-#g' | sort) \
+  <(grep -o 'apache-airflow-providers-[a-z0-9-]*' ../airflow-site/landing-pages/site/content/en/docs/_index.md \
+      | sed 's#^apache-airflow-providers-##' | sort -u)
+```
+
+Skip any listed provider that is not released yet (`state: not-ready` in its `provider.yaml`,
+or not part of this wave). Add one entry per released provider, in alphabetical order by
+the provider's `name:` from `provider.yaml`, keeping the blank line between entries:
+
+```html
+  <li><a href="/docs/apache-airflow-providers-<provider-id>/stable/index.html"><code><Provider name></code></a></li>
+```
+
+`<provider-id>` is the provider path with `/` replaced by `-` (e.g. `ibm-db2`).
+
+Do these steps in this order:
+
+1. **Open the PR** in `apache/airflow-site` that adds the new providers to the index. Do not merge it yet,
+   or the index links to docs that are not published.
+2. **Publish the documentation** ([Publish documentation](#publish-documentation)). For `--site-env live`,
+   `breeze workflow-run publish-docs` fails before triggering anything when a published provider is
+   neither in the index on `main` of `apache/airflow-site` nor added to it by an open PR there. When an
+   open PR adds it, the command lists that PR at the end as the one to merge.
+3. **Merge the PR** once the docs are published.
+
+If you need to publish without this check (for example GitHub is unreachable from your machine), add
+`--skip-site-index-check` and check the index by hand.
+
 ## Publish documentation
 
 Documentation is an essential part of the product and should be made available to users.
@@ -2023,6 +2069,10 @@ Run workflows:
 ```shell script
   breeze workflow-run publish-docs --ref providers/${RELEASE_DATE} --site-env live all-providers
 ```
+
+If the wave releases a provider for the first time, open the `apache/airflow-site` index PR first; the
+command fails otherwise, and lists the PR to merge when it completes - see
+[Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers).
 
 If you need to exclude some providers from the documentation you need to add `--exclude-providers` flag
 with space separated list of excluded providers.
@@ -2059,43 +2109,6 @@ not be needed unless there is some problem with workflow automation above)
 > extracts metadata from `provider.yaml` files and PyPI, so it picks up new/updated providers without
 > manual intervention. If you need to rebuild the registry independently, trigger the `registry-build.yml`
 > workflow manually. See [`registry/README.md`](../registry/README.md) for details.
-
-## Update airflow-site index for new providers
-
-Do this for every wave that releases a provider for the first time. This step is easy to miss:
-DuckDB, IBM Db2, IBM MQ and Modal were released without it and stayed off the public
-index until it was fixed in [apache/airflow-site#1690](https://github.com/apache/airflow-site/pull/1690).
-
-The "Active providers" list on the [documentation index](https://airflow.apache.org/docs/#providers-packages)
-comes from `landing-pages/site/content/en/docs/_index.md` in
-[`apache/airflow-site`](https://github.com/apache/airflow-site). Nothing generates it, so a new
-provider does not appear there until someone adds it by hand.
-
-List the released providers missing from the index (run from the `apache/airflow` checkout,
-with `airflow-site` cloned next to it):
-
-```shell script
-comm -23 \
-  <(git ls-files 'providers/*provider.yaml' | grep -v '/src/\|/tests/' \
-      | sed 's#^providers/##; s#/provider.yaml$##; s#/#-#g' | sort) \
-  <(grep -o 'apache-airflow-providers-[a-z0-9-]*' ../airflow-site/landing-pages/site/content/en/docs/_index.md \
-      | sed 's#^apache-airflow-providers-##' | sort -u)
-```
-
-Skip any listed provider that is not released yet (`state: not-ready` in its `provider.yaml`,
-or not part of this wave). Add one entry per released provider, in alphabetical order by
-the provider's `name:` from `provider.yaml`, keeping the blank line between entries:
-
-```html
-  <li><a href="/docs/apache-airflow-providers-<provider-id>/stable/index.html"><code><Provider name></code></a></li>
-```
-
-`<provider-id>` is the provider path with `/` replaced by `-` (e.g. `ibm-db2`).
-
-To avoid publishing the provider in the site index too early, keep the
-`apache/airflow-site` PR unmerged until the live release window, then merge
-it immediately before or together with the `live` refresh step in
-[Publish documentation](#publish-documentation).
 
 ## Update providers metadata
 
