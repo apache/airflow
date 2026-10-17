@@ -545,6 +545,10 @@ Rules that sit under the table:
   closing comment or close failed, and the next run finishes the closure. The same holds for a
   `gate_bypassed` marker, where only a reopen by someone other than the author counts, so the
   closure is finished even after the offending run has left the tampering check's window.
+- **New comments go first.** A nudge, a "fork CI stopped running" notice, a closing explanation
+  or a tampering notice is posted before the state comment records the new state, so when
+  posting fails the next run sees the old state and posts it again; a repeat is preferred to a
+  lost notice.
 - **`fork ci required` goes last.** When a run removes the label (on release, or for an
   ungated base branch), it does so after every other change, so a failure on the way leaves
   the label in place and the next run retries the rest.

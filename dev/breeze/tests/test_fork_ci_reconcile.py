@@ -2145,3 +2145,26 @@ def test_job_status_reporter_compares_contexts_case_insensitively(client):
 
     assert JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN) == "1:1:FAILURE"
     client.set_status.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("marker", "workflow_state", "expected_text"),
+    [
+        pytest.param(_marker("setup_required"), "active", "Push this branch again", id="nudge"),
+        pytest.param(
+            _marker("awaiting_push"), "disabled_manually", "Fork CI stopped running", id="workflow-disabled"
+        ),
+    ],
+)
+def test_new_comment_is_posted_before_the_state_comment_records_the_state(
+    client, marker, workflow_state, expected_text
+):
+    pr = _pr(marker=marker, marker_comment_id=5)
+    plan, _, _ = _classify(pr, ForkObservation(workflow_state=workflow_state))
+    client.create_comment.side_effect = GitHubError("gh api failed: HTTP 500")
+
+    with pytest.raises(GitHubError):
+        apply_plan(client, pr, plan)
+
+    assert expected_text in client.create_comment.call_args.args[1]
+    client.update_comment.assert_not_called()
