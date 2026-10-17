@@ -27,7 +27,7 @@ import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { GridTI } from "./GridTI";
-import { SELECTED_TASK_OUTLINE_COLOR } from "./constants";
+import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR } from "./constants";
 
 const colorModeMock = vi.fn<() => { colorMode: "dark" | "light" | undefined }>();
 
@@ -48,14 +48,22 @@ const taskInstance: LightGridTaskInstanceSummary = {
 const SELECTED_RUN_ID = "manual__2026-04-21T00:00:00+00:00";
 
 type RenderGridTIOptions = {
+  readonly hasNote?: boolean;
   readonly instance?: LightGridTaskInstanceSummary;
+  readonly isMapped?: boolean;
   readonly runId?: string;
   readonly taskId?: string;
 };
 
 const renderGridTI = (
   route: string,
-  { instance = taskInstance, runId = SELECTED_RUN_ID, taskId = "selected_task" }: RenderGridTIOptions = {},
+  {
+    hasNote,
+    instance = taskInstance,
+    isMapped,
+    runId = SELECTED_RUN_ID,
+    taskId = "selected_task",
+  }: RenderGridTIOptions = {},
 ) =>
   render(
     <BaseWrapper>
@@ -66,7 +74,9 @@ const renderGridTI = (
               element={
                 <GridTI
                   dagId="example_dag"
+                  hasNote={hasNote}
                   instance={{ ...instance, task_id: taskId }}
+                  isMapped={isMapped}
                   label={taskId}
                   runId={runId}
                   taskId={taskId}
@@ -81,6 +91,70 @@ const renderGridTI = (
   );
 
 describe("GridTI", () => {
+  it.each<{
+    childStates: Record<string, number>;
+    primaryState: LightGridTaskInstanceSummary["state"];
+    secondaryState: string;
+  }>([
+    { childStates: { skipped: 2, success: 1 }, primaryState: "success", secondaryState: "skipped" },
+    {
+      childStates: { failed: 1, skipped: 3, success: 2 },
+      primaryState: "failed",
+      secondaryState: "success",
+    },
+    {
+      childStates: { running: 1, scheduled: 2, success: 3 },
+      primaryState: "running",
+      secondaryState: "scheduled",
+    },
+    { childStates: { none: 2, success: 1 }, primaryState: null, secondaryState: "success" },
+  ])(
+    "shows the highest-priority secondary state when mapped instances have different states",
+    ({ childStates, primaryState, secondaryState }) => {
+      renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+        instance: { ...taskInstance, child_states: childStates, state: primaryState },
+        isMapped: true,
+      });
+
+      expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe(
+        `linear-gradient(45deg, var(--chakra-colors-${secondaryState}-solid) 50%, transparent 50%)`,
+      );
+    },
+  );
+
+  it.each<{
+    childStates: Record<string, number> | null;
+    isMapped: boolean;
+  }>([
+    { childStates: null, isMapped: true },
+    { childStates: {}, isMapped: true },
+    { childStates: { success: 3 }, isMapped: true },
+    { childStates: { skipped: 0, success: 3 }, isMapped: true },
+    { childStates: { skipped: 2, success: 1 }, isMapped: false },
+  ])("uses a solid color when there are no mixed mapped states", ({ childStates, isMapped }) => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      instance: { ...taskInstance, child_states: childStates },
+      isMapped,
+    });
+
+    expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe("");
+  });
+
+  it.each([true, false])("preserves note markers and selection highlighting on task cells", (isMapped) => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      hasNote: true,
+      instance: { ...taskInstance, child_states: { skipped: 2, success: 1 } },
+      isMapped,
+    });
+
+    expect(screen.getByTestId("task-state-badge")).toHaveAttribute("data-selected", "true");
+    expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe(
+      isMapped
+        ? `linear-gradient(45deg, var(--chakra-colors-skipped-solid) 50%, transparent 50%), ${NOTE_GRADIENT}`
+        : NOTE_GRADIENT,
+    );
+  });
+
   it("drops another execution's exact region when following an aggregate cell", () => {
     renderGridTI(
       `/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task?region_id=11111111-1111-4111-8111-111111111111&region_index=3&try_number=2&log_level=error`,

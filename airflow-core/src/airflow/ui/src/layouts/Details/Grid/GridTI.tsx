@@ -27,6 +27,7 @@ import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useColorMode } from "src/context/colorMode";
 import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
+import { sortStateEntries } from "src/utils/stateUtils";
 
 import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR } from "./constants";
 
@@ -81,6 +82,17 @@ export const GridTI = ({
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
   const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
   const selectedOutlineColor = SELECTED_TASK_OUTLINE_COLOR[colorMode];
+  const secondaryState = isMapped
+    ? sortStateEntries(instance.child_states).find(([state]) => state !== (instance.state ?? "none"))?.[0]
+    : undefined;
+  const backgroundImage = [
+    secondaryState === undefined
+      ? undefined
+      : `linear-gradient(45deg, var(--chakra-colors-${secondaryState}-solid) 50%, transparent 50%)`,
+    hasNote ? NOTE_GRADIENT : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <Flex
@@ -131,7 +143,7 @@ export const GridTI = ({
               outlineStyle={isSelectedTaskInstance ? "solid" : undefined}
               outlineWidth={isSelectedTaskInstance ? "2px" : undefined}
               p={0}
-              style={hasNote ? { background: NOTE_GRADIENT } : undefined}
+              style={{ backgroundImage }}
               transition="outline-color 0.2s"
               variant="solid"
               width="14px"
