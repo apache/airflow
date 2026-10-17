@@ -32,4 +32,4 @@ jobs:
         with:
           persist-credentials: false
       # yamllint disable-line rule:line-length
-      - uses: apache/infrastructure-actions/allowlist-check@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # allowlist-check/v1.0.0
+      - uses: apache/infrastructure-actions/allowlist-check@f1a487181effd0b216892001abdfb524442bb24d  # allowlist-check/v1.0.1
