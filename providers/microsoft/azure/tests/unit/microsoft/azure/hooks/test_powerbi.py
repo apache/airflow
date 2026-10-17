@@ -180,32 +180,45 @@ class TestPowerBIHook:
         )
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("null_fields", "expected_errors"),
+        [
+            ((), ["Synthetic engine failure", "SyntheticRefreshError", "Synthetic attempt failure"]),
+            (("messages",), ["SyntheticRefreshError", "Synthetic attempt failure"]),
+            (("refreshAttempts",), ["Synthetic engine failure", "SyntheticRefreshError"]),
+            (("messages", "refreshAttempts"), ["SyntheticRefreshError"]),
+        ],
+    )
     @mock.patch.object(KiotaRequestAdapterHook, "run", autospec=True)
-    async def test_enhanced_refresh_execution_errors(self, mock_run, powerbi_hook):
+    async def test_enhanced_refresh_execution_errors(
+        self, mock_run, powerbi_hook, null_fields, expected_errors
+    ):
+        execution = {
+            "status": "Unknown",
+            "extendedStatus": "Failed",
+            "messages": [{"type": "Error", "message": "Synthetic engine failure"}],
+            "serviceExceptionJson": '{"errorCode":"SyntheticRefreshError"}',
+            "refreshAttempts": [
+                {"serviceExceptionJson": '{"errorDescription":"Synthetic attempt failure"}'},
+                {"attemptId": 2},
+            ],
+        }
+        for field in null_fields:
+            execution[field] = None
         mock_run.side_effect = [
             {"value": [{"requestId": "1234", "refreshType": "ViaEnhancedApi", "status": "Unknown"}]},
-            {
-                "status": "Unknown",
-                "extendedStatus": "Failed",
-                "messages": [{"type": "Error", "message": "Synthetic engine failure"}],
-                "serviceExceptionJson": '{"errorCode":"SyntheticRefreshError"}',
-                "refreshAttempts": [
-                    {"serviceExceptionJson": '{"errorDescription":"Synthetic attempt failure"}'},
-                    {"attemptId": 2},
-                ],
-            },
+            execution,
         ]
 
         result = await powerbi_hook.get_refresh_details_by_refresh_id(DATASET_ID, GROUP_ID, "1234")
 
         assert result["status"] == "Failed"
-        assert result["error"] == "; ".join(
-            [
-                "Synthetic engine failure",
-                '{"errorCode":"SyntheticRefreshError"}',
-                '{"errorDescription":"Synthetic attempt failure"}',
-            ]
-        )
+        errors = {
+            "Synthetic engine failure": "Synthetic engine failure",
+            "SyntheticRefreshError": '{"errorCode":"SyntheticRefreshError"}',
+            "Synthetic attempt failure": '{"errorDescription":"Synthetic attempt failure"}',
+        }
+        assert result["error"] == "; ".join(errors[error] for error in expected_errors)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("status", ["Unknown", "Completed", "Failed", "Disabled"])

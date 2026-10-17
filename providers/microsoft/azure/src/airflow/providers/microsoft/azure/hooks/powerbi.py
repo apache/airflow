@@ -218,14 +218,14 @@ class PowerBIHook(KiotaRequestAdapterHook):
                 status = execution_details.get("status")
             errors = [
                 message["message"]
-                for message in execution_details.get("messages", [])
+                for message in execution_details.get("messages") or []
                 if message.get("message") and message.get("type") != "Warning"
             ]
             if execution_details.get("serviceExceptionJson"):
                 errors.append(execution_details["serviceExceptionJson"])
             errors.extend(
                 attempt["serviceExceptionJson"]
-                for attempt in execution_details.get("refreshAttempts", [])
+                for attempt in execution_details.get("refreshAttempts") or []
                 if attempt.get("serviceExceptionJson")
             )
             return self.raw_to_refresh_details(

@@ -123,12 +123,15 @@ class TestPowerBITrigger:
             assert "SyntheticRefreshError" in events[0].payload["message"]
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "null_fields", [(), ("messages",), ("refreshAttempts",), ("messages", "refreshAttempts")]
+    )
     @pytest.mark.parametrize("status", ["InProgress", "NotStarted", "Unknown"])
     @mock.patch.object(PowerBIHook, "cancel_dataset_refresh", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.triggers.powerbi.asyncio.sleep", autospec=True)
     @mock.patch.object(PowerBIHook, "run", autospec=True)
     async def test_enhanced_refresh_messages_do_not_end_polling(
-        self, mock_run, mock_sleep, mock_cancel, powerbi_trigger, status
+        self, mock_run, mock_sleep, mock_cancel, powerbi_trigger, status, null_fields
     ):
         history = {
             "value": [{"requestId": DATASET_REFRESH_ID, "refreshType": "ViaEnhancedApi", "status": "Unknown"}]
@@ -141,6 +144,8 @@ class TestPowerBITrigger:
                 {"type": "Error", "code": "SyntheticMessageWithoutText"},
             ],
         }
+        for field in null_fields:
+            active[field] = None
         mock_run.side_effect = [
             history,
             active,
