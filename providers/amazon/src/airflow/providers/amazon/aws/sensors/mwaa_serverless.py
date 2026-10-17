@@ -22,7 +22,14 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.triggers.mwaa_serverless import (
+    DEFAULT_SUCCESS_STATES,
+    MwaaServerlessWorkflowRunCompletedTrigger,
+    get_failure_states,
+)
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import conf
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -40,7 +47,12 @@ class MwaaServerlessWorkflowRunSensor(AwsBaseSensor[AwsBaseHook]):
     :param run_id: The ID of the workflow run to monitor. (templated)
     :param success_states: Set of states considered successful. Default: ``{"SUCCESS"}``.
     :param failure_states: Set of states that raise an exception.
-        Default: ``{"FAILED", "TIMEOUT", "STOPPED"}``.
+        Default: ``{"FAILED", "TIMEOUT", "STOPPED"}``, minus any state listed in ``success_states``.
+    :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param max_retries: Number of times to check the status of the run in deferrable mode
+        before failing. (default: 720)
     """
 
     aws_hook_class = AwsBaseHook
@@ -53,13 +65,17 @@ class MwaaServerlessWorkflowRunSensor(AwsBaseSensor[AwsBaseHook]):
         run_id: str,
         success_states: set[str] | None = None,
         failure_states: set[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        max_retries: int = 720,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.workflow_arn = workflow_arn
         self.run_id = run_id
-        self.success_states = success_states or {"SUCCESS"}
-        self.failure_states = failure_states or {"FAILED", "TIMEOUT", "STOPPED"}
+        self.success_states = success_states or set(DEFAULT_SUCCESS_STATES)
+        self.failure_states = get_failure_states(self.success_states, failure_states)
+        self.deferrable = deferrable
+        self.max_retries = max_retries
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:
@@ -75,3 +91,28 @@ class MwaaServerlessWorkflowRunSensor(AwsBaseSensor[AwsBaseHook]):
             raise RuntimeError(f"Workflow run {self.run_id} failed with state {state}: {error_msg}")
 
         return state in self.success_states
+
+    def execute(self, context: Context) -> None:
+        if self.deferrable:
+            self.defer(
+                trigger=MwaaServerlessWorkflowRunCompletedTrigger(
+                    workflow_arn=self.workflow_arn,
+                    run_id=self.run_id,
+                    success_states=self.success_states,
+                    failure_states=self.failure_states,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_retries,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="execute_complete",
+            )
+        else:
+            super().execute(context=context)
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while waiting for MWAA Serverless workflow run: {validated_event}")
