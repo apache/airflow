@@ -53,7 +53,7 @@ jobs:
   smoke-test-overlay:
     timeout-minutes: 40
     name: "Overlay smoke test: ${{ matrix.overlay }}"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
     strategy:
       fail-fast: false
       max-parallel: 4

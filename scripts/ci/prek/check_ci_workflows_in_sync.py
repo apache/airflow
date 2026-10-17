@@ -34,8 +34,8 @@ Documented divergences:
    stable / providers branches; only AMD runs on PRs (per-PR ARM
    coverage stays cron-driven via the canary).
 4. ``concurrency.group`` prefix — ``ci-arm-`` vs ``ci-amd-``
-5. ``build-info`` outputs ``platform`` and ``runner-type`` — hardcoded per
-   architecture (and the surrounding comment naming the "ARM/AMD copy")
+5. ``build-info`` output ``platform`` — hardcoded per architecture (and the
+   surrounding comment naming the "ARM/AMD copy")
 6. ``PLATFORM`` env on the ``selective-checks`` step — the platform this
    workflow's tests run on.
 7. ``print-platform`` job — ``name:`` and the architecture echoed to
@@ -86,7 +86,6 @@ LINE_RULES: list[tuple[str, str]] = [
     (r"^name: Tests \((?:ARM|AMD)\)$", "name: Tests (PLACEHOLDER)"),
     (r"^  group: ci-(?:arm|amd)-", "  group: ci-PLACEHOLDER-"),
     (r'^      platform: "linux/(?:arm64|amd64)"$', '      platform: "linux/PLACEHOLDER"'),
-    (r"^      runner-type: '\[\"ubuntu-22\.04(?:-arm)?\"\]'$", "      runner-type: 'PLACEHOLDER'"),
     (r'^          PLATFORM: "linux/(?:arm64|amd64)"$', '          PLATFORM: "linux/PLACEHOLDER"'),
     (
         r"^      # (?:ARM|AMD) copy\)\. The matching (?:AMD|ARM) copy lives in ci-(?:amd|arm)\.yml\.$",

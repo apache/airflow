@@ -80,7 +80,7 @@ permissions:
   contents: read
 jobs:
   update-constraints:
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
     timeout-minutes: 80
     name: "Update constraints"
     permissions:
@@ -124,7 +124,7 @@ jobs:
   # Constraint commits are now handled by the dedicated update-constraints-on-push workflow
   # triggered when uv.lock changes are pushed to main/test branches.
   dependency-upgrade-summary:
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], 4, 16) }}
     needs: [update-constraints]
     if: inputs.upgrade-to-newer-dependencies == 'true' && inputs.platform == 'linux/amd64'
     name: "Deps ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
