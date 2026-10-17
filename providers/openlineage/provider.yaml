@@ -221,6 +221,19 @@ config:
         example: ~
         type: boolean
         version_added: 2.20.0
+      sql_use_external_connection:
+        description: |
+          Whether SQL OpenLineage extraction may use the external database connection to retrieve table
+          schema information such as column names and types. Disable this option to avoid additional
+          database metadata queries, for example when information_schema lookups are slow or unreliable.
+          When disabled, OpenLineage can still extract table-level lineage from SQL parsing, but dataset
+          schema facets may be less complete. The current schema is also not queried from the database;
+          a static default is used instead for Postgres and Redshift (public), MSSQL (dbo) and Oracle
+          (connection login). Oracle connections without a login still query the current schema.
+        default: "True"
+        example: ~
+        type: boolean
+        version_added: 2.21.0
       extractors:
         description: |
           Register custom OpenLineage Extractors by passing a string of semicolon separated full import paths.

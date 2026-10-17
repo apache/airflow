@@ -2242,8 +2242,9 @@ def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
 
 
 def should_use_external_connection(hook) -> bool:
-    # If we're at Airflow 2.10, the execution is process-isolated, so we can safely run those again.
-    return True
+    from airflow.providers.openlineage import conf
+
+    return conf.sql_use_external_connection()
 
 
 def _get_providers_manager_instance():

@@ -82,6 +82,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
     is_valid_uuid,
+    should_use_external_connection,
     translate_airflow_asset,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -94,6 +95,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import (
@@ -5395,3 +5397,15 @@ class TestNextQueryCounterFromContext:
         assert len(second) == 8
         assert first != second  # random per call
         assert "OpenLineage encountered an error when retrieving query counter from context" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("config_value", "expected"),
+    [
+        ("True", True),
+        ("False", False),
+    ],
+)
+def test_should_use_external_connection_follows_config(config_value, expected):
+    with conf_vars({("openlineage", "sql_use_external_connection"): config_value}):
+        assert should_use_external_connection(None) is expected

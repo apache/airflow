@@ -39,6 +39,7 @@ from airflow.providers.openlineage.conf import (
     selective_enable,
     spark_inject_parent_job_info,
     spark_inject_transport_info,
+    sql_use_external_connection,
     transport,
 )
 
@@ -65,6 +66,7 @@ _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE = "dag_state_change_process_po
 _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO = "include_full_task_info"
 _CONFIG_OPTION_DEBUG_MODE = "debug_mode"
 _CONFIG_OPTION_EXECUTE_IN_THREAD = "execute_in_thread"
+_CONFIG_OPTION_SQL_USE_EXTERNAL_CONNECTION = "sql_use_external_connection"
 _CONFIG_OPTION_SPARK_INJECT_PARENT_JOB_INFO = "spark_inject_parent_job_info"
 _CONFIG_OPTION_SPARK_INJECT_TRANSPORT_INFO = "spark_inject_transport_info"
 
@@ -190,6 +192,33 @@ def test_selective_enable_empty_conf_option():
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SELECTIVE_ENABLE): None})
 def test_selective_enable_do_not_fail_if_conf_option_missing():
     assert selective_enable() is False
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    _BOOL_PARAMS,
+)
+def test_sql_use_external_connection(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SQL_USE_EXTERNAL_CONNECTION): var_string}):
+        result = sql_use_external_connection()
+        assert result is expected
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SQL_USE_EXTERNAL_CONNECTION): "asdadawlaksnd"})
+def test_sql_use_external_connection_not_working_for_random_string():
+    with pytest.raises(AirflowConfigException):
+        sql_use_external_connection()
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SQL_USE_EXTERNAL_CONNECTION): ""})
+def test_sql_use_external_connection_empty_conf_option():
+    with pytest.raises(AirflowConfigException):
+        sql_use_external_connection()
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_SQL_USE_EXTERNAL_CONNECTION): None})
+def test_sql_use_external_connection_do_not_fail_if_conf_option_missing():
+    assert sql_use_external_connection() is True
 
 
 @pytest.mark.parametrize(
