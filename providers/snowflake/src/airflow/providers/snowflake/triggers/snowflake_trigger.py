@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 
-from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+from airflow.providers.snowflake.hooks.sql_api import SnowflakeSqlApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:

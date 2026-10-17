@@ -26,9 +26,9 @@ Airflow's secret masker applied to every tool result.
 
 Before running:
 
-1. Install Strands: ``pip install "strands-agents>=1.56.0"``. The Anthropic model
-   below also needs ``anthropic``, which the ``anthropic`` extra of this provider
-   installs.
+1. Install Strands and this provider's ``anthropic`` and ``sql`` extras:
+   ``pip install "strands-agents>=1.56.0" "apache-airflow-providers-common-ai[anthropic,sql]"``.
+   The Anthropic model below needs ``anthropic`` and ``SQLToolset`` needs ``sqlglot``.
 2. Create a connection (``LLM_CONN_ID``, default ``anthropic_default``) whose
    password is an Anthropic API key. Set its host only to route through a gateway.
 3. Create a database connection (``DB_CONN_ID``, default ``sql_default``) whose

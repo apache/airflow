@@ -335,8 +335,11 @@ class _ModelRetryPolicy(RetryPolicy):
                 text = f"{text[: self.max_exception_length]}... (truncated)"
         if not self.include_traceback:
             text = f"{type(exception).__name__}: {text}"
+        # ``max_tries`` is the last try number that may still retry (core adds to it on a clear),
+        # so the final attempt is ``max_tries + 1``, as core logs "Starting attempt N of M".
         return (
-            f"Classify this error from a data pipeline task (attempt {try_number} of {max_tries}):\n\n{text}"
+            "Classify this error from a data pipeline task "
+            f"(attempt {try_number} of {max_tries + 1}):\n\n{text}"
         )
 
     def _run(
