@@ -893,6 +893,8 @@ def _finder(
     jobs=(),
     compare_files=(".github/workflows/ci-amd.yml",),
     total_count=None,
+    other_pulls=(),
+    is_gated_base=lambda base_ref: True,
 ):
     def rest_get_pages(path):
         event = path.split("event=", 1)[1].split("&", 1)[0]
@@ -906,11 +908,13 @@ def _finder(
         if "/compare/" in path:
             assert not paginate, "the compare API returns files only on its first page"
             return {"files": [{"filename": name} for name in compare_files]}
+        if "/pulls?head=" in path:
+            return [{"number": 42, "closed_at": None}, *other_pulls]
         raise AssertionError(path)
 
     client.rest_get_pages.side_effect = rest_get_pages
     client.rest_get.side_effect = rest_get
-    return BypassFinder(client, repo=REPO, now=NOW, base_triggers=BASE_TRIGGERS)
+    return BypassFinder(client, repo=REPO, now=NOW, base_triggers=BASE_TRIGGERS, is_gated_base=is_gated_base)
 
 
 @pytest.fixture
@@ -1046,11 +1050,44 @@ def test_finder_fails_closed_on_a_change_set_it_cannot_check(client):
     assert finder.find(_pr()) == "https://github.com/apache/airflow/actions/runs/7"
 
 
+def test_finder_ignores_runs_made_while_the_base_had_no_gate(client):
+    finder = _finder(
+        client, [_run(7)], jobs=TAMPERED_JOBS, is_gated_base=lambda base_ref: base_ref != "v2-10-test"
+    )
+    pr = _pr(base_changes=((NOW - timedelta(minutes=30), "v2-10-test", "main"),))
+
+    assert finder.find(pr) is None
+
+
+@pytest.mark.parametrize(
+    "other_pulls",
+    [
+        pytest.param([{"number": 43, "closed_at": None}], id="open"),
+        pytest.param(
+            [{"number": 43, "closed_at": (NOW - timedelta(hours=2)).isoformat()}], id="closed-recently"
+        ),
+    ],
+)
+def test_finder_reports_a_run_another_pull_request_may_own(client, other_pulls):
+    finder = _finder(client, [_run(7)], jobs=TAMPERED_JOBS, other_pulls=other_pulls)
+
+    assert finder.find(_pr()) is None
+    assert finder.ambiguous == [
+        (
+            42,
+            "project CI run https://github.com/apache/airflow/actions/runs/7 may have bypassed the gate, "
+            "but it could also belong to #43 from the same branch; not closed, check it",
+        )
+    ]
+
+
 def test_finder_catches_a_workflow_moved_away(client):
     finder = _finder(client, [_run(7)], jobs=TAMPERED_JOBS)
     client.rest_get.side_effect = lambda path, paginate=False, items_key=None: (
         TAMPERED_JOBS
         if path.endswith("jobs?filter=latest&per_page=100")
+        else [{"number": 42, "closed_at": None}]
+        if "/pulls?head=" in path
         else {"files": [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]}
     )
 
@@ -1201,7 +1238,12 @@ def test_parse_pull_request_reads_timeline_status_and_marker():
                     "createdAt": "2026-11-06T00:00:00Z",
                     "actor": {"login": "someone"},
                 },
-                {"__typename": "BaseRefChangedEvent", "createdAt": "2026-11-07T00:00:00Z"},
+                {
+                    "__typename": "BaseRefChangedEvent",
+                    "createdAt": "2026-11-07T00:00:00Z",
+                    "previousRefName": "v3-1-test",
+                    "currentRefName": "main",
+                },
             ]
         },
         commits={
@@ -1242,6 +1284,7 @@ def test_parse_pull_request_reads_timeline_status_and_marker():
     assert pr.last_reopened_at == datetime(2026, 11, 5, tzinfo=UTC)
     assert pr.last_reopened_by_anyone_at == datetime(2026, 11, 6, tzinfo=UTC)
     assert pr.last_base_change_at == datetime(2026, 11, 7, tzinfo=UTC)
+    assert pr.base_changes == ((datetime(2026, 11, 7, tzinfo=UTC), "v3-1-test", "main"),)
     assert pr.current_status == ("pending", "u", "d")
     assert pr.status_created_at == datetime(2026, 11, 8, tzinfo=UTC)
     assert pr.ci_passed_state == "success"
@@ -2208,3 +2251,49 @@ def test_finder_ignores_an_added_workflow_whose_jobs_all_skipped(client):
     finder = _finder(client, [run], jobs=[_job("Fork only"), _job("Also fork only")])
 
     assert finder.find(_pr()) is None
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.BypassFinder", autospec=True)
+def test_run_reconcile_reports_ambiguous_runs(mock_finder, client, tmp_path):
+    output = tmp_path / "slack-message.json"
+    client.graphql.side_effect = [_search_result(), _search_result(), _search_result()]
+    mock_finder.return_value.incomplete = None
+    mock_finder.return_value.ambiguous = [(42, "could also belong to #43")]
+
+    has_alerts = run_reconcile(
+        client, CONFIG, now=NOW, run_url="https://run", output_file=output, workflows_dir=tmp_path
+    )
+
+    assert has_alerts is True
+    assert "|#42>: could also belong to #43" in output.read_text()
+
+
+@pytest.mark.parametrize(
+    ("base_ref", "rest_get", "expected"),
+    [
+        pytest.param("main", None, True, id="default-branch"),
+        pytest.param("v2-10-test", _contents({}), False, id="no-gate"),
+        pytest.param("v3-1-test", GitHubError("gh api failed: HTTP 500"), True, id="unreadable"),
+        pytest.param(
+            "v3-1-test", _contents({(GATE_FILES[1], "v3-1-test"): "# gate\n"}), True, id="half-gate"
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.BypassFinder", autospec=True)
+def test_run_reconcile_tells_the_finder_which_bases_are_gated(
+    mock_finder, client, tmp_path, base_ref, rest_get, expected
+):
+    client.graphql.side_effect = [_search_result(), _search_result(), _search_result()]
+    mock_finder.return_value.incomplete = None
+    mock_finder.return_value.ambiguous = []
+    run_reconcile(
+        client,
+        CONFIG,
+        now=NOW,
+        run_url="https://run",
+        output_file=tmp_path / "s.json",
+        workflows_dir=tmp_path,
+    )
+    client.rest_get.side_effect = rest_get
+
+    assert mock_finder.call_args.kwargs["is_gated_base"](base_ref) is expected

@@ -615,8 +615,13 @@ ignored, because they ran legitimately while the label was on. So are runs creat
 most recent reopen of the pull request by someone other than its author, which is how a
 maintainer brings back a pull request closed for tampering; reopening one whose gate is still
 missing triggers a new run, which is caught again. A reopen by the author does not count, so
-closing and reopening one's own pull request cannot hide a tampered run. A run counts as a
-bypass when both signals hold:
+closing and reopening one's own pull request cannot hide a tampered run. Runs are listed per
+fork branch, because GitHub records no pull request on runs from forks. A run made while the
+pull request targeted a base branch without the gate, known from its retargets in the
+timeline, is project CI by design and ignored; its changes are compared with that base. When
+another pull request from the same branch was open within the window, a matching run could be
+that one's, so it is reported to Slack as an attention item rather than closing the pull
+request. A run counts as a bypass when both signals hold:
 
 1. **The run did project CI work.** Either the default branch's version of the run's workflow
    is not triggered by the run's event, which covers an injected workflow and a trigger the

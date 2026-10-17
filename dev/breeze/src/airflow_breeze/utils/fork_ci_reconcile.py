@@ -212,6 +212,8 @@ class PullRequestSnapshot:
     last_reopened_at: datetime | None = None
     last_reopened_by_anyone_at: datetime | None = None
     last_base_change_at: datetime | None = None
+    # (changed at, previous base, new base) for each retarget, oldest first.
+    base_changes: tuple[tuple[datetime, str, str], ...] = ()
     current_status: tuple[str, str, str] | None = None
     status_created_at: datetime | None = None
     ci_passed_state: str | None = None
@@ -682,7 +684,7 @@ query($q: String!, $cursor: String) {
           ... on ConvertToDraftEvent { createdAt actor { login } }
           ... on UnlabeledEvent { createdAt label { name } }
           ... on ReopenedEvent { createdAt actor { login } }
-          ... on BaseRefChangedEvent { createdAt }
+          ... on BaseRefChangedEvent { createdAt previousRefName currentRefName }
         }
       }
       commits(last: 1) { nodes { commit {
@@ -738,11 +740,15 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
     last_reopened = None
     last_reopened_by_anyone = None
     last_base_change = None
+    base_changes = []
     for item in (node.get("timelineItems") or {}).get("nodes") or []:
         if item["__typename"] == "ConvertToDraftEvent":
             last_draft_actor = _login(item.get("actor"))
         elif item["__typename"] == "BaseRefChangedEvent":
             last_base_change = parse_github_datetime(item["createdAt"])
+            base_changes.append(
+                (last_base_change, item.get("previousRefName") or "", item.get("currentRefName") or "")
+            )
         elif item["__typename"] == "ReopenedEvent":
             last_reopened_by_anyone = parse_github_datetime(item["createdAt"])
             # Only a reopen by someone else counts for the gate tampering check: an author closing
@@ -799,6 +805,7 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
         last_reopened_at=last_reopened,
         last_reopened_by_anyone_at=last_reopened_by_anyone,
         last_base_change_at=last_base_change,
+        base_changes=tuple(base_changes),
         current_status=current_status,
         status_created_at=status_created_at,
         ci_passed_state=ci_passed_state,
@@ -1110,6 +1117,15 @@ def load_workflow_triggers(workflows_dir: Path) -> dict[str, frozenset[str]]:
     return triggers
 
 
+def base_at(pr: PullRequestSnapshot, when: datetime) -> str:
+    """The base branch the pull request had at ``when``, from its retargets."""
+    base = pr.base_ref
+    for changed_at, previous, _ in reversed(pr.base_changes):
+        if when < changed_at:
+            base = previous
+    return base
+
+
 class BypassFinder:
     """
     Finds project CI runs that bypassed the gate, from the runs apache/airflow recorded.
@@ -1125,12 +1141,23 @@ class BypassFinder:
     """
 
     def __init__(
-        self, client: GitHubClient, *, repo: str, now: datetime, base_triggers: dict[str, frozenset[str]]
+        self,
+        client: GitHubClient,
+        *,
+        repo: str,
+        now: datetime,
+        base_triggers: dict[str, frozenset[str]],
+        is_gated_base: Callable[[str], bool] = lambda base_ref: True,
     ):
+        """:param is_gated_base: whether a base branch has the gate; runs against one without it are project CI by design."""
         self._client = client
         self._repo = repo
         self._now = now
         self._base_triggers = base_triggers
+        self._is_gated_base = is_gated_base
+        # Pull requests whose matching run could belong to another pull request from the same
+        # branch; reported instead of closed.
+        self.ambiguous: list[tuple[int, str]] = []
         since = (now - TAMPER_WINDOW).strftime("%Y-%m-%dT%H:%M:%SZ")
         self._runs_by_branch: dict[tuple[str, str], list[WorkflowRun]] = {}
         incomplete = []
@@ -1226,11 +1253,26 @@ class BypassFinder:
                 self._changes_workflows[key] = None if len(files) >= COMPARE_FILES_CAP else False
         return self._changes_workflows[key]
 
+    def _other_pull_requests(self, pr: PullRequestSnapshot) -> list[int]:
+        """Other pull requests from the same branch that were open within the tampering window."""
+        owner = pr.head_repo.split("/", 1)[0]  # type: ignore[union-attr]
+        pulls = self._client.rest_get(
+            f"repos/{self._repo}/pulls?head={quote(owner, safe='')}:{quote(pr.head_ref, safe='')}"
+            "&state=all&per_page=100",
+            paginate=True,
+        )
+        window_start = self._now - TAMPER_WINDOW
+        return [
+            pull["number"]
+            for pull in pulls
+            if pull["number"] != pr.number
+            and (pull.get("closed_at") is None or parse_github_datetime(pull["closed_at"]) >= window_start)
+        ]
+
     def find(self, pr: PullRequestSnapshot) -> str | None:
         if not pr.head_repo:
             return None
-        # Matching by fork branch alone also picks up runs of another pull request from that branch
-        # or from before a retarget; tracked at https://github.com/apache/airflow/issues/74906
+        # Runs are listed per fork branch: GitHub records no pull request on runs from forks.
         runs = self._runs_by_branch.get((pr.head_repo.casefold(), pr.head_ref), [])
         # Runs before `use project ci` was removed were legitimate. Runs before a maintainer
         # reopened the pull request were already acted on; reopening without restoring the gate
@@ -1241,11 +1283,26 @@ class BypassFinder:
         for run in sorted(runs, key=lambda r: r.created_at, reverse=True):
             if not_before is not None and run.created_at <= not_before:
                 continue
+            base_ref = base_at(pr, run.created_at)
+            # Project CI against a base branch without the gate is what its gate job decides.
+            if not self._is_gated_base(base_ref):
+                continue
             if not self._did_run_project_ci(run):
                 continue
             # A change set too large to list fails closed: padding a tampered commit past the
             # compare API's cap must not hide the workflow change.
-            if self._commit_changes_workflows(run, pr.base_ref) is not False:
+            if self._commit_changes_workflows(run, base_ref) is not False:
+                others = self._other_pull_requests(pr)
+                if others:
+                    self.ambiguous.append(
+                        (
+                            pr.number,
+                            f"project CI run {run.html_url} may have bypassed the gate, but it could also "
+                            f"belong to {', '.join(f'#{n}' for n in others)} from the same branch; not closed, "
+                            "check it",
+                        )
+                    )
+                    return None
                 return run.html_url
         return None
 
@@ -1525,8 +1582,20 @@ def run_reconcile(
         )
     ]
     observations = fetch_fork_observations(client, prs)
+
+    def is_gated_base(base_ref: str) -> bool:
+        # A base branch whose configuration cannot be read is treated as gated.
+        try:
+            return configs.get(base_ref) is not None
+        except (GitHubError, ValueError):
+            return True
+
     bypass_finder = BypassFinder(
-        client, repo=repo, now=now, base_triggers=load_workflow_triggers(workflows_dir)
+        client,
+        repo=repo,
+        now=now,
+        base_triggers=load_workflow_triggers(workflows_dir),
+        is_gated_base=is_gated_base,
     )
     job_reporter = JobStatusReporter(client, repo=repo)
 
@@ -1580,6 +1649,7 @@ def run_reconcile(
             console_print(f"[error]#{listed.number}: {e}[/]")
             unknown.append((listed.number, f"{type(e).__name__}: {e}"))
 
+    attention.extend(bypass_finder.ambiguous)
     notes = [bypass_finder.incomplete] if bypass_finder.incomplete else []
     if job_reporter.deferred:
         console_print(
