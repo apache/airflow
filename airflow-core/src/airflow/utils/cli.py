@@ -339,7 +339,7 @@ def _redact_uri_argument(value: str) -> str:
     )
     unlocated = after_authority if has_password else rest if separator else value
     # ``Connection`` decodes query values, so ``u%3Apass%40host`` is a credential too.
-    if any(re.search(r":.*@", text) for text in (unlocated, unquote(unlocated))):
+    if any(re.search(r":.*@", text, re.DOTALL) for text in (unlocated, unquote(unlocated))):
         return MASKED_VALUE
     query = parsed_uri.query
     params = parse_qsl(query, keep_blank_values=True) if query else []

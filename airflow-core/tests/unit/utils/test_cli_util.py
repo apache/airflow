@@ -741,6 +741,25 @@ class TestCliUtil:
                     "add",
                     "c1",
                     "--conn-uri",
+                    "http://h/db?target=u%3AS3CRET%0A%40h2",
+                ],
+                {"conn_id": "c1", "conn_uri": "http://h/db?target=u%3AS3CRET%0A%40h2"},
+                ["airflow", "connections", "add", "c1", "--conn-uri", MASKED],
+                id="conn-uri-percent-encoded-newline-in-credentials",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-uri", "http://h/db?target=u:S3CRET\r\n@h2"],
+                {"conn_id": "c1", "conn_uri": "http://h/db?target=u:S3CRET\r\n@h2"},
+                ["airflow", "connections", "add", "c1", "--conn-uri", MASKED],
+                id="conn-uri-raw-newline-in-credentials",
+            ),
+            pytest.param(
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "c1",
+                    "--conn-uri",
                     "http://h/?__extra__=%7B%22token%22%3A%22S3CRET%22%2C%22email%22%3A%22a%40b.c%22%7D",
                 ],
                 {
