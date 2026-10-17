@@ -54,7 +54,11 @@ from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
     unpack_bundle_version,
 )
-from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.manager import (
+    DagBundlesManager,
+    _refresh_bundle_config_snapshot,
+    is_bundle_config_reload_enabled,
+)
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -892,6 +896,7 @@ class DagFileProcessorManager(LoggingMixin):
             return
 
         self._bundles_last_refreshed = now_seconds
+        self._reconcile_bundles(known_files=known_files)
 
         any_refreshed = False
         for bundle in self._dag_bundles:
@@ -1002,6 +1007,55 @@ class DagFileProcessorManager(LoggingMixin):
             self.handle_removed_files(known_files=known_files)
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
+
+    def _reconcile_bundles(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+        if not is_bundle_config_reload_enabled():
+            return
+        try:
+            _refresh_bundle_config_snapshot()
+            dag_bundle_manager = DagBundlesManager()
+        except Exception:
+            self.log.exception("Could not load Dag bundles; keeping the current bundles")
+            return
+
+        loaded_bundles = {bundle.name: bundle for bundle in self._dag_bundles}
+        bundle_names = set(dag_bundle_manager.get_all_bundle_names())
+        if self.bundle_names_to_parse:
+            bundle_names.intersection_update(self.bundle_names_to_parse)
+        removed_names = loaded_bundles.keys() - bundle_names
+        bundle_instances: dict[str, BaseDagBundle] = {}
+        for name in sorted(bundle_names - loaded_bundles.keys()):
+            try:
+                bundle_instances[name] = dag_bundle_manager.get_bundle(name)
+            except Exception:
+                self.log.exception("Could not create Dag bundle %s; will retry", name)
+
+        try:
+            # Other processors can overwrite active state even when our configuration is unchanged.
+            dag_bundle_manager.sync_bundles_to_db(
+                deactivate_missing=not self.bundle_names_to_parse,
+                bundle_instances=bundle_instances,
+            )
+        except Exception:
+            self.log.exception("Could not reconcile Dag bundles; keeping the current bundles")
+            return
+
+        if not removed_names and not bundle_instances:
+            return
+        loaded_bundles.update(bundle_instances)
+        self._dag_bundles = [loaded_bundles[name] for name in sorted(bundle_names & loaded_bundles.keys())]
+        self._force_refresh_bundles.update(bundle_instances)
+        self._bundle_name_to_team_name.clear()
+        for name in removed_names:
+            self._bundle_versions.pop(name, None)
+            self._bundle_version_data.pop(name, None)
+            known_files.pop(name, None)
+            self._force_refresh_bundles.discard(name)
+        if removed_names:
+            self.handle_removed_files(known_files=known_files)
+        self.log.info(
+            "Reconciled Dag bundles: added=%s, removed=%s", sorted(bundle_instances), sorted(removed_names)
+        )
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> set[DagFileInfo]:
         """

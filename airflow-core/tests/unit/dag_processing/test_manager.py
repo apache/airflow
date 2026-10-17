@@ -355,6 +355,157 @@ class TestDagFileProcessorManager:
         clear_db_import_errors()
         clear_db_dag_bundles()
 
+    @mock.patch(
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled", autospec=True, return_value=False
+    )
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_reconcile_static_config_does_not_poll(self, mock_manager, mock_source):
+        DagFileProcessorManager(max_runs=1)._reconcile_bundles(known_files={})
+        mock_manager.assert_not_called()
+
+    @pytest.mark.parametrize("filtered", [False, True])
+    @mock.patch(
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
+        autospec=True,
+        return_value=True,
+    )
+    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
+    def test_reconcile_reuses_retained_bundles_and_cleans_removed_files(
+        self, mock_removed, mock_manager, mock_refresh, mock_source, tmp_path, filtered
+    ):
+        removed, retained, added = [
+            _make_bundle(tmp_path / name) for name in ("removed", "retained", "added")
+        ]
+        removed.name, retained.name, added.name = "removed", "retained", "added"
+        bundles = mock_manager.return_value
+        bundles.get_all_bundle_names.return_value = ["retained", "added", "other"]
+        bundles.get_bundle.return_value = added
+        processor = DagFileProcessorManager(
+            max_runs=1, bundle_names_to_parse=["removed", "retained", "added"] if filtered else None
+        )
+        if not filtered:
+            bundles.get_all_bundle_names.return_value = ["retained", "added"]
+        processor._dag_bundles = [removed, retained]
+        processor._bundle_versions["removed"] = "v1"
+        processor._bundle_version_data["removed"] = {"version": "v1"}
+        processor._force_refresh_bundles.add("removed")
+        known_files = {"removed": set(), "retained": set()}
+
+        processor._reconcile_bundles(known_files=known_files)
+
+        mock_refresh.assert_called_once_with()
+        assert processor._dag_bundles == [added, retained]
+        assert known_files == {"retained": set()}
+        assert "removed" not in processor._bundle_versions
+        assert "removed" not in processor._bundle_version_data
+        assert processor._force_refresh_bundles == {"added"}
+        bundles.get_bundle.assert_called_once_with("added")
+        bundles.sync_bundles_to_db.assert_called_once_with(
+            deactivate_missing=not filtered, bundle_instances={"added": added}
+        )
+        mock_removed.assert_called_once_with(processor, known_files=known_files)
+
+    @mock.patch(
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
+        autospec=True,
+        return_value=True,
+    )
+    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_reconcile_retries_failed_construction(self, mock_manager, mock_refresh, mock_source, tmp_path):
+        added = _make_bundle(tmp_path)
+        added.name = "added"
+        bundles = mock_manager.return_value
+        bundles.get_all_bundle_names.return_value = ["added"]
+        bundles.get_bundle.side_effect = [RuntimeError("temporarily unavailable"), added]
+        processor = DagFileProcessorManager(max_runs=1)
+        processor._reconcile_bundles(known_files={})
+        assert processor._dag_bundles == []
+        processor._reconcile_bundles(known_files={})
+        assert processor._dag_bundles == [added]
+        assert bundles.sync_bundles_to_db.call_args_list == [
+            mock.call(deactivate_missing=True, bundle_instances={}),
+            mock.call(deactivate_missing=True, bundle_instances={"added": added}),
+        ]
+
+    @mock.patch(
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
+        autospec=True,
+        return_value=True,
+    )
+    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    def test_reconcile_retries_template_persistence_after_sync_failure(
+        self, mock_manager, mock_refresh, mock_source, tmp_path
+    ):
+        added = _make_bundle(tmp_path)
+        added.name = "added"
+        bundles = mock_manager.return_value
+        bundles.get_all_bundle_names.return_value = ["added"]
+        bundles.get_bundle.return_value = added
+        bundles.sync_bundles_to_db.side_effect = [RuntimeError("database unavailable"), None]
+        processor = DagFileProcessorManager(max_runs=1)
+        processor._reconcile_bundles(known_files={})
+        assert processor._dag_bundles == []
+        assert processor._force_refresh_bundles == set()
+        processor._reconcile_bundles(known_files={})
+        assert processor._dag_bundles == [added]
+        assert bundles.sync_bundles_to_db.call_args_list == [
+            mock.call(deactivate_missing=True, bundle_instances={"added": added}),
+            mock.call(deactivate_missing=True, bundle_instances={"added": added}),
+        ]
+
+    @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
+    @pytest.mark.parametrize("remove_all", [False, True])
+    def test_reconcile_repairs_stale_writer_only_when_unfiltered(
+        self, tmp_path, bundle_names_to_parse, remove_all
+    ):
+        configs = [
+            {
+                "name": f"bundle-{name}",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(tmp_path / name)},
+            }
+            for name in ("a", "b")
+        ]
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text(json.dumps(configs))
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+                ("dag_processor", "bundle_refresh_check_interval"): "0",
+            }
+        ):
+            processor = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=bundle_names_to_parse)
+            processor.sync_bundles()
+            processor._dag_bundles = processor.get_all_bundles()
+            config_file.write_text(json.dumps([] if remove_all else configs[1:]))
+            processor._reconcile_bundles(known_files={})
+            with create_session() as session:
+                bundle_a = session.get(DagBundleModel, "bundle-a")
+                assert bundle_a.active is bool(bundle_names_to_parse)
+                bundle_a.active = True
+                session.add(
+                    DagModel(
+                        dag_id="removed_bundle_dag",
+                        bundle_name="bundle-a",
+                        fileloc=str(tmp_path / "a" / "dag.py"),
+                        relative_fileloc="dag.py",
+                        is_stale=False,
+                    )
+                )
+            processor._reconcile_bundles(known_files={})
+            processor.deactivate_stale_dags(last_parsed={})
+            with create_session() as session:
+                assert session.get(DagBundleModel, "bundle-a").active is bool(bundle_names_to_parse)
+                assert session.get(DagModel, "removed_bundle_dag").is_stale is (not bundle_names_to_parse)
+                if remove_all:
+                    assert session.get(DagBundleModel, "bundle-b").active is bool(bundle_names_to_parse)
+            assert [bundle.name for bundle in processor._dag_bundles] == ([] if remove_all else ["bundle-b"])
+
     def mock_processor(self, start_time: float | None = None) -> tuple[DagFileProcessorProcess, socket]:
         proc = MagicMock()
         logger_filehandle = MagicMock()
