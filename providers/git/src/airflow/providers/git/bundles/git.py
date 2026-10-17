@@ -28,7 +28,7 @@ from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.providers.common.compat.bundles import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.git.hooks.git import GitHook
@@ -38,8 +38,6 @@ if AIRFLOW_V_3_3_PLUS:
 
 if TYPE_CHECKING:
     from tenacity import RetryCallState
-
-log = structlog.get_logger(__name__)
 
 # GitHub rejects a just-issued App installation token with "Repository not found" for a few seconds,
 # and a fresh GitHook mints one right before the bare clone. Only that auth path gets extra attempts
@@ -118,18 +116,12 @@ class GitDagBundle(BaseDagBundle):
         else:
             self.prune_dotgit_folder = prune_dotgit_folder
 
-        self._log = log.bind(
-            bundle_name=self.name,
-            version=self.version,
-            bare_repo_path=self.bare_repo_path,
-            repo_path=self.repo_path,
-            versions_path=self.versions_dir,
-            git_conn_id=self.git_conn_id,
-            submodules=self.submodules,
-            sparse_dirs=self.sparse_dirs,
+        # A subclass may extend _get_log_context() with attributes it sets after this constructor returns,
+        # so the constructor binds only this class's context and leaves self._log to be built after it.
+        log = structlog.get_logger(__name__).bind(
+            bundle_name=self.name, version=self.version, **GitDagBundle._get_log_context(self)
         )
-
-        self._log.debug("bundle configured")
+        log.debug("bundle configured")
         self.hook: GitHook | None = None
         try:
             self.hook = GitHook(git_conn_id=git_conn_id or "git_default", repo_url=self.repo_url)
@@ -139,7 +131,7 @@ class GitDagBundle(BaseDagBundle):
                 raise
             # if repo_url is provided, connection can be optional for auth, so we log and continue to enable
             # public repos to work without connection
-            self._log.info(
+            log.info(
                 "Connection not found but repo_url provided, continuing without Airflow connection",
                 git_conn_id=git_conn_id,
                 exc_info=str(e),
@@ -147,7 +139,7 @@ class GitDagBundle(BaseDagBundle):
 
         if self.hook and self.hook.repo_url:
             self.repo_url = self.hook.repo_url
-            self._log.debug("repo_url updated from hook")
+            log.debug("repo_url updated from hook")
 
     def _is_pruned_worktree(self) -> bool:
         # True if version path exists and has no .git
@@ -172,6 +164,16 @@ class GitDagBundle(BaseDagBundle):
         finally:
             if repo is not None:
                 repo.close()
+
+    def _get_log_context(self) -> dict:
+        return {
+            "bare_repo_path": self.bare_repo_path,
+            "repo_path": self.repo_path,
+            "versions_path": self.versions_dir,
+            "git_conn_id": self.git_conn_id,
+            "submodules": self.submodules,
+            "sparse_dirs": self.sparse_dirs,
+        }
 
     def _initialize(self):
         with self.lock():
