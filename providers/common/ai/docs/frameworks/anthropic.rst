@@ -195,13 +195,14 @@ apply:
 Installation
 ------------
 
-Install this provider with its ``anthropic`` extra:
+Install this provider with its ``anthropic`` and ``sql`` extras:
 
 .. code-block:: bash
 
-    pip install "apache-airflow-providers-common-ai[anthropic]"
+    pip install "apache-airflow-providers-common-ai[anthropic,sql]"
 
-The ``anthropic`` extra installs the SDK. Add ``apache-airflow-providers-anthropic`` if
+The ``anthropic`` extra installs the SDK, and ``sql`` installs what the example's
+``SQLToolset`` imports. Add ``apache-airflow-providers-anthropic`` if
 you build the client with ``AnthropicHook``. ``tool_runner`` is a beta helper of the
 SDK. The adapter needs ``anthropic`` 1.1.0 or later, which the extra requires,
 and is tested with 1.8.0.

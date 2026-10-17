@@ -45,7 +45,8 @@ Toolsets
    * - :doc:`SQLToolset <toolsets/sql>`
      - Any common.sql database connection (with table allowlists and AST validation)
    * - :doc:`DataFusionToolset <toolsets/datafusion>`
-     - Object storage (S3, local filesystem, Apache Iceberg) via Apache DataFusion
+     - Object storage (S3, GCS, Azure Blob Storage, local filesystem, Apache Iceberg) via
+       Apache DataFusion
    * - :doc:`LoggingToolset <toolsets/logging>`
      - Airflow task logs
    * - :doc:`MCPToolset <toolsets/mcp>`
@@ -54,13 +55,16 @@ Toolsets
      - Object storage (S3, GCS, Azure Blob Storage, or any store
        :class:`~airflow.sdk.ObjectStoragePath` can open), read-only
    * - :doc:`SandboxToolset <sandbox/index>`
-     - Docker Sandboxes (the shipped sbx backend; other backends can be added via SandboxBackend)
+     - Modal, Islo, OpenSandbox, OpenShell, Boat and Docker Sandboxes (sbx), through the
+       shipped :doc:`backends <sandbox/backends>`; other services can be added with a
+       ``SandboxBackend`` subclass
    * - :doc:`AgentSkillsToolset <toolsets/skills>`
      - Agent skills from local paths and remote Git repositories
    * - :doc:`LangChain Bridge <toolsets/langchain>`
      - LangChain tools
    * - :doc:`Managed Agent Toolsets <toolsets/managed_agent>`
-     - Snowflake Cortex Agents; Amazon Bedrock AgentCore; Azure AI Foundry; Vertex AI Agent Engine
+     - Amazon Bedrock AgentCore and Vertex AI Agent Engine, through the Amazon and Google
+       providers' hooks
 
 Notes
 -----

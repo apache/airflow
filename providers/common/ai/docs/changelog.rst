@@ -108,9 +108,10 @@ Changelog
   ``max_result_bytes``, it returns a bounded summary (``column_count``, a ``type_histogram`` and a
   ``sample_columns`` preview, with ``truncated``, ``truncated_by`` and a ``hint``) in place of the
   full list. Update any system prompt or direct ``call_tool("get_schema", ...)`` caller that read
-  the old top-level array: check ``truncated`` first, then read ``result["columns"]`` on a full
-  result or ``result["sample_columns"]`` on a summary. A summary carries no ``columns`` key, so
-  ``result["columns"]`` raises ``KeyError`` on any table wide enough to be summarized.
+  the old top-level array: check ``result.get("truncated")`` first, then read ``result["columns"]``
+  on a full result or ``result["sample_columns"]`` on a summary. A full result carries no
+  ``truncated`` key and a summary carries no ``columns`` key, so indexing either one directly
+  raises ``KeyError`` on the other kind of result.
 
 .. note::
   ``AgentOperator`` no longer accepts ``code_mode``. Pass the pydantic-ai-harness capability
