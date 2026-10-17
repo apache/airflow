@@ -65,7 +65,16 @@ class TestEmrAddStepsTrigger:
 
 
 class TestEmrCreateJobFlowTrigger:
-    def test_serialization(self):
+    @pytest.mark.parametrize(
+        ("waiter_kwargs", "expected_waiter_name"),
+        [
+            pytest.param({}, "job_flow_waiting", id="default"),
+            pytest.param(
+                {"waiter_name": "job_flow_terminated"}, "job_flow_terminated", id="job_flow_terminated"
+            ),
+        ],
+    )
+    def test_serialization(self, waiter_kwargs, expected_waiter_name):
         job_flow_id = "test_job_flow_id"
         waiter_delay = 30
         waiter_max_attempts = 60
@@ -76,15 +85,18 @@ class TestEmrCreateJobFlowTrigger:
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            **waiter_kwargs,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrCreateJobFlowTrigger"
         assert kwargs == {
             "job_flow_id": "test_job_flow_id",
+            "waiter_name": expected_waiter_name,
             "waiter_delay": 30,
             "waiter_max_attempts": 60,
             "aws_conn_id": "aws_default",
         }
+        assert EmrCreateJobFlowTrigger(**kwargs).waiter_name == expected_waiter_name
 
 
 class TestEmrTerminateJobFlowTrigger:
