@@ -19,7 +19,63 @@
  under the License.
 -->
 
-The Apache Airflow Java SDK — author and run Airflow task implementations in JVM languages.
+Write Apache Airflow Dags and tasks in Java, Kotlin, Scala or any other JVM language.
+
+It requires Java 11 or later.
+
+## Quick start
+
+Apply the Gradle plugin, and add the SDK and its annotation processor:
+
+```groovy
+plugins {
+    id("org.apache.airflow.sdk") version "1.0.0"
+}
+
+dependencies {
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:1.0.0")
+    implementation("org.apache.airflow:airflow-sdk:1.0.0")
+}
+
+airflowBundle {
+    mainClass = "com.mycompany.airflow.hello.Main"
+}
+```
+
+Declare a Dag with `@Airflow.Dag`, its tasks with `@Airflow.Task`, and its graph in an `@Airflow.Deps` class.
+Passing the value one task returns into another is how the tasks depend on each other:
+
+```java
+@Airflow.Dag(id = "java_hello", schedule = "@daily")
+public class HelloDag {
+
+  @Airflow.Task(queue = "java")
+  public long extract() {
+    return 42L;
+  }
+
+  @Airflow.Task(queue = "java")
+  public void report(long rows) {
+    System.out.println("extracted " + rows + " rows");
+  }
+
+  @Airflow.Deps
+  static class Wiring implements HelloDagDeps {
+    void depends() {
+      report(extract());
+    }
+  }
+}
+
+public class Main {
+  public static void main(String[] args) {
+    Server.create(args).serve(new Bundle().register(HelloDag.class));
+  }
+}
+```
+
+Build the bundle with `./gradlew bundle`, and see the [Java SDK guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/java.html) for deploying it, and for everything
+a Dag declared in Java can do.
 
 ## Language SDK compatibility matrix
 
