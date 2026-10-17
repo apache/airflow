@@ -723,7 +723,6 @@ as a failed check rather than a crash.
 - `contributing-docs/10_working_with_git.rst`: cross-link from the naming conventions.
 - `contributing-docs/25_maintainer_pr_triage.md`: the ownership split with the reconciler.
 - `dev/breeze/doc/ci/05_workflows.md`: add the fork push run type.
-- `dev/breeze/doc/ci/03_github_variables.md`: the new gate job outputs.
 - `dev/breeze/doc/08_ci_tasks.rst`: `breeze ci audit` and `breeze ci fork-ci-reconcile`.
 - `dev/breeze/doc/ci/README.md`: index this document.
 

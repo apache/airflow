@@ -242,6 +242,33 @@ The triage workflow uses the following labels and states:
 | `suspicious changes detected` | PR (and all open PRs by the same author) was closed because the diff contained suspicious patterns (secret exfiltration, malicious CI modifications, etc.). |
 | `closed because of open PR limit` | PR was closed in the one-time closure that introduced the [open PR limit](32_open_pull_request_limit.rst). Applied by `dev/close_prs_over_open_pr_limit.py`, never by the triage skill. If the author reopens the PR, triage it like any other. |
 | **Draft status** | PR was converted to draft because it does not meet quality criteria. The contributor is asked to fix the listed issues and mark the PR as "Ready for review" once done. |
+| `fork ci required` | PR runs its CI in the contributor's fork (AIP-120). Applied and managed by the fork CI reconciler, never by the triage skill. |
+| `needs project ci` | Fork CI is green, but the PR changes CI-defining files, so a maintainer must review them and add `use project ci`. Applied and removed by the fork CI reconciler. Filter on it to find PRs waiting only on a maintainer. |
+| `use project ci` / `use fork ci` | Set by a maintainer to override the fork CI decision for one PR: run project CI, or use fork CI for a PR that would otherwise run project CI. |
+
+## Pull requests gated to fork CI
+
+Pull requests labelled `fork ci required` run their CI in the contributor's fork. The scheduled
+fork CI reconciler (`breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml`) owns four things
+for them, and the triage skill must treat those pull requests as out of scope for each:
+
+- **Draft state.** The reconciler keeps the pull request in draft until the fork run for its
+  latest commit is green, and undrafts only what it drafted.
+- **`ready for maintainer review`.** The reconciler adds it when the fork run is green and removes
+  it when a new push starts a new run.
+- **`needs project ci`.** The reconciler adds it when the fork run is green but the pull request
+  changes CI-defining files, and removes it once the state is anything else. These pull requests
+  stay in draft and wait for a maintainer to review the CI change and add `use project ci`.
+- **Closing after inactivity.** The reconciler closes a pull request whose fork CI has not run for
+  `close_after_days`.
+
+Everything else the skill does (quality criteria, pings, suspicious-change flags) applies as
+usual. The `Fork CI / Tests (AMD)` commit status shows the fork CI state and links to the run in
+the fork. To move a single pull request back to project CI, add `use project ci`; the reconciler
+releases it on its next run. Pull requests that change CI-defining files stay in draft even when
+the fork run is green, and are reported to `internal-airflow-ci-cd` for a maintainer to review and
+run project CI with `use project ci`. See
+[Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).
 
 ## For contributors
 
