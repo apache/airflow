@@ -165,7 +165,7 @@ async def await_pod_start(
     """
     pod_manager.log.info("::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False
-    start_check_time = time.time()
+    start_check_time = time.monotonic()
     is_async = isinstance(pod_manager, AsyncPodManager)
     while True:
         if is_async:
@@ -193,17 +193,17 @@ async def await_pod_start(
             if not pod_was_scheduled:
                 # POD was initially scheduled update timeout for getting POD launched
                 pod_was_scheduled = True
-                start_check_time = time.time()
+                start_check_time = time.monotonic()
                 pod_manager.log.info("Waiting %ss to get the POD running...", startup_timeout)
 
-            if time.time() - start_check_time >= startup_timeout:
+            if time.monotonic() - start_check_time >= startup_timeout:
                 pod_manager.stop_watching_events = True
                 pod_manager.log.info("::endgroup::")
                 raise PodLaunchTimeoutException(
                     f"Pod took too long to start. More than {startup_timeout}s. Check the pod events in kubernetes."
                 )
         else:
-            if time.time() - start_check_time >= schedule_timeout:
+            if time.monotonic() - start_check_time >= schedule_timeout:
                 pod_manager.stop_watching_events = True
                 pod_manager.log.info("::endgroup::")
                 raise PodLaunchTimeoutException(
@@ -950,11 +950,11 @@ class PodManager(LoggingMixin):
     ) -> None:
         """Check if the sidecar container has reached the 'Running' state before performing do_xcom_push."""
         self.log.info("Checking if xcom sidecar container is started.")
-        start_time = time.time()
+        start_time = time.monotonic()
         last_log_time = start_time
 
         while True:
-            elapsed_time = time.time() - start_time
+            elapsed_time = time.monotonic() - start_time
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
                 self.log.info("The xcom sidecar container has started.")
                 break
@@ -962,12 +962,12 @@ class PodManager(LoggingMixin):
                 raise AirflowException(
                     "Xcom sidecar container is already terminated! Not possible to read xcom output of task."
                 )
-            if (time.time() - last_log_time) >= log_interval:
+            if (time.monotonic() - last_log_time) >= log_interval:
                 self.log.warning(
                     "Still waiting for the xcom sidecar container to start. Elapsed time: %d seconds.",
                     int(elapsed_time),
                 )
-                last_log_time = time.time()
+                last_log_time = time.monotonic()
             if elapsed_time > timeout:
                 raise AirflowException(
                     f"Xcom sidecar container did not start within {timeout // 60} minutes."
