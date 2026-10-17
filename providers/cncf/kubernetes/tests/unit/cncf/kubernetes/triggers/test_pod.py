@@ -32,6 +32,7 @@ from kubernetes.client import models as k8s
 from pendulum import DateTime
 from sqlalchemy.orm.session import Session
 
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.providers.common.compat.sdk import AirflowException
@@ -843,9 +844,11 @@ class TestKubernetesPodTrigger:
             on_kill_action="delete_pod",
             on_finish_action="delete_pod",
         )
+        mock_hook.close = mock.AsyncMock(spec=AsyncKubernetesHook.close)
         with mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=False):
             await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()
+        mock_hook.close.assert_awaited_once()
 
     @pytest.mark.skipif(
         AIRFLOW_V_3_3_PLUS,
@@ -853,7 +856,7 @@ class TestKubernetesPodTrigger:
     )
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_cleanup_deletes_pod_when_safe_to_cancel(self, mock_hook):
+    async def test_cleanup_deletes_pod_when_safe_to_cancel_and_closes_hook(self, mock_hook):
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
@@ -864,6 +867,7 @@ class TestKubernetesPodTrigger:
             on_finish_action="delete_pod",
         )
         mock_hook.delete_pod = mock.AsyncMock()
+        mock_hook.close = mock.AsyncMock()
         with mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=True):
             await trigger.cleanup()
         mock_hook.delete_pod.assert_called_once_with(
@@ -871,6 +875,7 @@ class TestKubernetesPodTrigger:
             namespace=NAMESPACE,
             grace_period_seconds=None,
         )
+        mock_hook.close.assert_awaited_once()
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
@@ -879,7 +884,8 @@ class TestKubernetesPodTrigger:
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_cleanup_noop_on_airflow_3_3_plus(self, mock_hook):
-        """On Airflow 3.3.0+, cleanup does not delete pods (on_kill handles user kill)."""
+        """On Airflow 3.3.0+, cleanup releases the client and on_kill handles pod deletion."""
+        mock_hook.close = mock.AsyncMock(spec=AsyncKubernetesHook.close)
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
@@ -891,6 +897,7 @@ class TestKubernetesPodTrigger:
         )
         await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()
+        mock_hook.close.assert_awaited_once()
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.get_task_state", new_callable=mock.AsyncMock)
@@ -1049,6 +1056,7 @@ class TestKubernetesPodTrigger:
             on_kill_action="delete_pod",
             on_finish_action="delete_pod",
         )
+        mock_hook.close = mock.AsyncMock(spec=AsyncKubernetesHook.close)
         with mock.patch(
             f"{TRIGGER_PATH}.safe_to_cancel",
             new_callable=mock.AsyncMock,
@@ -1056,3 +1064,39 @@ class TestKubernetesPodTrigger:
         ):
             await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()
+        mock_hook.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("fired_event", "on_kill_action", "safe_result", "delete_error"),
+        [
+            pytest.param(True, "delete_pod", True, None, id="event-fired"),
+            pytest.param(False, "keep_pod", True, None, id="keep-pod"),
+            pytest.param(False, "delete_pod", False, None, id="restart"),
+            pytest.param(False, "delete_pod", RuntimeError("API down"), None, id="state-error"),
+            pytest.param(False, "delete_pod", True, RuntimeError("API down"), id="delete-error"),
+            pytest.param(False, "delete_pod", True, None, id="pod-deleted"),
+        ],
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AIRFLOW_V_3_3_PLUS", False)
+    @mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", autospec=True)
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook", autospec=True)
+    async def test_legacy_cleanup_always_closes_hook(
+        self, mock_hook_class, mock_safe_to_cancel, fired_event, on_kill_action, safe_result, delete_error
+    ):
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            on_kill_action=on_kill_action,
+        )
+        trigger._fired_event = fired_event
+        mock_safe_to_cancel.side_effect = [safe_result]
+        mock_hook = mock_hook_class.return_value
+        mock_hook.delete_pod.side_effect = delete_error
+
+        await trigger.cleanup()
+
+        mock_hook.close.assert_awaited_once()
