@@ -62,6 +62,16 @@ if TYPE_CHECKING:
     from aiohttp import ClientSession
     from google.auth.credentials import Credentials
 
+    from airflow.sdk.execution_time.secrets_masker import mask_secret
+else:
+    try:
+        from airflow.sdk.log import mask_secret
+    except ImportError:
+        try:
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+        except ImportError:
+            from airflow.utils.log.secrets_masker import mask_secret
+
 log = logging.getLogger(__name__)
 
 # Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
@@ -360,7 +370,11 @@ class GoogleBaseHook(BaseHook):
         idp_issuer_url: str | None = self._get_field("idp_issuer_url", None)
         client_id: str | None = self._get_field("client_id", None)
         client_secret: str | None = self._get_field("client_secret", None)
-        idp_extra_params: str | None = self._get_field("idp_extra_params", None)
+        # The connection form saves this field as ``idp_extra_parameters``; ``idp_extra_params`` is
+        # still accepted for extras that were written by hand against the previous field name.
+        idp_extra_params: str | None = self._get_field("idp_extra_parameters", None) or self._get_field(
+            "idp_extra_params", None
+        )
 
         idp_extra_params_dict: dict[str, str] | None = None
         if idp_extra_params:
@@ -368,6 +382,11 @@ class GoogleBaseHook(BaseHook):
                 idp_extra_params_dict = json.loads(idp_extra_params)
             except json.decoder.JSONDecodeError:
                 raise AirflowException("Invalid JSON.")
+            if not isinstance(idp_extra_params_dict, dict):
+                raise ValueError("IdP extra request parameters must be a JSON object.")
+            # Values under sensitive key names (the same rule as for connection extras, extendable through
+            # [core] sensitive_var_conn_names) stay out of the task logs.
+            mask_secret(idp_extra_params_dict)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
