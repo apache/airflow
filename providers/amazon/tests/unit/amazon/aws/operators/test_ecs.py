@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -27,6 +28,7 @@ from botocore.exceptions import ClientError, WaiterError
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.operators.ecs import (
     EcsBaseOperator,
     EcsCreateClusterOperator,
@@ -625,6 +627,27 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs.skip_on_exit_code = [2]
         self.ecs.task_log_fetcher = log_fetcher_mock
         log_fetcher_mock.get_last_log_messages.return_value = ["log1", "log2"]
+        client_mock.describe_tasks.return_value = {
+            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 2}]}]
+        }
+        with pytest.raises(AirflowSkipException, match="This task is not in success state"):
+            self.ecs._check_success_task()
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    @mock.patch.object(AwsLogsHook, "conn")
+    def test_check_success_task_skip_exception_without_log_stream(self, logs_conn_mock, client_mock):
+        """A log stream that cannot be found leaves the skip and its exit code in charge."""
+        self.ecs.arn = "arn"
+        self.ecs.skip_on_exit_code = [2]
+        self.ecs.task_log_fetcher = AwsTaskLogFetcher(
+            log_group="log-group",
+            log_stream_name="wrong/prefix/task-id",
+            fetch_interval=timedelta(seconds=1),
+            logger=mock.MagicMock(),
+        )
+        logs_conn_mock.get_log_events.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException"}}, "GetLogEvents"
+        )
         client_mock.describe_tasks.return_value = {
             "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 2}]}]
         }
