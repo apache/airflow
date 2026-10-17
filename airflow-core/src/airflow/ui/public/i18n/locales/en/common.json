@@ -421,6 +421,7 @@
   },
   "switchDag": "Switch $t(dag_one)",
   "switchDagRun": "Switch $t(dagRun_one)",
+  "switchMapIndex": "Switch $t(mapIndex)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
