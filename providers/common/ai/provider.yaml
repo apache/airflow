@@ -202,7 +202,6 @@ connection-types:
       - Pydantic AI Gateway
       - SambaNova
       - Snowflake Cortex
-      - System One servers
       - Together AI
       - TypeSafe
       - Vercel AI Gateway
