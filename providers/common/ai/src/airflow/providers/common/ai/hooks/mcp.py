@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -213,10 +214,10 @@ class MCPHook(BaseHook):
         try:
             from fastmcp.client.transports import SSETransport, StdioTransport, StreamableHttpTransport
             from pydantic_ai.mcp import MCPToolset
-        except ImportError:
-            raise ImportError(
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
                 'MCP support requires the `mcp` package. Install it with: pip install "pydantic-ai-slim[mcp]"'
-            )
+            ) from e
 
         conn = self.get_connection(self.mcp_conn_id)
         extra = conn.extra_dejson
@@ -236,13 +237,41 @@ class MCPHook(BaseHook):
                 raise ValueError(
                     f"Connection {self.mcp_conn_id!r} requires 'command' in extra for stdio transport."
                 )
-            args = extra.get("args", [])
-            if isinstance(args, str):
-                args = [args]
+            args = extra.get("args")
+            if args is None:
+                args = []
+            elif isinstance(args, str):
+                if args.strip().startswith("["):
+                    try:
+                        args = json.loads(args)
+                    except ValueError as e:
+                        raise ValueError(
+                            f"'args' in extra for connection {self.mcp_conn_id!r} looks like a JSON array "
+                            f"but is not valid JSON: {args!r}."
+                        ) from e
+                else:
+                    args = [args]
+            if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
+                raise ValueError(
+                    f"'args' in extra for connection {self.mcp_conn_id!r} must be a string, a JSON "
+                    f"array of strings or a list of strings, got {args!r}."
+                )
             timeout = extra.get("timeout", 10)
+            # ``None`` and ``0`` are both valid "no timeout" values, but fastmcp replaces
+            # ``init_timeout=None`` with its global ``client_init_timeout`` setting, so ``None``
+            # is mapped to ``0`` to keep ``FASTMCP_CLIENT_INIT_TIMEOUT`` from re-enabling a timeout.
+            if timeout is not None and (
+                isinstance(timeout, bool)
+                or not isinstance(timeout, (int, float))
+                or not 0 <= timeout < float("inf")
+            ):
+                raise ValueError(
+                    f"'timeout' in extra for connection {self.mcp_conn_id!r} must be a non-negative "
+                    f"finite number of seconds, got {timeout!r}."
+                )
             toolset = MCPToolset(
                 StdioTransport(command=command, args=args, env=self._stdio_env(extra)),
-                init_timeout=timeout,
+                init_timeout=0 if timeout is None else timeout,
             )
         else:
             raise ValueError(

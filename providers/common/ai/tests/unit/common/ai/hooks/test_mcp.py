@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.hooks.mcp import MCPHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 # The hook imports these lazily inside get_conn(), so we patch them at their
 # source modules rather than on the hook module. MCPToolset is the unified
@@ -178,6 +180,31 @@ class TestMCPHookGetConn:
 
         mock_transport_cls.assert_called_once_with(command="uvx", args=["mcp-run-python"], env=None)
 
+    @pytest.mark.parametrize(
+        ("raw_args", "expected_args"),
+        [
+            (None, []),
+            ('["mcp-run-python"]', ["mcp-run-python"]),
+            ('  ["-m", "server"]', ["-m", "server"]),
+        ],
+        ids=["null", "json_array_string", "json_array_string_leading_space"],
+    )
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_args_from_connection_form_shapes(
+        self, mock_transport_cls, mock_toolset_cls, raw_args, expected_args
+    ):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": raw_args}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+
+        mock_transport_cls.assert_called_once_with(command="uvx", args=expected_args, env=None)
+
     def test_http_without_host_raises(self):
         hook = MCPHook(mcp_conn_id="test_conn")
         conn = Connection(conn_id="test_conn", conn_type="mcp")
@@ -206,6 +233,66 @@ class TestMCPHookGetConn:
         with patch.object(hook, "get_connection", return_value=conn):
             with pytest.raises(ValueError, match="requires 'command'"):
                 hook.get_conn()
+
+    def test_missing_mcp_dependency_raises_optional_feature_exception(self):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        with patch.dict(sys.modules, {"fastmcp.client.transports": None}):
+            with pytest.raises(AirflowOptionalProviderFeatureException, match="pydantic-ai-slim"):
+                hook.get_conn()
+
+    @pytest.mark.parametrize(
+        "bad_args",
+        [{"a": 1}, ["-m", 1], 5, '["-m", 1]', '["-m"', '["-m"] trailing'],
+        ids=["dict", "non_string_item", "int", "json_non_string_item", "malformed_json", "trailing_text"],
+    )
+    def test_stdio_invalid_args_raises(self, bad_args):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": bad_args}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="'args' in extra"):
+                hook.get_conn()
+
+    @pytest.mark.parametrize(
+        "bad_timeout",
+        ["30", -5, -0.5, float("nan"), float("inf"), True, [10]],
+        ids=["str", "neg", "neg_float", "nan", "inf", "bool", "list"],
+    )
+    def test_stdio_invalid_timeout_raises(self, bad_timeout):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": [], "timeout": bad_timeout}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="'timeout' in extra"):
+                hook.get_conn()
+
+    @pytest.mark.parametrize(
+        ("timeout", "expected_init_timeout"),
+        [(2.5, 2.5), (0, 0), (0.0, 0.0), (None, 0)],
+        ids=["float", "zero", "zero_float", "null_maps_to_zero"],
+    )
+    @patch(_MCP_TOOLSET, autospec=True)
+    @patch(_STDIO_TRANSPORT, autospec=True)
+    def test_stdio_float_zero_and_null_timeout_accepted(
+        self, mock_transport_cls, mock_toolset_cls, timeout, expected_init_timeout
+    ):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": [], "timeout": timeout}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.get_conn()
+        mock_toolset_cls.assert_called_once_with(
+            mock_transport_cls.return_value, init_timeout=expected_init_timeout
+        )
 
     def test_unknown_transport_raises(self):
         hook = MCPHook(mcp_conn_id="test_conn")

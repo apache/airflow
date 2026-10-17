@@ -113,10 +113,11 @@ Every toolset imports from the ``airflow.providers.common.ai.toolsets`` package 
         SQLToolset,
     )
 
-``SQLToolset`` and ``DataFusionToolset`` depend on optional extras. If the extra is not
-installed, the first access to the name raises ``AirflowOptionalProviderFeatureException``.
-``MCPToolset`` imports without its extra; the missing dependency raises ``ImportError``
-when the toolset first connects to the MCP server.
+``SQLToolset``, ``DataFusionToolset`` and ``MCPToolset`` depend on optional extras. If the
+extra is not installed, they raise ``AirflowOptionalProviderFeatureException``. For
+``SQLToolset`` and ``DataFusionToolset`` this happens on the first access to the name.
+``MCPToolset`` imports without its extra; it raises only when the toolset first connects
+to the MCP server.
 
 Every toolset here implements pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface, so it works in any
