@@ -1658,10 +1658,10 @@ class TestPytestSnowflakeHook:
                 "oauth_username",
                 "Resource owner user name must be provided for password grant type",
             ),
-            {
+            (
                 "token_endpoint",
                 "Token endpoint must be provided for password grant type",
-            },
+            ),
         ],
     )
     def test_get_conn_params_should_fail_on_missing_oauth_credential__or_endpoint_for_password_grant(
