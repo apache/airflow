@@ -32,6 +32,7 @@ from opentelemetry.sdk.metrics.view import (
     ExponentialBucketHistogramAggregation,
     View,
 )
+from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID
 
 from airflow_shared.observability.common import get_otel_data_exporter
 from airflow_shared.observability.metrics.otel_logger import (
@@ -616,6 +617,26 @@ class TestOtelMetrics:
             f"stdout:\n{proc.stdout}\n"
             f"stderr:\n{proc.stderr}"
         )
+
+    @pytest.mark.parametrize(
+        ("env_instance_id", "service_instance_id", "expected"),
+        [
+            pytest.param(None, "shared-id", "shared-id", id="given_id_is_set"),
+            pytest.param("from-env", None, "from-env", id="no_id_resource_ignored"),
+        ],
+    )
+    @pytest.mark.usefixtures("reset_meter_provider")
+    def test_service_instance_id(
+        self, env_instance_id: str | None, service_instance_id: str | None, expected: str
+    ):
+        env = {"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "http://collector:4318/v1/metrics"}
+        if env_instance_id:
+            env["OTEL_RESOURCE_ATTRIBUTES"] = f"service.instance.id={env_instance_id}"
+
+        with env_vars(env):
+            otel_logger = get_otel_logger(service_instance_id=service_instance_id)
+
+        assert otel_logger.otel._sdk_config.resource.attributes[SERVICE_INSTANCE_ID] == expected
 
 
 def mock_service_run():
