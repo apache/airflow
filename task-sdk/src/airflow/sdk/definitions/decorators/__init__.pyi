@@ -20,18 +20,31 @@
 # documentation for more details.
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Container, Iterable, Mapping
-from datetime import timedelta
+from collections.abc import Callable, Collection, Container, Iterable, Mapping, Sequence
+from datetime import datetime, timedelta
+from types import UnionType
 from typing import Any, Literal, TypeVar, overload
 
 from docker.types import Mount
 from kubernetes.client import models as k8s
+from pydantic_ai.capabilities import AgentCapability
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.settings import ModelSettings
+from pydantic_ai.toolsets.abstract import AbstractToolset
+from pydantic_ai.usage import UsageLimits
+from sqlglot import exp
 
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.providers.common.ai.policies.decision import BranchOption, DecisionPolicy
+from airflow.providers.common.compat.notifier import BaseNotifier
+from airflow.providers.common.sql.config import DataSourceConfig
+from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 from airflow.sdk.bases.decorator import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.sdk.definitions.dag import dag
 from airflow.sdk.definitions.decorators.condition import AnyConditionFunc
 from airflow.sdk.definitions.decorators.task_group import task_group
+from airflow.sdk.execution_time.hitl import HITLUser
 
 # Please keep this in sync with __init__.py's __all__.
 __all__ = [
@@ -57,6 +70,7 @@ class TaskDecoratorCollection:
         # _PythonDecoratedOperator.
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
+        templates_exts: Sequence[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a task.
@@ -83,6 +97,7 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
+        templates_exts: Sequence[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Aliasing ``python``; signature should match exactly."""
@@ -108,6 +123,10 @@ class TaskDecoratorCollection:
         show_return_value_in_logs: bool = True,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
+        expect_airflow: bool = True,
+        index_urls_from_connection_ids: None | Collection[str] | str = None,
+        string_args: Iterable[str] | None = None,
+        templates_exts: list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -168,6 +187,11 @@ class TaskDecoratorCollection:
         show_return_value_in_logs: bool = True,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
+        expect_airflow: bool = True,
+        expect_pendulum: bool = False,
+        skip_on_exit_code: int | Container[int] | None = None,
+        string_args: Iterable[str] | None = None,
+        templates_exts: list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -201,7 +225,13 @@ class TaskDecoratorCollection:
         """
     @overload
     def branch(  # type: ignore[misc]
-        self, *, multiple_outputs: bool | None = None, **kwargs
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        show_return_value_in_logs: bool = True,
+        templates_dict: dict[str, Any] | None = None,
+        templates_exts: Sequence[str] | None = None,
+        **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonOperator.
 
@@ -230,6 +260,12 @@ class TaskDecoratorCollection:
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
+        expect_airflow: bool = True,
+        index_urls_from_connection_ids: None | Collection[str] | str = None,
+        inherit_env: bool = True,
+        string_args: Iterable[str] | None = None,
+        templates_exts: list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
@@ -282,6 +318,13 @@ class TaskDecoratorCollection:
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
+        expect_airflow: bool = True,
+        expect_pendulum: bool = False,
+        inherit_env: bool = True,
+        skip_on_exit_code: int | Container[int] | None = None,
+        string_args: Iterable[str] | None = None,
+        templates_exts: list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchExternalPythonOperator.
@@ -320,6 +363,9 @@ class TaskDecoratorCollection:
         *,
         multiple_outputs: bool | None = None,
         ignore_downstream_trigger_rules: bool = True,
+        show_return_value_in_logs: bool = True,
+        templates_dict: dict[str, Any] | None = None,
+        templates_exts: Sequence[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a ShortCircuitOperator.
@@ -340,7 +386,6 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         python_command: str = "python3",
         serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
-        use_dill: bool = False,  # Added by _DockerDecoratedOperator.
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
         image: str,
@@ -387,6 +432,7 @@ class TaskDecoratorCollection:
         port_bindings: dict | None = None,
         ulimits: list[dict] | None = None,
         labels: dict[str, str] | list[str] | None = None,
+        expect_airflow: bool = True,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a Docker task.
@@ -401,9 +447,7 @@ class TaskDecoratorCollection:
               this requires to include cloudpickle in your requirements.
             - ``"dill"``: Use dill for serialize more complex types,
               this requires to include dill in your requirements.
-        :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
-            the args and result (pickle is default). This allows more complex types
-            but requires you to include dill in your requirements.
+        :param expect_airflow: Whether to expect Airflow to be installed in the container.
         :param image: Docker image from which to create the container.
             If image tag is omitted, "latest" will be used.
         :param api_version: Remote API version. Set to ``auto`` to automatically
@@ -518,18 +562,23 @@ class TaskDecoratorCollection:
         cluster_context: str | None = None,
         labels: dict | None = None,
         reattach_on_restart: bool = ...,
+        durable: bool | None = None,
         startup_timeout_seconds: int = ...,
         startup_check_interval_seconds: int = ...,
+        schedule_timeout_seconds: int | None = None,
         get_logs: bool = True,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         container_logs: Iterable[str] | str | Literal[True] = ...,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        runtime_class_name: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -558,9 +607,18 @@ class TaskDecoratorCollection:
         poll_interval: float = ...,
         log_pod_spec_on_failure: bool = ...,
         on_finish_action: str = ...,
+        on_kill_action: str = "delete_pod",
+        is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = ...,
         active_deadline_seconds: int | None = None,
+        callbacks: (
+            list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None
+        ) = None,
         progress_callback: Callable[[str], None] | None = None,
+        logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert a callable to a Kubernetes Pod task.
@@ -676,6 +734,7 @@ class TaskDecoratorCollection:
     def kubernetes_cmd(  # type: ignore[misc]
         self,
         *,
+        multiple_outputs: bool | None = None,
         args_only: bool = False,  # Added by _KubernetesCmdDecoratedOperator.
         # 'cmds' filled by _KubernetesCmdDecoratedOperator.
         # 'arguments' filled by _KubernetesCmdDecoratedOperator.
@@ -694,18 +753,23 @@ class TaskDecoratorCollection:
         cluster_context: str | None = None,
         labels: dict | None = None,
         reattach_on_restart: bool = ...,
+        durable: bool | None = None,
         startup_timeout_seconds: int = ...,
         startup_check_interval_seconds: int = ...,
+        schedule_timeout_seconds: int | None = None,
         get_logs: bool = True,
+        init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         container_logs: Iterable[str] | str | Literal[True] = ...,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        runtime_class_name: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
+        automount_service_account_token: bool | None = None,
         hostnetwork: bool = False,
         host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
@@ -734,9 +798,18 @@ class TaskDecoratorCollection:
         poll_interval: float = ...,
         log_pod_spec_on_failure: bool = ...,
         on_finish_action: str = ...,
+        on_kill_action: str = "delete_pod",
+        is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = ...,
         active_deadline_seconds: int | None = None,
+        callbacks: (
+            list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None
+        ) = None,
         progress_callback: Callable[[str], None] | None = None,
+        logging_interval: int | None = None,
+        trigger_kwargs: dict | None = None,
+        container_name_log_prefix_enabled: bool = True,
+        log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to run a command returned by callable in a Kubernetes pod.
@@ -855,6 +928,10 @@ class TaskDecoratorCollection:
         mode: str = ...,
         exponential_backoff: bool = False,
         max_wait: timedelta | float | None = None,
+        never_fail: bool = False,
+        silent_fail: bool = False,
+        task_id: str = ...,
+        templates_dict: dict | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """
@@ -889,6 +966,9 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         conn_id: str | None = None,
         config_kwargs: dict[str, str] | None = None,
+        show_return_value_in_logs: bool = True,
+        templates_dict: dict[str, Any] | None = None,
+        templates_exts: Sequence[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """
@@ -913,6 +993,8 @@ class TaskDecoratorCollection:
         output_encoding: str = "utf-8",
         skip_on_exit_code: int = 99,
         cwd: str | None = None,
+        multiple_outputs: bool | None = None,
+        output_processor: Callable[[str], Any] = ...,
         **kwargs,
     ) -> TaskDecorator:
         """Decorator to wrap a callable into a BashOperator task.
@@ -934,6 +1016,312 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def stub(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        task_id: str = ...,
+        queue: str | None = None,
+        executor: str | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Declare a task for execution by a remote language SDK."""
+    @overload
+    def stub(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def snowpark(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        templates_dict: dict[str, Any] | None = None,
+        templates_exts: Sequence[str] | None = None,
+        show_return_value_in_logs: bool = True,
+        snowflake_conn_id: str = "snowflake_default",
+        warehouse: str | None = None,
+        database: str | None = None,
+        schema: str | None = None,
+        role: str | None = None,
+        authenticator: str | None = None,
+        session_parameters: dict | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Wrap a Python function with a Snowpark session."""
+    @overload
+    def snowpark(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def sftp_sensor(  # type: ignore[misc]
+        self,
+        *,
+        poke_interval: timedelta | float = 60,
+        timeout: timedelta | float | None = None,
+        soft_fail: bool = False,
+        mode: str = "poke",
+        exponential_backoff: bool = False,
+        max_wait: timedelta | float | None = None,
+        silent_fail: bool = False,
+        never_fail: bool = False,
+        path: str,
+        file_pattern: str = "",
+        newer_than: datetime | str | None = None,
+        sftp_conn_id: str = "sftp_default",
+        use_managed_conn: bool = True,
+        deferrable: bool = ...,
+        task_id: str = ...,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Wrap a Python function in an SFTP sensor."""
+    @overload
+    def sftp_sensor(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def sql(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        conn_id: str | None = None,
+        database: str | None = None,
+        hook_params: dict | None = None,
+        retry_on_failure: bool = True,
+        autocommit: bool = False,
+        parameters: Mapping | Iterable | None = None,
+        handler: Callable[[Any], list[tuple] | None] = ...,
+        output_processor: Callable[
+            [list[Any], list[Sequence[Sequence] | None]],
+            list[Any] | tuple[list[Sequence[Sequence] | None], list],
+        ]
+        | None = None,
+        split_statements: bool | None = None,
+        return_last: bool = True,
+        show_return_value_in_logs: bool = False,
+        requires_result_fetch: bool = False,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Execute the SQL returned by the decorated function."""
+    @overload
+    def sql(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def analytics(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        datasource_configs: list[DataSourceConfig],
+        max_rows_check: int = 100,
+        engine: DataFusionEngine | None = None,
+        result_output_format: Literal["tabulate", "json"] = "tabulate",
+        **kwargs,
+    ) -> TaskDecorator:
+        """Execute the analytics queries returned by the decorated function."""
+    @overload
+    def analytics(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def agent(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        llm_conn_id: str,
+        model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
+        system_prompt: str = "",
+        output_type: type = str,
+        toolsets: list[AbstractToolset] | None = None,
+        capabilities: list[AgentCapability[Any]] | None = None,
+        enable_tool_logging: bool = True,
+        agent_params: dict[str, Any] | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
+        durable: bool = False,
+        cache_prompt: bool = True,
+        message_history: list[ModelMessage] | str | bytes | None = None,
+        enable_hitl_review: bool = False,
+        max_hitl_iterations: int = 5,
+        hitl_timeout: timedelta | None = None,
+        hitl_poll_interval: float = 10.0,
+        serialize_output: bool = False,
+        tool_approval_timeout: timedelta | None = None,
+        on_tool_approval_timeout: Literal["fail", "deny"] = "fail",
+        tool_approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Run an AI agent with the prompt returned by the decorated function."""
+    @overload
+    def agent(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def llm(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        llm_conn_id: str,
+        model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
+        system_prompt: str = "",
+        output_type: type | UnionType = str,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
+        require_approval: bool = False,
+        approval_timeout: timedelta | None = None,
+        on_approval_timeout: Literal["fail", "approve", "reject"] = "fail",
+        allow_modifications: bool = False,
+        approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
+        approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        decision_policy: DecisionPolicy | None = None,
+        serialize_output: bool = False,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Call an LLM with the prompt returned by the decorated function."""
+    @overload
+    def llm(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def llm_batch(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        result_path: str,
+        llm_conn_id: str,
+        model_id: str | None = None,
+        system_prompt: str = "",
+        output_type: type = str,
+        max_tokens: int = 1024,
+        request_params: dict[str, Any] | None = None,
+        poll_interval: int = 60,
+        timeout: int = 86400,
+        deferrable: bool = ...,
+        cancel_on_kill: bool = True,
+        cancel_on_timeout: bool = True,
+        fail_on_partial_error: bool = False,
+        on_stale_state: Literal["cancel_and_resubmit", "fail"] = "cancel_and_resubmit",
+        on_orphaned_intent: Literal["resubmit", "fail"] = "resubmit",
+        completion_window: str = "24h",
+        **kwargs,
+    ) -> TaskDecorator:
+        """Submit the requests returned by the decorated function as an LLM batch."""
+    @overload
+    def llm_batch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def llm_file_analysis(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        llm_conn_id: str,
+        model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
+        system_prompt: str = "",
+        output_type: type | UnionType = str,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
+        require_approval: bool = False,
+        approval_timeout: timedelta | None = None,
+        on_approval_timeout: Literal["fail", "approve", "reject"] = "fail",
+        allow_modifications: bool = False,
+        approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
+        approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        decision_policy: DecisionPolicy | None = None,
+        serialize_output: bool = False,
+        file_path: str,
+        file_conn_id: str | None = None,
+        multi_modal: bool = False,
+        max_files: int = 20,
+        max_file_size_bytes: int = 5 * 1024 * 1024,
+        max_total_size_bytes: int = 20 * 1024 * 1024,
+        max_text_chars: int = 100000,
+        sample_rows: int = 10,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Analyze files using the prompt returned by the decorated function."""
+    @overload
+    def llm_file_analysis(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def llm_branch(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        llm_conn_id: str,
+        model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
+        system_prompt: str = "",
+        output_type: type | UnionType = str,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
+        require_approval: bool = False,
+        approval_timeout: timedelta | None = None,
+        on_approval_timeout: Literal["fail", "approve", "reject"] = "fail",
+        allow_modifications: bool = False,
+        approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
+        approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        decision_policy: DecisionPolicy | None = None,
+        serialize_output: bool = False,
+        branches: Mapping[str, BranchOption | str] | None = None,
+        allow_multiple_branches: bool = False,
+        fail_on_reject: bool = False,
+        ignore_downstream_trigger_rules: bool = False,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Choose task branches using the prompt returned by the decorated function."""
+    @overload
+    def llm_branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def llm_sql(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        llm_conn_id: str,
+        model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
+        system_prompt: str = "",
+        output_type: type | UnionType = str,
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
+        require_approval: bool = False,
+        approval_timeout: timedelta | None = None,
+        on_approval_timeout: Literal["fail", "approve", "reject"] = "fail",
+        allow_modifications: bool = False,
+        approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
+        approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        decision_policy: DecisionPolicy | None = None,
+        serialize_output: bool = False,
+        db_conn_id: str | None = None,
+        table_names: list[str] | None = None,
+        schema_context: str | None = None,
+        validate_sql: bool = True,
+        allowed_sql_types: tuple[type[exp.Expr], ...] = ...,
+        dialect: str | None = None,
+        datasource_config: DataSourceConfig | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Generate SQL using the prompt returned by the decorated function."""
+    @overload
+    def llm_sql(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def llm_schema_compare(  # type: ignore[misc]
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        llm_conn_id: str,
+        model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
+        system_prompt: str = ...,
+        # 'output_type' and 'serialize_output' are fixed by LLMSchemaCompareOperator.
+        model_settings: ModelSettings | None = None,
+        output_retries: int | None = None,
+        usage_limits: UsageLimits | dict[str, Any] | None = None,
+        require_approval: bool = False,
+        approval_timeout: timedelta | None = None,
+        on_approval_timeout: Literal["fail", "approve", "reject"] = "fail",
+        allow_modifications: bool = False,
+        approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
+        approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        decision_policy: DecisionPolicy | None = None,
+        data_sources: list[DataSourceConfig] | None = None,
+        db_conn_ids: list[str] | None = None,
+        table_names: list[str] | None = None,
+        context_strategy: Literal["basic", "full"] = "full",
+        **kwargs,
+    ) -> TaskDecorator:
+        """Compare schemas using the prompt returned by the decorated function."""
+    @overload
+    def llm_schema_compare(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     def run_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
         """
         Decorate a task to run only if a condition is met.
