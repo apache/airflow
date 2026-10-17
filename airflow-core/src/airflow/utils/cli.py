@@ -331,18 +331,16 @@ def _redact_uri_argument(value: str) -> str:
     except ValueError:
         return MASKED_VALUE
     netloc = parsed_uri.netloc
+    # A ``:`` followed later by ``@`` that the parse did not take as the credentials may still be
+    # one (``u:pa?ss@h`` splits it into the query), so the whole value is masked. This errs on the
+    # side of masking: ``user@host:port`` is kept, anything shaped like ``user:pass@`` is not.
+    after_authority = urlunparse(
+        ("", "", parsed_uri.path, parsed_uri.params, parsed_uri.query, parsed_uri.fragment)
+    )
+    if re.search(r":.*@", after_authority if has_password else rest if separator else value):
+        return MASKED_VALUE
     query = parsed_uri.query
     params = parse_qsl(query, keep_blank_values=True) if query else []
-    # Fail closed on ``user:pass@`` the parse did not take as credentials: one ``u:pa/ss@h`` splits
-    # across netloc and path, or one sits after the authority. ``__extra__`` is redacted as JSON.
-    unparsed_parts = [
-        parsed_uri.path if has_password else netloc + parsed_uri.path,
-        parsed_uri.params,
-        parsed_uri.fragment,
-        *(f"{key}={item}" for key, item in params if key != "__extra__"),
-    ]
-    if any(re.search(r":[^@]*@", part) for part in unparsed_parts):
-        return MASKED_VALUE
     if has_password:
         userinfo, _, host = netloc.rpartition("@")
         netloc = f"{userinfo.partition(':')[0]}:{MASKED_VALUE}@{host}"

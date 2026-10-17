@@ -717,6 +717,18 @@ class TestCliUtil:
                 id="conn-uri-credentials-in-query-value",
             ),
             pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-uri", "postgres://u:S3CRET?tail@h/db"],
+                {"conn_id": "c1", "conn_uri": "postgres://u:S3CRET?tail@h/db"},
+                ["airflow", "connections", "add", "c1", "--conn-uri", MASKED],
+                id="conn-uri-password-split-by-question-mark",
+            ),
+            pytest.param(
+                ["airflow", "connections", "add", "c1", "--conn-uri", "postgres://u:S3CRET#tail@h/db"],
+                {"conn_id": "c1", "conn_uri": "postgres://u:S3CRET#tail@h/db"},
+                ["airflow", "connections", "add", "c1", "--conn-uri", MASKED],
+                id="conn-uri-password-split-by-hash",
+            ),
+            pytest.param(
                 ["airflow", "users", "reset-password", "-u", "p", "-vp", "FIRST", "-p", "S3CRET"],
                 {"username": "p", "verbose": True, "password": "S3CRET"},
                 ["airflow", "users", "reset-password", "-u", "p", "-vp", MASKED, "-p", MASKED],
