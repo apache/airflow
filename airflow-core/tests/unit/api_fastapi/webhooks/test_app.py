@@ -73,12 +73,24 @@ if TYPE_CHECKING:
 MAX_BODY_BYTES = 128
 REGISTRY = WebhookRegistry(
     names=frozenset(
-        {"fake", "copy", "unsigned", "unflat", "overlong", "broken", "stored", "nowhere", "elsewhere"}
+        {
+            "fake",
+            "copy",
+            "unsigned",
+            "unflat",
+            "overlong",
+            "broken",
+            "stored",
+            "nowhere",
+            "elsewhere",
+            "misconfigured",
+        }
     ),
     source_type_owners={},
     connection_cache_ttl=60,
     max_body_bytes=MAX_BODY_BYTES,
     delivery_retention=timedelta(days=7),
+    rate_limit_per_minute=0,
 )
 UNAVAILABLE = (503, "30", {"detail": "Temporarily unavailable"})
 
@@ -119,6 +131,7 @@ CONNECTIONS = {
     **build_conn_env("unflat"),
     **build_conn_env("overlong"),
     **build_conn_env("broken"),
+    **build_conn_env("misconfigured", conn_type="generic"),
 }
 
 
@@ -659,3 +672,146 @@ class TestReceiveDelivery:
 
         assert (response.status_code, response.json()) == (200, {"status": "healthy"})
         assert checkouts == []
+
+    @mock.patch("airflow.webhooks.pipeline.monotonic", autospec=True)
+    def test_deliveries_over_the_rate_limit_are_refused_until_it_refills(self, mock_monotonic, session):
+        client = TestClient(create_webhooks_app(replace(REGISTRY, rate_limit_per_minute=2)))
+        mock_monotonic.return_value = 1000.0
+        responses = [post(client, delivery_id=f"delivery-{n}") for n in range(3)]
+        # Two a minute is one more delivery every 30 seconds.
+        mock_monotonic.return_value = 1030.0
+        responses.append(post(client, delivery_id="delivery-3"))
+
+        assert [response.status_code for response in responses] == [202, 202, 429, 202]
+        assert (responses[2].headers.get("Retry-After"), responses[2].json()) == (
+            "30",
+            {"detail": "Too many deliveries"},
+        )
+        assert sorted(delivery.delivery_id for delivery in get_deliveries(session)) == [
+            "delivery-0",
+            "delivery-1",
+            "delivery-3",
+        ]
+
+    @pytest.mark.parametrize(
+        ("request_args", "expected_status"),
+        [
+            pytest.param({"secret": "wrong"}, 401, id="failed-verification"),
+            pytest.param({"body": b'{"challenge": "c-1"}', "event": "ping"}, 200, id="handshake"),
+        ],
+    )
+    def test_requests_that_are_not_verified_deliveries_do_not_use_up_the_rate_limit(
+        self, request_args, expected_status
+    ):
+        client = TestClient(create_webhooks_app(replace(REGISTRY, rate_limit_per_minute=1)))
+
+        statuses = [post(client, **request_args).status_code for _ in range(3)]
+        statuses += [post(client, delivery_id=f"delivery-{n}").status_code for n in range(2)]
+
+        assert statuses == [expected_status] * 3 + [202, 429]
+
+    def test_each_webhook_has_its_own_rate_limit(self):
+        client = TestClient(create_webhooks_app(replace(REGISTRY, rate_limit_per_minute=1)))
+
+        assert [post(client, name=name).status_code for name in ("fake", "fake", "copy")] == [202, 429, 202]
+
+    @mock.patch.object(FakeHmacSource, "parse", autospec=True, side_effect=FakeHmacSource.parse)
+    def test_deliveries_over_the_rate_limit_are_not_parsed(self, mock_parse):
+        client = TestClient(create_webhooks_app(replace(REGISTRY, rate_limit_per_minute=1)))
+
+        assert [post(client, delivery_id=f"delivery-{n}").status_code for n in range(2)] == [202, 429]
+        mock_parse.assert_called_once()
+
+    @mock.patch("airflow.webhooks.pipeline.monotonic", autospec=True)
+    def test_deliveries_over_the_rate_limit_are_logged_at_most_once_a_minute_per_webhook(
+        self, mock_monotonic, caplog
+    ):
+        client = TestClient(create_webhooks_app(replace(REGISTRY, rate_limit_per_minute=1)))
+        statuses = []
+        for now, name in [
+            (1000.0, "fake"),
+            (1000.0, "fake"),
+            (1059.0, "fake"),
+            (1059.0, "copy"),
+            (1059.0, "copy"),
+            (1061.0, "fake"),
+            (1061.0, "fake"),
+        ]:
+            mock_monotonic.return_value = now
+            statuses.append(post(client, name=name).status_code)
+
+        assert statuses == [202, 429, 429, 202, 429, 202, 429]
+        assert [entry["webhook"] for entry in caplog if entry["event"].startswith("Refused")] == [
+            "fake",
+            "copy",
+            "fake",
+        ]
+
+    @mock.patch("airflow.webhooks.pipeline.stats", autospec=True)
+    def test_recorded_delivery_is_counted_by_outcome_and_timed(self, mock_stats, client):
+        assert post(client).status_code == 202
+
+        mock_stats.timer.assert_called_once_with("webhooks.delivery_duration", tags={"webhook": "fake"})
+        mock_stats.timer.return_value.stop.assert_called_once_with()
+        mock_stats.incr.assert_called_once_with(
+            "webhooks.deliveries", tags={"webhook": "fake", "outcome": "no_subscribers"}
+        )
+
+    @mock.patch.object(
+        pipeline, "find_delivery", autospec=True, side_effect=PoolTimeoutError("QueuePool limit reached")
+    )
+    @mock.patch("airflow.webhooks.pipeline.stats", autospec=True)
+    def test_recording_that_fails_is_not_timed(self, mock_stats, mock_find_delivery, client):
+        assert post(client).status_code == 503
+
+        mock_stats.timer.return_value.stop.assert_called_once_with(send=False)
+
+    @pytest.mark.parametrize(
+        ("request_args", "expected_tags"),
+        [
+            pytest.param({"name": "gitlab"}, {"webhook": "other", "status": "404"}, id="not-listed"),
+            pytest.param({"name": "nowhere"}, {"webhook": "nowhere", "status": "404"}, id="no-connection"),
+            pytest.param({"body": b"x" * 129}, {"webhook": "fake", "status": "413"}, id="too-large"),
+            pytest.param({"secret": "wrong"}, {"webhook": "fake", "status": "401"}, id="bad-signature"),
+            pytest.param({"event": ""}, {"webhook": "fake", "status": "400"}, id="malformed"),
+            # As is a webhook whose source type two installed providers declare.
+            pytest.param(
+                {"name": "misconfigured"}, {"webhook": "misconfigured", "status": "503"}, id="misconfigured"
+            ),
+        ],
+    )
+    @mock.patch("airflow.webhooks.pipeline.stats", autospec=True)
+    def test_refused_delivery_is_counted_by_webhook_and_status(
+        self, mock_stats, client, request_args, expected_tags
+    ):
+        post(client, **request_args)
+
+        mock_stats.incr.assert_called_once_with("webhooks.rejections", tags=expected_tags)
+
+    @pytest.mark.parametrize(
+        ("method", "path", "expected_answer", "expected_tags"),
+        [
+            pytest.param(
+                "POST",
+                "/fake/deliveries",
+                (404, None, {"detail": "Not Found"}),
+                {"webhook": "other", "status": "404"},
+                id="sub-path",
+            ),
+            pytest.param(
+                "GET",
+                "/fake",
+                (405, "POST", {"detail": "Method Not Allowed"}),
+                {"webhook": "fake", "status": "405"},
+                id="method",
+            ),
+        ],
+    )
+    @mock.patch("airflow.webhooks.pipeline.stats", autospec=True)
+    def test_request_that_no_route_serves_is_counted_as_refused(
+        self, mock_stats, client, method, path, expected_answer, expected_tags
+    ):
+        response = client.request(method, path)
+
+        assert (response.status_code, response.headers.get("Allow"), response.json()) == expected_answer
+        mock_stats.incr.assert_called_once_with("webhooks.rejections", tags=expected_tags)

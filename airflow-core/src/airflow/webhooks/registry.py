@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 # No leading underscore, so that no webhook can be named like the app's own routes, such as _health.
 WEBHOOK_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
+#: The webhook tag that metrics give requests to names that are not listed, so no webhook can have it.
+UNLISTED_WEBHOOK_TAG = "other"
 # retain_until is a TIMESTAMP on MySQL, which ends in January 2038. Without a bound, a large value would
 # fail the insert of every delivery rather than the start of the process.
 MAX_DELIVERY_RETENTION_DAYS = 365
@@ -55,6 +57,11 @@ def parse_webhook_names(value: str) -> frozenset[str]:
             raise AirflowConfigException(
                 f"[webhooks] names lists {name!r}, which is not a webhook name: use 1 to 64 lowercase "
                 "letters, digits, - and _, starting with a letter or a digit"
+            )
+        if name == UNLISTED_WEBHOOK_TAG:
+            raise AirflowConfigException(
+                f"[webhooks] names lists {name!r}, which is reserved: metrics tag requests to names that "
+                "are not listed with it"
             )
         if name in names:
             raise AirflowConfigException(f"[webhooks] names lists {name!r} more than once")
@@ -124,6 +131,8 @@ class WebhookRegistry:
     :param connection_cache_ttl: Seconds a lookup of a webhook's connection is reused for.
     :param max_body_bytes: The largest body a webhook accepts unless its connection sets its own limit.
     :param delivery_retention: How long a delivery is recorded for.
+    :param rate_limit_per_minute: Verified deliveries per minute that this process takes for each
+        webhook, or 0 for no limit.
     """
 
     names: frozenset[str]
@@ -131,6 +140,7 @@ class WebhookRegistry:
     connection_cache_ttl: int
     max_body_bytes: int
     delivery_retention: timedelta
+    rate_limit_per_minute: int
 
     @classmethod
     def from_config(cls) -> Self:
@@ -141,4 +151,5 @@ class WebhookRegistry:
             connection_cache_ttl=_get_int_at_least("connection_cache_ttl", 0),
             max_body_bytes=_get_int_at_least("max_body_bytes", 1),
             delivery_retention=_get_delivery_retention(),
+            rate_limit_per_minute=_get_int_at_least("rate_limit_per_minute", 0),
         )
