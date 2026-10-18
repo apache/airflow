@@ -120,8 +120,9 @@ class GCSToBigQueryOperator(BaseOperator):
         If true, the extra values are ignored. If false, records with extra columns
         are treated as bad records, and if there are too many bad records, an
         invalid error is returned in the job result.
-        The values are compared against the schema the load job runs with, so this has no effect
-        when that schema is inferred from the source data itself - see ``autodetect``.
+        For CSV and JSON sources with ``autodetect=True`` and no schema provided, the values are
+        checked against the schema inferred from the source data rather than the destination
+        table's schema - see ``autodetect``.
     :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
     :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
         The missing values are treated as nulls. If false, records with missing trailing
