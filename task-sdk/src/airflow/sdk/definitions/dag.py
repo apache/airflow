@@ -42,11 +42,11 @@ from dateutil.relativedelta import relativedelta
 from airflow import settings
 from airflow.sdk import TaskInstanceState, TriggerRule, XComArg
 from airflow.sdk._shared.dagnode.cycle import detect_cycle
-from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.operator import BaseOperator, _collect_from_input
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import DAGNode, validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
-from airflow.sdk.definitions.asset import AssetAll, BaseAsset
+from airflow.sdk.definitions.asset import AssetAll, BaseAsset, check_no_webhook_topic
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
@@ -323,6 +323,14 @@ def _is_valid_dag_result(value: Any) -> TypeIs[PlainXComArg]:
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
     return isinstance(value, PlainXComArg) and value.key == BaseXCom.XCOM_RETURN_KEY
+
+
+def _check_no_webhook_topic_lineage(dag: DAG) -> None:
+    """Raise if a task, mapped or not, uses a WebhookTopic as an inlet or outlet."""
+    for task in dag.tasks:
+        for kind, objects in (("inlet", task.inlets), ("outlet", task.outlets)):
+            # MappedOperator returns the .partial() value as given, which may be a single asset.
+            check_no_webhook_topic(_collect_from_input(objects), task_id=task.task_id, kind=kind)
 
 
 # TODO: Task-SDK: look at re-enabling slots after we remove pickling
@@ -787,6 +795,7 @@ class DAG:
         self.timetable.validate()
         self.validate_setup_teardown()
         check_expansions_over_loop_tasks(self)
+        _check_no_webhook_topic_lineage(self)
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here

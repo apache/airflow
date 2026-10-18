@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from airflow.sdk import task
+from airflow.sdk import Asset, WebhookTopic, task
 from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS, DecoratedOperator, is_async_callable
 
 RAW_CODE = """
@@ -79,6 +79,47 @@ class TestBaseDecorator:
         op = my_task().operator
 
         assert op.doc_md == "Summary line.\n\nBody line indented under the function."
+
+
+class TestHandleOutput:
+    @pytest.mark.parametrize(
+        "return_value",
+        [
+            pytest.param(WebhookTopic("github/push"), id="topic"),
+            pytest.param([Asset("a"), WebhookTopic("github/push")], id="list-with-topic"),
+        ],
+    )
+    def test_rejects_returned_webhook_topic(self, return_value):
+        op = DummyK8sDecoratedOperator(task_id="returns_topic", python_callable=lambda: return_value)
+
+        with pytest.raises(
+            ValueError, match="'returns_topic' cannot use WebhookTopic 'github/push' as an outlet"
+        ):
+            op._handle_output(return_value=return_value)
+        assert op.outlets == []
+
+
+class TestExecute:
+    @pytest.mark.parametrize(
+        ("op_args", "op_kwargs"),
+        [
+            pytest.param([WebhookTopic("github/push")], {}, id="positional"),
+            pytest.param([Asset("a")], {"topic": WebhookTopic("github/push")}, id="keyword"),
+        ],
+    )
+    def test_rejects_webhook_topic_argument(self, op_args, op_kwargs):
+        op = DummyK8sDecoratedOperator(
+            task_id="takes_topic",
+            python_callable=lambda *args, **kwargs: None,
+            op_args=op_args,
+            op_kwargs=op_kwargs,
+        )
+
+        with pytest.raises(
+            ValueError, match="'takes_topic' cannot use WebhookTopic 'github/push' as an inlet"
+        ):
+            op.execute(context={})
+        assert op.inlets == []
 
 
 class DummyDecoratedOperator(DecoratedOperator):

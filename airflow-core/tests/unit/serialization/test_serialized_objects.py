@@ -74,6 +74,7 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetWatcher,
     BaseAsset,
+    WebhookTopic,
 )
 from airflow.sdk.definitions.deadline import (
     AsyncCallback,
@@ -948,6 +949,15 @@ def test_access_control_round_trip_consumer_teams_only():
     assert decoded.access_control["consumer_teams"] == ["team_ml"]
     assert decoded.access_control["producer_teams"] == []
     assert decoded.access_control["allow_global"] is True
+
+
+def test_webhook_topic_round_trips_as_an_asset_in_the_webhook_group():
+    dag = DAG("webhook_topic", schedule=WebhookTopic(webhook="github", path="acme/web", event="push"))
+
+    asset = DagSerialization.from_dict(DagSerialization.to_dict(dag)).timetable.asset_condition
+
+    assert type(asset) is SerializedAsset
+    assert (asset.name, asset.uri, asset.group) == ("github/acme/web/push", "github/acme/web/push", "webhook")
 
 
 def test_encode_timezone():

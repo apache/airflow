@@ -206,6 +206,8 @@ Assets
 
 .. autoapiclass:: airflow.sdk.Metadata
 
+.. autoapiclass:: airflow.sdk.WebhookTopic
+
 Timetables
 ----------
 .. autoapiclass:: airflow.sdk.AssetAndTimeSchedule

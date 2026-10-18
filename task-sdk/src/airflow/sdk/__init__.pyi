@@ -49,6 +49,7 @@ from airflow.sdk.definitions.asset import (
     AssetAll as AssetAll,
     AssetAny as AssetAny,
     AssetWatcher as AssetWatcher,
+    WebhookTopic as WebhookTopic,
 )
 from airflow.sdk.definitions.asset.access_control import AssetAccessControl as AssetAccessControl
 from airflow.sdk.definitions.asset.decorators import asset as asset
@@ -219,6 +220,7 @@ __all__ = [
     "Variable",
     "WaitForAll",
     "WaitPolicy",
+    "WebhookTopic",
     "WeekWindow",
     "WeightRule",
     "Window",
