@@ -617,10 +617,10 @@ class TestResetCoordinatorManager:
     def test_reset_coordinator_manager_also_resets_importer_registries(self):
         from airflow.sdk.importers import get_importer_registry
 
-        registry = get_importer_registry("dags-folder")
+        get_importer_registry("dags-folder")
         reset_coordinator_manager()
 
-        assert get_importer_registry("dags-folder") is not registry
+        assert get_importer_registry.cache_info().currsize == 0
 
     def test_reset_importer_registry_also_resets_coordinator_manager(self):
         from airflow.sdk.importers import reset_importer_registry

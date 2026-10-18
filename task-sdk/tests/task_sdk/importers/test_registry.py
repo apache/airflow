@@ -493,33 +493,6 @@ class TestDagImporterRegistry:
         assert new_reg is not reg1
         assert new_bundle_a is not bundle_a
 
-    @pytest.mark.parametrize(
-        "bundle_importers",
-        [
-            None,
-            [],
-            [{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}],
-            ["airflow.sdk.importers.PythonDagImporter"],
-        ],
-    )
-    @mock.patch.object(DagImporterRegistry, "_get_bundle_importers_config", autospec=True)
-    def test_explicit_bundle_importers_replace_cached_settings(self, mock_config, bundle_importers):
-        mock_config.return_value = [{"classpath": f"{__name__}.BundleDagImporter", "extensions": [".custom"]}]
-        previous = get_importer_registry("bundle-a")
-        assert isinstance(previous.get_importer("dag.custom"), BundleDagImporter)
-        mock_config.reset_mock()
-        mock_config.side_effect = OSError("configuration source unavailable")
-
-        registry = get_importer_registry("bundle-a", bundle_importers=bundle_importers)
-
-        assert registry is not previous
-        importer = registry.get_importer("dag.custom")
-        custom_extension = bundle_importers and isinstance(bundle_importers[0], dict)
-        assert isinstance(importer, PythonDagImporter) if custom_extension else importer is None
-        assert get_importer_registry("bundle-a") is registry
-        assert get_importer_registry("bundle-a", bundle_importers=bundle_importers) is registry
-        mock_config.assert_not_called()
-
     def test_bundle_config_with_extensions_and_non_extension_importers(self):
         """Verify bundle config with extensions, non-extension importers, and archive importer."""
         bundle_config_list = [

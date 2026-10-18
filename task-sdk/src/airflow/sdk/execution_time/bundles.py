@@ -28,13 +28,9 @@ import os
 from getpass import getuser
 from typing import TYPE_CHECKING
 
-from airflow.dag_processing.bundles.manager import (  # noqa: SDK002
-    DagBundlesManager,
-    is_bundle_config_reload_enabled,
-)
+from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
 from airflow.sdk.exceptions import AirflowException
 from airflow.sdk.execution_time.tracing import detail_span
-from airflow.sdk.importers import get_importer_registry
 
 if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
@@ -52,18 +48,13 @@ def initialize_ti_bundle(bundle_info: BundleInfo) -> BaseDagBundle:
     task instance's bundle materialized on disk before use. Returns the
     initialized bundle so callers can read ``bundle.path``.
     """
-    bundle_manager = DagBundlesManager()
-    bundle_instance = bundle_manager.get_bundle(
+    bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
         version_data=bundle_info.version_data,
     )
     bundle_instance.initialize()
     verify_bundle_access(bundle_instance)
-    if is_bundle_config_reload_enabled():
-        get_importer_registry(
-            bundle_info.name, bundle_importers=bundle_manager.get_bundle_importers(bundle_info.name)
-        )
     return bundle_instance
 
 
