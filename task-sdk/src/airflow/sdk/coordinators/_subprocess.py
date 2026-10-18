@@ -37,6 +37,7 @@ import socket
 import stat
 import subprocess
 import time
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
 
@@ -46,10 +47,11 @@ import structlog
 
 from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
-from airflow.sdk.api.datamodels._generated import BundleInfo
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
+from airflow.sdk.execution_time.comms import RetryTask, TaskState
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
@@ -57,13 +59,13 @@ from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaise
 if TYPE_CHECKING:
     import pathlib
     from collections.abc import Callable, Sequence
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.api.datamodels._generated import TaskInstance, TIRunContext
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -402,6 +404,41 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             tracker.untrack(comm_server, logs_server, proc)
 
         return self
+
+    def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
+        """
+        Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
+
+        Unlike ``XCom.delete``, this method does not purge the XCom backend, for two reasons. XComs that a
+        runtime pushes go straight to the API server and never pass through the backend. Also, a purge may
+        need a connection that a hook running in the supervisor process cannot look up, such as a
+        connection that exists only in Airflow's metadata database. So if Python code stored an XCom for
+        this task instance through the backend, deleting that XCom here leaves the stored object in the
+        backend's storage.
+
+        If an XCom cannot be deleted, this try fails and the task does not run.
+        """
+        for key in ti_context.xcom_keys_to_clear or ():
+            self.process_log.debug("Clearing XCom with key", key=key)
+            try:
+                self.client.xcoms.delete(ti.dag_id, ti.run_id, ti.task_id, key, ti.map_index)
+            except Exception as e:
+                self.process_log.exception("Failed to clear XCom; not running the task", key=key)
+                end_date = datetime.now(tz=UTC)
+                reason = f"Failed to clear XCom {key!r}: {e}"
+                # wait() sends this outcome to the server after the runtime process exits, the same
+                # way it sends an outcome that the runtime itself reported.
+                self._pending_terminal_state_msg = (
+                    RetryTask(end_date=end_date, retry_reason=reason)
+                    if ti_context.should_retry
+                    else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
+                )
+                self.kill(signal.SIGKILL)
+                return None
+        # The supervisor has already deleted the listed XComs, so it sends the runtime an empty list.
+        # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
+        # them a second time.
+        return ti_context.model_copy(update={"xcom_keys_to_clear": []})
 
     def wait(self) -> int:
         code = super().wait()

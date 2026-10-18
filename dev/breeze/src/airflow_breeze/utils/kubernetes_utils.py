@@ -26,7 +26,7 @@ import stat
 import sys
 import tarfile
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import sleep
 from typing import Any, NamedTuple
@@ -414,7 +414,7 @@ def get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[i
 def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: int = 0) -> bool:
     import requests
 
-    start_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC)
     sleep_seconds = 5
     for attempt in itertools.count(1):
         get_console(output=output).print(f"[info]Connecting to localhost:{port_number}. Num try: {attempt}")
@@ -437,7 +437,7 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
                 f"[warning]Error when connecting to localhost:{port_number} "
                 f"{response.status_code}: {response.reason}"
             )
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
         if current_time - start_time > timedelta(seconds=wait_seconds):
             if wait_seconds > 0:
                 get_console(output=output).print(f"[error]More than {wait_seconds} passed. Exiting.")

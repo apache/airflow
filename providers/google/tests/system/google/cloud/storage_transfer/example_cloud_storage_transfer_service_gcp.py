@@ -22,7 +22,7 @@ Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from airflow.models.dag import DAG
@@ -101,7 +101,7 @@ with DAG(
     @task
     def prepare_transfer_payload() -> dict:
         """Generates the payload dynamically right before job creation."""
-        now_utc = datetime.now(tz=timezone.utc) + timedelta(seconds=120)
+        now_utc = datetime.now(tz=UTC) + timedelta(seconds=120)
 
         return {
             DESCRIPTION: "description",

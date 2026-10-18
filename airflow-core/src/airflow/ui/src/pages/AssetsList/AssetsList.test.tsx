@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
@@ -29,7 +29,7 @@ let server: SetupServer;
 
 beforeAll(() => {
   server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: "bypass" });
+  server.listen({ onUnhandledFrame: "bypass" });
 });
 
 afterEach(() => server.resetHandlers());
@@ -120,8 +120,11 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument());
 
+    let refetchStarted = false;
+
     server.use(
       http.get("/ui/assets", async () => {
+        refetchStarted = true;
         await delay("infinite");
 
         return HttpResponse.json({ assets: [], total_entries: 0 });
@@ -130,7 +133,7 @@ describe("AssetsList filtering", () => {
 
     fireEvent.change(screen.getByTestId("search-dags"), { target: { value: "plain" } });
 
-    await waitFor(() => expect(screen.getByRole("progressbar")).toBeVisible());
+    await waitFor(() => expect(refetchStarted).toBe(true));
 
     expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument();
     expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);

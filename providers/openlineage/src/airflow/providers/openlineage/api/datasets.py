@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from openlineage.client.event_v2 import Dataset, Job, Run, RunEvent, RunState
@@ -169,7 +169,7 @@ def emit_dataset_lineage(
 
         event = RunEvent(
             eventType=RunState.RUNNING,
-            eventTime=datetime.now(tz=timezone.utc).isoformat(),
+            eventTime=datetime.now(tz=UTC).isoformat(),
             run=Run(runId=task_uuid, facets=run_facets),
             job=Job(
                 namespace=lineage_job_namespace(),

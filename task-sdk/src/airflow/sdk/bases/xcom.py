@@ -291,6 +291,7 @@ class BaseXCom:
         run_id: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
+        _previous_iteration: bool = False,
     ) -> Any | None:
         """
         Retrieve an XCom value, optionally meeting certain criteria.
@@ -325,6 +326,7 @@ class BaseXCom:
                 run_id=run_id,
                 map_index=map_index,
                 include_prior_dates=include_prior_dates,
+                previous_iteration=_previous_iteration,
             ),
         )
 

@@ -399,7 +399,7 @@ that Breeze works on
 
         .. code-block:: bash
 
-            UV_PYTHON=3.10 breeze ...
+            UV_PYTHON=3.11 breeze ...
 
       or set it permanently in your shell rc. ``uvx`` will rebuild its cached environment with
       that interpreter on the next call.
@@ -435,7 +435,7 @@ that Breeze works on
 
     .. note:: creating virtual env for ``apache-airflow-breeze`` with a specific python version
 
-        For the recommended uvx setup, ``UV_PYTHON=3.10.16 breeze ...`` selects the Python version
+        For the recommended uvx setup, ``UV_PYTHON=3.11.16 breeze ...`` selects the Python version
         for the cached environment.
 
         For a legacy global install, ``uv tool install`` or ``pipx install`` use the default system
@@ -444,13 +444,13 @@ that Breeze works on
 
         .. code-block:: bash
 
-            uv tool install  --python 3.10.16 ./dev/breeze --force
+            uv tool install  --python 3.11.16 ./dev/breeze --force
 
         or
 
         .. code-block:: bash
 
-            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.10.16/bin/python --force
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.11.16/bin/python --force
 
 
 Running Breeze for the first time

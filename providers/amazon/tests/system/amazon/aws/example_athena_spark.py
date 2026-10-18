@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -24,6 +23,7 @@ import boto3
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena_spark import AthenaSparkOperator
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.amazon.aws.sensors.athena_spark import AthenaSparkSensor
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -96,6 +96,16 @@ def stop_athena_spark_session(session_id: str) -> None:
     client.terminate_session(SessionId=session_id)
 
 
+@task
+def start_athena_spark_calculation(session_id: str) -> str:
+    client = boto3.client("athena")
+    response = client.start_calculation_execution(
+        SessionId=session_id,
+        CodeBlock="print('hello from the athena spark sensor test')",
+    )
+    return response["CalculationExecutionId"]
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -125,6 +135,17 @@ with DAG(
     )
     # [END howto_operator_athena_spark]
 
+    calculation_execution_id = start_athena_spark_calculation(idle_session_id)
+
+    # [START howto_sensor_athena_spark]
+    await_spark_calculation = AthenaSparkSensor(
+        task_id="await_spark_calculation",
+        calculation_execution_id=calculation_execution_id,
+        poke_interval=30,
+        timeout=3600,
+    )
+    # [END howto_sensor_athena_spark]
+
     stop_session = stop_athena_spark_session(session_id)
 
     delete_bucket = S3DeleteBucketOperator(
@@ -143,6 +164,8 @@ with DAG(
         idle_session_id,
         # TEST BODY
         run_spark_calculation,
+        calculation_execution_id,
+        await_spark_calculation,
         # TEST TEARDOWN
         stop_session,
         delete_work_group(work_group),

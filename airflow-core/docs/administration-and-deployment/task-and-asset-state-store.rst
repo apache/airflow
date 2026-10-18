@@ -203,7 +203,9 @@ Example skeleton:
     class S3StateBackend(BaseStoreBackend):
 
         def _task_ref(self, scope: TaskScope, key: str) -> str:
-            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/{key}"
+            # Two regions can hold the same task_id and map_index, so region_id must be part of the ref.
+            region = f"region={scope.region_id}/" if scope.region_id.int else ""
+            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{region}{scope.task_id}/{scope.map_index}/{key}"
 
         def _asset_ref(self, scope: AssetScope, key: str) -> str:
             import hashlib

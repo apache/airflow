@@ -94,7 +94,7 @@ describe your problem.
     stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
-Cannot import name 'cache' or Python >=3.10 required
+Cannot import name 'cache' or Python >=3.11 required
 ---------------------------------------------------
 
 When you see this error:
@@ -107,7 +107,7 @@ or
 
 .. code-block::
 
-    ERROR: Package 'blacken-docs' requires a different Python: 3.8.18 not in '>=3.10'
+    ERROR: Package 'blacken-docs' requires a different Python: 3.8.18 not in '>=3.11'
 
 
 It means that your prek hook is installed with (already End-Of-Life) Python 3.8 and you should reinstall
@@ -118,7 +118,7 @@ This can be done with ``uv tool`` to install ``prek``)
 .. code-block:: bash
 
     uv tool uninstall prek
-    uv tool install prek --python 3.10 --force
+    uv tool install prek --python 3.11 --force
     prek clean
     prek install
 
@@ -127,7 +127,7 @@ You can also use ``pipx``
 .. code-block:: bash
 
     pipx uninstall prek
-    pipx install prek --python $(which python3.10) --force
+    pipx install prek --python $(which python3.11) --force
     prek clean
     prek install
 

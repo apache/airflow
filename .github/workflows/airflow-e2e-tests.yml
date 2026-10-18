@@ -39,7 +39,7 @@ on:  # yamllint disable-line rule:truthy
       default-python-version:
         description: "Which version of python should be used by default"
         type: string
-        default: '3.10'
+        default: '3.11'
       use-uv:
         description: "Whether to use uv to build the image (true/false)"
         type: string

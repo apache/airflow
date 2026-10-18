@@ -177,10 +177,6 @@ jobs:
     name: "Build documentation"
     runs-on: ${{ fromJSON(inputs.runners) }}
     if: inputs.docs-build == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        flag: ["--docs-only", "--spellcheck-only"]
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -211,11 +207,11 @@ jobs:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
         id: restore-docs-inventory-cache
-      - name: "Building docs with ${{ matrix.flag }} flag"
+      - name: "Building docs"
         env:
           DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
-          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }} --refresh-airflow-inventories
+          breeze build-docs ${DOCS_LIST_AS_STRING} --refresh-airflow-inventories
       - name: "Check for missing third-party inventories"
         id: check-missing-inventories
         if: always()
@@ -236,12 +232,11 @@ jobs:
         id: get-job-url
         if: >-
           always() &&
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only'
+          inputs.canary-run == 'true'
         shell: bash
         run: |
           JOB_URL=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name | test("Build documentation.*docs-only"))][0].html_url // empty')
+            --jq '[.jobs[] | select(.name | test("Build documentation"))][0].html_url // empty')
           if [[ -z "${JOB_URL}" ]]; then
             JOB_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
@@ -252,8 +247,7 @@ jobs:
         id: inventory-notification
         if: >-
           always() &&
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only'
+          inputs.canary-run == 'true'
         shell: bash
         run: python3 scripts/ci/slack_notification_state.py
         env:
@@ -264,8 +258,7 @@ jobs:
       - name: "Upload inventory notification state"
         if: >-
           always() &&
-          inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only'
+          inputs.canary-run == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           # yamllint disable-line rule:line-length
@@ -276,7 +269,6 @@ jobs:
       - name: "Notify Slack about missing inventories (new/changed)"
         if: >-
           inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_new'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
@@ -292,7 +284,6 @@ jobs:
       - name: "Notify Slack about missing inventories (still not fixed)"
         if: >-
           inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_reminder'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
@@ -308,7 +299,6 @@ jobs:
       - name: "Notify Slack about inventory recovery"
         if: >-
           inputs.canary-run == 'true' &&
-          matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_recovery'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
@@ -328,9 +318,7 @@ jobs:
           key: cache-docs-inventory-v1
           if-no-files-found: 'error'
           retention-days: '2'
-        # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
-        # to be responsible for updating it. https://github.com/actions/upload-artifact/issues/506
-        if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true' && matrix.flag == '--docs-only'
+        if: steps.restore-docs-inventory-cache.outputs.stash-hit != 'true'
       - name: "Upload build docs"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
@@ -338,7 +326,6 @@ jobs:
           path: './generated/_build'
           retention-days: '7'
           if-no-files-found: 'error'
-        if: matrix.flag == '--docs-only'
 
   publish-docs:
     timeout-minutes: 150

@@ -401,7 +401,7 @@ _ATTEMPT_UUID_CHILDREN = {
     "task_reschedule": "ti_id",
     "hitl_detail": "ti_id",
 }
-_ATTEMPT_ARCHIVE_TABLES = {*_ATTEMPT_UUID_CHILDREN, "xcom_v1", "rtif_v1", "task_instance"}
+_ATTEMPT_ARCHIVE_TABLES = {*_ATTEMPT_UUID_CHILDREN, "xcom_v1", "rtif_v1", "task_instance", "dynamic_region"}
 
 
 def _archive_cascading_attempt_data(
@@ -435,6 +435,12 @@ def _archive_cascading_attempt_data(
         )
     if source.name == "dag_run":
         selections["task_instance"] = select(ti).where(ti.c.id.in_(producer_ids))
+        region = tables["dynamic_region"]
+        selections["dynamic_region"] = select(region).where(
+            tuple_(region.c.dag_id, region.c.run_id).in_(
+                select(parent_archive.c.dag_id, parent_archive.c.run_id)
+            )
+        )
 
     if not archives:
         archive_names = {}
@@ -490,9 +496,7 @@ def _do_delete(
 
     while True:
         limited_query = query.limit(batch_size) if batch_size else query
-        if (
-            session.scalars(select(func.count()).select_from(limited_query.subquery())).one() == 0
-        ):  # nothing left to delete
+        if not session.scalars(select(limited_query.exists())).one():  # nothing left to delete
             break
 
         batch_no = next(batch_counter)

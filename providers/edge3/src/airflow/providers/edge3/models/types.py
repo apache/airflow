@@ -18,10 +18,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias, TypeGuard
 
+from sqlalchemy import and_, literal
+
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
+    from sqlalchemy.sql.elements import ColumnElement
+
     from airflow.executors import workloads
     from airflow.executors.workloads import ExecuteCallback
 
@@ -49,10 +53,11 @@ EXECUTE_CALLBACK_TAG = "ExecuteCallback"
 # Dag id, so a row is a callback only when all four fields match.
 CALLBACK_JOB_TRY_NUMBER = 0
 CALLBACK_JOB_MAP_INDEX = -1
+CALLBACK_JOB_RUN_ID_PREFIX = f"{EXECUTE_CALLBACK_TAG}-"
 
 
 def build_callback_run_id(callback_id: str) -> str:
-    return f"{EXECUTE_CALLBACK_TAG}-{callback_id}"
+    return f"{CALLBACK_JOB_RUN_ID_PREFIX}{callback_id}"
 
 
 def is_callback_job(dag_id: str, task_id: str, run_id: str, try_number: int, map_index: int) -> bool:
@@ -62,4 +67,17 @@ def is_callback_job(dag_id: str, task_id: str, run_id: str, try_number: int, map
         and run_id == build_callback_run_id(task_id)
         and try_number == CALLBACK_JOB_TRY_NUMBER
         and map_index == CALLBACK_JOB_MAP_INDEX
+    )
+
+
+def build_callback_job_filter() -> ColumnElement[bool]:
+    """Return :func:`is_callback_job` as a SQL filter on ``edge_job`` rows."""
+    # Imported here because the edge_job module imports this one.
+    from airflow.providers.edge3.models.edge_job import EdgeJobModel
+
+    return and_(
+        EdgeJobModel.dag_id == EXECUTE_CALLBACK_TAG,
+        EdgeJobModel.run_id == literal(CALLBACK_JOB_RUN_ID_PREFIX) + EdgeJobModel.task_id,
+        EdgeJobModel.try_number == CALLBACK_JOB_TRY_NUMBER,
+        EdgeJobModel.map_index == CALLBACK_JOB_MAP_INDEX,
     )

@@ -26,6 +26,8 @@ import pytest
 from click.testing import CliRunner
 
 from airflow_breeze.commands.workflow_commands import (
+    find_providers_missing_from_site_index,
+    get_lines_added_to_site_index,
     workflow_run_publish,
     workflow_run_sync_staging_to_main,
 )
@@ -105,6 +107,209 @@ class TestPublishDocsTagValidation:
         assert result.exit_code == 0
         mock_run_gh_command.assert_not_called()
         mock_trigger.assert_called()
+
+
+def _site_index_with(*long_package_names: str) -> str:
+    return "\n".join(
+        f'  <li><a href="/docs/{name}/stable/index.html"><code>{name}</code></a></li>'
+        for name in long_package_names
+    )
+
+
+def _make_stdout_response(stdout: str) -> CompletedProcess:
+    return MagicMock(spec=CompletedProcess, returncode=0, stdout=stdout.encode())
+
+
+SITE_INDEX_PATH = "landing-pages/site/content/en/docs/_index.md"
+SITE_INDEX_PR_URL = "https://github.com/apache/airflow-site/pull/1690"
+
+
+def _make_open_prs_response(*prs: tuple[int, str]) -> CompletedProcess:
+    return _make_stdout_response(
+        json.dumps(
+            [
+                {
+                    "number": number,
+                    "url": f"https://github.com/apache/airflow-site/pull/{number}",
+                    "files": [{"path": path}],
+                }
+                for number, path in prs
+            ]
+        )
+    )
+
+
+def _make_diff(path: str, *added_long_package_names: str) -> str:
+    added = _site_index_with(*added_long_package_names).splitlines()
+    return "\n".join(
+        [
+            f"diff --git a/{path} b/{path}",
+            f"--- a/{path}",
+            f"+++ b/{path}",
+            *(f"+{line}" for line in added),
+            " unchanged",
+        ]
+    )
+
+
+def _make_pr_diff_response(*added_long_package_names: str) -> CompletedProcess:
+    return _make_stdout_response(_make_diff(SITE_INDEX_PATH, *added_long_package_names))
+
+
+class TestPublishDocsSiteIndexCheck:
+    """Tests for the airflow-site docs index check in `breeze workflow-run publish-docs`."""
+
+    def _invoke(self, site_env: str, doc_packages: list[str], extra_args: list[str] | None = None):
+        args = ["--ref", "providers/2026-10-13", "--site-env", site_env, *(extra_args or []), *doc_packages]
+        return CliRunner().invoke(workflow_run_publish, args, catch_exceptions=False)
+
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command", autospec=True)
+    def test_live_publish_fails_when_provider_missing_from_index_and_prs(
+        self, mock_run_gh_command, mock_trigger
+    ):
+        mock_run_gh_command.side_effect = [
+            _make_gh_response("refs/tags/providers/2026-10-13"),
+            _make_stdout_response(_site_index_with("apache-airflow-providers-amazon")),
+            _make_open_prs_response((1690, SITE_INDEX_PATH), (1638, "README.md")),
+            _make_pr_diff_response("apache-airflow-providers-modal"),
+        ]
+
+        result = self._invoke("live", ["amazon", "ibm.db2"])
+
+        assert result.exit_code == 1
+        assert "apache-airflow-providers-ibm-db2" in result.output
+        assert "apache-airflow-providers-amazon" not in result.output
+        assert "--skip-site-index-check" in result.output
+        # Only the PR touching the index is diffed.
+        assert mock_run_gh_command.call_count == 4
+        assert mock_run_gh_command.call_args_list[3].args[0][3] == "1690"
+        mock_trigger.assert_not_called()
+
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command", autospec=True)
+    def test_live_publish_proceeds_when_providers_are_in_index(self, mock_run_gh_command, mock_trigger):
+        mock_run_gh_command.side_effect = [
+            _make_gh_response("refs/tags/providers/2026-10-13"),
+            _make_stdout_response(
+                _site_index_with("apache-airflow-providers-amazon", "apache-airflow-providers-ibm-db2")
+            ),
+        ]
+
+        result = self._invoke("live", ["amazon", "ibm.db2"])
+
+        assert result.exit_code == 0
+        assert (
+            f"apache/airflow-site/contents/{SITE_INDEX_PATH}?ref=main"
+            in (mock_run_gh_command.call_args_list[1].args[0][-1])
+        )
+        assert "Now merge the PRs" not in result.output
+        mock_trigger.assert_called()
+
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command", autospec=True)
+    def test_live_publish_proceeds_and_asks_to_merge_open_index_pr(self, mock_run_gh_command, mock_trigger):
+        mock_run_gh_command.side_effect = [
+            _make_gh_response("refs/tags/providers/2026-10-13"),
+            _make_stdout_response(_site_index_with("apache-airflow-providers-amazon")),
+            _make_open_prs_response((1690, SITE_INDEX_PATH)),
+            _make_pr_diff_response("apache-airflow-providers-ibm-db2"),
+        ]
+
+        result = self._invoke("live", ["amazon", "ibm.db2"])
+
+        assert result.exit_code == 0
+        mock_trigger.assert_called()
+        assert "Now merge the PRs" in result.output
+        assert SITE_INDEX_PR_URL in result.output
+
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command", autospec=True)
+    def test_live_publish_fails_when_index_cannot_be_read(self, mock_run_gh_command, mock_trigger):
+        mock_run_gh_command.side_effect = [
+            _make_gh_response("refs/tags/providers/2026-10-13"),
+            subprocess.CalledProcessError(1, ["gh"]),
+        ]
+
+        result = self._invoke("live", ["amazon"])
+
+        assert result.exit_code == 1
+        assert "Could not check the docs index" in result.output
+        mock_trigger.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("site_env", "doc_packages", "extra_args"),
+        [
+            pytest.param("staging", ["ibm.db2"], [], id="staging"),
+            pytest.param("live", ["ibm.db2"], ["--skip-site-index-check"], id="skip-flag"),
+            pytest.param("live", ["apache-airflow"], [], id="no-providers"),
+        ],
+    )
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command", autospec=True)
+    def test_index_is_not_checked(
+        self, mock_run_gh_command, mock_trigger, site_env, doc_packages, extra_args
+    ):
+        mock_run_gh_command.return_value = _make_gh_response("refs/tags/providers/2026-10-13")
+
+        result = self._invoke(site_env, doc_packages, extra_args)
+
+        assert result.exit_code == 0
+        mock_run_gh_command.assert_called_once()
+        mock_trigger.assert_called()
+
+    @patch("airflow_breeze.commands.workflow_commands.get_dry_run", autospec=True, return_value=True)
+    @patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+    @patch("airflow_breeze.commands.workflow_commands.run_gh_command", autospec=True)
+    def test_index_is_not_checked_in_dry_run(self, mock_run_gh_command, mock_trigger, mock_get_dry_run):
+        result = self._invoke("live", ["ibm.db2"], ["--skip-tag-validation"])
+
+        assert result.exit_code == 0
+        assert "Skipping the docs index check in dry-run mode" in result.output
+        mock_run_gh_command.assert_not_called()
+        mock_trigger.assert_called()
+
+
+class TestFindProvidersMissingFromSiteIndex:
+    @pytest.mark.parametrize(
+        ("doc_packages", "exclude_docs", "expected"),
+        [
+            pytest.param(("amazon", "ibm.db2"), "no-docs-excluded", ["ibm.db2"], id="missing"),
+            pytest.param(("ibm.db2", "modal"), "ibm.db2 modal", [], id="excluded"),
+            # The S3 upload splits exclusions on spaces only, so it still publishes both.
+            pytest.param(("ibm.db2", "modal"), "ibm.db2,modal", ["ibm.db2", "modal"], id="excluded-comma"),
+            pytest.param(("common.dataquality",), "no-docs-excluded", [], id="not-ready"),
+            pytest.param(("apache-airflow", "amazon"), "no-docs-excluded", [], id="non-provider"),
+        ],
+    )
+    def test_find_missing(self, doc_packages, exclude_docs, expected):
+        site_index = _site_index_with("apache-airflow-providers-amazon")
+
+        assert find_providers_missing_from_site_index(doc_packages, exclude_docs, site_index) == expected
+
+    @pytest.mark.parametrize("all_packages", ["all-providers", "all"])
+    def test_all_providers_is_expanded(self, all_packages):
+        missing = find_providers_missing_from_site_index(
+            (all_packages,), "no-docs-excluded", _site_index_with("apache-airflow-providers-amazon")
+        )
+
+        assert "ibm.db2" in missing
+        assert "amazon" not in missing
+        assert "common.dataquality" not in missing
+
+
+def test_only_lines_added_to_site_index_are_returned():
+    diff = "\n".join(
+        [
+            _make_diff("README.md", "apache-airflow-providers-modal"),
+            _make_diff(SITE_INDEX_PATH, "apache-airflow-providers-ibm-db2"),
+        ]
+    )
+
+    added = "\n".join(get_lines_added_to_site_index(diff))
+
+    assert "apache-airflow-providers-ibm-db2" in added
+    assert "apache-airflow-providers-modal" not in added
 
 
 class TestSyncStagingToMain:

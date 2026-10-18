@@ -355,7 +355,7 @@ func TestSerializeWritesTimesAndDurationsToTheMicrosecond(t *testing.T) {
 	assert.NotContains(t, got, "end_date")
 }
 
-func TestSerializeGivesEachGoTaskTheQueueOfTheDag(t *testing.T) {
+func TestSerializeGivesEachTaskTheQueueOfTheDag(t *testing.T) {
 	dag := Dag("etl", DagSpec{Queue: "golang"})
 	dag.Task(extract)
 	dag.Task(ping, TaskSpec{Queue: "golang_large"})
@@ -371,9 +371,13 @@ func TestSerializeGivesEachGoTaskTheQueueOfTheDag(t *testing.T) {
 	assert.Equal(t, "golang", serializedTask(t, got, "extract")["queue"])
 	assert.Equal(t, "golang_large", serializedTask(t, got, "ping")["queue"])
 	assert.Equal(t, "golang", serializedTask(t, got, "hasRows")["queue"])
-	// A task from TriggerDagRun runs on a Python worker.
-	assert.NotContains(t, serializedTask(t, got, "trigger"), "queue")
+	// The Go runtime runs a task from TriggerDagRun, so it takes the queue as a Go task does.
+	assert.Equal(t, "golang", serializedTask(t, got, "trigger")["queue"])
 	assert.Equal(t, "python", serializedTask(t, got, "trigger_on_python")["queue"])
+
+	noQueue := Dag("etl")
+	noQueue.Task(TriggerDagRun(TriggerDagRunSpec{DagID: "reports"}), TaskSpec{TaskID: "trigger"})
+	assert.NotContains(t, serializedTask(t, serializedDag(t, noQueue), "trigger"), "queue")
 }
 
 func TestSerializeWritesTheTimetableOfTheSchedule(t *testing.T) {
@@ -901,9 +905,9 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 	dag := Dag("etl", DagSpec{Queue: "golang"})
 	dag.Task(TriggerDagRun(TriggerDagRunSpec{
 		DagID:                 "downstream_etl",
-		RunID:                 "{{ run_id }}",
+		RunID:                 "etl_downstream",
 		Conf:                  map[string]any{"rows": 2, "nested": map[string]any{"ok": true}},
-		LogicalDate:           "{{ ds }}",
+		LogicalDate:           time.Date(2026, 1, 31, 8, 30, 0, 500000000, time.UTC),
 		RunAfter:              time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
 		ResetDagRun:           true,
 		WaitForCompletion:     true,
@@ -934,8 +938,8 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 		"template_fields_renderers": {"conf": "py"},
 		"_operator_extra_links": {"Triggered DAG": "_link_TriggerDagRunLink"},
 		"trigger_dag_id": "downstream_etl",
-		"trigger_run_id": "{{ run_id }}",
-		"logical_date": "{{ ds }}",
+		"trigger_run_id": "etl_downstream",
+		"logical_date": "2026-01-31 08:30:00.500000+00:00",
 		"conf": {"rows": 2, "nested": {"ok": true}},
 		"wait_for_completion": true,
 		"skip_when_already_exists": true,
@@ -947,8 +951,46 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 		"fail_when_dag_is_paused": true,
 		"note": "from etl",
 		"deferrable": false,
+		"queue": "golang",
 		"retries": 1
 	}`, got)
+}
+
+func TestSerializeWritesTheLogicalDateOfATriggerDagRunAsPythonStr(t *testing.T) {
+	tests := []struct {
+		name string
+		date time.Time
+		want string
+	}{
+		{
+			"whole seconds",
+			time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC),
+			"2026-09-30 00:00:00+00:00",
+		},
+		{
+			"microseconds are not trimmed",
+			time.Date(2026, 9, 30, 1, 2, 3, 120000000, time.UTC),
+			"2026-09-30 01:02:03.120000+00:00",
+		},
+		{
+			"another zone is written in UTC",
+			time.Date(2026, 9, 30, 9, 0, 0, 0, time.FixedZone("UTC+9", 9*3600)),
+			"2026-09-30 00:00:00+00:00",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dag := Dag("etl")
+			dag.Task(
+				TriggerDagRun(TriggerDagRunSpec{DagID: "reports", LogicalDate: tc.date}),
+				TaskSpec{TaskID: "trigger"},
+			)
+
+			got := serializedTask(t, serializedDag(t, dag), "trigger")
+
+			assert.Equal(t, tc.want, got["logical_date"])
+		})
+	}
 }
 
 func TestSerializeWritesOnlyTheTriggerDagRunOptionsThatAreSet(t *testing.T) {

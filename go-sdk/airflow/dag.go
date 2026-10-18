@@ -33,6 +33,9 @@ import (
 // DagRef is a Dag authored in Go. [Dag] returns a new one.
 type DagRef struct {
 	dagID string
+	// file is the source file that called Dag, as the compiler recorded it. It is empty when the
+	// runtime cannot report a caller.
+	file string
 	// Dag and Task copy the specs they are given with copySpec, so a caller cannot change a
 	// registered Dag through a spec it still holds.
 	spec DagSpec
@@ -71,8 +74,11 @@ type DagRef struct {
 // [IfRef.Then], [IfRef.Else], [SwitchRef.Case] and the methods of [TaskGroupRef] panic once the Dag
 // is registered.
 //
-// [BundleRef.Serve] does not yet serve the Dags that Dag returns. It leaves them out of the
-// --airflow-metadata manifest and cannot run their tasks.
+// The bundle embeds the source file that calls Dag, so call it from the file that declares the Dag.
+// A Dag built in a factory function belongs to the file of the factory.
+//
+// [BundleRef.Serve] sends the registered Dags to the Dag processor and runs their tasks, but does
+// not list them in the dags of the --airflow-metadata manifest.
 //
 // Dag panics if it gets more than one DagSpec, or if the DagSpec has a value that Python rejects
 // when it builds or validates a Dag:
@@ -91,6 +97,7 @@ func Dag(dagID string, spec ...DagSpec) *DagRef {
 		))
 	}
 	d := &DagRef{dagID: dagID}
+	_, d.file, _, _ = runtime.Caller(1)
 	if len(spec) == 1 {
 		if err := checkDagSpec(spec[0]); err != nil {
 			panic(fmt.Sprintf("airflow.Dag: Dag %q: %v", dagID, err))

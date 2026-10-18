@@ -185,8 +185,8 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Beérkezett adatkészlet események"
   },
-  "pendingDagRun_one": "{{count}} függő Dag futás",
-  "pendingDagRun_other": "{{count}} függő Dag futás",
+  "pendingDagRun_one": "{{count, number}} függő Dag futás",
+  "pendingDagRun_other": "{{count, number}} függő Dag futás",
   "reset": "Alaphelyzetbe állítás",
   "runId": "Futás azonosító",
   "runTypes": {
@@ -328,21 +328,21 @@
     "bulkClear": {
       "error": "Tömeges törlési kérelem sikertelen: {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} sikeresen törölve. Kulcsok: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} sikeresen törölve. Kulcsok: {{keys}}",
         "title": "Tömeges törlési kérelem elküldve: {{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "Tömeges törlés kérése sikertelen: {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} sikeresen törölve. Kulcsok: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} sikeresen törölve. Kulcsok: {{keys}}",
         "title": "Tömeges törlés kérelem elküldve: {{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "Tömeges frissítési kérelem sikertelen: {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} sikeresen frissítve. Kulcsok: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} sikeresen frissítve. Kulcsok: {{keys}}",
         "title": "Tömeges frissítési kérelem elküldve: {{resourceName}}"
       }
     },
@@ -363,7 +363,7 @@
     "import": {
       "error": "Importálási kérelem sikertelen: {{resourceName}}",
       "success": {
-        "description": "{{count}} {{resourceName}} sikeresen importálva.",
+        "description": "{{count, number}} {{resourceName}} sikeresen importálva.",
         "title": "Importálási kérelem elküldve: {{resourceName}}"
       }
     },

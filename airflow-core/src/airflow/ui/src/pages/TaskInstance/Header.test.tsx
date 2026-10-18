@@ -16,27 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { LoopSummaryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
 
 import commonLocale from "../../../public/i18n/locales/en/common.json";
-import { Header } from "./Header";
+import { Header, HistoryHeader } from "./Header";
 
 // Action buttons and note preview pull in mutation/permission wiring that is
 // unrelated to the team stat under test; stub them out so the test only
 // depends on the stats rendered by Header itself.
-vi.mock("src/components/Clear", () => ({ ClearTaskInstanceButton: () => undefined }));
+vi.mock("src/components/Clear", () => ({
+  ClearTaskInstanceButton: () => <button type="button">Clear task</button>,
+}));
 vi.mock("src/components/Clear/TaskInstance/ClearTaskInstanceDialog", () => ({ default: () => undefined }));
-vi.mock("src/components/MarkAs", () => ({ MarkTaskInstanceAsButton: () => undefined }));
-vi.mock("src/components/NotePreview", () => ({ NotePreview: () => undefined }));
+vi.mock("src/components/MarkAs", () => ({
+  MarkTaskInstanceAsButton: () => <button type="button">Mark task</button>,
+}));
+vi.mock("src/components/NotePreview", () => ({
+  NotePreview: () => <button type="button">Edit note</button>,
+}));
 
 const mockConfig: Record<string, unknown> = { multi_team: false };
+const mockLoopSummary: { data?: Partial<LoopSummaryResponse> } = {};
+
+vi.mock("src/queries/useLoopSummary", () => ({
+  useLoopSummary: () => ({ data: mockLoopSummary.data }),
+}));
 
 vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
@@ -60,6 +71,24 @@ const baseTaskInstance = {
 } satisfies Partial<TaskInstanceResponse> as unknown as TaskInstanceResponse;
 
 describe("Header", () => {
+  it("keeps historical notes visible without exposing mutations", () => {
+    render(
+      <HistoryHeader
+        taskInstance={{
+          ...baseTaskInstance,
+          note: "Investigating this pass",
+          region_id: "11111111-1111-1111-1111-111111111111",
+          region_index: 2,
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText("Investigating this pass")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Clear task" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mark task" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit note" })).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     mockConfig.multi_team = false;
   });
@@ -81,6 +110,33 @@ describe("Header", () => {
 
 const renderHeader = (overrides: Partial<TaskInstanceResponse>) =>
   render(<Header taskInstance={{ ...baseTaskInstance, ...overrides }} />, { wrapper: Wrapper });
+
+describe("Header loop decision", () => {
+  beforeEach(() => {
+    mockLoopSummary.data = {
+      iterations: [
+        { decision_reason: "error 0.25, needs < 1e-06", index: 0 },
+        { index: 1 },
+        { decision_reason: "error 6e-06, needs < 1e-06", index: 2 },
+      ],
+      iterations_ran: 3,
+    };
+  });
+
+  it("shows the reason its own iteration's gate gave", () => {
+    renderHeader({ loop_iteration: { iteration: 2, loop_id: "refine" } });
+
+    expect(screen.getByText(i18n.t("common:taskInstance.loopDecision"))).toBeInTheDocument();
+    expect(screen.getByText("error 6e-06, needs < 1e-06")).toBeInTheDocument();
+    expect(screen.queryByText("error 0.25, needs < 1e-06")).not.toBeInTheDocument();
+  });
+
+  it("omits the stat for an iteration without a reason", () => {
+    renderHeader({ loop_iteration: { iteration: 1, loop_id: "refine" } });
+
+    expect(screen.queryByText(i18n.t("common:taskInstance.loopDecision"))).not.toBeInTheDocument();
+  });
+});
 
 describe("Header state reason banner", () => {
   // Without the bundle i18n.t() echoes the key, so the titles below would assert nothing.
