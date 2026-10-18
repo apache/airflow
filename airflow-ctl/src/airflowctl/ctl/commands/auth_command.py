@@ -37,12 +37,10 @@ from airflowctl.api.datamodels.generated import CliTokenBody
 from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.utils.browser_login import (
     BROWSER_LOGIN_TIMEOUT_SECONDS,
-    MIN_SERVER_VERSION,
     LoopbackCallbackServer,
     build_authorize_url,
     generate_pkce_pair,
     get_confirmation_code,
-    is_browser_login_supported,
     is_ssh_session,
 )
 
@@ -145,15 +143,14 @@ def _login_with_browser(args, api_client) -> datetime:
 
     api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.NO_AUTH)
     try:
-        server_version = api_client.version.get().version
+        supported = api_client.login.supports_browser_login()
     except Exception as e:
         rich.print(f"[red]Could not reach the Airflow API at {args.api_url}: {e}[/red]")
         sys.exit(1)
-    if not is_browser_login_supported(server_version):
-        minimum = ".".join(str(part) for part in MIN_SERVER_VERSION)
+    if not supported:
         rich.print(
-            f"[red]The Airflow API server runs {server_version}; logging in through the browser "
-            f"needs Airflow {minimum} or later.[/red]"
+            f"[red]The Airflow API server at {args.api_url} does not have the browser login, "
+            "which needs Airflow 3.5 or later.[/red]"
         )
         _print_generate_token_fallback()
         sys.exit(1)

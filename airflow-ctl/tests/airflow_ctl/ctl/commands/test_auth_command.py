@@ -29,7 +29,7 @@ import pytest
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginResponse
-from airflowctl.api.operations import VersionOperations
+from airflowctl.api.operations import LoginOperations
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import auth_command
 from airflowctl.utils.browser_login import LoopbackCallbackServer, compute_code_challenge
@@ -521,8 +521,8 @@ class TestLoginWithBrowser:
         with patch.object(auth_command.webbrowser, "open", return_value=True) as self.open_browser:
             yield
 
-    def make_client(self, server_version: str = "3.5.0", exchange=None) -> Client:
-        """Answer the version probe and the code exchange like an API server with the feature."""
+    def make_client(self, has_feature: bool = True, exchange=None) -> Client:
+        """Answer the feature probe and the code exchange like an API server with or without the feature."""
         opened = self.opened
 
         def default_exchange(request: httpx.Request) -> httpx.Response:
@@ -533,9 +533,14 @@ class TestLoginWithBrowser:
             return httpx.Response(200, json=self.token_response)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/api/v2/version":
-                return httpx.Response(200, json={"version": server_version, "git_version": None})
             if request.url.path == "/api/v2/auth/cli/token":
+                if not has_feature:
+                    # An older server has only its catch-all route for the path, which refuses a POST.
+                    return httpx.Response(405, json={"detail": "Method Not Allowed"})
+                if json.loads(request.content) == {}:
+                    return httpx.Response(
+                        422, json={"detail": [{"type": "missing", "loc": ["body", "code"]}]}
+                    )
                 return (exchange or default_exchange)(request)
             return httpx.Response(404, json={"detail": "Not Found"})
 
@@ -636,13 +641,17 @@ class TestLoginWithBrowser:
 
     def test_stops_on_a_server_without_the_feature(self):
         with pytest.raises(SystemExit, match="1"):
-            self.login(api_client=self.make_client(server_version="3.4.0"))
+            self.login(api_client=self.make_client(has_feature=False))
 
         self.open_browser.assert_not_called()
 
     def test_stops_when_the_server_cannot_be_reached(self):
         with (
-            patch.object(VersionOperations, "get", side_effect=httpx.ConnectError("connection refused")),
+            patch.object(
+                LoginOperations,
+                "supports_browser_login",
+                side_effect=httpx.ConnectError("connection refused"),
+            ),
             pytest.raises(SystemExit, match="1"),
         ):
             self.login(api_client=self.make_client())

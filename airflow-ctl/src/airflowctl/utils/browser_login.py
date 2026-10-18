@@ -29,7 +29,6 @@ from __future__ import annotations
 import hashlib
 import html
 import os
-import re
 import secrets
 import time
 from base64 import urlsafe_b64encode
@@ -38,8 +37,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import NamedTuple
 from urllib.parse import parse_qs, urlencode, urlsplit
 
-# The approval page and both endpoints shipped with this Airflow version.
-MIN_SERVER_VERSION = (3, 5)
 # Long enough to sign in through an identity provider with a second factor first.
 BROWSER_LOGIN_TIMEOUT_SECONDS = 300
 
@@ -59,14 +56,6 @@ class CallbackResult(NamedTuple):
 
     code: str | None
     error: str | None
-
-
-def is_browser_login_supported(server_version: str) -> bool:
-    """Return whether the API server is new enough to have the approval page and its endpoints."""
-    match = re.match(r"(\d+)\.(\d+)", server_version)
-    if not match:
-        return True
-    return (int(match.group(1)), int(match.group(2))) >= MIN_SERVER_VERSION
 
 
 def is_ssh_session() -> bool:

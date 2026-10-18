@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar, get_args
 
 import httpx
@@ -268,6 +269,20 @@ class LoginOperations:
         return CliTokenResponse.model_validate_json(
             self.client.post("auth/cli/token", json=body.model_dump(mode="json")).content
         )
+
+    def supports_browser_login(self) -> bool:
+        """
+        Return whether the API server has the token endpoint of ``airflowctl auth login --web``.
+
+        Checked by behaviour rather than by version so that development builds and backports work: the
+        endpoint answers an empty body with 422, while a server without it (before Airflow 3.5) has only
+        its catch-all route for the path, which answers a POST with 405.
+        """
+        try:
+            self.client.post("auth/cli/token", json={}, extensions={"airflowctl_suppress_error_log": True})
+        except httpx.HTTPStatusError as e:
+            return e.response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+        return False
 
 
 # Operations
