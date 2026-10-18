@@ -113,7 +113,9 @@ def get_public_map_index(task_instance: TaskInstance, *, session: Session) -> in
     if task_instance.region_id == SENTINEL_REGION_ID:
         return task_instance.region_index
     return session.execute(
-        select(public_map_index_expression(TaskInstance)).where(TaskInstance.id == task_instance.id)
+        select(public_map_index_expression(TaskInstance))
+        .where(TaskInstance.id == task_instance.id)
+        .execution_options(include_all_attempts=True)
     ).scalar_one()
 
 

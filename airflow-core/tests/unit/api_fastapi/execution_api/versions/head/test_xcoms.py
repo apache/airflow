@@ -37,7 +37,7 @@ from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, I
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError, DynamicRegion
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
 from airflow.models.trigger import Trigger
@@ -746,12 +746,102 @@ def test_loop_prior_dates_for_unknown_target_run_falls_through_to_plain_read(cli
     assert response.status_code == 404
 
 
-def test_loop_xcom_write_and_delete_for_several_live_passes_conflict(client, loop_xcoms):
-    dr, producer, _, _ = loop_xcoms
+@pytest.fixture
+def single_pass_loop(dag_maker, session, authenticate_as):
+    @task_group
+    def body():
+        EmptyOperator(task_id="step")
+
+    with dag_maker(serialized=True):
+        create_loop(body, max_iterations=3)
+        EmptyOperator(task_id="outside")
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    dr = dag_maker.create_dagrun()
+    session.commit()
+    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
+    return dr, tis, authenticate_as
+
+
+@pytest.mark.parametrize("method", ["post", "delete"])
+def test_xcom_change_to_a_loop_task_from_outside_the_loop_is_rejected(client, single_pass_loop, method):
+    dr, tis, authenticate_as = single_pass_loop
+    authenticate_as(tis["outside", -1])
+    url = get_loop_url(dr, "body.step")
+
+    response = client.post(url, json="value") if method == "post" else client.delete(url)
+
+    assert response.status_code == 400
+    assert "consumer inside the loop" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    ("caller", "target", "params"),
+    [
+        pytest.param(("body.step", 0), "body.step", {}, id="own-xcom-inside-loop"),
+        pytest.param(("body.step", 0), "outside", {}, id="from-inside-loop-to-outside"),
+        pytest.param(("outside", -1), "mapped", {"map_index": 1}, id="mapped-task-outside-loops"),
+    ],
+)
+def test_xcom_writes_outside_another_tasks_loop_are_allowed(client, single_pass_loop, caller, target, params):
+    dr, tis, authenticate_as = single_pass_loop
+    authenticate_as(tis[caller])
+
+    response = client.post(get_loop_url(dr, target), json="value", params=params)
+
+    assert response.status_code == 201
+
+
+@pytest.mark.parametrize("method", ["post", "delete"])
+@pytest.mark.parametrize("several", ["ambiguous-producer", "several-task-instances"])
+def test_write_and_delete_conflict_when_several_task_instances_match(
+    client, single_pass_loop, mocker, method, several
+):
+    dr, tis, authenticate_as = single_pass_loop
+    authenticate_as(tis["outside", -1])
+    select_producer_ids = mocker.patch.object(TaskCoordinateResolver, "select_producer_ids", autospec=True)
+    if several == "ambiguous-producer":
+        select_producer_ids.side_effect = AmbiguousProducerError("several live gates")
+    else:
+        select_producer_ids.return_value = select(TaskInstance.id).where(
+            TaskInstance.dag_id == dr.dag_id, TaskInstance.run_id == dr.run_id
+        )
+    url = get_loop_url(dr, "mapped")
+
+    response = (
+        client.post(url, json="value", params={"map_index": 1})
+        if method == "post"
+        else client.delete(url, params={"map_index": 1})
+    )
+
+    assert response.status_code == 409
+
+
+def test_archived_attempt_in_a_loop_keeps_writing_its_own_xcom(client, single_pass_loop, session):
+    dr, tis, authenticate_as = single_pass_loop
+    step = tis["body.step", 0]
+    authenticate_as(step)
+    step.archive(reason="test", session=session)
+    session.commit()
+
+    response = client.post(get_loop_url(dr, "body.step"), json="late")
+
+    assert response.status_code == 201
+    assert XComModelV2.get_for_attempt(step.id, "key", session=session).value == "late"
+
+
+def test_loop_xcom_write_and_delete_resolve_to_the_callers_iteration(client, loop_xcoms, session):
+    dr, producer, _, previous = loop_xcoms
     url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}/key"
 
-    assert client.post(url, json="value").status_code == 409
-    assert client.delete(url).status_code == 409
+    assert client.post(url, json="rewritten").status_code == 201
+    session.expire_all()
+    assert XComModelV2.get_for_attempt(producer.id, "key", session=session).value == "rewritten"
+    assert XComModelV2.get_for_attempt(previous.id, "key", session=session).value == "previous"
+
+    assert client.delete(url).status_code == 200
+    session.expire_all()
+    assert XComModelV2.get_for_attempt(producer.id, "key", session=session) is None
+    assert XComModelV2.get_for_attempt(previous.id, "key", session=session).value == "previous"
 
 
 @pytest.mark.parametrize("current_regional", [False, True])
