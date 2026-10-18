@@ -82,6 +82,7 @@ from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
+from airflow.webhooks.connections import CONN_ID_PREFIX
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -894,6 +895,26 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_connection(
                 requests=requests,
                 user=user,
+            )
+        )
+
+    return inner
+
+
+def requires_access_webhook(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
+    """Authorize the caller on the connection of the webhook in the path, which holds its secret."""
+
+    def inner(
+        request: Request,
+        user: GetUserDep,
+    ) -> None:
+        webhook_name: str | None = request.path_params.get("webhook_name")
+        # Webhook names cannot name a team yet, and only a connection without a team serves one.
+        details = ConnectionDetails(conn_id=f"{CONN_ID_PREFIX}{webhook_name}", team_name=None)
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
+                method=method, details=details, user=user
             )
         )
 

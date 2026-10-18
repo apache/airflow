@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, WebhookService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagSchedulingState, ReprocessBehavior } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -589,6 +589,41 @@ export const useExperimentalServiceWaitDagRunUntilFinishedSuspense = <TData = Co
   interval: number;
   result?: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }, queryKey), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) as TData, ...options });
+/**
+* Experimental: List the deliveries a webhook received.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the deliveries a webhook received, newest first unless `order_by` says otherwise, without their payloads.
+* @param data The data for the request.
+* @param data.webhookName
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `received_at, id, outcome, delivery_id`
+* @param data.outcome
+* @param data.deliveryId
+* @param data.id
+* @param data.correlationKey
+* @param data.receivedAtGte
+* @param data.receivedAtGt
+* @param data.receivedAtLte
+* @param data.receivedAtLt
+* @returns WebhookDeliveryCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useExperimentalServiceGetWebhookDeliveriesSuspense = <TData = Common.ExperimentalServiceGetWebhookDeliveriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }: {
+  correlationKey?: string;
+  deliveryId?: string;
+  id?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  outcome?: string;
+  receivedAtGt?: string;
+  receivedAtGte?: string;
+  receivedAtLt?: string;
+  receivedAtLte?: string;
+  webhookName: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceGetWebhookDeliveriesKeyFn({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }, queryKey), queryFn: () => ExperimentalService.getWebhookDeliveries({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }) as TData, ...options });
 /**
 * Experimental: Compare what two stored versions of a Dag currently hold.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.
@@ -2070,6 +2105,41 @@ export const useVariableServiceGetVariablesSuspense = <TData = Common.VariableSe
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }, queryKey), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }) as TData, ...options });
+/**
+* Experimental: List the deliveries a webhook received.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the deliveries a webhook received, newest first unless `order_by` says otherwise, without their payloads.
+* @param data The data for the request.
+* @param data.webhookName
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `received_at, id, outcome, delivery_id`
+* @param data.outcome
+* @param data.deliveryId
+* @param data.id
+* @param data.correlationKey
+* @param data.receivedAtGte
+* @param data.receivedAtGt
+* @param data.receivedAtLte
+* @param data.receivedAtLt
+* @returns WebhookDeliveryCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useWebhookServiceGetWebhookDeliveriesSuspense = <TData = Common.WebhookServiceGetWebhookDeliveriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }: {
+  correlationKey?: string;
+  deliveryId?: string;
+  id?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  outcome?: string;
+  receivedAtGt?: string;
+  receivedAtGte?: string;
+  receivedAtLt?: string;
+  receivedAtLte?: string;
+  webhookName: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseWebhookServiceGetWebhookDeliveriesKeyFn({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }, queryKey), queryFn: () => WebhookService.getWebhookDeliveries({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }) as TData, ...options });
 /**
 * Experimental: Compare what two stored versions of a Dag currently hold.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.

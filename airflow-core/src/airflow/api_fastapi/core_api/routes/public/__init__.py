@@ -51,6 +51,7 @@ from airflow.api_fastapi.core_api.routes.public.task_state_store import task_sta
 from airflow.api_fastapi.core_api.routes.public.tasks import tasks_router
 from airflow.api_fastapi.core_api.routes.public.variables import variables_router
 from airflow.api_fastapi.core_api.routes.public.version import version_router
+from airflow.api_fastapi.core_api.routes.public.webhooks import webhooks_router
 from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
 from airflow.api_fastapi.core_api.security import get_user
 
@@ -90,6 +91,7 @@ authenticated_router.include_router(xcom_router)
 authenticated_router.include_router(task_instances_router)
 authenticated_router.include_router(tasks_router)
 authenticated_router.include_router(variables_router)
+authenticated_router.include_router(webhooks_router)
 authenticated_router.include_router(task_instances_log_router)
 authenticated_router.include_router(dag_parsing_router)
 authenticated_router.include_router(dag_tags_router)

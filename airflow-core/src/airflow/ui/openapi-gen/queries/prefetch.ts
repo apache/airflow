@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, WebhookService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagSchedulingState, ReprocessBehavior } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -589,6 +589,41 @@ export const prefetchUseExperimentalServiceWaitDagRunUntilFinished = (queryClien
   interval: number;
   result?: string[];
 }) => queryClient.prefetchQuery({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
+/**
+* Experimental: List the deliveries a webhook received.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the deliveries a webhook received, newest first unless `order_by` says otherwise, without their payloads.
+* @param data The data for the request.
+* @param data.webhookName
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `received_at, id, outcome, delivery_id`
+* @param data.outcome
+* @param data.deliveryId
+* @param data.id
+* @param data.correlationKey
+* @param data.receivedAtGte
+* @param data.receivedAtGt
+* @param data.receivedAtLte
+* @param data.receivedAtLt
+* @returns WebhookDeliveryCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseExperimentalServiceGetWebhookDeliveries = (queryClient: QueryClient, { correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }: {
+  correlationKey?: string;
+  deliveryId?: string;
+  id?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  outcome?: string;
+  receivedAtGt?: string;
+  receivedAtGte?: string;
+  receivedAtLt?: string;
+  receivedAtLte?: string;
+  webhookName: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseExperimentalServiceGetWebhookDeliveriesKeyFn({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }), queryFn: () => ExperimentalService.getWebhookDeliveries({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }) });
 /**
 * Experimental: Compare what two stored versions of a Dag currently hold.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.
@@ -2070,6 +2105,41 @@ export const prefetchUseVariableServiceGetVariables = (queryClient: QueryClient,
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }) });
+/**
+* Experimental: List the deliveries a webhook received.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the deliveries a webhook received, newest first unless `order_by` says otherwise, without their payloads.
+* @param data The data for the request.
+* @param data.webhookName
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `received_at, id, outcome, delivery_id`
+* @param data.outcome
+* @param data.deliveryId
+* @param data.id
+* @param data.correlationKey
+* @param data.receivedAtGte
+* @param data.receivedAtGt
+* @param data.receivedAtLte
+* @param data.receivedAtLt
+* @returns WebhookDeliveryCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseWebhookServiceGetWebhookDeliveries = (queryClient: QueryClient, { correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }: {
+  correlationKey?: string;
+  deliveryId?: string;
+  id?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  outcome?: string;
+  receivedAtGt?: string;
+  receivedAtGte?: string;
+  receivedAtLt?: string;
+  receivedAtLte?: string;
+  webhookName: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseWebhookServiceGetWebhookDeliveriesKeyFn({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }), queryFn: () => WebhookService.getWebhookDeliveries({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, webhookName }) });
 /**
 * Experimental: Compare what two stored versions of a Dag currently hold.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.

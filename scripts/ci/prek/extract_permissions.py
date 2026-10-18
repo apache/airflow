@@ -245,6 +245,7 @@ _FN_TO_RESOURCE_INFO: dict[str, tuple[str, str | None]] = {
     "requires_access_pool_bulk": ("Pool", None),
     "requires_access_connection": ("Connection", None),
     "requires_access_connection_bulk": ("Connection", None),
+    "requires_access_webhook": ("Connection", None),  # gated on the webhook_<name> connection
     "requires_access_configuration": ("Configuration", None),
     "requires_access_variable": ("Variable", None),
     "requires_access_variable_bulk": ("Variable", None),

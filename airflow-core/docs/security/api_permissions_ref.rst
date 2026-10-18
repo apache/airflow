@@ -594,3 +594,7 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/version``
      - ``Public``
      - ``No Airflow permission required``
+   * - ``GET``
+     - ``/api/v2/webhooks/{webhook_name}/deliveries``
+     - ``Connection``
+     - ``GET``

@@ -62,6 +62,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_pool_bulk,
     requires_access_variable,
     requires_access_variable_bulk,
+    requires_access_webhook,
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
@@ -1130,6 +1131,21 @@ class TestFastApiSecurity:
         assert exc_info.value.status_code == 400
         assert "dag_id" in exc_info.value.detail
         mock_requires_access_dag.assert_not_called()
+
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_webhook_checks_the_webhook_connection(self, mock_get_auth_manager):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_connection.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        fastapi_request = Mock(spec=Request)
+        fastapi_request.path_params = {"webhook_name": "github"}
+        user = Mock(spec=BaseUser)
+
+        requires_access_webhook("GET")(fastapi_request, user)
+
+        auth_manager.is_authorized_connection.assert_called_once_with(
+            method="GET", details=ConnectionDetails(conn_id="webhook_github", team_name=None), user=user
+        )
 
     @patch.object(Connection, "get_conn_id_to_team_name_mapping")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
