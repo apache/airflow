@@ -91,6 +91,13 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
             return "Partition rollups require batch_asset_events=True"
         return super().get_batching_requirement()
 
+    def validate(self) -> None:
+        super().validate()
+        if self.asset_condition.contains_webhook_topic:
+            raise AirflowTimetableInvalid(
+                "PartitionedAssetTimetable cannot schedule on a WebhookTopic; its events have no partition key"
+            )
+
 
 class PartitionedAtRuntime(BaseTimetable):
     """Marker timetable indicating that partition key(s) are determined at runtime."""

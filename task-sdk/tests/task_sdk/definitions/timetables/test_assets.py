@@ -30,6 +30,7 @@ from airflow.sdk import (
     PartitionedAssetTimetable,
     RollupMapper,
     StartOfDayMapper,
+    WebhookTopic,
 )
 from airflow.sdk.definitions.timetables.simple import NullTimetable
 from airflow.sdk.exceptions import AirflowTimetableInvalid
@@ -164,3 +165,16 @@ def test_custom_asset_condition_requires_batching():
 
     with pytest.raises(AirflowTimetableInvalid, match="batch_asset_events=True"):
         AssetTriggeredTimetable(condition, batch_asset_events=False).validate()
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        pytest.param(WebhookTopic("github/push"), id="topic"),
+        pytest.param(Asset("a") | (Asset("b") & WebhookTopic("github/push")), id="nested-topic"),
+    ],
+)
+def test_partitioned_timetable_rejects_webhook_topic(condition):
+    timetable = PartitionedAssetTimetable(assets=condition, batch_asset_events=True)
+    with pytest.raises(AirflowTimetableInvalid, match="cannot schedule on a WebhookTopic"):
+        timetable.validate()

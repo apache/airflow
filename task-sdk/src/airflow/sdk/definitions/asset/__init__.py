@@ -28,10 +28,11 @@ from typing import TYPE_CHECKING, Any, ClassVar, overload
 
 import attrs
 
+from airflow.sdk._shared.webhook_naming import build_topic_name
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Collection, Iterable
     from typing import Self
     from urllib.parse import SplitResult
 
@@ -58,6 +59,7 @@ __all__ = [
     "AssetRef",
     "AssetUriRef",
     "AssetWatcher",
+    "WebhookTopic",
 ]
 
 from airflow.sdk.configuration import conf
@@ -234,6 +236,11 @@ class BaseAsset:
     @property
     def requires_batching(self) -> bool:
         """Whether this condition needs multiple asset events to be satisfied."""
+        return False
+
+    @property
+    def contains_webhook_topic(self) -> bool:
+        """Whether this condition includes a :class:`WebhookTopic`."""
         return False
 
     def __or__(self, other: BaseAsset) -> BaseAsset:
@@ -458,6 +465,84 @@ class Model(Asset):
     asset_type: ClassVar[str] = "model"
 
 
+class WebhookTopic(Asset):
+    """
+    The asset an inbound webhook records an event on for each delivery that matches the topic.
+
+    Give either the parts of the topic, which are built into its name with the same rules the API
+    server uses for deliveries, or the whole ``name``. A Dag scheduled on ``Asset(name)`` receives the
+    same events.
+
+    Topics are meant to receive events only from their webhook, so a topic cannot have ``extra``,
+    ``watchers``, another ``group`` or a ``uri`` other than its name, and a task cannot use it as an
+    inlet or outlet. A ``PartitionedAssetTimetable`` cannot schedule on a topic, as its events carry no
+    partition key.
+
+    .. note:: |experimental|
+
+    :param webhook: The name of the webhook.
+    :param path: Where the delivery happened, ``/``-separated from broad to narrow. Its last segment
+        may be ``*`` to match anything below that point. None matches only deliveries without a path.
+    :param event: What happened, such as ``pull_request``.
+    :param action: What happened to the event's subject, such as ``labeled``.
+    :param detail: Narrows ``action``, such as the label added; requires ``action``.
+    """
+
+    asset_type: ClassVar[str] = "webhook"
+
+    def __init__(
+        self,
+        name: str | None = None,
+        uri: str | ObjectStoragePath | None = None,
+        *,
+        webhook: str | None = None,
+        path: str | None = None,
+        event: str | None = None,
+        action: str | None = None,
+        detail: str | None = None,
+        group: str | None = None,
+        extra: dict[str, JsonValue] | None = None,
+        watchers: list[AssetWatcher] | None = None,
+        access_control: AssetAccessControl | None = None,
+    ) -> None:
+        if extra:
+            raise ValueError("A WebhookTopic cannot have extra; its events carry the delivery instead")
+        if watchers:
+            raise ValueError("A WebhookTopic cannot have watchers; its events come from its webhook")
+        if group is not None and group != self.asset_type:
+            raise ValueError(f"A WebhookTopic is always in the {self.asset_type!r} group, not {group!r}")
+        if any(part is not None for part in (webhook, path, event, action, detail)):
+            if name is not None or uri is not None:
+                raise TypeError("WebhookTopic() takes either 'name' or the topic keywords, not both")
+            if webhook is None or event is None:
+                raise TypeError("WebhookTopic() requires 'webhook' and 'event'")
+            name = build_topic_name(webhook, path, event, action, detail)
+        if name is None:
+            raise TypeError("WebhookTopic() requires 'name' or the topic keywords")
+        if uri is not None and str(uri) != name:
+            raise ValueError(
+                "A WebhookTopic's uri can only be its name; webhooks record events only on assets whose "
+                f"uri is their name, got {uri!r}"
+            )
+        # Asset's overloads refuse None for these, but its __init__ takes None as not given.
+        kwargs: dict[str, Any] = {"name": name, "uri": uri, "group": group, "access_control": access_control}
+        super().__init__(**kwargs)
+
+    @property
+    def contains_webhook_topic(self) -> bool:
+        return True
+
+
+def check_no_webhook_topic(objects: Iterable[Any], *, task_id: str, kind: str) -> None:
+    """Raise if ``objects``, a task's inlets or outlets, include a :class:`WebhookTopic`."""
+    for obj in objects:
+        if isinstance(obj, WebhookTopic):
+            raise ValueError(
+                f"Task {task_id!r} cannot use WebhookTopic {obj.name!r} as an {kind}; "
+                "a Dag can only schedule on a webhook topic"
+            )
+
+
 @attrs.define(hash=True)
 class AssetAlias(BaseAsset):
     """
@@ -495,6 +580,10 @@ class AssetBooleanCondition(BaseAsset):
     @property
     def requires_batching(self) -> bool:
         return any(obj.requires_batching for obj in self.objects)
+
+    @property
+    def contains_webhook_topic(self) -> bool:
+        return any(obj.contains_webhook_topic for obj in self.objects)
 
 
 class AssetAny(AssetBooleanCondition):

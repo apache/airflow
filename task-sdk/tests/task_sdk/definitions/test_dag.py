@@ -34,6 +34,7 @@ from airflow.sdk import (
     PartitionedAtRuntime,
     TaskGroup,
     TriggerRule,
+    WebhookTopic,
     dag as dag_decorator,
     task,
     task_group,
@@ -815,6 +816,41 @@ def test_validate_accepts_expansion_over_a_loop_task_in_the_same_loop():
         create_loop(body, max_iterations=2)
 
     dag.validate()
+
+
+def _use_topic_as_inlet(topic):
+    BaseOperator(task_id="uses_topic", inlets=[topic])
+
+
+def _use_topic_as_outlet(topic):
+    BaseOperator(task_id="uses_topic", outlets=[topic])
+
+
+def _use_topic_as_mapped_outlet(topic):
+    @task(task_id="uses_topic", outlets=topic)
+    def uses_topic(value):
+        return value
+
+    uses_topic.expand(value=[1, 2])
+
+
+@pytest.mark.parametrize(
+    ("use_topic", "kind"),
+    [
+        pytest.param(_use_topic_as_inlet, "inlet", id="inlet"),
+        pytest.param(_use_topic_as_outlet, "outlet", id="outlet"),
+        pytest.param(_use_topic_as_mapped_outlet, "outlet", id="mapped-outlet"),
+    ],
+)
+def test_validate_rejects_webhook_topic_as_inlet_or_outlet(use_topic, kind):
+    topic = WebhookTopic(webhook="github", path="acme/web", event="push")
+    with DAG("webhook_topic_lineage", schedule=topic) as dag:
+        use_topic(topic)
+
+    with pytest.raises(
+        ValueError, match=f"'uses_topic' cannot use WebhookTopic 'github/acme/web/push' as an {kind}"
+    ):
+        dag.validate()
 
 
 class TestDagDecorator:

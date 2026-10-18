@@ -99,6 +99,7 @@ __all__ = [
     "TriggerRule",
     "Variable",
     "WaitForAll",
+    "WebhookTopic",
     "WeekWindow",
     "WeightRule",
     "Window",
@@ -150,6 +151,7 @@ if TYPE_CHECKING:
         AssetAll,
         AssetAny,
         AssetWatcher,
+        WebhookTopic,
     )
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
@@ -317,6 +319,7 @@ __lazy_imports: dict[str, str] = {
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WaitForAll": ".definitions.partition_mappers.wait_policy",
+    "WebhookTopic": ".definitions.asset",
     "WeekWindow": ".definitions.partition_mappers.window",
     "WeightRule": ".api.datamodels._generated",
     "Window": ".definitions.partition_mappers.window",
