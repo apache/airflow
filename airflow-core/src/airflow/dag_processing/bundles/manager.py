@@ -25,6 +25,8 @@ import time
 import warnings
 from collections import defaultdict
 from configparser import ConfigParser
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -42,10 +44,11 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.process_utils import patch_environ
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
@@ -92,6 +95,7 @@ class _ExternalBundleConfig(BaseModel):
     classpath: str
     kwargs: dict
     team_name: str | None = None
+    importers: list[dict[str, Any]] | None = None
 
 
 class _InternalBundleConfig(BaseModel):
@@ -117,10 +121,14 @@ def _bundle_item_exc(msg):
 class _BundleConfigSnapshot:
     """The last accepted bundle configuration in this process."""
 
-    configs: tuple[_ExternalBundleConfig, ...]
+    configs: dict[str, _ExternalBundleConfig]
+    config_json: str
     names: frozenset[str]
     team_names: dict[str, str | None]
     last_checked: float = field(default_factory=lambda: time.monotonic())
+
+
+_bundle_config_context: ContextVar[_BundleConfigSnapshot | None] = ContextVar("bundle_config", default=None)
 
 
 def _get_bundle_config_reload_option() -> tuple[str, str] | None:
@@ -143,11 +151,16 @@ def _get_bundle_config_reload_option() -> tuple[str, str] | None:
 
 def _create_bundle_config_snapshot(bundle_config_list: list[_ExternalBundleConfig]) -> _BundleConfigSnapshot:
     team_names = {cfg.name: cfg.team_name for cfg in bundle_config_list}
+    # Literal config lookup expands environment variables; preserve command/secret values verbatim.
+    config_json = json.dumps([cfg.model_dump(exclude_none=True) for cfg in bundle_config_list]).replace(
+        "$", r"\u0024"
+    )
     if bundle_config_list and conf.getboolean("core", "LOAD_EXAMPLES"):
         _add_example_dag_bundle(bundle_config_list)
         _add_provider_example_dags_to_bundle(bundle_config_list)
     return _BundleConfigSnapshot(
-        configs=tuple(bundle_config_list),
+        configs={cfg.name: cfg for cfg in bundle_config_list},
+        config_json=config_json,
         names=frozenset(cfg.name for cfg in bundle_config_list),
         team_names=team_names,
     )
@@ -169,10 +182,11 @@ def _load_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfi
 def _refresh_bundle_config_snapshot(
     *, force: bool = False, metadata_only: bool = False
 ) -> _BundleConfigSnapshot:
-    if metadata_only:
-        snapshot = _load_bundle_config_snapshot(metadata_only=True)
-    else:
-        snapshot = _load_bundle_config_snapshot()
+    if snapshot := _bundle_config_context.get():
+        return snapshot
+    snapshot = (
+        _load_bundle_config_snapshot(metadata_only=True) if metadata_only else _load_bundle_config_snapshot()
+    )
     if not is_bundle_config_reload_enabled():
         return snapshot
     now = time.monotonic()
@@ -183,7 +197,7 @@ def _refresh_bundle_config_snapshot(
     snapshot.last_checked = now
     try:
         config_list = _read_bundle_config_list()
-        previous_configs = {config.name: config for config in snapshot.configs}
+        previous_configs = snapshot.configs
         if {config.name: config for config in config_list} == {
             name: previous_configs[name] for name in snapshot.team_names
         }:
@@ -209,6 +223,7 @@ def _refresh_bundle_config_snapshot(
         log.exception("Could not reload Dag bundle configuration; keeping the last accepted list")
         return snapshot
     snapshot.configs = current.configs
+    snapshot.config_json = current.config_json
     snapshot.names = current.names
     snapshot.team_names = current.team_names
     return snapshot
@@ -422,12 +437,13 @@ class DagBundlesManager(LoggingMixin):
 
         :meta private:
         """
-        snapshot = _load_bundle_config_snapshot()
+        snapshot = _bundle_config_context.get() or _load_bundle_config_snapshot()
+        self._snapshot = replace(snapshot)
         if self._bundle_config.keys() == snapshot.names:
             return
 
         self._bundle_config = {}
-        bundle_config_list = snapshot.configs
+        bundle_config_list = snapshot.configs.values()
         if not bundle_config_list:
             return
 
@@ -797,6 +813,25 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
+    @contextmanager
+    def use_bundle_config(self) -> Iterator[None]:
+        """
+        Use this manager's accepted configuration for active bundle work.
+
+        :meta private:
+        """
+        if not is_bundle_config_reload_enabled():
+            yield
+            return
+        snapshot = self._snapshot
+        token = _bundle_config_context.set(snapshot)
+        try:
+            # Fresh interpreters inherit the environment, but cannot inherit the accepted snapshot.
+            with patch_environ({"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": snapshot.config_json}):
+                yield
+        finally:
+            _bundle_config_context.reset(token)
+
     def _refresh_config(self) -> None:
         """Refresh bundle configuration and update this manager."""
         _refresh_bundle_config_snapshot()
@@ -814,7 +849,7 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
-        snapshot = _load_bundle_config_snapshot()
+        snapshot = _bundle_config_context.get() or _load_bundle_config_snapshot()
         if name not in snapshot.names:
             snapshot = _refresh_bundle_config_snapshot(force=True)
         if name not in self._bundle_config or name not in snapshot.names:

@@ -26,6 +26,8 @@ import re
 import selectors
 import shutil
 import signal
+import subprocess
+import sys
 import textwrap
 import time
 import zipfile
@@ -51,7 +53,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.dagbag import DagBag, _get_bundle_team_name
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.manager import (
     BundleState,
@@ -481,6 +483,92 @@ class TestDagFileProcessorManager:
         bundles.get_bundle.assert_not_called()
         bundles.sync_bundles_to_db.assert_not_called()
         mock_removed.assert_not_called()
+
+    @mock.patch.object(DagBundlesManager, "sync_bundles_to_db", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_get_team_names", autospec=True, return_value={})
+    def test_failed_reconciliation_preserves_configuration_for_active_work(
+        self, mock_teams, mock_create, mock_sync, tmp_path
+    ):
+        bundle_path = tmp_path / "$HOME"
+        bundle_path.mkdir()
+        config = [
+            {
+                "name": "bundle-a",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(bundle_path)},
+                "team_name": "team-a",
+            }
+        ]
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text(json.dumps(config))
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+                ("dag_processor", "bundle_refresh_check_interval"): "0",
+            }
+        ):
+            processor = DagFileProcessorManager(max_runs=1)
+            processor.load_dag_bundles()
+            config_file.write_text("[]")
+            mock_sync.side_effect = RuntimeError("database unavailable")
+            processor._reconcile_bundles(known_files={})
+            request = DagCallbackRequest(
+                dag_id="test",
+                run_id="test",
+                filepath="dag.py",
+                is_failure_callback=False,
+                bundle_name="bundle-a",
+                bundle_version="v1",
+            )
+            bundle = processor.prepare_callback_bundle(request)
+            assert bundle is not None
+            assert bundle.path == bundle_path
+            assert bundle.version == "v1"
+
+            def create_process(manager, file):
+                assert _get_bundle_team_name(file.bundle_name) == "team-a"
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        "from airflow.dag_processing.dagbag import _get_bundle_team_name; "
+                        "from airflow.dag_processing.bundles.manager import DagBundlesManager; "
+                        "import json; "
+                        "print(json.dumps([_get_bundle_team_name('bundle-a'), "
+                        "str(DagBundlesManager().get_bundle('bundle-a').path)]))",
+                    ],
+                    env={
+                        **os.environ,
+                        "AIRFLOW__CORE__MULTI_TEAM": "True",
+                        "AIRFLOW__CORE__LOAD_EXAMPLES": "False",
+                    },
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                assert json.loads(result.stdout.splitlines()[-1]) == ["team-a", str(bundle_path)]
+                return mock.Mock(spec=DagFileProcessorProcess)
+
+            mock_create.side_effect = create_process
+            processor._file_queue[
+                DagFileInfo(bundle_name="bundle-a", bundle_path=bundle_path, rel_path=Path("dag.py"))
+            ] = None
+            processor._start_new_processes()
+            mock_create.assert_called_once()
+
+            def handle_response(_):
+                assert _get_bundle_team_name("bundle-a") == "team-a"
+                return True
+
+            processor.selector = mock.Mock(spec=selectors.BaseSelector)
+            processor.selector.select.return_value = [
+                (selectors.SelectorKey(0, 0, selectors.EVENT_READ, (handle_response, None)), 0)
+            ]
+            processor._service_processor_sockets(timeout=0)
+            assert "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST" not in os.environ
 
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
     @pytest.mark.parametrize("remove_all", [False, True])
