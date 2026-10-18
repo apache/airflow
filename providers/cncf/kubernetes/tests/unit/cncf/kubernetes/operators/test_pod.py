@@ -246,6 +246,48 @@ class TestKubernetesPodOperator:
 
         read.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ("log_events_on_startup", "expected_calls"),
+        [(True, 1), (False, 0)],
+    )
+    def test_await_pod_start_watches_events_only_when_enabled(self, log_events_on_startup, expected_calls):
+        k = KubernetesPodOperator(
+            task_id="task",
+            name="test",
+            namespace="default",
+            log_events_on_startup=log_events_on_startup,
+        )
+        k.await_pod_start(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod", namespace="default")))
+
+        assert self.watch_pod_events_mock.call_count == expected_calls
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    def test_invoke_defer_method_passes_log_events_on_startup_to_trigger(
+        self, mocked_get_connection, mocked_convert_config
+    ):
+        mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            in_cluster=True,
+            deferrable=True,
+            log_events_on_startup=False,
+        )
+        k.pod = MagicMock()
+        k.pod.metadata.name = TEST_NAME
+        k.pod.metadata.namespace = TEST_NAMESPACE
+
+        with (
+            patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING),
+            pytest.raises(TaskDeferred) as exc,
+        ):
+            k.invoke_defer_method(context={"ti": MagicMock()})
+
+        assert exc.value.trigger.serialize()[1]["log_events_on_startup"] is False
+
     def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesPodOperator"
         ti = create_task_instance_of_operator(

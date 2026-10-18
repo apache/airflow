@@ -91,6 +91,7 @@ class KubernetesPodTrigger(BaseTrigger):
     :param startup_timeout: timeout in seconds to start up the pod.
     :param startup_check_interval: interval in seconds to check if the pod has already started.
     :param schedule_timeout: timeout in seconds to schedule pod in cluster.
+    :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
@@ -120,6 +121,7 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_timeout: int = 120,
         startup_check_interval: float = 5,
         schedule_timeout: int = 120,
+        log_events_on_startup: bool = True,
         on_finish_action: str = "delete_pod",
         on_kill_action: str = "delete_pod",
         termination_grace_period: int | None = None,
@@ -142,6 +144,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
         self.schedule_timeout = schedule_timeout
+        self.log_events_on_startup = log_events_on_startup
         self.last_log_time = last_log_time
         self.logging_interval = logging_interval
         self.on_finish_action = OnFinishAction(on_finish_action)
@@ -169,6 +172,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "startup_timeout": self.startup_timeout,
                 "startup_check_interval": self.startup_check_interval,
                 "schedule_timeout": self.schedule_timeout,
+                "log_events_on_startup": self.log_events_on_startup,
                 "trigger_start_time": self.trigger_start_time,
                 "on_finish_action": self.on_finish_action.value,
                 "on_kill_action": self.on_kill_action.value,
@@ -328,7 +332,11 @@ class KubernetesPodTrigger(BaseTrigger):
         """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
         pod = await self._get_pod()
         # Start event stream in background
-        events_task = asyncio.create_task(self.pod_manager.watch_pod_events(pod, self.startup_check_interval))
+        events_task = (
+            asyncio.create_task(self.pod_manager.watch_pod_events(pod, self.startup_check_interval))
+            if self.log_events_on_startup
+            else None
+        )
 
         # Await pod start completion
         try:
@@ -340,9 +348,10 @@ class KubernetesPodTrigger(BaseTrigger):
             )
         finally:
             # Stop watching events
-            events_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await events_task
+            if events_task is not None:
+                events_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await events_task
 
         return self.define_pod_container_state(await self._get_pod())
 

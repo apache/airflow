@@ -130,6 +130,7 @@ class TestKubernetesPodTrigger:
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "startup_check_interval": STARTUP_CHECK_INTERVAL_SECS,
             "schedule_timeout": STARTUP_TIMEOUT_SECS,
+            "log_events_on_startup": True,
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
             "on_kill_action": "delete_pod",
@@ -583,6 +584,35 @@ class TestKubernetesPodTrigger:
                 "last_log_time": None,
             }
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("log_events_on_startup", "expected_calls"),
+        [(True, 1), (False, 0)],
+    )
+    @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state")
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.await_pod_start")
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.watch_pod_events")
+    @mock.patch(f"{TRIGGER_PATH}._get_pod")
+    async def test_wait_for_pod_start_watches_events_only_when_enabled(
+        self,
+        mock_get_pod,
+        mock_watch_events,
+        mock_await_start,
+        mock_state,
+        trigger,
+        log_events_on_startup,
+        expected_calls,
+    ):
+        mock_get_pod.return_value = mock.MagicMock()
+        mock_state.return_value = ContainerState.RUNNING
+        mock_watch_events.return_value = asyncio.sleep(0)
+        trigger.log_events_on_startup = log_events_on_startup
+
+        await trigger._wait_for_pod_start()
+
+        assert mock_watch_events.call_count == expected_calls
+        mock_await_start.assert_awaited_once()
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state")
