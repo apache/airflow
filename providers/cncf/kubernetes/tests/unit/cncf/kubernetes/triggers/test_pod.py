@@ -130,7 +130,6 @@ class TestKubernetesPodTrigger:
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "startup_check_interval": STARTUP_CHECK_INTERVAL_SECS,
             "schedule_timeout": STARTUP_TIMEOUT_SECS,
-            "log_events_on_startup": True,
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
             "on_kill_action": "delete_pod",
@@ -139,6 +138,13 @@ class TestKubernetesPodTrigger:
             "logging_interval": None,
             "trigger_kwargs": {},
         }
+
+    def test_serialize_emits_log_events_on_startup_only_when_disabled(self, trigger):
+        trigger.log_events_on_startup = False
+
+        _, kwargs_dict = trigger.serialize()
+
+        assert kwargs_dict["log_events_on_startup"] is False
 
     def test_serialize_with_connection_extras(self):
         extras = {"token": "abc"}
@@ -606,7 +612,6 @@ class TestKubernetesPodTrigger:
     ):
         mock_get_pod.return_value = mock.MagicMock()
         mock_state.return_value = ContainerState.RUNNING
-        mock_watch_events.return_value = asyncio.sleep(0)
         trigger.log_events_on_startup = log_events_on_startup
 
         await trigger._wait_for_pod_start()

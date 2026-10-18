@@ -156,32 +156,33 @@ class KubernetesPodTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize KubernetesCreatePodTrigger arguments and classpath."""
-        return (
-            "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger",
-            {
-                "pod_name": self.pod_name,
-                "pod_namespace": self.pod_namespace,
-                "base_container_name": self.base_container_name,
-                "kubernetes_conn_id": self.kubernetes_conn_id,
-                "connection_extras": self.connection_extras,
-                "poll_interval": self.poll_interval,
-                "cluster_context": self.cluster_context,
-                "config_dict": self.config_dict,
-                "in_cluster": self.in_cluster,
-                "get_logs": self.get_logs,
-                "startup_timeout": self.startup_timeout,
-                "startup_check_interval": self.startup_check_interval,
-                "schedule_timeout": self.schedule_timeout,
-                "log_events_on_startup": self.log_events_on_startup,
-                "trigger_start_time": self.trigger_start_time,
-                "on_finish_action": self.on_finish_action.value,
-                "on_kill_action": self.on_kill_action.value,
-                "termination_grace_period": self.termination_grace_period,
-                "last_log_time": self.last_log_time,
-                "logging_interval": self.logging_interval,
-                "trigger_kwargs": self.trigger_kwargs,
-            },
-        )
+        kwargs: dict[str, Any] = {
+            "pod_name": self.pod_name,
+            "pod_namespace": self.pod_namespace,
+            "base_container_name": self.base_container_name,
+            "kubernetes_conn_id": self.kubernetes_conn_id,
+            "connection_extras": self.connection_extras,
+            "poll_interval": self.poll_interval,
+            "cluster_context": self.cluster_context,
+            "config_dict": self.config_dict,
+            "in_cluster": self.in_cluster,
+            "get_logs": self.get_logs,
+            "startup_timeout": self.startup_timeout,
+            "startup_check_interval": self.startup_check_interval,
+            "schedule_timeout": self.schedule_timeout,
+            "trigger_start_time": self.trigger_start_time,
+            "on_finish_action": self.on_finish_action.value,
+            "on_kill_action": self.on_kill_action.value,
+            "termination_grace_period": self.termination_grace_period,
+            "last_log_time": self.last_log_time,
+            "logging_interval": self.logging_interval,
+            "trigger_kwargs": self.trigger_kwargs,
+        }
+        # Subclass triggers with a fixed __init__ signature and older triggerers reject unknown kwargs,
+        # so the default is never emitted.
+        if not self.log_events_on_startup:
+            kwargs["log_events_on_startup"] = False
+        return ("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger", kwargs)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current pod status and yield a TriggerEvent."""

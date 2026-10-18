@@ -77,19 +77,22 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 Pod events in the task log
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-While the operator waits for the pod to leave the ``Pending`` phase, it polls the Kubernetes events of the pod
-every ``startup_check_interval_seconds`` and writes them to the task log (scheduling, image pull, container
-start, and warnings such as ``FailedScheduling``). This logging is best-effort: if the events API fails, the
-operator logs one warning, stops polling events, and the task continues.
+While the operator waits for the pod to leave the ``Pending`` phase, it reads the Kubernetes events of the pod
+(polling every ``startup_check_interval_seconds`` in synchronous mode) and writes them to the task log
+(scheduling, image pull, container start, and warnings such as ``FailedScheduling``). This logging is
+best-effort: if the events API fails, the operator logs one warning, stops reading events, and the task
+continues.
 
-Each poll is a ``list`` of ``Event`` objects with a field selector. The Kubernetes API server has no index for
-that selector, so every poll scans all events of the namespace. On clusters that run thousands of short-lived
-pods in one namespace this adds noticeable API server load. Keeping unrelated high-churn pods (for example Spark
-executors) in a separate namespace reduces the cost, since the scan is per namespace.
+In synchronous mode each poll is a ``list`` of ``Event`` objects with a field selector; in deferrable mode the
+triggerer keeps a watch open instead. The Kubernetes API server disables its watch cache for ``Event``
+objects by default, so every list is an etcd read of all events in the namespace that is filtered afterwards.
+On clusters that run thousands of short-lived pods in one namespace this adds noticeable API server load.
+Keeping unrelated high-churn pods (for example Spark executors) in a separate namespace reduces the cost.
 
-To turn it off, set ``log_events_on_startup=False``. The parameter is honoured by ``KubernetesPodOperator``, by the
-deferrable trigger, and by ``@task.kubernetes`` / ``@task.kubernetes_cmd``. It is separate from
-``log_events_on_failure``, which controls the one-shot read of events after a failure.
+To turn it off, set ``log_events_on_startup=False``. The parameter is honoured by ``KubernetesPodOperator``,
+``KubernetesPodTrigger``, ``@task.kubernetes`` and ``@task.kubernetes_cmd``. ``GKEStartPodOperator`` and
+``EksPodOperator`` apply it in synchronous mode only; in deferrable mode their own triggers do not receive it
+yet. It is separate from ``log_events_on_failure``, which controls the one-shot read of events after a failure.
 
 .. code-block:: python
 

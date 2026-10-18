@@ -473,7 +473,7 @@ class TestPodManager:
         mock_pod.metadata.name = "test-pod"
 
         with mock.patch.object(
-            self.pod_manager, "read_pod_events", side_effect=ApiException(status=504)
+            self.pod_manager, "read_pod_events", autospec=True, side_effect=ApiException(status=504)
         ) as mock_read:
             await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
 

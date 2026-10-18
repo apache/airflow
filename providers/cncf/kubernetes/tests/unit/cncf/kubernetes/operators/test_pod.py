@@ -230,21 +230,19 @@ class TestKubernetesPodOperator:
 
         patch.stopall()
 
-    def test_await_pod_start_ignores_failed_event_watcher(self):
+    @mock.patch.object(PodManager, "read_pod_events", autospec=True, side_effect=ApiException(status=504))
+    def test_await_pod_start_ignores_failed_event_watcher(self, mock_read_pod_events):
         self.watch_pod_events.stop()
 
         async def _await_pod_start(*_, **__):
             await asyncio.sleep(0)
             await asyncio.sleep(0)
 
+        self.await_start_mock.side_effect = _await_pod_start
         k = KubernetesPodOperator(task_id="task", name="test", namespace="default")
-        with (
-            mock.patch.object(PodManager, "read_pod_events", side_effect=ApiException(status=504)) as read,
-            mock.patch.object(PodManager, "await_pod_start", side_effect=_await_pod_start),
-        ):
-            k.await_pod_start(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod", namespace="default")))
+        k.await_pod_start(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod", namespace="default")))
 
-        read.assert_called_once()
+        mock_read_pod_events.assert_called_once()
 
     @pytest.mark.parametrize(
         ("log_events_on_startup", "expected_calls"),
