@@ -939,6 +939,20 @@ logging:
       type: boolean
       example: "True"
       default: "False"
+    task_logs_to_stdout:
+      description: |
+        Also forward task subprocess stdout/stderr to the worker's own stdout, so task logs reach
+        a container-level log collector (e.g. Kubernetes/Loki) in addition to the task-log handler
+        and the UI. This is not a global switch: it is only consulted when a caller leaves
+        ``subprocess_logs_to_stdout`` out of ``BaseExecutor.run_workload``. Executors that already pass
+        ``True`` explicitly (the LocalExecutor and the per-task entrypoint used by the Kubernetes, ECS,
+        Batch and Lambda executors) always forward task logs to stdout and ignore this setting. Currently
+        it is read by the Celery worker (which resolves ``[celery] task_logs_to_stdout`` first, then this
+        setting) and by the Edge3 worker's fork path on Airflow 3.4+.
+      version_added: 3.4.0
+      type: boolean
+      example: "True"
+      default: "False"
     uvicorn_logging_level:
       description: |
         Logging level for uvicorn (API server and serve-logs).
