@@ -21,16 +21,25 @@
 # layer again.
 #
 #   docker_data_root_snapshot.sh create SNAPSHOT_FILE
-#       Creates the snapshot after the builder publishes its caches.
+#       Creates the snapshot after the builder publishes its caches. SNAPSHOT_FILE.meta reads
+#       "unavailable" until the archive is complete, so a failed rerun retires an earlier snapshot.
+#   docker_data_root_snapshot.sh check SNAPSHOT_FILE
+#       Checks SNAPSHOT_FILE.meta against this checkout and daemon before the archive is downloaded.
 #   docker_data_root_snapshot.sh restore SNAPSHOT_FILE
-#       Restores the image. Incompatible snapshots leave the daemon untouched. Failed
+#       Restores the image. Incompatible snapshots leave the daemon untouched. Failed or overdue
 #       materialization cleans partial image state and restarts Docker for the normal stash path.
 set -euo pipefail
 
 DATA_ROOT="/var/lib/docker"
+# overlay2 records opaque directories in trusted.* attributes and file capabilities in security.*;
+# GNU tar extracts only user.* attributes unless told otherwise.
+TAR_ATTRIBUTES=(--xattrs "--xattrs-include=*" --acls --numeric-owner)
+# A stalled extraction gives up and falls back to the stash rather than holding the job.
+RESTORE_TIMEOUT_SECONDS="${SNAPSHOT_RESTORE_TIMEOUT_SECONDS:-300}"
 DAEMON_STOPPED=false
 RESTORE_IN_PROGRESS=false
 RESTORE_FILE=""
+IMAGE_ID=""
 
 function cleanup_daemon() {
     local result=$?
@@ -80,7 +89,9 @@ function remove_image_store() {
 
 function create_snapshot() {
     local snapshot_file="${1}"
-    local daemon image_id
+    local daemon image_id revision
+    rm -f "${snapshot_file}"
+    echo "unavailable" > "${snapshot_file}.meta"
     daemon="$(daemon_fingerprint)"
     check_supported_daemon "${daemon}"
     image_id="$(docker images --quiet --filter 'label=org.apache.airflow.image=airflow-ci' | sort -u)"
@@ -88,39 +99,38 @@ function create_snapshot() {
         echo "Expected exactly one CI image in the daemon, found: '${image_id}'" >&2
         exit 1
     fi
+    revision="$(git rev-parse HEAD)"
     docker ps --all --quiet | xargs --no-run-if-empty docker rm --force >/dev/null
     docker images --quiet | sort -u | {
         grep --invert-match --fixed-strings --line-regexp "${image_id}" || true
     } | xargs --no-run-if-empty docker rmi --force >/dev/null
     docker builder prune --all --force >/dev/null
-    printf '%s %s %s\n' "${daemon}" "${image_id}" "$(git rev-parse HEAD)" \
-        > "${snapshot_file}.meta"
     stop_daemon
-    sudo tar --directory "${DATA_ROOT}" --xattrs --acls --numeric-owner \
-        --create --file - image overlay2 \
+    sudo tar --directory "${DATA_ROOT}" "${TAR_ATTRIBUTES[@]}" --create --file - image overlay2 \
         | zstd -3 -T0 --quiet --force -o "${snapshot_file}"
+    printf '%s %s %s\n' "${daemon}" "${image_id}" "${revision}" > "${snapshot_file}.meta"
     start_daemon
 }
 
-function restore_snapshot() {
+# Exits without touching the daemon unless the snapshot was made from this checkout by a daemon
+# like this one, and this daemon holds nothing the restore would drop.
+function check_snapshot() {
     local snapshot_file="${1}"
-    RESTORE_FILE="${snapshot_file}"
     local -a meta
-    local image_id snapshot_fingerprint daemon existing_images existing_containers
-    if [[ ! -f "${snapshot_file}" || ! -f "${snapshot_file}.meta" ]]; then
+    local snapshot_fingerprint daemon existing_images existing_containers
+    if [[ ! -f "${snapshot_file}.meta" ]]; then
         echo "No snapshot at ${snapshot_file}"
         exit 2
     fi
     read -r -a meta < "${snapshot_file}.meta"
     if [[ ${#meta[@]} != 6 ]]; then
-        echo "Invalid snapshot metadata"
+        echo "Snapshot unavailable or its metadata is invalid"
         exit 3
     fi
     if [[ "${meta[5]}" != "$(git rev-parse HEAD)" ]]; then
         echo "Snapshot belongs to a different checkout revision"
         exit 3
     fi
-    image_id="${meta[4]}"
     snapshot_fingerprint="${meta[*]:0:4}"
     daemon="$(daemon_fingerprint)"
     check_supported_daemon "${daemon}"
@@ -134,14 +144,26 @@ function restore_snapshot() {
         echo "The daemon already holds images, which restoring the snapshot would drop"
         exit 3
     fi
+    IMAGE_ID="${meta[4]}"
+}
+
+function restore_snapshot() {
+    local snapshot_file="${1}"
+    RESTORE_FILE="${snapshot_file}"
+    if [[ ! -f "${snapshot_file}" ]]; then
+        echo "No snapshot at ${snapshot_file}"
+        exit 2
+    fi
+    check_snapshot "${snapshot_file}"
     stop_daemon
     RESTORE_IN_PROGRESS=true
     remove_image_store
-    zstd -d -T0 --quiet --stdout "${snapshot_file}" \
-        | sudo tar --directory "${DATA_ROOT}" --xattrs --acls --numeric-owner --extract --file -
+    timeout "${RESTORE_TIMEOUT_SECONDS}" zstd -d -T0 --quiet --stdout "${snapshot_file}" \
+        | sudo timeout "${RESTORE_TIMEOUT_SECONDS}" \
+            tar --directory "${DATA_ROOT}" "${TAR_ATTRIBUTES[@]}" --extract --file -
     start_daemon
-    if ! docker run --rm --entrypoint /bin/bash "${image_id}" -c true; then
-        echo "The restored image ${image_id} does not run"
+    if ! timeout 60 docker run --rm --pull never --entrypoint /bin/bash "${IMAGE_ID}" -c true; then
+        echo "The restored image ${IMAGE_ID} does not run"
         exit 4
     fi
     RESTORE_IN_PROGRESS=false
@@ -151,11 +173,14 @@ case "${1:-}" in
     create)
         create_snapshot "${2}"
         ;;
+    check)
+        check_snapshot "${2}"
+        ;;
     restore)
         restore_snapshot "${2}"
         ;;
     *)
-        echo "Usage: ${0} {create|restore} SNAPSHOT_FILE" >&2
+        echo "Usage: ${0} {create|check|restore} SNAPSHOT_FILE" >&2
         exit 1
         ;;
 esac
