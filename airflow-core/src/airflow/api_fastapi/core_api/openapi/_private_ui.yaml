@@ -90,11 +90,13 @@ paths:
         user.
 
 
-        The browser hands the code to airflowctl''s loopback listener, which exchanges
-        it for a CLI token
+        The CLI token is minted here, as **Generate Token** does, and travels to airflowctl
+        encrypted inside
 
-        at ``POST /api/v2/auth/cli/token``. The result is the same token ``POST /auth/token``
-        generates.'
+        the code: the browser hands the code to airflowctl''s loopback listener, which
+        redeems it at
+
+        ``POST /api/v2/auth/cli/token``.'
       operationId: authorize_cli
       requestBody:
         content:
@@ -109,6 +111,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CliAuthorizeResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:

@@ -5299,7 +5299,7 @@ export class LoginService {
     
     /**
      * Create Cli Token
-     * Exchange a code approved in the UI (``airflowctl auth login --web``) for a CLI token.
+     * Exchange a code approved in the UI (``airflowctl auth login --web``) for the CLI token it carries.
      *
      * Unauthenticated, like an OAuth token endpoint: the code and the PKCE verifier are the credential.
      * @param data The data for the request.
@@ -5372,8 +5372,9 @@ export class AuthLinksService {
      * Authorize Cli
      * Approve an ``airflowctl auth login --web`` request for the authenticated user.
      *
-     * The browser hands the code to airflowctl's loopback listener, which exchanges it for a CLI token
-     * at ``POST /api/v2/auth/cli/token``. The result is the same token ``POST /auth/token`` generates.
+     * The CLI token is minted here, as **Generate Token** does, and travels to airflowctl encrypted inside
+     * the code: the browser hands the code to airflowctl's loopback listener, which redeems it at
+     * ``POST /api/v2/auth/cli/token``.
      * @param data The data for the request.
      * @param data.requestBody
      * @returns CliAuthorizeResponse Successful Response
@@ -5386,6 +5387,7 @@ export class AuthLinksService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
+                403: 'Forbidden',
                 422: 'Validation Error'
             }
         });
