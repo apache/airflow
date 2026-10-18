@@ -895,7 +895,7 @@ export class ConnectionService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 409: 'Conflict',
-                422: 'Unprocessable Content'
+                422: 'Unprocessable Entity'
             }
         });
     }
@@ -2056,7 +2056,7 @@ export class DagService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Unprocessable Content'
+                422: 'Unprocessable Entity'
             }
         });
     }
@@ -2114,7 +2114,7 @@ export class DagService {
                 403: 'Forbidden',
                 404: 'Not Found',
                 409: 'Conflict',
-                422: 'Unprocessable Content'
+                422: 'Unprocessable Entity'
             }
         });
     }
@@ -5850,7 +5850,7 @@ export class GridService {
             },
             errors: {
                 404: 'Not Found',
-                422: 'Unprocessable Content'
+                422: 'Unprocessable Entity'
             }
         });
     }
