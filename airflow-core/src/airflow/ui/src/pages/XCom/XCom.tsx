@@ -239,6 +239,7 @@ export const XCom = () => {
     ...dagDisplayNameArg,
     dagId,
     dagRunId: runId,
+    excludeInternalKeys: true,
     limit: pagination.pageSize,
     logicalDateGte: logicalDateGte ?? undefined,
     logicalDateLte: logicalDateLte ?? undefined,

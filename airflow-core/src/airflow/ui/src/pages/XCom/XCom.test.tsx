@@ -78,3 +78,21 @@ describe("XCom list expand/collapse", () => {
     await waitFor(() => expect(screen.queryByTestId("monaco-editor")).toBeNull());
   });
 });
+
+describe("XCom list", () => {
+  it("asks the API to leave out the XComs Airflow reserves for itself", async () => {
+    const requested: Array<string | null> = [];
+
+    server.use(
+      http.get("/api/v2/dags/~/dagRuns/~/taskInstances/~/xcomEntries", ({ request }) => {
+        requested.push(new URL(request.url).searchParams.get("exclude_internal_keys"));
+
+        return HttpResponse.json({ total_entries: 1, xcom_entries: [xcomEntry] });
+      }),
+    );
+    render(<AppWrapper initialEntries={["/xcoms"]} />);
+
+    expect(await screen.findByText("return_value")).toBeInTheDocument();
+    expect(requested).toContain("true");
+  });
+});

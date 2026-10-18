@@ -642,57 +642,12 @@ def test_trigger_ti_id_claim_check(
     )
 
 
-@pytest.mark.parametrize("key", ["_airflow_loop_decision", "_airflow_loop_other"])
-def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_instance, key):
+def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_instance):
     ti = create_task_instance()
-    response = client.post(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{key}", json="continue")
+    response = client.post(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/_airflow_loop_decision_reason", json="forged"
+    )
     assert response.status_code == 400
-
-
-@pytest.mark.parametrize(
-    ("value", "region_index", "expected_status"),
-    [
-        ("continue", 0, 201),
-        ("stop", 2, 201),
-        ("continue", 2, 400),
-        ("stop", 0, 400),
-        (True, 2, 400),
-        ("invalid", 2, 400),
-        ({"decision": "stop"}, 2, 400),
-    ],
-)
-def test_internal_loop_decision_uses_token_gate_coordinates(
-    client, loop_xcoms, session, authenticate_as, value, region_index, expected_status
-):
-    dr, _, consumer, _ = loop_xcoms
-    gate = session.scalar(
-        select(TaskInstance).where(
-            TaskInstance.dag_id == dr.dag_id, TaskInstance.task_id == "body.__loop_gate"
-        )
-    )
-    gate.region_id, gate.region_index = consumer.region_id, region_index
-    gate.state = "running"
-    session.commit()
-    authenticate_as(gate)
-    url = f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision"
-
-    response = client.post(url, json=value)
-
-    assert response.status_code == expected_status
-    stored = session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id))
-    if expected_status == 400:
-        assert stored is None
-        return
-    assert (stored.region_id, stored.region_index, stored.value) == (gate.region_id, region_index, value)
-    authenticate_as(consumer)
-    assert client.post(url, json="stop").status_code == 400
-    assert (
-        client.post(
-            f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{consumer.task_id}/_airflow_loop_decision",
-            json="stop",
-        ).status_code
-        == 400
-    )
 
 
 def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client, authenticate_as):
