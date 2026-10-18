@@ -27,6 +27,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.core_api.routes.public.dag_sources import REDACTED_SOURCE
 from airflow.models import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagcode import DagCode
 from airflow.utils.state import DagRunState
@@ -284,3 +285,46 @@ class TestGetDAGSource:
         expected_content = REDACTED_SOURCE if expect_redacted else self._get_dag_file_code(test_dag.fileloc)
         assert response.json()["content"] == expected_content
         mock_get_auth_manager.return_value.get_authorized_dag_ids.assert_called_once_with(user=mock.ANY)
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dag_sources.get_auth_manager")
+    def test_historical_source_is_redacted_for_unreadable_stale_sibling(
+        self, mock_get_auth_manager, test_client, test_dag, colocated_unreadable_dag, session
+    ):
+        historical_source = (
+            'from airflow.sdk import DAG\nrequested = DAG("example_simplest_dag")\n'
+            'sibling = DAG("other_dag_in_same_file")\n'
+        )
+        current_source = 'from airflow.sdk import DAG\nrequested = DAG("example_simplest_dag")\n'
+        requested = session.scalar(select(DagModel).where(DagModel.dag_id == TEST_DAG_ID))
+        historical_code = session.scalar(select(DagCode).where(DagCode.dag_id == TEST_DAG_ID))
+        historical_code.source_code = historical_source
+        historical_code.source_code_hash = DagCode.dag_source_hash(historical_source)
+        current_version = DagVersion.write_dag(
+            dag_id=TEST_DAG_ID, bundle_name=requested.bundle_name, session=session
+        )
+        session.add(DagCode(current_version, test_dag.fileloc, current_source))
+        colocated_unreadable_dag.is_stale = True
+        session.commit()
+        mock_get_auth_manager.return_value.get_authorized_dag_ids.return_value = {TEST_DAG_ID}
+
+        historical_response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}",
+            params={"version_number": 1},
+            headers={"Accept": "application/json"},
+        )
+        assert historical_response.status_code == 200
+        assert historical_response.json()["content"] == REDACTED_SOURCE
+
+        latest_response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "application/json"}
+        )
+        assert latest_response.status_code == 200
+        assert latest_response.json()["content"] == current_source
+
+        explicit_latest_response = test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}",
+            params={"version_number": current_version.version_number},
+            headers={"Accept": "application/json"},
+        )
+        assert explicit_latest_response.status_code == 200
+        assert explicit_latest_response.json()["content"] == current_source
