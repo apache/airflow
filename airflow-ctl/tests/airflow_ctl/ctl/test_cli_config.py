@@ -1136,6 +1136,8 @@ class TestCliConfigMethods:
                 DAGPatchBody(scheduling_state=DagSchedulingState.PAUSED),
                 id="scheduling-state-alone",
             ),
+            pytest.param(["--is-paused"], DAGPatchBody(is_paused=True), id="explicit-pause"),
+            pytest.param(["--no-is-paused"], DAGPatchBody(is_paused=False), id="explicit-unpause"),
         ],
     )
     @mock.patch.object(AirflowConsole, "print_as", autospec=True)
