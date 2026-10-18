@@ -1703,6 +1703,8 @@ class TestDBCleanup:
                 dag_id=COORDINATES["dag_id"],
                 run_id=COORDINATES["run_id"],
                 node_id="loop",
+                family_root_id=region_id,
+                path=b"",
                 created_at=NOW - timedelta(days=100),
             )
         )
