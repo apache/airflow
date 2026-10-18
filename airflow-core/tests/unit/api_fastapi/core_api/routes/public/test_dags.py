@@ -23,7 +23,8 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, event, func, insert, select, update
+from sqlalchemy.engine import Engine
 
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
@@ -1223,6 +1224,52 @@ class TestPatchDags(TestDagEndpoint):
         assert {dag["dag_id"] for dag in resp_body["dags"]} == set(expected_ids)
         paused_dag_ids = {dag["dag_id"] for dag in resp_body["dags"] if dag["is_paused"]}
         assert paused_dag_ids == set(expected_paused_ids)
+
+    def test_patch_dags_no_n_plus_one_queries(self, session, test_client):
+        """Test that patching Dags with tags doesn't trigger n+1 queries."""
+        num_dags = 8
+        for i in range(num_dags):
+            dag_id = f"test_dag_queries_{i}"
+            dag_model = DagModel(
+                dag_id=dag_id,
+                bundle_name="dag_maker",
+                fileloc=f"/tmp/{dag_id}.py",
+                is_stale=False,
+            )
+            session.add(dag_model)
+            session.flush()
+
+            for j in range(3):
+                tag = DagTag(name=f"tag_{i}_{j}", dag_id=dag_id)
+                session.add(tag)
+
+        session.commit()
+        session.expire_all()
+
+        tag_queries: list[str] = []
+
+        def collect_tag_queries(conn, cursor, statement, parameters, context, executemany):
+            if re.search(r"\bFROM dag_tag\b", statement):
+                tag_queries.append(statement)
+
+        event.listen(Engine, "before_cursor_execute", collect_tag_queries)
+        try:
+            response = test_client.patch("/dags", json={"is_paused": True}, params={"dag_id_pattern": "~"})
+        finally:
+            event.remove(Engine, "before_cursor_execute", collect_tag_queries)
+
+        assert response.status_code == 200
+        body = response.json()
+        dags_with_our_prefix = [d for d in body["dags"] if d["dag_id"].startswith("test_dag_queries_")]
+        assert len(dags_with_our_prefix) == num_dags
+        for dag in dags_with_our_prefix:
+            assert len(dag["tags"]) == 3
+
+        # With n+1, each patched Dag would add its own tag query
+        assert len(tag_queries) == 1, (
+            f"Patched {len(body['dags'])} Dags with {len(tag_queries)} tag queries, "
+            "suggesting n+1 queries for tags"
+        )
 
     def test_patch_dags_should_not_query_on_event_loop(self, test_client, event_loop_queries):
         """Regression for #74948: the tags of each patched Dag must not be queried during serialization."""
