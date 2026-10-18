@@ -61,8 +61,9 @@ class MsSqlHook(DbApiHook):
     SUPPORTED_DBAPI_DRIVERS = (DBAPI_DRIVER_PYMSSQL, DBAPI_DRIVER_MSSQL_PYTHON)
     # Connection extras that are handled by the hook itself and must never reach the DBAPI driver.
     _AIRFLOW_ONLY_EXTRAS = frozenset({"sqlalchemy_scheme", "dbapi_driver"})
-    # mssql-python takes every other extra as a connection string keyword, so the extras that
-    # ``DbApiHook`` reads for itself are filtered out as well.
+    # mssql-python takes every other extra as a connection string keyword, and the string built from a
+    # SQLAlchemy URL fails on unknown keywords. So the extras that ``DbApiHook`` reads for itself are
+    # filtered out for both the direct connection and the URI.
     _MSSQL_PYTHON_IGNORED_EXTRAS = _AIRFLOW_ONLY_EXTRAS | frozenset(
         {
             "placeholder",
@@ -137,9 +138,14 @@ class MsSqlHook(DbApiHook):
         # change the sqlalchemy driver:
         r[0] = self.sqlalchemy_scheme
         # remove query string parameters that are meant for the hook, not for the sqlalchemy dialect:
+        hook_only_extras = (
+            self._MSSQL_PYTHON_IGNORED_EXTRAS
+            if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON
+            else self._AIRFLOW_ONLY_EXTRAS
+        )
         qs = parse_qs(r[3], keep_blank_values=True)
         for k in list(qs.keys()):
-            if k.lower() in self._AIRFLOW_ONLY_EXTRAS:
+            if k.lower() in hook_only_extras:
                 qs.pop(k, None)
         r[3] = urlencode(qs, doseq=True)
         return urlunsplit(r)
@@ -216,14 +222,15 @@ class MsSqlHook(DbApiHook):
         return conn.autocommit_state
 
     def _make_common_data_structure(self, result: Any) -> tuple | list[tuple] | None:
-        """Turn the ``Row`` objects of mssql_python into plain tuples."""
+        """Turn the ``Row`` objects of mssql_python into plain tuples and leave other results alone."""
         if self.dbapi_driver != self.DBAPI_DRIVER_MSSQL_PYTHON:
             return super()._make_common_data_structure(result)
-        if result is None:
-            return None
+        row_class = import_module("mssql_python").Row
+        if isinstance(result, row_class):
+            return tuple(result)
         if isinstance(result, list):
-            return [tuple(row) for row in result]
-        return tuple(result)
+            return [tuple(row) if isinstance(row, row_class) else row for row in result]
+        return result
 
     def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
         """Return MSSQL specific information for OpenLineage."""
