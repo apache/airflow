@@ -111,7 +111,6 @@ def get_gantt_data(
     results = session.execute(query).fetchall()
 
     if not results:
-        # With an active range filter, an existing run with all rows filtered out is not an error.
         filtered_existing_run = (
             start_date_range.is_active() or end_date_range.is_active()
         ) and session.scalar(

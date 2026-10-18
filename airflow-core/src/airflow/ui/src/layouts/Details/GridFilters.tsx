@@ -35,7 +35,6 @@ export const GridFilters = ({ showGanttDateFilters = false }: Props) => {
   ];
 
   if (showGanttDateFilters) {
-    // Task-level start/end date window read by the Gantt query; the run filters above ignore it.
     searchParamKeys.push(SearchParamsKeys.START_DATE_RANGE, SearchParamsKeys.END_DATE_RANGE);
   }
 

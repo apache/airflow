@@ -86,7 +86,6 @@ export const Gantt = ({
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   // Task-level time window, written by the Start/End Date pills in GridFilters.
-  // Filtering happens in the backend; an out-of-window try is simply absent from the response.
   const startDateGte = searchParams.get(SearchParamsKeys.START_DATE_GTE) ?? undefined;
   const startDateLte = searchParams.get(SearchParamsKeys.START_DATE_LTE) ?? undefined;
   const endDateGte = searchParams.get(SearchParamsKeys.END_DATE_GTE) ?? undefined;
