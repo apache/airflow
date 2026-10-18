@@ -298,6 +298,9 @@ def _ensure_resource_server_decision_strategy(
         expected_codes=[200],
     )
 
+    if not isinstance(settings, dict):
+        raise ValueError("Expected Keycloak resource-server settings to be a JSON object.")
+
     if settings.get("decisionStrategy") == "AFFIRMATIVE":
         return
 
