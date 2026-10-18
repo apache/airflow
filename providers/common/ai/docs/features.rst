@@ -126,7 +126,7 @@ checklist.
        ``apache.iceberg`` extra for Iceberg
    * - :doc:`AgentSkillsToolset <toolsets/skills>`
      - Loads ``SKILL.md`` instruction bundles when the model asks for one.
-     - ``skills``; on Airflow 2, install ``pydantic-ai-skills``
+     - ``skills``; on Airflow 2, install ``pydantic-ai-skills>=1.2.0,<2``
    * - :doc:`SandboxToolset <sandbox/index>`
      - Gives the agent a shell and a filesystem in an isolated sandbox: a hosted
        service, a server you run, or a microVM on your machine for local development.
@@ -272,7 +272,8 @@ toolset except
      - Gives a loop on the Anthropic SDK's ``tool_runner`` the toolsets.
      - ``anthropic``
    * - :doc:`OpenAI Agents SDK <frameworks/openai_agents>`
-     - Gives an OpenAI Agents SDK agent the toolsets.
+     - Gives an OpenAI Agents SDK agent the toolsets. Run through ``run_durably``, a retry
+       replays its completed calls.
      - None; install ``openai-agents``
    * - :doc:`LangChain <hooks/langchain>`
      - Builds LangChain chat and embedding models from a connection, and

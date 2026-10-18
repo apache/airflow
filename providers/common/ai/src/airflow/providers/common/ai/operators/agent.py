@@ -239,6 +239,11 @@ def _answered_request(event: dict[str, Any]) -> int | None:
         return -1
 
 
+def _is_awaiting_input(error: BaseException) -> bool:
+    """Whether ``error`` is the pause for tool approval, which only Airflow 3.3+ raises."""
+    return AIRFLOW_V_3_3_PLUS and isinstance(error, TaskAwaitingInput)
+
+
 def _declares_agent_template_fields(toolset: Any) -> bool:
     """Whether *toolset*, or a toolset it wraps or combines, has connection IDs to render."""
     return isinstance(toolset, AbstractToolset) and any(
@@ -642,6 +647,21 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
                 "DynamicToolset(function, id=...); the id of a Toolset capability around a toolset "
                 "does not reach it."
             )
+        # One instance listed twice is one toolset to pydantic-ai; two instances sharing an id
+        # would have their recorded calls filed under one name.
+        first_by_id: dict[str, AbstractToolset[Any]] = {}
+        duplicates: list[str] = []
+        for toolset in self._running_toolsets():
+            for leaf in iter_toolsets(toolset):
+                if isinstance(leaf, DURABLE_UNIT_TOOLSETS) and leaf.id is not None:
+                    if first_by_id.setdefault(leaf.id, leaf) is not leaf and leaf.id not in duplicates:
+                        duplicates.append(leaf.id)
+        if duplicates:
+            raise ValueError(
+                f"durable=True needs a unique id on each toolset, but more than one toolset has the id "
+                f"{' or '.join(map(repr, duplicates))}: durable replay records each tool call "
+                "under its toolset's id, so a retry could not tell their calls apart."
+            )
 
     def _reject_sandbox_without_continuity(self, *, durable: bool, enable_hitl_review: bool) -> None:
         """
@@ -860,13 +880,15 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
 
     def _agent_output_type(self) -> Any:
         """
-        Return ``output_type``, plus ``DeferredToolRequests`` when tool approval is supported.
+        Return ``output_type``, plus ``DeferredToolRequests`` when tool approval is supported or ``durable``.
 
         pydantic-ai drops ``DeferredToolRequests`` from the output schema the model sees;
-        it only lets the run end on a tool call awaiting approval. ``self.output_type`` is
-        left alone because it is part of the serialized Dag.
+        it only lets the run end on a tool call awaiting approval. A durable run cannot pause,
+        but ending it there lets ``_pause_for_tool_approval`` fail the task with
+        ``UnsupportedToolDeferralError`` instead of pydantic-ai's ``UserError``.
+        ``self.output_type`` is left alone because it is part of the serialized Dag.
         """
-        if not self._supports_tool_approval():
+        if not (self._supports_tool_approval() or self.durable):
             return self.output_type
         declared = self.output_type if isinstance(self.output_type, (list, tuple)) else [self.output_type]
         return [*declared, DeferredToolRequests]
@@ -878,6 +900,20 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
             for toolset in (*(self.toolsets or []), *(self.agent_params.get("toolsets") or []))
             if isinstance(toolset, AbstractToolset)
         ]
+        for capability in self._declared_capabilities:
+            if (toolset := _resolve_capability_toolset(capability)) is not None:
+                candidates.append(toolset)
+        return candidates
+
+    def _running_toolsets(self) -> list[AbstractToolset[Any]]:
+        """
+        Return the toolsets ``_build_agent`` hands the agent.
+
+        Unlike ``_declared_toolsets``, ``agent_params["toolsets"]`` counts only when
+        ``toolsets=`` is empty, because ``_build_agent`` ignores it otherwise.
+        """
+        listed = self.toolsets or self.agent_params.get("toolsets") or []
+        candidates = [toolset for toolset in listed if isinstance(toolset, AbstractToolset)]
         for capability in self._declared_capabilities:
             if (toolset := _resolve_capability_toolset(capability)) is not None:
                 candidates.append(toolset)
@@ -1134,7 +1170,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
         """Finish a run, or pause it when the agent is waiting on a tool call to be approved."""
         log_run_summary(self.log, result, usage=attempt_usage)
         if isinstance(result.output, DeferredToolRequests):
-            self._pause_for_tool_approval(context, result, attempt_usage=attempt_usage)
+            try:
+                self._pause_for_tool_approval(context, result, attempt_usage=attempt_usage)
+            except BaseException as e:
+                # The run itself ended normally, after _run_and_report_on_failure, so a refusal
+                # here is the first point this attempt is known to have failed.
+                if (run_usage := self._run_usage) is not None and not _is_awaiting_input(e):
+                    self._report_failed_run(context, run_usage, run_id=result.run_id)
+                raise
         self._emit_run_metadata(context, result, usage=attempt_usage)
         if self._usage_budget and (run_usage := self._run_usage) is not None:
             self._log_cumulative_usage(run_usage)
@@ -1206,7 +1249,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseAsyncOperator, HITLReviewMixin
             )
         pending_names = ", ".join(call.tool_name for call in requests.approvals)
         if not self._supports_tool_approval():
-            # DeferredToolRequests in a user-set output_type reaches here where approval is off.
+            # Reached under durable=True, or with DeferredToolRequests in a user-set output_type.
             raise UnsupportedToolDeferralError(
                 f"The agent called tools that need approval ({pending_names}), but tool approval "
                 "needs Airflow 3.3+ and is not available with durable, enable_hitl_review, "

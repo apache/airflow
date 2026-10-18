@@ -45,7 +45,7 @@ from airflow.models.taskinstance import (
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import task, task_group
+from airflow.sdk import LoopDecision, task, task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -1329,6 +1329,42 @@ class TestGetGridDataEndpoint:
 class TestGetLoopSummaryEndpoint:
     gate_task_id = "body.__loop_gate"
 
+    @pytest.mark.parametrize(
+        ("until", "expected"),
+        [
+            (
+                lambda loop: LoopDecision(stop=loop.index >= 1, reason=f"iteration {loop.index} decided"),
+                ["iteration 0 decided", "iteration 1 decided"],
+            ),
+            (lambda loop: loop.index >= 1, [None, None]),
+            (lambda loop: LoopDecision(stop=loop.index >= 1), [None, None]),
+        ],
+        ids=["with_reason", "plain_bool", "decision_without_reason"],
+    )
+    def test_loop_summary_reports_the_reason_of_each_iteration(self, test_client, dag_maker, until, expected):
+        @task
+        def work():
+            return 1
+
+        @task_group
+        def body():
+            work()
+
+        with dag_maker(serialized=False) as dag:
+            body.loop(max_iterations=3, until=until)
+        run = dag.test()
+
+        response = test_client.get(f"/grid/loop/{run.dag_id}/{run.run_id}/body")
+
+        assert response.status_code == 200, response.text
+        iterations = response.json()["iterations"]
+        assert [iteration.get("decision_reason") for iteration in iterations] == expected
+        assert all(
+            "decision_reason" not in iteration
+            for iteration in iterations
+            if iteration.get("decision_reason") is None
+        )
+
     @pytest.fixture
     def executed_fixed_loop(self, dag_maker):
         @task
@@ -1605,11 +1641,13 @@ class TestGetLoopSummaryEndpoint:
         with (
             capture_orm_selects("task_instance") as all_runs_tis,
             capture_orm_selects("dynamic_region") as all_runs_regions,
+            capture_orm_selects("xcom_v2") as all_runs_xcoms,
         ):
             response = test_client.get(path, params={"limit": 3})
 
         assert len(all_runs_tis) == len(one_run_tis)
         assert len(all_runs_regions) == len(one_run_regions)
+        assert all_runs_xcoms == []
         assert [(run["run_id"], run["status"]) for run in response.json()["runs"]] == [
             ("history_0", "ran_to_cap"),
             ("history_1", "failed"),

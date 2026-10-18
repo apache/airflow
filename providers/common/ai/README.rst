@@ -36,7 +36,7 @@ This is a provider package for ``common.ai`` provider. All classes for this prov
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <htt  ps://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.0.0/>`_.
 
 Installation
 ------------
@@ -99,7 +99,7 @@ Extra            Dependencies
 ``openshell``    ``openshell>=0.1.2,<0.2``, ``grpcio>=1.78.0``, ``protobuf>=6.31.1``
 ``code-mode``    ``pydantic-ai-harness[codemode]>=0.35.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
-``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
+``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0,<2``
 ``islo``         ``islo>=0.3.19``
 ``avro``         ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``      ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``

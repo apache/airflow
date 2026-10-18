@@ -344,6 +344,18 @@ class LoopContext(BaseModel):
     terminal_is_mapped: Annotated[bool, Field(title="Terminal Is Mapped")]
 
 
+class LoopDecisionPayload(BaseModel):
+    """
+    A loop gate's evaluation of its ``until`` callable.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    stop: Annotated[bool, Field(title="Stop")]
+    reason: Annotated[str | None, Field(title="Reason")] = None
+
+
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -486,6 +498,7 @@ class TISuccessStatePayload(BaseModel):
     task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
     outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TITargetStatePayload(BaseModel):
@@ -889,6 +902,7 @@ class TITerminalStatePayload(BaseModel):
     retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     pid: Annotated[int | None, Field(title="Pid")] = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class XComArgBinding(BaseModel):

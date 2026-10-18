@@ -22,6 +22,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
@@ -32,6 +33,10 @@ from airflow.providers.common.ai.observability import genai_instrumentation_sett
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
+
+# An Airflow task is never interactive, and pydantic-ai's first-run banner on stderr would
+# land in the task log as ERROR lines.
+pydantic_ai.BANNER_ENABLED = False
 
 OutputT = TypeVar("OutputT")
 

@@ -296,7 +296,7 @@ Installation
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai "strands-agents>=1.56.0"
+    pip install "apache-airflow-providers-common-ai[sql]" "strands-agents>=1.56.0"
 
 Pin the ``strands-agents`` lower bound as above; 1.56 is the release this
 integration is tested with. Without a bound, a resolver that cannot satisfy Strands'

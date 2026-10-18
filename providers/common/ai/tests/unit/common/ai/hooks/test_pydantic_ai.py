@@ -1346,6 +1346,24 @@ class TestPydanticAIHookCreateAgent:
 
         assert agent.run_sync("hi").output == "api key: ***"
 
+    def test_agent_run_from_a_coding_agent_shell_prints_no_banner(self, monkeypatch, capsys):
+        """pydantic-ai shows its first-run banner to a coding agent; a task's stderr goes to the task log."""
+        # The banner, and the module holding its once-per-process claim, arrived in pydantic-ai 2.43.
+        pydantic_ai_display = pytest.importorskip("pydantic_ai._display")
+        monkeypatch.setenv("CLAUDECODE", "1")
+        # pydantic-ai suppresses the banner by itself under pytest and in CI.
+        monkeypatch.delenv("PYTEST_VERSION", raising=False)
+        monkeypatch.delenv("CI", raising=False)
+        monkeypatch.delenv("PYDANTIC_AI_NO_BANNER", raising=False)
+        monkeypatch.setattr(pydantic_ai_display, "_banner_displayed", False)
+
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        with patch.object(hook, "get_conn", autospec=True, return_value=TestModel()):
+            agent = hook.create_agent(instructions="hi")
+        agent.run_sync("hi")
+
+        assert capsys.readouterr().err == ""
+
     def test_create_agent_without_instructions_or_spec_file_raises(self):
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         with pytest.raises(ValueError, match="instructions is required"):

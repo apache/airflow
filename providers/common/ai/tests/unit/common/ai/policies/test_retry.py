@@ -473,9 +473,9 @@ class TestClassification:
         assert (first.action, second.action) == (RetryAction.RETRY, RetryAction.FAIL)
         prompts = [call.args[0] for call in agent.run_sync.call_args_list]
         assert "ConnectionError: reset" in prompts[0]
-        assert "attempt 1 of 3" in prompts[0]
+        assert "attempt 1 of 4" in prompts[0]
         assert "PermissionError: expired" in prompts[1]
-        assert "attempt 2 of 3" in prompts[1]
+        assert "attempt 2 of 4" in prompts[1]
 
     @patch(HOOK, autospec=True)
     def test_custom_instructions_forwarded_to_agent(self, mock_hook_cls):
@@ -661,7 +661,7 @@ class TestConfidenceGate:
         assert decision.reason == "category=auth confidence=0.05 threshold=n/a action=fail"
 
 
-PROMPT_HEADER = "Classify this error from a data pipeline task (attempt 2 of 4):\n\n"
+PROMPT_HEADER = "Classify this error from a data pipeline task (attempt 2 of 5):\n\n"
 
 POLICY_CLASSES = [
     pytest.param(ClassifierRetryPolicy, id="classifier"),
@@ -692,13 +692,15 @@ def _truncated_read(*, explicit: bool = True) -> Exception:
     )
 
 
-def _prompt_for(mock_hook_cls, policy_cls, exception, **kwargs) -> str:
+def _prompt_for(
+    mock_hook_cls, policy_cls, exception, *, try_number: int = 2, max_tries: int = 4, **kwargs
+) -> str:
     """Evaluate ``exception`` under a ``policy_cls`` built with ``kwargs`` and return the prompt the model got."""
     if policy_cls is ClassifierRetryPolicy:
         agent = _install(mock_hook_cls, _agent("data"))
     else:
         agent = _install(mock_hook_cls, _open_agent("data", should_retry=False))
-    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=2, max_tries=4)
+    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=try_number, max_tries=max_tries)
     return agent.run_sync.call_args.args[0]
 
 
@@ -712,7 +714,36 @@ class TestPrompt:
 
         prompt = agent.run_sync.call_args.args[0]
         assert "ValueError: bad column type" in prompt
-        assert "attempt 2 of 5" in prompt
+        assert "attempt 2 of 6" in prompt
+
+    @pytest.mark.parametrize(
+        ("try_number", "max_tries", "expected"),
+        [
+            pytest.param(1, 1, "attempt 1 of 2", id="first-try-with-one-retry-left"),
+            pytest.param(2, 1, "attempt 2 of 2", id="last-try"),
+            pytest.param(3, 3, "attempt 3 of 4", id="after-clear"),
+        ],
+    )
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_counts_the_first_try_in_the_attempt_total(
+        self, mock_hook_cls, policy_cls, try_number, max_tries, expected
+    ):
+        """
+        ``max_tries`` is the last try number that may still retry, so the final attempt is one more.
+
+        It equals ``retries`` on a fresh run; a clear adds the tries already used, so a ``retries=1``
+        task cleared after two tries runs try 3 with ``max_tries=3``.
+        """
+        prompt = _prompt_for(
+            mock_hook_cls,
+            policy_cls,
+            ValueError("bad column type"),
+            try_number=try_number,
+            max_tries=max_tries,
+        )
+
+        assert f"({expected})" in prompt
 
     @pytest.mark.enable_redact
     @patch(HOOK, autospec=True)
@@ -728,7 +759,7 @@ class TestPrompt:
         )
 
         assert agent.run_sync.call_args.args[0] == (
-            "Classify this error from a data pipeline task (attempt 1 of 3):\n\n"
+            "Classify this error from a data pipeline task (attempt 1 of 4):\n\n"
             "ConnectionError: could not authenticate with password ***"
         )
 

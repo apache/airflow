@@ -36,12 +36,13 @@ from pydantic_ai.capabilities import (
     AbstractCapability,
     CapabilityOrdering,
     CombinedCapability,
+    HandleDeferredToolCalls,
     PrefixTools,
     Thinking,
     Toolset,
     WebSearch,
 )
-from pydantic_ai.exceptions import ModelRetry, ToolFailed, UsageLimitExceeded
+from pydantic_ai.exceptions import ApprovalRequired, ModelRetry, ToolFailed, UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
     ModelMessagesTypeAdapter,
@@ -66,6 +67,7 @@ from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.base import RUN_ID_KEY, build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, DurableRun, journal_scope
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.agent import (
     _TOOL_APPROVAL_TRANSCRIPT_KEY,
@@ -1600,6 +1602,10 @@ class TestAgentOperatorRegenerateWithFeedback:
         assert output == '{"text":"Revised","score":0.0}'
 
 
+def _refund(order_id: int) -> str:
+    return f"refunded order {order_id}"
+
+
 def _tool_then_answer(fail_after_tool: list[bool], live: dict[str, int]):
     """A model that calls ``my_tool`` once, then answers; it fails once after the tool if asked to."""
 
@@ -1740,6 +1746,125 @@ class TestAgentOperatorDurable:
 
     def test_non_durable_accepts_a_toolset_without_an_id(self):
         AgentOperator(task_id="t", prompt="p", llm_conn_id="c", toolsets=[FunctionToolset()])
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param(
+                {"toolsets": [FunctionToolset(id="orders"), FunctionToolset(id="orders")]}, id="toolsets"
+            ),
+            pytest.param(
+                {"toolsets": [FunctionToolset(id="orders"), FunctionToolset(id="orders").prefixed("b")]},
+                id="wrapped",
+            ),
+            pytest.param(
+                {
+                    "toolsets": [FunctionToolset(id="orders")],
+                    "capabilities": [Toolset(FunctionToolset(id="orders"))],
+                },
+                id="toolset-capability",
+            ),
+            pytest.param(
+                {"agent_params": {"toolsets": [FunctionToolset(id="orders"), FunctionToolset(id="orders")]}},
+                id="agent-params",
+            ),
+        ],
+    )
+    def test_durable_refuses_two_toolsets_with_the_same_id(self, kwargs):
+        with pytest.raises(ValueError, match="more than one toolset has the id 'orders'"):
+            AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, **kwargs)
+
+    def test_durable_ignores_agent_params_toolsets_that_toolsets_overrides(self):
+        AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            toolsets=[FunctionToolset(id="orders")],
+            agent_params={"toolsets": [FunctionToolset(id="orders")]},
+        )
+
+    def test_durable_accepts_one_toolset_passed_twice(self):
+        orders = FunctionToolset(id="orders")
+
+        AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            toolsets=[orders],
+            capabilities=[Toolset(orders)],
+        )
+
+    def test_durable_fails_a_tool_that_raises_approval_required_with_unsupported_tool_deferral_error(self):
+        def refund() -> str:
+            raise ApprovalRequired
+
+        def model(messages, info):
+            return ModelResponse(parts=[ToolCallPart("refund", {})], usage=RequestUsage(input_tokens=7))
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=True,
+            enable_tool_logging=False,
+            toolsets=[FunctionToolset(tools=[refund], id="shop")],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model), **kw)
+        context = _make_context(ti=_make_ti(id="ti-1", try_number=1))
+
+        with (
+            patch.object(
+                AgentOperator, "_build_durable_storage", autospec=True, return_value=MemoryStorage()
+            ),
+            pytest.raises(UnsupportedToolDeferralError, match=r"need approval \(refund\)"),
+        ):
+            op.execute(context=context)
+
+        pushed = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushed["usage"]["input_tokens"] == 7
+
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(
+                FunctionToolset(tools=[_refund], id="shop").approval_required(), id="approval-required"
+            ),
+            pytest.param(
+                FunctionToolset(tools=[Tool(_refund, requires_approval=True)], id="shop"), id="tool"
+            ),
+        ],
+    )
+    def test_durable_runs_a_tool_needing_approval_that_a_handler_settles_inline(self, toolset):
+        def model(messages, info):
+            if len(messages) == 1:
+                return ModelResponse(parts=[ToolCallPart("_refund", {"order_id": 4411})])
+            return ModelResponse(parts=[TextPart("done")])
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=True,
+            enable_tool_logging=False,
+            toolsets=[toolset],
+            capabilities=[
+                HandleDeferredToolCalls(handler=lambda ctx, req: req.build_results(approve_all=True))
+            ],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model), **kw)
+
+        with patch.object(
+            AgentOperator, "_build_durable_storage", autospec=True, return_value=MemoryStorage()
+        ):
+            output = op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
+
+        assert output == "done"
 
     @pytest.mark.parametrize(
         "kwargs",

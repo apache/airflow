@@ -68,6 +68,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -144,6 +145,7 @@ from airflow.sdk.execution_time.comms import (
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
+    StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
@@ -1447,6 +1449,73 @@ class TestWatchedSubprocess:
                 target=subprocess_main,
             )
 
+    def test_prepare_ti_context_leaves_listed_xcoms_to_python_task_runner(self, make_ti_context):
+        """
+        For Python tasks, the supervisor leaves the listed XComs to the Python task runner.
+
+        The task runner deletes them with XCom.delete, a call that also purges them from the XCom backend.
+        """
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append((request.method, request.url.path))
+            return httpx2.Response(200, json={})
+
+        proc = ActivitySubprocess(
+            process_log=MagicMock(spec=FilteringBoundLogger),
+            id=TI_ID,
+            pid=12345,
+            stdin=MagicMock(spec=socket.socket),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
+            process=MagicMock(spec=psutil.Process),
+        )
+        ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["return_value"]})
+        ti = TaskInstance(
+            id=TI_ID,
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+
+        try:
+            prepared = proc._prepare_ti_context(ti, ti_context)
+        finally:
+            proc.selector.close()
+        assert requests == []
+        assert prepared is not None
+        assert prepared.xcom_keys_to_clear == ["return_value"]
+
+    def test_python_task_process_gets_the_listed_xcom_keys(self, mocker, make_ti_context):
+        mock_client = MagicMock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context().model_copy(
+            update={"xcom_keys_to_clear": ["return_value"]}
+        )
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=mock_client,
+            target=lambda: None,
+        )
+        assert proc.wait() == 0
+
+        (startup,) = [c.args[1] for c in mock_send.call_args_list if isinstance(c.args[1], StartupDetails)]
+        assert startup.ti_context.xcom_keys_to_clear == ["return_value"]
+        mock_client.xcoms.delete.assert_not_called()
+
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
     def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
         """
@@ -2676,7 +2745,9 @@ REQUEST_TEST_CASES = [
     ),
     RequestTestCase(
         message=SucceedTask(
-            end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
+            end_date=timezone.parse("2024-10-31T12:00:00Z"),
+            rendered_map_index="test success task",
+            loop_decision=LoopDecisionPayload(stop=True, reason="converged"),
         ),
         client_mock=ClientMock(
             method_path="task_instances.succeed",
@@ -2686,6 +2757,7 @@ REQUEST_TEST_CASES = [
                 "task_outlets": None,
                 "when": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test success task",
+                "loop_decision": LoopDecisionPayload(stop=True, reason="converged"),
             },
         ),
         test_id="succeed_task",
@@ -4741,15 +4813,21 @@ class TestHandleRequest:
         proc.client.task_instances.finish.assert_called_once()
         assert proc._pending_terminal_state_msg is None
 
-    def test_task_state_retry_reason_forwarded_to_finish(self, watched_subprocess, mocker):
-        """A TaskState message's retry_reason must reach the deferred finish() call."""
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            {"retry_reason": "auth error, do not retry"},
+            {"loop_decision": LoopDecisionPayload(stop=False, reason="error 0.2")},
+        ],
+        ids=["retry_reason", "loop_decision"],
+    )
+    def test_task_state_extras_forwarded_to_finish(self, watched_subprocess, mocker, extra):
+        """Optional TaskState fields must reach the deferred finish() call."""
         watched_subprocess, _ = watched_subprocess
         watched_subprocess._exit_code = 0
 
         msg = TaskState(
-            state=TaskInstanceState.FAILED,
-            end_date=timezone.parse("2024-10-31T12:00:00Z"),
-            retry_reason="auth error, do not retry",
+            state=TaskInstanceState.FAILED, end_date=timezone.parse("2024-10-31T12:00:00Z"), **extra
         )
         watched_subprocess._handle_request(msg, mocker.Mock(), req_id=1)
 
@@ -4760,7 +4838,7 @@ class TestHandleRequest:
             state=TaskInstanceState.FAILED,
             when=mocker.ANY,
             rendered_map_index=None,
-            retry_reason="auth error, do not retry",
+            **{"retry_reason": None, "loop_decision": None, **extra},
         )
 
 

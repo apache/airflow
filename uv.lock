@@ -167,10 +167,7 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-boat-sdk = "2026-10-11T00:00:00Z"
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-pydantic-ai-skills = "2026-07-16T00:00:00Z"
-typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [manifest]
 members = [
@@ -2131,7 +2128,7 @@ requires-dist = [
     { name = "pendulum", specifier = ">=3.1.0" },
     { name = "pluggy", specifier = ">=1.5.0" },
     { name = "psutil", specifier = ">=5.8.0" },
-    { name = "pydantic", specifier = ">=2.11.0" },
+    { name = "pydantic", specifier = ">=2.12.0" },
     { name = "pygments", specifier = ">=2.0.1,!=2.19.0" },
     { name = "pygtrie", specifier = ">=2.5.0" },
     { name = "pyjwt", specifier = ">=2.11.0" },
@@ -3126,6 +3123,9 @@ openlineage = [
 pandas = [
     { name = "pandas" },
 ]
+parquet = [
+    { name = "pyarrow" },
+]
 python3-saml = [
     { name = "lxml", marker = "python_full_version < '3.13'" },
     { name = "python3-saml", marker = "python_full_version < '3.13'" },
@@ -3151,7 +3151,7 @@ standard = [
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
-    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "sqlalchemy"] },
+    { name = "apache-airflow-providers-amazon", extra = ["aiobotocore", "parquet", "sqlalchemy"] },
     { name = "apache-airflow-providers-apache-hive" },
     { name = "apache-airflow-providers-cncf-kubernetes" },
     { name = "apache-airflow-providers-common-ai" },
@@ -3223,6 +3223,9 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
     { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
+    { name = "pyarrow", marker = "python_full_version == '3.13.*' and extra == 'parquet'", specifier = ">=18.0.0" },
+    { name = "pyarrow", marker = "python_full_version < '3.13' and extra == 'parquet'", specifier = ">=16.1.0" },
+    { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyathena", specifier = ">=3.10.0" },
     { name = "python3-saml", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.16.0" },
     { name = "redshift-connector", specifier = ">=2.1.3" },
@@ -3233,13 +3236,14 @@ requires-dist = [
     { name = "watchtower", specifier = ">=3.3.1,<4" },
     { name = "xmlsec", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.3.14" },
 ]
-provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "openlineage", "salesforce", "ssh", "standard", "common-ai", "common-messaging", "duckdb", "sqlalchemy"]
+provides-extras = ["aiobotocore", "cncf-kubernetes", "s3fs", "msk", "python3-saml", "apache-hive", "exasol", "fab", "ftp", "google", "imap", "microsoft-azure", "mongo", "pandas", "parquet", "openlineage", "salesforce", "ssh", "standard", "common-ai", "common-messaging", "duckdb", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-amazon", extras = ["aiobotocore"], editable = "providers/amazon" },
+    { name = "apache-airflow-providers-amazon", extras = ["parquet"], editable = "providers/amazon" },
     { name = "apache-airflow-providers-amazon", extras = ["sqlalchemy"], editable = "providers/amazon" },
     { name = "apache-airflow-providers-apache-hive", editable = "providers/apache/hive" },
     { name = "apache-airflow-providers-cncf-kubernetes", editable = "providers/cncf/kubernetes" },
@@ -4710,7 +4714,7 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.35.0" },
     { name = "pydantic-ai-shields", marker = "extra == 'shields'", specifier = ">=0.3.4" },
-    { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0" },
+    { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0,<2" },
     { name = "pydantic-ai-slim", specifier = ">=2.36.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'", specifier = ">=2.36.0" },
     { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=2.36.0" },
@@ -4749,7 +4753,7 @@ dev = [
     { name = "openshell", specifier = ">=0.1.2,<0.2" },
     { name = "protobuf", specifier = ">=6.31.1" },
     { name = "pydantic-ai-harness", extras = ["codemode"], specifier = ">=0.35.0" },
-    { name = "pydantic-ai-skills", specifier = ">=1.2.0" },
+    { name = "pydantic-ai-skills", specifier = ">=1.2.0,<2" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.36.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
 ]
@@ -10730,7 +10734,7 @@ wheels = [
 
 [[package]]
 name = "boat-sdk"
-version = "1.9.3"
+version = "1.9.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -10738,9 +10742,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/90/7c/a843717209c5bcc1afff728bd03b1c2aeeefdf2b7f3214cff606dec4066e/boat_sdk-1.9.3.tar.gz", hash = "sha256:7a1256f290f2da73aab253747dc82c2cb3b3e30121a021d741bf3c83fb3e8ca0", size = 161207, upload-time = "2026-10-10T19:14:40.093Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/28/b64316a02cf88763707fc1c0af8fd1cb7bb18c557f43a8947aa003da7c15/boat_sdk-1.9.7.tar.gz", hash = "sha256:5ab15d6f1c2e73a2ff3aa71b0e65234aa30cb0c60879ab21bf54cfc4a261f798", size = 185341, upload-time = "2026-10-12T20:05:46.602Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5b/4d/53189efbc1dc899c4f3b84f76b61bfcf9f9231e208ff9e3a991263e3e546/boat_sdk-1.9.3-py3-none-any.whl", hash = "sha256:00b890cdd9180534893c7d6e4149e530bdb6383434c2c72275b814f058331c5d", size = 345784, upload-time = "2026-10-10T19:14:38.434Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/a4/2dae22c10a18dab1f7b0573c2fdd7c659379eedf49341b6b50d4fa24ff63/boat_sdk-1.9.7-py3-none-any.whl", hash = "sha256:9d686b8ef2491f02270074260bd7af46aa2f81e6e43ef13031a21ac31198af19", size = 396304, upload-time = "2026-10-12T20:05:45.078Z" },
 ]
 
 [[package]]
@@ -20081,16 +20085,16 @@ wheels = [
 
 [[package]]
 name = "pydantic-ai-skills"
-version = "1.2.0"
+version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "pydantic-ai-slim" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/90/5f20728badc7d17ca0e81f24dc35a96c02f008323dce393d0e70a8465144/pydantic_ai_skills-1.2.0.tar.gz", hash = "sha256:e52f7e8243343dfa94206aae11cd142120edb8990fc392b1d8af32f99b6d351e", size = 9031839, upload-time = "2026-07-15T02:37:26.37Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/59/65d312c625c546b4754022d0e3e20921f9637f1e87225c0fbcbce09ddb82/pydantic_ai_skills-1.4.0.tar.gz", hash = "sha256:7303e0738a837218415f8b2e7bd5b5cbc0ceeb74850b1902c2d079550e0b9b83", size = 9095029, upload-time = "2026-08-16T13:01:26.999Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/74/143ca60dd9bfa11ce0349ee58bbdd646798c8bdc031588d67a8bea96797d/pydantic_ai_skills-1.2.0-py3-none-any.whl", hash = "sha256:7ff4eb4b307deb6ef3bf31a6d9493c1e3a8e9b866a13b866a9ea4606bd914206", size = 63883, upload-time = "2026-07-15T02:37:24.117Z" },
+    { url = "https://files.pythonhosted.org/packages/96/eb/a4bea0c2c97f2351938e0ae2200fb197e4953928337198a17d89f0d0bbbb/pydantic_ai_skills-1.4.0-py3-none-any.whl", hash = "sha256:bce8731a042f50c45965acc520dc883163e511c34b208f720eb62067ef5be686", size = 75744, upload-time = "2026-08-16T13:01:25.501Z" },
 ]
 
 [[package]]
@@ -24332,18 +24336,20 @@ wheels = [
 
 [[package]]
 name = "typesafe-sdk"
-version = "0.7.0"
+version = "0.7.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
+    { name = "packaging" },
     { name = "pydantic" },
     { name = "pydantic-core" },
     { name = "tenacity" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/28/e2/ac317772d4d5cfabf3cecdeacd83cc838523e240bb4e1cf256837e6005bb/typesafe_sdk-0.7.0.tar.gz", hash = "sha256:930d42fd73cfed6f25bccae488ce0f30f6043eaedd8682ef59734e79ab94a876", size = 22235, upload-time = "2026-09-18T09:12:30.846Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/12/3a897e9f424be6f4db0648a955f8fadbe62149d118a03614df897b5a2ec9/typesafe_sdk-0.7.4.tar.gz", hash = "sha256:a20dca217a746db1ac5534ac502de16e1f86a400b4ec09f8594e6221c2bc9558", size = 24388, upload-time = "2026-10-09T15:47:14.978Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/2a/16f4163e6d8827ef80b2ed7a400c80688e1ebf571c10f143f792bdafc654/typesafe_sdk-0.7.0-py3-none-any.whl", hash = "sha256:c6d2257c4b04b8d4d81cff2b55489b4188795fd44fb40b9cef26ff243b2d1080", size = 35352, upload-time = "2026-09-18T09:12:29.625Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/49/6cd65684e41e25069f4d12c09cd7e1e3f81477f06acb29bf0d1815e27d1e/typesafe_sdk-0.7.4-py3-none-any.whl", hash = "sha256:61cf3f2fe9da20b68c3d3fe2fb76bbb2f35f8c4a9a65a6b81c43a535d2a53210", size = 37700, upload-time = "2026-10-09T15:47:12.418Z" },
 ]
 
 [[package]]
