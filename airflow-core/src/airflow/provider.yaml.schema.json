@@ -732,6 +732,26 @@
                 "type": "string"
             }
         },
+        "webhook-sources": {
+            "type": "array",
+            "description": "Inbound webhook source types contributed by the provider. Each entry maps a source type to the WebhookSource class that verifies and parses its deliveries. A source type declared by more than one provider is served by none of them.",
+            "items": {
+                "type": "object",
+                "required": ["source-type", "classpath"],
+                "additionalProperties": false,
+                "properties": {
+                    "source-type": {
+                        "type": "string",
+                        "description": "Name of the source type, as set in the source_type extra of an inbound_webhook connection. 1 to 64 lowercase letters, digits and '_', starting with a letter, so that it fits the column deliveries record it in. The trailing lookahead rejects the newline a YAML block scalar leaves.",
+                        "pattern": "^[a-z][a-z0-9_]{0,63}$(?!\\n)"
+                    },
+                    "classpath": {
+                        "type": "string",
+                        "description": "Fully-qualified class name of the airflow.webhooks.base.WebhookSource subclass."
+                    }
+                }
+            }
+        },
         "source-date-epoch": {
             "type": "integer",
             "description": "Source date epoch - seconds since epoch (gmtime) when the release documentation was prepared. Used to generate reproducible package builds with flint.",

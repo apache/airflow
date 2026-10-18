@@ -2000,6 +2000,12 @@ PROVIDERS_COMMANDS = (
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
+        name="webhook-sources",
+        help="Get information about webhook source types provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.webhook_sources_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name="notifications",
         help="Get information about notifications provided",
         func=lazy_load_command("airflow.cli.commands.provider_command.notifications_list"),

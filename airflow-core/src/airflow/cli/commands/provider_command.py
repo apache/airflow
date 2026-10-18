@@ -239,6 +239,24 @@ def queues_list(args):
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
+def webhook_sources_list(args):
+    """List all webhook source types at the command line."""
+    providers_manager = ProvidersManager()
+    conflicts = providers_manager.webhook_source_conflicts
+    AirflowConsole().print_as(
+        data=providers_manager.webhook_sources,
+        output=args.output,
+        mapper=lambda x: {
+            "source_type": x.source_type,
+            "classpath": x.classpath,
+            "package_name": x.package_name,
+            "status": "conflict: served by none" if x.source_type in conflicts else "ok",
+        },
+    )
+
+
+@suppress_logs_and_warning
+@providers_configuration_loaded
 def config_list(args):
     """List all configurations at the command line."""
     AirflowConsole().print_as(
