@@ -45,12 +45,12 @@ class FILE_FORMAT(enum.Enum):
     PARQUET = enum.auto()
 
 
-FileOptions = namedtuple("FileOptions", ["mode", "suffix", "function"])
+FileOptions = namedtuple("FileOptions", ["mode", "suffix", "function", "polars_function"])
 
 FILE_OPTIONS_MAP = {
-    FILE_FORMAT.CSV: FileOptions("r+", ".csv", "to_csv"),
-    FILE_FORMAT.JSON: FileOptions("r+", ".json", "to_json"),
-    FILE_FORMAT.PARQUET: FileOptions("rb+", ".parquet", "to_parquet"),
+    FILE_FORMAT.CSV: FileOptions("r+", ".csv", "to_csv", "write_csv"),
+    FILE_FORMAT.JSON: FileOptions("r+", ".json", "to_json", "write_json"),
+    FILE_FORMAT.PARQUET: FileOptions("rb+", ".parquet", "to_parquet", "write_parquet"),
 }
 
 
@@ -87,7 +87,8 @@ class SqlToS3Operator(BaseOperator):
     :param max_rows_per_file: (optional) argument to set destination file number of rows limit, if source data
         is larger than that, it will be dispatched into multiple files.
         Will be ignored if ``groupby_kwargs`` argument is specified.
-    :param df_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
+    :param df_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``,
+        or in ``.write_parquet()``, ``.write_json()`` or ``.write_csv()`` when ``df_type`` is ``'polars'``.
     :param groupby_kwargs: argument to include in DataFrame ``groupby()``.
     """
 
@@ -231,6 +232,7 @@ class SqlToS3Operator(BaseOperator):
         if ("dtype_backend", "pyarrow") not in self.read_kwargs.items() and self.df_type == "pandas":
             self._fix_dtypes(data_df, self.file_format)  # type: ignore[arg-type]
         file_options = FILE_OPTIONS_MAP[self.file_format]
+        write_function = file_options.polars_function if self.df_type == "polars" else file_options.function
 
         for group_name, df in self._partition_dataframe(df=data_df):
             buf = io.BytesIO()
@@ -246,13 +248,13 @@ class SqlToS3Operator(BaseOperator):
                 object_key += ".gz"
                 df_kwargs = {k: v for k, v in self.df_kwargs.items() if k != "compression"}
                 with gzip.GzipFile(fileobj=buf, mode="wb", filename=object_key) as gz:
-                    getattr(df, file_options.function)(gz, **df_kwargs)
+                    getattr(df, write_function)(gz, **df_kwargs)
             else:
                 if self.file_format == FILE_FORMAT.PARQUET:
-                    getattr(df, file_options.function)(buf, **self.df_kwargs)
+                    getattr(df, write_function)(buf, **self.df_kwargs)
                 else:
                     text_buf = io.TextIOWrapper(buf, encoding="utf-8", write_through=True)
-                    getattr(df, file_options.function)(text_buf, **self.df_kwargs)
+                    getattr(df, write_function)(text_buf, **self.df_kwargs)
                     text_buf.flush()
 
             buf.seek(0)

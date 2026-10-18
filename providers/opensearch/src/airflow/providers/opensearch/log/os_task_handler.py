@@ -1032,7 +1032,10 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
             self.log.exception("Unable to insert logs into OpenSearch. Reason: %s", str(e))
             return False
 
-    def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
+    def read(self, _relative_path: str, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages]:
+        if ti is None:
+            # Logs are keyed by task instance, and ``upload`` skips logs without one.
+            return [], []
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Opensearch", log_id)
         responses = []
