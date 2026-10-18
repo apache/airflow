@@ -289,7 +289,7 @@ Event-driven scheduling
 
 Asset-based scheduling triggered by other Dags (internal event-driven scheduling) does not cover all use cases.
 Often you also need to trigger Dags from **external events** such as system signals, messages, or real-time data changes.
-Airflow supports two main approaches for external event-driven scheduling:
+Airflow supports these approaches for external event-driven scheduling:
 
 Push-based scheduling (REST API)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -333,6 +333,20 @@ This is done using ``AssetWatcher`` classes and triggers compatible with event-d
 * Only triggers that inherit from ``BaseEventTrigger`` are compatible, to avoid infinite rescheduling scenarios.
 
 For more details and examples, see :doc:`event-scheduling`.
+
+Inbound webhooks
+~~~~~~~~~~~~~~~~
+
+|experimental|
+
+.. versionadded:: 3.5.0
+
+Services such as GitHub can **send webhooks to Airflow** without Airflow credentials: an API server
+started with ``--apps webhooks`` verifies each delivery with a secret shared with the sender and records an
+asset event on each of its topic names that a Dag schedules on. Dags subscribe by scheduling on a
+``WebhookTopic``, and find the delivery in ``triggering_asset_events``.
+
+For details and examples, see :doc:`webhook-topics`.
 
 Advanced asset scheduling with conditional expressions
 --------------------------------------------------------

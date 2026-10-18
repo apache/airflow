@@ -247,6 +247,14 @@ You can optionally provide a list of tables to perform deletes on with ``--table
   affects Dags waiting on a multi-asset condition, where a pending event can be purged before the condition
   is met, meaning the Dag will not be triggered by it.
 
+.. note::
+
+  The ``inbound_delivery`` table, which records the deliveries of :doc:`inbound webhooks
+  </administration-and-deployment/webhooks>`, is cleaned by its ``retain_until`` column rather than by the
+  time a delivery was received. ``retain_until`` is the time of receipt plus ``[webhooks] delivery_retention``,
+  so a ``--clean-before-timestamp`` in the past never removes a delivery inside its retention, while one in
+  the future does. A sender's retry of a delivery whose record was removed is processed again.
+
 You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list).
 
 .. warning::
