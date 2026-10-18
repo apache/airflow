@@ -45,6 +45,7 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--exclude-docs",
                 "--site-env",
                 "--skip-write-to-stable-folder",
+                "--skip-site-index-check",
             ],
         },
         {
