@@ -24,6 +24,7 @@ import itertools
 import json
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterator, Sequence
+from datetime import datetime
 from typing import Annotated, Any, NoReturn, cast
 from uuid import UUID
 
@@ -339,13 +340,15 @@ def ti_run(
                 },
             )
 
-        # Send the keys to the SDK so that the client requests to clear those XComs from the server.
-        # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
-        # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
-        # can issue the purge.
+        # Send the keys to the worker, which deletes those XComs. The server cannot delete them itself,
+        # because for a Python task the task runner also purges them from a custom XCom backend, and only
+        # workers can reach that backend. For a language SDK task (Java, Go, TypeScript), the supervisor
+        # deletes these XComs before the runtime starts the task and does not purge them, because those
+        # runtimes push their XComs straight to the API server, so the XCom values never pass through the
+        # backend.
 
         # However, do not clear it for deferral
-        xcom_keys = []
+        xcom_keys: list[str] = []
         if not ti.next_method:
             read = build_xcom_read_query(producer_ids=select(TI.id).where(TI.id == task_instance_id))
             entity = xcom_entity(read)
@@ -567,6 +570,19 @@ def ti_update_state(
         .with_for_update(of=TI)
         .execution_options(include_all_attempts=True)
     )
+    # A 12-column select exceeds SQLAlchemy's typed ``select()`` overloads, so the row is untyped.
+    previous_state: str | None
+    try_number: int
+    max_tries: int
+    dag_id: str
+    task_id: str
+    run_id: str
+    region_index: int
+    region_id: UUID
+    hostname: str | None
+    logical_date: datetime | None
+    owners: str | None
+    working_set: bool | None
     try:
         (
             previous_state,
@@ -581,7 +597,7 @@ def ti_update_state(
             logical_date,
             owners,
             working_set,
-        ) = session.execute(old).one()
+        ) = tuple(session.execute(old).one())
         log.debug(
             "Retrieved current task instance state",
             previous_state=previous_state,
@@ -1120,7 +1136,7 @@ def ti_skip_downstream(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
     if not selects:
         return
-    selected_ids = set(session.scalars(union(*selects)))
+    selected_ids: set[UUID] = set(session.scalars(union(*selects)))
 
     # Don't overwrite tasks that are already executing or finished.
     # See: https://github.com/apache/airflow/issues/59378
