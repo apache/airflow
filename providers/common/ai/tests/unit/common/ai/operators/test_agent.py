@@ -4195,8 +4195,10 @@ def _make_async_task_state_store_accessor(*, async_methods: bool = True):
     from airflow.sdk.execution_time.context import TaskStateStoreAccessor
 
     accessor = MagicMock(spec=TaskStateStoreAccessor)
-    accessor.data = data = {}
-    accessor.ops = ops = []
+    data: dict[str, Any] = {}
+    ops: list[tuple[str, str]] = []
+    accessor.data = data
+    accessor.ops = ops
 
     def get(key, default=None):
         return data.get(key, default)
