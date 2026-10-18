@@ -6490,7 +6490,7 @@ export type $OpenApiTs = {
                  */
                 409: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Content
+                 * Unprocessable Entity
                  */
                 422: HTTPExceptionResponse;
             };
@@ -7364,7 +7364,7 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Content
+                 * Unprocessable Entity
                  */
                 422: HTTPExceptionResponse;
             };
@@ -7426,7 +7426,7 @@ export type $OpenApiTs = {
                  */
                 409: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Content
+                 * Unprocessable Entity
                  */
                 422: HTTPExceptionResponse;
             };
@@ -10091,7 +10091,7 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Content
+                 * Unprocessable Entity
                  */
                 422: HTTPExceptionResponse;
             };
