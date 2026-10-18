@@ -2078,17 +2078,27 @@ def test_dynamic_source_preserves_command_and_secret_values(
         mock_command.assert_not_called()
 
 
-def test_literal_configuration_does_not_reload():
+@mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+def test_literal_configuration_does_not_reload(mock_command, mock_secret):
     with conf_vars(
         {
             ("core", "load_examples"): "False",
             ("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG),
         }
     ):
+        manager = DagBundlesManager()
         assert get_configured_bundle_names() == {"my-test-bundle"}
         conf.set("dag_processor", "dag_bundle_config_list", json.dumps(SECOND_BUNDLE_CONFIG))
         _expire_bundle_config_snapshot()
         assert set(DagBundlesManager().get_all_bundle_names()) == {"my-test-bundle"}
+        assert manager.get_all_bundle_names() == ["my-test-bundle"]
+        assert [bundle.name for bundle in manager.get_all_dag_bundles()] == ["my-test-bundle"]
+        assert manager.get_bundle("my-test-bundle").name == "my-test-bundle"
+        with pytest.raises(ValueError, match="Requested bundle 'second-bundle' is not configured"):
+            manager.get_bundle("second-bundle")
+    mock_command.assert_not_called()
+    mock_secret.assert_not_called()
 
 
 @pytest.mark.parametrize("literal_location", ["environment", "config"])
@@ -2233,6 +2243,28 @@ def test_bundle_lookup_refreshes_missing_name_before_interval(
     assert mock_command.call_count == 2
     assert manager.get_bundle("my-test-bundle").name == "my-test-bundle"
     assert mock_command.call_count == 2
+
+
+@pytest.mark.parametrize("remove_bundle", [False, True])
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+def test_bundle_lookup_adopts_snapshot_refreshed_by_another_manager(
+    mock_command, dynamic_bundle_config, remove_bundle
+):
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    manager = DagBundlesManager()
+    configs = [] if remove_bundle else BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG
+    mock_command.return_value = json.dumps(configs)
+    _expire_bundle_config_snapshot()
+    assert DagBundlesManager().get_all_bundle_names() == sorted(config["name"] for config in configs)
+    mock_command.reset_mock()
+
+    if remove_bundle:
+        with pytest.raises(ValueError, match="Requested bundle 'my-test-bundle' is not configured"):
+            manager.get_bundle("my-test-bundle")
+        mock_command.assert_called_once()
+    else:
+        assert manager.get_bundle("second-bundle").name == "second-bundle"
+        mock_command.assert_not_called()
 
 
 @mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
