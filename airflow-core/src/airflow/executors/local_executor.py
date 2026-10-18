@@ -31,6 +31,7 @@ import multiprocessing
 import multiprocessing.sharedctypes
 import os
 import sys
+import threading
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
 
@@ -337,16 +338,52 @@ class LocalExecutor(BaseExecutor):
     def _process_workloads(self, workload_list):
         for workload in workload_list:
             key = self.get_workload_key(workload)
-            self._read_results()
-            self.activity_queue.put(workload)
             removed = self.executor_queues[workload.type].pop(key, None)
             if not removed:
                 raise KeyError(f"Workload {key} was not found in any queue")
+            # Register before the put: results read while the put is in flight are dropped for keys
+            # that are not running yet.
             self.running.add(key)
             self._dispatch_counts[key] = self._dispatch_counts.get(key, 0) + 1
+            self._read_results()
+            self._put_workload(workload)
         with self._unread_messages:
             self._unread_messages.value += len(workload_list)
         self._check_workers()
+
+    def _put_workload(self, workload: ExecutorWorkload) -> None:
+        """
+        Put ``workload`` on the activity queue while continuing to drain the result queue.
+
+        The put blocks while the activity pipe is full. If the workers are at the same time blocked
+        writing to a full result pipe, a put on this thread alone would never return, so it runs on a
+        helper thread while this thread keeps reading results.
+        """
+        put_errors: list[BaseException] = []
+
+        def _put() -> None:
+            try:
+                self.activity_queue.put(workload)
+            except BaseException as e:
+                put_errors.append(e)
+
+        putter = threading.Thread(target=_put, name="local-executor-put", daemon=True)
+        try:
+            putter.start()
+            putter.join(timeout=0.05)
+            while putter.is_alive():
+                self._read_results()
+                putter.join(timeout=0.05)
+        except BaseException:
+            # end() sends a shutdown message on the same pipe for each live worker, so an interruption
+            # (SIGTERM raises SystemExit here) must not leave this writer blocked behind a full result
+            # pipe. Without a live worker nothing can take the pending write, and end() sends nothing.
+            while putter.is_alive() and any(proc.is_alive() for proc in self.workers.values()):
+                self._read_results()
+                putter.join(timeout=0.05)
+            raise
+        if put_errors:
+            raise put_errors[0]
 
     def _finish_dispatch(self, key: WorkloadKey, state: WorkloadState) -> None:
         # A resumed attempt reuses its key, so the previous dispatch can finish while the next one is live.
