@@ -16,7 +16,7 @@
     under the License.
 
 .. THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
-   Regenerate with:  python scripts/ci/prek/extract_permissions.py
+   Regenerate with:  uv run scripts/ci/prek/extract_permissions.py
    Trigger:          prek run generate-api-permissions-doc --all-files
 
 API Endpoint Permission Reference
