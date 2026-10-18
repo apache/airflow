@@ -369,11 +369,10 @@ class TestDagFileProcessorManager:
         autospec=True,
         return_value=True,
     )
-    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
     def test_reconcile_reuses_retained_bundles_and_cleans_removed_files(
-        self, mock_removed, mock_manager, mock_refresh, mock_source, tmp_path, filtered
+        self, mock_removed, mock_manager, mock_source, tmp_path, filtered
     ):
         removed, retained, added = [
             _make_bundle(tmp_path / name) for name in ("removed", "retained", "added")
@@ -395,7 +394,7 @@ class TestDagFileProcessorManager:
 
         processor._reconcile_bundles(known_files=known_files)
 
-        mock_refresh.assert_called_once_with()
+        bundles.refresh_config.assert_called_once_with()
         assert processor._dag_bundles == [added, retained]
         assert known_files == {"retained": set()}
         assert "removed" not in processor._bundle_versions
@@ -412,9 +411,8 @@ class TestDagFileProcessorManager:
         autospec=True,
         return_value=True,
     )
-    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
-    def test_reconcile_retries_failed_construction(self, mock_manager, mock_refresh, mock_source, tmp_path):
+    def test_reconcile_retries_failed_construction(self, mock_manager, mock_source, tmp_path):
         added = _make_bundle(tmp_path)
         added.name = "added"
         bundles = mock_manager.return_value
@@ -435,10 +433,9 @@ class TestDagFileProcessorManager:
         autospec=True,
         return_value=True,
     )
-    @mock.patch("airflow.dag_processing.manager._refresh_bundle_config_snapshot", autospec=True)
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_retries_template_persistence_after_sync_failure(
-        self, mock_manager, mock_refresh, mock_source, tmp_path
+        self, mock_manager, mock_source, tmp_path
     ):
         added = _make_bundle(tmp_path)
         added.name = "added"
