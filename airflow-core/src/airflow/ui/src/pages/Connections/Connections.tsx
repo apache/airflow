@@ -128,6 +128,7 @@ const getColumns = ({
           <DeleteConnectionButton connectionId={original.connection_id} disabled={hasSelection} />
         </Flex>
       ),
+      enableHiding: false,
       enableSorting: false,
       header: "",
       meta: {
