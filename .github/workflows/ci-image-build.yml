@@ -168,7 +168,7 @@ jobs:
           Restore the commit the CI image stashed for ref ${{ inputs.image-stash-ref }}
           was built from
         # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@f1a487181effd0b216892001abdfb524442bb24d  # restore/v1.0.1
+        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
         with:
           key: "ci-image-commit-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -202,7 +202,7 @@ jobs:
           Restore CI docker image built for ref ${{ inputs.image-stash-ref }}
           ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@f1a487181effd0b216892001abdfb524442bb24d  # restore/v1.0.1
+        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
         with:
           key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             -${{ inputs.image-stash-ref }}"
@@ -218,7 +218,7 @@ jobs:
           Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           ${{ inputs.image-stash-ref != '' && format('for ref {0}', inputs.image-stash-ref) || '' }}
         # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@f1a487181effd0b216892001abdfb524442bb24d  # restore/v1.0.1
+        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
         with:
           key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
             ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
@@ -246,7 +246,7 @@ jobs:
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
       - name: "Restore CI docker image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@f1a487181effd0b216892001abdfb524442bb24d  # restore/v1.0.1
+        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
         with:
           key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
           path: "/mnt/"

@@ -347,7 +347,7 @@ jobs:
             secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
       - name: "Restore docs inventory cache"
         # yamllint disable-line rule:line-length
-        uses: apache/infrastructure-actions/stash/restore@f1a487181effd0b216892001abdfb524442bb24d  # restore/v1.0.1
+        uses: apache/infrastructure-actions/stash/restore@c968777141a2afc98d1a09c9f6979455bfebaae3  # restore/v1.0.1
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1
