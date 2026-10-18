@@ -81,6 +81,7 @@ POSSIBLE_TEST_FOLDERS = [
     "timetables",
     "triggers",
     "utils",
+    "webhooks",
     "www",
 ]
 
