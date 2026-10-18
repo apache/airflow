@@ -173,7 +173,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
-        if uri and (conn_type or host or login or password or schema or port or extra):
+        if uri and (conn_type or host or login or password or schema or port is not None or extra):
             raise AirflowException(
                 "You must create an object using the URI or individual values "
                 "(conn_type, host, login, password, schema, port or extra)."
