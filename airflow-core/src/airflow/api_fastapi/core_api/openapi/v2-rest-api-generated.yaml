@@ -12404,7 +12404,7 @@ paths:
       - Login
       summary: Create Cli Token
       description: 'Exchange a code approved in the UI (``airflowctl auth login --web``)
-        for a CLI token.
+        for the CLI token it carries.
 
 
         Unauthenticated, like an OAuth token endpoint: the code and the PKCE verifier

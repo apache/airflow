@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 import logging
+import time
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.cli_authorization_code import (
+    CliAuthorizationCodeUnavailableError,
     build_loopback_redirect_uri,
     issue_cli_authorization_code,
 )
@@ -37,6 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     MenuItemCollectionResponse,
     TokenType,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
@@ -103,7 +106,11 @@ def generate_token(
     )
 
 
-@auth_router.post("/auth/cli/authorize", dependencies=[Depends(action_logging())])
+@auth_router.post(
+    "/auth/cli/authorize",
+    dependencies=[Depends(action_logging())],
+    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN]),
+)
 def authorize_cli(
     body: CliAuthorizeBody,
     user: GetUserDep,
@@ -111,15 +118,31 @@ def authorize_cli(
     """
     Approve an ``airflowctl auth login --web`` request for the authenticated user.
 
-    The browser hands the code to airflowctl's loopback listener, which exchanges it for a CLI token
-    at ``POST /api/v2/auth/cli/token``. The result is the same token ``POST /auth/token`` generates.
+    The CLI token is minted here, as **Generate Token** does, and travels to airflowctl encrypted inside
+    the code: the browser hands the code to airflowctl's loopback listener, which redeems it at
+    ``POST /api/v2/auth/cli/token``.
     """
-    code = issue_cli_authorization_code(
-        user=get_auth_manager().serialize_user(user),
-        code_challenge=body.code_challenge,
-        redirect_uri=build_loopback_redirect_uri(body.port),
-    )
+    expiration_seconds = conf.getint("api_auth", "jwt_cli_expiration_time")
+    try:
+        code = issue_cli_authorization_code(
+            # airflowctl sends the token in the Authorization header and no cookies, so it needs the
+            # self-contained kind; an auth manager that keeps state in cookies, like Keycloak, adds it here.
+            cli_token=get_auth_manager().generate_api_jwt(
+                user, expiration_time_in_seconds=expiration_seconds
+            ),
+            token_expires_at=int(time.time()) + expiration_seconds,
+            user_name=user.get_name(),
+            code_challenge=body.code_challenge,
+            redirect_uri=build_loopback_redirect_uri(body.port),
+        )
+    except CliAuthorizationCodeUnavailableError as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(e))
 
-    log.info("User %s approved an airflowctl login with a callback on port %d", user.get_name(), body.port)
+    log.info(
+        "User %s approved an airflowctl login with a callback on port %d; the token expires in %d seconds",
+        user.get_name(),
+        body.port,
+        expiration_seconds,
+    )
 
     return CliAuthorizeResponse(code=code)

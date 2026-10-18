@@ -9825,6 +9825,10 @@ export type $OpenApiTs = {
                  */
                 200: CliAuthorizeResponse;
                 /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;

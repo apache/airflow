@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlencode
 
@@ -27,6 +27,7 @@ import time_machine
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.models.crypto import _NullFernet
 from airflow.models.revoked_token import RevokedToken
 
 from tests_common.test_utils.config import conf_vars
@@ -418,14 +419,27 @@ class TestCreateCliToken:
         yield
         clear_db_revoked_tokens()
 
-    def issue_code(self, client, user: dict | None = None) -> str:
+    def mint_token(self, client) -> str:
+        from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+        from airflow.configuration import conf
+
+        return client.app.state.auth_manager.generate_api_jwt(
+            SimpleAuthManagerUser(username="test", role="admin"),
+            expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time"),
+        )
+
+    def issue_code(self, client, cli_token: str | None = None, token_expires_at: int | None = None) -> str:
         from airflow.api_fastapi.auth.cli_authorization_code import (
             build_loopback_redirect_uri,
             issue_cli_authorization_code,
         )
+        from airflow.configuration import conf
 
         return issue_cli_authorization_code(
-            user=user or {"sub": "test", "role": "admin", "teams": None},
+            cli_token=cli_token or self.mint_token(client),
+            token_expires_at=token_expires_at
+            or int(time.time()) + conf.getint("api_auth", "jwt_cli_expiration_time"),
+            user_name="test",
             code_challenge=self.code_challenge,
             redirect_uri=build_loopback_redirect_uri(self.port),
         )
@@ -434,20 +448,32 @@ class TestCreateCliToken:
         body = {"code": code, "code_verifier": self.code_verifier, "port": self.port, **overrides}
         return client.post("/auth/cli/token", json=body)
 
-    def test_exchanges_a_code_for_a_cli_token(self, unauthenticated_test_client):
+    def test_exchanges_a_code_for_the_cli_token_it_carries(self, unauthenticated_test_client):
         from airflow.configuration import conf
 
-        response = self.exchange(unauthenticated_test_client, self.issue_code(unauthenticated_test_client))
+        token = self.mint_token(unauthenticated_test_client)
+        code = self.issue_code(unauthenticated_test_client, cli_token=token)
+
+        response = self.exchange(unauthenticated_test_client, code)
 
         assert response.status_code == 200
         data = response.json()
+        assert data["access_token"] == token
         cli_expiration = conf.getint("api_auth", "jwt_cli_expiration_time")
-        assert data["expires_in_seconds"] == cli_expiration
+        assert cli_expiration - 5 <= data["expires_in_seconds"] <= cli_expiration
         auth_manager = unauthenticated_test_client.app.state.auth_manager
         claims = auth_manager._get_token_validator().validated_claims(data["access_token"])
         assert claims["sub"] == "test"
         assert claims["role"] == "admin"
-        assert claims["exp"] - claims["iat"] == cli_expiration
+
+    def test_reports_how_long_the_token_is_still_good_for(self, unauthenticated_test_client):
+        code = self.issue_code(unauthenticated_test_client, token_expires_at=int(time.time()) + 100)
+
+        with time_machine.travel(timedelta(seconds=40), tick=False):
+            response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 200
+        assert response.json()["expires_in_seconds"] == 60
 
     def test_code_approved_through_the_ui_endpoint_is_exchangeable(
         self, test_client, unauthenticated_test_client
@@ -474,6 +500,21 @@ class TestCreateCliToken:
         assert response.status_code == 400
         assert response.json() == {"detail": "The authorization code has already been used"}
         assert RevokedToken.is_revoked(jwt.decode(code, options={"verify_signature": False})["jti"])
+
+    def test_consumption_record_outlives_the_leeway(self, unauthenticated_test_client):
+        """The code stays valid for jwt_leeway past exp, so cleanup must not drop the record before then."""
+        from airflow.configuration import conf
+        from airflow.utils.session import create_session
+
+        code = self.issue_code(unauthenticated_test_client)
+        assert self.exchange(unauthenticated_test_client, code).status_code == 200
+
+        claims = jwt.decode(code, options={"verify_signature": False})
+        with create_session() as session:
+            recorded_until = session.get(RevokedToken, claims["jti"]).exp
+        assert recorded_until == datetime.fromtimestamp(claims["exp"], tz=UTC) + timedelta(
+            seconds=conf.getint("api_auth", "jwt_leeway")
+        )
 
     def test_rejects_a_verifier_that_does_not_match(self, unauthenticated_test_client):
         response = self.exchange(
@@ -513,13 +554,18 @@ class TestCreateCliToken:
         assert response.status_code == 400
         assert response.json() == {"detail": "The authorization code is not valid"}
 
-    def test_rejects_a_code_whose_user_cannot_be_loaded(self, unauthenticated_test_client):
-        code = self.issue_code(unauthenticated_test_client, user={"sub": "test"})
+    def test_rejects_a_code_when_the_fernet_key_is_gone(self, unauthenticated_test_client):
+        code = self.issue_code(unauthenticated_test_client)
 
-        response = self.exchange(unauthenticated_test_client, code)
+        with patch(
+            "airflow.api_fastapi.auth.cli_authorization_code.get_fernet",
+            autospec=True,
+            return_value=_NullFernet(),
+        ):
+            response = self.exchange(unauthenticated_test_client, code)
 
         assert response.status_code == 400
-        assert response.json() == {"detail": "The user who approved the login could not be loaded"}
+        assert "[core] fernet_key" in response.json()["detail"]
 
     @pytest.mark.parametrize(
         "overrides",

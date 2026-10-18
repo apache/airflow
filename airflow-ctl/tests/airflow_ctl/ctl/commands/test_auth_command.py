@@ -521,9 +521,10 @@ class TestLoginWithBrowser:
         with patch.object(auth_command.webbrowser, "open", return_value=True) as self.open_browser:
             yield
 
-    def make_client(self, has_feature: bool = True, exchange=None) -> Client:
+    def make_client(self, has_feature: bool = True, exchange=None, token: str = "") -> Client:
         """Answer the feature probe and the code exchange like an API server with or without the feature."""
         opened = self.opened
+        self.requests = []
 
         def default_exchange(request: httpx.Request) -> httpx.Response:
             body = json.loads(request.content)
@@ -533,6 +534,7 @@ class TestLoginWithBrowser:
             return httpx.Response(200, json=self.token_response)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
+            self.requests.append(request)
             if request.url.path == "/api/v2/auth/cli/token":
                 if not has_feature:
                     # An older server has only its catch-all route for the path, which refuses a POST.
@@ -547,11 +549,12 @@ class TestLoginWithBrowser:
         return Client(
             base_url="test://server",
             transport=httpx.MockTransport(handle_request),
-            token="",
+            token=token,
             kind=ClientKind.AUTH,
         )
 
     opened: dict[str, str] = {}
+    requests: list[httpx.Request] = []
 
     def browser(self, approve: bool = True, state: str | None = None):
         """Record what airflowctl opened and answer like a user who approved or denied in the UI."""
@@ -592,6 +595,19 @@ class TestLoginWithBrowser:
         mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_production", "WEB_TOKEN")
         with open(tmp_path / "production.json") as f:
             assert json.load(f) == {"api_url": self.api_url}
+
+    @patch("airflowctl.api.client.keyring")
+    def test_sends_no_saved_token_to_the_server(self, mock_keyring):
+        """A token saved for the environment may belong to another server; the login must not forward it."""
+        self.browser(approve=True)
+
+        self.login(api_client=self.make_client(token="TOKEN-SAVED-FOR-ANOTHER-SERVER"))
+
+        assert [request.url.path for request in self.requests] == [
+            "/api/v2/auth/cli/token",
+            "/api/v2/auth/cli/token",
+        ]
+        assert all("Authorization" not in request.headers for request in self.requests)
 
     @patch("airflowctl.api.client.keyring")
     def test_exits_when_the_login_is_denied_in_the_browser(self, mock_keyring):

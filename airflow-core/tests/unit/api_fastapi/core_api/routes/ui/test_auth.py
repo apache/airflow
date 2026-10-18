@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
+from airflow.models.crypto import _NullFernet
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -166,21 +169,58 @@ class TestAuthorizeCli:
     code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
     body = {"code_challenge": code_challenge, "code_challenge_method": "S256", "port": 53682}
 
-    def test_returns_a_code_bound_to_the_user_challenge_and_port(self, test_client):
+    def redeem(self, code: str) -> dict:
         from airflow.api_fastapi.auth.cli_authorization_code import (
             build_loopback_redirect_uri,
             validate_cli_authorization_code,
         )
 
+        return validate_cli_authorization_code(
+            code, code_verifier=self.code_verifier, redirect_uri=build_loopback_redirect_uri(53682)
+        )
+
+    def test_returns_a_code_carrying_a_cli_token_for_the_user(self, test_client):
+        from airflow.configuration import conf
+
         response = test_client.post("/auth/cli/authorize", json=self.body)
 
         assert response.status_code == 200
-        claims = validate_cli_authorization_code(
-            response.json()["code"],
-            code_verifier=self.code_verifier,
-            redirect_uri=build_loopback_redirect_uri(53682),
-        )
-        assert claims["user"] == {"sub": "test", "role": "admin", "teams": ["team1"]}
+        claims = self.redeem(response.json()["code"])
+        assert claims["name"] == "test"
+        cli_expiration = conf.getint("api_auth", "jwt_cli_expiration_time")
+        assert 0 <= claims["token_expires_at"] - (int(time.time()) + cli_expiration) <= 5
+        auth_manager = test_client.app.state.auth_manager
+        token_claims = auth_manager._get_token_validator().validated_claims(claims["token"])
+        assert token_claims["sub"] == "test"
+        assert token_claims["role"] == "admin"
+        assert token_claims["exp"] - token_claims["iat"] == cli_expiration
+
+    def test_mints_the_token_kind_made_for_the_authorization_header(self, test_client):
+        from airflow.configuration import conf
+
+        auth_manager = test_client.app.state.auth_manager
+        with patch.object(
+            auth_manager, "generate_api_jwt", autospec=True, return_value="API-TOKEN"
+        ) as generate:
+            response = test_client.post("/auth/cli/authorize", json=self.body)
+
+        assert response.status_code == 200
+        assert self.redeem(response.json()["code"])["token"] == "API-TOKEN"
+        generate.assert_called_once()
+        assert generate.call_args.kwargs == {
+            "expiration_time_in_seconds": conf.getint("api_auth", "jwt_cli_expiration_time")
+        }
+
+    @patch(
+        "airflow.api_fastapi.auth.cli_authorization_code.get_fernet",
+        autospec=True,
+        return_value=_NullFernet(),
+    )
+    def test_refuses_without_a_fernet_key(self, mock_get_fernet, test_client):
+        response = test_client.post("/auth/cli/authorize", json=self.body)
+
+        assert response.status_code == 403
+        assert "[core] fernet_key" in response.json()["detail"]
 
     @pytest.mark.parametrize(
         "body",
