@@ -1,0 +1,25 @@
+{
+  "zen": "Design for failure.",
+  "hook_id": 1,
+  "hook": {
+    "type": "Repository",
+    "id": 1,
+    "name": "web",
+    "active": true,
+    "events": ["pull_request"],
+    "config": {
+      "content_type": "json",
+      "insecure_ssl": "0",
+      "url": "https://airflow.example.com/webhooks/github"
+    }
+  },
+  "repository": {
+    "id": 1,
+    "name": "web",
+    "full_name": "my-org/web",
+    "private": false,
+    "owner": {"login": "my-org", "id": 3, "type": "Organization"}
+  },
+  "organization": {"login": "my-org", "id": 3},
+  "sender": {"login": "octocat", "id": 2, "type": "User"}
+}
