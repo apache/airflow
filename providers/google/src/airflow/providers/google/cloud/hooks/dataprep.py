@@ -219,12 +219,13 @@ class GoogleDataprepHook(BaseHook):
         try:
             response.raise_for_status()
         except HTTPError:
-            self.log.error(self._error_message(response))
+            self.log.error(self._get_error_message(response))
             raise
 
     @staticmethod
-    def _error_message(response: requests.models.Response) -> Any:
-        """Return the error detail from the response, falling back to its raw body.
+    def _get_error_message(response: requests.models.Response) -> Any:
+        """
+        Return the error detail from the response, falling back to its raw body.
 
         An error response does not always carry a JSON object: a proxy or gateway
         can answer with HTML or an empty payload, and parsing that here would
