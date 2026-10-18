@@ -126,14 +126,11 @@ jobs:
         working-directory: ./dev/breeze/
   tests-shared-distributions:
     timeout-minutes: 10
-    name: Shared ${{ matrix.shared-distribution }} tests
+    name: Shared distributions tests
     env:
       # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
       UV_PYTHON: "${{ inputs.default-python-version }}"
-    strategy:
-      fail-fast: false
-      matrix:
-        shared-distribution: ${{ fromJSON(inputs.shared-distributions-as-json) }}
+      SHARED_DISTRIBUTIONS: ${{ join(fromJSON(inputs.shared-distributions-as-json), ' ') }}
     runs-on: ${{ fromJSON(inputs.runners) }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -152,9 +149,20 @@ jobs:
           fi
           echo "Installing uv==${UV_VERSION}"
           pip install "uv==${UV_VERSION}"
-      - name: "Run shared ${{ matrix.shared-distribution }} tests"
-        run: uv run --group dev pytest --color=yes -n auto
-        working-directory: shared/${{ matrix.shared-distribution }}
+      - name: "Run shared distributions tests"
+        run: |
+          failed=()
+          for dist in ${SHARED_DISTRIBUTIONS}; do
+            echo "::group::Shared ${dist} tests"
+            if ! (cd "shared/${dist}" && uv run --exact --group dev pytest --color=yes -n auto); then
+              failed+=("${dist}")
+            fi
+            echo "::endgroup::"
+          done
+          if (( ${#failed[@]} )); then
+            echo "::error::Shared distribution tests failed: ${failed[*]}"
+            exit 1
+          fi
   tests-scripts:
     timeout-minutes: 10
     name: Scripts tests
