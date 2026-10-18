@@ -200,6 +200,7 @@ task's latest iteration.
 Limitations:
 
 * ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull; see :ref:`loops-outside-result`.
+* A Dag that uses a loop needs an XCom backend that supports loops. The default backend does. If your backend does not, for example a custom one written before loops existed, the Dag fails with an error when it is parsed and again when a task starts. See Custom XCom Backends in :doc:`/core-concepts/xcoms`.
 * The experimental DagRun wait API also requires an outside-loop result task. Marking a loop member as the Dag result raises ``ValueError`` while the Dag is parsed, and the wait API rejects results selected directly from a loop member. Mark a task outside the loop as the result instead, for example one that returns the last element of a loop task's results. See :ref:`dag-result`.
 
 Connect a loop to other tasks
