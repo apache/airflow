@@ -47,12 +47,14 @@ class TestParseWebhookNames:
         ("value", "message"),
         [
             pytest.param("github,*", "cannot be *", id="any-name"),
-            pytest.param("analytics:dbt_cloud", "team-qualified name 'analytics:dbt_cloud'", id="team"),
-            pytest.param("_health", "'_health', which is not a webhook name", id="leading-underscore"),
-            pytest.param("-x", "'-x', which is not a webhook name", id="leading-hyphen"),
-            pytest.param("GitHub", "'GitHub', which is not a webhook name", id="uppercase"),
-            pytest.param("a/b", "'a/b', which is not a webhook name", id="slash"),
-            pytest.param("a" * 65, "which is not a webhook name", id="65-characters"),
+            pytest.param(
+                "analytics:dbt_cloud", "'analytics:dbt_cloud', but it is qualified with a team", id="team"
+            ),
+            pytest.param("_health", "'_health', but it is not a webhook name", id="leading-underscore"),
+            pytest.param("-x", "'-x', but it is not a webhook name", id="leading-hyphen"),
+            pytest.param("GitHub", "'GitHub', but it is not a webhook name", id="uppercase"),
+            pytest.param("a/b", "'a/b', but it is not a webhook name", id="slash"),
+            pytest.param("a" * 65, "but it is not a webhook name", id="65-characters"),
             pytest.param("github,jira,github", "lists 'github' more than once", id="duplicate"),
             pytest.param("github,other", "lists 'other', which is reserved", id="metrics-tag"),
         ],

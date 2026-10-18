@@ -241,6 +241,12 @@ class TestResolveWebhook:
                 id="unknown-source-type",
             ),
             pytest.param(
+                {"source_type": "hmac_json"},
+                "no installed provider serves source type 'hmac_json'; it needs "
+                "apache-airflow-providers-standard 1.21.0 or later",
+                id="standard-source-type",
+            ),
+            pytest.param(
                 {"source_type": "not_a_source"},
                 "source type 'not_a_source' is not a subclass of WebhookSource",
                 id="not-a-webhook-source",
@@ -262,6 +268,27 @@ class TestResolveWebhook:
         resolution = resolve_github()
 
         assert resolution == UnresolvedWebhook(failure=ResolutionFailure.MISCONFIGURED, reason=reason)
+
+    @pytest.mark.parametrize(
+        "source_type_owners",
+        [pytest.param({}, id="no-owner"), pytest.param({"hmac_json": "fake-webhooks-broken"}, id="owner")],
+    )
+    def test_declared_source_type_whose_class_cannot_be_imported(self, backend, source_type_owners):
+        ProvidersManager()._provider_dict["fake-webhooks-broken"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "webhook-sources": [{"source-type": "hmac_json", "classpath": f"{__name__}.MissingSource"}]
+            },
+        )
+        backend.connections[CONN_ID] = build_connection(source_type="hmac_json")
+
+        resolution = resolve_github(source_type_owners=source_type_owners)
+
+        assert resolution == UnresolvedWebhook(
+            failure=ResolutionFailure.MISCONFIGURED,
+            reason=f"fake-webhooks-broken declares source type 'hmac_json', but its class {__name__}."
+            "MissingSource could not be imported or is not a class",
+        )
 
     def test_malformed_extra_is_misconfigured(self, backend):
         # As a metadata database row written before Connection validated extra.

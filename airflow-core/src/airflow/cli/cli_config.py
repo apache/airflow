@@ -1147,6 +1147,50 @@ ARG_PARTITIONS_CLEAR_TASK_INSTANCES = Arg(
     action="store_true",
 )
 
+# webhooks
+ARG_WEBHOOK_NAMES = Arg(
+    ("names",),
+    nargs="*",
+    metavar="NAME",
+    help="The webhooks to check, as in /webhooks/<name> (default: every name in [webhooks] names)",
+)
+ARG_WEBHOOK_NAME = Arg(("name",), help="The webhook's name, as in /webhooks/<name>")
+ARG_WEBHOOK_URL = Arg(
+    ("--url",),
+    required=True,
+    help="The URL to send the delivery to, e.g. http://localhost:8080/webhooks/demo",
+)
+ARG_WEBHOOK_SECRET = Arg(
+    ("--secret",),
+    help="The shared secret to sign the body with, or to send as the token if connection webhook_<name> "
+    "sets token_header (default: the password of connection webhook_<name>)",
+)
+ARG_WEBHOOK_SIGNATURE_HEADER = Arg(
+    ("--signature-header",),
+    help="The header to send the signature in, which signs the body even if connection webhook_<name> "
+    "sets token_header (default: signature_header in the extra of connection webhook_<name>, or "
+    "X-Signature if there is no such connection)",
+)
+ARG_WEBHOOK_SIGNATURE_PREFIX = Arg(
+    ("--signature-prefix",),
+    help="Text to send before the signature, e.g. ``sha256=`` "
+    "(default: signature_prefix in the extra of connection webhook_<name>)",
+)
+ARG_WEBHOOK_HEADER = Arg(
+    ("--header",),
+    action="append",
+    metavar="'NAME: VALUE'",
+    help="A header to send; may be provided more than once",
+)
+ARG_WEBHOOK_DELIVERY_ID = Arg(
+    ("--delivery-id",),
+    help="A delivery id to send, in the header that delivery_id_header names in the extra of connection "
+    "webhook_<name>",
+)
+ARG_WEBHOOK_DATA = Arg(
+    ("--data",), required=True, help="The body to send, or @FILE to send the content of FILE"
+)
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
     ARG_CONN_DESCRIPTION,
@@ -1741,6 +1785,43 @@ STATE_STORE_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.state_store_command.clean_state_store"),
         args=(ARG_DB_DRY_RUN, ARG_VERBOSE),
+    ),
+)
+
+WEBHOOKS_COMMANDS = (
+    ActionCommand(
+        name="check",
+        help="Check that webhooks can receive deliveries (admin only)",
+        description=(
+            "(Experimental) Check that [webhooks] names lists each webhook, and that its connection "
+            "webhook_<name> configures a source type that an installed provider serves. Exits with 1 on "
+            "any problem."
+        ),
+        func=lazy_load_command("airflow.cli.commands.webhooks_command.check"),
+        args=(ARG_WEBHOOK_NAMES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="send-test",
+        help="Send a signed test delivery to a webhook (admin only)",
+        description=(
+            "(Experimental) Send one delivery as a sender would, and print the answer as JSON: "
+            '{"status": <status code>, "body": <answer>}. The body is signed with HMAC-SHA256, or, if '
+            "connection webhook_<name> sets token_header, the secret is sent in that header. Options that "
+            "are not given are taken from connection webhook_<name>. Redirects are not followed. Exits "
+            "with 1 unless the answer is a 2xx."
+        ),
+        func=lazy_load_command("airflow.cli.commands.webhooks_command.send_test"),
+        args=(
+            ARG_WEBHOOK_NAME,
+            ARG_WEBHOOK_URL,
+            ARG_WEBHOOK_SECRET,
+            ARG_WEBHOOK_SIGNATURE_HEADER,
+            ARG_WEBHOOK_SIGNATURE_PREFIX,
+            ARG_WEBHOOK_HEADER,
+            ARG_WEBHOOK_DELIVERY_ID,
+            ARG_WEBHOOK_DATA,
+            ARG_VERBOSE,
+        ),
     ),
 )
 
@@ -2364,6 +2445,11 @@ core_commands: list[CLICommand] = [
         name="state-store",
         help="Manage task and asset state storage",
         subcommands=STATE_STORE_COMMANDS,
+    ),
+    GroupCommand(
+        name="webhooks",
+        help="(Experimental) Check inbound webhooks and send them test deliveries",
+        subcommands=WEBHOOKS_COMMANDS,
     ),
     ActionCommand(
         name="rotate-fernet-key",
