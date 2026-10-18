@@ -74,6 +74,33 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
     k.dry_run()
 
+Pod events in the task log
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While the operator waits for the pod to leave the ``Pending`` phase, it polls the Kubernetes events of the pod
+every ``startup_check_interval_seconds`` and writes them to the task log (scheduling, image pull, container
+start, and warnings such as ``FailedScheduling``). This logging is best-effort: if the events API fails, the
+operator logs one warning, stops polling events, and the task continues.
+
+Each poll is a ``list`` of ``Event`` objects with a field selector. The Kubernetes API server has no index for
+that selector, so every poll scans all events of the namespace. On clusters that run thousands of short-lived
+pods in one namespace this adds noticeable API server load. Keeping unrelated high-churn pods (for example Spark
+executors) in a separate namespace reduces the cost, since the scan is per namespace.
+
+To turn it off, set ``log_events_on_startup=False``. The parameter is honoured by ``KubernetesPodOperator``, by the
+deferrable trigger, and by ``@task.kubernetes`` / ``@task.kubernetes_cmd``. It is separate from
+``log_events_on_failure``, which controls the one-shot read of events after a failure.
+
+.. code-block:: python
+
+    KubernetesPodOperator(
+        task_id="no_startup_events",
+        name="no-startup-events",
+        namespace="default",
+        image="debian",
+        log_events_on_startup=False,
+    )
+
 Argument precedence
 ^^^^^^^^^^^^^^^^^^^
 
