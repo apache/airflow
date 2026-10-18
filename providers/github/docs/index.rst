@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/github>
+    Inbound webhooks <webhooks>
     Operators <operators/index>
 
 .. toctree::
@@ -101,7 +102,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``PyGithub``                                ``>=2.1.1``
 ==========================================  ==================
 
