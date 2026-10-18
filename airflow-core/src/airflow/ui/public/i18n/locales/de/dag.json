@@ -68,6 +68,17 @@
     "upcomingCount_one": "{{count, number}} bevorstehende Frist",
     "upcomingCount_other": "{{count, number}} bevorstehende Fristen"
   },
+  "execution": {
+    "clearSelected": "Ausgewählte Ausführungen zurücksetzen",
+    "empty": "Keine Ausführungen in diesem Lauf.",
+    "iteration": "{{node}} · Iteration {{index}}",
+    "mapped_one": "{{task}} ({{count, number}} Aufgabeninstanzen auf dieser Seite)",
+    "mapped_other": "{{task}} ({{count, number}} Aufgabeninstanzen auf dieser Seite)",
+    "page": "Zeige {{start, number}}–{{end, number}} von {{total, number}} Ausführungen",
+    "runTasks": "Aufgaben starten",
+    "select": "{{task}} Auswählen",
+    "title": "Ausführung"
+  },
   "extraLinks": "Extra Links",
   "grid": {
     "buttons": {
@@ -107,6 +118,42 @@
     "viewPreviousTry": "Logs des vorigen Versuch {{tryNumber}}",
     "waitingToRetry": "Versuch Nummer {{tryNumber}} wartet zum Start.",
     "warning": "WARNING"
+  },
+  "loop": {
+    "filter": {
+      "all": "Alle iterationen",
+      "invocation": "Ausführung",
+      "label": "Iteration"
+    },
+    "history": {
+      "capLabel": "Begrenzung: {{max}}",
+      "iterationsAxis": "Iterationen",
+      "stats": {
+        "capHits": "Trifft das Limit",
+        "medianIterations": "Median der iterationen"
+      },
+      "title": "Iterationen pro Lauf"
+    },
+    "iteration": "Iteration {{index}}",
+    "iterations": "Iterationen",
+    "outcome": "Ergebnis",
+    "reason": {
+      "cap_reached": "Erreichte die Iterationsbegrenzung ({{max}})",
+      "failed": "Fehlgeschlagen bei Interation {{index}}",
+      "iteration_failed": "Iteration {{index}} fehlgeschlagen bei {{taskId}}",
+      "ran_to_cap": "Benutzte alle {{max}} begrenzten Iterationen",
+      "removed": "Entfernt",
+      "running": "Läuft",
+      "skipped": "Übersprungen",
+      "stopped_early": "Früh bei Interation {{index}} angehalten"
+    },
+    "rules": {
+      "behaviour": "Verhalten",
+      "boundedFor": "Führt eine feste Zahl an Iterationen aus",
+      "exitCriteria": "Ausstiegskriterium",
+      "maxIterations": "Maximale Iterationen",
+      "whileUntil": "Wiederholt bis {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Zurück",
@@ -299,6 +346,7 @@
     },
     "record_one": "Datensatz",
     "record_other": "Datensätze",
+    "schemaChange": "Serialisierte Struktur {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "Zwei Versionen auswählen um Änderungen zwischen diesen zu sehen.",
     "summary_one": "{{count, number}} Änderung",
     "summary_other": "{{count, number}} Änderungen",
