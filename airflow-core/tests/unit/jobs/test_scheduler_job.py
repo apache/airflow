@@ -6585,6 +6585,27 @@ class TestSchedulerJob:
         assert dr.start_date is None
         assert dr.creating_job_id == scheduler_job.id
 
+    def test_do_scheduling_creates_task_instances_for_scheduler_created_mapped_run(self, dag_maker, session):
+        """A Dag run the scheduler creates itself (not via dag_maker.create_dagrun()) for a
+        dynamically mapped task must get its mapped TaskInstances created.
+
+        Only reproducible through the real CommitProhibitorGuard installed by _do_scheduling:
+        other tests in this file exercise _create_dagruns_for_dags/_schedule_all_dag_runs
+        directly with the plain session cast as the guard (`cast("CommitProhibitorGuard",
+        session)`), which never installs the real before_commit listener.
+        """
+        with dag_maker(dag_id="test_scheduled_mapped_task", schedule="@once", session=session):
+            BashOperator.partial(task_id="mapped", bash_command="true").expand(env=[{"n": "1"}, {"n": "2"}])
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        self.job_runner._do_scheduling(session)
+
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == "test_scheduled_mapped_task")).one()
+        tis = dr.get_task_instances(session=session)
+        assert sorted(ti.map_index for ti in tis) == [0, 1]
+
     @pytest.mark.need_serialized_dag
     @conf_vars({("scheduler", "batch_asset_events"): "True"})
     def test_create_dag_runs_assets(self, session, dag_maker):
