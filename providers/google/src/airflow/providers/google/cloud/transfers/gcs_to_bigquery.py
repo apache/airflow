@@ -787,9 +787,10 @@ class GCSToBigQueryOperator(BaseOperator):
             and "schema" not in load_config
         ):
             self.log.warning(
-                "`ignore_unknown_values` has no effect when `autodetect=True` and no schema is "
-                "provided. Set `autodetect=None` to use the existing destination table's schema "
-                "instead."
+                "`ignore_unknown_values` is checked against the schema autodetected from the source "
+                "data, not against the destination table's schema, so fields missing from the "
+                "destination table are not dropped. Set `autodetect=None` to use the existing "
+                "destination table's schema instead."
             )
 
         return self.configuration
