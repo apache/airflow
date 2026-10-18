@@ -79,10 +79,10 @@ const authorized: DagVersionDiffResponse = {
   values_status: "available",
 };
 
-const renderDiff = (diff: DagVersionDiffResponse) =>
+const renderDiff = (diff: DagVersionDiffResponse, maxChanges?: number) =>
   render(
     <Wrapper>
-      <VersionDiff baseVersionNumber={1} diff={diff} targetVersionNumber={2} />
+      <VersionDiff baseVersionNumber={1} diff={diff} maxChanges={maxChanges} targetVersionNumber={2} />
     </Wrapper>,
   );
 
@@ -152,10 +152,32 @@ describe("VersionDiff", () => {
     expect(screen.getByText("bob")).toBeInTheDocument();
   });
 
-  it("warns that a truncated count is a lower bound", () => {
+  it("says a truncated count is a lower bound and points at the limit that was set", () => {
+    renderDiff({ ...redacted, truncated: true }, 10);
+
+    expect(screen.getByText("versions.summaryAtLeast")).toBeInTheDocument();
+    expect(screen.getByText("versions.limitReached.title")).toBeInTheDocument();
+    expect(screen.getByText("versions.limitReached.description")).toBeInTheDocument();
+  });
+
+  it("names the default limit when no bound was set", () => {
     renderDiff({ ...redacted, truncated: true });
 
-    expect(screen.getByText("versions.truncated.description")).toBeInTheDocument();
+    expect(screen.getByText("versions.limitReached.descriptionDefault")).toBeInTheDocument();
+  });
+
+  it("counts changes once, in the summary, not again above the table", () => {
+    renderDiff(redacted);
+
+    expect(screen.getByText("versions.summary")).toBeInTheDocument();
+    expect(screen.queryByText(/dag:versions\.record|versions\.record/u)).not.toBeInTheDocument();
+  });
+
+  it("gives an exact count when nothing was dropped", () => {
+    renderDiff(redacted);
+
+    expect(screen.getByText("versions.summary")).toBeInTheDocument();
+    expect(screen.queryByText("versions.limitReached.title")).not.toBeInTheDocument();
   });
 
   it("marks the side an added change does not have", () => {

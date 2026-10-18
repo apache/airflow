@@ -18,16 +18,18 @@
  */
 import type { ReactNode } from "react";
 
-import { Box } from "@chakra-ui/react";
+import { Box, type BoxProps } from "@chakra-ui/react";
 import { BsChevronExpand } from "react-icons/bs";
 
 import { IconButton, Popover, Tooltip } from "src/system-components";
 
-import { CrumbDivider, CrumbGroup, CrumbLink } from "./Crumb";
+import { CrumbDivider, CrumbGroup, CrumbLink, CrumbStatic } from "./Crumb";
 import { CUT_PADDING, type CrumbShape, crumbButtonStyles, getWedgePadding } from "./segment";
 
 type Props = {
   readonly children: ReactNode;
+  /** Width of the panel. The default suits a search; a short fixed list wants to shrink to fit. */
+  readonly contentWidth?: BoxProps["width"];
   /** Names the chevron for the tooltip and for assistive technology. */
   readonly label: string;
   readonly onOpenChange: (open: boolean) => void;
@@ -35,16 +37,28 @@ type Props = {
   readonly search: ReactNode;
   readonly shape: CrumbShape;
   readonly testId: string;
-  readonly to: string;
+  /** Where the naming half goes. Omitted for a level whose only destination is the page it is on. */
+  readonly to?: string;
 };
 
 /**
  * A breadcrumb level that also switches between its siblings: a two-part control whose left half
- * navigates to the level and whose right half opens a search, so switching happens where the
+ * names the level (and navigates to it, where that leads anywhere) and whose right half opens a
+ * search, so switching happens where the
  * current one is named. Open state stays at the call site, which owns the keyboard shortcut (if
  * the level has one) and the search the panel holds.
  */
-export const CrumbSwitcher = ({ children, label, onOpenChange, open, search, shape, testId, to }: Props) => (
+export const CrumbSwitcher = ({
+  children,
+  contentWidth = "sm",
+  label,
+  onOpenChange,
+  open,
+  search,
+  shape,
+  testId,
+  to,
+}: Props) => (
   <Popover.Root
     lazyMount
     onOpenChange={(event) => onOpenChange(event.open)}
@@ -56,9 +70,13 @@ export const CrumbSwitcher = ({ children, label, onOpenChange, open, search, sha
         edge and its bottom, so the panel drops clear of the bar and lines up with it. */}
     <Popover.Anchor asChild>
       <CrumbGroup shape={shape}>
-        <CrumbLink paddingInlineEnd={CUT_PADDING} to={to}>
-          {children}
-        </CrumbLink>
+        {to === undefined ? (
+          <CrumbStatic paddingInlineEnd={CUT_PADDING}>{children}</CrumbStatic>
+        ) : (
+          <CrumbLink paddingInlineEnd={CUT_PADDING} to={to}>
+            {children}
+          </CrumbLink>
+        )}
         <CrumbDivider />
         {/* The tooltip wraps the trigger rather than coming from IconButton's `label`: nesting it
           inside `asChild` leaves its own trigger ref unset, and it renders away from the button. */}
@@ -78,7 +96,7 @@ export const CrumbSwitcher = ({ children, label, onOpenChange, open, search, sha
         </Tooltip>
       </CrumbGroup>
     </Popover.Anchor>
-    <Popover.Content data-testid={`${testId}-popover`} width="sm">
+    <Popover.Content data-testid={`${testId}-popover`} width={contentWidth}>
       <Box p={2}>{search}</Box>
     </Popover.Content>
   </Popover.Root>

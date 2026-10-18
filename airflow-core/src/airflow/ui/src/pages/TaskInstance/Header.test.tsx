@@ -20,7 +20,7 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { LoopSummaryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
@@ -43,6 +43,11 @@ vi.mock("src/components/NotePreview", () => ({
 }));
 
 const mockConfig: Record<string, unknown> = { multi_team: false };
+const mockLoopSummary: { data?: Partial<LoopSummaryResponse> } = {};
+
+vi.mock("src/queries/useLoopSummary", () => ({
+  useLoopSummary: () => ({ data: mockLoopSummary.data }),
+}));
 
 vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
@@ -105,6 +110,33 @@ describe("Header", () => {
 
 const renderHeader = (overrides: Partial<TaskInstanceResponse>) =>
   render(<Header taskInstance={{ ...baseTaskInstance, ...overrides }} />, { wrapper: Wrapper });
+
+describe("Header loop decision", () => {
+  beforeEach(() => {
+    mockLoopSummary.data = {
+      iterations: [
+        { decision_reason: "error 0.25, needs < 1e-06", index: 0 },
+        { index: 1 },
+        { decision_reason: "error 6e-06, needs < 1e-06", index: 2 },
+      ],
+      iterations_ran: 3,
+    };
+  });
+
+  it("shows the reason its own iteration's gate gave", () => {
+    renderHeader({ loop_iteration: { iteration: 2, loop_id: "refine" } });
+
+    expect(screen.getByText(i18n.t("common:taskInstance.loopDecision"))).toBeInTheDocument();
+    expect(screen.getByText("error 6e-06, needs < 1e-06")).toBeInTheDocument();
+    expect(screen.queryByText("error 0.25, needs < 1e-06")).not.toBeInTheDocument();
+  });
+
+  it("omits the stat for an iteration without a reason", () => {
+    renderHeader({ loop_iteration: { iteration: 1, loop_id: "refine" } });
+
+    expect(screen.queryByText(i18n.t("common:taskInstance.loopDecision"))).not.toBeInTheDocument();
+  });
+});
 
 describe("Header state reason banner", () => {
   // Without the bundle i18n.t() echoes the key, so the titles below would assert nothing.

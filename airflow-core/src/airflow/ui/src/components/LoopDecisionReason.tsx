@@ -16,4 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export { IterationSelect } from "./IterationSelect";
+import { Text, type TextProps } from "@chakra-ui/react";
+
+import { Tooltip } from "src/system-components";
+
+export const LoopDecisionReason = ({ reason, ...rest }: { readonly reason: string } & TextProps) => (
+  // Portalled because the header card clips its overflow.
+  <Tooltip
+    content={
+      <Text overflowWrap="anywhere" whiteSpace="pre-line">
+        {reason}
+      </Text>
+    }
+    portalled
+  >
+    <Text maxWidth="md" truncate {...rest}>
+      {reason}
+    </Text>
+  </Tooltip>
+);

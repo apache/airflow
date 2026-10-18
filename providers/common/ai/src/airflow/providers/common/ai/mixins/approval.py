@@ -147,15 +147,17 @@ class LLMApprovalMixin:
     ``{{ task.subject }}`` and ``{{ task.body }}`` in notifier templates.  A
     notifier whose delivery raises is logged without failing the task, while a
     template error fails the task.  A retry re-runs the LLM and re-notifies
-    with the regenerated output, while the open review keeps the original
-    subject and body.
+    with the regenerated output.  On Airflow 3.4+ the reopened review shows the
+    regenerated output too; on Airflow 3.1 to 3.3 it keeps the original subject,
+    body and editable output, so approving it unedited returns the first
+    attempt's output.
 
     ``approval_assigned_users`` restricts the review to the named users, the way
     :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
     ``assigned_users``.  Leaving it empty lets any user with the permission
-    respond.  The list is stored when the review is first created; clearing
-    the task re-runs it against the existing review row, so a changed list
-    does not take effect.
+    respond.  On Airflow 3.1 to 3.3 the list is stored when the review is first
+    created, so clearing the task after changing it does not take effect; on
+    3.4+ a cleared or retried task replaces it.
 
     Operators that use this mixin must set the following attributes:
 

@@ -288,8 +288,9 @@ Parameters
   ``dict`` of the same fields (templated via Jinja, then coerced per field type).
   Fails the task when token / request / tool-call budgets are exceeded, or when a
   templated dict value cannot be coerced.  Default ``None``.
-- ``require_approval``: If ``True``, the task defers after generating output and waits
-  for human review. Default ``False``. Needs Airflow 3.1+.
+- ``require_approval``: If ``True``, the task pauses after generating output and waits
+  for human review (``awaiting_input`` on Airflow 3.3+, deferred on 3.1 and 3.2).
+  Default ``False``. Needs Airflow 3.1+.
 - ``approval_timeout``: Maximum time to wait for a review (``timedelta``).  ``None``
   means wait indefinitely.  Default ``None``.
 - ``on_approval_timeout``: Outcome when ``approval_timeout`` expires without a
@@ -305,7 +306,7 @@ Parameters
 - ``approval_assigned_users``: Users allowed to answer the review, as
   ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's user id.
   ``None`` (default) lets any user with the permission respond.  Fixed at first
-  run.  Needs Airflow 3.1+.
+  run on Airflow 3.1 to 3.3; replaced on clear or retry from 3.4.  Needs Airflow 3.1+.
 
 Logging
 -------

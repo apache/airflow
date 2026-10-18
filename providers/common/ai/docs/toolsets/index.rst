@@ -67,13 +67,14 @@ with is resolved in the worker and is not part of any of that.
      - ``timeout`` for each call; what the remote agent may touch is set at the
        vendor
 
-Two controls work on every toolset. ``.approval_required()`` pauses the task before a
+Three controls work on every toolset. ``.approval_required()`` pauses the task before a
 matching call runs, until a person approves or rejects it on the **Required Actions**
 page. It needs Airflow 3.3 or later, pauses at every step that calls a matching tool on
 Airflow 3.4 and later (once per Dag run on 3.3), and does not combine with ``durable=True`` or a ``SandboxToolset`` that provisions its
 own sandbox (:doc:`../tool_approval` lists every limit). ``.filtered()`` drops tools
 from what the model is offered, as the :ref:`MCP guide <howto/toolset:mcp-filtered>`
-shows.
+shows. ``.defer_loading()`` hides a toolset's tools from the model until it searches for
+them, which pays off on a toolset with many tools (see :doc:`progressive_disclosure`).
 
 :doc:`logging` and :doc:`langchain` do not reach a system of their own: one wraps a
 toolset to log its calls, the other converts a toolset for a LangChain agent.
@@ -92,6 +93,8 @@ toolset to log its calls, the other converts a toolset for a LangChain agent.
     Vendor-managed agents <managed_agent>
     LangChain tools <langchain>
     Tool call logging <logging>
+    Progressive tool disclosure <progressive_disclosure>
+    Writing your own toolset <custom>
 
 Importing toolsets
 ------------------
@@ -119,7 +122,8 @@ Every toolset here implements pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface, so it works in any
 pydantic-ai ``Agent``. ``AgentOperator`` accepts any ``AbstractToolset`` too, such as
 pydantic-ai's own ``MCPToolset`` or a third-party toolset; those miss the connection
-handling the toolsets on this page add.
+handling the toolsets on this page add. To write a toolset of your own on the same base
+class, see :doc:`custom`.
 
 Choosing a toolset
 ------------------
@@ -294,8 +298,8 @@ used to allow exactly one correction whatever ``retries`` said, so an agent that
 ``retries`` now applies it to them too: ``retries=0`` fails the run on the first bad
 query, and a large integer ``retries`` meant for output validation also lets a failing
 database be queried that many times. Pass ``max_retries=1`` to a toolset to keep the old
-behaviour. Outside a pydantic-ai agent (the LangChain, Strands, Google ADK and Anthropic
-tool runner bridges) there is no agent budget, so each tool gets one correction unless its
+behaviour. Outside a pydantic-ai agent (the LangChain, Strands, Google ADK, Anthropic
+tool runner and OpenAI Agents SDK bridges) there is no agent budget, so each tool gets one correction unless its
 toolset sets ``max_retries``.
 
 Layering

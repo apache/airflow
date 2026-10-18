@@ -35,8 +35,9 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     LoopSummaryResponse,
 )
 from airflow.api_fastapi.core_api.services.ui.task_group import get_task_group_children_getter
-from airflow.models.dynamic_region import DynamicRegion, loop_position
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, DynamicRegion, loop_position
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XComModelV2
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
@@ -66,6 +67,7 @@ class GridNodeAgg:
     dag_version_number: int | None = None
     has_note: bool = False
     loop_iterations: dict[str, set[tuple[UUID, int]]] = field(default_factory=dict)
+    latest_region: tuple[UUID, int] | None = None
 
     def add_ti(
         self,
@@ -76,9 +78,24 @@ class GridNodeAgg:
         dag_version_number: int | None,
         has_note: bool = False,
         loop_positions: dict[str, tuple[UUID, int]] | None = None,
+        is_latest_pass: bool = True,
+        region: tuple[UUID, int] | None = None,
     ) -> None:
-        """Merge one task instance row into the summary."""
+        """
+        Merge one task instance row into the summary.
+
+        Every pass counts towards the states. A looped task's cell stands for the work the loop
+        did rather than one run of it, and the UI says how many iterations that covers, so an
+        earlier pass that is re-running is visible instead of hidden behind a finished later one.
+
+        ``is_latest_pass`` is false for a superseded iteration. Its state still counts, but it
+        does not supply the coordinate: a link has to address the newest row.
+        """
         self.child_states[state] += 1
+        # A looped task has one row per iteration, so a link without a coordinate cannot say
+        # which one it means. Carry the newest so the grid can address it.
+        if is_latest_pass and region is not None:
+            self.latest_region = region
         if has_started(state, start_date):
             for loop_id, position in (loop_positions or {}).items():
                 self.loop_iterations.setdefault(loop_id, set()).add(position)
@@ -166,6 +183,8 @@ def _get_aggs_for_node(summary: GridNodeAgg) -> dict[str, Any]:
         "child_states": _serialize_child_states(summary.child_states),
         "dag_version_number": summary.dag_version_number,
         "has_note": summary.has_note,
+        "latest_region_id": None if summary.latest_region is None else summary.latest_region[0],
+        "latest_region_index": None if summary.latest_region is None else summary.latest_region[1],
     }
 
 
@@ -250,6 +269,7 @@ class LoopRunInputs:
     group: SerializedLoopTaskGroup | None = None
     loop_definitions: dict[UUID | None, SerializedLoopTaskGroup] = field(default_factory=dict)
     regions: dict[UUID, DynamicRegion] = field(default_factory=dict)
+    gate_reasons: dict[UUID, str] = field(default_factory=dict)
     error: HTTPException | None = None
 
 
@@ -314,6 +334,7 @@ def load_loop_run_inputs(
     if wanted_task_ids:
         member_rows = session.execute(
             select(
+                TaskInstance.id,
                 TaskInstance.run_id,
                 TaskInstance.task_id,
                 TaskInstance.region_id,
@@ -413,6 +434,10 @@ def summarize_loop_run(
             rows.append(
                 LoopIterationSummary(
                     index=index,
+                    task_count=len(tasks),
+                    decision_reason=next(
+                        (inputs.gate_reasons[ti.id] for ti in tasks if ti.id in inputs.gate_reasons), None
+                    ),
                     state=agg_state(states),
                     start_date=min(starts) if starts else None,
                     end_date=max(ends) if ends and all(s in State.finished for s in states) else None,
@@ -474,4 +499,14 @@ def loop_run_summaries(
 ) -> list[LoopSummaryResponse]:
     """Summarize one run's loop invocations, loading its inputs through the batch loader."""
     inputs = load_loop_run_inputs([run], group_id, session=session, dag_bag=dag_bag)[run.run_id]
+    gate_task_ids = {definition.gate_task_id for definition in inputs.loop_definitions.values()}
+    if gate_ids := [ti.id for ti in inputs.members if ti.task_id in gate_task_ids]:
+        inputs.gate_reasons = {
+            gate_id: reason
+            for gate_id, reason in session.execute(
+                select(XComModelV2.task_instance_id, XComModelV2.value).where(
+                    XComModelV2.task_instance_id.in_(gate_ids), XComModelV2.key == LOOP_DECISION_REASON_KEY
+                )
+            )
+        }
     return summarize_loop_run(inputs, group_id, loop_region_id=loop_region_id)

@@ -16,21 +16,23 @@
 # under the License.
 from __future__ import annotations
 
+import re
+
 import pytest
 
-from airflow.sdk import DAG, BaseOperator, TaskInstanceState, task, task_group
-from airflow.sdk.api.datamodels._generated import LoopContext
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk import DAG, BaseOperator, LoopDecision, TaskInstanceState, task, task_group
+from airflow.sdk._shared.secrets_masker import _secrets_masker
+from airflow.sdk.api.datamodels._generated import LoopContext, LoopDecisionPayload
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowFailException
 from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
-    DeleteXCom,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
-    SetXCom,
+    SucceedTask,
+    TaskState,
     XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
@@ -119,60 +121,141 @@ def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_superv
 
 
 @pytest.mark.parametrize(
-    ("index", "condition", "decision"),
-    [(0, None, "continue"), (2, None, "stop"), (0, False, "continue"), (0, True, "stop"), (2, True, "stop")],
+    ("index", "until", "expected"),
+    [
+        (0, None, LoopDecisionPayload(stop=False)),
+        (2, None, LoopDecisionPayload(stop=True)),
+        (0, lambda: False, LoopDecisionPayload(stop=False)),
+        (0, lambda: True, LoopDecisionPayload(stop=True)),
+        (2, lambda: True, LoopDecisionPayload(stop=True)),
+        (0, lambda: LoopDecision(stop=True), LoopDecisionPayload(stop=True)),
+        (
+            0,
+            lambda: LoopDecision(stop=False, reason="score 0.7, needs > 0.9"),
+            LoopDecisionPayload(stop=False, reason="score 0.7, needs > 0.9"),
+        ),
+        (
+            0,
+            lambda: LoopDecision(stop=True, reason="é" * 256),
+            LoopDecisionPayload(stop=True, reason="é" * 256),
+        ),
+        (0, lambda: LoopDecision(stop=True, reason=""), LoopDecisionPayload(stop=True)),
+        (
+            0,
+            lambda: LoopDecision(stop=True, reason="token hunter2 expired"),
+            LoopDecisionPayload(stop=True, reason="token *** expired"),
+        ),
+    ],
+    ids=[
+        "fixed_continue",
+        "fixed_stop_at_cap",
+        "bool_continue",
+        "bool_stop",
+        "bool_stop_at_cap",
+        "decision_without_reason",
+        "decision_with_reason",
+        "reason_at_byte_limit",
+        "empty_reason_is_no_reason",
+        "secret_in_reason_is_masked",
+    ],
 )
-def test_gate_publishes_successful_decision(loop_ti, mock_supervisor_comms, index, condition, decision):
-    def until(*, loop):
-        assert loop.index == index
-        return condition
+@pytest.mark.enable_redact
+def test_gate_sends_its_decision_with_success(loop_ti, mock_supervisor_comms, index, until, expected):
+    _secrets_masker().add_mask("hunter2", None)
+    ti = loop_ti(index=index, until=until)
 
-    ti = loop_ti(index=index, until=until if condition is not None else None)
-    context = ti.get_template_context()
+    state, message, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
 
-    ti.task.execute(context)
+    assert (state, error) == (TaskInstanceState.SUCCESS, None)
+    assert isinstance(message, SucceedTask)
+    assert message.loop_decision == expected
 
-    message = mock_supervisor_comms.send.call_args.args[0]
-    assert isinstance(message, SetXCom)
-    assert message.key == "_airflow_loop_decision"
-    assert message.value == decision
+
+def _raise_value_error():
+    raise ValueError("condition failed")
 
 
 @pytest.mark.parametrize(
-    ("raises", "error", "message"),
-    [(False, LoopMaxIterationsExceeded, "max_iterations"), (True, ValueError, "condition failed")],
+    ("until", "error", "message"),
+    [
+        (_raise_value_error, ValueError, "condition failed"),
+        (lambda: None, AirflowFailException, "got NoneType"),
+        (lambda: 0, AirflowFailException, "got int"),
+        (lambda: 1, AirflowFailException, "got int"),
+        (lambda: [], AirflowFailException, "got list"),
+        (lambda: "yes", AirflowFailException, "got str"),
+        (lambda: LoopDecision(stop=1), AirflowFailException, "LoopDecision stop must be a bool, got int"),  # type: ignore[arg-type]
+        (
+            lambda: LoopDecision(stop=None, reason="r"),  # type: ignore[arg-type]
+            AirflowFailException,
+            "LoopDecision stop must be a bool, got NoneType",
+        ),
+        (
+            lambda: LoopDecision(stop=True, reason=0.2),  # type: ignore[arg-type]
+            AirflowFailException,
+            "LoopDecision reason must be a str or None, got float",
+        ),
+        (
+            lambda: LoopDecision(stop=True, reason=b"r"),  # type: ignore[arg-type]
+            AirflowFailException,
+            "LoopDecision reason must be a str or None, got bytes",
+        ),
+        (lambda: LoopDecision(stop=True, reason="x" * 513), AirflowFailException, "512 bytes"),
+        (lambda: LoopDecision(stop=True, reason="é" * 257), AirflowFailException, "512 bytes"),
+        (lambda: LoopDecision(stop=True, reason="\ud800"), AirflowFailException, "valid UTF-8"),
+    ],
+    ids=[
+        "until_raises",
+        "none",
+        "zero",
+        "one",
+        "list",
+        "str",
+        "int_stop",
+        "none_stop",
+        "float_reason",
+        "bytes_reason",
+        "ascii_reason_over_limit",
+        "utf8_reason_over_limit",
+        "unpaired_surrogate_reason",
+    ],
 )
-def test_unsuccessful_gate_does_not_publish_decision(loop_ti, mock_supervisor_comms, raises, error, message):
-    def until(*, loop):
-        if raises:
-            raise ValueError("condition failed")
-        return False
+def test_gate_fails_without_a_decision(loop_ti, mock_supervisor_comms, until, error, message):
+    ti = loop_ti(index=0, until=until)
 
-    ti = loop_ti(index=2, until=until)
-    with pytest.raises(error, match=message):
-        ti.task.execute(ti.get_template_context())
+    state, sent, raised = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
 
-    mock_supervisor_comms.send.assert_not_called()
-
-
-def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(loop_ti, mock_supervisor_comms):
-    ti = loop_ti(index=2, until=lambda: False)
-
-    with pytest.raises(LoopMaxIterationsExceeded, match="max_iterations=3") as exc_info:
-        ti.task.execute(ti.get_template_context())
-
-    assert isinstance(exc_info.value, AirflowFailException)
-    mock_supervisor_comms.send.assert_not_called()
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(raised, error)
+    assert re.search(message, str(raised))
+    assert isinstance(sent, TaskState)
+    assert sent.loop_decision is None
 
 
-@pytest.mark.parametrize("result", [None, 0, 1, [], "yes"])
-def test_gate_fails_when_until_does_not_return_a_bool(loop_ti, mock_supervisor_comms, result):
-    ti = loop_ti(index=0, until=lambda: result)
+@pytest.mark.parametrize(
+    ("result", "message", "reason"),
+    [
+        (False, r"max_iterations=3$", None),
+        (
+            LoopDecision(stop=False, reason="error 0.2, needs < 1e-06"),
+            r"max_iterations=3: error 0.2, needs",
+            "error 0.2, needs < 1e-06",
+        ),
+    ],
+    ids=["bool", "decision_with_reason"],
+)
+def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(
+    loop_ti, mock_supervisor_comms, result, message, reason
+):
+    ti = loop_ti(index=2, until=lambda: result)
 
-    with pytest.raises(AirflowFailException, match=f"got {type(result).__name__}"):
-        ti.task.execute(ti.get_template_context())
+    state, sent, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
 
-    mock_supervisor_comms.send.assert_not_called()
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(error, LoopMaxIterationsExceeded)
+    assert re.search(message, str(error))
+    assert isinstance(sent, TaskState)
+    assert sent.loop_decision == LoopDecisionPayload(stop=False, reason=reason)
 
 
 @pytest.mark.asyncio
@@ -239,44 +322,3 @@ def test_mapped_terminal_keeps_iteration_across_lazy_reads(
     assert result[::-1] == values[::-1]
     if values:
         assert result[-1] == values[-1]
-
-
-def test_loop_decision_bypasses_custom_backend(loop_ti, mock_supervisor_comms, mocker):
-    serialize = mocker.patch("airflow.sdk.execution_time.xcom.XCom.serialize_value", autospec=True)
-    ti = loop_ti()
-
-    ti.task.execute(ti.get_template_context())
-
-    serialize.assert_not_called()
-    assert mock_supervisor_comms.send.call_args.args[0].value == "continue"
-
-
-def test_gate_retry_clears_old_signal_without_custom_backend(loop_ti, mock_supervisor_comms, monkeypatch):
-    class CustomXCom(BaseXCom):
-        @classmethod
-        def purge(cls, xcom, *args):
-            raise AssertionError("Control metadata must not reach custom backend")
-
-    ti = loop_ti()
-    ti._ti_context_from_server.xcom_keys_to_clear = ["_airflow_loop_decision"]
-    monkeypatch.setattr(task_runner, "XCom", CustomXCom)
-    mock_supervisor_comms.send.side_effect = lambda message: (
-        XComResult(key="_airflow_loop_decision", value="stop") if isinstance(message, GetXCom) else None
-    )
-
-    state, _, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
-
-    assert error is None
-    assert state == TaskInstanceState.SUCCESS
-    decisions = [
-        call.args[0]
-        for call in mock_supervisor_comms.send.call_args_list
-        if call.args and isinstance(call.args[0], SetXCom)
-    ]
-    assert [decision.value for decision in decisions] == ["continue"]
-    deletes = [
-        call.args[0]
-        for call in mock_supervisor_comms.send.call_args_list
-        if call.args and isinstance(call.args[0], DeleteXCom)
-    ]
-    assert [delete.key for delete in deletes] == ["_airflow_loop_decision"]

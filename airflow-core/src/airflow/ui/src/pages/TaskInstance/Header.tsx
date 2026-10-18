@@ -30,6 +30,7 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
+import { LoopDecisionReason } from "src/components/LoopDecisionReason";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
 import ReactMarkdown from "src/components/ReactMarkdown";
@@ -37,6 +38,7 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
+import { useLoopSummary } from "src/queries/useLoopSummary";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { useDurationFormat } from "src/utils";
 
@@ -68,6 +70,15 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
   const { formatElapsed, renderDuration } = useDurationFormat();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
   const showTeam = useShowTeam(taskInstance.team_name);
+  const loopIteration = taskInstance.loop_iteration;
+  const { data: loopSummary } = useLoopSummary({
+    dagId: taskInstance.dag_id,
+    groupId: loopIteration?.loop_id ?? "",
+    runId: taskInstance.dag_run_id,
+  });
+  const decisionReason = loopSummary?.iterations.find(
+    (iteration) => iteration.index === loopIteration?.iteration,
+  )?.decision_reason;
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -77,6 +88,22 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     ...(taskInstance.try_number > 1
       ? [{ label: translate("tryNumber"), value: taskInstance.try_number }]
       : []),
+    ...(loopIteration === null || loopIteration === undefined
+      ? []
+      : [
+          {
+            label: translate("common:filters.iteration"),
+            value: `${loopIteration.iteration}/${loopSummary?.iterations_ran ?? loopIteration.iteration}`,
+          },
+        ]),
+    ...(decisionReason === undefined
+      ? []
+      : [
+          {
+            label: translate("taskInstance.loopDecision"),
+            value: <LoopDecisionReason reason={decisionReason} />,
+          },
+        ]),
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)

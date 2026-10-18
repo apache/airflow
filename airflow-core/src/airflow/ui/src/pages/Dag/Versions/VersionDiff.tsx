@@ -31,8 +31,14 @@ import type { MetaColumn } from "src/components/DataTable/types";
 type VersionDiffProps = {
   readonly baseVersionNumber: number;
   readonly diff: DagVersionDiffResponse;
+  /** The bound the request asked for; undefined means the endpoint's default applied. */
+  readonly maxChanges?: number;
   readonly targetVersionNumber: number;
 };
+
+// Mirrors DEFAULT_MAX_CHANGES on the diff endpoint, so the truncation notice can name the limit
+// that cut the comparison short when the caller left the field empty.
+const DEFAULT_MAX_CHANGES = 500;
 
 const IMPACT_COLORS: Record<string, string> = {
   authorization: "orange",
@@ -120,7 +126,12 @@ const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): Change
   ...(valuesShown ? buildValueColumns(translate) : []),
 ];
 
-export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: VersionDiffProps) => {
+export const VersionDiff = ({
+  baseVersionNumber,
+  diff,
+  maxChanges,
+  targetVersionNumber,
+}: VersionDiffProps) => {
   const { t: translate } = useTranslation("dag");
   const valuesShown = diff.values_status === "available";
   const schemaChanged = diff.serializer_versions.base !== diff.serializer_versions.target;
@@ -151,7 +162,10 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
             {translate("versions.heading", { base: baseVersionNumber, target: targetVersionNumber })}
           </Heading>
           <Text color="fg.muted" fontSize="sm">
-            {translate("versions.summary", { count: diff.total_changes })}
+            {/* A truncated count is a lower bound, so it says "at least" rather than a bare number. */}
+            {translate(diff.truncated ? "versions.summaryAtLeast" : "versions.summary", {
+              count: diff.total_changes,
+            })}
             {/* Only worth a mention when the two versions were stored by different serializers. */}
             {schemaChanged
               ? ` · ${translate("versions.schemaChange", {
@@ -180,18 +194,33 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
       </Flex>
 
       {diff.truncated ? (
-        <Alert.Root mb={2} status="warning" title={translate("versions.truncated.title")}>
-          <Alert.Description>{translate("versions.truncated.description")}</Alert.Description>
+        // The title is a child, not a `title` prop: Chakra's Alert.Root passes that through as the
+        // HTML attribute, so it only ever showed as a hover tooltip.
+        <Alert.Root mb={2} status="warning">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>
+              {translate("versions.limitReached.title", { limit: maxChanges ?? DEFAULT_MAX_CHANGES })}
+            </Alert.Title>
+            <Alert.Description>
+              {translate(
+                maxChanges === undefined
+                  ? "versions.limitReached.descriptionDefault"
+                  : "versions.limitReached.description",
+              )}
+            </Alert.Description>
+          </Alert.Content>
         </Alert.Root>
       ) : undefined}
 
       <DataTable
         columns={buildColumns(translate, valuesShown)}
         data={diff.changes}
+        // The summary above already counts the changes. A second "N Records" count only invites a
+        // comparison that does not hold: a redacted record stands for every change sharing its path.
+        hideRowCountHeading
         modelName="dag:versions.record"
         noRowsMessage={translate("versions.noChanges")}
-        // Records, not underlying changes: a redacted record stands for every change sharing its
-        // path, which is why this can read lower than the count in the summary above.
         total={diff.changes.length}
       />
     </Box>

@@ -1718,6 +1718,197 @@ def test_exhausted_logs_about_retry_policy_decision(create_runtime_ti, mock_supe
     )
 
 
+class _CapacityError(Exception):
+    """Stands in for a cluster rejecting a pod because its resource quota is full."""
+
+
+class _NoCapacityTask(BaseOperator):
+    def execute(self, context):
+        raise _CapacityError("exceeded quota")
+
+
+def _reschedule_policy(retry_delay: timedelta | None = timedelta(minutes=10), **bounds):
+    return ExceptionRetryPolicy(
+        rules=[
+            RetryRule(
+                exception=_CapacityError,
+                action=RetryAction.RESCHEDULE,
+                retry_delay=retry_delay,
+                reason="cluster full",
+                **bounds,
+            )
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("bounds", "task_reschedule_count", "first_rescheduled_ago"),
+    [
+        pytest.param({"max_reschedules": 3}, 0, timedelta(0), id="first-failure"),
+        pytest.param({"max_reschedules": 3}, 2, timedelta(minutes=20), id="below-max-reschedules"),
+        pytest.param(
+            {"reschedule_timeout": timedelta(hours=1)}, 2, timedelta(minutes=20), id="within-timeout"
+        ),
+    ],
+)
+def test_retry_policy_reschedule_does_not_use_a_retry(
+    time_machine,
+    create_runtime_ti,
+    mock_supervisor_comms,
+    bounds,
+    task_reschedule_count,
+    first_rescheduled_ago,
+):
+    """RESCHEDULE within its bounds reschedules the try, even with no retries configured."""
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    task = _NoCapacityTask(task_id="no_capacity", retries=0, retry_policy=_reschedule_policy(**bounds))
+    ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
+    ti._ti_context_from_server.first_task_reschedule_start_date = now - first_rescheduled_ago
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert msg == RescheduleTask(reschedule_date=now + timedelta(minutes=10), end_date=now)
+
+
+def test_retry_policy_reschedule_without_delay_uses_the_task_retry_delay(
+    time_machine, create_runtime_ti, mock_supervisor_comms
+):
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    task = _NoCapacityTask(
+        task_id="no_capacity",
+        retry_delay=timedelta(minutes=7),
+        retry_policy=_reschedule_policy(retry_delay=None, max_reschedules=3),
+    )
+    ti = create_runtime_ti(task=task)
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert msg.reschedule_date == now + timedelta(minutes=7)
+
+
+@pytest.mark.parametrize(
+    ("bounds", "task_reschedule_count", "first_rescheduled_ago", "limit"),
+    [
+        pytest.param(
+            {"max_reschedules": 3}, 3, timedelta(minutes=30), "max_reschedules=3", id="max-reschedules"
+        ),
+        pytest.param(
+            {"reschedule_timeout": timedelta(hours=1)},
+            5,
+            timedelta(hours=2),
+            "reschedule_timeout=1:00:00",
+            id="reschedule-timeout",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("retries", "expected_state", "expected_msg"),
+    [
+        pytest.param(
+            1,
+            TaskInstanceState.UP_FOR_RETRY,
+            lambda now, reason: RetryTask(end_date=now, retry_reason=reason),
+            id="retry-left",
+        ),
+        pytest.param(
+            0,
+            TaskInstanceState.FAILED,
+            lambda now, reason: TaskState(state=TaskInstanceState.FAILED, end_date=now, retry_reason=reason),
+            id="no-retry-left",
+        ),
+    ],
+)
+def test_retry_policy_reschedule_past_its_bound_applies_the_standard_retry_logic(
+    time_machine,
+    create_runtime_ti,
+    mock_supervisor_comms,
+    bounds,
+    task_reschedule_count,
+    first_rescheduled_ago,
+    limit,
+    retries,
+    expected_state,
+    expected_msg,
+):
+    """Past its bound the task retries on its own retry_delay, not the reschedule delay, or fails."""
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    task = _NoCapacityTask(task_id="no_capacity", retries=retries, retry_policy=_reschedule_policy(**bounds))
+    ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
+    ti._ti_context_from_server.first_task_reschedule_start_date = now - first_rescheduled_ago
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    assert state == expected_state
+    assert msg == expected_msg(now, f"Reschedule limit reached ({limit}): cluster full")
+
+
+def test_retry_policy_reschedule_runs_no_failure_callbacks_or_metrics(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """A reschedule is waiting, not failing: no retry or failure callback runs and no failure is counted."""
+    called = []
+    task = _NoCapacityTask(
+        task_id="no_capacity",
+        retries=1,
+        retry_policy=_reschedule_policy(max_reschedules=3),
+        on_retry_callback=lambda context: called.append("on_retry_callback"),
+        on_failure_callback=lambda context: called.append("on_failure_callback"),
+    )
+    ti = create_runtime_ti(task=task)
+    context = ti.get_template_context()
+    log = structlog.get_logger()
+    stats_backend = mock.MagicMock(spec=StatsLogger)
+
+    with mock.patch("airflow.sdk.execution_time.task_runner.stats", stats_backend):
+        state, _, error = run(ti, context, log)
+        finalize(ti, state, context, log, error)
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert called == []
+    counted = {call.args[0] for call in stats_backend.incr.call_args_list if call.args}
+    assert counted.isdisjoint({"ti_failures", "operator_failures"})
+
+
+class _SensorStyleReschedule(BaseOperator):
+    def execute(self, context):
+        raise AirflowRescheduleException(reschedule_date=datetime(2026, 10, 14, 10, 0, tzinfo=UTC))
+
+
+@pytest.mark.parametrize(
+    ("task", "should_fail_closed"),
+    [
+        pytest.param(
+            _NoCapacityTask(task_id="no_capacity", retry_policy=_reschedule_policy(max_reschedules=3)),
+            True,
+            id="policy-reschedule-after-an-exception",
+        ),
+        pytest.param(_SensorStyleReschedule(task_id="poke"), False, id="task-raised-reschedule"),
+    ],
+)
+def test_run_fails_closed_when_a_policy_reschedule_cannot_be_reported(
+    create_runtime_ti, mock_supervisor_comms, task, should_fail_closed
+):
+    """A task that raised must not exit 0 (and so count as SUCCESS) because its reschedule was lost."""
+    runtime_ti = create_runtime_ti(task=task)
+
+    def send_side_effect(msg=None, **kwargs):
+        if isinstance(msg, RescheduleTask):
+            raise BrokenPipeError("supervisor IPC broken")
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = send_side_effect
+
+    state, _, _ = run(runtime_ti, runtime_ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert runtime_ti._terminal_state_send_failed is should_fail_closed
+
+
 def test_finalize_emits_endgroup(create_runtime_ti, mock_supervisor_comms):
     """finalize() closes the post-execute log group but does not open it."""
     task = BaseOperator(task_id="some_task")
