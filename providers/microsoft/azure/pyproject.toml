@@ -72,6 +72,9 @@ dependencies = [
     "azure-keyvault-secrets>=4.10.0",
     "azure-mgmt-datalake-store>=0.5.0",
     "azure-mgmt-resource>=25.0.0",
+    # 12.0.0 is excluded: on a 413 its async client writes the first half of the batch, then retries
+    # the second half with a keyword it does not accept (TypeError). Fixed since 12.1.0b2.
+    "azure-search-documents>=11.6.0,!=12.0.0",
     "azure-storage-blob>=12.28.0",
     "azure-mgmt-storage>=24.0.1",
     "azure-storage-file-share>=12.24.0",
