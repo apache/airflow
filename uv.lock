@@ -167,9 +167,7 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-boat-sdk = "2026-10-11T00:00:00Z"
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [manifest]
 members = [
@@ -10736,7 +10734,7 @@ wheels = [
 
 [[package]]
 name = "boat-sdk"
-version = "1.9.3"
+version = "1.9.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -10744,9 +10742,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/90/7c/a843717209c5bcc1afff728bd03b1c2aeeefdf2b7f3214cff606dec4066e/boat_sdk-1.9.3.tar.gz", hash = "sha256:7a1256f290f2da73aab253747dc82c2cb3b3e30121a021d741bf3c83fb3e8ca0", size = 161207, upload-time = "2026-10-10T19:14:40.093Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/28/b64316a02cf88763707fc1c0af8fd1cb7bb18c557f43a8947aa003da7c15/boat_sdk-1.9.7.tar.gz", hash = "sha256:5ab15d6f1c2e73a2ff3aa71b0e65234aa30cb0c60879ab21bf54cfc4a261f798", size = 185341, upload-time = "2026-10-12T20:05:46.602Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5b/4d/53189efbc1dc899c4f3b84f76b61bfcf9f9231e208ff9e3a991263e3e546/boat_sdk-1.9.3-py3-none-any.whl", hash = "sha256:00b890cdd9180534893c7d6e4149e530bdb6383434c2c72275b814f058331c5d", size = 345784, upload-time = "2026-10-10T19:14:38.434Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/a4/2dae22c10a18dab1f7b0573c2fdd7c659379eedf49341b6b50d4fa24ff63/boat_sdk-1.9.7-py3-none-any.whl", hash = "sha256:9d686b8ef2491f02270074260bd7af46aa2f81e6e43ef13031a21ac31198af19", size = 396304, upload-time = "2026-10-12T20:05:45.078Z" },
 ]
 
 [[package]]
@@ -24338,18 +24336,20 @@ wheels = [
 
 [[package]]
 name = "typesafe-sdk"
-version = "0.7.0"
+version = "0.7.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
+    { name = "packaging" },
     { name = "pydantic" },
     { name = "pydantic-core" },
     { name = "tenacity" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/28/e2/ac317772d4d5cfabf3cecdeacd83cc838523e240bb4e1cf256837e6005bb/typesafe_sdk-0.7.0.tar.gz", hash = "sha256:930d42fd73cfed6f25bccae488ce0f30f6043eaedd8682ef59734e79ab94a876", size = 22235, upload-time = "2026-09-18T09:12:30.846Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/12/3a897e9f424be6f4db0648a955f8fadbe62149d118a03614df897b5a2ec9/typesafe_sdk-0.7.4.tar.gz", hash = "sha256:a20dca217a746db1ac5534ac502de16e1f86a400b4ec09f8594e6221c2bc9558", size = 24388, upload-time = "2026-10-09T15:47:14.978Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/2a/16f4163e6d8827ef80b2ed7a400c80688e1ebf571c10f143f792bdafc654/typesafe_sdk-0.7.0-py3-none-any.whl", hash = "sha256:c6d2257c4b04b8d4d81cff2b55489b4188795fd44fb40b9cef26ff243b2d1080", size = 35352, upload-time = "2026-09-18T09:12:29.625Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/49/6cd65684e41e25069f4d12c09cd7e1e3f81477f06acb29bf0d1815e27d1e/typesafe_sdk-0.7.4-py3-none-any.whl", hash = "sha256:61cf3f2fe9da20b68c3d3fe2fb76bbb2f35f8c4a9a65a6b81c43a535d2a53210", size = 37700, upload-time = "2026-10-09T15:47:12.418Z" },
 ]
 
 [[package]]

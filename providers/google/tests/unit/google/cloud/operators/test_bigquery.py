@@ -1200,6 +1200,18 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
 
+    def test_on_kill_before_execute(self):
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration={"query": {"query": "SELECT * FROM any", "useLegacySql": False}},
+            location=TEST_DATASET_LOCATION,
+            job_id="123456",
+            project_id=TEST_GCP_PROJECT_ID,
+            durable=False,
+        )
+
+        op.on_kill()
+
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
     def test_on_kill_after_execution_timeout(self, mock_job, mock_hook):
