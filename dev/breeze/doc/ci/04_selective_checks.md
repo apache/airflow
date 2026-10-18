@@ -677,26 +677,35 @@ GitHub Actions to pass the list of parameters to a command to execute
 ## Self-hosted (RunsOn) vs. public runners
 
 The `Tests (AMD)` / `Tests (ARM)` jobs run either on GitHub-hosted ("public") runners or on self-hosted
-[RunsOn](https://runs-on.com) EC2 runners in the Airflow AWS account. Code running on the RunsOn runners
-can reach the RunsOn stack's AWS resources (its S3 cache bucket), so selective checks only route code
-from `apache/airflow` itself there. The `runner-type` output is decided as follows, first match wins:
+[RunsOn](https://runs-on.com) EC2 runners in the Airflow AWS account. Selective checks route runs of
+code from `apache/airflow` itself there; this is a routing preference, not what keeps fork code off
+RunsOn (see below). The `runner-type` output is decided as follows, first match wins:
 
 1. Runs in any repository other than `apache/airflow` (forks running their own CI) use public runners.
-2. PRs with the `use public runners` label use public runners.
-3. Any `push`, `schedule` or `workflow_dispatch` in `apache/airflow` (canary runs and the release
+2. Any run uses public runners while the repository variable `USE_PUBLIC_RUNNERS` is `true`: the
+   switch for moving `main` off RunsOn without a PR, e.g. when the stack is unavailable.
+3. PRs with the `use public runners` label use public runners.
+4. Any `push`, `schedule` or `workflow_dispatch` in `apache/airflow` (canary runs and the release
    branch pushes, all triggered by people with write access) uses RunsOn.
-4. Other events than `pull_request` use public runners.
-5. PRs with the `use self-hosted runners` label use RunsOn, if a committer (`COMMITTERS` in
-   `global_constants.py`) added it last and nobody removed it since. Triage collaborators can label PRs too,
-   so their label is ignored. If the PR's events cannot be read, the label is ignored as well.
-6. PRs with the `non committer build` label use public runners.
-7. PRs opened by a bot (Dependabot and the like), or from a `dependabot/` branch, use public runners:
+5. Other events than `pull_request` use public runners.
+6. PRs with the `use self-hosted runners` label use RunsOn, if a committer's (`COMMITTERS` in
+   `global_constants.py`) latest review of the PR's head commit is an approval and no committer's
+   request for changes stands. The label outlives the commit it was added for, so on its own it would
+   vouch for every later push: a new push sends the PR back to public runners until the head commit is
+   approved again, and so does a dismissed approval if no other committer's approval of the head commit
+   remains. A committer's request for changes keeps the PR on public runners across pushes, as it blocks
+   a merge on GitHub, until that committer reviews again or the review is dismissed. If the reviews
+   cannot be read, the label is ignored as well.
+7. PRs with the `non committer build` label use public runners.
+8. PRs opened by a bot (Dependabot and the like), or from a `dependabot/` branch, use public runners:
    they carry code nobody has reviewed yet.
-8. PRs from a branch of `apache/airflow` use RunsOn; PRs from forks use public runners.
+9. PRs from a branch of `apache/airflow` use RunsOn; PRs from forks use public runners.
 
 Labels are read from the event that started the run, and the CI workflows do not run on `labeled`. After
 adding or removing a label, push a commit or close and reopen the PR; re-running an earlier run reuses
-its original labels, and "Re-run failed jobs" also reuses that run's runner decision.
+its original labels, and "Re-run failed jobs" also reuses that run's runner decision. A push voids the
+approval `use self-hosted runners` needs, so for that label approve the head commit and then close and
+reopen the PR.
 
 The RunsOn value is a label template such as
 `["runs-on=<run_id>/family=.../image=ubuntu22-full-x64/volume=150gb/cpu={0}/ram={1}"]`. Every job
@@ -710,22 +719,33 @@ gated on `runner.environment == 'self-hosted'`:
   the stack's S3 cache bucket, named by their sha256, and only the digest is stashed as a GitHub artifact.
   Any RunsOn job can write to the bucket, so a tarball is used only if it matches the digest stashed by
   the same run, branch and repository (or, for a PR, its base branch). The smaller caches (mount cache, prek, docs inventory) use
-  the ASF stash action on both kinds of runners, so PRs on public runners keep the ones canary runs save.
+  the ASF stash action on both kinds of runners, so PRs on public runners keep the ones canary runs save;
+  the price is that every RunsOn canary uploads the mount cache from AWS to GitHub.
 
-The inputs of this decision come from GitHub, but under the `pull_request` event the code that
-evaluates them is the PR's own: a fork PR runs its own workflow files and breeze sources, and could name
-RunsOn labels in `runs-on:` directly. Selective checks cannot prevent that. The repository's Actions
-setting "Approval for running fork pull request workflows from contributors" narrows it, but even
-"Require approval for all external contributors" exempts members of the `apache` GitHub organization
-(ASF committers of any project who linked their GitHub account) and repository collaborators. Keeping untrusted code away from the
-RunsOn stack's resources therefore also relies on the AWS / RunsOn side: what the instance role can
-reach, network isolation between runners, and limits on instance types and run time.
+The decision above is not a security boundary. Under the `pull_request` event the code that
+evaluates it is the PR's own: a fork PR runs its own workflow files and breeze sources, and can name
+RunsOn labels in `runs-on:` directly. RunsOn launches a runner for any job of a repository its GitHub
+App is installed on, so nothing in this repository can prevent that. Keeping untrusted code away from
+anything that matters has to be enforced outside the repository, by:
+
+* The repository's Actions setting "Approval for running fork pull request workflows from
+  contributors", which must be "Require approval for all external contributors". That still exempts
+  members of the `apache` GitHub organization (ASF committers of any project who linked their GitHub
+  account) and repository collaborators, but every exempt person is identifiable.
+* The RunsOn stack, which must be dedicated to this repository and give the runners an instance role
+  that reaches nothing beyond the stack's own cache bucket (whose contents are never trusted, see the
+  stash actions), no EBS permissions, no SSH, network isolation between runners and a maximum run
+  time. RunsOn has no cap on instance sizes or counts and its budget only alerts, so the AWS account's
+  EC2 vCPU quotas are the cost ceiling.
 
 ## Changing behaviours of the CI runs by setting labels
 
 PRs from `apache/airflow` branches run on self-hosted RunsOn runners and PRs from forks run on public
 runners (see above). Set `use public runners` to move a PR to public runners; a committer can set
-`use self-hosted runners` to move a fork PR to RunsOn. Push a commit or close and reopen the PR afterwards.
+`use self-hosted runners` and approve the PR's head commit to move a fork PR to RunsOn, provided no
+committer's request for changes stands, then close and reopen the PR (a push would need a fresh
+approval; a committer should do the reopen, since an external author's reopen still needs a maintainer
+to approve the workflow run).
 
 If you are testing CI workflow changes and want to test it for more complete matrix combinations generated by
 the jobs - you can set `all versions` label in the PR. This will run the PRs with the same combinations

@@ -114,6 +114,8 @@ jobs:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
+          # Runs the checkout-ref's own make_mnt_writeable.sh, which on old refs empties /mnt and
+          # would kill a RunsOn runner: every caller passing checkout-ref pins public runners.
           make-mnt-writeable-and-cleanup: true
       - name: "Install prek"
         uses: ./.github/actions/install-prek

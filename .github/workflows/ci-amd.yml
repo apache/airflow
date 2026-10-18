@@ -325,6 +325,8 @@ jobs:
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          # Repository variable: "true" moves every run, pushes included, back to public runners.
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
           PLATFORM: "linux/amd64"
           SELECTIVE_TESTS_ON_PUSH: "true"
           PUSH_BASE_COMMIT: ${{ needs.check-run-needed.outputs.push-base-commit }}
@@ -1093,6 +1095,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
@@ -1141,6 +1145,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
         with:
@@ -1181,6 +1187,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: Setup Java
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
@@ -1485,6 +1493,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh

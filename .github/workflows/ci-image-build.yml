@@ -148,26 +148,33 @@ jobs:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
       # A local action is read from the workspace, and `checkout-ref` may be a release ref cut
-      # before the stash actions existed, so they are loaded from the workflow's own version.
-      - name: "Checkout the workflow version for its actions"
+      # before the stash actions existed, so they are loaded from the workflow's own version. The
+      # runner-preparing scripts too: an older `make_mnt_writeable.sh` empties /mnt, which on
+      # RunsOn holds the runner's own disks.
+      - name: "Checkout the workflow version for its actions and runner scripts"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
           path: workflow-version
-          sparse-checkout: .github/actions
+          sparse-checkout: |
+            .github/actions
+            scripts/ci
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
       - name: "Make /mnt writeable"
-        run: ./scripts/ci/make_mnt_writeable.sh
+        run: ./workflow-version/scripts/ci/make_mnt_writeable.sh
       - name: "Move docker to /mnt"
-        run: ./scripts/ci/move_docker_to_mnt.sh
+        run: ./workflow-version/scripts/ci/move_docker_to_mnt.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       # A ref is not a commit: a branch documented twice moves between the two publishes, and
       # an image built before it moved is a cache, not an answer. The commit each stashed image
       # is saved with tells the two apart, and it is stashed separately so that deciding costs
       # a few bytes rather than the multi-gigabyte image the decision may make unnecessary.
+      # `only-current-branch` must stay true on the image restores below: runs on RunsOn (canaries
+      # and release-branch pushes) save these image stashes as S3 digests only, so a fallback to the
+      # base branch would find nothing on public runners anyway.
       - name: >
           Restore the commit the CI image stashed for ref ${{ inputs.image-stash-ref }}
           was built from

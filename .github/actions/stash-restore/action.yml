@@ -35,7 +35,7 @@ inputs:
   path:
     description: >
       Directory to restore into (GitHub-hosted only; the S3 tarball restores entries to the
-      paths they were saved from).
+      paths they were saved from, and the restore then fails if any of them is outside this directory).
     required: false
     default: ${{ github.workspace }}
   only-current-branch:
@@ -79,14 +79,16 @@ runs:
       shell: bash
       env:
         STASH_KEY: ${{ inputs.key }}
+        STASH_PATH: ${{ inputs.path }}
         DIGEST_HIT: ${{ steps.digest.outputs.stash-hit }}
         DIGEST_FILE: ${{ runner.temp }}/stash-digest-restore/${{ inputs.key }}/sha256
         FAIL_ON_DOWNLOAD: ${{ inputs.fail-on-download }}
       run: |
         set -uo pipefail
         payload="${RUNNER_TEMP}/stash-restore-$$.tar"
+        entries="${RUNNER_TEMP}/stash-restore-$$.entries"
         miss() {
-          rm -f "${payload}"
+          rm -f "${payload}" "${entries}"
           echo "stash-hit=false" >> "${GITHUB_OUTPUT}"
           if [[ "${FAIL_ON_DOWNLOAD}" == "true" && "${DIGEST_HIT}" == "true" ]]; then
             echo "::error::$1"
@@ -112,9 +114,24 @@ runs:
           miss "${object} does not match the digest recorded for stash '${STASH_KEY}'"
         fi
         # GNU tar detects the compression stash-save chose.
-        if ! tar -xPf "${payload}"; then
+        if ! tar -xPvf "${payload}" > "${entries}"; then
           miss "Could not extract ${object} for stash '${STASH_KEY}'"
         fi
         rm -f "${payload}"
+        # The S3 tarball ignores `path`: fail loudly if a caller saves and restores different
+        # directories, which would work on GitHub-hosted runners only.
+        restore_dir="$(realpath -ms "${STASH_PATH}")"
+        restore_dir="${restore_dir%/}"
+        outside=()
+        while IFS= read -r entry; do
+          [[ "${entry}" == /* ]] || entry="${GITHUB_WORKSPACE}/${entry}"
+          [[ "${entry}" == "${restore_dir}/"* ]] || outside+=("${entry}")
+        done < "${entries}"
+        rm -f "${entries}"
+        if [[ ${#outside[@]} -gt 0 ]]; then
+          printf '%s\n' "${outside[@]}"
+          echo "::error::Stash '${STASH_KEY}' restored the entries above outside of ${restore_dir}/"
+          exit 1
+        fi
         echo "stash-hit=true" >> "${GITHUB_OUTPUT}"
         echo "Restored stash '${STASH_KEY}' from ${object}"

@@ -4793,9 +4793,20 @@ RUNS_ON_AMD = '["runs-on=42/family=m7a+m7i+m6a+m6i/image=ubuntu22-full-x64/volum
 RUNS_ON_ARM = '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/cpu={0}/ram={1}"]'
 
 
+HEAD_SHA = "a" * 40
+
+
+@pytest.fixture(autouse=True)
+def _no_use_public_runners_variable(monkeypatch):
+    monkeypatch.delenv("USE_PUBLIC_RUNNERS", raising=False)
+
+
 def _pull_request_context(head_repo: str | None, author_type: str = "User") -> dict[str, Any]:
-    head = {"repo": {"full_name": head_repo} if head_repo else None}
-    return {"run_id": 42, "event": {"pull_request": {"head": head, "user": {"type": author_type}}}}
+    head = {"repo": {"full_name": head_repo} if head_repo else None, "sha": HEAD_SHA}
+    return {
+        "run_id": 42,
+        "event": {"pull_request": {"number": 7, "head": head, "user": {"type": author_type}}},
+    }
 
 
 @pytest.mark.parametrize(
@@ -4973,9 +4984,9 @@ def _pull_request_context(head_repo: str | None, author_type: str = "User") -> d
         ),
     ],
 )
-@patch.object(SelectiveChecks, "_self_hosted_label_added_by_committer", autospec=True, return_value=True)
+@patch.object(SelectiveChecks, "_head_approved_by_committer", autospec=True, return_value=True)
 def test_runner_type(
-    _mock_label_added_by_committer,
+    _mock_head_approved_by_committer,
     github_event: GithubEvents,
     github_repository: str,
     github_context_dict: dict[str, Any],
@@ -4993,56 +5004,118 @@ def test_runner_type(
     assert selective_checks.runner_type == expected
 
 
-def _labeled(label: str, login: str) -> dict[str, Any]:
-    return {"event": "labeled", "label": {"name": label}, "actor": {"login": login}}
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("true", '["ubuntu-22.04"]', id="true moves a push to public runners"),
+        pytest.param("True", '["ubuntu-22.04"]', id="case does not matter"),
+        pytest.param("false", RUNS_ON_AMD, id="false keeps RunsOn"),
+        pytest.param("", RUNS_ON_AMD, id="an unset variable keeps RunsOn"),
+    ],
+)
+def test_use_public_runners_variable(monkeypatch, value: str, expected: str):
+    monkeypatch.setenv("USE_PUBLIC_RUNNERS", value)
+    selective_checks = SelectiveChecks(
+        github_event=GithubEvents.PUSH, github_repository="apache/airflow", github_context_dict={"run_id": 42}
+    )
+    assert selective_checks.runner_type == expected
 
 
-def _unlabeled(label: str, login: str) -> dict[str, Any]:
-    return {"event": "unlabeled", "label": {"name": label}, "actor": {"login": login}}
+@patch.object(SelectiveChecks, "_head_approved_by_committer", autospec=True, return_value=True)
+def test_use_public_runners_variable_beats_the_self_hosted_label(
+    _mock_head_approved_by_committer, monkeypatch
+):
+    monkeypatch.setenv("USE_PUBLIC_RUNNERS", "true")
+    selective_checks = SelectiveChecks(
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict=_pull_request_context("apache/airflow"),
+        pr_labels=("use self-hosted runners",),
+    )
+    assert selective_checks.runner_type == '["ubuntu-22.04"]'
+
+
+def _review(login: str, state: str, commit_id: str = HEAD_SHA) -> dict[str, Any]:
+    return {"user": {"login": login}, "state": state, "commit_id": commit_id}
 
 
 @pytest.mark.parametrize(
     ("pages", "expected"),
     [
-        pytest.param([[_labeled("use self-hosted runners", COMMITTERS[0])]], True, id="added by a committer"),
+        pytest.param([[_review(COMMITTERS[0], "APPROVED")]], True, id="approved by a committer"),
         pytest.param(
-            [[_labeled("use self-hosted runners", COMMITTERS[0].swapcase())]],
+            [[_review(COMMITTERS[0].swapcase(), "APPROVED")]],
             True,
-            id="added by a committer whose login differs in case",
+            id="approved by a committer whose login differs in case",
         ),
+        pytest.param([[_review("a-triager", "APPROVED")]], False, id="approved by a non-committer"),
         pytest.param(
-            [[_labeled("use self-hosted runners", "a-triager")]], False, id="added by a non-committer"
-        ),
-        pytest.param(
-            [
-                [
-                    _labeled("use self-hosted runners", COMMITTERS[0]),
-                    _labeled("full tests needed", "a-triager"),
-                ],
-                [
-                    _unlabeled("use self-hosted runners", "a-triager"),
-                    _labeled("use self-hosted runners", "a-triager"),
-                ],
-            ],
+            [[_review(COMMITTERS[0], "APPROVED", commit_id="b" * 40)]],
             False,
-            id="re-added by a non-committer on a later page",
+            id="approved an earlier commit only",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review(COMMITTERS[0], "CHANGES_REQUESTED")]],
+            False,
+            id="changes requested after approving",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "CHANGES_REQUESTED"), _review(COMMITTERS[0], "APPROVED")]],
+            True,
+            id="approved after requesting changes",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review(COMMITTERS[0], "DISMISSED")]],
+            False,
+            id="approval dismissed",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review(COMMITTERS[0], "COMMENTED")]],
+            True,
+            id="a later comment keeps the approval",
+        ),
+        pytest.param(
+            [[_review("a-triager", "APPROVED")], [_review(COMMITTERS[0], "APPROVED")]],
+            True,
+            id="approved on a later page",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review(COMMITTERS[1], "CHANGES_REQUESTED")]],
+            False,
+            id="another committer's request for changes vetoes an approval",
+        ),
+        pytest.param(
+            [[_review(COMMITTERS[0], "APPROVED"), _review("a-triager", "CHANGES_REQUESTED")]],
+            True,
+            id="a non-committer's request for changes does not veto",
         ),
         pytest.param(
             [
                 [
-                    _labeled("use self-hosted runners", COMMITTERS[0]),
-                    _unlabeled("use self-hosted runners", COMMITTERS[0]),
+                    _review(COMMITTERS[1], "CHANGES_REQUESTED", commit_id="b" * 40),
+                    _review(COMMITTERS[0], "APPROVED"),
                 ]
             ],
             False,
-            id="removed after a committer added it",
+            id="a committer's request for changes on an earlier commit still vetoes",
         ),
-        pytest.param([[]], False, id="no labeled event"),
-        pytest.param([{"message": "Not Found"}], False, id="error object instead of events"),
+        pytest.param(
+            [
+                [
+                    _review(COMMITTERS[1], "CHANGES_REQUESTED", commit_id="b" * 40),
+                    _review(COMMITTERS[1], "APPROVED", commit_id="b" * 40),
+                    _review(COMMITTERS[0], "APPROVED"),
+                ]
+            ],
+            True,
+            id="a request for changes withdrawn by its committer's later approval does not veto",
+        ),
+        pytest.param([[]], False, id="no review"),
+        pytest.param([{"message": "Not Found"}], False, id="error object instead of reviews"),
     ],
 )
 @patch("requests.get", autospec=True)
-def test_self_hosted_label_added_by_committer(mock_get, pages: list[list[dict[str, Any]]], expected: bool):
+def test_head_approved_by_committer(mock_get, pages: list[list[dict[str, Any]]], expected: bool):
     responses = []
     for index, page in enumerate(pages):
         response = Mock(spec=requests.Response)
@@ -5051,13 +5124,27 @@ def test_self_hosted_label_added_by_committer(mock_get, pages: list[list[dict[st
         responses.append(response)
     mock_get.side_effect = responses
     selective_checks = SelectiveChecks(
-        github_context_dict={"event": {"pull_request": {"number": 7}}},
+        github_context_dict=_pull_request_context("someone/airflow"),
         pr_labels=("use self-hosted runners",),
     )
-    assert selective_checks._self_hosted_label_added_by_committer() is expected
+    assert selective_checks._head_approved_by_committer() is expected
     assert mock_get.call_args_list[0].args[0] == (
-        "https://api.github.com/repos/apache/airflow/issues/7/events?per_page=100"
+        "https://api.github.com/repos/apache/airflow/pulls/7/reviews?per_page=100"
     )
+
+
+@patch("requests.get", autospec=True)
+def test_head_approved_by_committer_without_head_sha(mock_get):
+    # A review whose commit_id is missing must not match a missing head sha.
+    response = Mock(spec=requests.Response)
+    response.json.return_value = [{"user": {"login": COMMITTERS[0]}, "state": "APPROVED"}]
+    response.links = {}
+    mock_get.return_value = response
+    context = _pull_request_context("someone/airflow")
+    del context["event"]["pull_request"]["head"]["sha"]
+    selective_checks = SelectiveChecks(github_context_dict=context, pr_labels=("use self-hosted runners",))
+    assert selective_checks._head_approved_by_committer() is False
+    mock_get.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -5075,7 +5162,7 @@ def test_self_hosted_label_added_by_committer(mock_get, pages: list[list[dict[st
     ],
 )
 @patch("requests.get", autospec=True)
-def test_self_hosted_label_ignored_when_events_cannot_be_read(
+def test_self_hosted_label_ignored_when_reviews_cannot_be_read(
     mock_get, failure: Exception, head_repo: str, expected: str
 ):
     mock_get.side_effect = failure

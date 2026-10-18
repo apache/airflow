@@ -2157,14 +2157,20 @@ class SelectiveChecks:
         return json.dumps([template.format(run_id=run_id)])
 
     def _use_runs_on_runners(self) -> bool:
-        """Whether this run may use the self-hosted RunsOn runners.
+        """Whether this run should use the self-hosted RunsOn runners.
 
-        Code that runs on them can reach the RunsOn stack's AWS resources, so only code from
-        apache/airflow itself goes there: pushes, schedules and dispatches, and PRs from its own
-        branches except bots' (e.g. Dependabot's), which carry code nobody has reviewed. A PR from a fork
-        goes there only after a committer adds the ``use self-hosted runners`` label.
+        This only routes runs; it does not keep fork code off RunsOn. A ``pull_request`` run uses
+        the PR's own workflow files and breeze, so a fork can request a RunsOn label directly -
+        that restriction has to be enforced by the RunsOn stack and the repository's Actions
+        settings, not here. Routed there: pushes, schedules and dispatches, and PRs from
+        apache/airflow branches except bots' (e.g. Dependabot's). A fork PR goes there while it
+        carries the ``use self-hosted runners`` label, a committer has approved its head commit and
+        no committer's request for changes is outstanding.
+        The repository variable ``USE_PUBLIC_RUNNERS=true`` moves every run back to public runners.
         """
         if self._github_repository != APACHE_AIRFLOW_GITHUB_REPOSITORY:
+            return False
+        if os.environ.get("USE_PUBLIC_RUNNERS", "").casefold() == "true":
             return False
         if USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
             return False
@@ -2172,7 +2178,7 @@ class SelectiveChecks:
             return True
         if self._github_event != GithubEvents.PULL_REQUEST:
             return False
-        if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels and self._self_hosted_label_added_by_committer():
+        if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels and self._head_approved_by_committer():
             return True
         if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
             return False
@@ -2187,49 +2193,59 @@ class SelectiveChecks:
         head_repo = (pull_request.get("head", {}).get("repo") or {}).get("full_name")
         return head_repo == APACHE_AIRFLOW_GITHUB_REPOSITORY
 
-    def _self_hosted_label_added_by_committer(self) -> bool:
-        """Whether the ``use self-hosted runners`` label was last added by a committer and not removed since.
+    def _head_approved_by_committer(self) -> bool:
+        """Whether a committer approved the PR's current head commit and no committer's request for changes stands.
 
-        Triage collaborators can label PRs too, including their own, so the label alone does not
-        show that a committer vouched for the PR. Any failure to tell counts as "no".
+        The ``use self-hosted runners`` label outlives the commit it was added for, so on its own
+        it would vouch for every later push. A request for changes stays in force across pushes,
+        as on GitHub, until that committer reviews again or it is dismissed. Any failure to tell
+        counts as "no".
         """
         # Lazy: breeze keeps its top-level imports minimal (check-breeze-top-dependencies-limited).
         import requests
 
-        pr_number = self._github_context_dict.get("event", {}).get("pull_request", {}).get("number")
+        pull_request = self._github_context_dict.get("event", {}).get("pull_request", {})
+        head_sha = pull_request.get("head", {}).get("sha")
+        if not head_sha:
+            return False
         url: str | None = (
-            f"https://api.github.com/repos/{self._github_repository}/issues/{pr_number}/events?per_page=100"
+            f"https://api.github.com/repos/{self._github_repository}/pulls/{pull_request.get('number')}"
+            "/reviews?per_page=100"
         )
         headers = {"Accept": "application/vnd.github+json"}
         if token := os.environ.get("GITHUB_TOKEN"):
             headers["Authorization"] = f"Bearer {token}"
-        labeled_by = None
+        # Each reviewer's latest verdict, on the head commit and on any commit; a dismissed review is
+        # listed as DISMISSED in place, and comment-only reviews change nothing.
+        latest_on_head: dict[str, str] = {}
+        latest_overall: dict[str, str] = {}
         try:
             while url:
                 response = requests.get(url, headers=headers, timeout=30)
                 response.raise_for_status()
-                for event in response.json():
-                    if (event.get("label") or {}).get("name") != USE_SELF_HOSTED_RUNNERS_LABEL:
+                for review in response.json():
+                    if review.get("state") not in {"APPROVED", "CHANGES_REQUESTED", "DISMISSED"}:
                         continue
-                    # A re-run reuses the labels of its original event, so a later removal must count.
-                    if event.get("event") == "labeled":
-                        labeled_by = (event.get("actor") or {}).get("login")
-                    elif event.get("event") == "unlabeled":
-                        labeled_by = None
+                    login = ((review.get("user") or {}).get("login") or "").casefold()
+                    latest_overall[login] = review["state"]
+                    if review.get("commit_id") == head_sha:
+                        latest_on_head[login] = review["state"]
                 url = response.links.get("next", {}).get("url")
-        # AttributeError / TypeError: a 200 whose body is not the expected list of events.
+        # AttributeError / TypeError: a 200 whose body is not the expected list of reviews.
         except (requests.RequestException, AttributeError, TypeError) as e:
-            console_print(
-                f"[warning]Could not tell who added the {USE_SELF_HOSTED_RUNNERS_LABEL!r} label: {e}"
-            )
+            console_print(f"[warning]Could not read the reviews of the PR's head commit: {e}")
             return False
-        if (labeled_by or "").casefold() not in {committer.casefold() for committer in COMMITTERS}:
-            console_print(
-                f"[warning]Ignoring the {USE_SELF_HOSTED_RUNNERS_LABEL!r} label: "
-                f"added by {labeled_by}, who is not in COMMITTERS"
-            )
-            return False
-        return True
+        committers = {committer.casefold() for committer in COMMITTERS}
+        approved = any(latest_on_head.get(committer) == "APPROVED" for committer in committers)
+        vetoed = any(latest_overall.get(committer) == "CHANGES_REQUESTED" for committer in committers)
+        if approved and not vetoed:
+            return True
+        console_print(
+            f"[warning]Ignoring the {USE_SELF_HOSTED_RUNNERS_LABEL!r} label: "
+            f"the head commit {head_sha} is not approved by a committer, or a committer's request for "
+            "changes stands"
+        )
+        return False
 
     @cached_property
     def has_migrations(self) -> bool:
