@@ -241,6 +241,17 @@ For example:
 
 Will build ``fab`` provider documentation and clean build artifacts before.
 
+To try a change to the HTML theme (``sphinx_airflow_theme`` from the
+`airflow-site <https://github.com/apache/airflow-site>`_ repository) on real documentation, build with the
+theme folder of an ``airflow-site`` checkout instead of the published wheel:
+
+.. code-block:: bash
+
+    breeze build-docs apache-airflow --sphinx-airflow-theme-path ../airflow-site/sphinx_airflow_theme
+
+Run ``./site.sh prepare-theme`` in ``airflow-site`` first to generate the theme's CSS/JS. Breeze mounts the
+folder read-only and installs the theme in the container before the build.
+
 Inventory cache handling
 ........................
 

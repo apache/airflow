@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import DEFAULT, patch
 
 import click
 import pytest
@@ -155,6 +155,53 @@ class TestBuildDocsPythonVersion:
 
         assert result.exit_code != 0
         assert "no such option" in result.output.lower()
+
+
+class TestBuildDocsSphinxAirflowTheme:
+    @pytest.fixture(autouse=True)
+    def _isolated_env(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("SKIP_SAVING_CHOICES", "true")
+        for name in ("BREEZE_SDK", "DISTRIBUTIONS_LIST"):
+            monkeypatch.delenv(name, raising=False)
+        # The real _build_python_docs deletes generated/**/apis under AIRFLOW_ROOT_PATH.
+        monkeypatch.setattr("airflow_breeze.commands.developer_commands.AIRFLOW_ROOT_PATH", tmp_path)
+
+    @pytest.fixture
+    def docker_mocks(self):
+        with patch.multiple(
+            "airflow_breeze.commands.developer_commands",
+            perform_environment_checks=DEFAULT,
+            fix_ownership_using_docker=DEFAULT,
+            cleanup_python_generated_files=DEFAULT,
+            build_ci_image_if_needed=DEFAULT,
+            execute_command_in_shell=DEFAULT,
+            autospec=True,
+        ) as mocks:
+            mocks["execute_command_in_shell"].return_value.returncode = 0
+            yield mocks
+
+    @pytest.mark.parametrize("pass_option", [True, False])
+    def test_theme_path_is_passed_to_shell_params(
+        self, runner, docker_mocks, tmp_path, monkeypatch, pass_option
+    ):
+        (tmp_path / "theme" / "sphinx_airflow_theme" / "static" / "_gen").mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+
+        runner.invoke(
+            build_docs,
+            ["--sphinx-airflow-theme-path", "theme"] if pass_option else [],
+            catch_exceptions=False,
+        )
+
+        shell_params = docker_mocks["execute_command_in_shell"].call_args.args[0]
+        assert shell_params.sphinx_airflow_theme_path == (str(tmp_path / "theme") if pass_option else "")
+
+    def test_theme_without_generated_assets_is_rejected(self, runner, docker_mocks, tmp_path):
+        result = runner.invoke(build_docs, ["--sphinx-airflow-theme-path", str(tmp_path)])
+
+        assert result.exit_code == 1
+        for mock in docker_mocks.values():
+            mock.assert_not_called()
 
 
 class TestRunIncludeMypyVolume:

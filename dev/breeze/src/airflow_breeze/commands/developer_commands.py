@@ -901,6 +901,7 @@ def _build_python_docs(
     package_filter: tuple[str, ...],
     distributions_list: str,
     doc_packages: tuple[str, ...],
+    sphinx_airflow_theme_path: str,
 ):
     # Docs are always built on the default Python. The Sphinx configuration mocks third-party
     # modules, and what that mocking does depends on the interpreter - on 3.12 functools copies
@@ -964,6 +965,7 @@ def _build_python_docs(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         mount_sources=MOUNT_ALL,
+        sphinx_airflow_theme_path=sphinx_airflow_theme_path,
     )
     result = execute_command_in_shell(shell_params, project_name="breeze-docs", command=cmd)
     fix_ownership_using_docker()
@@ -1035,6 +1037,12 @@ def _build_python_docs(
     is_flag=True,
     help="Only build SDK docs. Requires at least one --sdk value to be useful.",
 )
+@click.option(
+    "--sphinx-airflow-theme-path",
+    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    help="Build the docs with the `sphinx_airflow_theme` folder of an airflow-site checkout "
+    "(after `./site.sh prepare-theme`) instead of the published theme.",
+)
 @option_verbose
 @option_answer
 @argument_doc_packages
@@ -1053,11 +1061,21 @@ def build_docs(
     distributions_list: str,
     sdk: tuple[str, ...],
     sdk_docs_only: bool,
+    sphinx_airflow_theme_path: str | None,
     doc_packages: tuple[str, ...],
 ):
     """
     Build documents.
     """
+    if (
+        sphinx_airflow_theme_path
+        and not Path(sphinx_airflow_theme_path, "sphinx_airflow_theme/static/_gen").is_dir()
+    ):
+        console_print(
+            f"[error]{sphinx_airflow_theme_path} has no sphinx_airflow_theme/static/_gen. Pass the "
+            "`sphinx_airflow_theme` folder of an airflow-site checkout after `./site.sh prepare-theme`."
+        )
+        sys.exit(1)
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -1080,6 +1098,7 @@ def build_docs(
             package_filter=package_filter,
             distributions_list=distributions_list,
             doc_packages=doc_packages,
+            sphinx_airflow_theme_path=sphinx_airflow_theme_path or "",
         )
     # Every requested SDK is built even if an earlier one failed, so a single run reports
     # all the broken toolchains rather than only the first.
