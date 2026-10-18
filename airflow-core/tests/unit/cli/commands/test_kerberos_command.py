@@ -37,6 +37,41 @@ class TestKerberosCommand:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
+    @pytest.mark.parametrize("one_time", [False, True])
+    @conf_vars({("core", "executor"): "CeleryExecutor", ("database", "check_migrations"): "True"})
+    def test_run_without_metadata_database(self, one_time):
+        args = self.parser.parse_args(
+            [
+                "kerberos",
+                "PRINCIPAL",
+                "--keytab",
+                "/tmp/airflow.keytab",
+                *(["--one-time"] if one_time else []),
+            ]
+        )
+        with (
+            mock.patch(
+                "airflow.utils.db.check_and_run_migrations",
+                autospec=True,
+                side_effect=RuntimeError("Metadata database unavailable"),
+            ) as check_migrations,
+            mock.patch(
+                "airflow.utils.db.synchronize_log_template",
+                autospec=True,
+                side_effect=RuntimeError("Metadata database unavailable"),
+            ) as synchronize_log_template,
+            mock.patch("airflow.cli.commands.kerberos_command.krb.run", autospec=True) as run,
+        ):
+            kerberos_command.kerberos(args)
+
+        check_migrations.assert_not_called()
+        synchronize_log_template.assert_not_called()
+        run.assert_called_once_with(
+            keytab="/tmp/airflow.keytab",
+            principal="PRINCIPAL",
+            mode=KerberosMode.ONE_TIME if one_time else KerberosMode.STANDARD,
+        )
+
     @mock.patch("airflow.cli.commands.kerberos_command.krb")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command(self, mock_krb):
