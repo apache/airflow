@@ -152,6 +152,11 @@ class TestCloudLoggingRemoteLogIO:
             delete_local_copy=True,
         )
 
+    @mock.patch("airflow.providers.google.cloud.log.cloud_logging_task_handler.LoggingServiceV2Client")
+    def test_read_returns_no_logs_when_ti_is_none(self, mock_client):
+        assert self.io.read("executor_callbacks/dag/run/cb", None) == ([], None)
+        mock_client.assert_not_called()
+
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
     )

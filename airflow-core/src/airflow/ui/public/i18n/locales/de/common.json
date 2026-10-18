@@ -144,13 +144,19 @@
   "filter": "Filter",
   "filters": {
     "addFilter": "Filter hinzufügen",
+    "allIterations": "Alle",
     "completedAt": "Fertiggestellt um",
     "date": "Datum",
     "durationFrom": "Laufzeit Von",
     "durationTo": "Laufzeit Bis",
     "endTime": "Endzeitpunkt",
+    "iteration": "Iteration",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
+    "loop": "Schleife",
+    "loopAllIterations": "{{loop}} alle",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Durchlauf auswählen",
     "maxActiveRunsFrom": "Maximale aktive Läufe von",
     "maxActiveRunsTo": "Maximale aktive Läufe bis",
     "removeFilter": "Filter entfernen",
@@ -160,6 +166,7 @@
     "selectDateRange": "Zeitraum auswählen",
     "selectDateTime": "Datum und Uhrzeit auswählen",
     "startTime": "Startzeitpunkt",
+    "switchIteration": "Iteration wechseln",
     "time": "Uhrzeit"
   },
   "fullscreen": {
@@ -168,6 +175,7 @@
   "generateToken": "Zugriffstoken erzeugen",
   "includedIn": "Enthalten in",
   "key": "Schlüssel",
+  "loading": "Lade…",
   "logLevel": {
     "hide": "Log Stufe ausblenden",
     "hotkey": "l",
@@ -289,6 +297,13 @@
         "label": "Standardauswahl zum Löschen von Tasks"
       },
       "title": "Löschen"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Zeigt den letzten Aufgabenstatus von den Dags der Dag Liste. Abschalten um das Laden zu überspringen, was bei Umgebungen mit sehr vielen Dags helfen kann.",
+        "label": "Letzte Aufgaben zeigen"
+      },
+      "title": "Dags Liste"
     },
     "description": "Diese Einstellungen werden nur in diesem Browser gespeichert und gelten für die gesamte Anwendung.",
     "general": {
@@ -412,6 +427,7 @@
     "upstream_failed": "Vorgelagerte fehlgeschlagen"
   },
   "switchDag": "Wechsel zu $t(dag_one)",
+  "switchDagRun": "Wechsel zu $t(dagRun_one)",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
@@ -457,6 +473,8 @@
     "executorConfig": "Konfiguration der Ausführungsumgebung",
     "hostname": "Hostname",
     "id": "ID",
+    "iteration": "Iteration",
+    "loopIterations": "Iterationsläufe",
     "maxTries": "Maximale Versuche",
     "pid": "PID",
     "pool": "Pool",

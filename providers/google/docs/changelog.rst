@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+22.7.0
+......
+
 .. warning::
     ``GCSToSFTPOperator`` no longer writes GCS folder markers, the objects whose name ends with
     ``/``, as files. They were written as an empty file at the folder's path, so the folder's
@@ -36,16 +39,13 @@ Changelog
     and left in the bucket. An empty file that an earlier version wrote at a marker's path blocks
     the directory and fails the task; remove it from the SFTP server before the next run.
 
-22.7.0
-......
-
 Features
 ~~~~~~~~
 
 * ``Support Table objects in BigQueryHook.create_table table_resource (#73099)``
 * ``Adapt GCP BigtableHook to run in private cloud (#73181)``
 * ``Deprecate Dataproc ClusterGenerator helper class (#71427)``
-* ``Add GKEPodExecOperator for existing Pods (#72577)``
+* ``Add GKEPodExecOperator for existing Pods (#72577, #74505)``
 * ``Add a vendor-neutral managed-agent hook contract to Common AI (#73532)``
 
 Bug Fixes
@@ -76,6 +76,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-06 (#74429)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Remove Google hook tests duplicated across default-project test classes (#74362)``
    * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``

@@ -143,11 +143,11 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-dbt-cloud[openlineage]
 
 
-===============  ===============================================
+===============  ================================================
 Extra            Dependencies
-===============  ===============================================
-``openlineage``  ``apache-airflow-providers-openlineage>=2.3.0``
-===============  ===============================================
+===============  ================================================
+``openlineage``  ``apache-airflow-providers-openlineage>=2.16.0``
+===============  ================================================
 
 Downloading official packages
 -----------------------------

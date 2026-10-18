@@ -63,6 +63,7 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import DagRun as DR
 from airflow.models.dag import DagModel
+from airflow.models.dynamic_region import LOOP_XCOM_PREFIX
 from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel, build_xcom_read_query, select_producers, xcom_entity
@@ -231,6 +232,12 @@ def get_xcom_entries(
     map_index: Annotated[int | None, Query(ge=-1)] = None,
     region_id: Annotated[UUID | None, Query()] = None,
     region_index: Annotated[int | None, Query(ge=-1)] = None,
+    exclude_internal_keys: Annotated[
+        bool,
+        Query(
+            description="Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons."
+        ),
+    ] = False,
 ) -> XComCollectionResponse:
     """
     Get all XCom entries.
@@ -285,6 +292,8 @@ def get_xcom_entries(
         query = query.where(public_map_index == map_index)
     if xcom_key is not None:
         query = query.where(entity.key == xcom_key)
+    if exclude_internal_keys:
+        query = query.where(~entity.key.startswith(LOOP_XCOM_PREFIX, autoescape=True))
 
     query, total_entries = paginated_select(
         statement=query,
@@ -316,6 +325,12 @@ def get_xcom_entries(
     return XComCollectionResponse(xcom_entries=entries, total_entries=total_entries)
 
 
+def _reject_reserved_loop_key(key: str) -> None:
+    # Loop gates write these keys through the Execution API, which validates their values.
+    if key.startswith(LOOP_XCOM_PREFIX):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
+
+
 @xcom_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
@@ -341,6 +356,8 @@ def create_xcom_entry(
 ) -> XComResponseNative:
     """Create an XCom entry."""
     from airflow.models.dagrun import DagRun
+
+    _reject_reserved_loop_key(request_body.key)
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     # Validate Dag ID
@@ -445,6 +462,7 @@ def update_xcom_entry(
     dag_bag: DagBagDep,
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
+    _reject_reserved_loop_key(xcom_key)
     scope = resolve_task_scope(
         dag_id=dag_id,
         run_id=dag_run_id,

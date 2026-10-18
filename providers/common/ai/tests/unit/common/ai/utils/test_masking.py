@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 
 import pytest
 from pydantic import BaseModel
@@ -55,6 +55,16 @@ class TestMaskSecrets:
 
         assert mask_secrets([Setting(value=registered_secret)]) == [{"value": "***"}]
 
+    def test_keeps_a_pydantic_model_that_holds_no_secret(self, registered_secret):
+        """Code that reads the model's attributes later, such as from the message history, still can."""
+
+        class Setting(BaseModel):
+            value: str
+
+        setting = Setting(value="plain")
+
+        assert mask_secrets(setting) is setting
+
     def test_leaves_other_objects_such_as_images_alone(self, registered_secret):
         image = BinaryContent(data=b"\x89PNG", media_type="image/png")
 
@@ -68,6 +78,37 @@ class TestMaskSecrets:
 
         assert mask_secrets(Credentials("svc", registered_secret)) == Credentials("svc", "***")
         assert mask_secrets(TextContent(content=f"key={registered_secret}")) == TextContent(content="key=***")
+
+    def test_masks_a_dataclass_it_could_not_construct_again(self, registered_secret):
+        """An InitVar has no value to pass back in, and an init=False field is not an argument."""
+
+        @dataclass
+        class Report:
+            rows: list
+            source: InitVar[str]
+            label: str = field(init=False, default="")
+            # Never set: a field the copy must not try to read.
+            cache: str = field(init=False)
+
+            def __post_init__(self, source: str) -> None:
+                self.label = f"from {source}"
+
+        report = Report([registered_secret], source=registered_secret)
+
+        masked = mask_secrets(report)
+
+        assert type(masked) is Report
+        assert masked.rows == ["***"]
+        assert masked.label == "from ***"
+        assert not hasattr(masked, "cache")
+        assert report.rows == [registered_secret]
+
+    def test_masks_a_slotted_dataclass(self, registered_secret):
+        @dataclass(slots=True)
+        class Row:
+            value: str
+
+        assert mask_secrets(Row(registered_secret)) == Row("***")
 
     def test_masks_bytes_as_text(self, registered_secret):
         assert mask_secrets(f"key={registered_secret}".encode()) == b"key=***"
@@ -115,3 +156,11 @@ class TestDumpsMasked:
         dumped = dumps_masked({"row": Row(f"pg://svc:{secret}@db"), "blob": f"key={secret}".encode()})
 
         assert json.loads(dumped) == {"row": {"dsn": "pg://svc:***@db"}, "blob": "key=***"}
+
+    def test_dumps_a_pydantic_model_that_holds_no_secret_as_its_data(self, registered_secret):
+        class Setting(BaseModel):
+            value: str
+
+        assert json.loads(dumps_masked({"setting": Setting(value="plain")})) == {
+            "setting": {"value": "plain"}
+        }

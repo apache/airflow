@@ -39,7 +39,7 @@ from __future__ import annotations
 import logging
 import traceback
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
@@ -335,8 +335,11 @@ class _ModelRetryPolicy(RetryPolicy):
                 text = f"{text[: self.max_exception_length]}... (truncated)"
         if not self.include_traceback:
             text = f"{type(exception).__name__}: {text}"
+        # ``max_tries`` is the last try number that may still retry (core adds to it on a clear),
+        # so the final attempt is ``max_tries + 1``, as core logs "Starting attempt N of M".
         return (
-            f"Classify this error from a data pipeline task (attempt {try_number} of {max_tries}):\n\n{text}"
+            "Classify this error from a data pipeline task "
+            f"(attempt {try_number} of {max_tries + 1}):\n\n{text}"
         )
 
     def _run(
@@ -491,7 +494,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
     :param fallback_policy: A policy to consult when the answer is under its bar, reports no
         confidence, or the model call fails; typically an :class:`LLMRetryPolicy` on a text
         model, so the classifier handles the clear cases and a reasoning model the rest.
-        Its RETRY or FAIL is used, with the reason prefixed by why the classifier's answer
+        Its decision is used, with the reason prefixed by why the classifier's answer
         was not. A DEFAULT from it counts as no decision, whatever reason it carries, and this
         policy's ``fallback_rules`` and then the task's own retry behaviour apply. Without
         ``min_confidence`` the classifier's answer is always acted on, so this policy is
@@ -607,9 +610,9 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         why: str,
     ) -> RetryDecision | None:
         """
-        Consult ``fallback_policy`` and return its RETRY or FAIL, or None when it decided nothing.
+        Consult ``fallback_policy`` and return its decision, or None when it decided nothing.
 
-        Only RETRY and FAIL are decisions. DEFAULT means the policy had nothing to add to the
+        Every action but DEFAULT is a decision. DEFAULT means the policy had nothing to add to the
         task's own settings, whatever reason it attached (its own fallback message, or a matched
         rule with ``action=DEFAULT``), so this policy's ``fallback_rules`` still get their say.
         A decision comes back with the reason prefixed by why the classifier's answer was not
@@ -629,11 +632,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
             )
             return None
         prefix = f"escalated ({why})"
-        return RetryDecision(
-            action=decision.action,
-            retry_delay=decision.retry_delay,
-            reason=prefix if decision.reason is None else f"{prefix}; {decision.reason}",
-        )
+        return replace(decision, reason=prefix if decision.reason is None else f"{prefix}; {decision.reason}")
 
     def _fall_back(
         self,
@@ -655,9 +654,7 @@ class ClassifierRetryPolicy(_ModelRetryPolicy):
         prefix = f"classifier answer not applied ({why})"
         ruled = self._rules_decision(exception, try_number, max_tries, context)
         if ruled.action is not RetryAction.DEFAULT or ruled.reason is not None:
-            return RetryDecision(
-                action=ruled.action, retry_delay=ruled.retry_delay, reason=f"{prefix}; {ruled.reason}"
-            )
+            return replace(ruled, reason=f"{prefix}; {ruled.reason}")
         return RetryDecision(action=RetryAction.DEFAULT, reason=f"{prefix}; task retry settings apply")
 
     def _classify(

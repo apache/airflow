@@ -111,16 +111,20 @@ as a task failure.
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
-``durable=True and enable_hitl_review=True cannot be used together`` / ``durable=True cannot be used with a CodeMode capability``
+``durable=True and enable_hitl_review=True cannot be used together``
     Durable replay matches each step to the one at the same position in the previous
-    attempt, which neither a human review loop's regenerations nor the tool calls code
-    mode makes from inside ``run_code`` keep. Pick one. See :doc:`durable_execution`.
+    attempt, which a human review loop's regenerations do not keep. Pick one. See
+    :doc:`durable_execution`.
 
 ``durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders')``
     Durable replay records each tool call under its toolset's id, so a
     ``FunctionToolset``, ``MCPToolset`` or ``DynamicToolset`` without one is refused when
     the Dag loads. Set ``id=`` on the toolset itself; an id on a ``Toolset`` capability
     around it does not reach it. See :doc:`durable_execution`.
+
+``durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders'``
+    Two different toolset objects share an id, so durable replay could not tell their
+    recorded calls apart. Give each its own ``id=``. See :doc:`durable_execution`.
 
 ``durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both.``
     ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in

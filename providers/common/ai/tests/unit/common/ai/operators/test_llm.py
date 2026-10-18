@@ -25,20 +25,25 @@ from uuid import uuid4
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
+from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
 from airflow.providers.common.ai.operators import llm as llm_module
 from airflow.providers.common.ai.operators.llm import DecisionPolicy, LLMOperator
+from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
+from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
+from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
+from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -46,7 +51,11 @@ except ImportError:
     _CORE_WALKER = False
 
 from airflow.providers.common.compat.notifier import BaseNotifier
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    TaskDeferred,
+)
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
 if AIRFLOW_V_3_3_PLUS:
@@ -99,10 +108,53 @@ class TestLLMOperator:
             "model_id",
             "fallback_conn_ids",
             "system_prompt",
-            "agent_params",
+            "model_settings",
             "usage_limits",
         }
         assert set(LLMOperator.template_fields) == expected
+
+    @pytest.mark.parametrize(
+        ("operator_cls", "operator_kwargs"),
+        [
+            pytest.param(LLMOperator, {}, id="llm"),
+            pytest.param(LLMBranchOperator, {}, id="llm_branch"),
+            pytest.param(LLMSQLQueryOperator, {}, id="llm_sql"),
+            pytest.param(LLMFileAnalysisOperator, {"file_path": "/tmp/app.log"}, id="llm_file_analysis"),
+            pytest.param(
+                LLMSchemaCompareOperator,
+                {"db_conn_ids": ["db_a", "db_b"], "table_names": ["orders"]},
+                id="llm_schema_compare",
+            ),
+        ],
+    )
+    def test_llm_operators_reject_agent_params(self, operator_cls, operator_kwargs):
+        """No LLM operator accepts agent_params, the one argument that reached Agent(tools=...)."""
+        # Airflow 2's BaseOperator reports an unexpected argument as AirflowException.
+        with pytest.raises(TypeError if AIRFLOW_V_3_0_PLUS else AirflowException, match="agent_params"):
+            operator_cls(
+                task_id="test",
+                prompt="p",
+                llm_conn_id="my_llm",
+                agent_params={"tools": []},
+                **operator_kwargs,
+            )
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_output_retries_bound_how_often_invalid_output_is_retried(self, mock_hook_cls):
+        calls = []
+
+        def respond(messages, info: AgentInfo):
+            calls.append(messages)
+            return ModelResponse(parts=[TextPart(content="not a number")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="my_llm", output_type=int, output_retries=2)
+
+        with pytest.raises(UnexpectedModelBehavior):
+            op.execute(context=MagicMock())
+        assert len(calls) == 3
 
     @pytest.mark.parametrize(
         "bad",
@@ -139,7 +191,7 @@ class TestLLMOperator:
             "What is the capital of France?", usage_limits=None, cancellation_token=ANY
         )
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
-            output_type=str, instructions=""
+            output_type=str, instructions="", model_settings=None, retries=None
         )
         mock_hook_cls.get_hook.assert_called_once_with(
             "my_llm", hook_params={"model_id": None, "fallback_conn_ids": None}
@@ -294,7 +346,8 @@ class TestLLMOperator:
             model_id="openai:gpt-5",
             system_prompt="You are an extractor.",
             output_type=Entities,
-            agent_params={"retries": 3, "model_settings": {"temperature": 0.9}},
+            model_settings={"temperature": 0.9},
+            output_retries=3,
         )
         result = op.execute(context=MagicMock())
 
@@ -306,8 +359,8 @@ class TestLLMOperator:
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=Entities,
             instructions="You are an extractor.",
-            retries=3,
             model_settings={"temperature": 0.9},
+            retries=3,
         )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -627,6 +680,9 @@ class TestLLMOperatorConfidenceGate:
 
         body = mock_upsert.call_args.kwargs["body"]
         assert "Confidence: 0.40 (minimum 0.70)" in body
+        # The JSON a reviewer can paste into the edit field, not the model's repr.
+        assert '{"category":"billing","score":0.3}' in body
+        assert "category='billing'" not in body
         pushes = {
             c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
         }
@@ -1321,6 +1377,51 @@ class TestLLMOperatorApproval:
         result = op.execute_complete({}, generated_output=generated_output, event=event)
 
         assert result == expected
+
+    def test_execute_complete_fails_on_edit_invalid_for_output_type(self):
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            output_type=int,
+            require_approval=True,
+            allow_modifications=True,
+        )
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": "thirty-one"},
+        }
+
+        with pytest.raises(ReviewedOutputValidationError, match="'thirty-one'"):
+            op.execute_complete({}, generated_output="5", event=event)
+
+    @requires_typed_xcom
+    def test_execute_complete_restores_a_model_the_form_sent_back_as_an_object(self):
+        # The HITL form parses a JSON-object value into an object, so an untouched model comes back as a dict.
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            output_type=Summary,
+            require_approval=True,
+            allow_modifications=True,
+        )
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": {"text": "hello"}},
+        }
+
+        result = op.execute_complete({}, generated_output='{"text":"hello"}', event=event)
+
+        assert result == Summary(text="hello")
+
+    def test_execute_complete_returns_an_unedited_output_that_does_not_validate_back(self):
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=int, require_approval=True)
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
+
+        assert op.execute_complete({}, generated_output="null", event=event) == "null"
 
 
 @pytest.mark.skipif(

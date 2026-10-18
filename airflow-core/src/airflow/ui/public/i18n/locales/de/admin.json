@@ -34,6 +34,7 @@
     "form": {
       "connectionIdRequired": "Verbindungs-ID ist erforderlich",
       "connectionIdRequirement": "Die Verbindungs-ID kann nicht nur aus Leerzeichen bestehen",
+      "connectionTypeFields": "{{connectionType}} Felder",
       "connectionTypeRequired": "Die Auswahl eines Verbindungstyps ist erforderlich",
       "extraFieldsJson": "JSON Ansicht der weiteren Felder",
       "helperText": "Fehlt ein Verbindungstyp? Stellen Sie sicher, dass die notwendigen Provider-Pakete installiert sind.",

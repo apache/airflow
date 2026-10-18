@@ -43,7 +43,7 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.dynamic_region import LOOP_DECISION_KEY, DynamicRegion
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, DynamicRegion
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import clear_loop_task_instances, clear_task_instances, uuid7
@@ -1503,6 +1503,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             )
         session.commit()
         url = f"/dags/{dr.dag_id}/dagRuns/{dr.run_id}/taskInstances"
+        # The UI filters by the loop the author named, not by a region. Keyed that way it spans
+        # every invocation, so a clear that forked the later passes does not lose them.
         params = {"loop_id": "body", "limit": 1}
         if cursor is not None:
             params["cursor"] = cursor
@@ -1510,15 +1512,30 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200, response.text
         assert response.json()["total_entries"] == 4
         assert len(response.json()["task_instances"]) == 1
+        # One pass covers the loop's own region at that index *and* the mapped expansion nested
+        # inside it, which sits at an index of its own.
         response = test_client.get(url, params={**params, "iteration": 2, "limit": 100})
         assert response.status_code == 200, response.text
         assert response.json()["total_entries"] == 2
         assert {ti["region_index"] for ti in response.json()["task_instances"]} == {2, 7}
         response = test_client.get(url, params={**params, "iteration": 0, "limit": 100})
         assert response.json()["total_entries"] == 2
+        # region_id names one region exactly; the logical scope of a pass is what loop_id and
+        # iteration are for, so this does not reach the expansion nested inside it.
+        exact = test_client.get(url, params={"region_id": str(replacement.id), "limit": 100})
+        assert exact.status_code == 200, exact.text
+        assert {ti["region_index"] for ti in exact.json()["task_instances"]} == {2}
 
     def test_iteration_filter_requires_loop(self, test_client):
         response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"iteration": 1})
+        assert response.status_code == 400
+
+    def test_loop_filter_requires_a_specific_dag_run(self, test_client):
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"loop_id": "body"})
+        assert response.status_code == 400
+
+    def test_region_index_requires_region_id(self, test_client):
+        response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"region_index": 1})
         assert response.status_code == 400
 
     @pytest.mark.parametrize(
@@ -6069,7 +6086,7 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         assert tis["body.first", 0].note is None
         assert tis["body.first", 2].note is None
 
-    def test_manual_gate_success_after_rewind_stops_without_consuming_continue(
+    def test_manual_gate_success_after_rewind_stops_and_keeps_the_reason(
         self, test_client, session, loop_instances
     ):
         dr, loop, root, tis = loop_instances
@@ -6083,7 +6100,7 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
             )
         ).one()
         gate_id = gate.id
-        session.add(XComModelV2(task_instance_id=gate_id, key=LOOP_DECISION_KEY, value="continue"))
+        session.add(XComModelV2(task_instance_id=gate_id, key=LOOP_DECISION_REASON_KEY, value="stale"))
         session.commit()
 
         response = test_client.patch(
@@ -6095,7 +6112,9 @@ class TestRegionalTaskStateControls(TestTaskInstanceEndpoint):
         session.expire_all()
         assert session.get(TaskInstance, gate_id).state == State.SUCCESS
         assert all(ti.region_index == 0 for ti in dr.get_task_instances(session=session))
-        assert not session.scalar(select(XComModelV2).where(XComModelV2.task_instance_id == gate_id))
+        assert session.scalars(
+            select(XComModelV2.value).where(XComModelV2.task_instance_id == gate_id)
+        ).all() == ["stale"]
 
     @pytest.mark.parametrize("outcome", ["success", "failed", "skipped"])
     def test_manual_terminal_settles_superseded_running_execution(
