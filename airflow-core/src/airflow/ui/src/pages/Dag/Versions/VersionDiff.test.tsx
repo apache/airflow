@@ -17,8 +17,8 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   $DagVersionDiffCategory,
@@ -114,8 +114,6 @@ describe("VersionDiff", () => {
     expect(screen.getByText("/dag/tasks/*/retries")).toBeInTheDocument();
     expect(screen.queryByText("versions.columns.before")).not.toBeInTheDocument();
     expect(screen.queryByText("versions.columns.after")).not.toBeInTheDocument();
-    // Says what would grant them, since nothing here can.
-    expect(screen.getByText("versions.codeAccess")).toBeInTheDocument();
   });
 
   it("renders every returned record", () => {
@@ -257,11 +255,34 @@ describe("VersionDiff", () => {
     expect(cells[6]).toHaveTextContent("bob");
   });
 
-  it("labels the disclosure state the response reports", () => {
+  it("shows no disclosure chrome when the caller may see values", () => {
     renderDiff(authorized);
 
-    expect(screen.getByText("versions.valuesShown")).toBeInTheDocument();
     expect(screen.queryByText("versions.valuesHidden")).not.toBeInTheDocument();
+    expect(screen.queryByText("versions.codeAccess")).not.toBeInTheDocument();
+  });
+
+  it("flags hidden values, saying on hover what would grant them", async () => {
+    vi.useFakeTimers();
+
+    try {
+      renderDiff(redacted);
+
+      const pill = screen.getByText("versions.valuesHidden");
+
+      // Only on hover: not repeated as inline text next to the pill.
+      expect(screen.queryByText("versions.codeAccess")).not.toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.focus(pill);
+        fireEvent.pointerEnter(pill);
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent("versions.codeAccess");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("says so when two versions hold the same state", () => {
