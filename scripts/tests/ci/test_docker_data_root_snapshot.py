@@ -303,7 +303,11 @@ def test_unsupported_storage_does_not_modify_daemon(fake_tools, snapshot, mode, 
     result = run_script({**fake_tools, "DAEMON_FINGERPRINT": daemon}, mode, str(snapshot))
     assert result.returncode == 3
     assert "::warning::" in result.stdout
-    assert not any(command[0] == "sudo" for command in read_commands(fake_tools))
+    commands = read_commands(fake_tools)
+    assert not any(command[0] == "sudo" for command in commands)
+    assert not any(command[:2] in (["docker", "rmi"], ["docker", "builder"]) for command in commands)
+    if mode == "create":
+        assert Path(f"{snapshot}.meta").read_text() == "unavailable\n"
 
 
 def test_existing_container_prevents_restore(fake_tools, snapshot):
