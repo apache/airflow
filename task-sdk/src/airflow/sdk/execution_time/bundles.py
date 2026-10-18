@@ -61,9 +61,9 @@ def initialize_ti_bundle(bundle_info: BundleInfo) -> BaseDagBundle:
     bundle_instance.initialize()
     verify_bundle_access(bundle_instance)
     if is_bundle_config_reload_enabled():
-        get_importer_registry.cache_clear()
-        with bundle_manager.use_bundle_config():
-            get_importer_registry(bundle_info.name)
+        get_importer_registry(
+            bundle_info.name, bundle_importers=bundle_manager.get_bundle_importers(bundle_info.name)
+        )
     return bundle_instance
 
 
