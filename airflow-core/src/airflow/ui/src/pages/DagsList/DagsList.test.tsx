@@ -19,7 +19,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DagSchedulingState } from "openapi/requests/types.gen";
 
@@ -416,4 +416,82 @@ describe("Dags display toggle", () => {
     );
     expect(screen.queryByTestId("table-list")).toBeNull();
   });
+});
+
+const runningDag = {
+  ...successDag,
+  has_unfinished_runs: true,
+  latest_dag_runs: successDag.latest_dag_runs.map((run) => ({ ...run, end_date: null, state: "running" })),
+};
+
+// A running Dag keeps the list polling, and its run state counts change on every poll like they do
+// while runs progress, so each refresh hands the list new data that must not remount its rows.
+const serveRefreshingDagsList = () => {
+  let countsResponses = 0;
+
+  server.use(
+    http.get("/ui/config", () => HttpResponse.json({ auto_refresh_interval: 1, page_size: 15 })),
+    http.get("/ui/dags", () => HttpResponse.json({ dags: [runningDag], total_entries: 1 })),
+    http.get("/ui/dags/run_state_counts", () => {
+      countsResponses += 1;
+
+      return HttpResponse.json({
+        dags: [{ dag_id: runningDag.dag_id, state_counts: { running: countsResponses } }],
+        state_count_limit: 1000,
+      });
+    }),
+    http.get("/ui/dags/recent_task_instance_state_counts", () => HttpResponse.json({ dags: [] })),
+  );
+
+  return async () => {
+    const next = String(countsResponses + 1);
+
+    await waitFor(
+      () =>
+        expect(screen.getByTestId(`run-state-count-running-${runningDag.dag_id}`)).toHaveTextContent(next),
+      { timeout: 3000 },
+    );
+  };
+};
+
+describe("Dags list auto-refresh", () => {
+  // happy-dom never reports an intersection, which would keep card content hidden for good.
+  beforeEach(() => {
+    vi.stubGlobal("IntersectionObserver", undefined);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["card", "table"])("keeps the %s rows mounted across a refresh", async (display) => {
+    const waitForRefresh = serveRefreshingDagsList();
+
+    localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify(display));
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitForRefresh();
+    const toggle = screen.getByTestId("toggle-pause");
+
+    await waitForRefresh();
+
+    expect(screen.getByTestId("toggle-pause")).toBe(toggle);
+  });
+
+  it.each(["card", "table"])(
+    "keeps the pause dialog open in the %s view across a refresh",
+    async (display) => {
+      const waitForRefresh = serveRefreshingDagsList();
+
+      localStorage.setItem(DAGS_LIST_DISPLAY_KEY, JSON.stringify(display));
+      render(<AppWrapper initialEntries={["/dags"]} />);
+
+      await waitForRefresh();
+      fireEvent.click(screen.getByTestId("toggle-pause"));
+      const drainButton = await screen.findByTestId("drain-dag");
+
+      await waitForRefresh();
+
+      expect(screen.getByTestId("drain-dag")).toBe(drainButton);
+    },
+  );
 });
