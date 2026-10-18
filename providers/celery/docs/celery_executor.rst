@@ -88,6 +88,23 @@ Some caveats:
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 
+PostgreSQL result backends
+--------------------------
+
+For result backends using psycopg (v3), Airflow defaults ``connect_args.prepare_threshold`` to
+``None`` to disable automatic prepared statements. This supports a transaction-mode connection
+pooler that does not track prepared statements. The setting also works when connecting directly
+to PostgreSQL. Other database drivers, including psycopg2, do not receive this parameter.
+
+An explicit value in ``[celery] result_backend_sqlalchemy_engine_options`` takes precedence.
+For example, when connecting directly to PostgreSQL or using a pooler configured to support
+prepared statements, you can restore psycopg's default preparation threshold:
+
+.. code-block:: ini
+
+    [celery]
+    result_backend_sqlalchemy_engine_options = {"connect_args": {"prepare_threshold": 5}}
+
 Redis maintenance
 -----------------
 

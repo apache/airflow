@@ -28,7 +28,9 @@ import attrs
 import uuid6
 from sqlalchemy import (
     BINARY,
+    VARBINARY,
     CheckConstraint,
+    CompoundSelect,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -44,7 +46,7 @@ from sqlalchemy import (
     union_all,
 )
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Mapped, aliased, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column, object_session
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
@@ -54,11 +56,19 @@ SENTINEL_REGION_ID = UUID(int=0)
 LOOP_XCOM_PREFIX = "_airflow_loop_"
 LOOP_DECISION_REASON_KEY = f"{LOOP_XCOM_PREFIX}decision_reason"
 LOOP_DECISION_REASON_MAX_BYTES = 512
+MAX_REGION_DEPTH = 10  # Max depth we allow at runtime
+_PATH_SEGMENT_BYTES = 20
+_MAX_REGION_INDEX = 2**31 - 1
+_COORDINATES_CACHE_KEY = "dynamic_region_coordinates"
+# Over 255 bytes so MySQL can widen the column later as a metadata-only change; 15 levels fit already.
+_PATH_TYPE = LargeBinary().with_variant(VARBINARY(300), "mysql", "mariadb")
+_pack_index = struct.Struct(">I").pack
 
 if TYPE_CHECKING:
     from sqlalchemy import Select
     from sqlalchemy.engine import Connection
-    from sqlalchemy.orm import Mapper, Session
+    from sqlalchemy.orm import Mapper
+    from sqlalchemy.orm.session import SessionTransaction
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.taskinstance import TaskInstance
@@ -142,6 +152,34 @@ class DynamicRegion(Base):
     rows from before the column existed or a raw insert that bypasses the ORM, have a NULL key and are
     not guarded: :meth:`DynamicRegion.get_or_create` finds those by their slot columns, and a raw insert
     must supply the key itself.
+
+    A *family* is an original region and the chain of forks of it, and ``family_root_id`` is the id of
+    its first region. Everything that sits inside one iteration of a loop, however deep, has the loop
+    family and that iteration in its ``path``: for each ancestor from the top, 16 bytes of its
+    ``family_root_id`` and the 4-byte big-endian index this region sits at within it. That makes "every
+    region of a loop family, and everything nested under it" an equality on ``family_root_id`` plus a
+    range scan of ``path``, see :func:`build_loop_family_legs`, instead of a walk of the ancestry. Both
+    columns are set by the ``before_insert`` hook from ``forked_from_region_id`` and the parent
+    columns, so a raw insert that bypasses the ORM must supply them. A fork must sit under the same
+    parent as its source, which the hook enforces, and nesting is limited to :data:`MAX_REGION_DEPTH`
+    ancestors.
+
+    The same encoding in SQL, for a region ``r`` with parent ``p``, a loop family member ``m`` and an
+    iteration ``k``. ``family_root_id`` is ``BINARY(16)`` on MySQL, so it concatenates as is, and 32 hex
+    characters on SQLite, where ``||`` always yields text, so the path is built in hex and decoded once::
+
+        -- r.path on PostgreSQL / MySQL / SQLite 3.41+
+        p.path || uuid_send(p.family_root_id) || int4send(r.parent_region_index)
+        CONCAT(p.path, p.family_root_id, UNHEX(LPAD(HEX(r.parent_region_index), 8, '0')))
+        unhex(hex(p.path) || p.family_root_id || printf('%08X', r.parent_region_index))
+
+        -- everything nested under iteration k of m's family, on PostgreSQL
+        path >= m.path || uuid_send(m.family_root_id) || int4send(k)
+        AND path < m.path || uuid_send(m.family_root_id) || int4send(k + 1)
+
+        -- the iteration of m's family that a nested region sits in, on PostgreSQL / MySQL
+        ('x' || encode(substring(path from length(m.path) + 17 for 4), 'hex'))::bit(32)::integer
+        CONV(HEX(SUBSTRING(path, LENGTH(m.path) + 17, 4)), 16, 10)
     """
 
     __tablename__ = "dynamic_region"
@@ -154,6 +192,8 @@ class DynamicRegion(Base):
     parent_region_id: Mapped[UUID | None] = mapped_column(CompactUUID(), nullable=True)
     parent_region_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     forked_from_region_id: Mapped[UUID | None] = mapped_column(CompactUUID(), nullable=True)
+    family_root_id: Mapped[UUID] = mapped_column(CompactUUID(), nullable=False)
+    path: Mapped[bytes] = mapped_column(_PATH_TYPE, nullable=False)
     resumes_from_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     # Hash of the slot, set on original regions and NULL on forks; see the class docstring.
     slot_key: Mapped[bytes | None] = mapped_column(
@@ -184,6 +224,8 @@ class DynamicRegion(Base):
         CheckConstraint("resumes_from_index >= 0", name="resumes_from_index_nonnegative"),
         Index("idx_dynamic_region_slot", dag_id, run_id, node_id, parent_region_id, parent_region_index),
         Index("idx_dynamic_region_parent_region_id", parent_region_id),
+        Index("idx_dynamic_region_family_root_id", family_root_id),
+        Index("idx_dynamic_region_path", path),
     )
 
     @classmethod
@@ -404,6 +446,72 @@ def _set_slot_key(mapper: Mapper, connection: Connection, region: DynamicRegion)
         )
 
 
+def _get_coordinates_cache(region: DynamicRegion) -> dict[UUID, tuple[UUID, bytes]]:
+    """
+    Remember region coordinates up until the unit-of-work is flushed to the DB.
+
+    That is enough for siblings flushed together to read their parent once, and for a region to find a
+    parent added in the same flush: every ``before_insert`` hook runs before the first ``INSERT``, so the
+    parent is not in the database yet.
+    """
+    session = object_session(region)
+    if TYPE_CHECKING:
+        assert session is not None
+    return session.info.setdefault(_COORDINATES_CACHE_KEY, {})
+
+
+def _get_region_coordinates(
+    connection: Connection, region: DynamicRegion, region_id: UUID, role: str
+) -> tuple[UUID, bytes]:
+    cache = _get_coordinates_cache(region)
+    if region_id not in cache:
+        row = connection.execute(
+            select(DynamicRegion.family_root_id, DynamicRegion.path).where(DynamicRegion.id == region_id)
+        ).one_or_none()
+        if row is None:
+            raise ValueError(f"The {role} region {region_id} does not exist")
+        cache[region_id] = (row.family_root_id, row.path)
+    return cache[region_id]
+
+
+def _build_region_path(connection: Connection, region: DynamicRegion) -> bytes:
+    if region.parent_region_id is None and region.parent_region_index is None:
+        return b""
+    if region.parent_region_id is None or region.parent_region_index is None:
+        raise ValueError("parent_region_id and parent_region_index must be set together")
+    if region.parent_region_index < 0:
+        raise ValueError("parent_region_index must not be negative")
+    parent_root, parent_path = _get_region_coordinates(connection, region, region.parent_region_id, "parent")
+    path = parent_path + parent_root.bytes + _pack_index(region.parent_region_index)
+    if len(path) > MAX_REGION_DEPTH * _PATH_SEGMENT_BYTES:
+        raise ValueError(f"Dynamic regions can nest at most {MAX_REGION_DEPTH} levels deep")
+    return path
+
+
+@event.listens_for(DynamicRegion, "before_insert")
+def _set_region_coordinates(mapper: Mapper, connection: Connection, region: DynamicRegion) -> None:
+    # The id default runs after this hook, and a region that starts a family is named by its own id.
+    if region.id is None:
+        region.id = uuid6.uuid7()
+    path = _build_region_path(connection, region)
+    if region.forked_from_region_id is None:
+        region.family_root_id = region.id
+    else:
+        region.family_root_id, source_path = _get_region_coordinates(
+            connection, region, region.forked_from_region_id, "fork source"
+        )
+        if source_path != path:
+            raise ValueError("A fork must sit under the same parent as the region it forks")
+    region.path = path
+    _get_coordinates_cache(region)[region.id] = (region.family_root_id, region.path)
+
+
+# Every flush runs in a subtransaction of its own, so this fires after each flush, not only at commit.
+@event.listens_for(Session, "after_transaction_end")
+def _forget_region_coordinates(session: Session, transaction: SessionTransaction) -> None:
+    session.info.pop(_COORDINATES_CACHE_KEY, None)
+
+
 def load_region_ancestry(
     region_ids: Collection[UUID], *, dag_id: str, run_id: str, session: Session
 ) -> dict[UUID, DynamicRegion]:
@@ -457,59 +565,39 @@ def loop_position(
     return None
 
 
-@attrs.define(frozen=True)
-class _LoopPassRegions:
-    """The regions that hold one iteration of a loop: its fork family and everything nested under it."""
-
-    family_ids: tuple[UUID, ...]
-    nested_ids: tuple[UUID, ...]
-    iteration: int
-
-
-def _load_loop_pass_regions(position: tuple[UUID, int], *, session: Session) -> _LoopPassRegions:
+def build_loop_family_legs(
+    query: Select[Any], family_member: DynamicRegion, *, iteration: int | None = None
+) -> tuple[Select[Any], Select[Any]]:
     """
-    Resolve, in one statement, the regions that hold the loop iteration ``position`` names.
+    Split ``query``, a selection from ``task_instance``, into the rows that belong to one loop family.
 
-    Both recursive CTEs run against ``dynamic_region`` only. The ``task_instance`` query then takes the
-    ids as literals, which every backend turns into an index lookup on ``task_instance_current_key``;
-    a subquery in that position leaves MySQL and Postgres scanning every row of the task.
+    ``family_member`` is any region of the loop's family; the family's regions share ``family_root_id`` and
+    ``path``. The first leg holds the rows that sit directly in a region of the family, where
+    ``region_index`` is the iteration. The second holds the rows nested under the family, however deep,
+    whose ``path`` starts with the family and the iteration. Pass ``iteration`` to keep one iteration, or
+    leave it out for all of them.
+
+    Each leg is joined to :class:`DynamicRegion`, so a caller can add columns to both before combining
+    them with ``UNION ALL``. The iteration of a row in a region directly under the family is
+    ``DynamicRegion.parent_region_index``; deeper down, it is the 4-byte index that follows the family's
+    16-byte root in ``path``, as decoded in the :class:`DynamicRegion` docstring. The
+    legs never overlap. They are separate statements because the planner can then drive each from its
+    own index, which an ``OR`` across them does not allow.
     """
-    family_root, iteration = position
-    family = (
-        select(DynamicRegion.id).where(DynamicRegion.id == family_root).cte("loop_family", recursive=True)
-    )
-    forked = aliased(DynamicRegion)
-    family = family.union(select(forked.id).where(forked.forked_from_region_id == family.c.id))
-    nested = (
-        select(DynamicRegion.id)
-        .where(
-            DynamicRegion.parent_region_id.in_(select(family.c.id)),
-            DynamicRegion.parent_region_index == iteration,
-        )
-        .cte("loop_iteration_regions", recursive=True)
-    )
-    child = aliased(DynamicRegion)
-    nested = nested.union(select(child.id).where(child.parent_region_id == nested.c.id))
-    rows = session.execute(
-        union_all(
-            select(family.c.id, literal(0).label("is_nested")),
-            select(nested.c.id, literal(1).label("is_nested")),
-        )
-    ).all()
-    return _LoopPassRegions(
-        family_ids=tuple(region_id for region_id, is_nested in rows if not is_nested),
-        nested_ids=tuple(region_id for region_id, is_nested in rows if is_nested),
-        iteration=iteration,
-    )
-
-
-def _build_loop_pass_filter(regions: _LoopPassRegions) -> ColumnElement[bool]:
     from airflow.models.taskinstance import TaskInstance
 
-    return or_(
-        and_(TaskInstance.region_id.in_(regions.family_ids), TaskInstance.region_index == regions.iteration),
-        TaskInstance.region_id.in_(regions.nested_ids),
+    first, end = (0, _MAX_REGION_INDEX + 1) if iteration is None else (iteration, iteration + 1)
+    prefix = family_member.path + family_member.family_root_id.bytes
+    direct = query.join(DynamicRegion, TaskInstance.region_id == DynamicRegion.id).where(
+        DynamicRegion.family_root_id == family_member.family_root_id
     )
+    if iteration is not None:
+        direct = direct.where(TaskInstance.region_index == iteration)
+    nested = query.join(DynamicRegion, TaskInstance.region_id == DynamicRegion.id).where(
+        DynamicRegion.path >= prefix + _pack_index(first),
+        DynamicRegion.path < prefix + _pack_index(end),
+    )
+    return direct, nested
 
 
 def public_region_filter(
@@ -570,9 +658,8 @@ def _filter_producers(
     region_id: UUID | None,
     region_index: int | None,
     top_level_only: bool,
-    loop_pass: _LoopPassRegions | None = None,
 ) -> Select:
-    """Push every coordinate predicate into SQL."""
+    """Push every coordinate predicate that does not need loop ancestry into SQL."""
     from airflow.models.taskinstance import TaskInstance
 
     query = query.where(
@@ -585,8 +672,6 @@ def _filter_producers(
         query = query.where(TaskInstance.region_id == region_id)
     if region_index is not None:
         query = query.where(TaskInstance.region_index == region_index)
-    if loop_pass is not None:
-        query = query.where(_build_loop_pass_filter(loop_pass))
     if top_level_only:
         if is_mapped:
             top_level_region = (
@@ -633,8 +718,13 @@ def _build_candidate_query(
     region_id: UUID | None,
     region_index: int | None,
     session: Session,
-) -> Select[Any] | None:
-    """Narrow ``query`` to the candidate producers of the caller's scope, or ``None`` if there are none."""
+) -> Select[Any] | CompoundSelect | None:
+    """
+    Narrow ``query`` to the candidate producers of the caller's scope, or ``None`` if there are none.
+
+    Inside a loop the result is the ``UNION ALL`` of the two legs of :func:`build_loop_family_legs`, so
+    load ORM entities from it with ``from_statement``.
+    """
     regions: dict[UUID, DynamicRegion] = {}
     position = None
     if context and region_id is None:
@@ -650,7 +740,7 @@ def _build_candidate_query(
                 if position[1] < 0:
                     return None
 
-    return _filter_producers(
+    query = _filter_producers(
         query,
         dag_id=dag_id,
         run_id=run_id,
@@ -660,8 +750,11 @@ def _build_candidate_query(
         region_id=region_id,
         region_index=region_index,
         top_level_only=region_id is None and position is None,
-        loop_pass=_load_loop_pass_regions(position, session=session) if position is not None else None,
     )
+    if position is None:
+        return query
+    family_root, iteration = position
+    return union_all(*build_loop_family_legs(query, regions[family_root], iteration=iteration))
 
 
 def _check_producers_unambiguous(
@@ -707,7 +800,8 @@ def resolve_current_producers(
     )
     if query is None:
         return ()
-    candidates = session.scalars(query).all()
+    statement = select(TaskInstance).from_statement(query) if isinstance(query, CompoundSelect) else query
+    candidates = session.scalars(statement).all()
     _check_producers_unambiguous(
         (ti.region_index for ti in candidates),
         dag_id=dag_id,
