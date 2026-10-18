@@ -35,6 +35,7 @@ from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import greenback
+import httpx2
 import msgspec
 import pendulum
 import pytest
@@ -50,6 +51,7 @@ from sqlalchemy import delete, update
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
@@ -65,6 +67,7 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
+    _current_trigger_ti_id,
     _make_trigger_span,
     messages,
 )
@@ -72,16 +75,18 @@ from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
+from airflow.sdk import DAG, Asset, BaseHook, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
@@ -93,6 +98,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    GetXCom,
     OKResponse,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
@@ -235,6 +241,36 @@ def test_is_needed(session):
     session.add(trigger_orm)
     session.commit()
     assert triggerer_job_runner.is_needed() is True
+
+
+def test_build_trigger_workloads_preserves_region_and_projects_public_map_index(
+    session, supervisor_builder, dag_maker
+):
+    @task_group
+    def body():
+        EmptyOperator(task_id="task")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    run = dag_maker.create_dagrun()
+    ti = run.task_instances[0]
+    trigger = Trigger.from_object(TimeDeltaTrigger(datetime.timedelta(days=7)))
+    session.add(trigger)
+    session.flush()
+    ti.trigger_id = trigger.id
+    region = DynamicRegion.get_or_create(
+        dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
+    )
+    session.add(region)
+    session.flush()
+    ti.region_id, ti.region_index = region.id, 2
+    session.commit()
+
+    (workload,) = supervisor_builder().build_trigger_workloads({trigger.id})
+
+    assert workload.ti.map_index == -1
+    assert workload.ti.region_index == 2
+    assert workload.ti.region_id == region.id
 
 
 def test_capacity_decode():
@@ -486,6 +522,40 @@ def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, m
     make_client.assert_called_once_with(supervisor)
 
 
+@pytest.mark.parametrize("has_job", [True, False])
+def test_handle_requests_sends_the_trigger_ti_id_header_only_for_the_frames_own_requests(
+    supervisor_builder, jobless_supervisor, mocker, has_job
+):
+    ti_id = uuid.uuid4()
+    expected = str(ti_id) if has_job else None
+    seen: dict[str, str | None] = {}
+    supervisor = supervisor_builder() if has_job else jobless_supervisor
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        key = request.url.path.rsplit("/", 1)[-1]
+        seen[key] = request.headers.get(TRIGGER_TI_ID_HEADER)
+        if key == "with-trigger":
+            other_thread = threading.Thread(
+                target=lambda: supervisor.client.xcoms.get("d", "r", "t", "from-thread")
+            )
+            other_thread.start()
+            other_thread.join()
+        return httpx2.Response(200, json={"key": key, "value": 1})
+
+    in_process_api = mocker.patch("airflow.jobs.triggerer_job_runner.InProcessExecutionAPI", autospec=True)
+    in_process_api.return_value.transport = httpx2.MockTransport(handler)
+    requests = supervisor.handle_requests(log=mocker.Mock(spec=FilteringBoundLogger))
+    next(requests)
+
+    def get_xcom_body(key: str) -> dict:
+        return GetXCom(key=key, dag_id="d", run_id="r", task_id="t").model_dump()
+
+    requests.send(_RequestFrame(id=1, body=get_xcom_body("with-trigger"), ti_id=ti_id))
+    requests.send(_RequestFrame(id=2, body=get_xcom_body("without-trigger")))
+
+    assert seen == {"with-trigger": expected, "from-thread": None, "without-trigger": None}
+
+
 def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
     """Breaking out of the loop on a dead subprocess still unwinds run_context."""
     from contextlib import contextmanager
@@ -690,9 +760,12 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     trigger.task_instance.dag_version_id = uuid.uuid4()
     trigger.task_instance.task_id = "t"
     trigger.task_instance.trigger_timeout = None
+    trigger.task_instance.region_id = uuid.UUID(int=0)
+    trigger.task_instance.region_index = -1
 
     mocker.patch(
-        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        "airflow.jobs.triggerer_job_runner.task_instance_to_runtime",
+        autospec=True,
         return_value=mocker.Mock(spec=TaskInstanceDTO),
     )
 
@@ -731,6 +804,8 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
     trigger.task_instance.dag_version_id = bumped_ti_version
     trigger.task_instance.task_id = "t"
     trigger.task_instance.trigger_timeout = None
+    trigger.task_instance.region_id = uuid.UUID(int=0)
+    trigger.task_instance.region_index = -1
 
     dag_run = mocker.Mock(spec=DagRun)
     dag_run.dag_id = "test_dag"
@@ -744,7 +819,8 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
         DagVersion, "get_latest_version", return_value=mocker.Mock(spec=DagVersion, id=latest_version)
     )
     mocker.patch(
-        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        "airflow.jobs.triggerer_job_runner.task_instance_to_runtime",
+        autospec=True,
         return_value=mocker.Mock(spec=TaskInstanceDTO),
     )
 
@@ -798,6 +874,37 @@ def test_load_triggers_survives_task_missing_from_resolved_dag_version(superviso
     workload = next(w for w in supervisor.creating_triggers if w.id == trigger_orm.id)
     assert workload.dag_data is None
     assert "Task not found in resolved Dag version; building plain workload" in caplog
+
+
+def test_create_workload_sets_up_logging_for_callback_trigger(jobless_supervisor, mocker):
+    """_create_workload() populates logger_cache for callback triggers so their logs are captured."""
+    callback_id = uuid.uuid4()
+    callback = mocker.Mock()
+    callback.id = callback_id
+    callback.data = {
+        "dag_id": "test_dag",
+        "kwargs": {"context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "manual__2024-01-01"}}},
+    }
+
+    trigger = mocker.Mock()
+    trigger.id = 8
+    trigger.classpath = "airflow.triggers.callback.CallbackTrigger"
+    trigger.encrypted_kwargs = ""
+    trigger.task_instance = None
+    trigger.assets = None
+    trigger.callback = callback
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    factory = jobless_supervisor.logger_cache[trigger.id]
+    assert factory.log_path == f"triggerer_callbacks/test_dag/manual__2024-01-01/{callback_id}/callback.log"
+    assert factory.ti is None
 
 
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
@@ -2293,6 +2400,36 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
 
 
+def test_failure_from_triggerer_that_lost_the_trigger_leaves_task_deferred(
+    session, dag_maker, supervisor_builder
+):
+    trigger_orm = Trigger(classpath="fake.classpath", kwargs={})
+    session.add(trigger_orm)
+    session.flush()
+    with dag_maker(dag_id="test_reassigned_trigger", session=session):
+        EmptyOperator(task_id="dummy1")
+    task_instance = dag_maker.create_dagrun().task_instances[0]
+    task_instance.state = TaskInstanceState.DEFERRED
+    task_instance.trigger_id = trigger_orm.id
+    session.commit()
+    supervisor = supervisor_builder()
+    supervisor.load_triggers()
+    other_triggerer = Job()
+    session.add(other_triggerer)
+    session.flush()
+    session.execute(
+        update(Trigger).where(Trigger.id == trigger_orm.id).values(triggerer_id=other_triggerer.id)
+    )
+    session.commit()
+    supervisor.failed_triggers.append((trigger_orm.id, ["ModuleNotFoundError: No module named 'fake'\n"]))
+
+    supervisor.handle_failed_triggers()
+
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.DEFERRED
+    assert task_instance.trigger_id == trigger_orm.id
+
+
 class CustomTrigger(BaseTrigger):
     """Custom Trigger that will access one Variable and one Connection."""
 
@@ -2493,6 +2630,9 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
         }
     }
     assert task_instance.next_kwargs == expected_event
+    session.expire_all()
+    assert XComModelV2.get_for_attempt(task_instance.id, "test_set_xcom", session=session).value == "set_xcom"
+    assert XComModelV2.get_for_attempt(task_instance.id, "test_delete_xcom", session=session) is None
 
 
 class CustomTriggerDagRun(BaseTrigger):
@@ -3065,6 +3205,7 @@ class TestTriggererMessageTypes:
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
+            "SetExecutionTimeout",
             "GetDag",
             # AIP-103 task store — triggerer has no task execution context.
             "GetTaskStateStore",
@@ -3117,6 +3258,22 @@ class TestTriggererMessageTypes:
         )
 
 
+def _make_ti_dto(task_id="my_task", map_index=-1, context_carrier=None):
+    return TaskInstanceDTO(
+        id=uuid.uuid4(),
+        dag_version_id=uuid.uuid4(),
+        task_id=task_id,
+        dag_id="test_dag",
+        run_id="test_run",
+        try_number=1,
+        map_index=map_index,
+        pool_slots=1,
+        queue="default",
+        priority_weight=1,
+        context_carrier=context_carrier,
+    )
+
+
 class TestMakeTriggerSpan:
     """Tests for the _make_trigger_span helper in the triggerer job runner."""
 
@@ -3129,29 +3286,14 @@ class TestMakeTriggerSpan:
         with mock.patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
             yield
 
-    def _make_ti_dto(self, task_id="my_task", map_index=-1, context_carrier=None):
-        return TaskInstanceDTO(
-            id=uuid.uuid4(),
-            dag_version_id=uuid.uuid4(),
-            task_id=task_id,
-            dag_id="test_dag",
-            run_id="test_run",
-            try_number=1,
-            map_index=map_index,
-            pool_slots=1,
-            queue="default",
-            priority_weight=1,
-            context_carrier=context_carrier,
-        )
-
     def test_make_trigger_span_name_with_task_instance(self):
-        ti = self._make_ti_dto(task_id="sensor_task", map_index=-1)
+        ti = _make_ti_dto(task_id="sensor_task", map_index=-1)
         with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
             pass
         assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task"
 
     def test_make_trigger_span_name_with_mapped_task(self):
-        ti = self._make_ti_dto(task_id="sensor_task", map_index=2)
+        ti = _make_ti_dto(task_id="sensor_task", map_index=2)
         with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
             pass
         assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task_2"
@@ -3171,7 +3313,7 @@ class TestMakeTriggerSpan:
         TraceContextTextMapPropagator().inject(ti_carrier, context=parent_ctx)
         expected_parent_span_id = parent_span.get_span_context().span_id
 
-        ti = self._make_ti_dto(context_carrier=ti_carrier)
+        ti = _make_ti_dto(context_carrier=ti_carrier)
         with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
             pass
 
@@ -3181,7 +3323,7 @@ class TestMakeTriggerSpan:
         assert spans[0].parent.span_id == expected_parent_span_id
 
     def test_make_trigger_span_sets_attributes_with_ti(self):
-        ti = self._make_ti_dto(task_id="my_task", map_index=1)
+        ti = _make_ti_dto(task_id="my_task", map_index=1)
         with _make_trigger_span(ti=ti, trigger_id=5, name="MyTrigger"):
             pass
 
@@ -3373,6 +3515,34 @@ async def test_unknown_frame_id_doesnt_crash_reader(decoder_pair):
 
     assert decoder._reader_task is not None
     assert not decoder._reader_task.done(), "reader loop crashed unexpectedly"
+
+
+@pytest.mark.asyncio
+@pytest.mark.execution_timeout(15)
+async def test_asend_frame_carries_the_current_trigger_ti_id(decoder_pair):
+    decoder, server_sock = decoder_pair
+    frames: list[_RequestFrame] = []
+
+    def serve():
+        frame = _read_frame_sync(server_sock)
+        frames.append(frame)
+        server_sock.sendall(
+            _ResponseFrame(
+                id=frame.id, body={"type": "TriggerStateSync", "to_create": [], "to_cancel": []}
+            ).as_bytes()
+        )
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    ti_id = uuid.uuid4()
+    token = _current_trigger_ti_id.set(ti_id)
+    try:
+        await decoder.asend(messages.TriggerStateChanges(events=None, finished=[1], failures=None))
+    finally:
+        _current_trigger_ti_id.reset(token)
+    thread.join(timeout=5)
+
+    assert [frame.ti_id for frame in frames] == [ti_id]
 
 
 def test_trigger_state_messages_round_trip_with_seqs():
@@ -3580,6 +3750,78 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
     trigger_id, _event, seq = events[0]
     assert trigger_id == 1
     assert seq is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("has_task_instance", [True, False])
+async def test_run_trigger_sets_current_trigger_ti_id_only_for_task_instance_triggers(has_task_instance):
+    ti = _make_ti_dto()
+    seen: list[uuid.UUID | None] = []
+
+    class _RecordingTrigger(BaseTrigger):
+        def serialize(self):
+            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+        async def run(self):
+            seen.append(_current_trigger_ti_id.get())
+            yield TriggerEvent(True)
+
+    trigger_runner = TriggerRunner()
+    trigger_runner.triggers = {
+        5: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "t", "events": 0}
+    }
+    trigger = _RecordingTrigger()
+    if has_task_instance:
+        trigger.task_instance = ti
+
+    await asyncio.create_task(trigger_runner.run_trigger(5, trigger))
+
+    assert seen == [ti.id if has_task_instance else None]
+
+
+@pytest.mark.asyncio
+async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_ti_id():
+    ti = _make_ti_dto()
+    seen: dict[str, uuid.UUID | None] = {}
+
+    class _SharedTrigger(BaseEventTrigger):
+        def serialize(self):
+            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+        def shared_stream_key(self):
+            return "key"
+
+        @classmethod
+        async def open_shared_stream(cls, kwargs):
+            seen["group"] = _current_trigger_ti_id.get()
+            yield {}
+            await asyncio.Event().wait()
+
+        async def filter_shared_stream(self, shared_stream):
+            seen["trigger"] = _current_trigger_ti_id.get()
+            async for raw in shared_stream:
+                yield TriggerEvent(raw)
+
+        async def run(self):  # pragma: no cover - replaced by filter_shared_stream
+            yield TriggerEvent({})
+
+    trigger_runner = TriggerRunner()
+    trigger_runner.triggers = {
+        5: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "t", "events": 0}
+    }
+    trigger = _SharedTrigger()
+    trigger.task_instance = ti
+
+    run_task = asyncio.create_task(trigger_runner.run_trigger(5, trigger))
+    for _ in range(100):
+        await asyncio.sleep(0.01)
+        if trigger_runner.events:
+            break
+    run_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await run_task
+
+    assert seen == {"group": None, "trigger": ti.id}
 
 
 @pytest.mark.asyncio

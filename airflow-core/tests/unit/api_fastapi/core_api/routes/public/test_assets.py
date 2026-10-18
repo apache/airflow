@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from datetime import timedelta
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 import time_machine
@@ -54,7 +55,7 @@ from airflow.sdk import Asset
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -418,7 +419,9 @@ class TestGetAssets(TestAssets):
             "total_entries": 2,
         }
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
     def test_should_return_only_assets_the_caller_may_read(
         self, mock_get_authorized_assets, test_client, session
     ):
@@ -1018,7 +1021,9 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
         # The count must be scoped too, so the existence of hidden events does not leak.
         assert body["total_entries"] == len(expected_ids)
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
     def test_endpoint_returns_only_events_of_assets_the_caller_may_read(
         self, mock_get_authorized_assets, test_client, session
     ):
@@ -1051,6 +1056,59 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
 
 
 class TestGetAssetEvents(TestAssets):
+    @pytest.mark.parametrize("unknown", [False, True])
+    def test_filters_exact_execution_before_pagination(self, test_client, session, unknown):
+        assets = _create_assets(session)
+        selected = uuid4()
+        events = [
+            AssetEvent(
+                asset_id=assets[0].id,
+                source_dag_id="source_dag_id",
+                source_run_id="same_run",
+                source_task_id="same_task",
+                source_map_index=-1,
+                source_task_instance_id=identity,
+                timestamp=DEFAULT_DATE + timedelta(seconds=index),
+            )
+            for index, identity in enumerate((selected, selected, uuid4(), None))
+        ]
+        session.add_all(events)
+        session.commit()
+        response = test_client.get(
+            "/assets/events",
+            params={
+                "source_task_instance_id": str(uuid4() if unknown else selected),
+                "limit": 1,
+                "offset": 1,
+                "order_by": "timestamp",
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["total_entries"] == (0 if unknown else 2)
+        assert [row["id"] for row in response.json()["asset_events"]] == ([] if unknown else [events[1].id])
+        assert [row["source_task_instance_id"] for row in response.json()["asset_events"]] == (
+            [] if unknown else [str(selected)]
+        )
+
+    def test_unattributed_event_has_no_source_task_instance_id(self, test_client, session):
+        assets = _create_assets(session)
+        session.add(
+            AssetEvent(
+                asset_id=assets[0].id,
+                source_dag_id="source_dag_id",
+                source_run_id="run",
+                source_task_id="task",
+                source_map_index=-1,
+                timestamp=DEFAULT_DATE,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200, response.text
+        assert [row["source_task_instance_id"] for row in response.json()["asset_events"]] == [None]
+
     def test_should_respond_200(self, test_client, session):
         asset1, asset2 = self.create_assets(session=session)
         self.create_assets_events(session=session)
@@ -1080,6 +1138,7 @@ class TestGetAssetEvents(TestAssets):
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
+                    "source_task_instance_id": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1108,6 +1167,7 @@ class TestGetAssetEvents(TestAssets):
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
+                    "source_task_instance_id": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -1325,6 +1385,7 @@ class TestGetAssetEvents(TestAssets):
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
+                    "source_task_instance_id": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1353,6 +1414,7 @@ class TestGetAssetEvents(TestAssets):
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
+                    "source_task_instance_id": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -2023,6 +2085,7 @@ class TestPostAssetEvents(TestAssets):
             "source_dag_id": None,
             "source_run_id": None,
             "source_map_index": -1,
+            "source_task_instance_id": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2122,6 +2185,7 @@ class TestPostAssetEvents(TestAssets):
             "source_dag_id": None,
             "source_run_id": None,
             "source_map_index": -1,
+            "source_task_instance_id": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2173,6 +2237,7 @@ class TestPostAssetEventsTeamResolution(TestAssets):
             group=asset.group,
             extra={"from_rest_api": True},
             source_map_index=-1,
+            source_task_instance_id=None,
             timestamp=DEFAULT_DATE,
             source_task_id=None,
             source_dag_id=None,
@@ -2363,6 +2428,52 @@ class TestPostAssetMaterialize(TestAssets):
         response = test_client.post("/assets/1/materialize", content=content, headers=headers)
         assert response.status_code == 422
         assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_state"),
+        [
+            pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
+            pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
+        ],
+    )
+    def test_materialize_paused_dag_with_drain_dag(self, test_client, session, drain_dag, expected_state):
+        session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize", json={"drain_dag": drain_dag})
+
+        assert response.status_code == 200
+        session.expire_all()
+        assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == expected_state
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_status"),
+        [({"drain_dag": True}, 403), ({"drain_dag": False}, 200), ({}, 200)],
+    )
+    def test_drain_dag_requires_dag_edit_access(
+        self, test_client, session, deny_dag_edit_access, request_fields, expected_status
+    ):
+        session.execute(update(DagModel).where(DagModel.dag_id == self.DAG_ASSET1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post("/assets/1/materialize", json=request_fields)
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(DagModel, self.DAG_ASSET1_ID).scheduling_state == DagSchedulingState.PAUSED
+        if expected_status == 403:
+            assert (
+                response.json()["detail"] == f"Draining requires permission to edit Dag: {self.DAG_ASSET1_ID}"
+            )
+            assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=self.DAG_ASSET1_ID), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+        else:
+            assert session.scalar(select(func.count()).select_from(DagRun)) == 1
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_partition_key(self, test_client):

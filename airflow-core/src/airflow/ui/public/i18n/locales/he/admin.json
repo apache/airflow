@@ -9,7 +9,10 @@
   "config": {
     "columns": {
       "section": "קטגוריה"
-    }
+    },
+    "config_one": "הגדרה",
+    "config_other": "הגדרות",
+    "config_two": "הגדרות"
   },
   "connections": {
     "add": "הוסף חיבור חדש",
@@ -24,8 +27,8 @@
     "connection_two": "חיבורים",
     "delete": {
       "deleteConnection_one": "מחק חיבור",
-      "deleteConnection_other": "מחק {{count}} חיבורים",
-      "deleteConnection_two": "מחק שני חיבורים",
+      "deleteConnection_other": "מחק {{count, number}} חיבורים",
+      "deleteConnection_two": "מחק {{count, number}} חיבורים",
       "firstConfirmMessage_one": "אתה עומד למחוק את החיבור הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את החיבורים הבאים:",
       "firstConfirmMessage_two": "אתה עומד למחוק את החיבורים הבאים:",
@@ -35,10 +38,10 @@
     "form": {
       "connectionIdRequired": "נדרש מזהה חיבור",
       "connectionIdRequirement": "מזהה חיבור אינו יכול להכיל רווחים בלבד",
+      "connectionTypeFields": "שדות {{connectionType}}",
       "connectionTypeRequired": "נדרש סוג חיבור",
-      "extraFields": "שדות נוספים",
       "extraFieldsJson": "שדות נוספים JSON",
-      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת העזר המתאימה",
+      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את ההרחבה המתאימה",
       "helperTextForRedactedFields": "שדות שהוסתרו ('***') יישארו ללא שינוי אם לא בוצע בהם עדכון",
       "selectConnectionType": "בחר סוג חיבור",
       "standardFields": "שדות סטנדרטיים"
@@ -98,7 +101,10 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "עבודה",
+    "job_other": "עבודות",
+    "job_two": "עבודות"
   },
   "plugins": {
     "columns": {
@@ -107,6 +113,9 @@
     "importError_one": "שגיאה בייבוא תוסף",
     "importError_other": "שגיאות בייבוא תוסף",
     "importError_two": "שגיאות בייבוא תוסף",
+    "plugin_one": "תוסף",
+    "plugin_other": "תוספים",
+    "plugin_two": "תוספים",
     "searchPlaceholder": "חפש לפי קובץ"
   },
   "pools": {
@@ -141,7 +150,10 @@
     "columns": {
       "packageName": "שם חבילה",
       "version": "גירסה"
-    }
+    },
+    "provider_one": "הרחבה",
+    "provider_other": "הרחבות",
+    "provider_two": "הרחבות"
   },
   "variables": {
     "add": "הוסף משתנה",
@@ -150,13 +162,13 @@
     },
     "delete": {
       "deleteVariable_one": "מחר משתנה אחד",
-      "deleteVariable_other": "מחק {{count}} משתנים",
-      "deleteVariable_two": "מחק שני משתנים",
-      "firstConfirmMessage_one": "אתה עומד למחוק את מאגר המשאבים הבא:",
-      "firstConfirmMessage_other": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
-      "firstConfirmMessage_two": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
-      "title": "מחק מאגר משאבים",
-      "tooltip": "מחר משתנים נבחרים"
+      "deleteVariable_other": "מחק {{count, number}} משתנים",
+      "deleteVariable_two": "מחק {{count, number}} משתנים",
+      "firstConfirmMessage_one": "אתה עומד למחוק את המשתנה הבא:",
+      "firstConfirmMessage_other": "אתה עומד למחוק את המשתנים הבאים:",
+      "firstConfirmMessage_two": "אתה עומד למחוק את המשתנים הבאים:",
+      "title": "מחק משתנה",
+      "tooltip": "מחק משתנים נבחרים"
     },
     "edit": "ערוך משתנה",
     "form": {

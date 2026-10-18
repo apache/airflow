@@ -23,8 +23,9 @@ import (
 )
 
 var specTitles = map[string]string{
-	"dag":      "DagSpec",
-	"operator": "TaskSpec",
+	"dag":        "DagSpec",
+	"operator":   "TaskSpec",
+	"task_group": "TaskGroupSpec",
 }
 
 // normalize rewrites doc in place so that go-jsonschema can read it, and injects
@@ -108,10 +109,11 @@ func resolveNodeType(path string, node map[string]any) error {
 // --struct-name-from-title reads. It reports a definition that has gone missing
 // or already carries a title of its own, either of which means titles is stale.
 //
-// Neither definition carries a title, so the flag has nothing to read and
-// go-jsonschema falls back to capitalizing the definition keys dag and operator.
-// Dag is already the name of the constructor and Operator is not the SDK's
-// vocabulary, which is why the titles are injected rather than left to the tool.
+// No definition carries a title, so the flag has nothing to read and go-jsonschema
+// falls back to capitalizing the definition keys dag, operator and task_group. Dag
+// is already the name of the constructor, Operator is not the SDK's vocabulary, and
+// TaskGroup is the name of the method that adds a group, which is why the titles are
+// injected rather than left to the tool.
 func injectTitles(doc map[string]any, titles map[string]string) error {
 	definitions, ok := doc["definitions"].(map[string]any)
 	if !ok {

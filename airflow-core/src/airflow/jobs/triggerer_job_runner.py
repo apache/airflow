@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import functools
 import logging
 import math
@@ -49,6 +50,8 @@ from structlog.contextvars import bind_contextvars as bind_log_contextvars
 from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import task_instance_to_runtime
+from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, InProcessExecutionAPI
 from airflow.configuration import conf
 from airflow.exceptions import TaskNotFound
 from airflow.executors import workloads
@@ -56,6 +59,7 @@ from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.dagbag import DBDagBag
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
@@ -131,20 +135,24 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
-from airflow.utils.helpers import log_filename_template_renderer, prune_dict
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
 from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
+    import httpx2
     from opentelemetry.util._decorator import _AgnosticContextManager
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
+    from airflow.utils.log.task_log_address import TaskLogContext
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -155,6 +163,23 @@ _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 _REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
+
+# Task instance of the trigger whose code is running, so its SDK requests act as that task instance; tasks
+# serving several triggers must not inherit it.
+_current_trigger_ti_id: contextvars.ContextVar[UUID | None] = contextvars.ContextVar(
+    "airflow_current_trigger_ti_id", default=None
+)
+
+# Task instance of the trigger whose request the supervisor is handling, sent to the API as
+# ``TRIGGER_TI_ID_HEADER``.
+_handling_trigger_ti_id: contextvars.ContextVar[UUID | None] = contextvars.ContextVar(
+    "airflow_handling_trigger_ti_id", default=None
+)
+
+
+def _add_trigger_ti_id_header(request: httpx2.Request) -> None:
+    if (ti_id := _handling_trigger_ti_id.get()) is not None:
+        request.headers[TRIGGER_TI_ID_HEADER] = str(ti_id)
 
 
 def _make_trigger_span(
@@ -429,7 +454,8 @@ The types of messages that the async Trigger Runner can send back up to the supe
 class TriggerLoggingFactory:
     log_path: str
 
-    ti: RuntimeTI = attrs.field(repr=False)
+    # Callback triggers have no task instance; ``upload_to_remote`` accepts ``ti=None``.
+    ti: RuntimeTI | None = attrs.field(default=None, repr=False)
 
     bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
@@ -467,13 +493,6 @@ class TriggerLoggingFactory:
             return
 
         upload_to_remote(self.bound_logger, self.ti)
-
-
-def in_process_api_server() -> InProcessExecutionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
-
-    api = InProcessExecutionAPI()
-    return api
 
 
 @attrs.define(kw_only=True)
@@ -584,10 +603,22 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """
         from airflow.sdk.api.client import Client
 
-        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        triggerer_id = self.job.id if self.job is not None else None
+        in_process_api = InProcessExecutionAPI(triggerer_id=triggerer_id)
+        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
+        if triggerer_id is not None:
+            client.event_hooks["request"].append(_add_trigger_ti_id_header)
         return client
+
+    @contextmanager
+    def _request_scope(self, request: _RequestFrame) -> Iterator[None]:
+        token = _handling_trigger_ti_id.set(request.ti_id)
+        try:
+            yield
+        finally:
+            _handling_trigger_ti_id.reset(token)
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
 
@@ -810,7 +841,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
         """Record that a trigger failed."""
-        Trigger.submit_failure(trigger_id=trigger_id, exc=exc)
+        Trigger.submit_failure(
+            trigger_id=trigger_id, exc=exc, triggerer_id=self.job.id if self.job is not None else None
+        )
 
     def metric_tags(self) -> dict[str, str]:
         """
@@ -851,12 +884,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         dag_bag: DBDagBag,
         render_log_fname: Callable[..., str],
         session: Session,
+        log_context: TaskLogContext | None = None,
     ) -> workloads.RunTrigger | None:
         if trigger.task_instance is None:
             watched_assets: dict[str, str] | None = None
 
             if trigger.assets:
                 watched_assets = {a.name: a.uri for a in trigger.assets}
+
+            if callback := getattr(trigger, "callback", None):
+                # Log callback triggers to a file the UI callback logs endpoint can read.
+                callback_data = callback.data or {}
+                context = (callback_data.get("kwargs") or {}).get("context") or {}
+                dag_run_data = context.get("dag_run") or {}
+                dag_id = callback_data.get("dag_id") or dag_run_data.get("dag_id") or "unknown"
+                run_id = dag_run_data.get("dag_run_id") or "unknown"
+                # One directory per callback: with delete_local_logs, remote handlers delete the
+                # log file's parent directory after upload, which must not hold other callbacks' logs.
+                self.logger_cache[trigger.id] = TriggerLoggingFactory(
+                    log_path=f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}/callback.log",
+                )
 
             return workloads.RunTrigger(
                 id=trigger.id,
@@ -874,7 +921,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             return None
 
         log_path = render_log_fname(ti=trigger.task_instance)
-        ser_ti = TaskInstanceDTO.model_validate(trigger.task_instance, from_attributes=True)
+        ser_ti = task_instance_to_runtime(
+            trigger.task_instance,
+            model=TaskInstanceDTO,
+            map_index=(
+                log_context.map_index
+                if log_context is not None
+                else TaskCoordinateResolver(dag_bag, session).public_map_index(trigger.task_instance)
+            ),
+        )
 
         # When producing logs from TIs, include the supervisor id producing the logs to disambiguate it.
         # Note: with a Job this is an int (Job.id); without a Job it's a UUID. The reader side
@@ -949,9 +1004,22 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def build_trigger_workloads(self, new_trigger_ids: set[int]) -> list[workloads.RunTrigger]:
         """Build workloads for new trigger IDs."""
         dag_bag = DBDagBag()
-        render_log_fname = log_filename_template_renderer()
         with create_session() as session:
             new_triggers = self.fetch_trigger_details(new_trigger_ids, session=session)
+            log_contexts = prepare_task_log_contexts(
+                [
+                    trigger.task_instance
+                    for trigger in new_triggers.values()
+                    if trigger.task_instance is not None and trigger.task_instance.dag_version_id
+                ],
+                session=session,
+                dag_bag=dag_bag,
+                filename_template=conf.get("logging", "log_filename_template"),
+            )
+
+            def render_log_fname(*, ti):
+                return render_task_log_filename(ti, ti.try_number, context=log_contexts[ti.id])
+
             trigger_ids_with_non_task_associations = self.fetch_non_task_trigger_ids(session=session)
             to_create: list[workloads.RunTrigger] = []
             for new_trigger_id in new_trigger_ids:
@@ -984,6 +1052,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     dag_bag=dag_bag,
                     render_log_fname=render_log_fname,
                     session=session,
+                    log_context=(
+                        log_contexts.get(new_trigger_orm.task_instance.id)
+                        if new_trigger_orm.task_instance is not None
+                        else None
+                    ),
                 ):
                     to_create.append(workload)
 
@@ -1188,7 +1261,9 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
             # non-blocking for the foreign loop.
             cf = asyncio.run_coroutine_threadsafe(self.asend(msg), self._loop)
             return await asyncio.wrap_future(cf)
-        frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
+        frame = _RequestFrame(
+            id=next(self.id_counter), body=msg.model_dump(), ti_id=_current_trigger_ti_id.get()
+        )
         future: asyncio.Future = current_loop.create_future()
         self._pending[frame.id] = future
         try:
@@ -1662,6 +1737,8 @@ class TriggerRunner:
             await greenback.ensure_portal()
 
         ti = trigger.task_instance
+        if ti is not None:
+            _current_trigger_ti_id.set(ti.id)
         bind_log_contextvars(
             trigger_id=trigger_id,
             ti_id=str(ti.id) if ti else None,
@@ -1703,8 +1780,15 @@ class TriggerRunner:
                         shared_key = None
 
                 if shared_key is not None and event_trigger is not None:
-                    shared_stream = self._shared_streams.subscribe(
-                        trigger_id=trigger_id, trigger=event_trigger, key=shared_key
+                    # subscribe() may start the group's poll task, which copies the current context but
+                    # serves several triggers.
+                    subscribe_ctx = contextvars.copy_context()
+                    subscribe_ctx.run(_current_trigger_ti_id.set, None)
+                    shared_stream = subscribe_ctx.run(
+                        self._shared_streams.subscribe,
+                        trigger_id=trigger_id,
+                        trigger=event_trigger,
+                        key=shared_key,
                     )
                     event_stream = event_trigger.filter_shared_stream(shared_stream)
                 else:

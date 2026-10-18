@@ -121,10 +121,10 @@ The method returns a ``(command, subprocess_schema_version)`` pair:
   across SDK versions. See `Supervisor Schema`_ below.
 
 Call ``self._get_scan_roots()`` to retrieve the artifact directories the base
-class has already resolved from the coordinator's configured source — an
-explicit filesystem root, a named Dag bundle (``dag_bundle_name``), or the
-task's own bundle. Subclasses should scan those roots rather than reading the
-configured root directly.
+class has already resolved: the Dag bundle named by ``task_handler_bundle_name``,
+or the task's own Dag bundle when it is unset, pinned for the whole task.
+Subclasses should scan those directories rather than locating artifacts
+themselves.
 
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~

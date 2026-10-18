@@ -18,8 +18,8 @@
  */
 import type { PropsWithChildren } from "react";
 
-import "@testing-library/jest-dom";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -50,6 +50,12 @@ vi.mock("openapi/queries", () => ({
   useDagRunServiceGetDagRun: useDagRunServiceGetDagRunMock,
 }));
 
+const triggerDagRunMock = vi.hoisted(() => vi.fn());
+
+vi.mock("src/queries/useTrigger", () => ({
+  useTrigger: () => ({ error: undefined, isPending: false, triggerDagRun: triggerDagRunMock }),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
@@ -57,19 +63,25 @@ vi.mock("react-i18next", () => ({
     t: (translationKey: string) =>
       ({
         "triggerDag.button": "Trigger",
+        "triggerDag.editConfigAndTrigger": "Edit config and trigger",
         "triggerDag.manualRunDenied": "Manual runs are not allowed for this Dag",
         "triggerDag.title": "Trigger Dag",
         "triggerDag.triggerAgainWithConfig": "Trigger again with this config",
+        "triggerDag.triggerOptions": "Trigger options",
       })[translationKey] ?? translationKey,
   }),
 }));
 
 vi.mock("./TriggerDAGModal", () => ({
-  default: ({ open }: { readonly open: boolean }) =>
-    open ? <div data-testid="trigger-modal">Trigger Modal</div> : null,
+  default: ({ open, prefillConfig }: { readonly open: boolean; readonly prefillConfig: unknown }) =>
+    open ? (
+      <div data-prefilled={prefillConfig !== undefined} data-testid="trigger-modal">
+        Trigger Modal
+      </div>
+    ) : null,
 }));
 
-const props = { dagDisplayName: "My Dag", dagId: "my_dag", isPaused: false };
+const props = { dagDisplayName: "My Dag", dagId: "my_dag" };
 
 afterEach(() => {
   cleanup();
@@ -79,34 +91,100 @@ afterEach(() => {
 beforeEach(() => {
   useDagRunServiceGetDagRunMock.mockReset();
   useDagRunServiceGetDagRunMock.mockReturnValue({ data: undefined });
+  triggerDagRunMock.mockReset();
 });
 
 describe("TriggerDAGButton", () => {
-  it("opens the form directly, with no config menu, when the selected run has an empty config", () => {
+  it("has no options caret when no run with a config is selected", () => {
+    render(<TriggerDAGButton {...props} />, { wrapper });
+
+    expect(screen.getByTestId("trigger-dag-button")).toBeInTheDocument();
+    expect(screen.queryByTestId("trigger-dag-options-button")).not.toBeInTheDocument();
+  });
+
+  it("opens the trigger form in one click, without a prefilled config", () => {
+    render(<TriggerDAGButton {...props} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("trigger-dag-button"));
+
+    const modal = screen.getByTestId("trigger-modal");
+
+    expect(modal).toBeInTheDocument();
+    expect(modal).toHaveAttribute("data-prefilled", "false");
+  });
+
+  it("treats an empty config as no config: one click, no options caret", () => {
     routeParams.runId = "run_empty_conf";
     useDagRunServiceGetDagRunMock.mockReturnValue({
       data: { conf: {}, dag_run_id: "run_empty_conf", logical_date: "2026-01-01T00:00:00Z" },
     });
 
-    render(<TriggerDAGButton {...props} withText />, { wrapper });
+    render(<TriggerDAGButton {...props} />, { wrapper });
 
+    expect(screen.queryByTestId("trigger-dag-options-button")).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId("trigger-dag-button"));
-
-    expect(screen.getByTestId("trigger-modal")).toBeInTheDocument();
-    expect(screen.queryByText("Trigger again with this config")).not.toBeInTheDocument();
+    expect(screen.getByTestId("trigger-modal")).toHaveAttribute("data-prefilled", "false");
   });
 
-  it("shows the config menu when the selected run has a non-empty config", async () => {
+  it("shows the options caret when the selected run carried a config", () => {
     routeParams.runId = "run_with_conf";
     useDagRunServiceGetDagRunMock.mockReturnValue({
       data: { conf: { country: "FR" }, dag_run_id: "run_with_conf", logical_date: "2026-01-01T00:00:00Z" },
     });
 
-    render(<TriggerDAGButton {...props} withText />, { wrapper });
+    render(<TriggerDAGButton {...props} />, { wrapper });
 
+    expect(screen.getByTestId("trigger-dag-options-button")).toBeInTheDocument();
+    // The main button still triggers in one click with no prefill, rather than opening the menu.
     fireEvent.click(screen.getByTestId("trigger-dag-button"));
+    expect(screen.getByTestId("trigger-modal")).toHaveAttribute("data-prefilled", "false");
+  });
 
-    expect(await screen.findByText("Trigger again with this config")).toBeInTheDocument();
+  it("re-triggers directly with the selected run's config, bypassing the form", async () => {
+    routeParams.runId = "run_with_conf";
+    useDagRunServiceGetDagRunMock.mockReturnValue({
+      data: { conf: { country: "FR" }, dag_run_id: "run_with_conf", logical_date: "2026-01-01T00:00:00Z" },
+    });
+
+    render(<TriggerDAGButton {...props} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("trigger-dag-options-button"));
+    fireEvent.click(await screen.findByText("Trigger again with this config"));
+
+    await waitFor(() =>
+      expect(triggerDagRunMock).toHaveBeenCalledWith(
+        expect.objectContaining({ conf: JSON.stringify({ country: "FR" }) }),
+      ),
+    );
     expect(screen.queryByTestId("trigger-modal")).not.toBeInTheDocument();
+  });
+
+  it("opens the prefilled form from the edit-config option", async () => {
+    routeParams.runId = "run_with_conf";
+    useDagRunServiceGetDagRunMock.mockReturnValue({
+      data: { conf: { country: "FR" }, dag_run_id: "run_with_conf", logical_date: "2026-01-01T00:00:00Z" },
+    });
+
+    render(<TriggerDAGButton {...props} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("trigger-dag-options-button"));
+    fireEvent.click(await screen.findByText("Edit config and trigger"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("trigger-modal")).toHaveAttribute("data-prefilled", "true"),
+    );
+    expect(triggerDagRunMock).not.toHaveBeenCalled();
+  });
+
+  it("disables both the trigger and the options caret when manual runs are denied", () => {
+    routeParams.runId = "run_with_conf";
+    useDagRunServiceGetDagRunMock.mockReturnValue({
+      data: { conf: { country: "FR" }, dag_run_id: "run_with_conf", logical_date: "2026-01-01T00:00:00Z" },
+    });
+
+    render(<TriggerDAGButton {...props} allowedRunTypes={["backfill"]} withText />, { wrapper });
+
+    expect(screen.getByTestId("trigger-dag-button")).toBeDisabled();
+    expect(screen.getByTestId("trigger-dag-options-button")).toBeDisabled();
   });
 });

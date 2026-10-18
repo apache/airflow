@@ -53,6 +53,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Add the final release tag in git](#add-the-final-release-tag-in-git)
+  - [Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers)
   - [Publish documentation](#publish-documentation)
   - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
@@ -259,6 +260,8 @@ and security team should be pinged to review and resolve them.
 ## Check PyPI history of new providers
 
 Do this before starting the wave, for every provider in it that has never been released to PyPI.
+Note these providers down: each one also needs an entry in the airflow-site docs index when the wave
+is published (see [Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers)).
 
 PyPI never allows a filename to be reused, even after the file, its release or its whole project was
 deleted. If an earlier, deleted incarnation of `apache-airflow-providers-<PROVIDER>` uploaded a version,
@@ -1649,7 +1652,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 You can use any Airflow 3.X.Y version, like 3.2.0, to install specific version for testing, using breeze.
 
 ```shell
-breeze start-airflow --use-airflow-version 3.1.3 --python 3.10 --backend postgres \
+breeze start-airflow --use-airflow-version 3.1.3 --python 3.11 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -1716,9 +1719,20 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 > binding `+1` votes from PMC members are already present in the vote thread — the email reports a
 > decision the PMC has already made, it does not make that decision.
 
-In both subject and message update DATE OF RELEASE, FIRST/LAST NAMES and numbers). In case
-some providers were  excluded, explain why they were excluded and what is the plan for them
-(otherwise remove the optional part of the message). There are two options for releasing
+In both subject and message update DATE OF RELEASE, FIRST/LAST NAMES and numbers. List the
+voters as follows:
+
+* Binding `+1` votes are listed by name only. The heading already says they are binding, so do not
+  add `(binding)` after each name.
+* Non-binding `+1` votes for specific providers go in a separate list, with the providers in
+  brackets after the voter's name. A vote counts for specific providers only when its vote line
+  names them, for example `+1 (non-binding) for amazon and google`. A plain `+1` goes in the main
+  non-binding list, even when the voter adds that they only tested their own changes.
+* For every excluded provider, tally its `-1` votes, both binding and non-binding, with the voters'
+  names. Leave out a part whose count is zero.
+
+Remove each optional part of the message that does not apply. In case some providers were excluded,
+explain why they were excluded and what is the plan for them. There are two options for releasing
 the next RC candidates:
 
 * They will be released as an ad-hoc release with accelerated vote
@@ -1746,13 +1760,20 @@ Hello,
 Apache Airflow Providers prepared on ${RELEASE_DATE} have been accepted.
 
 3 "+1" binding votes received:
-- FIRST LAST NAME (binding)
-- FIRST LAST NAME (binding)
-- FIRST LAST NAME (binding)
+- FIRST LAST NAME
+- FIRST LAST NAME
+- FIRST LAST NAME
 
 2 "+1" non-binding votes received:
 - FIRST LAST NAME
 - FIRST LAST NAME
+
+[optional] 1 "+1" non-binding vote received for specific providers:
+- FIRST LAST NAME (PROVIDER, PROVIDER)
+
+[optional] "-1" votes received for specific providers:
+- PROVIDER: 1 binding (FIRST LAST NAME), 1 non-binding (FIRST LAST NAME)
+- PROVIDER: 1 binding (FIRST LAST NAME)
 
 [optional] The providers PROVIDER, PROVIDER have been excluded from the release.
 This is due to REASON HERE.
@@ -1972,6 +1993,52 @@ Then confirm each pushed tag resolves to the wave commit (`^{}` dereferences the
 git ls-remote upstream "refs/tags/providers-<PROVIDER>/<VERSION>^{}"
 ```
 
+## Update airflow-site index for new providers
+
+Do this before publishing the documentation of every wave that releases a provider for the first
+time. This step is easy to miss: DuckDB, IBM Db2, IBM MQ and Modal were released without it and stayed
+off the public index until it was fixed in
+[apache/airflow-site#1690](https://github.com/apache/airflow-site/pull/1690).
+
+The "Active providers" list on the [documentation index](https://airflow.apache.org/docs/#providers-packages)
+comes from `landing-pages/site/content/en/docs/_index.md` in
+[`apache/airflow-site`](https://github.com/apache/airflow-site). Nothing generates it, so a new
+provider does not appear there until someone adds it by hand.
+
+List the released providers missing from the index (run from the `apache/airflow` checkout,
+with `airflow-site` cloned next to it):
+
+```shell script
+comm -23 \
+  <(git ls-files 'providers/*provider.yaml' | grep -v '/src/\|/tests/' \
+      | sed 's#^providers/##; s#/provider.yaml$##; s#/#-#g' | sort) \
+  <(grep -o 'apache-airflow-providers-[a-z0-9-]*' ../airflow-site/landing-pages/site/content/en/docs/_index.md \
+      | sed 's#^apache-airflow-providers-##' | sort -u)
+```
+
+Skip any listed provider that is not released yet (`state: not-ready` in its `provider.yaml`,
+or not part of this wave). Add one entry per released provider, in alphabetical order by
+the provider's `name:` from `provider.yaml`, keeping the blank line between entries:
+
+```html
+  <li><a href="/docs/apache-airflow-providers-<provider-id>/stable/index.html"><code><Provider name></code></a></li>
+```
+
+`<provider-id>` is the provider path with `/` replaced by `-` (e.g. `ibm-db2`).
+
+Do these steps in this order:
+
+1. **Open the PR** in `apache/airflow-site` that adds the new providers to the index. Do not merge it yet,
+   or the index links to docs that are not published.
+2. **Publish the documentation** ([Publish documentation](#publish-documentation)). For `--site-env live`,
+   `breeze workflow-run publish-docs` fails before triggering anything when a published provider is
+   neither in the index on `main` of `apache/airflow-site` nor added to it by an open PR there. When an
+   open PR adds it, the command lists that PR at the end as the one to merge.
+3. **Merge the PR** once the docs are published.
+
+If you need to publish without this check (for example GitHub is unreachable from your machine), add
+`--skip-site-index-check` and check the index by hand.
+
 ## Publish documentation
 
 Documentation is an essential part of the product and should be made available to users.
@@ -2002,6 +2069,10 @@ Run workflows:
 ```shell script
   breeze workflow-run publish-docs --ref providers/${RELEASE_DATE} --site-env live all-providers
 ```
+
+If the wave releases a provider for the first time, open the `apache/airflow-site` index PR first; the
+command fails otherwise, and lists the PR to merge when it completes - see
+[Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers).
 
 If you need to exclude some providers from the documentation you need to add `--exclude-providers` flag
 with space separated list of excluded providers.
@@ -2038,18 +2109,6 @@ not be needed unless there is some problem with workflow automation above)
 > extracts metadata from `provider.yaml` files and PyPI, so it picks up new/updated providers without
 > manual intervention. If you need to rebuild the registry independently, trigger the `registry-build.yml`
 > workflow manually. See [`registry/README.md`](../registry/README.md) for details.
-
-### Update airflow-site index for new providers
-
-If this release adds a brand-new provider, also update
-`airflow-site/landing-pages/site/content/en/docs/_index.md` in the
-`apache/airflow-site` repository. The "Active providers" list there is
-maintained manually, so new providers will not appear on the public docs index
-until that file is updated and the live site refresh completes.
-
-To avoid publishing the provider in the site index too early, keep the
-`apache/airflow-site` change unmerged until the live release window, then merge
-it immediately before or together with the `live` refresh step above.
 
 ## Update providers metadata
 

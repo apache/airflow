@@ -20,12 +20,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 
 from airflow.api.common.delete_dag import delete_dag
+from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.db import clear_db_import_errors
 
@@ -86,6 +89,48 @@ def test_delete_dag_does_not_read_back_deleted_row_keys(dag_maker: DagMaker[Seri
     )
 
     assert session.scalar(select(func.count()).select_from(DagModel).where(DagModel.dag_id == DAG_ID)) == 0
+
+
+def test_delete_dag_running_check_selects_current_attempts(dag_maker: DagMaker[SerializedDAG], session):
+    import airflow.settings
+
+    with dag_maker(DAG_ID, session=session):
+        EmptyOperator(task_id="task")
+    dag_run = dag_maker.create_dagrun()
+    attempt = dag_run.get_task_instance("task", session=session)
+    assert attempt is not None
+    attempt.state = TaskInstanceState.RUNNING
+    successor = attempt.prepare_db_for_next_try(session)
+    successor.state = TaskInstanceState.RUNNING
+    session.commit()
+
+    statements = []
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(" ".join(statement.split()).upper())
+
+    event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+    try:
+        with pytest.raises(AirflowException, match="TaskInstances still running"):
+            delete_dag(DAG_ID, session=session)
+    finally:
+        event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+    running_checks = [
+        statement
+        for statement in statements
+        if "FROM TASK_INSTANCE" in statement and "RUNNING" not in statement
+    ]
+    assert running_checks
+    assert all("WORKING_SET" in statement for statement in running_checks)
+    successor.state = TaskInstanceState.SUCCESS
+    session.commit()
+    delete_dag(DAG_ID, session=session)
+    session.commit()
+    assert (
+        session.scalar(select(func.count()).select_from(TaskInstance).where(TaskInstance.dag_id == DAG_ID))
+        == 0
+    )
 
 
 @pytest.mark.parametrize(

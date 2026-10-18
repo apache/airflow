@@ -29,7 +29,7 @@ from airflow._shared.timezones import timezone
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.xcom import XComModel
+from airflow.models.xcom import XComModel, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
@@ -129,7 +129,7 @@ def task_instances(session, task_instance):
 
 class TestXComModelRelationships:
     def test_xcom_task_raises_without_joinedload(self, task_instance, session):
-        """Accessing XComModel.task without joinedload should raise."""
+        """Accessing the read projection's task without joinedload should raise."""
         from sqlalchemy.exc import InvalidRequestError
 
         XComModel.set(
@@ -141,7 +141,13 @@ class TestXComModelRelationships:
             session=session,
         )
 
-        xcom = session.scalar(select(XComModel).where(XComModel.task_id == task_instance.task_id))
+        read = XComModel.get_many(
+            key="test_key",
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+        )
+        xcom = session.scalar(read)
 
         with pytest.raises(InvalidRequestError):
             xcom.task
@@ -224,6 +230,12 @@ def push_simple_json_xcom(session):
     return func
 
 
+def read_xcom_value(session, **kwargs):
+    read = XComModel.get_many(**kwargs)
+    entity = xcom_entity(read)
+    return session.execute(read.with_only_columns(entity.value)).first()
+
+
 class TestXComGet:
     @pytest.fixture
     def setup_for_xcom_get_one(self, task_instance, push_simple_json_xcom):
@@ -231,14 +243,13 @@ class TestXComGet:
 
     @pytest.mark.usefixtures("setup_for_xcom_get_one")
     def test_xcom_get_one(self, session, task_instance):
-        stored_value = session.execute(
-            XComModel.get_many(
-                key="xcom_1",
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-            ).with_only_columns(XComModel.value)
-        ).first()
+        stored_value = read_xcom_value(
+            session,
+            key="xcom_1",
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+        )
         assert XComModel.deserialize_value(stored_value) == {"key": "value"}
 
     @pytest.fixture
@@ -278,30 +289,28 @@ class TestXComGet:
 
     def test_xcom_get_one_from_prior_date(self, session, tis_for_xcom_get_one_from_prior_date):
         _, ti2 = tis_for_xcom_get_one_from_prior_date
-        retrieved_value = session.execute(
-            XComModel.get_many(
-                run_id=ti2.run_id,
-                key="xcom_1",
-                task_ids="task_1",
-                dag_ids="dag",
-                include_prior_dates=True,
-            ).with_only_columns(XComModel.value)
-        ).first()
+        retrieved_value = read_xcom_value(
+            session,
+            run_id=ti2.run_id,
+            key="xcom_1",
+            task_ids="task_1",
+            dag_ids="dag",
+            include_prior_dates=True,
+        )
         assert XComModel.deserialize_value(retrieved_value) == {"key": "value"}
 
     def test_xcom_get_one_from_prior_date_with_no_logical_dates(
         self, session, tis_for_xcom_get_one_from_prior_date_without_logical_date
     ):
         _, ti2 = tis_for_xcom_get_one_from_prior_date_without_logical_date
-        retrieved_value = session.execute(
-            XComModel.get_many(
-                run_id=ti2.run_id,
-                key="xcom_1",
-                task_ids="task_1",
-                dag_ids="dag",
-                include_prior_dates=True,
-            ).with_only_columns(XComModel.value)
-        ).first()
+        retrieved_value = read_xcom_value(
+            session,
+            run_id=ti2.run_id,
+            key="xcom_1",
+            task_ids="task_1",
+            dag_ids="dag",
+            include_prior_dates=True,
+        )
         assert XComModel.deserialize_value(retrieved_value) == {"key": "value"}
 
     @pytest.fixture
@@ -443,12 +452,21 @@ class TestXComSet:
             session=session,
         )
         stored_xcoms = session.scalars(select(XComModel)).all()
+        assert len(stored_xcoms) == 1
+        assert stored_xcoms[0].task_instance_id == task_instance.id
         assert stored_xcoms[0].key == key
         assert isinstance(stored_xcoms[0].value, type(json.dumps(expected_value)))
         assert stored_xcoms[0].value == json.dumps(expected_value)
-        assert stored_xcoms[0].dag_id == "dag"
-        assert stored_xcoms[0].task_id == "task_1"
-        assert stored_xcoms[0].logical_date == task_instance.logical_date
+        read = XComModel.get_many(
+            key=key,
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+        )
+        projected = session.scalar(read)
+        assert projected.dag_id == "dag"
+        assert projected.task_id == "task_1"
+        assert projected.logical_date == task_instance.logical_date
 
     @pytest.fixture
     def setup_for_xcom_set_again_replace(self, task_instance, push_simple_json_xcom):
@@ -538,14 +556,13 @@ class TestXComRoundTrip:
         """Test that XComModel serialization and deserialization work as expected."""
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value=value)
 
-        stored_value = session.execute(
-            XComModel.get_many(
-                key="xcom_1",
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-            ).with_only_columns(XComModel.value)
-        ).first()
+        stored_value = read_xcom_value(
+            session,
+            key="xcom_1",
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+        )
         deserialized_value = XComModel.deserialize_value(stored_value)
 
         assert deserialized_value == expected_value

@@ -79,16 +79,47 @@ How it works
   With ``enable_hitl_review`` the ``run_id`` and ``usage`` reflect the initial
   model run, not the human-feedback regenerations. A run that resumes after a
   tool approval (see :doc:`tool_approval`) continues as
-  ``<task-instance id>-resumed``, which is the ``run_id`` the operator pushes;
-  ``usage`` covers both parts.
+  ``<task-instance id>-resumed-<n>`` after pause ``n``, which is the ``run_id``
+  the operator pushes; ``usage`` covers every part.
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
   identity keys without ``airflow.task_instance.id``.
+* **Model name.** The model that actually answered is exposed on XCom under the
+  namespaced key ``__AIRFLOW__COMMON_AI_MODEL_NAME__``, separate from ``run_id`` /
+  ``usage`` above, so a downstream task, a Jinja template, or a REST client can read which
+  model responded without parsing the decision record or a span
+  (``ti.xcom_pull(task_ids="my_agent", key="__AIRFLOW__COMMON_AI_MODEL_NAME__")``).
+  Only ``AgentOperator`` /
+  ``@task.agent`` and ``LLMOperator`` / ``@task.llm`` push it today; like ``run_id`` and
+  ``usage``, with ``enable_hitl_review`` it is the initial run's model, not a
+  human-feedback regeneration's, since ``regenerate_with_feedback`` doesn't re-push it.
+  ``LLMOperator``'s subclasses that override ``execute()`` instead of calling
+  ``super().execute()`` -- ``LLMBranchOperator``, ``LLMSQLQueryOperator``,
+  ``LLMSchemaCompareOperator``, ``LLMFileAnalysisOperator`` -- don't publish it yet;
+  this is upcoming work.
 * **Scope.** The ``run_id`` / ``usage`` XComs come only from ``AgentOperator`` and
-  ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands or
-  ADK agent run inside ``agent_framework_tracing`` (see below). The other LLM
+  ``@task.agent``, and so do the ``airflow.*`` identity attributes, apart from a Strands,
+  ADK or OpenAI Agents SDK agent run inside ``agent_framework_tracing`` (see below). ``LLMOperator`` /
+  ``@task.llm`` additionally pushes the model name above. The other LLM
   operators still emit GenAI spans correlated to the task span by nesting, but
-  without the identity attributes or the run join key.
+  without the identity attributes, the run join key, or the model name.
+* .. _howto/observability:model-tab:
+
+  **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
+  task-instance page showing the resolved model name and the ``usage`` XCom above as a
+  readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
+  the ``applies_to`` operator scoping core added in that version to show up only for
+  ``LLMOperator`` / ``AgentOperator`` runs (and their ``@task.llm`` / ``@task.agent``
+  decorator forms) -- the match is on the exact operator name, so a subclass of either does
+  not get the tab automatically. Like the span-level cost above, the tab's number is a
+  best-effort ``genai-prices`` estimate, not provider-reported billing. With a custom XCom
+  backend that offloads large values to external storage (e.g. ``common.io`` with
+  ``xcom_objectstorage_threshold`` set low), the tab reads the stored reference rather than
+  the real value, since the public XCom endpoint it calls never runs the backend's
+  ``deserialize_value``: the model name badge would show the reference string (e.g. an
+  ``s3://...`` path) instead of the model, and ``usage`` would come back as that same
+  string rather than an object -- the tab treats a non-object ``usage`` as absent and
+  hides the stat boxes instead of rendering ``undefined`` in each one.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
@@ -140,12 +171,19 @@ outputs (``gen_ai.input.messages`` / ``gen_ai.output.messages``), set:
 
 .. warning::
 
-    With ``capture_content`` enabled, prompts, completions, and tool IO are
+    With ``capture_content`` enabled, prompts, completions, and tool arguments are
     exported to your tracing backend **without redaction**. Airflow's secret masking
     applies to logs and rendered template fields, not to OpenTelemetry span
-    attributes, so it does not scrub this content. Enable it only for debugging
-    in a trusted environment. It has no effect unless ``otel_export_enabled`` is
-    ``True``.
+    attributes, with two exceptions:
+
+    - What a function tool returns or raises while it runs in an agent this provider
+      builds, which is masked before the span records it. An output function's result
+      is not (see :doc:`agent_security`).
+    - The content ``AirflowTraceProcessor`` records for an OpenAI Agents SDK agent,
+      which passes through the masker first.
+
+    Enable it only for debugging in a trusted environment. It has no effect unless
+    ``otel_export_enabled`` is ``True``.
 
 Agents built with other frameworks
 ----------------------------------
@@ -192,6 +230,25 @@ starts, so set up the framework's own telemetry, such as ``StrandsTelemetry``, b
 entering it. They follow the task through ``asyncio``; ADK's synchronous ``Runner.run``
 runs the agent on a thread of its own that they do not reach, so use ``run_async``.
 
+The OpenAI Agents SDK traces runs with a system of its own, not OpenTelemetry. Register
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor` with it,
+and run the agent inside the block, to record its traces as spans under the task's span
+with the same identity attributes and the same content rule:
+
+.. code-block:: python
+
+    from agents import Runner, set_trace_processors
+
+    from airflow.providers.common.ai.tools.openai_agents import AirflowTraceProcessor
+    from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
+
+    set_trace_processors([AirflowTraceProcessor()])
+    with agent_framework_tracing():
+        answer = Runner.run_sync(agent, question).final_output
+
+``set_trace_processors`` also stops the SDK sending the traces to OpenAI, which it does by
+default; use ``add_trace_processor`` to keep both. See :doc:`frameworks/openai_agents`.
+
 Counting tool calls
 -------------------
 
@@ -217,7 +274,8 @@ carries three tags:
      - The toolset class, such as ``SQLToolset`` or ``ObjectStorageToolset``.
    * - ``framework``
      - ``pydantic_ai`` for ``AgentOperator`` and your own Pydantic AI agents;
-       ``strands``, ``adk`` or ``langchain`` for a call through that framework's adapter;
+       ``strands``, ``adk``, ``langchain``, ``anthropic`` or ``openai_agents`` for a call
+       through that framework's adapter;
        ``none`` for a call to a toolset's ``airflow_tools()`` made without an adapter.
    * - ``outcome``
      - ``executed`` when the call returned, ``failed`` when it raised (including a

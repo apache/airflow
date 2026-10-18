@@ -67,7 +67,7 @@ from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
 from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, redact
 
 if TYPE_CHECKING:
@@ -381,12 +381,9 @@ class KiotaRequestAdapterHook(BaseHook):
             return []
         return [host for host in allowed_hosts.split(",") if host]
 
-    def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
+    def _build_request_adapter(self, connection, config: dict[str, Any]) -> tuple[str, RequestAdapter]:
         client_id = connection.login
         client_secret = connection.password
-        # TODO (#54350): do not use connection.extra_dejson until it's fixed in Airflow otherwise expect:
-        #       RuntimeError: You cannot use AsyncToSync in the same thread as an async event loop.
-        config = json.loads(connection.extra) if connection.extra else {}
         api_version = self.get_api_version(config)
         host = self.get_host(connection)  # type: ignore[arg-type]
         base_url = self.get_base_url(host, api_version, config)
@@ -473,7 +470,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
         if not request_adapter:
             connection = self.get_connection(conn_id=self.conn_id)
-            api_version, request_adapter = self._build_request_adapter(connection)
+            api_version, request_adapter = self._build_request_adapter(connection, connection.extra_dejson)
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self.api_version = api_version
         return request_adapter
@@ -509,7 +506,9 @@ class KiotaRequestAdapterHook(BaseHook):
 
         if not request_adapter:
             connection = await get_async_connection(conn_id=self.conn_id)
-            api_version, request_adapter = self._build_request_adapter(connection)
+            # Masks the extra's secrets without a synchronous call to the Task SDK on the event loop.
+            config = await get_async_extra_dejson(connection)
+            api_version, request_adapter = self._build_request_adapter(connection, config)
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version

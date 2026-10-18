@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import ANY
 
 import pytest
@@ -49,7 +49,7 @@ class TestDag:
         """Test getting a DAG."""
 
         dag_id = "test_get_dag"
-        next_dagrun = datetime(2026, 4, 13, tzinfo=timezone.utc)
+        next_dagrun = datetime(2026, 4, 13, tzinfo=UTC)
 
         with dag_maker(dag_id=dag_id, session=session, serialized=True, tags=["z_tag", "a_tag"]):
             EmptyOperator(task_id="test_task")

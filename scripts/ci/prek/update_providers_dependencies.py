@@ -16,11 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "pyyaml>=6.0.3",
 #   "rich>=13.6.0",
-#   "tomli>=2.0.1",
 # ]
 # ///
 from __future__ import annotations
@@ -28,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tomllib
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -59,17 +59,13 @@ errors: list[str] = []
 
 suspended_paths: list[str] = []
 
-ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+ALL_DEPENDENCIES: dict[str, dict[str, list[Any]]] = defaultdict(lambda: defaultdict(list))
 
 ALL_PROVIDERS: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict())
 ALL_PROVIDER_FILES: list[Path] = []
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     return tomllib.loads(pyproject_toml_file_path.read_text(encoding="utf-8"))
 
 
@@ -208,11 +204,13 @@ if __name__ == "__main__":
         for error in errors:
             console.print(f"[red] {error}")
         console.print(f"[bright_blue]Total: {len(errors)} errors.")
-    unique_sorted_dependencies: dict[str, dict[str, list[str] | str]] = defaultdict(dict)
+    unique_sorted_dependencies: dict[str, dict[str, list[Any] | str]] = defaultdict(dict)
     for key in sorted(ALL_DEPENDENCIES.keys()):
         unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
         unique_sorted_dependencies[key]["devel-deps"] = sorted(ALL_DEPENDENCIES[key]["devel-deps"])
-        unique_sorted_dependencies[key]["plugins"] = sorted(ALL_DEPENDENCIES[key]["plugins"])
+        unique_sorted_dependencies[key]["plugins"] = sorted(
+            ALL_DEPENDENCIES[key]["plugins"], key=lambda plugin: plugin["name"]
+        )
         unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
             set(ALL_DEPENDENCIES[key]["cross-providers-deps"])
         )

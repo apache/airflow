@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import logging
@@ -26,7 +27,7 @@ from collections.abc import Callable
 from functools import partial
 from unittest import mock
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import yaml
@@ -68,7 +69,9 @@ from tests_common.test_utils.version_compat import (
 
 if hasattr(BaseExecutor, "get_task_key"):
     from airflow.executors.workloads.types import TaskInstanceUuid
-    from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+    if not AIRFLOW_V_3_4_PLUS:
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -1315,6 +1318,8 @@ class TestAwsEcsExecutor:
             task.dag_id = "test_dag"
             task.run_id = "test_run"
             task.map_index = -1
+            task.region_id = UUID(int=0)
+            task.region_index = -1
             task.pool_slots = 1
             task.priority_weight = 1
             task.context_carrier = {}
@@ -1343,7 +1348,31 @@ class TestAwsEcsExecutor:
                     "2024-01-01",
                 ]
 
-        not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
+        with contextlib.ExitStack() as stack:
+            # Newer Airflow versions look up the task log address through the task instance's session, which
+            # the mocks do not have. Older versions have no such lookup: the import fails, nothing is patched.
+            with contextlib.suppress(ImportError):
+                from airflow.utils.log.task_log_address import TaskLogContext
+
+                stack.enter_context(
+                    mock.patch("airflow.executors.workloads.task.object_session", autospec=True)
+                )
+                stack.enter_context(
+                    mock.patch(
+                        "airflow.utils.log.task_log_address.prepare_task_log_contexts",
+                        autospec=True,
+                        side_effect=lambda tis, **_: {
+                            ti.id: TaskLogContext(
+                                filename_template="{dag_id}/{run_id}/{task_id}/{try_number}.log",
+                                logical_date="",
+                                data_interval_start="",
+                                data_interval_end="",
+                            )
+                            for ti in tis
+                        },
+                    )
+                )
+            not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
         mock_executor.ecs.describe_tasks.assert_called_once()
         # Two of the three tasks should be adopted.
@@ -2233,9 +2262,14 @@ class TestTaskIdentity:
         session.commit()
         old_id = ti.id
 
-        ti.handle_failure("worker lost", session=session)
-        session.refresh(ti)
-        history = session.get(TaskInstanceHistory, old_id)
+        if AIRFLOW_V_3_4_PLUS:
+            successor = ti.handle_failure("worker lost", session=session)
+            history = session.get(TaskInstance, old_id)
+            ti = successor
+        else:
+            ti.handle_failure("worker lost", session=session)
+            session.refresh(ti)
+            history = session.get(TaskInstanceHistory, old_id)
 
         assert ti.state == TaskInstanceState.UP_FOR_RETRY
         assert ti.id != old_id
