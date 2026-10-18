@@ -44,6 +44,11 @@ log = structlog.get_logger(__name__)
 
 CONN_ID_PREFIX = "webhook_"
 CONN_TYPE = "inbound_webhook"
+# The standard provider ships these source types from this version on. Airflow accepts older versions of
+# it, so upgrading Airflow alone can leave them unserved. It is set ahead of the standard provider release
+# that first declares webhook-sources, so it must be checked against that release when it is cut.
+_STANDARD_SOURCE_TYPES = frozenset({"hmac_json", "token_header"})
+_MIN_STANDARD_PROVIDER_VERSION = "1.21.0"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -118,8 +123,25 @@ def _configure_webhook(
                     reason=f"source type {source_type!r} is declared by {packages}; set [webhooks] "
                     "source_type_owners to the package that serves it",
                 )
-            named = f" ([webhooks] source_type_owners names {owner})" if owner else ""
-            raise ValueError(f"no installed provider serves source type {source_type!r}{named}")
+            declared = [
+                info
+                for info in providers_manager.webhook_sources
+                if info.source_type == source_type and (owner is None or info.package_name == owner)
+            ]
+            if len(declared) == 1:
+                raise ValueError(
+                    f"{declared[0].package_name} declares source type {source_type!r}, but its class "
+                    f"{declared[0].classpath} could not be imported or is not a class"
+                )
+            if owner:
+                hint = f" ([webhooks] source_type_owners names {owner})"
+            elif source_type in _STANDARD_SOURCE_TYPES:
+                hint = (
+                    f"; it needs apache-airflow-providers-standard {_MIN_STANDARD_PROVIDER_VERSION} or later"
+                )
+            else:
+                hint = ""
+            raise ValueError(f"no installed provider serves source type {source_type!r}{hint}")
         if not (isinstance(source_class, type) and issubclass(source_class, WebhookSource)):
             raise ValueError(f"source type {source_type!r} is not a subclass of WebhookSource")
         # A connection given as a URI has string values in its extra.

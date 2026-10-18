@@ -42,22 +42,26 @@ UNLISTED_WEBHOOK_TAG = "other"
 MAX_DELIVERY_RETENTION_DAYS = 365
 
 
+def get_webhook_name_problem(name: str) -> str | None:
+    """Return why ``name`` cannot name a webhook, or None if it can."""
+    if ":" in name:
+        return "it is qualified with a team, and this version of Airflow serves only webhooks without one"
+    if not WEBHOOK_NAME_PATTERN.fullmatch(name):
+        return (
+            "it is not a webhook name: use 1 to 64 lowercase letters, digits, - and _, starting with a "
+            "letter or a digit"
+        )
+    return None
+
+
 def parse_webhook_names(value: str) -> frozenset[str]:
     """Parse ``[webhooks] names``; raise ``AirflowConfigException`` if it is invalid."""
     names: set[str] = set()
     for name in filter(None, (item.strip() for item in value.split(","))):
         if name == "*":
             raise AirflowConfigException("[webhooks] names cannot be *: list each webhook name to serve")
-        if ":" in name:
-            raise AirflowConfigException(
-                f"[webhooks] names lists the team-qualified name {name!r}; "
-                "this version of Airflow serves only webhooks without a team"
-            )
-        if not WEBHOOK_NAME_PATTERN.fullmatch(name):
-            raise AirflowConfigException(
-                f"[webhooks] names lists {name!r}, which is not a webhook name: use 1 to 64 lowercase "
-                "letters, digits, - and _, starting with a letter or a digit"
-            )
+        if problem := get_webhook_name_problem(name):
+            raise AirflowConfigException(f"[webhooks] names lists {name!r}, but {problem}")
         if name == UNLISTED_WEBHOOK_TAG:
             raise AirflowConfigException(
                 f"[webhooks] names lists {name!r}, which is reserved: metrics tag requests to names that "
