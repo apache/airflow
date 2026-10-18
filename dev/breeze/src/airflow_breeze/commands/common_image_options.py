@@ -206,6 +206,12 @@ option_skip_image_file_deletion = click.option(
     is_flag=True,
     envvar="SKIP_IMAGE_FILE_DELETION",
 )
+option_snapshot_file = click.option(
+    "--snapshot-file",
+    help="Restore the image from this Docker data-root snapshot instead of an image file. Exits with "
+    "the snapshot script's code when the snapshot does not fit this daemon.",
+    type=click.Path(dir_okay=False, path_type=Path),
+)
 option_tag_as = click.option(
     "--tag-as",
     help="Additionally tag the loaded image with this reference.",

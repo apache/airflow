@@ -417,7 +417,7 @@ jobs:
           ./scripts/ci/docker_data_root_snapshot.sh create "${SNAPSHOT_FILE}"
         shell: bash
         if: >
-          github.event_name == 'pull_request' &&
+          github.event_name == 'pull_request' && runner.environment == 'github-hosted' &&
           inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
           (inputs.checkout-ref == '' || inputs.checkout-ref == github.sha)
       - name: "Upload CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"

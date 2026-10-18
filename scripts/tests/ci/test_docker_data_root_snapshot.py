@@ -29,6 +29,9 @@ WORKFLOW = SCRIPT.parents[2] / ".github" / "workflows" / "ci-image-build.yml"
 ACTIONS = SCRIPT.parents[2] / ".github" / "actions"
 LOADER = ACTIONS / "load_image" / "action.yml"
 FINGERPRINT = "28.5.2 overlay2 x86_64 /var/lib/docker"
+STOP = ["sudo", "timeout", "60", "systemctl", "stop", "docker.socket", "docker"]
+START = ["sudo", "timeout", "60", "systemctl", "start", "docker"]
+REMOVE_STORE = ["sudo", "rm", "-rf", "/var/lib/docker/image", "/var/lib/docker/overlay2"]
 
 
 @pytest.fixture
@@ -53,11 +56,11 @@ fi
 if [[ "${name}" == "sudo" && ("$*" == "tar "* || "$*" == "timeout "*" tar "*) ]]; then
     exit "${TAR_EXIT:-0}"
 fi
-if [[ "${name}" == "sudo" && "$*" == "systemctl stop docker.socket docker" && "${STOP_EXIT:-0}" != 0 ]]; then
+if [[ "${name}" == "sudo" && "$*" == *"systemctl stop docker.socket docker" && "${STOP_EXIT:-0}" != 0 ]]; then
     exit "${STOP_EXIT}"
 fi
-if [[ "${name}" == "sudo" && "$*" == "systemctl start docker" && "${START_FAIL_ONCE:-0}" == 1 ]]; then
-    if [[ $(grep -c 'sudo systemctl start docker' "${COMMAND_LOG}") == 1 ]]; then
+if [[ "${name}" == "sudo" && "$*" == *"systemctl start docker" && "${START_FAIL_ONCE:-0}" == 1 ]]; then
+    if [[ $(grep -c 'systemctl start docker' "${COMMAND_LOG}") == 1 ]]; then
         exit 1
     fi
 fi
@@ -68,7 +71,13 @@ if [[ "${name}" == "docker" ]]; then
         "images --quiet") printf '%b' "${ALL_IMAGES:-}" ;;
         "images --all --quiet") printf '%b' "${ALL_IMAGES:-}"; exit "${IMAGES_EXIT:-0}" ;;
         "ps --all --quiet") printf '%b' "${CONTAINERS:-}"; exit "${CONTAINERS_EXIT:-0}" ;;
-        "run "*) exit "${RUN_EXIT:-0}" ;;
+        "image inspect --format {{.Id}} "*) echo "${IMAGE_DIGEST:-sha256:abc123}" ;;
+        "run "*)
+            if [[ "${RUN_EXIT:-0}" != 0 ]]; then
+                exit "${RUN_EXIT}"
+            fi
+            echo "${TREE_HASH:-tree1}  -"
+            ;;
     esac
 fi
 """
@@ -87,7 +96,7 @@ fi
 def snapshot(tmp_path):
     snapshot_file = tmp_path / "ci-image-snapshot-linux_amd64-3.10.tar.zst"
     snapshot_file.write_bytes(b"")
-    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} abc123 revision1\n")
+    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} sha256:abc123 revision1 tree1\n")
     return snapshot_file
 
 
@@ -128,14 +137,15 @@ def test_restore_unpacks_snapshot_into_stopped_daemon(fake_tools, snapshot):
 
     assert result.returncode == 0, result.stdout + result.stderr
     commands = read_commands(fake_tools)
-    stop = commands.index(["sudo", "systemctl", "stop", "docker.socket", "docker"])
-    remove = commands.index(["sudo", "rm", "-rf", "/var/lib/docker/image", "/var/lib/docker/overlay2"])
+    stop = commands.index(STOP)
+    remove = commands.index(REMOVE_STORE)
     extract = next(i for i, c in enumerate(commands) if is_tar(c, "--extract"))
-    start = commands.index(["sudo", "systemctl", "start", "docker"])
-    run = commands.index(
-        ["docker", "run", "--rm", "--pull", "never", "--entrypoint", "/bin/bash", "abc123", "-c", "true"]
-    )
-    assert stop < remove < extract < start < run
+    start = commands.index(START)
+    inspect = commands.index(["docker", "image", "inspect", "--format", "{{.Id}}", "sha256:abc123"])
+    run = next(i for i, c in enumerate(commands) if c[:2] == ["docker", "run"])
+    assert stop < remove < extract < start < inspect < run
+    assert commands[run][:7] == ["docker", "run", "--rm", "--pull", "never", "--network", "none"]
+    assert "sha256:abc123" in commands[run]
     assert commands[extract][:3] == ["sudo", "timeout", "300"]
     assert "--xattrs-include=*" in commands[extract]
     assert not snapshot.exists()
@@ -163,18 +173,23 @@ def test_restore_leaves_daemon_alone_when_snapshot_does_not_fit(
     assert result.returncode == expected_exit
     if "DAEMON_FINGERPRINT" in env:
         assert "::warning::" in result.stdout
-    assert not [c for c in read_commands(fake_tools) if c[:2] == ["sudo", "systemctl"]]
+    assert not [c for c in read_commands(fake_tools) if "systemctl" in c]
 
 
-def test_restore_empties_store_again_when_image_does_not_run(fake_tools, snapshot):
-    result = run_script({**fake_tools, "RUN_EXIT": "1"}, "restore", str(snapshot))
+@pytest.mark.parametrize(
+    "env",
+    [{"RUN_EXIT": "1"}, {"TREE_HASH": "tree2"}, {"IMAGE_DIGEST": "sha256:other"}],
+    ids=["does-not-run", "other-file-tree", "other-image"],
+)
+def test_restore_empties_store_again_when_image_does_not_match(fake_tools, snapshot, env):
+    result = run_script({**fake_tools, **env}, "restore", str(snapshot))
 
     assert result.returncode == 4
     commands = read_commands(fake_tools)
-    run = next(i for i, c in enumerate(commands) if c[:2] == ["docker", "run"])
-    after_run = commands[run + 1 :]
-    assert ["sudo", "rm", "-rf", "/var/lib/docker/image", "/var/lib/docker/overlay2"] in after_run
-    assert after_run[-1] == ["sudo", "systemctl", "start", "docker"]
+    start = commands.index(START)
+    after_start = commands[start + 1 :]
+    assert REMOVE_STORE in after_start
+    assert after_start[-1] == START
 
 
 def test_create_keeps_only_the_ci_image(fake_tools, tmp_path):
@@ -188,7 +203,9 @@ def test_create_keeps_only_the_ci_image(fake_tools, tmp_path):
     assert ["docker", "rmi", "--force", "other1"] in commands
     assert not [c for c in commands if c[:2] == ["docker", "rmi"] and "abc123" in c]
     assert ["docker", "builder", "prune", "--all", "--force"] in commands
-    assert Path(f"{snapshot_file}.meta").read_text() == f"{FINGERPRINT} abc123 revision1\n"
+    assert Path(f"{snapshot_file}.meta").read_text() == f"{FINGERPRINT} sha256:abc123 revision1 tree1\n"
+    fingerprint = next(i for i, c in enumerate(commands) if c[:2] == ["docker", "run"])
+    assert fingerprint < commands.index(STOP)
     archive = next(c for c in commands if is_tar(c, "--create"))
     assert archive[-2:] == ["image", "overlay2"]
     assert "--xattrs-include=*" in archive
@@ -200,7 +217,7 @@ def test_create_refuses_ambiguous_ci_image(fake_tools, tmp_path):
     result = run_script(env, "create", str(tmp_path / "out.tar.zst"))
 
     assert result.returncode == 1
-    assert not [c for c in read_commands(env) if c[:2] == ["sudo", "systemctl"]]
+    assert not [c for c in read_commands(env) if "systemctl" in c]
 
 
 @pytest.mark.parametrize(
@@ -218,8 +235,8 @@ def test_restore_recovers_empty_running_daemon_after_materialization_failure(fak
     assert result.returncode != 0
     commands = read_commands(fake_tools)
     assert commands[-2:] == [
-        ["sudo", "rm", "-rf", "/var/lib/docker/image", "/var/lib/docker/overlay2"],
-        ["sudo", "systemctl", "start", "docker"],
+        REMOVE_STORE,
+        START,
     ]
     assert not any(command[:2] == ["docker", "run"] for command in commands)
 
@@ -229,14 +246,14 @@ def test_create_restarts_daemon_after_archive_failure(fake_tools, tmp_path, fail
     snapshot_file = tmp_path / "snapshot.tar.zst"
     result = run_script({**fake_tools, **failure, "CI_IMAGES": "abc123"}, "create", str(snapshot_file))
     assert result.returncode != 0
-    assert read_commands(fake_tools)[-1] == ["sudo", "systemctl", "start", "docker"]
+    assert read_commands(fake_tools)[-1] == START
     assert Path(f"{snapshot_file}.meta").read_text() == "unavailable\n"
 
 
 def test_failed_create_retires_earlier_snapshot(fake_tools, tmp_path):
     snapshot_file = tmp_path / "snapshot.tar.zst"
     snapshot_file.write_bytes(b"earlier attempt")
-    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} abc123 revision1\n")
+    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} sha256:abc123 revision1 tree1\n")
 
     result = run_script({**fake_tools, "CI_IMAGES": ""}, "create", str(snapshot_file))
 
@@ -320,7 +337,7 @@ def test_stale_snapshot_does_not_modify_daemon(fake_tools, snapshot):
 def test_partial_stop_failure_restarts_daemon(fake_tools, snapshot, mode):
     result = run_script({**fake_tools, "STOP_EXIT": "1", "CI_IMAGES": "abc123"}, mode, str(snapshot))
     assert result.returncode != 0
-    assert read_commands(fake_tools)[-1] == ["sudo", "systemctl", "start", "docker"]
+    assert read_commands(fake_tools)[-1] == START
     assert not any(command[:2] == ["sudo", "rm"] for command in read_commands(fake_tools))
 
 
@@ -354,7 +371,10 @@ def test_snapshot_artifact_names_match_between_upload_and_restore():
         if "/upload-artifact@" in step.get("uses", "") and step["name"].startswith("Upload CI image snapshot")
     ]
     loader = {step.get("id"): step for step in steps(LOADER, "runs", "steps")}
-    assert uploads == [loader["snapshot-download"]["with"]["name"], loader["snapshot-meta"]["with"]["name"]]
+    assert uploads == [
+        loader["snapshot-download"]["with"]["name"],
+        loader["snapshot-meta"]["with"]["pattern"],
+    ]
     assert uploads[0].startswith("ci-image-snapshot-v1-")
 
 
@@ -365,6 +385,21 @@ def test_loader_checks_snapshot_before_downloading_it():
     by_id = {step.get("id"): step for step in loader}
     assert by_id["snapshot-download"]["if"] == "steps.snapshot-check.outputs.fits == 'true'"
     assert " check " in by_id["snapshot-check"]["run"]
+    assert "name" not in by_id["snapshot-meta"]["with"]
+    assert by_id["snapshot-meta"]["with"]["merge-multiple"] is True
+    assert "breeze ci-image load" in by_id["snapshot"]["run"]
+    assert "--snapshot-file" in by_id["snapshot"]["run"]
+
+
+def test_snapshot_is_limited_to_github_hosted_runners():
+    export = next(
+        step
+        for step in steps(WORKFLOW, "jobs", "build-ci-images", "steps")
+        if step.get("id") == "snapshot-export"
+    )
+    metadata = next(step for step in steps(LOADER, "runs", "steps") if step.get("id") == "snapshot-meta")
+    assert "runner.environment == 'github-hosted'" in export["if"]
+    assert "runner.environment == 'github-hosted'" in metadata["if"]
 
 
 @pytest.mark.parametrize("action", ["prepare_breeze_and_image", "prepare_single_ci_image"])

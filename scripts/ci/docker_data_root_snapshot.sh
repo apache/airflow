@@ -34,12 +34,14 @@ DATA_ROOT="/var/lib/docker"
 # overlay2 records opaque directories in trusted.* attributes and file capabilities in security.*;
 # GNU tar extracts only user.* attributes unless told otherwise.
 TAR_ATTRIBUTES=(--xattrs "--xattrs-include=*" --acls --numeric-owner)
-# A stalled extraction gives up and falls back to the stash rather than holding the job.
+# Every blocking step is bounded, so a stalled restore fails fast instead of holding the job.
 RESTORE_TIMEOUT_SECONDS="${SNAPSHOT_RESTORE_TIMEOUT_SECONDS:-300}"
+DAEMON_TIMEOUT_SECONDS=60
 DAEMON_STOPPED=false
 RESTORE_IN_PROGRESS=false
 RESTORE_FILE=""
 IMAGE_ID=""
+EXPECTED_IMAGE=""
 
 function cleanup_daemon() {
     local result=$?
@@ -75,12 +77,24 @@ function daemon_fingerprint() {
 
 function stop_daemon() {
     DAEMON_STOPPED=true
-    sudo systemctl stop docker.socket docker
+    sudo timeout "${DAEMON_TIMEOUT_SECONDS}" systemctl stop docker.socket docker
 }
 
 function start_daemon() {
-    sudo systemctl start docker
+    sudo timeout "${DAEMON_TIMEOUT_SECONDS}" systemctl start docker
     DAEMON_STOPPED=false
+}
+
+# Identifies the image by its ID and by the file tree its layers combine into: a restore that loses
+# a whiteout or an opaque-directory marker changes the tree while the ID stays the same.
+function image_fingerprint() {
+    local image=$1
+    local image_id tree
+    image_id="$(docker image inspect --format '{{.Id}}' "${image}")" || return 1
+    tree="$(timeout "${DAEMON_TIMEOUT_SECONDS}" docker run --rm --pull never --network none \
+        --entrypoint /bin/bash "${image}" \
+        -c 'find / -xdev -printf "%p %y %m\n" | LC_ALL=C sort | sha256sum')" || return 1
+    echo "${image_id} ${tree%% *}"
 }
 
 function remove_image_store() {
@@ -89,7 +103,7 @@ function remove_image_store() {
 
 function create_snapshot() {
     local snapshot_file="${1}"
-    local daemon image_id revision
+    local daemon image_id revision fingerprint image_fingerprint_id image_tree
     rm -f "${snapshot_file}"
     echo "unavailable" > "${snapshot_file}.meta"
     daemon="$(daemon_fingerprint)"
@@ -100,6 +114,8 @@ function create_snapshot() {
         exit 1
     fi
     revision="$(git rev-parse HEAD)"
+    fingerprint="$(image_fingerprint "${image_id}")"
+    read -r image_fingerprint_id image_tree <<< "${fingerprint}"
     docker ps --all --quiet | xargs --no-run-if-empty docker rm --force >/dev/null
     docker images --quiet | sort -u | {
         grep --invert-match --fixed-strings --line-regexp "${image_id}" || true
@@ -108,7 +124,8 @@ function create_snapshot() {
     stop_daemon
     sudo tar --directory "${DATA_ROOT}" "${TAR_ATTRIBUTES[@]}" --create --file - image overlay2 \
         | zstd -3 -T0 --quiet --force -o "${snapshot_file}"
-    printf '%s %s %s\n' "${daemon}" "${image_id}" "${revision}" > "${snapshot_file}.meta"
+    printf '%s %s %s %s\n' "${daemon}" "${image_fingerprint_id}" "${revision}" "${image_tree}" \
+        > "${snapshot_file}.meta"
     start_daemon
 }
 
@@ -123,7 +140,7 @@ function check_snapshot() {
         exit 2
     fi
     read -r -a meta < "${snapshot_file}.meta"
-    if [[ ${#meta[@]} != 6 ]]; then
+    if [[ ${#meta[@]} != 7 ]]; then
         echo "Snapshot unavailable or its metadata is invalid"
         exit 3
     fi
@@ -145,10 +162,12 @@ function check_snapshot() {
         exit 3
     fi
     IMAGE_ID="${meta[4]}"
+    EXPECTED_IMAGE="${meta[4]} ${meta[6]}"
 }
 
 function restore_snapshot() {
     local snapshot_file="${1}"
+    local restored_image
     RESTORE_FILE="${snapshot_file}"
     if [[ ! -f "${snapshot_file}" ]]; then
         echo "No snapshot at ${snapshot_file}"
@@ -162,8 +181,9 @@ function restore_snapshot() {
         | sudo timeout "${RESTORE_TIMEOUT_SECONDS}" \
             tar --directory "${DATA_ROOT}" "${TAR_ATTRIBUTES[@]}" --extract --file -
     start_daemon
-    if ! timeout 60 docker run --rm --pull never --entrypoint /bin/bash "${IMAGE_ID}" -c true; then
-        echo "The restored image ${IMAGE_ID} does not run"
+    if ! restored_image="$(image_fingerprint "${IMAGE_ID}")" \
+            || [[ "${restored_image}" != "${EXPECTED_IMAGE}" ]]; then
+        echo "The restored image does not match the snapshot: '${restored_image:-}' != '${EXPECTED_IMAGE}'"
         exit 4
     fi
     RESTORE_IN_PROGRESS=false
