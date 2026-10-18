@@ -444,7 +444,11 @@ class PodManager(LoggingMixin):
         return self.run_pod_async(pod)
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: float = 10) -> None:
-        """Read pod events and write into log. Best-effort: an API failure logs one warning and stops the watch."""
+        """
+        Read pod events and write into log.
+
+        Best-effort: an API failure logs one warning and stops the watch.
+        """
         resource_version = None
         seen_events: set[str] = set()
         while not self.stop_watching_events:
@@ -1196,7 +1200,11 @@ class AsyncPodManager(LoggingMixin):
         )
 
     async def watch_pod_events(self, pod: V1Pod, startup_check_interval: float = 30) -> None:
-        """Watch pod events and write to log. Best-effort: an API failure logs one warning and stops the watch."""
+        """
+        Watch pod events and write to log.
+
+        Best-effort: an API failure logs one warning and stops the watch.
+        """
         seen_events: set[str] = set()
         resource_version = None
         while not self.stop_watching_events:

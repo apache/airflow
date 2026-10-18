@@ -91,7 +91,6 @@ class KubernetesPodTrigger(BaseTrigger):
     :param startup_timeout: timeout in seconds to start up the pod.
     :param startup_check_interval: interval in seconds to check if the pod has already started.
     :param schedule_timeout: timeout in seconds to schedule pod in cluster.
-    :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
@@ -103,6 +102,7 @@ class KubernetesPodTrigger(BaseTrigger):
         the operator to print latest logs. If ``None`` will wait until container done.
     :param last_log_time: where to resume logs from
     :param trigger_kwargs: additional keyword parameters to send in the event
+    :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
     """
 
     def __init__(
@@ -121,13 +121,13 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_timeout: int = 120,
         startup_check_interval: float = 5,
         schedule_timeout: int = 120,
-        log_events_on_startup: bool = True,
         on_finish_action: str = "delete_pod",
         on_kill_action: str = "delete_pod",
         termination_grace_period: int | None = None,
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
+        log_events_on_startup: bool = True,
     ):
         super().__init__()
         self.pod_name = pod_name

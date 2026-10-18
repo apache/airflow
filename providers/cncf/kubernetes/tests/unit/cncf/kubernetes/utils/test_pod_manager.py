@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 import time_machine
+from kubernetes.client import V1Pod
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
@@ -469,7 +470,7 @@ class TestPodManager:
 
     @pytest.mark.asyncio
     async def test_watch_pod_events_stops_when_reading_events_fails(self, caplog):
-        mock_pod = mock.Mock()
+        mock_pod = mock.Mock(spec=V1Pod)
         mock_pod.metadata.name = "test-pod"
 
         with mock.patch.object(
@@ -1548,7 +1549,7 @@ class TestAsyncPodManager:
 
     @pytest.mark.asyncio
     async def test_watch_pod_events_stops_when_hook_watch_fails(self, caplog):
-        mock_pod = mock.Mock()
+        mock_pod = mock.Mock(spec=V1Pod)
         mock_pod.metadata.namespace = "test-namespace"
         mock_pod.metadata.name = "test-pod"
 

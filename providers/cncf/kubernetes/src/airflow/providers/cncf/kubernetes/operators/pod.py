@@ -230,7 +230,7 @@ class KubernetesPodOperator(BaseOperator):
     :param init_containers: init container for the launched Pod
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start. Each poll
-        lists the events of the whole namespace on the API server; disable on very large clusters.
+        makes the API server read every event in the namespace; disable on very large clusters.
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.

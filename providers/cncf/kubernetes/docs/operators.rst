@@ -83,16 +83,22 @@ While the operator waits for the pod to leave the ``Pending`` phase, it reads th
 best-effort: if the events API fails, the operator logs one warning, stops reading events, and the task
 continues.
 
-In synchronous mode each poll is a ``list`` of ``Event`` objects with a field selector; in deferrable mode the
-triggerer keeps a watch open instead. The Kubernetes API server disables its watch cache for ``Event``
-objects by default, so every list is an etcd read of all events in the namespace that is filtered afterwards.
-On clusters that run thousands of short-lived pods in one namespace this adds noticeable API server load.
+In synchronous mode each poll is a ``list`` of ``Event`` objects with a field selector. Deferrable
+mode keeps a watch open instead, which costs less but still makes the API server read the namespace
+events each time the watch (re)starts before the first event was seen. The Kubernetes API server
+disables its watch cache for ``Event`` objects by default, so every list is an ``etcd`` read of all
+events in the namespace that is filtered afterwards. On clusters that run thousands of short-lived
+pods in one namespace this adds noticeable API server load.
 Keeping unrelated high-churn pods (for example Spark executors) in a separate namespace reduces the cost.
 
 To turn it off, set ``log_events_on_startup=False``. The parameter is honoured by ``KubernetesPodOperator``,
 ``KubernetesPodTrigger``, ``@task.kubernetes`` and ``@task.kubernetes_cmd``. ``GKEStartPodOperator`` and
-``EksPodOperator`` apply it in synchronous mode only; in deferrable mode their own triggers do not receive it
-yet. It is separate from ``log_events_on_failure``, which controls the one-shot read of events after a failure.
+``EksPodOperator`` apply it in synchronous mode only; in deferrable mode their own triggers do not receive
+it yet. It is separate from ``log_events_on_failure``, which controls the one-shot read of events after a
+failure.
+
+.. Forwarding the parameter to the GKE and EKS triggers is tracked at
+   https://github.com/apache/airflow/issues/75014
 
 .. code-block:: python
 

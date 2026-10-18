@@ -261,8 +261,9 @@ class TestKubernetesPodOperator:
 
     @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    @patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING)
     def test_invoke_defer_method_passes_log_events_on_startup_to_trigger(
-        self, mocked_get_connection, mocked_convert_config
+        self, mock_container_state, mocked_get_connection, mocked_convert_config
     ):
         mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
         k = KubernetesPodOperator(
@@ -278,10 +279,7 @@ class TestKubernetesPodOperator:
         k.pod.metadata.name = TEST_NAME
         k.pod.metadata.namespace = TEST_NAMESPACE
 
-        with (
-            patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING),
-            pytest.raises(TaskDeferred) as exc,
-        ):
+        with pytest.raises(TaskDeferred) as exc:
             k.invoke_defer_method(context={"ti": MagicMock()})
 
         assert exc.value.trigger.serialize()[1]["log_events_on_startup"] is False

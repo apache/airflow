@@ -140,6 +140,8 @@ class TestKubernetesPodTrigger:
         }
 
     def test_serialize_emits_log_events_on_startup_only_when_disabled(self, trigger):
+        assert "log_events_on_startup" not in trigger.serialize()[1]
+
         trigger.log_events_on_startup = False
 
         _, kwargs_dict = trigger.serialize()
