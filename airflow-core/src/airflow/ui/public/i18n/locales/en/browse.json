@@ -58,6 +58,28 @@
     },
     "title": "Deadlines"
   },
+  "webhookDeliveries": {
+    "columns": {
+      "attributes": "Attributes",
+      "correlationKey": "Correlation Key",
+      "deliveryId": "Delivery ID",
+      "outcome": "Outcome",
+      "receivedAt": "Received At",
+      "sourceType": "Source Type"
+    },
+    "delivery_one": "Delivery",
+    "delivery_other": "Deliveries",
+    "filters": {
+      "id": "ID"
+    },
+    "outcomes": {
+      "accepted": "Accepted",
+      "dag_paused": "Dag Paused",
+      "no_subscribers": "No Subscribers"
+    },
+    "title": "Deliveries to {{webhookName}}",
+    "view": "View $t(webhookDeliveries.delivery_other)"
+  },
   "xcom": {
     "add": {
       "error": "Failed to add XCom",

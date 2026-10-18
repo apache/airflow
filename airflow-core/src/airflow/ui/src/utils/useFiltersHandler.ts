@@ -63,12 +63,14 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.COMPLETED_AT_RANGE
   | SearchParamsKeys.CONF_CONTAINS
   | SearchParamsKeys.CONSUMING_ASSET_PATTERN
+  | SearchParamsKeys.CORRELATION_KEY
   | SearchParamsKeys.CREATED_AT_RANGE
   | SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN
   | SearchParamsKeys.DAG_ID
   | SearchParamsKeys.DAG_ID_PATTERN
   | SearchParamsKeys.DAG_VERSION
   | SearchParamsKeys.DEADLINE_TIME_RANGE
+  | SearchParamsKeys.DELIVERY_ID
   | SearchParamsKeys.DURATION_GTE
   | SearchParamsKeys.DURATION_LTE
   | SearchParamsKeys.END_DATE_RANGE
@@ -80,6 +82,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.GROUP_PATTERN
   | SearchParamsKeys.HAS_EVENTS
   | SearchParamsKeys.HOSTNAME
+  | SearchParamsKeys.ID
   | SearchParamsKeys.JOB_STATE
   | SearchParamsKeys.JOB_TYPE
   | SearchParamsKeys.KEY_PATTERN
@@ -93,11 +96,13 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.NAME_PATTERN
   | SearchParamsKeys.NEEDS_REVIEW
   | SearchParamsKeys.OPERATOR_NAME_PATTERN
+  | SearchParamsKeys.OUTCOME
   | SearchParamsKeys.OWNERS
   | SearchParamsKeys.PARTITION_KEY_PATTERN
   | SearchParamsKeys.PAUSED
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
+  | SearchParamsKeys.RECEIVED_AT_RANGE
   | SearchParamsKeys.RENDERED_MAP_INDEX
   | SearchParamsKeys.REPROCESS_BEHAVIOR
   | SearchParamsKeys.RESPONDED_BY_USER_NAME

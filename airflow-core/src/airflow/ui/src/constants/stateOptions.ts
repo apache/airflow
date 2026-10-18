@@ -81,3 +81,13 @@ export const dagRunTypeOptions = createListCollection({
     { label: "common:runTypes.asset_triggered", value: "asset_triggered" },
   ],
 });
+
+// The outcomes Airflow records for a webhook delivery. A newer Airflow may record others, which
+// the deliveries page shows as recorded.
+export const webhookDeliveryOutcomeOptions = createListCollection({
+  items: [
+    { label: "browse:webhookDeliveries.outcomes.accepted", value: "accepted" },
+    { label: "browse:webhookDeliveries.outcomes.dag_paused", value: "dag_paused" },
+    { label: "browse:webhookDeliveries.outcomes.no_subscribers", value: "no_subscribers" },
+  ],
+});

@@ -55,6 +55,7 @@ import DeleteConnectionsButton from "./DeleteConnectionsButton";
 import EditConnectionButton from "./EditConnectionButton";
 import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
+import ViewWebhookDeliveriesButton from "./ViewWebhookDeliveriesButton";
 
 export type ConnectionBody = {
   conn_type: string;
@@ -123,6 +124,7 @@ const getColumns = ({
       accessorKey: "actions",
       cell: ({ row: { original } }) => (
         <Flex justifyContent="end">
+          <ViewWebhookDeliveriesButton connection={original} />
           <TestConnectionButton connection={original} />
           <EditConnectionButton connection={original} disabled={hasSelection} />
           <DeleteConnectionButton connectionId={original.connection_id} disabled={hasSelection} />
