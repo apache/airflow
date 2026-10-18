@@ -157,11 +157,11 @@ About Sensitive information
 ...........................
 
 Sensitive information consists of connection details, variables, and configuration. In Airflow 3 and later,
-Airflow masks sensitive information in the UI, API responses, and ``airflowctl`` output by default.
+Airflow masks sensitive information in task logs, the UI, API responses, and ``airflowctl`` output by default.
 Some execution-time channels are still able to retrieve sensitive values when the caller is already
 authorized to do so, for example ``task-sdk`` can access variables through the Task Execution API using a
 task-specific ``JWT`` token. The local CLI returns keys by default and only shows values when
-``--show_values`` is used.
+``--show-values`` is used.
 
 If Dag author code exposes sensitive information in another way (for example via environment variables),
 those values will not be masked automatically.
