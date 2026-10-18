@@ -45,6 +45,9 @@ DELIVERY_ID_HEADER = "X-Fake-Delivery"
 FAKE_SECRET = "s3cret"
 FAKE_BODY = b'{"path": "my-org/web"}'
 
+#: Values of the wrong type, or empty, for any field a source type reads.
+ODD_VALUES = [None, 7, 1.5, True, "", "text", [], ["text"], [None], {}, {"text": 1}]
+
 
 def compute_fake_signature(body: bytes, secret: str) -> str:
     """Return the ``X-Fake-Signature`` value that ``FakeHmacSource`` accepts for ``body``."""
@@ -94,9 +97,50 @@ def build_webhook_request(body: bytes = b"{}", headers: dict[str, str] | None = 
     return WebhookRequest(method="POST", headers=Headers(headers or {}), query=QueryParams(""), body=body)
 
 
+def _replace_field(payload: dict[str, Any], dotted_path: str, value: Any) -> dict[str, Any]:
+    payload = json.loads(json.dumps(payload))
+    *parents, last = dotted_path.split(".")
+    target: Any = payload
+    for key in parents:
+        target = target[int(key)] if isinstance(target, list) else target[key]
+    if isinstance(target, list):
+        target[int(last)] = value
+    else:
+        target[last] = value
+    return payload
+
+
+def assert_odd_values_are_parsed_or_refused(
+    source: WebhookSource, payload: dict[str, Any], fields: list[str], headers: dict[str, str] | None = None
+) -> None:
+    """
+    Assert that ``source`` parses or refuses ``payload`` with any of ``fields`` set to any of ``ODD_VALUES``.
+
+    A signature proves who sent a delivery, not its shape. Anything but a ``ValueError`` (a 400) or a
+    delivery of strings would be a 500, which senders retry and some answer by disabling the webhook.
+
+    :param fields: Dotted paths into ``payload`` of every field the source type reads, and of their
+        parents; a list item is named by its index.
+    """
+    for field in fields:
+        for value in ODD_VALUES:
+            body = json.dumps(_replace_field(payload, field, value)).encode()
+            request = build_webhook_request(body, {"content-type": "application/json", **(headers or {})})
+            try:
+                delivery = source.parse(request)
+            except ValueError:
+                continue
+            assert delivery.path is None or isinstance(delivery.path, str), (field, value)
+            assert all(isinstance(segment, str) for kind in delivery.kinds for segment in kind), (
+                field,
+                value,
+            )
+            assert delivery.delivery_id is None or isinstance(delivery.delivery_id, str), (field, value)
+
+
 class FakeHmacSource(WebhookSource):
     """
-    Webhook source type for tests that need one before a provider ships any.
+    Webhook source type for core tests that must not depend on a provider.
 
     The body is signed with HMAC-SHA256 in ``X-Fake-Signature``, the event is named in ``X-Fake-Event``
     and the JSON body's ``path`` is the path. The event ``ping`` is a signed handshake, answered with the
