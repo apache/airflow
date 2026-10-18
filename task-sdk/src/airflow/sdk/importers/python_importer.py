@@ -59,6 +59,21 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+def get_dagbag_import_timeout(source_reference: str) -> float:
+    """Resolve the Dag import timeout for ``source_reference`` through the ``get_dagbag_import_timeout`` policy."""
+    try:
+        from airflow import settings  # noqa: SDK002
+
+        dagbag_import_timeout = settings.get_dagbag_import_timeout(source_reference)
+    except (ImportError, AttributeError):
+        return 30.0
+    if not isinstance(dagbag_import_timeout, (int, float)):
+        raise AirflowConfigException(
+            f"Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float"
+        )
+    return dagbag_import_timeout
+
+
 class _DefinitionSourceLoader(importlib.abc.SourceLoader):
     """
     A SourceLoader that executes a DagDefinition straight from its bytes.
@@ -286,19 +301,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
                 )
                 return []
 
-        dagbag_import_timeout: float
-        try:
-            from airflow import settings  # noqa: SDK002
-
-            dagbag_import_timeout = settings.get_dagbag_import_timeout(repr(definition))
-        except (ImportError, AttributeError):
-            dagbag_import_timeout = 30.0
-
-        if not isinstance(dagbag_import_timeout, (int, float)):
-            raise AirflowConfigException(
-                f"Value ({dagbag_import_timeout}) from get_dagbag_import_timeout must be int or float"
-            )
-
+        dagbag_import_timeout = get_dagbag_import_timeout(repr(definition))
         if dagbag_import_timeout <= 0:
             return parse()
 

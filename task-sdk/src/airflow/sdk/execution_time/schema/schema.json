@@ -3827,27 +3827,6 @@
       "title": "SetAssetStateStoreByUri",
       "type": "object"
     },
-    "SetExecutionTimeout": {
-      "description": "Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process.",
-      "properties": {
-        "timeout_seconds": {
-          "exclusiveMinimum": 0,
-          "title": "Timeout Seconds",
-          "type": "number"
-        },
-        "type": {
-          "const": "SetExecutionTimeout",
-          "default": "SetExecutionTimeout",
-          "title": "Type",
-          "type": "string"
-        }
-      },
-      "required": [
-        "timeout_seconds"
-      ],
-      "title": "SetExecutionTimeout",
-      "type": "object"
-    },
     "SetRenderedFields": {
       "description": "Payload for setting RTIF for a task instance.",
       "properties": {
@@ -3931,6 +3910,27 @@
         "expires_at"
       ],
       "title": "SetTaskStateStore",
+      "type": "object"
+    },
+    "SetTimeout": {
+      "description": "Tell the supervisor how long the task process may take before it must be stopped from outside.\n\nSent before parsing a plain Python Dag file with ``dagbag_import_timeout`` and before ``execute()``\nwith the task's ``execution_timeout``. ``0`` clears the deadline.",
+      "properties": {
+        "timeout_seconds": {
+          "minimum": 0,
+          "title": "Timeout Seconds",
+          "type": "number"
+        },
+        "type": {
+          "const": "SetTimeout",
+          "default": "SetTimeout",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "timeout_seconds"
+      ],
+      "title": "SetTimeout",
       "type": "object"
     },
     "SetXCom": {

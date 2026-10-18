@@ -139,10 +139,10 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskStateStore,
+    SetTimeout,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
@@ -1715,23 +1715,44 @@ class TestWatchedSubprocess:
             client=mocker.Mock(),
         )
 
-        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc._handle_request(SetTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
 
         monotonic.return_value += 34
-        proc._handle_execution_timeout_if_needed()
+        proc._handle_timeout_if_needed()
         mock_kill.assert_not_called()
 
         monotonic.return_value += 1
-        proc._handle_execution_timeout_if_needed()
+        proc._handle_timeout_if_needed()
         mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
         proc.process_log.error.assert_called_once_with(
-            "Task did not stop before execution_timeout elapsed; terminating process",
+            "Task did not stop before its timeout elapsed; terminating process",
             timeout_seconds=30,
             grace_period_seconds=5.0,
         )
 
-        proc._handle_execution_timeout_if_needed()
+        proc._handle_timeout_if_needed()
         mock_kill.assert_called_once()
+
+    def test_set_execution_timeout_zero_clears_deadline(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        proc._handle_request(SetTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc._handle_request(SetTimeout(timeout_seconds=0), log=mocker.Mock(), req_id=2)
+
+        monotonic.return_value += 100
+        proc._handle_timeout_if_needed()
+
+        mock_kill.assert_not_called()
+        proc.process_log.error.assert_not_called()
 
     @pytest.mark.parametrize(
         ("terminal_state", "exit_code"),
@@ -1752,12 +1773,12 @@ class TestWatchedSubprocess:
             process=mocker.Mock(),
             client=mocker.Mock(),
         )
-        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc._handle_request(SetTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
         proc._terminal_state = terminal_state
         proc._exit_code = exit_code
 
         monotonic.return_value += 100
-        proc._handle_execution_timeout_if_needed()
+        proc._handle_timeout_if_needed()
 
         mock_kill.assert_not_called()
         proc.process_log.error.assert_not_called()
@@ -1789,7 +1810,7 @@ class TestWatchedSubprocess:
                 print("Ignoring SIGTERM", file=sys.stderr)
 
             signal.signal(signal.SIGTERM, _on_term)
-            comms.send(SetExecutionTimeout(timeout_seconds=0.1))
+            comms.send(SetTimeout(timeout_seconds=0.1))
             sleep(30)
             exit(5)
 
@@ -1815,7 +1836,7 @@ class TestWatchedSubprocess:
         assert proc.final_state == TaskInstanceState.FAILED
 
         assert {
-            "event": "Task did not stop before execution_timeout elapsed; terminating process",
+            "event": "Task did not stop before its timeout elapsed; terminating process",
             "level": "error",
             "timeout_seconds": 0.1,
             "grace_period_seconds": 0.3,
@@ -2731,8 +2752,8 @@ REQUEST_TEST_CASES = [
         test_id="set_rtif",
     ),
     RequestTestCase(
-        message=SetExecutionTimeout(timeout_seconds=30.0),
-        test_id="set_execution_timeout",
+        message=SetTimeout(timeout_seconds=30.0),
+        test_id="set_timeout",
     ),
     RequestTestCase(
         message=SetRenderedMapIndex(rendered_map_index="Label: task_1"),

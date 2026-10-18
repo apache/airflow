@@ -1136,11 +1136,16 @@ class SetRenderedMapIndex(BaseModel):
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
 
 
-class SetExecutionTimeout(BaseModel):
-    """Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process."""
+class SetTimeout(BaseModel):
+    """
+    Tell the supervisor how long the task process may take before it must be stopped from outside.
 
-    timeout_seconds: Annotated[float, Field(gt=0)]
-    type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
+    Sent before parsing a plain Python Dag file with ``dagbag_import_timeout`` and before ``execute()``
+    with the task's ``execution_timeout``. ``0`` clears the deadline.
+    """
+
+    timeout_seconds: Annotated[float, Field(ge=0)]
+    type: Literal["SetTimeout"] = "SetTimeout"
 
 
 class TriggerDagRun(TriggerDAGRunPayload):
@@ -1347,7 +1352,7 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
-    | SetExecutionTimeout
+    | SetTimeout
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskStateStore

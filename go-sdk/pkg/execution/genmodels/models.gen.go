@@ -1542,16 +1542,6 @@ type SetAssetStateStoreByURI struct {
 	Value JsonValue `msgpack:"value"`
 }
 
-// Tell the supervisor the task's “execution_timeout“ so it can enforce it from
-// outside the task process.
-type SetExecutionTimeout struct {
-	// TimeoutSeconds corresponds to the JSON schema field "timeout_seconds".
-	TimeoutSeconds float64 `msgpack:"timeout_seconds"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-}
-
 // Payload for setting RTIF for a task instance.
 type SetRenderedFields struct {
 	// RenderedFields corresponds to the JSON schema field "rendered_fields".
@@ -1585,6 +1575,20 @@ type SetTaskStateStore struct {
 
 	// Value corresponds to the JSON schema field "value".
 	Value JsonValue `msgpack:"value"`
+}
+
+// Tell the supervisor how long the task process may take before it must be stopped
+// from outside.
+//
+// Sent before parsing a plain Python Dag file with “dagbag_import_timeout“ and
+// before “execute()“
+// with the task's “execution_timeout“. “0“ clears the deadline.
+type SetTimeout struct {
+	// TimeoutSeconds corresponds to the JSON schema field "timeout_seconds".
+	TimeoutSeconds float64 `msgpack:"timeout_seconds"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
 }
 
 type SetXCom struct {
