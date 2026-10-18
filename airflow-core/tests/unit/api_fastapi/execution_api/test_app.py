@@ -236,6 +236,10 @@ def test_in_process_execution_api_transport_lifecycle():
     left every later request hanging on a stopped loop. Dropping the transport must stop the loop and
     join the daemon thread (the a2wsgi background-thread leak guard).
     """
+    # Collect earlier tests' garbage first. If GC runs a failing __del__ (an aiomysql connection on a closed loop)
+    # while the app below is built, pytest keeps that error, and its __context__ chain holds the app-building
+    # frames, which keep the transport alive.
+    gc.collect()
     before = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"}
 
     api = InProcessExecutionAPI()

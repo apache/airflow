@@ -52,6 +52,7 @@ from airflow.sdk.execution_time.supervisor import (
     SOCKET_CLEANUP_TIMEOUT,
     WatchedSubprocess,
     _ensure_client,
+    _import_task_runner_before_fork,
     _make_process_nondumpable,
 )
 
@@ -255,6 +256,7 @@ class CallbackSubprocess(WatchedSubprocess):
                 _log.error("Callback failed", error=error_msg)
                 sys.exit(1)
 
+        _import_task_runner_before_fork()
         return super().start(
             id=UUID(id) if not isinstance(id, UUID) else id,
             client=client,

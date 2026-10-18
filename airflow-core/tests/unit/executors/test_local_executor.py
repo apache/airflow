@@ -21,6 +21,7 @@ import gc
 import multiprocessing
 import os
 import signal
+import threading
 import time
 from pathlib import Path
 from unittest import mock
@@ -104,6 +105,17 @@ def _write_large_results_to_queue(result_queue, activity_queue, unread_messages,
         key = LocalExecutor.get_workload_key(workload)
         result_queue.put((os.getpid(), key, workload.running_state, None))
         result_queue.put((os.getpid(), key, State.SUCCESS, payload))
+
+
+def _refill_worker(activity_queue, result_queue, barrier, count, payload_size):
+    """Stand-in worker: consume activity items and emit large results over real pipes."""
+    payload = b"x" * payload_size
+    barrier.wait()
+    for _ in range(count):
+        item = activity_queue.get()
+        if item is None:
+            return
+        result_queue.put((os.getpid(), None, None, payload))
 
 
 def _make_workload(kind):
@@ -442,6 +454,74 @@ class TestLocalExecutor:
         assert not executor.running
         assert not executor._worker_tasks
         assert executor._unread_messages.value == 0
+
+    @pytest.mark.parametrize("num_workloads", [1, 3])
+    def test_process_workloads_drains_results_before_put(self, num_workloads):
+        """#70545: _process_workloads must drain the result queue before each activity_queue.put."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock()
+        executor._read_results = mock.MagicMock()
+        executor._unread_messages = multiprocessing.Value("I", 0)
+        executor._check_workers = mock.MagicMock()
+
+        call_order = []
+        executor._read_results.side_effect = lambda: call_order.append("_read_results")
+        executor.activity_queue.put.side_effect = lambda *args, **kwargs: call_order.append("put")
+
+        workloads_list = []
+        for _ in range(num_workloads):
+            workload = _make_task_workload()
+            key = executor.get_workload_key(workload)
+            executor.executor_queues.setdefault(workload.type, {})[key] = workload
+            workloads_list.append(workload)
+
+        executor._process_workloads(workloads_list)
+
+        assert call_order == ["_read_results", "put"] * num_workloads
+
+    def test_process_workloads_progresses_under_concurrent_result_refill(self, mocker):
+        """#70545: with real queues, _process_workloads must keep draining so a concurrently
+        refilling worker cannot deadlock the dispatch loop via a full result_queue pipe."""
+        ctx = multiprocessing.get_context("fork")
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = ctx.SimpleQueue()
+        executor.result_queue = ctx.SimpleQueue()
+        executor._unread_messages = multiprocessing.Value("I", 0)
+        executor._worker_tasks = {}
+        executor._dispatch_counts = {}
+        mocker.patch.object(executor, "_check_workers", autospec=True)
+
+        count = 200
+        submitted = [_make_task_workload() for _ in range(count)]
+        for workload in submitted:
+            executor.executor_queues.setdefault(workload.type, {})[executor.get_workload_key(workload)] = (
+                workload
+            )
+
+        barrier = ctx.Barrier(2)
+        proc = ctx.Process(
+            target=_refill_worker,
+            args=(executor.activity_queue, executor.result_queue, barrier, count, 16 * 1024),
+        )
+        proc.start()
+        executor.workers = {proc.pid: proc}
+        barrier.wait(timeout=30)
+
+        completed = threading.Event()
+
+        def _run():
+            try:
+                executor._process_workloads(submitted)
+            finally:
+                completed.set()
+
+        runner = threading.Thread(target=_run, daemon=True)
+        runner.start()
+        finished = completed.wait(timeout=30)
+        proc.terminate()
+        proc.join(timeout=5)
+
+        assert finished, "dispatch did not complete within 30s (result-queue refill deadlock)"
 
     @pytest.mark.parametrize(
         ("conf_values", "expected_server"),

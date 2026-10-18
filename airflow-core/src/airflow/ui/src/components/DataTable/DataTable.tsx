@@ -32,7 +32,7 @@ import { useTranslation } from "react-i18next";
 import { HiChevronLeft, HiChevronRight } from "react-icons/hi2";
 import { useLocalStorage } from "usehooks-ts";
 
-import { IconButton, Pagination, ProgressBar, Toaster } from "src/system-components";
+import { IconButton, Pagination, Toaster } from "src/system-components";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { FilterMenuButton } from "src/components/DataTable/FilterMenuButton";
@@ -64,7 +64,6 @@ type DataTableProps<TData extends RowData> = {
   readonly headingExtra?: ReactNode;
   readonly hideRowCountHeading?: boolean;
   readonly initialState?: TableState;
-  readonly isFetching?: boolean;
   readonly isLoading?: boolean;
   /**
    * i18n key naming the model this table lists — namespaced (`common:dagRun`) or bare for `common`.
@@ -109,6 +108,21 @@ type DataTableProps<TData extends RowData> = {
   readonly totalEntriesLimit?: number;
 };
 
+// Columns with hiding disabled are left out of the columns menu, so a hidden state stored for them
+// (e.g. saved before hiding was disabled) could never be undone. Such columns always show.
+const buildColumnVisibility = <TData extends RowData>(
+  columns: Array<MetaColumn<TData>>,
+  visibility: ColumnVisibilityState,
+): ColumnVisibilityState => {
+  const unhideableIds = new Set(
+    columns
+      .filter((column) => column.enableHiding === false)
+      .map((column) => column.id ?? ("accessorKey" in column ? String(column.accessorKey) : undefined)),
+  );
+
+  return Object.fromEntries(Object.entries(visibility).filter(([id]) => !unhideableIds.has(id)));
+};
+
 export const DataTable = <TData extends RowData>({
   cardDef,
   columns,
@@ -120,7 +134,6 @@ export const DataTable = <TData extends RowData>({
   headingExtra,
   hideRowCountHeading,
   initialState,
-  isFetching,
   isLoading,
   modelName,
   nextCursor,
@@ -189,7 +202,10 @@ export const DataTable = <TData extends RowData>({
   );
   // Stored visibility only covers columns that existed when it was saved, so columns added
   // later still need their default visibility.
-  const columnVisibility = { ...initialState?.columnVisibility, ...storedColumnVisibility };
+  const columnVisibility = buildColumnVisibility(columns, {
+    ...initialState?.columnVisibility,
+    ...storedColumnVisibility,
+  });
 
   // An absent total means the endpoint gives no count (e.g. cursor pagination), which the heading
   // reflects by naming the model without a number. Everything else still needs a real number.
@@ -282,7 +298,6 @@ export const DataTable = <TData extends RowData>({
           gap={2}
           justifyContent="space-between"
           minH={10}
-          mt={2} // This offsets the spacing below created by the ProgressBar
         >
           <VStack alignItems="flex-start" flex="1" gap={2} minW={0} w="100%">
             {headingNode === undefined && headingExtra === undefined ? undefined : (
@@ -310,7 +325,6 @@ export const DataTable = <TData extends RowData>({
         </Flex>
       ) : undefined}
       {errorMessage}
-      <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0} overflow="auto">
         {display === "card" && cardDef !== undefined ? (
           <CardList cardDef={cardDef} isLoading={isLoading} noRowsMessage={noRowsNode} rows={rows} />

@@ -172,6 +172,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_update_dag_run_note,
 )
 from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
+from airflow.sdk.log import _supervisor_comms
 
 try:
     from socket import send_fds
@@ -190,6 +191,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.api.datamodels._generated import TIRunContext
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -363,6 +365,19 @@ def _subprocess_main():
     from airflow.sdk.execution_time.task_runner import main
 
     main()
+
+
+def _import_task_runner_before_fork() -> None:
+    """
+    Import the task runner so that a child forked from this process inherits it.
+
+    Task and callback processes both import it, so importing it once here saves every forked child
+    from importing it again. It is not imported at module level because secrets lookups outside a
+    task import this module, and they must not load the task runtime.
+    """
+    # If it fails to import, the child imports it again and reports the error in its own log.
+    with suppress(ImportError):
+        import airflow.sdk.execution_time.task_runner  # noqa: F401
 
 
 def _reset_signals():
@@ -1675,6 +1690,8 @@ class ActivitySubprocess(WatchedSubprocess):
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
         use_exec = target is _subprocess_main and _task_process_uses_exec()
+        if target is _subprocess_main and not use_exec:
+            _import_task_runner_before_fork()
         proc: Self = super().start(
             id=what.id,
             client=client,
@@ -1719,6 +1736,10 @@ class ActivitySubprocess(WatchedSubprocess):
                 return
             raise
 
+        if (prepared := self._prepare_ti_context(ti, ti_context)) is None:
+            return
+        ti_context = prepared
+
         # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
         # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
         # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
@@ -1742,6 +1763,17 @@ class ActivitySubprocess(WatchedSubprocess):
         except (BrokenPipeError, ConnectionResetError):
             # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
             log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
+
+    def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
+        """
+        Return the context the supervisor sends to the task process, or None when the task must not run.
+
+        An implementation that returns None must first stop the task process and record the outcome that
+        will be reported. This base version returns the context unchanged, because the Python task runner
+        itself deletes the XComs in ``ti_context.xcom_keys_to_clear`` with ``XCom.delete``, which also
+        purges them from the XCom backend.
+        """
+        return ti_context
 
     def wait(self) -> int:
         if self._wait_completed and self._exit_code is not None:
@@ -2927,14 +2959,9 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     # 1. Check for client context (SUPERVISOR_COMMS)
-    try:
-        from airflow.sdk.execution_time import task_runner
-
-        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
-            # Client context: task runner with SUPERVISOR_COMMS
-            return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-    except (ImportError, AttributeError):
-        pass
+    if _supervisor_comms() is not None:
+        # Client context: task runner with SUPERVISOR_COMMS
+        return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
     # 2. Check for explicit server context
     if os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server":

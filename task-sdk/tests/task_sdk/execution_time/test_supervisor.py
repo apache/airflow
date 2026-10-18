@@ -145,6 +145,7 @@ from airflow.sdk.execution_time.comms import (
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
+    StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
@@ -1447,6 +1448,73 @@ class TestWatchedSubprocess:
                 client=make_client(transport=httpx2.MockTransport(handle_request)),
                 target=subprocess_main,
             )
+
+    def test_prepare_ti_context_leaves_listed_xcoms_to_python_task_runner(self, make_ti_context):
+        """
+        For Python tasks, the supervisor leaves the listed XComs to the Python task runner.
+
+        The task runner deletes them with XCom.delete, a call that also purges them from the XCom backend.
+        """
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append((request.method, request.url.path))
+            return httpx2.Response(200, json={})
+
+        proc = ActivitySubprocess(
+            process_log=MagicMock(spec=FilteringBoundLogger),
+            id=TI_ID,
+            pid=12345,
+            stdin=MagicMock(spec=socket.socket),
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
+            process=MagicMock(spec=psutil.Process),
+        )
+        ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["return_value"]})
+        ti = TaskInstance(
+            id=TI_ID,
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+
+        try:
+            prepared = proc._prepare_ti_context(ti, ti_context)
+        finally:
+            proc.selector.close()
+        assert requests == []
+        assert prepared is not None
+        assert prepared.xcom_keys_to_clear == ["return_value"]
+
+    def test_python_task_process_gets_the_listed_xcom_keys(self, mocker, make_ti_context):
+        mock_client = MagicMock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context().model_copy(
+            update={"xcom_keys_to_clear": ["return_value"]}
+        )
+        mock_send = mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=mock_client,
+            target=lambda: None,
+        )
+        assert proc.wait() == 0
+
+        (startup,) = [c.args[1] for c in mock_send.call_args_list if isinstance(c.args[1], StartupDetails)]
+        assert startup.ti_context.xcom_keys_to_clear == ["return_value"]
+        mock_client.xcoms.delete.assert_not_called()
 
     @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
     def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
@@ -5826,6 +5894,60 @@ def test_activity_start_opts_into_fork_exec(monkeypatch, mocker, task_uses_exec,
 
     assert base_start.call_args.kwargs["use_exec"] is expected_use_exec
     assert base_start.call_args.kwargs["target"] is target
+
+
+@pytest.mark.parametrize(
+    ("task_uses_exec", "target", "expected_calls"),
+    [
+        pytest.param(False, supervisor._subprocess_main, ["import task runner", "fork"], id="bare-fork"),
+        pytest.param(True, supervisor._subprocess_main, ["fork"], id="exec"),
+        pytest.param(False, lambda: None, ["fork"], id="test-target"),
+    ],
+)
+def test_activity_start_imports_task_runner_before_bare_fork(
+    monkeypatch, mocker, task_uses_exec, target, expected_calls
+):
+    """A forked task process inherits the task runner from the supervisor; a spawned one imports its own."""
+    calls = []
+
+    def fork(*args, **kwargs):
+        calls.append("fork")
+        return MagicMock(spec=ActivitySubprocess)
+
+    monkeypatch.setattr(supervisor, "_task_process_uses_exec", lambda: task_uses_exec)
+    mocker.patch.object(
+        supervisor,
+        "_import_task_runner_before_fork",
+        autospec=True,
+        side_effect=lambda: calls.append("import task runner"),
+    )
+    mocker.patch.object(supervisor.WatchedSubprocess, "start", autospec=True, side_effect=fork)
+
+    ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        client=MagicMock(spec=sdk_client.Client),
+        target=target,
+        logger=MagicMock(),
+    )
+
+    assert calls == expected_calls
+
+
+def test_import_task_runner_before_fork_leaves_import_errors_to_the_child(monkeypatch):
+    """A task runner that fails to import is reported by the child, which imports it again."""
+    monkeypatch.setitem(sys.modules, "airflow.sdk.execution_time.task_runner", None)
+
+    supervisor._import_task_runner_before_fork()
 
 
 class TestTaskProcessUsesExec:
