@@ -174,6 +174,7 @@ const getColumns = ({
         <DeleteXComButton xcom={original} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
