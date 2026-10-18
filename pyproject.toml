@@ -601,6 +601,13 @@ Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
+[tool.hatch.build]
+# Prune .gitignore'd directories (node_modules, .venv, ...) during the file walk instead of only
+# filtering their files: an editable build of this root package otherwise descends into
+# ts-sdk/node_modules and crashes with FileNotFoundError when a concurrent `pnpm install`
+# (ts-sdk prek hooks run alongside root ones) swaps the pnpm symlinks under it.
+skip-excluded-dirs = true
+
 [tool.hatch.build.targets.sdist]
 exclude = ["*"]
 
