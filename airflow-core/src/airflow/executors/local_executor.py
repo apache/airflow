@@ -26,9 +26,7 @@ LocalExecutor.
 from __future__ import annotations
 
 import contextlib
-import ctypes
 import multiprocessing
-import multiprocessing.sharedctypes
 import os
 import sys
 from multiprocessing import Queue, SimpleQueue
@@ -70,7 +68,6 @@ def _run_worker(
     logger_name: str,
     input: SimpleQueue[ExecutorWorkload | None],
     output: Queue[LocalResult],
-    unread_messages: multiprocessing.sharedctypes.Synchronized[int],
     team_conf,
 ):
     import signal
@@ -96,10 +93,6 @@ def _run_worker(
         if workload is None:
             # Received poison pill, no more tasks to run
             return
-
-        # Decrement this as soon as we pick up a message off the queue
-        with unread_messages:
-            unread_messages.value -= 1
 
         key = LocalExecutor.get_workload_key(workload)
         output.put((os.getpid(), key, workload.running_state, None))
@@ -138,15 +131,21 @@ class LocalExecutor(BaseExecutor):
         {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK, WorkloadType.TEST_CONNECTION}
     )
 
-    activity_queue: SimpleQueue[ExecutorWorkload | None]
     result_queue: SimpleQueue[LocalResult]
     workers: dict[int, multiprocessing.Process]
-    _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
+    # One input queue per worker. A SimpleQueue read lock shared by all workers wedges the whole executor
+    # if the worker holding it is SIGKILLed (e.g. by the OOM killer), so no two workers share a queue.
+    _worker_queues: dict[int, SimpleQueue[ExecutorWorkload | None]]
+    # Workers handed a workload that have not reported START yet. Kept apart from _worker_tasks so a worker
+    # that dies before START still leaves the key for the scheduler's stuck-in-queued revoke, as before.
+    _dispatched: dict[int, WorkloadKey]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._worker_tasks: dict[int, WorkloadKey] = {}
         self._dispatch_counts: dict[WorkloadKey, int] = {}
+        self._worker_queues: dict[int, SimpleQueue[ExecutorWorkload | None]] = {}
+        self._dispatched: dict[int, WorkloadKey] = {}
 
         # Resolve the start method at instantiation, not at import: the component CLI entry may have
         # set it via [<component>]/[core] mp_start_method before the executor is created.
@@ -167,16 +166,12 @@ class LocalExecutor(BaseExecutor):
         # We delay opening these queues until the start method mostly for unit tests. ExecutorLoader caches
         # instances, so each test reusues the same instance! (i.e. test 1 runs, closes the queues, then test 2
         # comes back and gets the same LocalExecutor instance, so we have to open new here.)
-        self.activity_queue = SimpleQueue()
         self.result_queue = SimpleQueue()
         self.workers = {}
+        self._worker_queues = {}
+        self._dispatched = {}
         self._worker_tasks.clear()
         self._dispatch_counts.clear()
-
-        # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
-        # (it looks like an int to python)
-
-        self._unread_messages = multiprocessing.Value(ctypes.c_uint)
 
         if self.is_mp_using_fork:
             # This creates the maximum number of worker processes (parallelism) at once
@@ -185,50 +180,41 @@ class LocalExecutor(BaseExecutor):
 
     def _check_workers(self):
         self._read_results()
-        # Reap any dead workers
-        to_remove = set()
-        for pid, proc in self.workers.items():
+        # Reap any dead workers. Each worker owns its input queue, so a dead one cannot block the others.
+        for pid, proc in list(self.workers.items()):
             if not proc.is_alive():
+                # Drain what the worker wrote before dying (e.g. its START) so its key is attributed to it.
                 self._read_results()
-                # A worker killed between dequeue and START has no entry here; the scheduler's
-                # stuck-in-queued handling releases that workload through revoke_task.
+                self._dispatched.pop(pid, None)
+                # A worker killed before START keeps its key in _dispatched; the scheduler's stuck-in-queued
+                # revoke releases it, as before.
                 if (key := self._worker_tasks.pop(pid, None)) is not None:
                     self._finish_dispatch(key, state_class_for_key(key).FAILED)
-                to_remove.add(pid)
                 proc.close()
+                del self.workers[pid]
+                del self._worker_queues[pid]
 
-        if to_remove:
-            self.workers = {pid: proc for pid, proc in self.workers.items() if pid not in to_remove}
+    def _pick_worker(self) -> int:
+        self._check_workers()
+        idle = next(
+            (pid for pid in self.workers if pid not in self._worker_tasks and pid not in self._dispatched),
+            None,
+        )
+        if idle is not None:
+            return idle
+        if len(self.workers) < self.parallelism:
+            return self._spawn_worker()
+        # ponytail: all workers busy yet a slot is free (a stale result not read yet); queue behind one.
+        return next(iter(self.workers))
 
-        with self._unread_messages:
-            num_outstanding = self._unread_messages.value
-
-        if num_outstanding <= 0 or self.activity_queue.empty():
-            # Nothing to do. Future enhancement if someone wants: shut down workers that have been idle for N
-            # seconds
-            return
-
-        # If we're using spawn in multiprocessing (default on macOS now) to start tasks, this can get called a
-        # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
-        # create too much
-        if num_outstanding and len(self.workers) < self.parallelism:
-            if self.is_mp_using_fork:
-                # This creates the maximum number of worker processes at once
-                # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
-                self._spawn_workers_with_gc_freeze(self.parallelism - len(self.workers))
-            else:
-                # This only creates one worker, which is fine as we call this directly after putting a message on
-                # activity_queue in execute_async when using spawn in multiprocessing
-                self._spawn_worker()
-
-    def _spawn_worker(self):
+    def _spawn_worker(self) -> int:
+        queue: SimpleQueue[ExecutorWorkload | None] = SimpleQueue()
         p = multiprocessing.Process(
             target=_run_worker,
             kwargs={
                 "logger_name": self.log.name,
-                "input": self.activity_queue,
+                "input": queue,
                 "output": self.result_queue,
-                "unread_messages": self._unread_messages,
                 "team_conf": self.conf,
             },
         )
@@ -236,6 +222,8 @@ class LocalExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert p.pid  # Since we've called start
         self.workers[p.pid] = p
+        self._worker_queues[p.pid] = queue
+        return p.pid
 
     def _spawn_workers_with_gc_freeze(self, spawn_number):
         """
@@ -265,14 +253,21 @@ class LocalExecutor(BaseExecutor):
         try:
             while not self.result_queue.empty():
                 pid, key, state, exc = self.result_queue.get()
-                if pid not in self.workers or key not in self.running:
+                if pid not in self.workers:
+                    continue
+                if key not in self.running:
+                    # Late result for a key already finished or revoked; a terminal one frees its worker.
+                    if state is not None and state != "running" and self._dispatched.get(pid) == key:
+                        del self._dispatched[pid]
                     continue
                 if state is None or state == "running":
                     self._worker_tasks[pid] = key
+                    self._dispatched.pop(pid, None)
                     if state is not None:
                         self.change_state(key, state, remove_running=False)
-                elif self._worker_tasks.get(pid) == key:
-                    del self._worker_tasks[pid]
+                elif self._worker_tasks.get(pid) == key or self._dispatched.get(pid) == key:
+                    self._worker_tasks.pop(pid, None)
+                    self._dispatched.pop(pid, None)
                     self._finish_dispatch(key, state)
         except (OSError, EOFError):
             self.log.exception("Error reading from result queue")
@@ -287,10 +282,10 @@ class LocalExecutor(BaseExecutor):
         # We can't tell which proc will pick which close message up, so we send all the messages, and then
         # wait on all the procs
 
-        for proc in self.workers.values():
-            # Send the shutdown message once for each alive worker
+        for pid, proc in self.workers.items():
+            # Send the shutdown message to each alive worker's own queue
             if proc.is_alive():
-                self.activity_queue.put(None)
+                self._worker_queues[pid].put(None)
 
         # To prevent deadlock, we should consume results from result_queue while waiting for processes to join.
         # Otherwise, a worker blocked on putting results into a full result_queue pipe will never exit,
@@ -313,7 +308,8 @@ class LocalExecutor(BaseExecutor):
                 with contextlib.suppress(ValueError):
                     proc.close()
 
-            self.activity_queue.close()
+            for queue in self._worker_queues.values():
+                queue.close()
             self.result_queue.close()
 
     def terminate(self):
@@ -337,15 +333,14 @@ class LocalExecutor(BaseExecutor):
     def _process_workloads(self, workload_list):
         for workload in workload_list:
             key = self.get_workload_key(workload)
-            self.activity_queue.put(workload)
+            pid = self._pick_worker()
+            self._worker_queues[pid].put(workload)
+            self._dispatched[pid] = key
             removed = self.executor_queues[workload.type].pop(key, None)
             if not removed:
                 raise KeyError(f"Workload {key} was not found in any queue")
             self.running.add(key)
             self._dispatch_counts[key] = self._dispatch_counts.get(key, 0) + 1
-        with self._unread_messages:
-            self._unread_messages.value += len(workload_list)
-        self._check_workers()
 
     def _finish_dispatch(self, key: WorkloadKey, state: WorkloadState) -> None:
         # A resumed attempt reuses its key, so the previous dispatch can finish while the next one is live.
@@ -359,6 +354,7 @@ class LocalExecutor(BaseExecutor):
         self._worker_tasks = {
             pid: task_key for pid, task_key in self._worker_tasks.items() if task_key != key
         }
+        self._dispatched = {pid: task_key for pid, task_key in self._dispatched.items() if task_key != key}
 
     def change_state(self, key, state, info=None, remove_running=True) -> None:
         if remove_running:

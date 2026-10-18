@@ -24,116 +24,48 @@ import pytest
 from airflow.executors.local_executor import LocalExecutor
 
 
-@pytest.fixture(autouse=True)
-def setup_executor(monkeypatch):
+@pytest.fixture
+def executor():
     executor = LocalExecutor(parallelism=2)
     executor.workers = {}
-    executor._unread_messages = MagicMock()
-    executor.activity_queue = MagicMock()
+    executor._worker_queues = {}
     executor.result_queue = SimpleQueue()
-    monkeypatch.setattr(executor, "_spawn_worker", MagicMock())
     yield executor
     executor.result_queue.close()
 
 
-def test_no_workers_on_no_work(setup_executor):
-    executor = setup_executor
-    executor._unread_messages.value = 0
-    executor.activity_queue.empty.return_value = True
-    executor._check_workers()
-    executor._spawn_worker.assert_not_called()
-    assert executor.workers == {}
+def _worker(executor, pid, alive):
+    proc = MagicMock()
+    proc.is_alive.return_value = alive
+    executor.workers[pid] = proc
+    executor._worker_queues[pid] = MagicMock()
+    return proc
 
 
-def test_all_workers_alive(setup_executor):
-    executor = setup_executor
-    proc1 = MagicMock()
-    proc1.is_alive.return_value = True
-    proc2 = MagicMock()
-    proc2.is_alive.return_value = True
-    executor.workers = {1: proc1, 2: proc2}
-    executor._unread_messages.value = 0
-    executor.activity_queue.empty.return_value = True
+def test_alive_workers_are_kept(executor):
+    proc1 = _worker(executor, 1, alive=True)
+    proc2 = _worker(executor, 2, alive=True)
     executor._check_workers()
     proc1.close.assert_not_called()
     proc2.close.assert_not_called()
-    assert len(executor.workers) == 2
+    assert set(executor.workers) == {1, 2}
+    assert set(executor._worker_queues) == {1, 2}
 
 
-def test_some_workers_dead(setup_executor):
-    executor = setup_executor
-    proc1 = MagicMock()
-    proc1.is_alive.return_value = False
-    proc2 = MagicMock()
-    proc2.is_alive.return_value = True
-    executor.workers = {1: proc1, 2: proc2}
-    executor._unread_messages.value = 0
-    executor.activity_queue.empty.return_value = True
+def test_dead_worker_is_reaped_with_its_queue(executor):
+    dead = _worker(executor, 1, alive=False)
+    alive = _worker(executor, 2, alive=True)
     executor._check_workers()
-    proc1.close.assert_called_once()
-    proc2.close.assert_not_called()
-    assert executor.workers == {2: proc2}
+    dead.close.assert_called_once()
+    alive.close.assert_not_called()
+    assert executor.workers == {2: alive}
+    assert set(executor._worker_queues) == {2}
 
 
-def test_all_workers_dead(setup_executor):
-    executor = setup_executor
-    proc1 = MagicMock()
-    proc1.is_alive.return_value = False
-    proc2 = MagicMock()
-    proc2.is_alive.return_value = False
-    executor.workers = {1: proc1, 2: proc2}
-    executor._unread_messages.value = 0
-    executor.activity_queue.empty.return_value = True
+def test_dead_worker_before_start_leaves_key_for_revoke(executor):
+    _worker(executor, 1, alive=False)
+    executor._dispatched[1] = "key"
+    executor._finish_dispatch = MagicMock()
     executor._check_workers()
-    proc1.close.assert_called_once()
-    proc2.close.assert_called_once()
-    assert executor.workers == {}
-
-
-def test_outstanding_messages_and_empty_queue(setup_executor):
-    executor = setup_executor
-    executor._unread_messages.value = 1
-    executor.activity_queue.empty.return_value = True
-    executor._check_workers()
-    executor._spawn_worker.assert_not_called()
-
-
-def test_spawn_worker_when_needed(setup_executor):
-    executor = setup_executor
-    executor._unread_messages.value = 1
-    executor.activity_queue.empty.return_value = False
-    executor.workers = {}
-    executor._check_workers()
-    executor._spawn_worker.assert_called()
-
-
-def test_no_spawn_if_parallelism_reached(setup_executor):
-    executor = setup_executor
-    executor._unread_messages.value = 2
-    executor.activity_queue.empty.return_value = False
-    proc1 = MagicMock()
-    proc1.is_alive.return_value = True
-    proc2 = MagicMock()
-    proc2.is_alive.return_value = True
-    executor.workers = {1: proc1, 2: proc2}
-    executor._check_workers()
-    executor._spawn_worker.assert_not_called()
-
-
-def test_spawn_worker_when_we_have_parallelism_left(setup_executor):
-    executor = setup_executor
-    # Simulate 4 running workers
-    running_workers = {}
-    for i in range(4):
-        proc = MagicMock()
-        proc.is_alive.return_value = True
-        running_workers[i] = proc
-    executor.workers = running_workers
-    executor.parallelism = 5  # Allow more workers if needed
-
-    # Simulate 4 pending tasks (equal to running workers)
-    executor._unread_messages.value = 4
-    executor.activity_queue.empty.return_value = False
-    executor._spawn_worker.reset_mock()
-    executor._check_workers()
-    executor._spawn_worker.assert_called()
+    assert 1 not in executor._dispatched
+    executor._finish_dispatch.assert_not_called()  # scheduler's stuck-in-queued revoke releases it
