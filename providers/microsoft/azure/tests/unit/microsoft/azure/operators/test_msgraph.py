@@ -52,8 +52,10 @@ class TaskStateStore:
 
     def __init__(self, **values):
         self.values = dict(values)
+        self.reads: list[str] = []
 
     def get(self, key, default=None):
+        self.reads.append(key)
         return self.values.get(key, default)
 
     def set(self, key, value, *, retention=None):
@@ -562,6 +564,20 @@ class TestDurableMSGraphAsyncOperator:
         }
         assert exc.value.trigger.url == users["@odata.nextLink"]
         context["ti"].xcom_push.assert_not_called()
+
+    def test_intermediate_page_reads_only_the_cursor(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{f"{PAGE_KEY_PREFIX}{page}": [{"id": str(page)}] for page in range(3)},
+            **{CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 3}},
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(TaskDeferred):
+            operator.execute_complete(context=context, event=users_event("users.json"))
+
+        assert task_state_store.reads == [CURSOR_KEY]
+        assert task_state_store.values[CURSOR_KEY]["pages"] == 4
 
     def test_execute_resumes_at_the_kept_link(self):
         operator = users_operator(durable=True, query_parameters={"$top": 12})

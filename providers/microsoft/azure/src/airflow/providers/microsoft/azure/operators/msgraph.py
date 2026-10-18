@@ -254,9 +254,9 @@ class MSGraphAsyncOperator(BaseOperator):
             self.log.debug("response: %s", response)
 
             task_state_store = self.get_task_state_store(context)
-            results = (
-                self.pull_pages(task_state_store) if task_state_store else self.pull_xcom(context=context)
-            )
+            # A durable task reads its kept pages only once no next page defers: an intermediate
+            # page only adds itself to the store, see push_page.
+            results = [] if task_state_store else self.pull_xcom(context=context)
 
             if response:
                 response = self.serializer.deserialize(response)
@@ -288,10 +288,14 @@ class MSGraphAsyncOperator(BaseOperator):
                         self.push_xcom(context=context, value=results)
                     raise exception
 
+                if task_state_store:
+                    results = self.pull_pages(task_state_store)
                 if results:
                     self.append_result(results=results, result=result)
                 else:
                     results = result
+            elif task_state_store:
+                results = self.pull_pages(task_state_store)
             if task_state_store and self.method.upper() != "GET":
                 task_state_store.set(COMPLETED_KEY, {"result": results})
             return results
