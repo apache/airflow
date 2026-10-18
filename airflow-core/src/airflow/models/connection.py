@@ -245,8 +245,10 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         return cls._validate_port(port)
 
     @validates("port")
-    def _validate_port_assignment(self, _, port: int | None) -> int | None:
-        return self._validate_port(port)
+    def _validate_port_assignment(self, _, port: int | str | None) -> int | None:
+        # Callers commonly pass the port as a string (env vars, config, custom secrets backends);
+        # accept those like ``from_json`` does rather than breaking them.
+        return self._coerce_port(port)
 
     @reconstructor
     def on_db_load(self):

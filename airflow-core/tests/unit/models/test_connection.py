@@ -412,7 +412,12 @@ class TestConnection:
         conn = Connection(conn_id="test-port", conn_type="http", port=port)
         assert conn.port == port
 
-    @pytest.mark.parametrize("port", [-1, 65536, "123", 1.5, ""])
+    @pytest.mark.parametrize(("port", "expected"), [("123", 123), ("0", 0), ("", None)])
+    def test_converts_string_port_values(self, port, expected):
+        conn = Connection(conn_id="test-port", conn_type="http", port=port)
+        assert conn.port == expected
+
+    @pytest.mark.parametrize("port", [-1, 65536, 1.5, "abc", "65536"])
     def test_rejects_invalid_direct_port_values(self, port):
         with pytest.raises(ValueError, match="port"):
             Connection(conn_id="test-port", conn_type="http", port=port)
