@@ -2222,8 +2222,17 @@ class TestGCSToBigQueryOperator:
         else:
             mock_warning.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("force_delete", "expected_fix", "unexpected_fix"),
+        [
+            pytest.param(False, "autodetect=None", None, id="existing_table"),
+            pytest.param(True, "schema_fields", "autodetect=None", id="force_delete"),
+        ],
+    )
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
-    def test_ignore_unknown_values_no_op_warning_names_the_fix(self, bq_hook):
+    def test_ignore_unknown_values_no_op_warning_names_the_fix(
+        self, bq_hook, force_delete, expected_fix, unexpected_fix
+    ):
         bq_hook.return_value.insert_job.side_effect = [
             MagicMock(job_id=REAL_JOB_ID, error_result=False),
             REAL_JOB_ID,
@@ -2239,13 +2248,17 @@ class TestGCSToBigQueryOperator:
             write_disposition=WRITE_DISPOSITION,
             project_id=JOB_PROJECT_ID,
             ignore_unknown_values=True,
+            force_delete=force_delete,
         )
 
         with mock.patch.object(operator.log, "warning") as mock_warning:
             operator.execute(context=MagicMock())
 
         mock_warning.assert_called_once()
-        assert "autodetect=None" in mock_warning.call_args.args[0]
+        message = mock_warning.call_args.args[0] % mock_warning.call_args.args[1:]
+        assert expected_fix in message
+        if unexpected_fix:
+            assert unexpected_fix not in message
 
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))

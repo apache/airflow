@@ -786,11 +786,20 @@ class GCSToBigQueryOperator(BaseOperator):
             and load_config.get("ignoreUnknownValues")
             and "schema" not in load_config
         ):
+            # autodetect=None only works against a table that exists when the load job runs,
+            # and force_delete deletes it first.
+            if self.force_delete:
+                fix = "Pass `schema_fields` or `schema_object` instead."
+            else:
+                fix = (
+                    "If the destination table already exists, set `autodetect=None` to use its "
+                    "schema; otherwise pass `schema_fields` or `schema_object`."
+                )
             self.log.warning(
                 "`ignore_unknown_values` is checked against the schema autodetected from the source "
                 "data, not against the destination table's schema, so fields missing from the "
-                "destination table are not dropped. Set `autodetect=None` to use the existing "
-                "destination table's schema instead."
+                "destination table are not dropped. %s",
+                fix,
             )
 
         return self.configuration
