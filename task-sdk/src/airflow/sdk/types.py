@@ -138,6 +138,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
     run_id: str
     try_number: int
     map_index: int | None
+    region_id: uuid.UUID | None
+    region_index: int | None
     max_tries: int
     hostname: str | None = None
     start_date: AwareDatetime
