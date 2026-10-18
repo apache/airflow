@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -26,6 +27,8 @@ import pytest
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.dag import DAG
+
+from tests_common.test_utils.dag import create_scheduler_dag
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -43,6 +46,13 @@ class MockNotifier(BaseNotifier):
 
     def notify(self, context: Context) -> None:
         pass
+
+
+def _make_serialized_dag(dag_id: str):
+    """Build a real SerializedDAG, which is what `airflow dags test` passes to callbacks."""
+    with DAG(dag_id=dag_id, schedule=None, start_date=datetime(2026, 1, 1)) as dag:
+        EmptyOperator(task_id="task")
+    return create_scheduler_dag(dag)
 
 
 class TestBaseNotifier:
@@ -98,21 +108,15 @@ class TestBaseNotifier:
         )
         assert notifier.message == "task: some_task"
 
-    def test_render_template_fields_with_dag_without_get_template_env(self):
-        """Notifier must not crash when context['dag'] has no get_template_env (e.g. SerializedDAG)."""
-
-        class _FakeDag:
-            dag_id = "serialized_dag_id"
-            render_template_as_native_obj = False
-
+    def test_render_template_fields_with_serialized_dag(self):
+        serialized_dag = _make_serialized_dag("serialized_dag_id")
+        assert not hasattr(serialized_dag, "get_template_env")
         notifier = MockNotifier(message="Dag {{ dag.dag_id }} failed")
-        context: Context = {"dag": _FakeDag()}
+        context: Context = {"dag": serialized_dag}
         notifier.render_template_fields(context)
         assert notifier.message == "Dag serialized_dag_id failed"
 
-    def test_notifier_call_with_dag_without_get_template_env_and_no_template_fields(self):
-        """Notifier with no template_fields must not crash when context['dag'] has no get_template_env."""
-
+    def test_notifier_call_with_serialized_dag_and_no_template_fields(self):
         class _BareNotifier(BaseNotifier):
             template_fields = ()
             template_ext = ()
@@ -120,12 +124,8 @@ class TestBaseNotifier:
             def notify(self, context: Context) -> None:
                 pass
 
-        class _FakeDag:
-            dag_id = "bare_serialized_dag"
-            render_template_as_native_obj = False
-
         notifier = _BareNotifier()
         notifier.notify = MagicMock()
-        context: Context = {"dag": _FakeDag()}
+        context: Context = {"dag": _make_serialized_dag("bare_serialized_dag")}
         notifier(context)
         notifier.notify.assert_called_once()
