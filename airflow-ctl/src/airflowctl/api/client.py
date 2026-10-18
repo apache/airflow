@@ -379,8 +379,12 @@ class Client(httpx.Client):
         base_url: str,
         kind: Literal[ClientKind.AUTH, ClientKind.CLI, ClientKind.NO_AUTH] = ClientKind.CLI,
     ):
-        """Refresh the base URL of the client."""
+        """Refresh the base URL of the client; a ``NO_AUTH`` client also stops sending the bearer token."""
         self.base_url = URL(self._get_base_url(base_url=base_url, kind=kind))
+        if kind == ClientKind.NO_AUTH:
+            # Same contract as __init__. The token loaded for the environment may belong to another
+            # server than the one the user is logging in to, so it must not travel with these requests.
+            self.auth = BearerAuth(None)
 
     @classmethod
     def _get_base_url(

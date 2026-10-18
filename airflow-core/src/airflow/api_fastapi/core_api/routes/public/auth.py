@@ -16,16 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+import time
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import structlog
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy.exc import IntegrityError
 
 from airflow.api_fastapi.app import get_cookie_path
+from airflow.api_fastapi.auth.cli_authorization_code import (
+    CliAuthorizationCodeUnavailableError,
+    InvalidCliAuthorizationCodeError,
+    build_loopback_redirect_uri,
+    validate_cli_authorization_code,
+)
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.auth import CliTokenBody, CliTokenResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     AuthManagerDep,
@@ -35,6 +46,7 @@ from airflow.api_fastapi.core_api.security import (
     oauth2_scheme,
 )
 from airflow.configuration import conf
+from airflow.models.revoked_token import RevokedToken
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -101,3 +113,57 @@ def logout(
         )
 
     return response
+
+
+@auth_router.post(
+    "/cli/token",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+)
+def create_cli_token(
+    body: CliTokenBody,
+    session: SessionDep,
+) -> CliTokenResponse:
+    """
+    Exchange a code approved in the UI (``airflowctl auth login --web``) for the CLI token it carries.
+
+    Unauthenticated, like an OAuth token endpoint: the code and the PKCE verifier are the credential.
+    """
+    try:
+        claims = validate_cli_authorization_code(
+            body.code,
+            code_verifier=body.code_verifier,
+            redirect_uri=build_loopback_redirect_uri(body.port),
+        )
+    except (InvalidCliAuthorizationCodeError, CliAuthorizationCodeUnavailableError) as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    expires_in_seconds = claims["token_expires_at"] - int(time.time())
+    if expires_in_seconds <= 0:
+        # Possible when [api_auth] jwt_cli_expiration_time is shorter than the code's lifetime and the
+        # exchange came late; a success here would hand airflowctl a token the API already refuses.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="The approved token has already expired")
+
+    # The code's jti goes into the table logout uses, so a replay fails on the primary key even when two
+    # API server replicas receive it at the same time. The row must outlive the code: validation accepts
+    # the code for jwt_leeway past exp, while the table's cleanup drops rows whose exp has passed.
+    try:
+        session.add(
+            RevokedToken(
+                jti=claims["jti"],
+                exp=datetime.fromtimestamp(claims["exp"], tz=UTC)
+                + timedelta(seconds=conf.getint("api_auth", "jwt_leeway")),
+            )
+        )
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="The authorization code has already been used"
+        )
+
+    log.info(
+        "Handed out the CLI token approved in the browser",
+        user=claims.get("name"),
+        expires_in_seconds=expires_in_seconds,
+    )
+    return CliTokenResponse(access_token=claims["token"], expires_in_seconds=expires_in_seconds)

@@ -19,15 +19,20 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import threading
 from unittest import mock
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 
+import httpx
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginResponse
+from airflowctl.api.operations import LoginOperations
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import auth_command
+from airflowctl.utils.browser_login import LoopbackCallbackServer, compute_code_challenge
 
 
 class TestCliAuthCommands:
@@ -495,3 +500,199 @@ class TestListEnvs:
             auth_command.list_envs(args)
 
             mock_get_password.assert_called_once_with("airflowctl", "api_token_prod.json.region")
+
+
+class TestLoginWithBrowser:
+    """``auth login --web``: the browser is simulated by calling back into the loopback listener."""
+
+    parser = cli_parser.get_parser()
+    api_url = "http://localhost:8080"
+    token_response = {"access_token": "WEB_TOKEN", "expires_in_seconds": 3600}
+
+    @pytest.fixture(autouse=True)
+    def isolate(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.delenv("AIRFLOW_CLI_ENVIRONMENT", raising=False)
+        monkeypatch.delenv("AIRFLOW_CLI_TOKEN", raising=False)
+        monkeypatch.delenv("SSH_CONNECTION", raising=False)
+        monkeypatch.delenv("SSH_TTY", raising=False)
+        # Never wait the real five minutes, and never open a real browser.
+        monkeypatch.setattr(auth_command, "BROWSER_LOGIN_TIMEOUT_SECONDS", 2)
+        with patch.object(
+            auth_command.webbrowser, "open", autospec=True, return_value=True
+        ) as self.open_browser:
+            yield
+
+    def make_client(self, has_feature: bool = True, exchange=None, token: str = "") -> Client:
+        """Answer the feature probe and the code exchange like an API server with or without the feature."""
+        opened = self.opened
+        self.requests = []
+
+        def default_exchange(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            assert body["code"] == "one-time-code"
+            assert compute_code_challenge(body["code_verifier"]) == opened["code_challenge"]
+            assert body["port"] == int(opened["port"])
+            return httpx.Response(200, json=self.token_response)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            self.requests.append(request)
+            if request.url.path == "/api/v2/auth/cli/token":
+                if not has_feature:
+                    # An older server has only its catch-all route for the path, which refuses a POST.
+                    return httpx.Response(405, json={"detail": "Method Not Allowed"})
+                if json.loads(request.content) == {}:
+                    return httpx.Response(
+                        422, json={"detail": [{"type": "missing", "loc": ["body", "code"]}]}
+                    )
+                return (exchange or default_exchange)(request)
+            return httpx.Response(404, json={"detail": "Not Found"})
+
+        return Client(
+            base_url="test://server",
+            transport=httpx.MockTransport(handle_request),
+            token=token,
+            kind=ClientKind.AUTH,
+        )
+
+    opened: dict[str, str] = {}
+    requests: list[httpx.Request] = []
+
+    def browser(self, approve: bool = True, state: str | None = None):
+        """Record what airflowctl opened and answer like a user who approved or denied in the UI."""
+        self.opened = {}
+
+        def open_browser(url: str) -> bool:
+            self.opened.update({key: values[0] for key, values in parse_qs(urlsplit(url).query).items()})
+            self.opened["url"] = url
+            callback_state = state if state is not None else self.opened["state"]
+            params = (
+                {"code": "one-time-code", "state": callback_state}
+                if approve
+                else {"error": "access_denied", "state": callback_state}
+            )
+            threading.Thread(
+                target=lambda: httpx.get(f"http://127.0.0.1:{self.opened['port']}/callback", params=params),
+                daemon=True,
+            ).start()
+            return True
+
+        self.open_browser.side_effect = open_browser
+
+    def login(self, *extra_args: str, api_client: Client) -> None:
+        auth_command.login(
+            self.parser.parse_args(["auth", "login", "--api-url", self.api_url, "--web", *extra_args]),
+            api_client=api_client,
+        )
+
+    @patch("airflowctl.api.client.keyring")
+    def test_saves_the_token_the_browser_flow_produced(self, mock_keyring, tmp_path):
+        self.browser(approve=True)
+
+        self.login(api_client=self.make_client())
+
+        assert self.opened["url"].startswith(f"{self.api_url}/cli/authorize?")
+        assert self.opened["code_challenge_method"] == "S256"
+        assert 1024 <= int(self.opened["port"]) <= 65535
+        mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_production", "WEB_TOKEN")
+        with open(tmp_path / "production.json") as f:
+            assert json.load(f) == {"api_url": self.api_url}
+
+    @patch("airflowctl.api.client.keyring")
+    def test_sends_no_saved_token_to_the_server(self, mock_keyring):
+        """A token saved for the environment may belong to another server; the login must not forward it."""
+        self.browser(approve=True)
+
+        self.login(api_client=self.make_client(token="TOKEN-SAVED-FOR-ANOTHER-SERVER"))
+
+        assert [request.url.path for request in self.requests] == [
+            "/api/v2/auth/cli/token",
+            "/api/v2/auth/cli/token",
+        ]
+        assert all("Authorization" not in request.headers for request in self.requests)
+
+    @patch("airflowctl.api.client.keyring")
+    def test_exits_when_the_login_is_denied_in_the_browser(self, mock_keyring):
+        self.browser(approve=False)
+
+        with pytest.raises(SystemExit, match="1"):
+            self.login(api_client=self.make_client())
+
+        mock_keyring.set_password.assert_not_called()
+
+    @patch("airflowctl.api.client.keyring")
+    def test_ignores_a_callback_for_another_login_and_times_out(self, mock_keyring):
+        self.browser(approve=True, state="someone-elses-state")
+
+        with pytest.raises(SystemExit, match="1"):
+            self.login(api_client=self.make_client())
+
+        mock_keyring.set_password.assert_not_called()
+
+    @patch("airflowctl.api.client.keyring")
+    def test_reports_a_failed_exchange(self, mock_keyring):
+        self.browser(approve=True)
+
+        with pytest.raises(SystemExit, match="1"):
+            self.login(
+                api_client=self.make_client(
+                    exchange=lambda request: httpx.Response(400, json={"detail": "The code has expired"})
+                )
+            )
+
+        mock_keyring.set_password.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [
+            pytest.param(["--api-token", "TOKEN"], id="api-token"),
+            pytest.param(["--username", "jdoe"], id="username"),
+            pytest.param(["--password", "secret"], id="password"),
+            pytest.param(["--skip-keyring"], id="skip-keyring"),
+        ],
+    )
+    def test_rejects_options_that_do_not_combine_with_web(self, extra_args):
+        with pytest.raises(SystemExit, match="1"):
+            self.login(*extra_args, api_client=self.make_client())
+
+        self.open_browser.assert_not_called()
+
+    def test_stops_on_a_server_without_the_feature(self):
+        with pytest.raises(SystemExit, match="1"):
+            self.login(api_client=self.make_client(has_feature=False))
+
+        self.open_browser.assert_not_called()
+
+    def test_stops_when_the_server_cannot_be_reached(self):
+        with (
+            patch.object(
+                LoginOperations,
+                "supports_browser_login",
+                side_effect=httpx.ConnectError("connection refused"),
+            ),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            self.login(api_client=self.make_client())
+
+        self.open_browser.assert_not_called()
+
+    def test_stops_in_an_ssh_session(self, monkeypatch):
+        monkeypatch.setenv("SSH_CONNECTION", "10.0.0.1 50000 10.0.0.2 22")
+
+        with pytest.raises(SystemExit, match="1"):
+            self.login(api_client=self.make_client())
+
+        self.open_browser.assert_not_called()
+
+    def test_stops_when_no_browser_can_be_opened(self):
+        self.open_browser.return_value = False
+
+        with pytest.raises(SystemExit, match="1"):
+            self.login(api_client=self.make_client())
+
+    def test_stops_when_cancelled_from_the_terminal(self):
+        with (
+            patch.object(LoopbackCallbackServer, "wait_for_callback", side_effect=KeyboardInterrupt),
+            pytest.raises(SystemExit, match="1"),
+        ):
+            self.login(api_client=self.make_client())

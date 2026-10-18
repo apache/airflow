@@ -281,6 +281,13 @@ ARG_AUTH_PASSWORD = Arg(
     dest="password",
     help="The password to use for authentication",
 )
+ARG_AUTH_WEB = Arg(
+    flags=("--web",),
+    dest="web",
+    default=False,
+    action="store_true",
+    help="Log in through the Airflow UI in your browser, e.g. when the deployment uses SSO (Airflow 3.5+)",
+)
 
 # Dag Commands Args
 ARG_DAG_ID = Arg(
@@ -1082,6 +1089,7 @@ AUTH_COMMANDS = (
             ARG_AUTH_ENVIRONMENT,
             ARG_AUTH_USERNAME,
             ARG_AUTH_PASSWORD,
+            ARG_AUTH_WEB,
             ARG_AUTH_SKIP_KEYRING,
         ),
     ),

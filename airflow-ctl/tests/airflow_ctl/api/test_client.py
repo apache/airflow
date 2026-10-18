@@ -185,6 +185,28 @@ class TestClient:
         client.refresh_base_url(base_url=base_url, kind=client_kind)
         assert client.base_url == URL(expected_base_url)
 
+    def test_refresh_base_url_to_no_auth_drops_the_saved_token(self):
+        seen: list[httpx.Request] = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return httpx.Response(200, json={})
+
+        client = Client(
+            base_url="http://old-server",
+            token="SAVED",
+            kind=ClientKind.AUTH,
+            transport=httpx.MockTransport(handle_request),
+            mounts={},
+        )
+        client.get("token")
+        client.refresh_base_url(base_url="http://new-server", kind=ClientKind.NO_AUTH)
+        client.get("version")
+
+        assert seen[0].headers["Authorization"] == "Bearer SAVED"
+        assert "Authorization" not in seen[1].headers
+        assert seen[1].url == URL("http://new-server/api/v2/version")
+
 
 class TestCredentials:
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})

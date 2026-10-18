@@ -17,15 +17,26 @@
 from __future__ import annotations
 
 import time
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlencode
 
 import jwt
 import pytest
+import time_machine
 from fastapi.testclient import TestClient
 
+from airflow.api_fastapi.auth.cli_authorization_code import (
+    CLI_AUTHORIZATION_CODE_LIFETIME_SECONDS,
+    build_loopback_redirect_uri,
+    issue_cli_authorization_code,
+)
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.configuration import conf
+from airflow.models.crypto import _NullFernet
 from airflow.models.revoked_token import RevokedToken
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_revoked_tokens
@@ -400,3 +411,181 @@ class TestLogoutTokenRevocation:
         assert response.status_code == 307
         cookies = response.headers.get_list("set-cookie")
         assert any(c.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") and "Max-Age=0" in c for c in cookies)
+
+
+class TestCreateCliToken:
+    """The exchange runs unauthenticated and records single use in the real database."""
+
+    # Test vector from RFC 7636, appendix B.
+    code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+    code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+    port = 53682
+
+    @pytest.fixture(autouse=True)
+    def cleanup_revoked_tokens(self):
+        clear_db_revoked_tokens()
+        yield
+        clear_db_revoked_tokens()
+
+    # Every clock in these tests is pinned to this instant; the unauthenticated client holds no token that
+    # could fall outside its validity window.
+    approved_at = datetime(2026, 10, 18, 12, 0, tzinfo=UTC)
+
+    def mint_token(self, client) -> str:
+        return client.app.state.auth_manager.generate_api_jwt(
+            SimpleAuthManagerUser(username="test", role="admin"),
+            expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time"),
+        )
+
+    def issue_code(self, client, cli_token: str | None = None, token_expires_at: int | None = None) -> str:
+        return issue_cli_authorization_code(
+            cli_token=cli_token or self.mint_token(client),
+            token_expires_at=token_expires_at
+            or int(time.time()) + conf.getint("api_auth", "jwt_cli_expiration_time"),
+            user_name="test",
+            code_challenge=self.code_challenge,
+            redirect_uri=build_loopback_redirect_uri(self.port),
+        )
+
+    def exchange(self, client, code: str, **overrides):
+        body = {"code": code, "code_verifier": self.code_verifier, "port": self.port, **overrides}
+        return client.post("/auth/cli/token", json=body)
+
+    def test_exchanges_a_code_for_the_cli_token_it_carries(self, unauthenticated_test_client):
+        with time_machine.travel(self.approved_at, tick=False):
+            token = self.mint_token(unauthenticated_test_client)
+            code = self.issue_code(unauthenticated_test_client, cli_token=token)
+            response = self.exchange(unauthenticated_test_client, code)
+            auth_manager = unauthenticated_test_client.app.state.auth_manager
+            claims = auth_manager._get_token_validator().validated_claims(response.json()["access_token"])
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["access_token"] == token
+        assert data["expires_in_seconds"] == conf.getint("api_auth", "jwt_cli_expiration_time")
+        assert claims["sub"] == "test"
+        assert claims["role"] == "admin"
+
+    def test_reports_how_long_the_token_is_still_good_for(self, unauthenticated_test_client):
+        with time_machine.travel(self.approved_at, tick=False):
+            code = self.issue_code(
+                unauthenticated_test_client, token_expires_at=int(self.approved_at.timestamp()) + 100
+            )
+
+        with time_machine.travel(self.approved_at + timedelta(seconds=40), tick=False):
+            response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 200
+        assert response.json()["expires_in_seconds"] == 60
+
+    def test_rejects_a_code_whose_token_has_already_expired(self, unauthenticated_test_client):
+        """A CLI lifetime shorter than the code's plus a late exchange must not report success."""
+        with time_machine.travel(self.approved_at, tick=False):
+            code = self.issue_code(
+                unauthenticated_test_client, token_expires_at=int(self.approved_at.timestamp())
+            )
+            response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The approved token has already expired"}
+
+    def test_code_approved_through_the_ui_endpoint_is_exchangeable(
+        self, test_client, unauthenticated_test_client
+    ):
+        approval = test_client.post(
+            "http://testserver/ui/auth/cli/authorize",
+            json={"code_challenge": self.code_challenge, "code_challenge_method": "S256", "port": self.port},
+        )
+        assert approval.status_code == 200
+
+        response = self.exchange(unauthenticated_test_client, approval.json()["code"])
+
+        assert response.status_code == 200
+        auth_manager = unauthenticated_test_client.app.state.auth_manager
+        claims = auth_manager._get_token_validator().validated_claims(response.json()["access_token"])
+        assert claims["sub"] == "test"
+
+    def test_code_works_only_once(self, unauthenticated_test_client):
+        code = self.issue_code(unauthenticated_test_client)
+        assert self.exchange(unauthenticated_test_client, code).status_code == 200
+
+        response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The authorization code has already been used"}
+        assert RevokedToken.is_revoked(jwt.decode(code, options={"verify_signature": False})["jti"])
+
+    def test_consumption_record_outlives_the_leeway(self, unauthenticated_test_client):
+        """The code stays valid for jwt_leeway past exp, so cleanup must not drop the record before then."""
+        code = self.issue_code(unauthenticated_test_client)
+        assert self.exchange(unauthenticated_test_client, code).status_code == 200
+
+        claims = jwt.decode(code, options={"verify_signature": False})
+        with create_session() as session:
+            recorded_until = session.get(RevokedToken, claims["jti"]).exp
+        assert recorded_until == datetime.fromtimestamp(claims["exp"], tz=UTC) + timedelta(
+            seconds=conf.getint("api_auth", "jwt_leeway")
+        )
+
+    def test_rejects_a_verifier_that_does_not_match(self, unauthenticated_test_client):
+        response = self.exchange(
+            unauthenticated_test_client,
+            self.issue_code(unauthenticated_test_client),
+            code_verifier="not-the-verifier-not-the-verifier-not-the-verifier",
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The code verifier does not match the authorization code"}
+
+    def test_rejects_a_port_the_code_was_not_issued_for(self, unauthenticated_test_client):
+        response = self.exchange(
+            unauthenticated_test_client, self.issue_code(unauthenticated_test_client), port=self.port + 1
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The authorization code was not issued for this port"}
+
+    def test_rejects_an_expired_code(self, unauthenticated_test_client):
+        code = self.issue_code(unauthenticated_test_client)
+
+        with time_machine.travel(timedelta(seconds=CLI_AUTHORIZATION_CODE_LIFETIME_SECONDS + 30), tick=False):
+            response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The authorization code has expired"}
+
+    def test_rejects_an_api_token_presented_as_a_code(self, unauthenticated_test_client):
+        auth_manager = unauthenticated_test_client.app.state.auth_manager
+        api_token = auth_manager._get_token_signer().generate({"sub": "test", "role": "admin"})
+
+        response = self.exchange(unauthenticated_test_client, api_token)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The authorization code is not valid"}
+
+    def test_rejects_a_code_when_the_fernet_key_is_gone(self, unauthenticated_test_client):
+        code = self.issue_code(unauthenticated_test_client)
+
+        with patch(
+            "airflow.api_fastapi.auth.cli_authorization_code.get_fernet",
+            autospec=True,
+            return_value=_NullFernet(),
+        ):
+            response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 400
+        assert "[core] fernet_key" in response.json()["detail"]
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param({"code_verifier": "too-short"}, id="malformed-verifier"),
+            pytest.param({"port": 80}, id="privileged-port"),
+        ],
+    )
+    def test_rejects_requests_airflowctl_cannot_have_made(self, unauthenticated_test_client, overrides):
+        response = self.exchange(
+            unauthenticated_test_client, self.issue_code(unauthenticated_test_client), **overrides
+        )
+
+        assert response.status_code == 422

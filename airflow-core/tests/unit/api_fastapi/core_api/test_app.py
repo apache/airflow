@@ -30,7 +30,7 @@ from starlette.routing import Mount
 from starlette.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.core_api.app import init_config, init_ui_translation_views
+from airflow.api_fastapi.core_api.app import init_config, init_ui_translation_views, init_views
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
 from airflow.api_fastapi.core_api.routes.ui import ui_router
 from airflow.api_fastapi.core_api.security import get_user
@@ -320,3 +320,27 @@ class TestUiTranslationViews:
         response = self._client([TranslationPlugin()], tmp_path).get("/static/i18n/languages.json")
 
         assert response.headers["cache-control"] == "no-cache"
+
+
+class TestCliAuthorizePage:
+    def test_approval_page_denies_framing_while_the_rest_of_the_ui_keeps_allowing_it(
+        self, tmp_path, monkeypatch
+    ):
+        dist = tmp_path / "airflow" / "ui" / "dist"
+        dist.mkdir(parents=True)
+        (dist / "index.html").write_text("<html></html>")
+        monkeypatch.setattr("airflow.api_fastapi.core_api.app._AIRFLOW_PATH", tmp_path)
+        app = FastAPI()
+        with mock_plugin_manager(plugins=[]):
+            init_views(app)
+        client = TestClient(app)
+
+        approval_page = client.get("/cli/authorize")
+        other_page = client.get("/dags")
+
+        assert approval_page.status_code == 200
+        assert approval_page.headers["x-frame-options"] == "DENY"
+        assert approval_page.headers["content-security-policy"] == "frame-ancestors 'none'"
+        assert other_page.status_code == 200
+        assert "x-frame-options" not in other_page.headers
+        assert "content-security-policy" not in other_page.headers

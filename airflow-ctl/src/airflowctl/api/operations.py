@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar, get_args
 
 import httpx
@@ -43,6 +44,8 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyVariableBody,
     BulkResponse,
     ClearTaskInstancesBody,
+    CliTokenBody,
+    CliTokenResponse,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -255,6 +258,31 @@ class LoginOperations:
         return LoginResponse.model_validate_json(
             self.client.post("/token/cli", json=login.model_dump(mode="json")).content
         )
+
+    def login_with_authorization_code(self, body: CliTokenBody) -> CliTokenResponse | ServerResponseError:
+        """
+        Exchange a code approved in the Airflow UI (``airflowctl auth login --web``) for a CLI token.
+
+        Unlike the auth manager's ``/token/cli``, this endpoint belongs to the public API, so the
+        client must be pointed at it with ``ClientKind.NO_AUTH`` first.
+        """
+        return CliTokenResponse.model_validate_json(
+            self.client.post("auth/cli/token", json=body.model_dump(mode="json")).content
+        )
+
+    def supports_browser_login(self) -> bool:
+        """
+        Return whether the API server has the token endpoint of ``airflowctl auth login --web``.
+
+        Checked by behaviour rather than by version so that development builds and backports work: the
+        endpoint answers an empty body with 422, while a server without it (before Airflow 3.5) has only
+        its catch-all route for the path, which answers a POST with 405.
+        """
+        try:
+            self.client.post("auth/cli/token", json={}, extensions={"airflowctl_suppress_error_log": True})
+        except httpx.HTTPStatusError as e:
+            return e.response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+        return False
 
 
 # Operations

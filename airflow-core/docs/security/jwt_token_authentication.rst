@@ -142,6 +142,31 @@ with ``SameSite=Lax``.
 The CLI uses a separate endpoint (``/auth/token/cli``) with a different (shorter) expiration
 time.
 
+``airflowctl auth login --web`` obtains the same CLI token through the browser, for users whose auth
+manager has no password to send (for example SSO). It follows the OAuth 2.0 authorization code grant
+with PKCE and a loopback redirect, with Airflow acting as its own authorization server:
+
+1. airflowctl listens on an ephemeral ``127.0.0.1`` port and opens ``/cli/authorize`` in the UI with
+   the port, a ``state`` value and an S256 code challenge. The page requires a session, so the UI's
+   usual redirect takes the user through the auth manager's login first.
+2. On **Approve**, the UI calls ``POST /ui/auth/cli/authorize`` (session authenticated, audit
+   logged), which mints the CLI token with ``auth_manager.generate_api_jwt()`` and
+   ``[api_auth] jwt_cli_expiration_time`` and returns a one-time code: a JWT signed with the same key
+   as other tokens, valid for 60 seconds, carrying the CLI token encrypted with ``[core] fernet_key``,
+   the challenge and the loopback redirect URI, and a dedicated ``aud`` claim
+   (``urn:airflow.apache.org:cli-authorization-code``) so it is never accepted as an API token. The
+   browser is redirected to ``http://127.0.0.1:<port>/callback`` with the code. The token is
+   encrypted because the code passes through the browser, where it can end up in the history; without
+   a Fernet key the approval is refused rather than sending the token in clear.
+3. airflowctl calls ``POST /api/v2/auth/cli/token`` (unauthenticated) with the code, the PKCE
+   verifier and the port. The server verifies the signature, audience, expiry, redirect URI and
+   verifier, records the code's ``jti`` in the ``revoked_token`` table so it works only once, and
+   returns the decrypted CLI token.
+
+The approval page is served with ``X-Frame-Options: DENY`` and ``Content-Security-Policy:
+frame-ancestors 'none'``. The flow grants nothing beyond the **Generate Token** dialog in the UI
+and cannot be disabled separately from it.
+
 Token structure (REST API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 

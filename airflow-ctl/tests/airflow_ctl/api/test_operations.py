@@ -51,6 +51,8 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionVariableBody,
     BulkResponse,
     ClearTaskInstancesBody,
+    CliTokenBody,
+    CliTokenResponse,
     Config,
     ConfigOption,
     ConfigSection,
@@ -2185,6 +2187,54 @@ class TestAuthOperations:
             )
         )
         assert response.access_token == "NO_TOKEN"
+
+    def test_login_with_authorization_code(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/auth/cli/token"
+            assert json.loads(request.content) == {
+                "code": "one-time-code",
+                "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                "port": 53682,
+            }
+            return httpx.Response(200, json={"access_token": "WEB_TOKEN", "expires_in_seconds": 3600})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.NO_AUTH)
+        response = client.login.login_with_authorization_code(
+            CliTokenBody(
+                code="one-time-code",
+                code_verifier="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                port=53682,
+            )
+        )
+        assert response == CliTokenResponse(access_token="WEB_TOKEN", expires_in_seconds=3600)
+
+    @pytest.mark.parametrize(
+        ("status_code", "body", "expected"),
+        [
+            pytest.param(
+                422,
+                {"json": {"detail": [{"type": "missing", "loc": ["body", "code"]}]}},
+                True,
+                id="endpoint-rejects-the-empty-body",
+            ),
+            pytest.param(
+                405, {"json": {"detail": "Method Not Allowed"}}, False, id="catch-all-of-an-older-server"
+            ),
+            pytest.param(404, {"json": {"error": "API route not found"}}, False, id="not-found"),
+            pytest.param(404, {"text": "<html>not found</html>"}, False, id="non-json-error"),
+            pytest.param(200, {"text": "<html>sign in</html>"}, False, id="proxy-login-page"),
+        ],
+    )
+    def test_supports_browser_login(self, status_code, body, expected):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/api/v2/auth/cli/token"
+            assert json.loads(request.content) == {}
+            assert request.extensions.get("airflowctl_suppress_error_log") is True
+            return httpx.Response(status_code, **body)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.NO_AUTH)
+        assert client.login.supports_browser_login() is expected
 
 
 class TestXComOperations:

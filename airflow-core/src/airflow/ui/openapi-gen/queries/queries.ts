@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGBody_, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGBody_, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, CliAuthorizeBody, CliTokenBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -2842,6 +2842,21 @@ export const useVariableServicePostVariable = <TData = Common.VariableServicePos
   requestBody: VariableBody;
 }, TContext>({ mutationFn: ({ requestBody }) => VariableService.postVariable({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Create Cli Token
+* Exchange a code approved in the UI (``airflowctl auth login --web``) for the CLI token it carries.
+*
+* Unauthenticated, like an OAuth token endpoint: the code and the PKCE verifier are the credential.
+* @param data The data for the request.
+* @param data.requestBody
+* @returns CliTokenResponse Successful Response
+* @throws ApiError
+*/
+export const useLoginServiceCreateCliToken = <TData = Common.LoginServiceCreateCliTokenMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: CliTokenBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: CliTokenBody;
+}, TContext>({ mutationFn: ({ requestBody }) => LoginService.createCliToken({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Generate Token
 * Generate a JWT token for the authenticated user.
 * @param data The data for the request.
@@ -2854,6 +2869,23 @@ export const useAuthLinksServiceGenerateToken = <TData = Common.AuthLinksService
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: GenerateTokenBody;
 }, TContext>({ mutationFn: ({ requestBody }) => AuthLinksService.generateToken({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
+* Authorize Cli
+* Approve an ``airflowctl auth login --web`` request for the authenticated user.
+*
+* The CLI token is minted here, as **Generate Token** does, and travels to airflowctl encrypted inside
+* the code: the browser hands the code to airflowctl's loopback listener, which redeems it at
+* ``POST /api/v2/auth/cli/token``.
+* @param data The data for the request.
+* @param data.requestBody
+* @returns CliAuthorizeResponse Successful Response
+* @throws ApiError
+*/
+export const useAuthLinksServiceAuthorizeCli = <TData = Common.AuthLinksServiceAuthorizeCliMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: CliAuthorizeBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: CliAuthorizeBody;
+}, TContext>({ mutationFn: ({ requestBody }) => AuthLinksService.authorizeCli({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Pause Backfill
 * @param data The data for the request.
