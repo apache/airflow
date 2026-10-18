@@ -119,7 +119,10 @@ class XComObjectStorageBackend(BaseXCom):
             value,
             lambda suffix: base.joinpath(
                 coordinate.build_path(
-                    "", key, suffix=suffix, max_length=_MAX_PATH_LENGTH - len(str(base).encode()) - 1
+                    "",
+                    key,
+                    suffix=f".json{suffix}",
+                    max_length=_MAX_PATH_LENGTH - len(str(base).encode()) - 1,
                 )
             ),
         )

@@ -397,7 +397,7 @@ class TestXComObjectStorageBackend:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
     @conf_vars({("common.io", "xcom_objectstorage_compression"): ""})
-    @pytest.mark.parametrize("key", ["a/key", "k" * 300, "."])
+    @pytest.mark.parametrize("key", ["a/key", "k" * 300, ".", "report.gz", "data.zip"])
     @pytest.mark.parametrize("ti_id", [uuid.uuid4(), None], ids=["own-push", "another-tasks-xcom"])
     def test_store_value_writes_a_path_for_the_task_instance_or_for_the_write(self, ti_id, key):
         value = {"key": "bigvaluebigvaluebigvalue" * 100}
@@ -429,7 +429,7 @@ class TestXComObjectStorageBackend:
 
         stored = XComObjectStorageBackend.store_value(coordinate, "key", value)
 
-        assert stored.endswith("/key.gz")
+        assert stored.endswith("/key.json.gz")
         assert XComObjectStorageBackend.load_value(stored) == value
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
@@ -443,7 +443,7 @@ class TestXComObjectStorageBackend:
         stored = XComObjectStorageBackend.store_value(coordinate, "key", value)
 
         assert len(stored.removeprefix(f"{base}/").encode()) <= 200
-        assert stored.endswith(f"/ti-{coordinate.ti_id}/key")
+        assert stored.endswith(f"/ti-{coordinate.ti_id}/key.json")
         assert XComObjectStorageBackend.load_value(stored) == value
 
     @conf_vars({("common.io", "xcom_objectstorage_compression"): "gzip"})

@@ -111,10 +111,17 @@ The XCom system has interchangeable backends, and you can set which backend is b
 A backend that keeps values outside the metadata database overrides ``store_value``, which receives an
 :class:`~airflow.sdk.bases.xcom.XComCoordinate`, stores the value and returns what the XCom row holds, and
 ``load_value``, which turns that row value back into the value. ``XComCoordinate.build_path`` builds a storage
-location that is unique per task instance, or per write when the writer cannot know the task instance. Override
-``purge`` to remove the stored data when an XCom is deleted. A backend that only overrides ``serialize_value`` and
-``deserialize_value`` keeps working, but cannot be used with Dags that use task loops: every iteration of a task
-in a loop is a separate task instance, and only ``store_value`` can tell them apart.
+location that is unique per task instance, or per write when the writer cannot know the task instance.
+The key is chosen by the Dag author and can look like a file extension, so pass a ``suffix`` that names the
+stored format if your backend reads the format back from the object name.
+
+Override ``purge`` to remove the stored data when the Task SDK deletes an XCom, either through ``XCom.delete`` or
+when a task instance clears its XComs as it starts again. ``purge`` is not called when a row is removed through
+the REST API, the UI or ``airflow db clean``, so those leave the stored data behind.
+
+A backend that only overrides ``serialize_value`` and ``deserialize_value`` keeps working, but cannot be used
+with Dags that use task loops: every iteration of a task in a loop is a separate task instance, and only
+``store_value`` can tell them apart.
 
 Verifying Custom XCom Backend usage in Containers
 -------------------------------------------------

@@ -53,6 +53,8 @@ class XComCoordinate:
     """
     The task instance an XCom is written for.
 
+    This is the type passed to :meth:`BaseXCom.store_value`, used when implementing a custom XCom backend.
+
     ``dag_id``, ``run_id`` and ``task_id`` do not identify a task instance: every iteration of a task inside a
     loop has the same three, and so does every map index of a mapped task. ``ti_id`` does. It is set when the
     write is made by the task instance itself, or by its trigger while it is deferred, and ``None`` when one
@@ -82,7 +84,9 @@ class XComCoordinate:
 
         ``dag_id``, ``run_id`` and ``task_id`` are shortened, longest first, only when the path would exceed
         ``max_length`` bytes. The key is quoted, or replaced by its SHA-256 digest when it is too long to
-        quote, and ``suffix`` follows it directly.
+        quote, and ``suffix`` follows it directly. The key is chosen by the Dag author and can look like a
+        file extension, so pass a ``suffix`` that names the stored format if the backend reads the format
+        back from the object name.
 
         :raises ValueError: if the path cannot be made to fit in ``max_length`` bytes
         """

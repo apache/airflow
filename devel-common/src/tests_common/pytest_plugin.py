@@ -3038,7 +3038,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> Generator[
     )
 
     def _recorded_pushes() -> list[tuple[str, Any, dict[str, Any]]]:
-        """List the pushed ``(key, value, coordinates and options)`` of every spied push method in call order."""
+        """List the pushed ``(key, value, coordinates and options)`` of every spied push method."""
         pushes = []
         for name in push_methods:
             for call in getattr(XCom, name).calls:
@@ -3057,7 +3057,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> Generator[
         return pushes
 
     def _get_one_from_set_calls(*args, **kwargs) -> Any | None:
-        """Get the most recent pushed value that matches the criteria."""
+        """Get the last pushed value that matches the criteria, per push method."""
         key = kwargs.get("key")
         task_id = kwargs.get("task_id")
         dag_id = kwargs.get("dag_id")
