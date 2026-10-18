@@ -166,16 +166,13 @@ def _load_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfi
     return _create_bundle_config_snapshot(_read_bundle_config_list())
 
 
-def _get_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfigSnapshot:
-    if metadata_only:
-        return _load_bundle_config_snapshot(metadata_only=True)
-    return _load_bundle_config_snapshot()
-
-
 def _refresh_bundle_config_snapshot(
     *, force: bool = False, metadata_only: bool = False
 ) -> _BundleConfigSnapshot:
-    snapshot = _get_bundle_config_snapshot(metadata_only=metadata_only)
+    if metadata_only:
+        snapshot = _load_bundle_config_snapshot(metadata_only=True)
+    else:
+        snapshot = _load_bundle_config_snapshot()
     if not is_bundle_config_reload_enabled():
         return snapshot
     now = time.monotonic()
@@ -428,7 +425,7 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_config:
             return
 
-        bundle_config_list = _get_bundle_config_snapshot().configs
+        bundle_config_list = _load_bundle_config_snapshot().configs
         if not bundle_config_list:
             return
 
@@ -798,13 +795,8 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
-    def _refresh_config(self, *, bundle_name: str | None = None) -> None:
-        if not is_bundle_config_reload_enabled():
-            return
-        snapshot = _get_bundle_config_snapshot()
-        if bundle_name is None or bundle_name not in snapshot.names:
-            snapshot = _refresh_bundle_config_snapshot(force=bundle_name is not None)
-        if self._bundle_config.keys() != snapshot.names:
+    def _update_bundle_config(self) -> None:
+        if self._bundle_config.keys() != _load_bundle_config_snapshot().names:
             self._bundle_config = {}
             self.parse_config()
 
@@ -820,7 +812,10 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
-        self._refresh_config(bundle_name=name)
+        if is_bundle_config_reload_enabled():
+            if name not in _load_bundle_config_snapshot().names:
+                _refresh_bundle_config_snapshot(force=True)
+            self._update_bundle_config()
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
@@ -844,7 +839,9 @@ class DagBundlesManager(LoggingMixin):
 
         :return: list of DAG bundles.
         """
-        self._refresh_config()
+        if is_bundle_config_reload_enabled():
+            _refresh_bundle_config_snapshot()
+            self._update_bundle_config()
         for name, cfg in self._bundle_config.items():
             try:
                 yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)

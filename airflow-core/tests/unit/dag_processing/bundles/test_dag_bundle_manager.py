@@ -32,7 +32,6 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
-    _get_bundle_config_snapshot,
     _guess_best_bundle_for_fileloc,
     _load_bundle_config_snapshot,
     _refresh_bundle_config_snapshot,
@@ -2155,13 +2154,13 @@ def test_periodic_sync_batches_bundle_team_queries(clear_db, session, bundle_cou
 
 
 @mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
-def test_snapshot_getter_and_manager_construction_do_not_refresh(mock_command, dynamic_bundle_config):
+def test_cached_snapshot_and_manager_construction_do_not_refresh(mock_command, dynamic_bundle_config):
     mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
-    snapshot = _get_bundle_config_snapshot()
+    snapshot = _load_bundle_config_snapshot()
     mock_command.return_value = json.dumps(SECOND_BUNDLE_CONFIG)
     _expire_bundle_config_snapshot()
 
-    assert _get_bundle_config_snapshot() is snapshot
+    assert _load_bundle_config_snapshot() is snapshot
     assert set(DagBundlesManager().get_all_bundle_names()) == {"my-test-bundle"}
     mock_command.assert_called_once()
 
@@ -2192,7 +2191,7 @@ def test_metadata_refresh_does_not_require_bundle_classes(
         mock_import.assert_not_called()
 
         _refresh_bundle_config_snapshot()
-        assert _get_bundle_config_snapshot().names == {"my-test-bundle"}
+        assert _load_bundle_config_snapshot().names == {"my-test-bundle"}
 
 
 @mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
@@ -2268,7 +2267,10 @@ def test_bundle_enumeration_refreshes_existing_manager(dynamic_bundle_config):
 def test_explicit_refresh_respects_interval(mock_command, mock_clock, dynamic_bundle_config, metadata_only):
     mock_clock.return_value = 100.0
     mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
-    _get_bundle_config_snapshot(metadata_only=metadata_only)
+    if metadata_only:
+        _load_bundle_config_snapshot(metadata_only=True)
+    else:
+        _load_bundle_config_snapshot()
     mock_command.return_value = json.dumps(SECOND_BUNDLE_CONFIG)
     mock_clock.return_value = 104.0
     assert _refresh_bundle_config_snapshot(metadata_only=metadata_only).names == {"my-test-bundle"}
