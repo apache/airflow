@@ -89,7 +89,9 @@ describe("WebhookDeliveries", () => {
         return HttpResponse.json({
           deliveries: [
             deliveryRow({
+              actions: { asset_events: { "demo/pull_request/labeled": 7 } },
               attributes: { action: "labeled", event: "pull_request" },
+              candidates: ["demo/pull_request", "demo/pull_request/labeled"],
               correlation_key: "pr-7",
               delivery_id: "gh-2",
               id: "0199f8a0-0000-7000-8000-000000000002",
@@ -98,6 +100,7 @@ describe("WebhookDeliveries", () => {
             }),
             deliveryRow({ delivery_id: "gh-1" }),
             deliveryRow({
+              actions: { asset_events: { "demo/push": 8 }, other_action: 1 },
               delivery_id: "gh-0",
               id: "0199f8a0-0000-7000-8000-000000000000",
               outcome: "dropped",
@@ -118,10 +121,15 @@ describe("WebhookDeliveries", () => {
     expect(within(accepted).getByText("pr-7")).toBeInTheDocument();
     expect(within(accepted).getByText("github")).toBeInTheDocument();
     expect(within(accepted).getByText("labeled")).toBeInTheDocument();
+    expect(within(accepted).getByText("demo/pull_request/labeled")).toBeInTheDocument();
+    expect(within(accepted).getByText("demo/pull_request/labeled:")).toBeInTheDocument();
+    expect(within(accepted).queryByText("asset_events:")).not.toBeInTheDocument();
     expect(within(ignored).getByText("webhookDeliveries.outcomes.no_subscribers")).toBeInTheDocument();
     expect(within(ignored).getByText("hmac_json")).toBeInTheDocument();
     expect(within(ignored).queryByTestId("json-preview-badges")).not.toBeInTheDocument();
     expect(within(unknownOutcome).getByText("dropped")).toBeInTheDocument();
+    expect(within(unknownOutcome).getByText("asset_events:")).toBeInTheDocument();
+    expect(within(unknownOutcome).getByText("other_action:")).toBeInTheDocument();
     expect(requestedWebhooks).toEqual(new Set(["demo"]));
   });
 

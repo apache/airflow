@@ -37,6 +37,15 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { webhookDeliveryOutcomeOptions } from "src/constants/stateOptions";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
+// A delivery that only recorded topic events shows their names and ids, not a lone `asset_events: {…}`.
+const getActionsPreview = (actions: NonNullable<WebhookDeliveryResponse["actions"]>): object => {
+  const { asset_events: assetEvents, ...otherActions } = actions;
+
+  return Object.keys(otherActions).length === 0 && typeof assetEvents === "object" && assetEvents !== null
+    ? assetEvents
+    : actions;
+};
+
 const createColumns = (
   translate: TFunction,
 ): Array<ColumnDef<DataTableFeatures, WebhookDeliveryResponse>> => [
@@ -77,6 +86,24 @@ const createColumns = (
       ),
     enableSorting: false,
     header: translate("webhookDeliveries.columns.attributes"),
+  },
+  {
+    accessorKey: "candidates",
+    cell: ({ row: { original } }) =>
+      original.candidates === null ? undefined : (
+        <RenderedJsonField collapsed content={original.candidates} />
+      ),
+    enableSorting: false,
+    header: translate("webhookDeliveries.columns.candidates"),
+  },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) =>
+      original.actions === null ? undefined : (
+        <RenderedJsonField collapsed content={getActionsPreview(original.actions)} />
+      ),
+    enableSorting: false,
+    header: translate("webhookDeliveries.columns.actions"),
   },
 ];
 

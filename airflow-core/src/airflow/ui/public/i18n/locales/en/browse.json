@@ -60,7 +60,9 @@
   },
   "webhookDeliveries": {
     "columns": {
+      "actions": "Actions",
       "attributes": "Attributes",
+      "candidates": "Topic Names",
       "correlationKey": "Correlation Key",
       "deliveryId": "Delivery ID",
       "outcome": "Outcome",
