@@ -16,11 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import time
+from datetime import UTC, datetime
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
+import time_machine
 
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
@@ -182,15 +183,19 @@ class TestAuthorizeCli:
     def test_returns_a_code_carrying_a_cli_token_for_the_user(self, test_client):
         from airflow.configuration import conf
 
-        response = test_client.post("/auth/cli/authorize", json=self.body)
+        # Frozen at the present so the test client's own session token stays valid.
+        approved_at = datetime.now(tz=UTC)
+        with time_machine.travel(approved_at, tick=False):
+            response = test_client.post("/auth/cli/authorize", json=self.body)
 
-        assert response.status_code == 200
-        claims = self.redeem(response.json()["code"])
+            assert response.status_code == 200
+            claims = self.redeem(response.json()["code"])
+            auth_manager = test_client.app.state.auth_manager
+            token_claims = auth_manager._get_token_validator().validated_claims(claims["token"])
+
         assert claims["name"] == "test"
         cli_expiration = conf.getint("api_auth", "jwt_cli_expiration_time")
-        assert 0 <= claims["token_expires_at"] - (int(time.time()) + cli_expiration) <= 5
-        auth_manager = test_client.app.state.auth_manager
-        token_claims = auth_manager._get_token_validator().validated_claims(claims["token"])
+        assert claims["token_expires_at"] == int(approved_at.timestamp()) + cli_expiration
         assert token_claims["sub"] == "test"
         assert token_claims["role"] == "admin"
         assert token_claims["exp"] - token_claims["iat"] == cli_expiration

@@ -451,29 +451,42 @@ class TestCreateCliToken:
     def test_exchanges_a_code_for_the_cli_token_it_carries(self, unauthenticated_test_client):
         from airflow.configuration import conf
 
-        token = self.mint_token(unauthenticated_test_client)
-        code = self.issue_code(unauthenticated_test_client, cli_token=token)
-
-        response = self.exchange(unauthenticated_test_client, code)
+        with time_machine.travel(datetime.now(tz=UTC), tick=False):
+            token = self.mint_token(unauthenticated_test_client)
+            code = self.issue_code(unauthenticated_test_client, cli_token=token)
+            response = self.exchange(unauthenticated_test_client, code)
 
         assert response.status_code == 200
         data = response.json()
         assert data["access_token"] == token
         cli_expiration = conf.getint("api_auth", "jwt_cli_expiration_time")
-        assert cli_expiration - 5 <= data["expires_in_seconds"] <= cli_expiration
+        assert data["expires_in_seconds"] == cli_expiration
         auth_manager = unauthenticated_test_client.app.state.auth_manager
         claims = auth_manager._get_token_validator().validated_claims(data["access_token"])
         assert claims["sub"] == "test"
         assert claims["role"] == "admin"
 
     def test_reports_how_long_the_token_is_still_good_for(self, unauthenticated_test_client):
-        code = self.issue_code(unauthenticated_test_client, token_expires_at=int(time.time()) + 100)
+        approved_at = datetime.now(tz=UTC)
+        with time_machine.travel(approved_at, tick=False):
+            code = self.issue_code(
+                unauthenticated_test_client, token_expires_at=int(approved_at.timestamp()) + 100
+            )
 
-        with time_machine.travel(timedelta(seconds=40), tick=False):
+        with time_machine.travel(approved_at + timedelta(seconds=40), tick=False):
             response = self.exchange(unauthenticated_test_client, code)
 
         assert response.status_code == 200
         assert response.json()["expires_in_seconds"] == 60
+
+    def test_rejects_a_code_whose_token_has_already_expired(self, unauthenticated_test_client):
+        """A CLI lifetime shorter than the code's plus a late exchange must not report success."""
+        code = self.issue_code(unauthenticated_test_client, token_expires_at=int(time.time()) - 1)
+
+        response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The approved token has already expired"}
 
     def test_code_approved_through_the_ui_endpoint_is_exchangeable(
         self, test_client, unauthenticated_test_client

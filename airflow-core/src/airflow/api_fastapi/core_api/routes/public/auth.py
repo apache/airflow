@@ -137,6 +137,12 @@ def create_cli_token(
     except (InvalidCliAuthorizationCodeError, CliAuthorizationCodeUnavailableError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+    expires_in_seconds = claims["token_expires_at"] - int(time.time())
+    if expires_in_seconds <= 0:
+        # Possible when [api_auth] jwt_cli_expiration_time is shorter than the code's lifetime and the
+        # exchange came late; a success here would hand airflowctl a token the API already refuses.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="The approved token has already expired")
+
     # The code's jti goes into the table logout uses, so a replay fails on the primary key even when two
     # API server replicas receive it at the same time. The row must outlive the code: validation accepts
     # the code for jwt_leeway past exp, while the table's cleanup drops rows whose exp has passed.
@@ -155,7 +161,6 @@ def create_cli_token(
             status.HTTP_400_BAD_REQUEST, detail="The authorization code has already been used"
         )
 
-    expires_in_seconds = max(claims["token_expires_at"] - int(time.time()), 1)
     log.info(
         "Handed out the CLI token approved in the browser",
         user=claims.get("name"),
