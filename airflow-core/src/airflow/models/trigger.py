@@ -25,8 +25,10 @@ from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
+from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
@@ -242,13 +244,21 @@ class Trigger(Base):
         # Update all task instances with trigger IDs that are not DEFERRED to remove them
         for attempt in run_with_db_retries():
             with attempt:
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
+                try:
+                    session.execute(
+                        update(TaskInstance)
+                        .where(
+                            TaskInstance.state != TaskInstanceState.DEFERRED,
+                            TaskInstance.trigger_id.is_not(None),
+                        )
+                        .values(trigger_id=None)
                     )
-                    .values(trigger_id=None)
-                )
+                except (DBAPIError, StaleDataError):
+                    # A connection lost mid-statement leaves the transaction invalid, and the next
+                    # attempt would reuse it and raise PendingRollbackError, which this retry does
+                    # not cover and the triggerer does not survive.
+                    session.rollback()
+                    raise
 
         # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
         ids = select(cls.id).where(
