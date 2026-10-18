@@ -419,7 +419,7 @@ class ObjectStoragePath(ProxyUPath):
                 if src_obj.is_dir():
                     continue
 
-                src_obj._cp_file(dst)
+                src_obj._cp_file(dst / src_obj.key)
             return
 
         # remote file -> remote dir
@@ -463,7 +463,7 @@ class ObjectStoragePath(ProxyUPath):
 
         # non-local copy
         self.copy(path, recursive=recursive, **kwargs)
-        self.unlink()
+        self.fs.rm(self.path, recursive=recursive)
 
     def move_into(self, target_dir: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:  # type: ignore[override]
         """
