@@ -129,9 +129,10 @@ PACKAGES_THAT_WE_SHOULD_ADD_TO_API_DOCS = {
     "sensors",
     "timetables",
     "triggers",
-    # models and utils have separate excludes
+    # models, utils and webhooks have separate excludes
     "models",
     "utils",
+    "webhooks",
 }
 
 UTIL_MODULES_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
@@ -141,6 +142,10 @@ UTIL_MODULES_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
 MODELS_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
     "baseoperator.py",
     "param.py",
+}
+
+WEBHOOKS_MODULES_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
+    "base.py",
 }
 
 
@@ -170,6 +175,9 @@ def add_airflow_core_exclude_patterns_to_sphinx(exclude_patterns: list[str]):
     # for models we only
     for path in (root / "models").iterdir():
         if path.name not in MODELS_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS:
+            exclude_patterns.append(get_rst_filepath_from_path(path, root.parent))
+    for path in (root / "webhooks").iterdir():
+        if path.name not in WEBHOOKS_MODULES_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS:
             exclude_patterns.append(get_rst_filepath_from_path(path, root.parent))
 
 
