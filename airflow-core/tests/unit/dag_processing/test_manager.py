@@ -394,7 +394,7 @@ class TestDagFileProcessorManager:
 
         processor._reconcile_bundles(known_files=known_files)
 
-        bundles.refresh_config.assert_called_once_with()
+        bundles.get_all_bundle_names.assert_called_once_with()
         assert processor._dag_bundles == [added, retained]
         assert known_files == {"retained": set()}
         assert "removed" not in processor._bundle_versions
@@ -453,6 +453,34 @@ class TestDagFileProcessorManager:
             mock.call(deactivate_missing=True, bundle_instances={"added": added}),
             mock.call(deactivate_missing=True, bundle_instances={"added": added}),
         ]
+
+    @mock.patch(
+        "airflow.dag_processing.manager.is_bundle_config_reload_enabled", autospec=True, return_value=True
+    )
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
+    def test_reconcile_keeps_bundles_when_configuration_lookup_fails(
+        self, mock_removed, mock_manager, mock_reload_enabled, tmp_path
+    ):
+        retained = _make_bundle(tmp_path)
+        retained.name = "retained"
+        bundles = mock_manager.return_value
+        bundles.get_all_bundle_names.side_effect = RuntimeError("configuration unavailable")
+        processor = DagFileProcessorManager(max_runs=1)
+        processor._dag_bundles = [retained]
+        processor._bundle_versions["retained"] = "v1"
+        processor._force_refresh_bundles.add("retained")
+        known_files = {"retained": set()}
+
+        processor._reconcile_bundles(known_files=known_files)
+
+        assert processor._dag_bundles == [retained]
+        assert processor._bundle_versions == {"retained": "v1"}
+        assert processor._force_refresh_bundles == {"retained"}
+        assert known_files == {"retained": set()}
+        bundles.get_bundle.assert_not_called()
+        bundles.sync_bundles_to_db.assert_not_called()
+        mock_removed.assert_not_called()
 
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
     @pytest.mark.parametrize("remove_all", [False, True])

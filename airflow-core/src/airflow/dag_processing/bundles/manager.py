@@ -276,7 +276,7 @@ def get_configured_bundle_team_names() -> dict[str, str | None]:
 
     :return: mapping of bundle name to team name, ``None`` for bundles that are not team scoped.
     """
-    if _get_bundle_config_reload_option() is not None:
+    if is_bundle_config_reload_enabled():
         return dict(_refresh_bundle_config_snapshot(metadata_only=True).team_names)
     return {cfg.name: cfg.team_name for cfg in _read_bundle_config_list()}
 
@@ -795,14 +795,11 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
-    def refresh_config(self) -> None:
-        """
-        Refresh bundle configuration and update this manager.
-
-        :meta private:
-        """
-        _refresh_bundle_config_snapshot()
-        self._update_bundle_config()
+    def _refresh_config(self) -> None:
+        """Refresh bundle configuration and update this manager."""
+        if is_bundle_config_reload_enabled():
+            _refresh_bundle_config_snapshot()
+            self._update_bundle_config()
 
     def _update_bundle_config(self) -> None:
         if self._bundle_config.keys() != _load_bundle_config_snapshot().names:
@@ -848,8 +845,7 @@ class DagBundlesManager(LoggingMixin):
 
         :return: list of DAG bundles.
         """
-        if is_bundle_config_reload_enabled():
-            self.refresh_config()
+        self._refresh_config()
         for name, cfg in self._bundle_config.items():
             try:
                 yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
@@ -860,10 +856,11 @@ class DagBundlesManager(LoggingMixin):
 
     def get_all_bundle_names(self) -> Iterable[str]:
         """
-        Get all bundle names.
+        Get all bundle names, refreshing dynamic configuration when due.
 
         :return: sorted list of bundle names.
         """
+        self._refresh_config()
         return sorted(self._bundle_config.keys())
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
