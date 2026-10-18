@@ -776,12 +776,12 @@ class GCSToBigQueryOperator(BaseOperator):
             self.configuration["load"].update(self.extra_config)
 
         # Checked against the assembled load config rather than the operator attributes, because
-        # src_fmt_configs and extra_config can still override any of these three keys.
+        # src_fmt_configs and extra_config can still override any of these keys.
         # Self-describing formats (Avro, Parquet, ORC, Datastore backups) carry their own schema and
         # ignoreUnknownValues still drops file fields missing from the table, so only CSV and JSON apply.
         load_config = self.configuration["load"]
         if (
-            self.source_format in ("CSV", "NEWLINE_DELIMITED_JSON")
+            load_config.get("sourceFormat") in ("CSV", "NEWLINE_DELIMITED_JSON")
             and load_config.get("autodetect")
             and load_config.get("ignoreUnknownValues")
             and "schema" not in load_config

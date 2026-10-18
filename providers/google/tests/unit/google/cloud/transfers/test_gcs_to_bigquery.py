@@ -2193,6 +2193,11 @@ class TestGCSToBigQueryOperator:
             ),
             pytest.param({"ignore_unknown_values": True, "source_format": "AVRO"}, False, id="avro_source"),
             pytest.param({"ignore_unknown_values": True, "source_format": "ORC"}, False, id="orc_source"),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"sourceFormat": "PARQUET"}},
+                False,
+                id="source_format_set_by_extra_config",
+            ),
         ],
     )
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
