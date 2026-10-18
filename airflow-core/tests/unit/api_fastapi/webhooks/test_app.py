@@ -42,18 +42,29 @@ from sqlalchemy.exc import (
 )
 
 from airflow import settings
+from airflow._shared.webhook_naming import MAX_PATH_SEGMENTS
 from airflow.api_fastapi.webhooks.app import create_webhooks_app
+from airflow.assets.manager import AssetManager
+from airflow.models.asset import AssetEvent
 from airflow.models.base import Base
 from airflow.models.connection import Connection
 from airflow.models.inbound_delivery import InboundDelivery
+from airflow.models.log import Log
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk import Asset
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.webhooks import pipeline
 from airflow.webhooks.base import WebhookDelivery, WebhookRequest
+from airflow.webhooks.naming import build_topic_name
 from airflow.webhooks.pipeline import DeliveryPipeline
 from airflow.webhooks.registry import WebhookRegistry
 
-from tests_common.test_utils.db import clear_db_connections, clear_db_inbound_deliveries
+from tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_connections,
+    clear_db_inbound_deliveries,
+    clear_db_logs,
+)
 from tests_common.test_utils.webhooks import (
     EVENT_HEADER,
     FAKE_BODY as BODY,
@@ -91,8 +102,12 @@ REGISTRY = WebhookRegistry(
     max_body_bytes=MAX_BODY_BYTES,
     delivery_retention=timedelta(days=7),
     rate_limit_per_minute=0,
+    store_payload="full",
+    max_event_payload_bytes=65536,
 )
 UNAVAILABLE = (503, "30", {"detail": "Temporarily unavailable"})
+#: The topic that push deliveries of BODY to webhook fake offer.
+TOPIC = Asset(name=build_topic_name("fake", "my-org/web", "push"))
 
 
 class UnsignedHandshakeSource(FakeHmacSource):
@@ -172,6 +187,19 @@ def get_deliveries(session: Session) -> list[InboundDelivery]:
     return list(session.scalars(select(InboundDelivery).order_by(InboundDelivery.received_at)))
 
 
+def get_audit_logs(session: Session) -> list[Log]:
+    return list(session.scalars(select(Log).where(Log.event == "webhook_delivery")))
+
+
+def subscribe(dag_maker, session: Session, **dag_state: bool) -> None:
+    """Have Dag subscriber schedule on TOPIC, in ``dag_state``, such as ``is_paused=True``."""
+    with dag_maker("subscriber", schedule=TOPIC, session=session):
+        pass
+    for column, value in dag_state.items():
+        setattr(dag_maker.dag_model, column, value)
+    session.commit()
+
+
 @contextmanager
 def count_checkouts() -> Iterator[list[object]]:
     """Collect each connection the requests check out of the pool, which every database access needs."""
@@ -189,11 +217,16 @@ def count_checkouts() -> Iterator[list[object]]:
 
 @contextmanager
 def record_tables() -> Iterator[set[str]]:
-    """Collect the tables that the statements the requests execute name."""
+    """Collect the tables that the statements the requests execute read or write."""
     tables: set[str] = set()
 
     def on_execute(connection, cursor, statement, parameters, context, executemany) -> None:
-        tables.update(table for table in Base.metadata.tables if re.search(rf"\b{table}\b", statement))
+        tables.update(
+            table
+            for table in Base.metadata.tables
+            # Not just the name, which a column can have too, such as dag.deadline.
+            if re.search(rf"\b(?:FROM|JOIN|INTO|UPDATE)\s+\(?{table}\b", statement)
+        )
 
     event.listen(settings.get_engine(), "before_cursor_execute", on_execute)
     try:
@@ -235,8 +268,12 @@ class TestReceiveDelivery:
     @pytest.fixture(autouse=True)
     def clean_db(self):
         clear_db_inbound_deliveries()
+        clear_db_assets()
+        clear_db_logs()
         yield
         clear_db_inbound_deliveries()
+        clear_db_assets()
+        clear_db_logs()
 
     @pytest.fixture
     def client(self) -> TestClient:
@@ -277,7 +314,7 @@ class TestReceiveDelivery:
             "retain_until": datetime(2026, 10, 25, 12, tzinfo=UTC),
             "source_type": "fake",
             "attributes": {"event": "push"},
-            "candidates": None,
+            "candidates": ["fake/my-org/web/push", "fake/my-org/*/push", "fake/*/push"],
             # A delivery that recorded nothing keeps no payload.
             "payload": None,
             "correlation_key": None,
@@ -326,6 +363,278 @@ class TestReceiveDelivery:
             {"delivery_id": "delivery-1", "outcome": "duplicate"},
         )
         assert count_deliveries(session) == 1
+
+    def test_delivery_to_a_subscribed_topic_records_an_event_and_an_audit_entry(
+        self, client, session, dag_maker
+    ):
+        subscribe(dag_maker, session)
+
+        response = post(client)
+
+        assert (response.status_code, response.json()) == (
+            202,
+            {"delivery_id": "delivery-1", "outcome": "accepted"},
+        )
+        (delivery,) = get_deliveries(session)
+        (asset_event,) = session.scalars(select(AssetEvent))
+        assert (delivery.outcome, delivery.payload, delivery.actions) == (
+            "accepted",
+            {"path": "my-org/web"},
+            {"asset_events": {TOPIC.name: asset_event.id}},
+        )
+        assert asset_event.extra["inbound_delivery_id"] == str(delivery.id)
+        (audit_log,) = get_audit_logs(session)
+        assert (
+            audit_log.owner,
+            audit_log.owner_display_name,
+            audit_log.dag_id,
+            audit_log.team_name,
+            json.loads(audit_log.extra),
+        ) == (
+            "webhook:fake",
+            "Webhook fake",
+            None,
+            None,
+            {"delivery_id": "delivery-1", "names": [TOPIC.name], "outcome": "accepted"},
+        )
+
+    @pytest.mark.parametrize(
+        ("connection_store_payload", "default_store_payload", "expected_payload"),
+        [
+            pytest.param("full", "none", {"path": "my-org/web", "sender": "octocat"}, id="full"),
+            pytest.param("summary", "none", {"sender": "octocat"}, id="summary"),
+            pytest.param("none", "full", None, id="none"),
+            pytest.param(None, "summary", {"sender": "octocat"}, id="option"),
+        ],
+    )
+    @mock.patch.object(
+        FakeHmacSource,
+        "summarize",
+        autospec=True,
+        side_effect=lambda source, payload: {"sender": payload["sender"]},
+    )
+    def test_store_payload_applies_to_the_delivery_and_its_events(
+        self,
+        mock_summarize,
+        session,
+        dag_maker,
+        connection_store_payload,
+        default_store_payload,
+        expected_payload,
+    ):
+        client = TestClient(create_webhooks_app(replace(REGISTRY, store_payload=default_store_payload)))
+        subscribe(dag_maker, session)
+        extra = {} if connection_store_payload is None else {"store_payload": connection_store_payload}
+
+        with mock.patch.dict(os.environ, build_conn_env("fake", **extra)):
+            post(client, body=b'{"path": "my-org/web", "sender": "octocat"}')
+
+        (delivery,) = get_deliveries(session)
+        (asset_event,) = session.scalars(select(AssetEvent))
+        assert (delivery.payload, asset_event.extra["payload"]) == (expected_payload, expected_payload)
+
+    def test_payload_over_max_event_payload_bytes_is_left_out_of_the_events_only(self, session, dag_maker):
+        client = TestClient(create_webhooks_app(replace(REGISTRY, max_event_payload_bytes=1)))
+        subscribe(dag_maker, session)
+
+        post(client)
+
+        (delivery,) = get_deliveries(session)
+        (asset_event,) = session.scalars(select(AssetEvent))
+        assert delivery.payload == {"path": "my-org/web"}
+        assert (asset_event.extra["payload"], asset_event.extra["payload_truncated"]) == (None, True)
+
+    def test_delivery_only_paused_dags_subscribe_to_acts_once_redelivered_after_unpausing(
+        self, client, session, dag_maker
+    ):
+        subscribe(dag_maker, session, is_paused=True)
+        responses = [post(client)]
+        dag_maker.dag_model.is_paused = False
+        session.commit()
+        responses.append(post(client))
+        with record_tables() as tables:
+            responses.append(post(client))
+
+        assert [(response.status_code, response.json()["outcome"]) for response in responses] == [
+            (202, "dag_paused"),
+            (202, "accepted"),
+            (200, "duplicate"),
+        ]
+        (delivery,) = get_deliveries(session)
+        (asset_event,) = session.scalars(select(AssetEvent))
+        assert (delivery.outcome, delivery.actions) == (
+            "accepted",
+            {"asset_events": {TOPIC.name: asset_event.id}},
+        )
+        assert asset_event.extra["inbound_delivery_id"] == str(delivery.id)
+        assert len(get_audit_logs(session)) == 1
+        # A retry of a delivery that acted is only looked up.
+        assert tables == {"inbound_delivery"}
+
+    def test_dag_paused_delivery_keeps_no_payload(self, client, session, dag_maker):
+        subscribe(dag_maker, session, is_paused=True)
+
+        post(client)
+
+        (delivery,) = get_deliveries(session)
+        assert (delivery.outcome, delivery.payload, delivery.actions) == ("dag_paused", None, None)
+        assert session.scalars(select(AssetEvent)).all() == []
+        assert get_audit_logs(session) == []
+
+    def test_redelivery_that_still_records_nothing_records_its_new_outcome(self, client, session, dag_maker):
+        responses = [post(client)]
+        subscribe(dag_maker, session, is_paused=True)
+        responses.append(post(client))
+
+        assert [(response.status_code, response.json()["outcome"]) for response in responses] == [
+            (202, "no_subscribers"),
+            (202, "dag_paused"),
+        ]
+        (delivery,) = get_deliveries(session)
+        assert (delivery.outcome, delivery.payload, delivery.actions) == ("dag_paused", None, None)
+
+    @pytest.mark.parametrize(
+        "paused_meanwhile",
+        [
+            pytest.param(False, id="acting"),
+            # This copy records nothing, but would still have recorded its own outcome over the other's.
+            pytest.param(True, id="recording-nothing"),
+        ],
+    )
+    def test_redelivery_that_another_copy_acted_on_meanwhile_is_answered_as_a_duplicate(
+        self, client, session, dag_maker, paused_meanwhile
+    ):
+        assert post(client).json()["outcome"] == "no_subscribers"
+        subscribe(dag_maker, session)
+        # The delivery as both copies of its redelivery find it, before either has acted.
+        found_before_acting = pipeline.find_delivery(
+            "fake", "delivery-1", hashlib.sha256(BODY).hexdigest(), session=session
+        )
+        assert post(client).json()["outcome"] == "accepted"
+        dag_maker.dag_model.is_paused = paused_meanwhile
+        session.commit()
+
+        find_delivery = pipeline.find_delivery
+
+        def find_as_before_acting(*args, **kwargs):
+            return (
+                found_before_acting if mock_find_delivery.call_count == 1 else find_delivery(*args, **kwargs)
+            )
+
+        with mock.patch.object(
+            pipeline, "find_delivery", autospec=True, side_effect=find_as_before_acting
+        ) as mock_find_delivery:
+            response = post(client)
+
+        assert (response.status_code, response.json()) == (
+            200,
+            {"delivery_id": "delivery-1", "outcome": "duplicate"},
+        )
+        assert [delivery.outcome for delivery in get_deliveries(session)] == ["accepted"]
+        assert len(session.scalars(select(AssetEvent)).all()) == 1
+        assert len(get_audit_logs(session)) == 1
+
+    @pytest.mark.parametrize(
+        "record_removed",
+        [
+            # As when the copy that recorded nothing had not committed yet when this copy looked.
+            pytest.param(False, id="first-copy-recorded-nothing"),
+            # As when airflow db clean removed the record after this copy found it.
+            pytest.param(True, id="record-removed"),
+        ],
+    )
+    def test_copy_that_found_a_dag_to_act_for_though_no_copy_acted_is_processed_again(
+        self, client, session, dag_maker, record_removed
+    ):
+        assert post(client).json()["outcome"] == "no_subscribers"
+        subscribe(dag_maker, session)
+        find_delivery = pipeline.find_delivery
+        stale_lookup = None
+        if record_removed:
+            stale_lookup = find_delivery(
+                "fake", "delivery-1", hashlib.sha256(BODY).hexdigest(), session=session
+            )
+            clear_db_inbound_deliveries()
+
+        def find_as_before(*args, **kwargs):
+            return stale_lookup if mock_find_delivery.call_count == 1 else find_delivery(*args, **kwargs)
+
+        with mock.patch.object(
+            pipeline, "find_delivery", autospec=True, side_effect=find_as_before
+        ) as mock_find_delivery:
+            response = post(client)
+
+        assert (response.status_code, response.json()) == (
+            202,
+            {"delivery_id": "delivery-1", "outcome": "accepted"},
+        )
+        (delivery,) = get_deliveries(session)
+        (asset_event,) = session.scalars(select(AssetEvent))
+        assert (delivery.outcome, delivery.actions) == (
+            "accepted",
+            {"asset_events": {TOPIC.name: asset_event.id}},
+        )
+        assert asset_event.extra["inbound_delivery_id"] == str(delivery.id)
+        assert len(get_audit_logs(session)) == 1
+
+    def test_copy_that_loses_twice_to_copies_that_recorded_nothing_is_answered_unavailable(
+        self, client, session, dag_maker
+    ):
+        assert post(client).json()["outcome"] == "no_subscribers"
+        subscribe(dag_maker, session)
+        find_delivery = pipeline.find_delivery
+
+        def miss_the_lookups_before_acting(*args, **kwargs):
+            # The lookups after rolling back find the record.
+            return None if mock_find_delivery.call_count % 2 else find_delivery(*args, **kwargs)
+
+        with mock.patch.object(
+            pipeline, "find_delivery", autospec=True, side_effect=miss_the_lookups_before_acting
+        ) as mock_find_delivery:
+            response = post(client)
+
+        assert (response.status_code, response.headers.get("Retry-After"), response.json()) == UNAVAILABLE
+        assert [delivery.outcome for delivery in get_deliveries(session)] == ["no_subscribers"]
+        assert session.scalars(select(AssetEvent)).all() == []
+        assert get_audit_logs(session) == []
+
+    def test_delivery_with_a_deep_path_is_offered_only_under_paths_a_topic_can_have(
+        self, client, session, dag_maker
+    ):
+        deepest_wildcard_path = f"{'a/' * (MAX_PATH_SEGMENTS - 1)}*"
+        with dag_maker(
+            "subscriber",
+            schedule=Asset(name=build_topic_name("fake", deepest_wildcard_path, "push")),
+            session=session,
+        ):
+            pass
+
+        response = post(client, body=json.dumps({"path": "/".join(["a"] * (MAX_PATH_SEGMENTS + 8))}).encode())
+
+        assert response.json()["outcome"] == "accepted"
+        (delivery,) = get_deliveries(session)
+        assert delivery.candidates == [
+            f"fake/{'a/' * depth}*/push" for depth in range(MAX_PATH_SEGMENTS - 1, -1, -1)
+        ]
+
+    @mock.patch.object(AssetManager, "nofity_asset_event_emitted", autospec=True)
+    def test_listeners_hear_of_topic_events_once_they_are_committed(
+        self, mock_notify_event_emitted, client, session, dag_maker
+    ):
+        subscribe(dag_maker, session)
+        calls_at_commit = []
+
+        def count_calls_at_commit(session: Session) -> None:
+            calls_at_commit.append(mock_notify_event_emitted.call_count)
+
+        event.listen(settings.NonScopedSession, "before_commit", count_calls_at_commit)
+        try:
+            assert post(client).status_code == 202
+        finally:
+            event.remove(settings.NonScopedSession, "before_commit", count_calls_at_commit)
+
+        assert calls_at_commit == [0]
+        mock_notify_event_emitted.assert_called_once()
 
     @mock.patch.object(pipeline, "find_delivery", autospec=True, return_value=None)
     def test_integrity_error_that_no_recorded_delivery_explains_is_a_bug(self, mock_find_delivery, session):
@@ -643,11 +952,34 @@ class TestReceiveDelivery:
         ] == ["fake", "copy", None, "fake"]
 
     @pytest.mark.usefixtures("stored_connection")
-    def test_delivery_reads_only_its_connection_and_the_delivery_table(self, client):
+    def test_delivery_reads_and_writes_only_what_recording_its_topic_events_needs(
+        self, client, session, dag_maker
+    ):
+        with dag_maker(
+            "subscriber",
+            schedule=Asset(name=build_topic_name("stored", "my-org/web", "push")),
+            session=session,
+        ):
+            pass
+
         with record_tables() as tables:
             assert post(client, name="stored").status_code == 202
 
-        assert tables == {"connection", "inbound_delivery"}
+        assert tables == {
+            "connection",
+            "inbound_delivery",
+            "asset",
+            "asset_active",
+            "asset_alias",
+            "asset_alias_asset",
+            "dag",
+            "dag_schedule_asset_reference",
+            "dag_schedule_asset_name_reference",
+            "dag_schedule_asset_uri_reference",
+            "asset_event",
+            "asset_dag_run_queue",
+            "log",
+        }
 
     @pytest.mark.usefixtures("stored_connection")
     def test_unsigned_and_unlisted_requests_do_not_reach_the_database(self, client, caplog):
@@ -747,14 +1079,27 @@ class TestReceiveDelivery:
             "fake",
         ]
 
+    @pytest.mark.parametrize(
+        ("dag_state", "expected_outcome"),
+        [
+            pytest.param(None, "no_subscribers", id="no-subscribers"),
+            pytest.param({"is_paused": True}, "dag_paused", id="dag-paused"),
+            pytest.param({}, "accepted", id="accepted"),
+        ],
+    )
     @mock.patch("airflow.webhooks.pipeline.stats", autospec=True)
-    def test_recorded_delivery_is_counted_by_outcome_and_timed(self, mock_stats, client):
+    def test_recorded_delivery_is_counted_by_outcome_and_timed(
+        self, mock_stats, client, session, dag_maker, dag_state, expected_outcome
+    ):
+        if dag_state is not None:
+            subscribe(dag_maker, session, **dag_state)
+
         assert post(client).status_code == 202
 
         mock_stats.timer.assert_called_once_with("webhooks.delivery_duration", tags={"webhook": "fake"})
         mock_stats.timer.return_value.stop.assert_called_once_with()
         mock_stats.incr.assert_called_once_with(
-            "webhooks.deliveries", tags={"webhook": "fake", "outcome": "no_subscribers"}
+            "webhooks.deliveries", tags={"webhook": "fake", "outcome": expected_outcome}
         )
 
     @mock.patch.object(

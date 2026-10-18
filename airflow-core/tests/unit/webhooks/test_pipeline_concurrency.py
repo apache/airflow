@@ -36,12 +36,17 @@ from sqlalchemy.orm import sessionmaker
 
 from airflow import settings
 from airflow.api_fastapi.webhooks.app import create_webhooks_app
+from airflow.assets.manager import AssetManager
+from airflow.models.asset import AssetDagRunQueue, AssetEvent
 from airflow.models.inbound_delivery import InboundDelivery
+from airflow.models.log import Log
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk import Asset
 from airflow.webhooks import pipeline
+from airflow.webhooks.naming import build_topic_name
 from airflow.webhooks.registry import WebhookRegistry
 
-from tests_common.test_utils.db import clear_db_inbound_deliveries
+from tests_common.test_utils.db import clear_db_assets, clear_db_inbound_deliveries, clear_db_logs
 from tests_common.test_utils.webhooks import (
     DELIVERY_ID_HEADER,
     EVENT_HEADER,
@@ -65,10 +70,14 @@ REGISTRY = WebhookRegistry(
     max_body_bytes=1024,
     delivery_retention=timedelta(days=7),
     rate_limit_per_minute=0,
+    store_payload="full",
+    max_event_payload_bytes=65536,
 )
 CONNECTION = {
     "AIRFLOW_CONN_WEBHOOK_FAKE": json.dumps({"conn_type": "inbound_webhook", "password": SECRET}),
 }
+#: The topic that push deliveries of BODY offer.
+TOPIC = Asset(name=build_topic_name("fake", "my-org/web", "push"))
 
 
 @pytest.fixture(autouse=True)
@@ -82,8 +91,18 @@ def source_class():
 @pytest.fixture(autouse=True)
 def clean_db():
     clear_db_inbound_deliveries()
+    clear_db_assets()
+    clear_db_logs()
     yield
     clear_db_inbound_deliveries()
+    clear_db_assets()
+    clear_db_logs()
+
+
+@pytest.fixture
+def subscriber(dag_maker):
+    with dag_maker("subscriber", schedule=TOPIC):
+        pass
 
 
 @pytest.fixture
@@ -128,6 +147,14 @@ def count_deliveries(session: Session) -> int:
     return session.execute(select(func.count()).select_from(InboundDelivery)).scalar_one()
 
 
+def count_actions(session: Session) -> tuple[int, ...]:
+    """Count the topic events, the audit log entries and the queued Dag runs that deliveries made."""
+    return tuple(
+        session.execute(select(func.count()).select_from(table)).scalar_one()
+        for table in (AssetEvent, Log, AssetDagRunQueue)
+    )
+
+
 @pytest.mark.backend("postgres", "mysql")
 @pytest.mark.parametrize("copies", [2, 3])
 @mock.patch.dict(os.environ, CONNECTION)
@@ -136,6 +163,31 @@ def test_concurrent_copies_of_a_delivery_are_recorded_once(client, session, copi
 
     assert sorted(statuses) == [HTTPStatus.OK] * (copies - 1) + [HTTPStatus.ACCEPTED]
     assert count_deliveries(session) == 1
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.usefixtures("subscriber")
+@mock.patch.dict(os.environ, CONNECTION)
+def test_concurrent_copies_of_a_subscribed_delivery_act_once(client, session):
+    statuses = post_copies(client, 2)
+
+    assert sorted(statuses) == [HTTPStatus.OK, HTTPStatus.ACCEPTED]
+    assert count_deliveries(session) == 1
+    assert count_actions(session) == (1, 1, 1)
+
+
+@pytest.mark.backend("postgres", "mysql")
+@mock.patch.dict(os.environ, CONNECTION)
+def test_concurrent_redeliveries_after_a_dag_subscribes_act_once(client, session, dag_maker):
+    assert post(client).json()["outcome"] == "no_subscribers"
+    with dag_maker("subscriber", schedule=TOPIC):
+        pass
+
+    statuses = post_copies(client, 2)
+
+    assert sorted(statuses) == [HTTPStatus.OK, HTTPStatus.ACCEPTED]
+    assert count_deliveries(session) == 1
+    assert count_actions(session) == (1, 1, 1)
 
 
 @pytest.mark.backend("sqlite")
@@ -150,8 +202,25 @@ def test_concurrent_copies_of_a_delivery_are_not_answered_as_errors_on_sqlite(cl
     assert recorded <= 1
 
 
+@pytest.mark.backend("sqlite")
+@pytest.mark.usefixtures("subscriber")
 @mock.patch.dict(os.environ, CONNECTION)
-def test_delivery_whose_commit_fails_is_not_recorded(client, session):
+def test_concurrent_copies_of_a_subscribed_delivery_act_at_most_once_on_sqlite(client, session):
+    statuses = post_copies(client, 2)
+
+    assert set(statuses) <= {HTTPStatus.ACCEPTED, HTTPStatus.OK, HTTPStatus.SERVICE_UNAVAILABLE}
+    recorded = statuses.count(HTTPStatus.ACCEPTED)
+    assert recorded <= 1
+    assert count_deliveries(session) == recorded
+    assert count_actions(session) == (recorded, recorded, recorded)
+
+
+@pytest.mark.usefixtures("subscriber")
+@mock.patch.dict(os.environ, CONNECTION)
+@mock.patch.object(AssetManager, "nofity_asset_event_emitted", autospec=True)
+def test_delivery_whose_commit_fails_records_nothing_and_notifies_no_listener(
+    mock_notify_event_emitted, client, session
+):
     def fail_to_commit_a_delivery(session: Session) -> None:
         if any(isinstance(instance, InboundDelivery) for instance in session.new):
             raise OperationalError("COMMIT", {}, Exception("database is locked"))
@@ -164,6 +233,8 @@ def test_delivery_whose_commit_fails_is_not_recorded(client, session):
 
     assert (response.status_code, response.headers.get("Retry-After")) == (503, "30")
     assert count_deliveries(session) == 0
+    assert count_actions(session) == (0, 0, 0)
+    mock_notify_event_emitted.assert_not_called()
 
 
 @mock.patch.dict(os.environ, CONNECTION)
