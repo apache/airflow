@@ -308,7 +308,6 @@
     "maxChanges": "Maksymalna liczba zmian",
     "maxChangesDefault": "Domyślna",
     "noChanges": "Te wersje mają ten sam stan.",
-    "observedState": "Zaobserwowany stan",
     "observedStateBoundary": "Porównuje aktualnie zapisany stan, a nie dane z chwili utworzenia. Porównanie kodu źródłowego nie jest dostępne dla wersji historycznych; aby porównać kod źródłowy, użyj zakładki Kod.",
     "operations": {
       "added": "Dodano",
@@ -330,7 +329,6 @@
       "title": "Porównanie niedostępne",
       "withoutReason": "Nie udało się porównać tych wersji."
     },
-    "valuesHidden": "Wartości ukryte",
-    "valuesShown": "Wartości widoczne"
+    "valuesHidden": "Wartości ukryte"
   }
 }
