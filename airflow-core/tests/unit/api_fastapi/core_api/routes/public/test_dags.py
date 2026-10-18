@@ -904,6 +904,14 @@ class TestGetDags(TestDagEndpoint):
             f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
         )
 
+    def test_get_dags_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Regression for #74948: the tags of each Dag must not be queried during serialization."""
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
+        assert tags == {DAG1_ID: ["example", "tag_2"], DAG2_ID: []}
+        assert event_loop_queries == []
+
     @pytest.mark.parametrize(
         ("deadline", "expected_alert_count"),
         [
@@ -1215,6 +1223,16 @@ class TestPatchDags(TestDagEndpoint):
         assert {dag["dag_id"] for dag in resp_body["dags"]} == set(expected_ids)
         paused_dag_ids = {dag["dag_id"] for dag in resp_body["dags"] if dag["is_paused"]}
         assert paused_dag_ids == set(expected_paused_ids)
+
+    def test_patch_dags_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Regression for #74948: the tags of each patched Dag must not be queried during serialization."""
+        response = test_client.patch("/dags", json={"is_paused": True}, params={"dag_id_pattern": "~"})
+        assert response.status_code == 200
+        tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
+        assert tags == {DAG1_ID: ["example", "tag_2"], DAG2_ID: []}
+        # The audit log entry is committed by the async action_logging dependency before the route runs,
+        # so it is not part of serializing the response.
+        assert [query for query in event_loop_queries if not query.startswith("INSERT INTO log")] == []
 
     def test_patch_dags_updates_all_beyond_limit(self, test_client, session):
         response = test_client.patch(

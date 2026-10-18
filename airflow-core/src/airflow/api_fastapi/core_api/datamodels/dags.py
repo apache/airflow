@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from functools import cache
 from typing import TYPE_CHECKING, Any
@@ -190,7 +190,9 @@ class BulkDAGBody(DAGPatchBody):
 class DAGCollectionResponse(BaseModel):
     """Dag Collection serializer for responses."""
 
-    dags: Iterable[DAGResponse]
+    # Not Iterable: pydantic validates Iterable items lazily during serialization, which would
+    # run the tag queries of each Dag on the event loop.
+    dags: list[DAGResponse]
     total_entries: int
 
 
