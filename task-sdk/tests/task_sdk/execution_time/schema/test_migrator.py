@@ -652,3 +652,22 @@ class TestRealBundleFirstTaskRescheduleStartDate:
     def test_head_version_keeps_field(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-10-30")
         assert out.ti_context.first_task_reschedule_start_date == self.FIRST_RESCHEDULE
+
+
+class TestRealBundleDagFileParseRequestDowngrade:
+    def test_downgrade_strips_team_name_for_previous_version(self):
+        from pathlib import Path
+
+        from airflow.dag_processing.processor import DagFileParseRequest
+
+        request = DagFileParseRequest(
+            file="/bundle/dags/example.py",
+            bundle_path=Path("/bundle/dags"),
+            bundle_name="test-bundle",
+            team_name="test-team",
+            callback_requests=[],
+        )
+
+        out = get_schema_version_migrator().downgrade(request, "2026-06-16").model_dump()
+
+        assert "team_name" not in out

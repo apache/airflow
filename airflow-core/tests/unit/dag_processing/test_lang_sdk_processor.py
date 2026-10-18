@@ -121,12 +121,15 @@ def _coordinator():
         yield
 
 
-def _start(tmp_path, selector, *, client: Client | None = None, **spec) -> LangSDKDagFileProcessorProcess:
+def _start(
+    tmp_path, selector, *, client: Client | None = None, team_name: str | None = None, **spec
+) -> LangSDKDagFileProcessorProcess:
     return LangSDKDagFileProcessorProcess.start(
         id=uuid.uuid4(),
         path=write_native_file(tmp_path / "dag.native", **spec),
         bundle_path=tmp_path,
         bundle_name="testing",
+        team_name=team_name,
         dag_file_rel_path="dag.native",
         selector=selector,
         logger=structlog.get_logger(),
@@ -179,6 +182,22 @@ class TestLangSDKDagFileProcessorProcess:
         ]
         assert proc._subprocess_schema_version == OLDEST_SCHEMA_VERSION
         assert "Parsing the bundle" in cap_structlog
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize("schema_version", [None, OLDEST_SCHEMA_VERSION])
+    @patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    def test_team_ownership_is_preserved_across_runtime_versions(self, mock_parse_dag, parse, schema_version):
+        mock_parse_dag.side_effect = play_runtime(
+            _reply_with(_serialize_dag("team_dag")), schema_version=schema_version
+        )
+
+        proc = parse(team_name="team_a")
+
+        assert proc._parse_request.team_name == "team_a"
+        assert proc.parsing_result.import_errors is None
+        [stored] = proc.parsing_result.serialized_dags
+        dag = DagSerialization.from_dict(copy.deepcopy(stored.data))
+        assert dag.task_dict["extract"].pool == "default_pool_team_a"
 
     @patch.object(FakeCoordinatorDagImporter, "get_source_code", autospec=True)
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
@@ -660,7 +679,7 @@ def test_only_a_positive_import_timeout_applies(mock_timeout, configured, expect
     mock_timeout.assert_called_once_with("/b/dag.native")
 
 
-def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
+def _make_process(*, team_name: str | None = None, **kwargs) -> LangSDKDagFileProcessorProcess:
     kwargs.setdefault("process", MagicMock(spec=PsutilTracker))
     kwargs.setdefault("logger_filehandle", MagicMock(spec=BinaryIO))
     return LangSDKDagFileProcessorProcess(
@@ -673,7 +692,7 @@ def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
         dag_file_rel_path="dag.native",
         listeners={},
         parse_request=DagFileParseRequest(
-            file="/b/dag.native", bundle_path=Path("/b"), bundle_name="testing"
+            file="/b/dag.native", bundle_path=Path("/b"), bundle_name="testing", team_name=team_name
         ),
         **kwargs,
     )
@@ -845,7 +864,6 @@ def test_a_dag_with_an_unavailable_executor_is_an_import_error(mock_lookup):
 @conf_vars({("core", "multi_team"): "True"})
 @patch("airflow.dag_processing.bundles.manager.DagBundlesManager", autospec=True)
 def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager):
-    mock_bundles_manager.return_value._bundle_config = {"testing": MagicMock(team_name="team_a")}
     with DAG("team_dag", schedule=None) as dag:
         BaseOperator(task_id="extract")
         BaseOperator(task_id="load", pool="custom")
@@ -854,7 +872,7 @@ def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager):
         def fan_out(x): ...
 
         fan_out.expand(x=[1, 2])
-    proc = _make_process()
+    proc = _make_process(team_name="team_a")
 
     proc._handle_request(
         DagFileParsingResult(
@@ -872,3 +890,24 @@ def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager):
         "load": "custom",
         "fan_out": "default_pool_team_a",
     }
+
+    mock_bundles_manager.assert_not_called()
+
+
+@conf_vars({("core", "multi_team"): "True"})
+@patch.object(ExecutorLoader, "lookup_executor_name_by_str", autospec=True)
+def test_executor_validation_uses_the_resolved_team(mock_lookup):
+    with DAG("team_dag", schedule=None) as dag:
+        BaseOperator(task_id="extract", executor="team.Executor")
+    proc = _make_process(team_name="team_a")
+
+    proc._handle_request(
+        DagFileParsingResult(
+            fileloc="/b/dag.native", serialized_dags=[LazyDeserializedDAG(data=DagSerialization.to_dict(dag))]
+        ),
+        MagicMock(spec=socket.socket),
+        1,
+    )
+
+    assert proc.parsing_result.import_errors is None
+    mock_lookup.assert_called_once_with("team.Executor", team_name="team_a", validate_teams=False)

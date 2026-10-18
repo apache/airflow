@@ -24,6 +24,8 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_command
+from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.source import DagBundleMetadata, DagBundleSource
 
 from tests_common.test_utils.config import conf_vars
 
@@ -44,7 +46,10 @@ def dag_bundles_with_teams():
     with (
         conf_vars({("core", "multi_team"): "True"}),
         mock.patch.object(
-            dag_processor_command, "get_configured_bundle_team_names", return_value=dict(BUNDLE_TEAMS)
+            dag_processor_command,
+            "get_configured_bundle_team_names",
+            autospec=True,
+            return_value=dict(BUNDLE_TEAMS),
         ),
     ):
         yield
@@ -94,9 +99,24 @@ class TestDagProcessorCommand:
     def test_get_team_names(self, bundle_names, expected_team_names):
         assert dag_processor_command._get_team_names(bundle_names) == expected_team_names
 
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
+    def test_get_team_names_uses_custom_source_metadata(self, mock_load):
+        source = mock.create_autospec(DagBundleSource, instance=True)
+        source.get_configured_bundle_metadata.return_value = [
+            DagBundleMetadata(name="custom-bundle", team_name="custom-team")
+        ]
+        mock_load.return_value = source
+
+        assert dag_processor_command._get_team_names(["custom-bundle"]) == ["custom-team"]
+        source.get_bundle.assert_not_called()
+
     @conf_vars({("core", "multi_team"): "False"})
     @mock.patch.object(
-        dag_processor_command, "get_configured_bundle_team_names", return_value=dict(BUNDLE_TEAMS)
+        dag_processor_command,
+        "get_configured_bundle_team_names",
+        autospec=True,
+        return_value=dict(BUNDLE_TEAMS),
     )
     def test_get_team_names_returns_empty_outside_multi_team(self, mock_configured):
         assert dag_processor_command._get_team_names(["bundle_a"]) == []

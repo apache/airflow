@@ -29,18 +29,25 @@ import pytest
 from sqlalchemy import func, select, update
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
     _guess_best_bundle_for_fileloc,
-    _load_bundle_config_snapshot,
     get_configured_bundle_names,
     get_configured_bundle_team_names,
+)
+from airflow.dag_processing.bundles.source import (
+    ConfigDagBundleSource,
+    DagBundleMetadata,
+    DagBundleSource,
+    _load_bundle_config_snapshot,
 )
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
+from airflow.models.team import Team
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
@@ -124,6 +131,59 @@ class BasicBundle(BaseDagBundle):
         return Path("/__basic_bundle_unmatched__")
 
 
+class CustomDagBundleSource(DagBundleSource):
+    def __init__(self):
+        self.metadata_requests = 0
+
+    def get_configured_bundle_metadata(self):
+        self.metadata_requests += 1
+        return [DagBundleMetadata(name="active-bundle")]
+
+    def get_bundle(self, name, version=None, version_data=None):
+        if name not in {"active-bundle", "retired-bundle"}:
+            raise ValueError(f"Unknown test bundle: {name}")
+        return BasicBundle(
+            name=name,
+            version=version,
+            version_data=version_data,
+            refresh_interval=1,
+        )
+
+
+class DuplicateMetadataDagBundleSource(CustomDagBundleSource):
+    def get_configured_bundle_metadata(self):
+        return [
+            DagBundleMetadata(name="duplicate"),
+            DagBundleMetadata(name="duplicate"),
+        ]
+
+
+class NonMetadataDagBundleSource(CustomDagBundleSource):
+    def get_configured_bundle_metadata(self):
+        return [object()]
+
+
+class MissingTeamDagBundleSource(CustomDagBundleSource):
+    def get_configured_bundle_metadata(self):
+        return [DagBundleMetadata(name="active-bundle", team_name="missing-team")]
+
+
+class FailingInitializationDagBundleSource(CustomDagBundleSource):
+    def __init__(self):
+        raise RuntimeError("Source initialization failed")
+
+
+class ReloadingDagBundleSource(CustomDagBundleSource):
+    def __init__(self):
+        self.metadata = [DagBundleMetadata(name="active-bundle")]
+        self.error: Exception | None = None
+
+    def get_configured_bundle_metadata(self):
+        if self.error:
+            raise self.error
+        return self.metadata
+
+
 BASIC_BUNDLE_CONFIG = [
     {
         "name": "my-test-bundle",
@@ -163,7 +223,7 @@ TEAM_BUNDLE_CONFIG = [
 
 
 @pytest.mark.parametrize("load_examples", ["False", "True"])
-def test_get_configured_bundle_team_names(load_examples):
+def test_get_configured_bundle_team_names_excludes_example_bundles(load_examples):
     with conf_vars(
         {
             ("core", "load_examples"): load_examples,
@@ -180,6 +240,7 @@ def test_get_configured_bundle_team_names(load_examples):
 @conf_vars(
     {
         ("core", "load_examples"): "False",
+        ("core", "multi_team"): "True",
         ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
     }
 )
@@ -196,12 +257,49 @@ def test_get_configured_bundle_team_names_without_config():
     assert get_configured_bundle_team_names() == {}
 
 
+@pytest.mark.parametrize(
+    ("load_examples", "metadata", "expected_names"),
+    [
+        ("False", [DagBundleMetadata(name="custom-bundle", team_name="custom-team")], {"custom-bundle"}),
+        (
+            "True",
+            [DagBundleMetadata(name="custom-bundle", team_name="custom-team")],
+            {"custom-bundle", "example_dags"},
+        ),
+        ("True", [], set()),
+    ],
+)
+@conf_vars({("core", "multi_team"): "True", ("dag_processor", "dag_bundle_config_list"): "[]"})
+@mock.patch(
+    "airflow.dag_processing.bundles.manager._discover_example_dag_bundle_paths",
+    autospec=True,
+    return_value={"example_dags": "/examples"},
+)
+@mock.patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
+def test_metadata_helpers_use_custom_source_without_constructing_bundles(
+    mock_load, _mock_examples, load_examples, metadata, expected_names
+):
+    source = mock.create_autospec(DagBundleSource, instance=True)
+    source.get_configured_bundle_metadata.return_value = metadata
+    mock_load.return_value = source
+
+    with conf_vars({("core", "load_examples"): load_examples}):
+        names = get_configured_bundle_names()
+        teams = get_configured_bundle_team_names()
+
+    assert isinstance(names, frozenset)
+    assert names == expected_names
+    assert teams == ({"custom-bundle": "custom-team"} if metadata else {})
+    source.get_bundle.assert_not_called()
+
+
 def test_get_bundle():
     """Test that get_bundle builds and returns a bundle."""
     with patch.dict(
         os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
     ):
         bundle_manager = DagBundlesManager()
+        assert bundle_manager.provides_complete_bundle_list is False
 
         with pytest.raises(ValueError, match="'bundle-that-doesn't-exist' is not configured"):
             bundle_manager.get_bundle(name="bundle-that-doesn't-exist", version="hello")
@@ -221,11 +319,29 @@ def test_get_bundle():
     assert bundle.version is None
 
 
-@pytest.fixture(autouse=True)
-def _clear_bundle_config_snapshot_cache():
-    _load_bundle_config_snapshot.cache_clear()
-    yield
-    _load_bundle_config_snapshot.cache_clear()
+@conf_vars({("core", "load_examples"): "False"})
+@patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
+def test_is_bundle_configured_uses_current_source_metadata(mock_load):
+    source = mock.create_autospec(DagBundleSource, instance=True)
+    mock_load.return_value = source
+    source.get_configured_bundle_metadata.return_value = [DagBundleMetadata(name="custom-bundle")]
+
+    assert DagBundlesManager.is_bundle_configured("custom-bundle") is True
+    source.get_configured_bundle_metadata.return_value = []
+    assert DagBundlesManager.is_bundle_configured("custom-bundle") is False
+    source.get_bundle.assert_not_called()
+
+
+@conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})
+@patch("airflow.dag_processing.bundles.source.import_string", autospec=True, return_value=BasicBundle)
+def test_config_source_imports_only_requested_bundle(mock_import):
+    source = ConfigDagBundleSource()
+    assert source.get_configured_bundle_metadata() == [DagBundleMetadata(name="my-test-bundle")]
+    mock_import.assert_not_called()
+
+    assert isinstance(source.get_bundle("my-test-bundle"), BasicBundle)
+    assert isinstance(source.get_bundle("my-test-bundle", version="v1"), BasicBundle)
+    mock_import.assert_called_once_with(BASIC_BUNDLE_CONFIG[0]["classpath"])
 
 
 def _bundle_config_env(config) -> dict[str, str]:
@@ -270,6 +386,112 @@ def test_is_bundle_configured_sees_implicitly_added_bundles():
         assert DagBundlesManager.is_bundle_configured("example_dags") is True
 
 
+@conf_vars(
+    {
+        ("core", "LOAD_EXAMPLES"): "False",
+        (
+            "dag_processor",
+            "dag_bundle_source",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.CustomDagBundleSource",
+    }
+)
+def test_custom_bundle_source_resolves_active_and_retired_bundles():
+    manager = DagBundlesManager()
+    source = manager._bundle_source
+    assert isinstance(source, CustomDagBundleSource)
+    assert source.metadata_requests == 0
+
+    assert manager.provides_complete_bundle_list is True
+    assert manager.get_active_bundle_metadata() == (DagBundleMetadata(name="active-bundle"),)
+    assert source.metadata_requests == 1
+    assert manager.get_all_bundle_names() == ["active-bundle"]
+
+    active_bundle = manager.get_bundle("active-bundle")
+    retired_bundle = manager.get_bundle(
+        "retired-bundle",
+        version="v1",
+        version_data={"manifest": "retired.json"},
+    )
+
+    assert active_bundle.name == "active-bundle"
+    assert retired_bundle.name == "retired-bundle"
+    assert retired_bundle.version == "v1"
+    assert retired_bundle.version_data == {"manifest": "retired.json"}
+
+
+@conf_vars(
+    {
+        ("core", "LOAD_EXAMPLES"): "False",
+        (
+            "dag_processor",
+            "dag_bundle_source",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.ReloadingDagBundleSource",
+    }
+)
+def test_custom_bundle_source_returns_current_metadata():
+    manager = DagBundlesManager()
+    source = manager._bundle_source
+    assert isinstance(source, ReloadingDagBundleSource)
+
+    assert manager.get_active_bundle_metadata() == tuple(source.metadata)
+
+    source.metadata = [
+        DagBundleMetadata(name="active-bundle"),
+        DagBundleMetadata(name="added-bundle"),
+    ]
+    assert manager.get_active_bundle_metadata() == tuple(source.metadata)
+
+    source.error = RuntimeError("source unavailable")
+    with pytest.raises(RuntimeError, match="source unavailable"):
+        manager.get_active_bundle_metadata()
+    source.error = None
+
+    source.metadata = []
+    assert manager.get_active_bundle_metadata() == ()
+
+
+@pytest.mark.parametrize(
+    ("source_class", "expected_message"),
+    [
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.DuplicateMetadataDagBundleSource",
+            "duplicate bundle name 'duplicate'",
+            id="duplicate-name",
+        ),
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.NonMetadataDagBundleSource",
+            "must return DagBundleMetadata objects",
+            id="wrong-metadata-type",
+        ),
+    ],
+)
+def test_custom_bundle_source_rejects_invalid_metadata(source_class, expected_message):
+    with conf_vars({("dag_processor", "dag_bundle_source"): source_class}):
+        with pytest.raises(AirflowConfigException, match=expected_message):
+            DagBundlesManager().get_active_bundle_metadata()
+
+
+@pytest.mark.parametrize(
+    ("source_class", "expected_message"),
+    [
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+            "must extend DagBundleSource",
+            id="wrong-base-class",
+        ),
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.FailingInitializationDagBundleSource",
+            "Could not initialize the Dag bundle source",
+            id="initialization-failure",
+        ),
+    ],
+)
+def test_invalid_custom_bundle_source(source_class, expected_message):
+    with conf_vars({("dag_processor", "dag_bundle_source"): source_class}):
+        with pytest.raises(AirflowConfigException, match=expected_message):
+            DagBundlesManager()
+
+
 @pytest.fixture
 def clear_db():
     clear_db_dag_bundles()
@@ -279,7 +501,7 @@ def clear_db():
 
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
-def test_sync_bundles_to_db(clear_db, session):
+def test_sync_bundles_to_db(clear_db, session, caplog):
     def _get_bundle_names_and_active():
         return session.execute(
             select(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name)
@@ -310,6 +532,10 @@ def test_sync_bundles_to_db(clear_db, session):
     # Since my-test-bundle is inactive, the associated import errors should be deleted
     assert session.scalar(select(func.count(ParseImportError.id))) == 0
 
+    caplog.clear()
+    DagBundlesManager().sync_bundles_to_db()
+    assert "DAG bundle my-test-bundle is no longer found in config and has been disabled" not in caplog
+
     # Re-enable one that reappears in config
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)}):
         manager = DagBundlesManager()
@@ -318,6 +544,51 @@ def test_sync_bundles_to_db(clear_db, session):
         ("dags-folder", False),
         ("my-test-bundle", True),
     ]
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("row_exists", [False, True])
+@conf_vars({("core", "load_examples"): "False"})
+def test_sync_bundles_to_db_with_runtime_instances_keeps_declared_bundle_active(
+    clear_db, session, row_exists
+):
+    if row_exists:
+        bundle = DagBundleModel(name="declared")
+        bundle.active = False
+        session.add(bundle)
+        session.flush()
+
+    manager = DagBundlesManager()
+    with patch.object(manager, "get_bundle", side_effect=RuntimeError("must not construct")) as get_bundle:
+        manager.sync_bundles_to_db(
+            bundle_metadata=(DagBundleMetadata(name="declared"),),
+            bundle_instances={},
+            session=session,
+        )
+
+    get_bundle.assert_not_called()
+    session.flush()
+    assert session.get(DagBundleModel, "declared").active is True
+
+
+@pytest.mark.db_test
+@conf_vars(
+    {
+        ("core", "multi_team"): "True",
+        (
+            "dag_processor",
+            "dag_bundle_source",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.MissingTeamDagBundleSource",
+    }
+)
+def test_sync_bundles_to_db_reports_missing_team_from_source(clear_db):
+    manager = DagBundlesManager()
+
+    with pytest.raises(
+        AirflowConfigException,
+        match="Team 'missing-team' configured for Dag bundle 'active-bundle' does not exist",
+    ):
+        manager.sync_bundles_to_db()
 
 
 @pytest.mark.db_test
@@ -421,6 +692,81 @@ TEMPLATE_BUNDLE_CONFIG = [
         },
     }
 ]
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "load_examples"): "False"})
+@pytest.mark.parametrize("active", [True, False])
+@pytest.mark.parametrize(
+    "classpath",
+    [
+        pytest.param("airflow.dag_processing.bundles.local.MissingBundle", id="invalid-classpath"),
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.FailingBundle",
+            id="constructor-failure",
+        ),
+        pytest.param(
+            "unit.dag_processing.bundles.test_dag_bundle_manager.BundleWithTemplate",
+            id="template-failure",
+        ),
+    ],
+)
+@mock.patch.object(
+    BundleWithTemplate, "view_url_template", autospec=True, side_effect=ValueError("Template unavailable")
+)
+def test_sync_bundles_to_db_preserves_existing_bundle_on_load_failure(
+    mock_view_url_template, clear_db, session, active, classpath
+):
+    bundle = DagBundleModel(name="existing-bundle")
+    bundle.active = active
+    bundle.signed_url_template = "previous-signed-template"
+    bundle.template_params = {"subdir": "dags"}
+    import_error = ParseImportError(
+        bundle_name=bundle.name, filename="dag.py", stacktrace="Previous parsing error"
+    )
+    session.add_all([bundle, import_error])
+    session.flush()
+    config = [{"name": bundle.name, "classpath": classpath, "kwargs": {"refresh_interval": 1}}]
+
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
+        DagBundlesManager().sync_bundles_to_db(session=session)
+    session.flush()
+    session.expire_all()
+
+    assert bundle.active is True
+    assert bundle.signed_url_template == "previous-signed-template"
+    assert bundle.template_params == {"subdir": "dags"}
+    assert session.scalar(select(ParseImportError.id).where(ParseImportError.bundle_name == bundle.name)) == (
+        import_error.id
+    )
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "load_examples"): "False", ("core", "multi_team"): "True"})
+@pytest.mark.parametrize("team_name", ["team-a", "team-b", None])
+def test_sync_bundles_to_db_reconciles_team_on_load_failure(clear_db, session, team_name):
+    team_a = Team(name="team-a")
+    team_b = Team(name="team-b")
+    bundle = DagBundleModel(name="existing-bundle")
+    bundle.teams = [team_a]
+    session.add_all([bundle, team_b])
+    session.flush()
+    config = [
+        {
+            "name": bundle.name,
+            "classpath": "airflow.dag_processing.bundles.local.MissingBundle",
+            "kwargs": {},
+            "team_name": team_name,
+        }
+    ]
+
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
+        DagBundlesManager().sync_bundles_to_db(session=session)
+    session.flush()
+    session.expire_all()
+
+    assert bundle.active is True
+    assert [team.name for team in bundle.teams] == ([team_name] if team_name else [])
 
 
 @pytest.mark.db_test
@@ -558,20 +904,77 @@ def test_dag_bundle_model_render_url_with_invalid_template():
 
 def test_example_dags_bundle_added():
     manager = DagBundlesManager()
-    manager.parse_config()
-    assert "example_dags" in manager._bundle_config
+    assert "example_dags" in manager.get_all_bundle_names()
+    assert isinstance(manager.get_bundle("example_dags"), LocalDagBundle)
 
     with conf_vars({("core", "LOAD_EXAMPLES"): "False"}):
         manager = DagBundlesManager()
-        manager.parse_config()
-        assert "example_dags" not in manager._bundle_config
+        assert "example_dags" not in manager.get_all_bundle_names()
+
+
+@conf_vars(
+    {
+        ("core", "load_examples"): "True",
+        ("dag_processor", "dag_bundle_config_list"): "[]",
+    }
+)
+def test_example_dags_not_added_without_configured_bundles():
+    assert DagBundlesManager().get_all_bundle_names() == []
+
+
+@conf_vars(
+    {
+        (
+            "dag_processor",
+            "dag_bundle_source",
+        ): "unit.dag_processing.bundles.test_dag_bundle_manager.CustomDagBundleSource"
+    }
+)
+@pytest.mark.parametrize("load_examples", [True, False])
+def test_example_dags_bundle_added_for_custom_source(load_examples):
+    with conf_vars({("core", "load_examples"): str(load_examples)}):
+        manager = DagBundlesManager()
+
+        assert ("example_dags" in manager.get_all_bundle_names()) is load_examples
+        if load_examples:
+            assert isinstance(manager.get_bundle("example_dags"), LocalDagBundle)
+
+
+@conf_vars({("core", "load_examples"): "True"})
+@patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
+def test_example_dags_not_added_without_custom_bundles(mock_load):
+    source = mock.create_autospec(DagBundleSource, instance=True)
+    mock_load.return_value = source
+    source.get_configured_bundle_metadata.return_value = []
+
+    assert DagBundlesManager().get_active_bundle_metadata() == ()
+    source.get_bundle.assert_not_called()
+
+
+@pytest.mark.parametrize("load_examples", [True, False])
+@patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
+def test_custom_source_cannot_declare_example_dags(mock_load, load_examples):
+    source = mock.create_autospec(DagBundleSource, instance=True)
+    mock_load.return_value = source
+    source.get_configured_bundle_metadata.return_value = [DagBundleMetadata(name="example_dags")]
+
+    with conf_vars({("core", "load_examples"): str(load_examples)}):
+        with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name"):
+            DagBundlesManager().get_active_bundle_metadata()
+    source.get_bundle.assert_not_called()
 
 
 def test_example_dags_name_is_reserved():
-    reserved_name_config = [{"name": "example_dags", "classpath": "yo face", "kwargs": {}}]
+    reserved_name_config = [
+        {
+            "name": "example_dags",
+            "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+            "kwargs": {"refresh_interval": 1},
+        }
+    ]
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(reserved_name_config)}):
         with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
-            DagBundlesManager().parse_config()
+            DagBundlesManager().get_active_bundle_metadata()
 
 
 class FailingBundle(BaseDagBundle):

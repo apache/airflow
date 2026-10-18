@@ -42,7 +42,7 @@ def default_dag_discovery_config():
     """Dag discovery options at their defaults, as the generated airflow.cfg writes them."""
     return {
         ("dag_processor", key): conf.get_default_value("dag_processor", key)
-        for key in ("refresh_interval", "dag_bundle_config_list")
+        for key in ("refresh_interval", "dag_bundle_config_list", "dag_bundle_source")
     }
 
 
@@ -106,6 +106,11 @@ class TestStandaloneCommand:
     @pytest.mark.parametrize(
         ("config", "environ"),
         [
+            pytest.param(
+                {("dag_processor", "dag_bundle_source"): "my_deployment.bundles.DeploymentDagBundleSource"},
+                {},
+                id="custom-bundle-source",
+            ),
             pytest.param({("dag_processor", "refresh_interval"): "60"}, {}, id="interval-in-airflow-cfg"),
             pytest.param({}, {"AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL": "60"}, id="interval-in-env"),
             pytest.param(

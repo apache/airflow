@@ -215,6 +215,10 @@ class StandaloneCommand:
         unset there; an environment variable counts as a choice whatever its value. Other bundles are
         left alone, since refreshing a remote bundle fetches from it.
         """
+        if conf.get("dag_processor", "dag_bundle_source") != conf.get_default_value(
+            "dag_processor", "dag_bundle_source"
+        ):
+            return False
         if REFRESH_INTERVAL_ENV_VAR in os.environ:
             return False
         if conf.get("dag_processor", "refresh_interval") != conf.get_default_value(

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from unittest import mock
 from uuid import UUID
 
 import jwt
@@ -31,6 +32,8 @@ from airflow.api_fastapi.execution_api.datamodels.token import (
     ExecutionToken,
 )
 from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.bundles.source import DagBundleMetadata, DagBundleSource
 from airflow.jobs.job import Job, JobState
 from airflow.models.team import Team
 
@@ -122,6 +125,26 @@ def _decode(token: str) -> dict:
 
 @pytest.mark.usefixtures("as_session")
 class TestRegisterJob:
+    @conf_vars({("core", "multi_team"): "True", ("dag_processor", "dag_bundle_config_list"): "[]"})
+    @mock.patch.object(DagBundlesManager, "_load_bundle_source", autospec=True)
+    def test_resolves_job_teams_from_custom_source_without_constructing_bundles(
+        self, mock_load, client, session
+    ):
+        source = mock.create_autospec(DagBundleSource, instance=True)
+        source.get_configured_bundle_metadata.return_value = [
+            DagBundleMetadata(name="bundle_a", team_name="team_a"),
+            DagBundleMetadata(name="bundle_b"),
+        ]
+        mock_load.return_value = source
+        session.add(Team(name="team_a"))
+        session.commit()
+
+        response = _register(client)
+
+        assert response.status_code == 201, response.json()
+        assert session.get(Job, response.json()["job_id"]).team_names == ["team_a"]
+        source.get_bundle.assert_not_called()
+
     def test_registers_a_running_job_for_every_granted_bundle(self, client, session):
         response = _register(client, unixname="airflow")
 

@@ -933,6 +933,18 @@
           "title": "Bundle Name",
           "type": "string"
         },
+        "team_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Name"
+        },
         "callback_requests": {
           "items": {
             "discriminator": {

@@ -44,6 +44,7 @@ def get_bundle() -> VersionBundle:
         AddLoopRuntime,
         AddRegionCoordinatesToSupervisorTaskInstance,
         AddRetryReasonToTaskState,
+        AddTeamNameToDagFileParseRequest,
     )
 
     return VersionBundle(
@@ -56,6 +57,7 @@ def get_bundle() -> VersionBundle:
             AddDagDefinitionsToDagFileParsingResult,
             AddRegionCoordinatesToSupervisorTaskInstance,
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
+            AddTeamNameToDagFileParseRequest,
         ),
         Version("2026-06-16"),
     )

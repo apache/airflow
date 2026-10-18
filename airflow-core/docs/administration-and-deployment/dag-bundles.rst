@@ -64,6 +64,86 @@ Configuring Dag bundles
 
 Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list`. You can add one or more Dag bundles here.
 
+Dynamic bundle configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Set :ref:`config:dag_processor__dag_bundle_source` to the import path for the class Airflow uses to discover
+and construct Dag bundles. The configured implementation must return metadata for the complete list of currently
+configured bundles.
+The Dag processor requests the list every
+:ref:`config:dag_processor__bundle_refresh_check_interval` seconds and applies additions and removals without
+a restart. A bundle that is absent from the list becomes inactive.
+
+The configured implementation must raise an exception when it cannot read its source. It must return an empty
+list only when no bundles are configured. On an error, the Dag processor keeps the last valid list and tries again
+on the next refresh cycle.
+
+Airflow also reconciles the active list with the metadata database on later refresh cycles. This makes the
+result converge when Dag processors observe a change at different times. For example, an older Dag processor
+can temporarily reactivate a removed bundle. A later cycle from a processor with the current list makes it
+inactive again. This process does not use a shared configuration revision or a separate database table.
+
+A bundle name must keep the same construction settings. Use a new name when settings such as its bundle
+class, repository, branch, connection, or refresh interval change. The configured implementation must continue
+to resolve the previous name while retained Dag runs can still need it.
+
+The default implementation, ``ConfigDagBundleSource``, reads ``dag_bundle_config_list``. Its values stay static
+while the Dag processor runs. When filtered Dag processors use partial static configuration, they do not
+deactivate bundles that are absent from their local configuration.
+
+Writing a bundle source
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Set ``[dag_processor] dag_bundle_source`` to the import path of a class that extends
+``DagBundleSource``. The default, ``ConfigDagBundleSource``, reads ``dag_bundle_config_list``.
+This is a class extension point; it does not require a new Airflow provider package.
+
+The class must support construction without arguments and implement two methods:
+
+* ``get_configured_bundle_metadata()`` returns the complete list of configured bundle names and,
+  in multi-team mode, their team names. Airflow manages validation, example bundles, and database state.
+* ``get_bundle(name, version, version_data)`` constructs the requested bundle. The source chooses
+  its class and settings and forwards both version arguments to the bundle.
+
+For example, save this minimal source in an importable module named ``my_deployment.bundles``:
+
+.. code-block:: python
+
+    from airflow.dag_processing.bundles.local import LocalDagBundle
+    from airflow.dag_processing.bundles.source import DagBundleMetadata, DagBundleSource
+
+
+    class DeploymentDagBundleSource(DagBundleSource):
+        def get_configured_bundle_metadata(self):
+            return [DagBundleMetadata(name="team-dags")]
+
+        def get_bundle(self, name, version=None, version_data=None):
+            if name != "team-dags":
+                raise ValueError(f"Unknown bundle: {name}")
+            return LocalDagBundle(
+                name=name,
+                version=version,
+                version_data=version_data,
+                path="/opt/airflow/team-dags",
+            )
+
+Configure it with:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_source = my_deployment.bundles.DeploymentDagBundleSource
+
+Install the module in each Airflow process that resolves bundles, including Dag processors and workers.
+A source can read deployment-controlled configuration from a file or service instead of using the fixed
+values above. Raise an exception when discovery fails; return an empty list only when no bundles are
+configured. Do not include Airflow's example bundles in that list.
+
+Keep a bundle name tied to the same implementation and construction settings. If a bundle leaves the
+configured list, its name must remain resolvable while retained Dag runs can still need its code.
+Keep access to the configuration source under Deployment Manager control and reference credentials
+through Airflow Connections rather than embedding them in bundle settings.
+
 .. warning:: Reference credentials through a Connection — do not inline them
 
     Bundle ``kwargs`` are stored in the ``[dag_processor] dag_bundle_config_list``
