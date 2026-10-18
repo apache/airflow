@@ -35,6 +35,7 @@ from airflow.dag_processing.bundles.manager import (
     _guess_best_bundle_for_fileloc,
     _load_bundle_config_snapshot,
     _refresh_bundle_config_snapshot,
+    _reset_bundle_config_after_fork,
     get_configured_bundle_names,
     get_configured_bundle_team_names,
 )
@@ -2226,7 +2227,7 @@ def test_bundle_lookup_refreshes_missing_name_before_interval(
 
 @pytest.mark.parametrize("remove_bundle", [False, True])
 @mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
-def test_bundle_lookup_adopts_snapshot_refreshed_by_another_manager(
+def test_bundle_lookup_keeps_manager_configuration_until_enumeration(
     mock_command, dynamic_bundle_config, remove_bundle
 ):
     mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
@@ -2238,6 +2239,9 @@ def test_bundle_lookup_adopts_snapshot_refreshed_by_another_manager(
     mock_command.reset_mock()
 
     if remove_bundle:
+        assert manager.get_bundle("my-test-bundle").name == "my-test-bundle"
+        mock_command.assert_not_called()
+        assert manager.get_all_bundle_names() == []
         with pytest.raises(ValueError, match="Requested bundle 'my-test-bundle' is not configured"):
             manager.get_bundle("my-test-bundle")
         mock_command.assert_called_once()
@@ -2260,14 +2264,21 @@ def test_missing_bundle_lookup_attempts_only_one_refresh(mock_command, dynamic_b
 
 
 @pytest.mark.parametrize("consumer", ["processor", "task"])
-def test_dynamic_importers_use_accepted_configuration(dynamic_bundle_config, tmp_path, consumer):
+@pytest.mark.parametrize("bare_classpath", [False, True])
+def test_dynamic_importers_use_accepted_configuration(
+    dynamic_bundle_config, tmp_path, consumer, bare_classpath
+):
     manager = DagBundlesManager()
     assert get_importer_registry("second-bundle").get_importer("dag.custom") is None
     config = {
         "name": "second-bundle",
         "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
         "kwargs": {"path": str(tmp_path)},
-        "importers": [{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}],
+        "importers": (
+            ["airflow.sdk.importers.PythonDagImporter"]
+            if bare_classpath
+            else [{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}]
+        ),
     }
     dynamic_bundle_config.write_text(json.dumps([*BASIC_BUNDLE_CONFIG, config]))
     _expire_bundle_config_snapshot()
@@ -2281,7 +2292,7 @@ def test_dynamic_importers_use_accepted_configuration(dynamic_bundle_config, tmp
     else:
         initialize_ti_bundle(BundleInfo(name="second-bundle", version=None))
     registry = get_importer_registry("second-bundle")
-    assert isinstance(registry.get_importer("dag.custom"), PythonDagImporter)
+    assert isinstance(registry.get_importer("dag.py" if bare_classpath else "dag.custom"), PythonDagImporter)
     assert get_importer_registry("second-bundle") is registry
 
 
@@ -2311,3 +2322,21 @@ def test_bundle_names_refresh_respects_interval(mock_command, mock_clock, dynami
     assert mock_command.call_count == 2
     assert manager.get_all_bundle_names() == ["second-bundle"]
     assert mock_command.call_count == 2
+
+
+@pytest.mark.parametrize("parser_config", [None, "[]"])
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+def test_fork_keeps_cached_configuration_unless_parser_receives_explicit_list(
+    mock_command, dynamic_bundle_config, monkeypatch, parser_config
+):
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    assert DagBundlesManager().get_bundle("my-test-bundle").name == "my-test-bundle"
+    mock_command.side_effect = OSError("configuration source unavailable")
+
+    if parser_config is not None:
+        monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", parser_config)
+    _reset_bundle_config_after_fork()
+    manager = DagBundlesManager()
+    assert sorted(manager._bundle_config) == ([] if parser_config else ["my-test-bundle"])
+
+    mock_command.assert_called_once()

@@ -56,7 +56,8 @@ from airflow.sdk.execution_time.supervisor import (
     process_log_messages_from_subprocess,
     register_request_method,
 )
-from airflow.sdk.importers import DagSourceCode, FilesystemDagDefinition
+from airflow.sdk.importers import DagImporterRegistry, DagSourceCode, FilesystemDagDefinition
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
@@ -169,6 +170,9 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
 
     decoder: ClassVar[TypeAdapter[LangSDKToManager]] = TypeAdapter[LangSDKToManager](LangSDKToManager)
+
+    team_name: str | None | ArgNotSet = NOTSET
+    importer_registry: DagImporterRegistry | None = None
 
     _listeners: dict[_Channel, socket]
     _parse_request: DagFileParseRequest
@@ -460,8 +464,9 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
 
         :raises UnknownExecutorException: if a task's executor is not available to the team or globally.
         """
-        _validate_executor_fields(dag, self.bundle_name)
-        if not (team_name := _get_bundle_team_name(self.bundle_name)):
+        team_name = self.team_name if is_arg_set(self.team_name) else _get_bundle_team_name(self.bundle_name)
+        _validate_executor_fields(dag, self.bundle_name, team_name=team_name)
+        if not team_name:
             return
         tasks = {task.task_id: task for task in dag.tasks}
         for encoded in data["dag"]["tasks"]:
@@ -482,7 +487,9 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             return {}
         file = self._parse_request.file
         try:
-            if (importer := get_claiming_importer(file, self.bundle_name)) is None:
+            if (
+                importer := get_claiming_importer(file, self.bundle_name, registry=self.importer_registry)
+            ) is None:
                 raise RuntimeError(f"No coordinator Dag importer claims {file}")
         except Exception as e:
             self.process_log.warning("Cannot read the Dag source", fileloc=file, error=str(e))
