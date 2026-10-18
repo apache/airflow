@@ -56,3 +56,10 @@ declare module "monaco-editor/languages/definitions/go/go" {
   export const language: import("monaco-editor").languages.IMonarchLanguage;
   /* eslint-enable @typescript-eslint/consistent-type-imports */
 }
+
+declare module "monaco-editor/languages/definitions/yaml/yaml" {
+  /* eslint-disable @typescript-eslint/consistent-type-imports */
+  export const conf: import("monaco-editor").languages.LanguageConfiguration;
+  export const language: import("monaco-editor").languages.IMonarchLanguage;
+  /* eslint-enable @typescript-eslint/consistent-type-imports */
+}
