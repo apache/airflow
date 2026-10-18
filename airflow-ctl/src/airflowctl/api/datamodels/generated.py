@@ -1567,6 +1567,42 @@ class VersionInfo(BaseModel):
     git_version: Annotated[str | None, Field(title="Git Version")]
 
 
+class WebhookDeliveryResponse(BaseModel):
+    """
+    A delivery an inbound webhook received, without its payload.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    webhook: Annotated[str, Field(title="Webhook")]
+    delivery_id: Annotated[
+        str | None,
+        Field(description="The sender's id for the delivery, if it sends one.", title="Delivery Id"),
+    ]
+    received_at: Annotated[datetime, Field(title="Received At")]
+    source_type: Annotated[str, Field(title="Source Type")]
+    attributes: Annotated[
+        dict[str, str | int] | None,
+        Field(description="What the webhook's source type parsed from the delivery.", title="Attributes"),
+    ]
+    correlation_key: Annotated[
+        str | None,
+        Field(description="What the delivery is about, such as a pull request.", title="Correlation Key"),
+    ]
+    outcome: Annotated[
+        str,
+        Field(description="What Airflow did with the delivery, such as ``no_subscribers``.", title="Outcome"),
+    ]
+    candidates: Annotated[
+        list[str] | None,
+        Field(description="The webhook topic names built from the delivery.", title="Candidates"),
+    ]
+    actions: Annotated[
+        dict[str, JsonValue] | None,
+        Field(description="What the delivery did, such as the topic events it recorded.", title="Actions"),
+    ]
+    team_name: Annotated[str | None, Field(title="Team Name")]
+
+
 class RegionIndex(RootModel[int]):
     root: Annotated[int, Field(ge=-1, title="Region Index")]
 
@@ -2801,6 +2837,15 @@ class VariableCollectionResponse(BaseModel):
     """
 
     variables: Annotated[list[VariableResponse], Field(title="Variables")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class WebhookDeliveryCollectionResponse(BaseModel):
+    """
+    Webhook delivery collection response.
+    """
+
+    deliveries: Annotated[list[WebhookDeliveryResponse], Field(title="Deliveries")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

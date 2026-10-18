@@ -2516,6 +2516,53 @@ export type VersionInfo = {
 };
 
 /**
+ * Webhook delivery collection response.
+ */
+export type WebhookDeliveryCollectionResponse = {
+    deliveries: Array<WebhookDeliveryResponse>;
+    total_entries: number;
+};
+
+/**
+ * A delivery an inbound webhook received, without its payload.
+ */
+export type WebhookDeliveryResponse = {
+    id: string;
+    webhook: string;
+    /**
+     * The sender's id for the delivery, if it sends one.
+     */
+    delivery_id: string | null;
+    received_at: string;
+    source_type: string;
+    /**
+     * What the webhook's source type parsed from the delivery.
+     */
+    attributes: {
+    [key: string]: (string | number);
+} | null;
+    /**
+     * What the delivery is about, such as a pull request.
+     */
+    correlation_key: string | null;
+    /**
+     * What Airflow did with the delivery, such as ``no_subscribers``.
+     */
+    outcome: string;
+    /**
+     * The webhook topic names built from the delivery.
+     */
+    candidates: Array<(string)> | null;
+    /**
+     * What the delivery did, such as the topic events it recorded.
+     */
+    actions: {
+    [key: string]: JsonValue;
+} | null;
+    team_name: string | null;
+};
+
+/**
  * XCom Collection serializer for responses.
  */
 export type XComCollectionResponse = {
@@ -4026,6 +4073,31 @@ export type GetExecutionData = {
 };
 
 export type GetExecutionResponse = ExecutionCollectionResponse;
+
+export type GetWebhookDeliveriesData = {
+    correlationKey?: string | null;
+    deliveryId?: string | null;
+    id?: string | null;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `received_at, id, webhook, outcome, delivery_id`
+     */
+    orderBy?: Array<(string)>;
+    outcome?: string | null;
+    receivedAtGt?: string | null;
+    receivedAtGte?: string | null;
+    receivedAtLt?: string | null;
+    receivedAtLte?: string | null;
+    sourceType?: string | null;
+    webhookName: string;
+    /**
+     * Only these webhooks. Repeat it to name several: `?webhook_names=a&webhook_names=b`.
+     */
+    webhookNames?: Array<(string)>;
+};
+
+export type GetWebhookDeliveriesResponse = WebhookDeliveryCollectionResponse;
 
 export type GetDagVersionDiffData = {
     /**
@@ -6943,6 +7015,37 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/webhooks/{webhook_name}/deliveries': {
+        get: {
+            req: GetWebhookDeliveriesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: WebhookDeliveryCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
