@@ -66,6 +66,7 @@ from airflow_breeze.global_constants import (
     SelectiveTestType,
     all_helm_test_packages,
     all_selective_core_test_types,
+    get_airflow_version,
     providers_test_type,
 )
 from airflow_breeze.utils.console import console_print, get_console
@@ -2132,12 +2133,23 @@ class SelectiveChecks:
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:
-        """Provider compatibility input matrix for the current run. Filter out python versions not built"""
+        """Provider compatibility input matrix for the current run.
+
+        Filters out python versions that are not built. Also drops the entry whose
+        ``airflow-version`` matches the current branch version: on a ``vX-Y-test``
+        branch the just-bumped ``X.Y.0`` is added to the matrix by the version-bump
+        commit before it is released, so compat jobs that pull the released
+        ``apache/airflow:X.Y.0`` image/package would fail until GA. The entry starts
+        running again once the branch bumps to the next patch (``X.Y.1``) and ``X.Y.0``
+        is a real release.
+        """
+        current_airflow_version = get_airflow_version()
         return json.dumps(
             [
                 check
                 for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                 if check["python-version"] in self.python_versions
+                and check["airflow-version"] != current_airflow_version
             ]
         )
 
