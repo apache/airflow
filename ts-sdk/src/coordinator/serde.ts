@@ -41,11 +41,13 @@ import {
 } from "../generated/dag-schema-fields.js";
 import type { JsonValue } from "../sdk/client-types.js";
 import {
+  DOWNSTREAM_JOIN_SUFFIX,
   getDagOrderEdges,
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
   isTaskRef,
+  UPSTREAM_JOIN_SUFFIX,
   type Dag,
   type RecordedInputs,
   type TaskGroupRecord,
@@ -91,8 +93,8 @@ function serializeEdgeInfo(dag: Dag): SerializedValue {
   const info: Record<string, Record<string, SerializedValue>> = {};
   for (const { upstream, downstream, label } of getDagOrderEdges(dag)) {
     if (label === undefined) continue;
-    const from = groups.has(upstream) ? `${upstream}.downstream_join_id` : upstream;
-    const to = groups.has(downstream) ? `${downstream}.upstream_join_id` : downstream;
+    const from = groups.has(upstream) ? upstream + DOWNSTREAM_JOIN_SUFFIX : upstream;
+    const to = groups.has(downstream) ? downstream + UPSTREAM_JOIN_SUFFIX : downstream;
     (info[from] ??= {})[to] = { label };
   }
   return info;

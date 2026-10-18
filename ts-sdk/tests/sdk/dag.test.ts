@@ -614,6 +614,48 @@ describe("Dag", () => {
       );
     });
 
+    it("rejects an empty label", () => {
+      const { refs } = placedDag("d", "load");
+
+      expect(() => label(refs.load!, "")).toThrowError(
+        "label() takes the text to put on the edge, not an empty string",
+      );
+    });
+
+    it("rejects a label given as a task input", () => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+      const load = dag.task("load", async (_: { rows: unknown }) => undefined);
+
+      expect(() => load({ rows: label(extracted, "rows") as never })).toThrowError(
+        'Input "rows" of task "load" was given a label(), which only goes into before() or ' +
+          "after(); pass the reference itself",
+      );
+    });
+
+    it("rejects a label nested in a literal task input", () => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+      const load = dag.task("load", async (_: { rows: unknown }) => undefined);
+
+      expect(() => load({ rows: [label(extracted, "rows")] as never })).toThrowError(
+        /Input "rows" of task "load" holds a reference to "extract" inside a literal value/,
+      );
+    });
+
+    it("rejects a label given as a decider input", () => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+
+      expect(() =>
+        dag.if(
+          async (_: { rows: unknown }) => true,
+          { rows: label(extracted, "rows") as never },
+          { taskId: "has_rows" },
+        ),
+      ).toThrowError('Input "rows" of task "has_rows" was given a label()');
+    });
+
     it("rejects a label that is not a string", () => {
       const { refs } = placedDag("d", "load");
 
@@ -931,6 +973,22 @@ describe("Dag", () => {
 
         first!();
         expect(() => second!()).toThrowError(/"x" is already registered for Dag "grouped"/);
+      },
+    );
+
+    it.each(["upstream_join_id", "downstream_join_id"])(
+      "rejects a task or group taking the %s of its group",
+      (joinId) => {
+        const dag = new Dag("grouped");
+        const staging = dag.taskGroup("staging");
+
+        expect(() => staging.task(joinId, async () => undefined)).toThrowError(
+          `Task "staging.${joinId}" of Dag "grouped" takes the ID of a join node of task group ` +
+            '"staging"; pick another ID',
+        );
+        expect(() => staging.taskGroup(joinId)).toThrowError(
+          `Task group "staging.${joinId}" of Dag "grouped" takes the ID of a join node`,
+        );
       },
     );
 
