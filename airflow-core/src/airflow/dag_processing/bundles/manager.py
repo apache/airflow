@@ -416,16 +416,18 @@ class DagBundlesManager(LoggingMixin):
 
     def parse_config(self) -> None:
         """
-        Get all DAG bundle configurations and store in instance variable.
+        Load the accepted bundle configuration into this manager.
 
-        If a bundle class for a given name has already been imported, it will not be imported again.
+        Reuse the parsed configuration while the configured bundle names remain unchanged.
 
         :meta private:
         """
-        if self._bundle_config:
+        snapshot = _load_bundle_config_snapshot()
+        if self._bundle_config.keys() == snapshot.names:
             return
 
-        bundle_config_list = _load_bundle_config_snapshot().configs
+        self._bundle_config = {}
+        bundle_config_list = snapshot.configs
         if not bundle_config_list:
             return
 
@@ -797,14 +799,8 @@ class DagBundlesManager(LoggingMixin):
 
     def _refresh_config(self) -> None:
         """Refresh bundle configuration and update this manager."""
-        if is_bundle_config_reload_enabled():
-            _refresh_bundle_config_snapshot()
-            self._update_bundle_config()
-
-    def _update_bundle_config(self) -> None:
-        if self._bundle_config.keys() != _load_bundle_config_snapshot().names:
-            self._bundle_config = {}
-            self.parse_config()
+        _refresh_bundle_config_snapshot()
+        self.parse_config()
 
     def get_bundle(
         self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None
@@ -818,10 +814,11 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
-        if is_bundle_config_reload_enabled():
-            if name not in _load_bundle_config_snapshot().names:
-                _refresh_bundle_config_snapshot(force=True)
-            self._update_bundle_config()
+        snapshot = _load_bundle_config_snapshot()
+        if name not in snapshot.names:
+            snapshot = _refresh_bundle_config_snapshot(force=True)
+        if name not in self._bundle_config or name not in snapshot.names:
+            self.parse_config()
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
