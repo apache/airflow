@@ -321,7 +321,6 @@
     "maxChanges": "Maximale Änderungen",
     "maxChangesDefault": "Standard",
     "noChanges": "Es gibt keinen Unterschied zwischen diesen Versionen.",
-    "observedState": "Beachteter Status",
     "observedStateBoundary": "Vergleicht aktuell gespeichterte Dagversionen. Quellcodevergleich ist nicht verfügbar für alte Versionen; Code-Tab nutzen um Quellcode zu vergleichen.",
     "operations": {
       "added": "Hinzugefügt",
@@ -340,7 +339,6 @@
       "title": "Vergleich nicht verfügbar",
       "withoutReason": "Diese Versionen können nicht verglichen werden."
     },
-    "valuesHidden": "Werte verstecken",
-    "valuesShown": "Werte anzeigen"
+    "valuesHidden": "Werte verstecken"
   }
 }
