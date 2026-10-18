@@ -40,6 +40,12 @@ CONNECTION_TYPE_SCHEMA = json.loads(SCHEMA_PATH.read_text())["properties"]["conn
 # how such a value reaches the schema at all.
 BLOCK_SCALAR_VALUE = yaml.safe_load("connection-type: |\n  pydanticai_vertex\n")["connection-type"]
 
+WEBHOOK_SOURCES_SCHEMA = json.loads(SCHEMA_PATH.read_text())["properties"]["webhook-sources"]
+RUNTIME_WEBHOOK_SOURCES_SCHEMA = json.loads(
+    (Path(airflow.__file__).parent / "provider_info.schema.json").read_text()
+)["properties"]["webhook-sources"]
+WEBHOOK_SOURCE_CLASSPATH = "airflow.providers.github.webhooks.github.GitHubWebhookSource"
+
 
 @pytest.mark.parametrize("invalid_version", ["3.10.", "3.10.0.1", "3.10.0\n"])
 def test_excluded_python_versions_accept_minor_or_patch_only(invalid_version):
@@ -81,3 +87,51 @@ def test_schema_rejects_a_connection_type_that_cannot_be_resolved(connection_typ
     """
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(connection_type, schema=CONNECTION_TYPE_SCHEMA)
+
+
+@pytest.mark.parametrize("source_type", ["github", "hmac_json", "dbt_cloud", "a", "a" * 64])
+def test_schema_accepts_a_webhook_source(source_type):
+    jsonschema.validate(
+        [{"source-type": source_type, "classpath": WEBHOOK_SOURCE_CLASSPATH}], schema=WEBHOOK_SOURCES_SCHEMA
+    )
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        pytest.param({"source-type": "hmac-json", "classpath": WEBHOOK_SOURCE_CLASSPATH}, id="hyphen"),
+        pytest.param({"source-type": "GitHub", "classpath": WEBHOOK_SOURCE_CLASSPATH}, id="uppercase"),
+        pytest.param({"source-type": "1github", "classpath": WEBHOOK_SOURCE_CLASSPATH}, id="leading-digit"),
+        pytest.param(
+            {"source-type": "github\n", "classpath": WEBHOOK_SOURCE_CLASSPATH}, id="trailing-newline"
+        ),
+        pytest.param({"source-type": "", "classpath": WEBHOOK_SOURCE_CLASSPATH}, id="empty"),
+        pytest.param({"source-type": "a" * 65, "classpath": WEBHOOK_SOURCE_CLASSPATH}, id="too-long"),
+        pytest.param({"classpath": WEBHOOK_SOURCE_CLASSPATH}, id="no-source-type"),
+        pytest.param({"source-type": "github"}, id="no-classpath"),
+        pytest.param(
+            {"source-type": "github", "classpath": WEBHOOK_SOURCE_CLASSPATH, "methods": ["GET"]},
+            id="unknown-key",
+        ),
+    ],
+)
+def test_schema_rejects_an_invalid_webhook_source(entry):
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate([entry], schema=WEBHOOK_SOURCES_SCHEMA)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        pytest.param({"source-type": 1, "classpath": WEBHOOK_SOURCE_CLASSPATH}, id="non-string-source-type"),
+        pytest.param({"source-type": "github", "classpath": 1}, id="non-string-classpath"),
+        pytest.param("github", id="bare-string"),
+        pytest.param({"classpath": WEBHOOK_SOURCE_CLASSPATH}, id="no-source-type"),
+        pytest.param(
+            {"source-type": "github", "classpath": WEBHOOK_SOURCE_CLASSPATH, "methods": ["GET"]},
+            id="unknown-key",
+        ),
+    ],
+)
+def test_runtime_schema_accepts_an_invalid_webhook_source(entry):
+    jsonschema.validate([entry], schema=RUNTIME_WEBHOOK_SOURCES_SCHEMA)

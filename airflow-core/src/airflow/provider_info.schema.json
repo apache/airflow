@@ -472,6 +472,20 @@
         "queues": {
             "type": "array",
             "description": "Message queue provider class names"
+        },
+        "webhook-sources": {
+            "type": "array",
+            "description": "Inbound webhook source types contributed by the provider. Entries are left untyped and open, with no required keys, because a provider that fails this schema is skipped whole; ProvidersManager skips an invalid entry on its own instead.",
+            "items": {
+                "properties": {
+                    "source-type": {
+                        "description": "Name of the source type, as set in the source_type extra of an inbound_webhook connection."
+                    },
+                    "classpath": {
+                        "description": "Fully-qualified class name of the airflow.webhooks.base.WebhookSource subclass."
+                    }
+                }
+            }
         }
     },
     "definitions": {

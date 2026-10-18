@@ -22,7 +22,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import provider_command
-from airflow.providers_manager import ProviderInfo
+from airflow.providers_manager import ProviderInfo, WebhookSourceInfo
 
 RST_DESCRIPTION = "`Apache Beam <https://beam.apache.org/>`__.\n"
 PLAIN_DESCRIPTION = "Apache Beam https://beam.apache.org/"
@@ -57,3 +57,39 @@ class TestCliProviderGet:
             {"package-name": "apache-airflow-providers-beam", "description": PLAIN_DESCRIPTION}
         ]
         assert provider_info.data["description"] == RST_DESCRIPTION
+
+
+class TestCliProviderWebhookSources:
+    @classmethod
+    def setup_class(cls):
+        cls.parser = cli_parser.get_parser()
+
+    @mock.patch("airflow.cli.commands.provider_command.AirflowConsole", autospec=True)
+    @mock.patch("airflow.cli.commands.provider_command.ProvidersManager", autospec=True)
+    def test_webhook_sources_marks_every_declaration_of_a_conflicted_type(
+        self, mock_providers_manager, mock_console
+    ):
+        first = WebhookSourceInfo(source_type="dup", classpath="first.FirstSource", package_name="first")
+        second = WebhookSourceInfo(source_type="dup", classpath="second.SecondSource", package_name="second")
+        served = WebhookSourceInfo(source_type="fake", classpath="fake.FakeSource", package_name="fake")
+        mock_providers_manager.return_value.webhook_sources = [first, second, served]
+        mock_providers_manager.return_value.webhook_source_conflicts = {"dup": [first, second]}
+
+        provider_command.webhook_sources_list(self.parser.parse_args(["providers", "webhook-sources"]))
+
+        print_as_kwargs = mock_console.return_value.print_as.call_args.kwargs
+        assert [print_as_kwargs["mapper"](info) for info in print_as_kwargs["data"]] == [
+            {
+                "source_type": "dup",
+                "classpath": "first.FirstSource",
+                "package_name": "first",
+                "status": "conflict: served by none",
+            },
+            {
+                "source_type": "dup",
+                "classpath": "second.SecondSource",
+                "package_name": "second",
+                "status": "conflict: served by none",
+            },
+            {"source_type": "fake", "classpath": "fake.FakeSource", "package_name": "fake", "status": "ok"},
+        ]
