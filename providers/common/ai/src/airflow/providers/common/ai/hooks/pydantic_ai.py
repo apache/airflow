@@ -20,6 +20,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
@@ -27,8 +28,13 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
+from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
+
+# An Airflow task is never interactive, and pydantic-ai's first-run banner on stderr would
+# land in the task log as ERROR lines.
+pydantic_ai.BANNER_ENABLED = False
 
 OutputT = TypeVar("OutputT")
 
@@ -611,6 +617,12 @@ class PydanticAIHook(BaseHook):
         GenAI spans through Airflow's tracing pipeline. See
         :mod:`airflow.providers.common.ai.observability`.
 
+        What each tool returns or raises while it runs passes through Airflow's secret
+        masker before the model sees it, whichever toolset or capability supplied the
+        tool: the agent gets a
+        :class:`~airflow.providers.common.ai.utils.toolset_base.MaskingCapability` after
+        any ``capabilities`` passed in.
+
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
             Required when *spec_file* is not given. When *spec_file* is given,
@@ -632,6 +644,9 @@ class PydanticAIHook(BaseHook):
         # it after construction so a caller that passes its own ``instrument``
         # still wins over the provider's auto-instrumentation.
         caller_instrument = agent_kwargs.pop("instrument", _UNSET)
+
+        # Last, so it is the innermost capability; see MaskingCapability.
+        agent_kwargs["capabilities"] = [*(agent_kwargs.get("capabilities") or ()), MaskingCapability()]
 
         if spec_file is not None:
             from_file_kwargs = dict(agent_kwargs)

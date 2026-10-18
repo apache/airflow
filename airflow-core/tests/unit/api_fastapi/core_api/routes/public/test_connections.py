@@ -1610,6 +1610,27 @@ class TestAsyncConnectionTest(TestConnectionEndpoint):
         assert ct is not None
         assert ct.commit_on_success is True
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_commit_on_success_new_connection_is_create_only(self, test_client, session):
+        """A commit_on_success test for a connection that does not exist yet may only create it."""
+        body = {**self.TEST_REQUEST_BODY, "commit_on_success": True}
+        response = test_client.post("/connections/enqueue-test", json=body)
+        assert response.status_code == 202
+
+        ct = session.scalar(select(ConnectionTestRequest).filter_by(token=response.json()["token"]))
+        assert ct.commit_allows_update is False
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_post_commit_on_success_existing_connection_allows_update(self, test_client, session):
+        """A commit_on_success test for an existing connection, authorized for edit, may update it."""
+        self.create_connection()
+        body = {**self.TEST_REQUEST_BODY, "commit_on_success": True}
+        response = test_client.post("/connections/enqueue-test", json=body)
+        assert response.status_code == 202
+
+        ct = session.scalar(select(ConnectionTestRequest).filter_by(token=response.json()["token"]))
+        assert ct.commit_allows_update is True
+
     @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.get_auth_manager", autospec=True)
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_post_commit_on_success_existing_connection_requires_edit_permission(

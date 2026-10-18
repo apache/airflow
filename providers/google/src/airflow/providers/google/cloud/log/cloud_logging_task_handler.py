@@ -248,8 +248,11 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             if parent.exists():
                 shutil.rmtree(parent, ignore_errors=True)
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         """Read logs from Cloud Logging using task instance labels."""
+        if ti is None:
+            # Entries are found by task instance labels, so logs without a task instance can't be read.
+            return [], None
         ti_labels = _task_instance_to_labels(ti)
         log_filter = self.prepare_log_filter(ti_labels)
         messages, end_of_log, _ = self.read_logs(log_filter, next_page_token=None, all_pages=True)

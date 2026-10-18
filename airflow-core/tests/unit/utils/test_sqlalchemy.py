@@ -219,6 +219,26 @@ class TestSqlAlchemyUtils:
             other_session.execute(text("SELECT 1"))
             other_session.commit()
 
+    def test_prohibit_commit_allows_savepoint_release(self):
+        """A SAVEPOINT release (session.begin_nested()) dispatches the same before_commit
+        event as a real commit, but must not trip the guard: it ends neither the outer
+        transaction nor its row locks."""
+        with prohibit_commit(self.session):
+            self.session.execute(text("SELECT 1"))
+            with self.session.begin_nested():
+                self.session.execute(text("SELECT 1"))
+
+            # The guard must still catch a real commit after the savepoint released.
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                self.session.commit()
+            self.session.rollback()
+
+            # ...and an explicit commit while still inside an open savepoint.
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                with self.session.begin_nested():
+                    self.session.commit()
+            self.session.rollback()
+
     def teardown_method(self):
         self.session.close()
         settings.engine.dispose()

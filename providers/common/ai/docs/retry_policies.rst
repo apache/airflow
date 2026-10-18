@@ -326,7 +326,7 @@ Escalating to an LLM
 A classifier is cheap and fast, and a text model can reason about a failure it
 has never seen a category for. ``fallback_policy`` puts one behind the other.
 ``snowflake_policy`` is the classifier policy from the previous section; the
-chain reuses its category table:
+chain reuses its category table with a stricter bar on ``permanent``:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_retry_policy.py
     :language: python
@@ -345,7 +345,7 @@ The order of events on a failure:
    Retry-After header``.
 3. If that policy returns DEFAULT, whatever reason it attached, it decided
    nothing: the outer ``fallback_rules`` apply, then the task's own retry
-   behaviour. Only a RETRY or FAIL from ``fallback_policy`` ends the chain, so an
+   behaviour. Any other decision from ``fallback_policy`` ends the chain, so an
    outer rule such as ``PermissionError -> FAIL`` still holds when both models
    are unreachable.
 
@@ -368,8 +368,9 @@ retry behaviour with no change to the Dag. Two things follow:
 
 * ``timeout`` stops bounding the whole classification call. pydantic-ai applies a
   ``ModelSettings`` timeout to each model in the chain, not to the chain as a whole, so a
-  30-second ``timeout`` across a three-connection chain is a 90-second worst case before the
-  policy falls back to ``fallback_rules``.
+  30-second ``timeout`` across a three-connection chain can take up to 90 seconds before the
+  policy falls back to ``fallback_rules``, or 270 when the connections use the OpenAI or
+  Anthropic SDK, which retry a timed-out request twice.
 * If every connection in the chain fails, the classification call raises
   ``pydantic_ai.exceptions.FallbackExceptionGroup``. ``evaluate()`` still degrades to
   ``fallback_rules`` correctly -- it catches the broad ``Exception``, and an exception group is
@@ -397,7 +398,7 @@ Beyond your ``instructions``, it sees only the exception's class name and
 message (or, with ``include_traceback=True``, the formatted traceback; either
 after redaction and truncation), how many attempts are left,
 and, under ``ClassifierRetryPolicy``, the category names and descriptions. The prompt says
-``attempt {try_number} of {max_tries}``, so the model knows the limit and not
+``attempt 2 of 4`` on the second try of a task with ``retries=3``, so the model knows the limit and not
 just where it is right now; an instruction like "after two attempts treat an
 expired token as ``auth`` rather than ``transient``" works because the model
 can see which attempt this is.
@@ -559,7 +560,7 @@ Both policies share every parameter below except ``categories``,
      - None
      - ``ClassifierRetryPolicy`` only. A ``RetryPolicy`` to consult when the
        classifier is under its bar, reports no confidence, or cannot be
-       reached; typically an ``LLMRetryPolicy`` on a text model. Its RETRY or FAIL
+       reached; typically an ``LLMRetryPolicy`` on a text model. Its decision
        is used; a DEFAULT, whatever its reason, means the outer ``fallback_rules``
        apply.
    * - ``redactor``

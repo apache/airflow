@@ -72,7 +72,7 @@ dependencies = [
 [project.optional-dependencies]
 # pip install apache-airflow-providers-dbt-cloud[openlineage]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=2.3.0",
+    "apache-airflow-providers-openlineage>=2.16.0",
 ]
 
 [dependency-groups]

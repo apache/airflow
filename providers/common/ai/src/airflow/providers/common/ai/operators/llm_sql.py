@@ -73,8 +73,10 @@ class LLMSQLQueryOperator(LLMOperator):
         for how blank entries in the list are dropped.
     :param system_prompt: Additional instructions appended to the built-in SQL
         safety prompt. Use for domain-specific guidance.
-    :param agent_params: Additional keyword arguments passed to the pydantic-ai
-        ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+    :param model_settings: Pydantic AI ``ModelSettings`` for the model call, such as
+        ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
+    :param output_retries: How many times the model is asked again when its output
+        fails validation. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
     :param db_conn_id: Connection ID for database schema introspection.
         The connection must resolve to a ``DbApiHook``.
     :param table_names: Tables to include in the LLM's schema context.
@@ -161,9 +163,7 @@ class LLMSQLQueryOperator(LLMOperator):
 
         full_system_prompt = self._build_system_prompt(schema_info)
 
-        agent = self.llm_hook.create_agent(
-            output_type=str, instructions=full_system_prompt, **self.agent_params
-        )
+        agent = self._create_agent(output_type=str, instructions=full_system_prompt)
         result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 

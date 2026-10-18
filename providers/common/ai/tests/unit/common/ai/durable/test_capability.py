@@ -25,12 +25,14 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from pydantic import BaseModel
 from pydantic_ai import Agent, CancellationToken, RunContext
 from pydantic_ai.capabilities import AbstractCapability, durable_operation
-from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
@@ -240,6 +242,63 @@ class TestReplay:
 
         assert result.output == "answer: 3 rows"
         assert memory_storage.entries == {}
+
+
+class TestLazilyValidatedIterableArgument:
+    """
+    A lazily validated ``Iterable`` argument must reach the tool intact.
+
+    pydantic validates an ``Iterable[int]`` parameter into a ``ValidatorIterator``, and
+    the call is fingerprinted before the tool runs. Reading it to build the fingerprint
+    would leave the tool an exhausted iterator, and the wrong answer would be recorded.
+    """
+
+    @staticmethod
+    def build(calls: Calls, seen: list[int], fail_final: list[bool]) -> Agent[None, str]:
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("model")
+            if responses_so_far(messages) == 0:
+                return ModelResponse(parts=[ToolCallPart("total", {"values": [1, 2, 3]})])
+            if fail_final[0]:
+                raise RuntimeError("worker died")
+            return ModelResponse(parts=[TextPart(f"total={tool_returns(messages)[-1].content}")])
+
+        toolset = FunctionToolset(id="math")
+
+        @toolset.tool_plain
+        def total(values: Iterable[int]) -> int:
+            """Add up the given values."""
+            consumed = list(values)
+            seen.extend(consumed)
+            calls.bump("total")
+            return sum(consumed)
+
+        return Agent(
+            FunctionModel(model_fn), name="adder", toolsets=[toolset], capabilities=[AirflowDurability()]
+        )
+
+    @pytest.mark.asyncio
+    async def test_tool_still_receives_every_value(self, memory_storage):
+        seen: list[int] = []
+
+        result = await attempt(memory_storage, self.build(Calls(), seen, [False]))
+
+        assert seen == [1, 2, 3]
+        assert result.output == "total=6"
+
+    @pytest.mark.asyncio
+    async def test_retry_replays_the_result_of_the_full_input(self, memory_storage):
+        calls = Calls()
+        fail_final = [True]
+        with pytest.raises(RuntimeError):
+            await attempt(memory_storage, self.build(calls, [], fail_final))
+        fail_final[0] = False
+
+        result = await attempt(memory_storage, self.build(calls, [], fail_final))
+
+        assert result.output == "total=6"
+        # The call has no fingerprint, so it replays only because the model step before it did.
+        assert calls["total"] == 1
 
 
 class TestResultsThatCannotBeRecorded:
@@ -492,6 +551,109 @@ class TestAirflowToolsets:
         assert calls["query"] == 2
         # The model step before it still replayed.
         assert calls["model"] == 3
+
+
+class Answer(BaseModel):
+    rows: int
+
+
+class TestModelAtFault:
+    """A run pydantic-ai fails because of the model's answers is retried by asking the model again."""
+
+    @pytest.mark.asyncio
+    async def test_a_retry_asks_the_model_again_after_its_tool_retries_ran_out(self, memory_storage):
+        calls = Calls()
+        sql = ["select nope"]
+
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("model")
+            if returns := tool_returns(messages):
+                return ModelResponse(parts=[TextPart(f"answer: {returns[-1].content}")])
+            return ModelResponse(parts=[ToolCallPart("query", {"sql": sql[0]})])
+
+        def build() -> Agent[None, str]:
+            toolset = FunctionToolset(id="db", max_retries=1)
+
+            @toolset.tool_plain
+            def query(sql: str) -> str:
+                calls.bump("query")
+                if "nope" in sql:
+                    raise ModelRetry("no column nope")
+                return "3 rows"
+
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(UnexpectedModelBehavior, match="exceeded max retries"):
+            await attempt(memory_storage, build())
+        sql[0] = "select 1"
+        with journal_scope(journal := DurableJournal(memory_storage)):
+            result = await build().run("go")
+
+        assert result.output == "answer: 3 rows"
+        assert dict(journal.stats.replayed) == {"model": 1, "tool": 1}
+        # Attempt 1: two bad queries. Attempt 2 replays the first request and its rejected
+        # query, asks the model again (good query), then for the answer.
+        assert (calls["model"], calls["query"]) == (4, 3)
+
+    @pytest.mark.asyncio
+    async def test_a_retry_asks_the_model_again_after_its_output_retries_ran_out(self, memory_storage):
+        calls = Calls()
+        rows: list[Any] = ["many"]
+
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("model")
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"rows": rows[0]})])
+
+        def build() -> Agent[None, Answer]:
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                output_type=Answer,
+                retries=1,
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(UnexpectedModelBehavior, match="output retries"):
+            await attempt(memory_storage, build())
+        rows[0] = 3
+        result = await attempt(memory_storage, build())
+
+        assert result.output == Answer(rows=3)
+        # The first invalid answer replays; only the model's last request runs again.
+        assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    async def test_a_tool_that_raises_keeps_the_models_request_replaying(self, memory_storage):
+        """The tool failed, not the model: only the tool runs again."""
+        calls = Calls()
+
+        def build() -> Agent[None, str]:
+            toolset = FunctionToolset(id="db")
+
+            @toolset.tool_plain
+            def query(sql: str) -> str:
+                calls.bump("query")
+                if calls["query"] == 1:
+                    raise RuntimeError("connection reset")
+                return "3 rows"
+
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="connection reset"):
+            await attempt(memory_storage, build())
+        await attempt(memory_storage, build())
+
+        assert (calls["model"], calls["query"]) == (2, 2)
 
 
 @pytest.mark.enable_redact

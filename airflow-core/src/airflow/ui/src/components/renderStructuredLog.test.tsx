@@ -22,7 +22,12 @@ import { describe, it, expect } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
-import { renderStructuredLog, renderTIContextPreamble, tiContextFields } from "./renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+  tiContextFields,
+} from "./renderStructuredLog";
 
 const translate = (key: string) => key;
 
@@ -157,6 +162,17 @@ describe("renderStructuredLog — TI context field stripping", () => {
 
     expect(screen.getByText(/some_custom_key/u)).toBeInTheDocument();
     expect(screen.queryByText(/ti_id/u)).toBeNull();
+  });
+});
+
+describe("extractTIContext", () => {
+  it("ignores TI fields logged as null, e.g. by callback triggers", () => {
+    const nullContext = { dag_id: null, event: "trigger starting", task_id: null, ti_id: null };
+
+    expect(extractTIContext([nullContext as never])).toBeUndefined();
+    expect(extractTIContext([nullContext as never, { dag_id: "my_dag", event: "x" }])).toEqual({
+      dag_id: "my_dag",
+    });
   });
 });
 

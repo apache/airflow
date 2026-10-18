@@ -133,6 +133,7 @@ const getColumns = ({
         <DeleteAssetStateStoreButton assetId={assetId} storeKey={original.key} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
