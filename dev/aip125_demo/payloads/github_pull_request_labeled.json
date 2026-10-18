@@ -1,0 +1,32 @@
+{
+  "action": "labeled",
+  "number": 42,
+  "label": {"id": 10, "name": "deploy-preview", "color": "0e8a16"},
+  "pull_request": {
+    "number": 42,
+    "state": "open",
+    "title": "Add a preview environment",
+    "html_url": "https://github.com/my-org/web/pull/42",
+    "user": {"login": "octocat", "id": 2, "type": "User"},
+    "labels": [{"id": 10, "name": "deploy-preview", "color": "0e8a16"}],
+    "head": {
+      "ref": "feature/preview",
+      "sha": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+      "repo": {"full_name": "my-org/web", "owner": {"login": "my-org"}, "fork": false}
+    },
+    "base": {
+      "ref": "main",
+      "sha": "f95f852bd8fca8fcc58a9a2d6c842781e32a215e",
+      "repo": {"full_name": "my-org/web", "owner": {"login": "my-org"}, "fork": false}
+    }
+  },
+  "repository": {
+    "id": 1,
+    "name": "web",
+    "full_name": "my-org/web",
+    "private": false,
+    "owner": {"login": "my-org", "id": 3, "type": "Organization"}
+  },
+  "organization": {"login": "my-org", "id": 3},
+  "sender": {"login": "octocat", "id": 2, "type": "User"}
+}
