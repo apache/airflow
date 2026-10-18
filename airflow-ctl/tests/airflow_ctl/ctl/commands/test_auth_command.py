@@ -518,7 +518,9 @@ class TestLoginWithBrowser:
         monkeypatch.delenv("SSH_TTY", raising=False)
         # Never wait the real five minutes, and never open a real browser.
         monkeypatch.setattr(auth_command, "BROWSER_LOGIN_TIMEOUT_SECONDS", 2)
-        with patch.object(auth_command.webbrowser, "open", return_value=True) as self.open_browser:
+        with patch.object(
+            auth_command.webbrowser, "open", autospec=True, return_value=True
+        ) as self.open_browser:
             yield
 
     def make_client(self, has_feature: bool = True, exchange=None, token: str = "") -> Client:

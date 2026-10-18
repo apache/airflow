@@ -23,8 +23,13 @@ from unittest.mock import patch
 import pytest
 import time_machine
 
+from airflow.api_fastapi.auth.cli_authorization_code import (
+    build_loopback_redirect_uri,
+    validate_cli_authorization_code,
+)
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
+from airflow.configuration import conf
 from airflow.models.crypto import _NullFernet
 from airflow.models.team import Team
 
@@ -171,18 +176,11 @@ class TestAuthorizeCli:
     body = {"code_challenge": code_challenge, "code_challenge_method": "S256", "port": 53682}
 
     def redeem(self, code: str) -> dict:
-        from airflow.api_fastapi.auth.cli_authorization_code import (
-            build_loopback_redirect_uri,
-            validate_cli_authorization_code,
-        )
-
         return validate_cli_authorization_code(
             code, code_verifier=self.code_verifier, redirect_uri=build_loopback_redirect_uri(53682)
         )
 
     def test_returns_a_code_carrying_a_cli_token_for_the_user(self, test_client):
-        from airflow.configuration import conf
-
         # Frozen at the present so the test client's own session token stays valid.
         approved_at = datetime.now(tz=UTC)
         with time_machine.travel(approved_at, tick=False):
@@ -201,8 +199,6 @@ class TestAuthorizeCli:
         assert token_claims["exp"] - token_claims["iat"] == cli_expiration
 
     def test_mints_the_token_kind_made_for_the_authorization_header(self, test_client):
-        from airflow.configuration import conf
-
         auth_manager = test_client.app.state.auth_manager
         with patch.object(
             auth_manager, "generate_api_jwt", autospec=True, return_value="API-TOKEN"

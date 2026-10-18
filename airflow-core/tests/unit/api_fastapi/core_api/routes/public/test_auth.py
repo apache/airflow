@@ -26,9 +26,17 @@ import pytest
 import time_machine
 from fastapi.testclient import TestClient
 
+from airflow.api_fastapi.auth.cli_authorization_code import (
+    CLI_AUTHORIZATION_CODE_LIFETIME_SECONDS,
+    build_loopback_redirect_uri,
+    issue_cli_authorization_code,
+)
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.configuration import conf
 from airflow.models.crypto import _NullFernet
 from airflow.models.revoked_token import RevokedToken
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_revoked_tokens
@@ -419,22 +427,17 @@ class TestCreateCliToken:
         yield
         clear_db_revoked_tokens()
 
-    def mint_token(self, client) -> str:
-        from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
-        from airflow.configuration import conf
+    # Every clock in these tests is pinned to this instant; the unauthenticated client holds no token that
+    # could fall outside its validity window.
+    approved_at = datetime(2026, 10, 18, 12, 0, tzinfo=UTC)
 
+    def mint_token(self, client) -> str:
         return client.app.state.auth_manager.generate_api_jwt(
             SimpleAuthManagerUser(username="test", role="admin"),
             expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time"),
         )
 
     def issue_code(self, client, cli_token: str | None = None, token_expires_at: int | None = None) -> str:
-        from airflow.api_fastapi.auth.cli_authorization_code import (
-            build_loopback_redirect_uri,
-            issue_cli_authorization_code,
-        )
-        from airflow.configuration import conf
-
         return issue_cli_authorization_code(
             cli_token=cli_token or self.mint_token(client),
             token_expires_at=token_expires_at
@@ -449,31 +452,27 @@ class TestCreateCliToken:
         return client.post("/auth/cli/token", json=body)
 
     def test_exchanges_a_code_for_the_cli_token_it_carries(self, unauthenticated_test_client):
-        from airflow.configuration import conf
-
-        with time_machine.travel(datetime.now(tz=UTC), tick=False):
+        with time_machine.travel(self.approved_at, tick=False):
             token = self.mint_token(unauthenticated_test_client)
             code = self.issue_code(unauthenticated_test_client, cli_token=token)
             response = self.exchange(unauthenticated_test_client, code)
+            auth_manager = unauthenticated_test_client.app.state.auth_manager
+            claims = auth_manager._get_token_validator().validated_claims(response.json()["access_token"])
 
         assert response.status_code == 200
         data = response.json()
         assert data["access_token"] == token
-        cli_expiration = conf.getint("api_auth", "jwt_cli_expiration_time")
-        assert data["expires_in_seconds"] == cli_expiration
-        auth_manager = unauthenticated_test_client.app.state.auth_manager
-        claims = auth_manager._get_token_validator().validated_claims(data["access_token"])
+        assert data["expires_in_seconds"] == conf.getint("api_auth", "jwt_cli_expiration_time")
         assert claims["sub"] == "test"
         assert claims["role"] == "admin"
 
     def test_reports_how_long_the_token_is_still_good_for(self, unauthenticated_test_client):
-        approved_at = datetime.now(tz=UTC)
-        with time_machine.travel(approved_at, tick=False):
+        with time_machine.travel(self.approved_at, tick=False):
             code = self.issue_code(
-                unauthenticated_test_client, token_expires_at=int(approved_at.timestamp()) + 100
+                unauthenticated_test_client, token_expires_at=int(self.approved_at.timestamp()) + 100
             )
 
-        with time_machine.travel(approved_at + timedelta(seconds=40), tick=False):
+        with time_machine.travel(self.approved_at + timedelta(seconds=40), tick=False):
             response = self.exchange(unauthenticated_test_client, code)
 
         assert response.status_code == 200
@@ -481,9 +480,11 @@ class TestCreateCliToken:
 
     def test_rejects_a_code_whose_token_has_already_expired(self, unauthenticated_test_client):
         """A CLI lifetime shorter than the code's plus a late exchange must not report success."""
-        code = self.issue_code(unauthenticated_test_client, token_expires_at=int(time.time()) - 1)
-
-        response = self.exchange(unauthenticated_test_client, code)
+        with time_machine.travel(self.approved_at, tick=False):
+            code = self.issue_code(
+                unauthenticated_test_client, token_expires_at=int(self.approved_at.timestamp())
+            )
+            response = self.exchange(unauthenticated_test_client, code)
 
         assert response.status_code == 400
         assert response.json() == {"detail": "The approved token has already expired"}
@@ -516,9 +517,6 @@ class TestCreateCliToken:
 
     def test_consumption_record_outlives_the_leeway(self, unauthenticated_test_client):
         """The code stays valid for jwt_leeway past exp, so cleanup must not drop the record before then."""
-        from airflow.configuration import conf
-        from airflow.utils.session import create_session
-
         code = self.issue_code(unauthenticated_test_client)
         assert self.exchange(unauthenticated_test_client, code).status_code == 200
 
@@ -548,8 +546,6 @@ class TestCreateCliToken:
         assert response.json() == {"detail": "The authorization code was not issued for this port"}
 
     def test_rejects_an_expired_code(self, unauthenticated_test_client):
-        from airflow.api_fastapi.auth.cli_authorization_code import CLI_AUTHORIZATION_CODE_LIFETIME_SECONDS
-
         code = self.issue_code(unauthenticated_test_client)
 
         with time_machine.travel(timedelta(seconds=CLI_AUTHORIZATION_CODE_LIFETIME_SECONDS + 30), tick=False):
