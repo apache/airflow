@@ -723,7 +723,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                 dict.fromkeys(
                     (
                         *self.operator_class.template_fields,
-                        *self.operator_class.template_fields_extra,
+                        *tuple(self.operator_class.template_fields_extra),
                     )
                 )
             ),

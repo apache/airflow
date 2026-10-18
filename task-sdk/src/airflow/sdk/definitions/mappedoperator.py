@@ -255,7 +255,7 @@ class OperatorPartial:
                 dict.fromkeys(
                     (
                         *self.operator_class.template_fields,
-                        *self.operator_class.template_fields_extra,
+                        *tuple(self.operator_class.template_fields_extra),
                     )
                 )
             ),

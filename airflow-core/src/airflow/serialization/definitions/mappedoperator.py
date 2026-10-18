@@ -100,7 +100,7 @@ class SerializedMappedOperator(DAGNode):
     operator_extra_links: Collection[XComOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
-    template_fields_extra: Collection[str] = ()
+    template_fields_extra: Sequence[str] = ()
     template_fields_renderers: dict[str, str]
     ui_color: str
     ui_fgcolor: str

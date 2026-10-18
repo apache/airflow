@@ -1689,7 +1689,7 @@ class TestStringifiedDAGs:
             "task_type": "BaseOperator",
             "template_ext": (),
             "template_fields": (),
-            "template_fields_extra": frozenset(),
+            "template_fields_extra": (),
             "template_fields_renderers": {},
             "trigger_rule": TriggerRule.ALL_SUCCESS,
             "ui_color": "#fff",
@@ -2083,7 +2083,7 @@ class TestStringifiedDAGs:
         """``template_fields_extra`` is serialized and survives a ``SerializedBaseOperator`` round-trip."""
 
         class ExtraTemplateOperator(MockOperator):
-            template_fields_extra = frozenset({"arg3"})
+            template_fields_extra = ("arg3",)
 
             def __init__(self, arg3: str = "", **kwargs):
                 super().__init__(**kwargs)
@@ -2093,19 +2093,19 @@ class TestStringifiedDAGs:
             original = ExtraTemplateOperator(task_id="op1", arg3="{{ hi }}")
 
         serialized = OperatorSerialization.serialize_operator(original)
-        assert sorted(serialized["template_fields_extra"]) == ["arg3"]
+        assert list(serialized["template_fields_extra"]) == ["arg3"]
         assert "arg3" in serialized["template_fields"]
 
         round_tripped = OperatorSerialization.deserialize_operator(serialized)
         assert isinstance(round_tripped, SerializedBaseOperator)
-        assert set(round_tripped.template_fields_extra) == {"arg3"}
+        assert list(round_tripped.template_fields_extra) == ["arg3"]
         assert "arg3" in round_tripped.template_fields
 
     def test_serialize_template_fields_extra_roundtrip_mapped(self):
         """A mapped operator carrying ``template_fields_extra`` keeps the merged ``template_fields`` after round-trip."""
 
         class ExtraTemplateMappedOperator(MockOperator):
-            template_fields_extra = frozenset({"arg3"})
+            template_fields_extra = ("arg3",)
 
             def __init__(self, arg3: str = "", **kwargs):
                 super().__init__(**kwargs)
@@ -2118,15 +2118,15 @@ class TestStringifiedDAGs:
         ):
             original = ExtraTemplateMappedOperator.partial(task_id="m").expand(arg1=["a", "b"])
 
-        assert sorted(original.template_fields) == ["arg1", "arg2", "arg3"]
+        assert list(original.template_fields) == ["arg1", "arg2", "arg3"]
 
         serialized = OperatorSerialization.serialize_mapped_operator(original)
         assert "template_fields" in serialized
-        assert sorted(serialized["template_fields"]) == ["arg1", "arg2", "arg3"]
+        assert list(serialized["template_fields"]) == ["arg1", "arg2", "arg3"]
 
         round_tripped = OperatorSerialization.deserialize_operator(serialized)
         assert isinstance(round_tripped, SerializedMappedOperator)
-        assert sorted(round_tripped.template_fields) == ["arg1", "arg2", "arg3"]
+        assert list(round_tripped.template_fields) == ["arg1", "arg2", "arg3"]
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("mapped", [False, True])

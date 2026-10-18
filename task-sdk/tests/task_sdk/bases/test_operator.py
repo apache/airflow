@@ -803,7 +803,7 @@ class TestBaseOperator:
 
         class ExtraTemplateOperator(BaseOperator):
             template_fields = ("arg1",)
-            template_fields_extra = frozenset({"arg2", "arg3"})
+            template_fields_extra = ("arg2", "arg3")
 
             def __init__(self, arg1: str = "", arg2: str = "", arg3: str = "", **kwargs):
                 super().__init__(**kwargs)
@@ -821,7 +821,7 @@ class TestBaseOperator:
 
         class ExtraTemplateOperator(BaseOperator):
             template_fields = ("arg1",)
-            template_fields_extra = frozenset({"arg2"})
+            template_fields_extra = ("arg2",)
 
             def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
                 super().__init__(**kwargs)
@@ -840,7 +840,7 @@ class TestBaseOperator:
 
         class ExtraTemplateOperator(BaseOperator):
             template_fields = ("arg1",)
-            template_fields_extra = frozenset({"arg2"})
+            template_fields_extra = ("arg2",)
 
             def __init__(self, arg1: str = "", arg2: Any = "", **kwargs):
                 super().__init__(**kwargs)
@@ -853,34 +853,39 @@ class TestBaseOperator:
 
         assert upstream.task_id in downstream.upstream_task_ids
 
-    def test_template_fields_extra_empty_frozenset_is_default(self):
-        """``template_fields_extra`` defaults to an empty frozenset."""
-        assert BaseOperator.template_fields_extra == frozenset()
+    def test_template_fields_extra_default_is_empty_sequence(self):
+        """``template_fields_extra`` defaults to an empty sequence (a tuple)."""
+        assert BaseOperator.template_fields_extra == ()
+        # And it must be a sequence, not a frozenset, so the order contract is
+        # preserved across processes regardless of ``PYTHONHASHSEED``.
+        from collections.abc import Sequence
+
+        assert isinstance(BaseOperator.template_fields_extra, Sequence)
 
     @pytest.mark.parametrize(
         ("fields", "extras", "expected"),
         [
             pytest.param(
                 ("arg1", "arg2"),
-                frozenset({"arg2", "arg3"}),
+                ("arg2", "arg3"),
                 ["arg1", "arg2", "arg3"],
                 id="extras-partly-overlap-template_fields",
             ),
             pytest.param(
                 ("arg1", "arg2"),
-                frozenset({"arg1", "arg2", "arg3"}),
+                ("arg1", "arg2", "arg3"),
                 ["arg1", "arg2", "arg3"],
                 id="extras-fully-overlap-template_fields",
             ),
             pytest.param(
                 ("arg3", "arg1", "arg2"),
-                frozenset({"arg2", "arg1"}),
+                ("arg2", "arg1"),
                 ["arg3", "arg1", "arg2"],
                 id="extras-and-template_fields-reverse-order",
             ),
             pytest.param(
                 ("arg1", "arg2"),
-                frozenset(),
+                (),
                 ["arg1", "arg2"],
                 id="extras-empty",
             ),
@@ -902,7 +907,7 @@ class TestBaseOperator:
 
         class ExtraTemplateOperator(BaseOperator):
             template_fields = ("arg1", "arg2")
-            template_fields_extra = frozenset({"arg2", "arg3"})
+            template_fields_extra = ("arg2", "arg3")
 
             def __init__(self, arg1: str = "", arg2: str = "", arg3: str = "", **kwargs):
                 super().__init__(**kwargs)
@@ -920,7 +925,7 @@ class TestBaseOperator:
 
         class ExtraTemplateOperator(BaseOperator):
             template_fields = ("arg1",)
-            template_fields_extra = frozenset({"arg2"})
+            template_fields_extra = ("arg2",)
 
             def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
                 super().__init__(**kwargs)
@@ -937,6 +942,58 @@ class TestBaseOperator:
         unmapped.render_template_fields(context={"x": "xval", "y": "yval"})
         assert unmapped.arg1 == "xval-yval"
         assert unmapped.arg2 == "yval-extra"
+
+    def test_template_fields_extra_order_is_stable_across_processes(self, tmp_path):
+        """A subprocess started with a fresh ``PYTHONHASHSEED`` still sees the declared order.
+
+        This guards against regressions where ``template_fields_extra`` (or any
+        downstream materialisation of it) iterates a set / frozenset, since
+        string hashes in CPython are randomized per process and ``frozenset``
+        iteration order follows hash-table order.
+        """
+        import subprocess
+        import sys
+        import textwrap
+
+        # Pick a field-name ordering that is highly likely to flip if a
+        # ``frozenset`` ever sneaks back in: with the right seed, "a" hashes
+        # larger than "m", so ``frozenset({"a", "m"})`` can iterate as
+        # ``("m", "a")`` even though the source order is ``("a", "m")``.
+        script = textwrap.dedent(
+            """
+            from airflow.sdk.bases.operator import BaseOperator
+
+            class ExtrasOrderOperator(BaseOperator):
+                template_fields = ("a", "b", "c", "d", "e", "f", "g", "h", "i",
+                                   "j", "k", "l", "m", "n", "o")
+                template_fields_extra = ("a", "m")
+
+            task = ExtrasOrderOperator(task_id="op")
+            print(",".join(task.template_fields))
+            """
+        )
+        script_path = tmp_path / "extras_order_probe.py"
+        script_path.write_text(script)
+
+        env = dict(__import__("os").environ)
+        env.pop("PYTHONHASHSEED", None)
+
+        outputs = set()
+        # Three runs with a fresh interpreter each — the default
+        # ``PYTHONHASHSEED=random`` exposes any hash-order dependency.
+        for _ in range(3):
+            result = subprocess.run(
+                [sys.executable, str(script_path)],
+                env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            outputs.add(result.stdout.strip())
+
+        assert outputs == {
+            "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o",
+        }, f"template_fields order drifted across processes: {outputs}"
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""

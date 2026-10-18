@@ -142,7 +142,7 @@ class SerializedBaseOperator(DAGNode):
     task_type: str = "BaseOperator"
     template_ext: Sequence[str] = []
     template_fields: Collection[str] = []
-    template_fields_extra: Collection[str] = []
+    template_fields_extra: Sequence[str] = []
     template_fields_renderers: dict[str, str] = {}
 
     trigger_rule: str | TriggerRule = "all_success"
