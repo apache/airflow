@@ -430,7 +430,7 @@ const serveRefreshingDagsList = () => {
   let countsResponses = 0;
 
   server.use(
-    http.get("/ui/config", () => HttpResponse.json({ auto_refresh_interval: 1, page_size: 15 })),
+    http.get("/ui/config", () => HttpResponse.json({ auto_refresh_interval: 1 })),
     http.get("/ui/dags", () => HttpResponse.json({ dags: [runningDag], total_entries: 1 })),
     http.get("/ui/dags/run_state_counts", () => {
       countsResponses += 1;
