@@ -174,6 +174,7 @@ const getColumns = ({
         <DeleteXComButton xcom={original} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -260,7 +261,7 @@ export const XCom = () => {
     ...xcomKeyArg,
   };
 
-  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
+  const { data, error, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
   const xcomEntries = data?.xcom_entries ?? [];
   const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
@@ -281,7 +282,6 @@ export const XCom = () => {
         displayMode="table"
         filterActions={<XComFilters />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:xcom.entry"
         onStateChange={setTableURLState}

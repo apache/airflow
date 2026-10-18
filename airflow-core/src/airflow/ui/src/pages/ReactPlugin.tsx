@@ -150,9 +150,11 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
   // Otherwise, lazy-load the bundle once. When it resolves, it must set a function component
   // under globalThis[reactApp.name], which we then use as the default export.
   const LazyPlugin = lazy(() => loadPlugin(reactApp));
+  // A base plugin sits above every page, so a spinner there shows on every full page load.
+  const fallback = reactApp.destination === "base" ? null : <Spinner />;
 
   return (
-    <Suspense fallback={<Spinner />}>
+    <Suspense fallback={fallback}>
       <LazyPlugin {...pluginProps} />
     </Suspense>
   );

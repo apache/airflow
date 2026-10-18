@@ -420,7 +420,7 @@ and compared as strings, so numbers and booleans need no quoting rules of their 
 
 An **unqualified path is rooted at the entity the destination is about** — on ``dag_run``,
 ``state`` is the run's state; on ``task_instance``, the task instance's. A path may instead
-name a related record as its first segment: ``dag``, ``dag_run``, ``task`` or
+name a related record as its first segment: ``asset``, ``dag``, ``dag_run``, ``task`` or
 ``task_instance``. Traversing a list fans out across it, so ``dag.tags.name`` collects every
 tag name and matches if any of them is listed.
 
@@ -448,7 +448,10 @@ resolves:
    * - ``task_instance``
      - ``task_instance``
      - ``dag``, ``dag_run``, ``task``, ``task_instance``
-   * - ``nav``, ``base``, ``dashboard``, ``asset``
+   * - ``asset``
+     - ``asset``
+     - ``asset``
+   * - ``nav``, ``base``, ``dashboard``
      - —
      - none, so every path is skipped
 
