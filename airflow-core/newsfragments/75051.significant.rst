@@ -1,0 +1,19 @@
+AIP-125: Inbound webhooks (experimental)
+
+Airflow can now receive webhooks from services such as GitHub. It verifies each delivery with a secret shared with the sender, records it, and records an asset event on each of its topic names that a Dag schedules on, which starts a run of that Dag. Dags subscribe by scheduling on ``airflow.sdk.WebhookTopic``. The ``hmac_json`` and ``token_header`` source types ship in the standard provider, and ``github`` in the GitHub provider. The feature is experimental: its configuration, routes, responses, metrics, CLI commands and source type interface may change in a minor release.
+
+The feature is opt-in. Only an API server started with ``airflow api-server --apps webhooks`` serves deliveries, ``--apps all`` stays ``core,execution``, and nothing is served until a webhook is listed in ``[webhooks] names``. Dags and existing APIs are unaffected, but two things change for every deployment:
+
+- ``/webhooks`` is reserved. A plugin FastAPI app whose ``url_prefix`` starts with ``/webhooks``, such as ``/webhooks-legacy``, is skipped with a logged error, and the Core API Server answers ``/webhooks`` and every path under it with 404.
+- ``airflow db migrate`` adds one table, ``inbound_delivery``, which ``airflow db clean`` cleans by its ``retain_until`` column.
+
+Users of the ``airflow-provider-inbound-webhooks`` proof of concept:
+
+- Uninstall the package. Airflow skips its plugin app, its ``inbound_webhook`` connection form takes precedence over the standard provider's while it is installed, and versions of it that add an ``airflow webhooks`` command group make every ``airflow`` command fail.
+- Move the ``[inbound_webhooks]`` options to ``[webhooks]`` by hand, renaming ``webhook_names`` to ``names``. Airflow reads no alias for the old section, and ``names`` does not accept ``*``.
+- Delivery records are not carried over, so a sender's retry of a delivery received just before the switch is processed again.
+- Topic names are unchanged for ``github``, ``hmac_json`` and ``token_header`` as long as their values are ASCII: the package folded other characters to ASCII, while Airflow offers no name for a part that has them. Airflow 3.5 has no ``gitlab`` or ``jira`` source type.
+- Topic events leave out payloads larger than ``[webhooks] max_event_payload_bytes``, 65536 bytes by default. Set it to ``0`` to copy every payload, as the package does by default.
+- Import ``WebhookTopic`` from ``airflow.sdk``, and give the branch of a push as its ``action``.
+
+See :doc:`/administration-and-deployment/webhooks` and :doc:`/authoring-and-scheduling/webhook-topics`.

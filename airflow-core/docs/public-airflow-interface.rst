@@ -445,6 +445,57 @@ You can read more about Dag importers and how to write your own in
 
 .. versionadded:: 3.4.0
 
+Webhook Sources
+---------------
+
+|experimental|
+
+Webhook source types verify and describe the deliveries that :doc:`inbound webhooks
+<administration-and-deployment/webhooks>` receive, one kind of sender each. Providers declare them under
+the ``webhook-sources`` key of their ``provider.yaml``, each entry a ``source-type`` and the ``classpath`` of
+the class that implements it.
+
+The interface for writing source types is public, but it may still change in a minor release while it is
+experimental. It consists of the following, in ``airflow.webhooks.base``:
+
+* :class:`~airflow.webhooks.base.WebhookSource`, with ``from_extra``, ``verify``, ``parse``,
+  ``summarize``, ``default_store_payload``, and the optional handshake methods ``is_handshake`` and
+  ``handshake`` with the ``unsigned_handshake`` attribute;
+* :class:`~airflow.webhooks.base.WebhookRequest`, which a source type receives, and
+  :class:`~airflow.webhooks.base.WebhookDelivery`, which ``parse`` returns;
+* :class:`~airflow.webhooks.base.WebhookVerificationError`;
+* the helpers :func:`~airflow.webhooks.base.verify_hmac_sha256`, :func:`~airflow.webhooks.base.verify_token`,
+  :func:`~airflow.webhooks.base.load_json_object`, :func:`~airflow.webhooks.base.get_field` and
+  :func:`~airflow.webhooks.base.get_text`.
+
+Source types and their tests can build topic names exactly as Airflow does with
+:func:`~airflow.webhooks.naming.build_candidate_names` and :func:`~airflow.webhooks.naming.build_topic_name`,
+in ``airflow.webhooks.naming``, which are public too.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/webhooks/base/index
+  _api/airflow/webhooks/naming/index
+
+The rest of the inbound webhooks interface is public and experimental too, and is described in
+:doc:`administration-and-deployment/webhooks` and :doc:`authoring-and-scheduling/webhook-topics`: the
+routes ``POST /webhooks/<name>`` and ``GET /webhooks/_health`` with their status codes and the body of a
+202, the topic name grammar, the keys of the extra of topic events, the ``[webhooks]`` options,
+``GET /api/v2/webhooks/{webhook_name}/deliveries``, the ``airflow webhooks`` commands, the webhook metrics
+and their tags, and the owner of the audit log entries. :class:`~airflow.sdk.WebhookTopic` is part of the
+Task SDK. Each source type's name, the ``source_type`` key that selects it in a connection's extra, its own
+connection extra options, its attributes and the fields its topic names are built from are the public
+interface of the provider that ships it. The ``inbound_webhook`` connection type and its extra keys
+``max_body_bytes`` and ``store_payload`` are the public interface of the standard provider.
+
+You can read more about writing webhook source types in the Webhook Sources page of the providers
+documentation.
+
+.. versionadded:: 3.5.0
+
 Secrets Backends
 ----------------
 
