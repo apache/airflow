@@ -144,13 +144,19 @@
   "filter": "Filter",
   "filters": {
     "addFilter": "Filter hinzufügen",
+    "allIterations": "Alle",
     "completedAt": "Fertiggestellt um",
     "date": "Datum",
     "durationFrom": "Laufzeit Von",
     "durationTo": "Laufzeit Bis",
     "endTime": "Endzeitpunkt",
+    "iteration": "Iteration",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
+    "loop": "Schleife",
+    "loopAllIterations": "{{loop}} alle",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Durchlauf auswählen",
     "maxActiveRunsFrom": "Maximale aktive Läufe von",
     "maxActiveRunsTo": "Maximale aktive Läufe bis",
     "removeFilter": "Filter entfernen",
@@ -160,6 +166,7 @@
     "selectDateRange": "Zeitraum auswählen",
     "selectDateTime": "Datum und Uhrzeit auswählen",
     "startTime": "Startzeitpunkt",
+    "switchIteration": "Iteration wechseln",
     "time": "Uhrzeit"
   },
   "fullscreen": {
