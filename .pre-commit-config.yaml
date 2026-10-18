@@ -19,7 +19,7 @@ default_stages: [pre-commit, pre-push]
 default_install_hook_types: [pre-commit, commit-msg]
 minimum_prek_version: '0.4.8'
 default_language_version:
-  python: python3
+  python: ">=3.11"
   node: 22.19.0
   golang: 1.25.0
 default_env:
