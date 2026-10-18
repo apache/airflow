@@ -2708,10 +2708,8 @@ class BigQueryInsertJobOperator(
         return self.job_id
 
     def on_kill(self) -> None:
-        if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(  # type: ignore[union-attr]
-                job_id=self.job_id, project_id=self.project_id, location=self.location
-            )
+        if self.hook and self.job_id and self.cancel_on_kill:
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 
