@@ -80,8 +80,7 @@ dag.task(
 )();
 ```
 
-`logicalDate` may be omitted, set to a `Date`, or set to `null` for a run without a logical date.
-`runAfter` is sent only when set. These values are sent as written and are not Jinja-rendered.
+When neither date is supplied, `logicalDate` defaults to the current time. Supplying only `runAfter`, or setting `logicalDate`: `null`, creates a run without a logical date. Dates are serialized as UTC ISO timestamps. If `runAfter` is omitted, Airflow defaults it to the current time. Jinja templates are not evaluated.
 
 ## Implementing stub tasks of a Python Dag
 
