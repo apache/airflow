@@ -166,9 +166,10 @@ class GCSToBigQueryOperator(BaseOperator):
         non-partitioned tables. The order of columns given determines the sort order.
         Not applicable for external tables.
     :param autodetect: [Optional] Whether to infer the schema from the source data for CSV and
-        JSON sources. If ``True``, the schema is inferred from the source data. If ``False``,
-        either ``schema_fields`` or ``schema_object`` must be provided. If ``None``, no schema is
-        supplied and the existing destination table's schema is used. (Default: ``True``).
+        JSON sources when neither ``schema_fields`` nor ``schema_object`` is provided. If ``True``,
+        the schema is inferred from the source data. If ``False``, either ``schema_fields`` or
+        ``schema_object`` must be provided. If ``None``, the existing destination table's schema
+        is used. (Default: ``True``).
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
 
         .. code-block:: python
