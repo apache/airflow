@@ -1912,15 +1912,15 @@ def _expire_bundle_config_snapshot():
         ("invalid json", ["my-test-bundle"]),
     ],
 )
-def test_refresh_config_updates_existing_manager(dynamic_bundle_config, payload, expected_names):
+@mock.patch.object(BasicBundle, "__init__", autospec=True, side_effect=RuntimeError("unavailable"))
+def test_bundle_names_refresh_existing_manager(mock_init, dynamic_bundle_config, payload, expected_names):
     manager = DagBundlesManager()
     assert manager.get_all_bundle_names() == ["my-test-bundle"]
     dynamic_bundle_config.write_text(payload)
     _expire_bundle_config_snapshot()
 
-    manager.refresh_config()
-
     assert manager.get_all_bundle_names() == expected_names
+    mock_init.assert_not_called()
 
 
 def test_command_config_reloads_additions_and_removals(dynamic_bundle_config):
@@ -2181,11 +2181,11 @@ def test_cached_snapshot_and_manager_construction_do_not_refresh(mock_command, d
     _expire_bundle_config_snapshot()
 
     assert _load_bundle_config_snapshot() is snapshot
-    assert set(DagBundlesManager().get_all_bundle_names()) == {"my-test-bundle"}
+    manager = DagBundlesManager()
+    assert set(manager._bundle_config) == {"my-test-bundle"}
     mock_command.assert_called_once()
 
-    _refresh_bundle_config_snapshot()
-    assert set(DagBundlesManager().get_all_bundle_names()) == {"second-bundle"}
+    assert manager.get_all_bundle_names() == ["second-bundle"]
     assert mock_command.call_count == 2
 
 
@@ -2279,6 +2279,27 @@ def test_bundle_enumeration_refreshes_existing_manager(dynamic_bundle_config):
     dynamic_bundle_config.write_text(json.dumps(SECOND_BUNDLE_CONFIG))
     _expire_bundle_config_snapshot()
     assert [bundle.name for bundle in manager.get_all_dag_bundles()] == ["second-bundle"]
+
+
+@mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+def test_bundle_names_refresh_respects_interval(mock_command, mock_clock, dynamic_bundle_config):
+    mock_clock.return_value = 100.0
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    manager = DagBundlesManager()
+    assert manager.get_all_bundle_names() == ["my-test-bundle"]
+    mock_command.assert_called_once()
+
+    mock_command.return_value = json.dumps(SECOND_BUNDLE_CONFIG)
+    mock_clock.return_value = 104.0
+    assert manager.get_all_bundle_names() == ["my-test-bundle"]
+    mock_command.assert_called_once()
+
+    mock_clock.return_value = 105.0
+    assert manager.get_all_bundle_names() == ["second-bundle"]
+    assert mock_command.call_count == 2
+    assert manager.get_all_bundle_names() == ["second-bundle"]
+    assert mock_command.call_count == 2
 
 
 @pytest.mark.parametrize("metadata_only", [False, True])
