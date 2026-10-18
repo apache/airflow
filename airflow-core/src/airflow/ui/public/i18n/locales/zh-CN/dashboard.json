@@ -40,8 +40,8 @@
       "bundles": "套件包",
       "hostname": "主机",
       "team": "团队",
-      "title_one": "{{title}} — {{status}}（{{count}} 个实例）",
-      "title_other": "{{title}} — {{status}}（{{count}} 个实例）",
+      "title_one": "{{title}} — {{status}}（{{count, number}} 个实例）",
+      "title_other": "{{title}} — {{status}}（{{count, number}} 个实例）",
       "unknownHostname": "未知主机"
     },
     "lastHeartbeat": "最后心跳",
