@@ -38,7 +38,10 @@ type RecordedAssetEvent = {
 };
 
 const isRecordedAssetEvent = (value: unknown): value is RecordedAssetEvent =>
-  typeof value === "object" && value !== null && typeof (value as { asset?: unknown }).asset === "string";
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { asset?: unknown }).asset === "string" &&
+  typeof (value as { asset_id?: unknown }).asset_id === "number";
 
 // Asset events are recorded as a list of {asset, asset_id, event_id}. Every other key, and asset
 // events in any other shape, are shown as recorded.
@@ -128,8 +131,12 @@ export const DeliveryDetails = ({ delivery }: { readonly delivery: WebhookDelive
               <VStack alignItems="start" gap={1}>
                 <Text fontWeight="medium">{translate("webhookDeliveries.details.assetEvents")}</Text>
                 <List.Root data-testid="delivery-asset-events" ps={4}>
-                  {assetEvents.map(({ asset, event_id: eventId }) => (
-                    <List.Item key={eventId}>{asset}</List.Item>
+                  {assetEvents.map(({ asset, asset_id: assetId, event_id: eventId }) => (
+                    <List.Item key={eventId}>
+                      <Link asChild color="fg.info">
+                        <RouterLink to={`/assets/${assetId}`}>{asset}</RouterLink>
+                      </Link>
+                    </List.Item>
                   ))}
                 </List.Root>
               </VStack>

@@ -264,7 +264,7 @@ describe("WebhookDeliveries", () => {
     await waitFor(() => expect(screen.queryByTestId("delivery-details")).not.toBeInTheDocument());
   });
 
-  it("copies each topic name, and lists asset events by name with other actions as JSON", async () => {
+  it("copies each topic name, links each asset event to its asset, and shows other actions as JSON", async () => {
     serveDeliveries([], [detailedDelivery]);
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
 
@@ -276,8 +276,12 @@ describe("WebhookDeliveries", () => {
     expect(
       within(assetEvents)
         .getAllByRole("listitem")
-        .map((item) => item.textContent),
-    ).toEqual(["demo/pull_request", "demo/pull_request/labeled"]);
+        .map((item) => within(item).getByRole("link"))
+        .map((link) => [link.textContent, link.getAttribute("href")]),
+    ).toEqual([
+      ["demo/pull_request", "/assets/3"],
+      ["demo/pull_request/labeled", "/assets/4"],
+    ]);
     expect(within(panel).getByTestId("monaco-editor")).toHaveTextContent(
       JSON.stringify({ other_action: { count: 1 } }, undefined, 2),
       { normalizeWhitespace: false },
@@ -291,18 +295,18 @@ describe("WebhookDeliveries", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("demo/pull_request/labeled"));
   });
 
-  it("shows asset events in a shape it does not know as recorded", async () => {
-    serveDeliveries(
-      [],
-      [buildDeliveryRow({ actions: { asset_events: { "demo/push": 8 } }, id: deliveryRecordId })],
-    );
+  it.each([
+    { assetEvents: { "demo/push": 8 }, shape: "a map of names to event ids" },
+    { assetEvents: [{ asset: "demo/push", event_id: 8 }], shape: "a list without asset ids" },
+  ])("shows asset events recorded as $shape as recorded", async ({ assetEvents }) => {
+    serveDeliveries([], [buildDeliveryRow({ actions: { asset_events: assetEvents }, id: deliveryRecordId })]);
 
     render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
 
     const panel = await screen.findByTestId("delivery-details");
 
     expect(await within(panel).findByTestId("monaco-editor")).toHaveTextContent(
-      JSON.stringify({ asset_events: { "demo/push": 8 } }, undefined, 2),
+      JSON.stringify({ asset_events: assetEvents }, undefined, 2),
       { normalizeWhitespace: false },
     );
     expect(within(panel).queryByTestId("delivery-asset-events")).not.toBeInTheDocument();

@@ -24,12 +24,7 @@ import type { ConnectionResponse } from "openapi/requests/types.gen";
 
 import { IconButton } from "src/system-components";
 
-// The webhook <name> is served by the connection webhook_<name> of this type, as
-// airflow.webhooks.connections defines them. The name follows
-// airflow.webhooks.registry.WEBHOOK_NAME_PATTERN; the API answers 404 for any other.
-const WEBHOOK_CONN_ID_PREFIX = "webhook_";
-const WEBHOOK_CONN_TYPE = "inbound_webhook";
-const WEBHOOK_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/u;
+import { WEBHOOK_CONN_ID_PREFIX, WEBHOOK_CONN_TYPE, WEBHOOK_NAME_PATTERN } from "src/constants/webhooks";
 
 type Props = {
   readonly connection: ConnectionResponse;

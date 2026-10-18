@@ -68,6 +68,11 @@
     "placeholder": "Sort by"
   },
   "source": "Source",
+  "sources": {
+    "api": "API",
+    "trigger": "Trigger",
+    "webhook": "Webhook"
+  },
   "stats": {
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",

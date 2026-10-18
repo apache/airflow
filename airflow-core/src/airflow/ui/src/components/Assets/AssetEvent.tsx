@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Text, HStack } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 import { Link } from "react-router-dom";
@@ -27,8 +28,52 @@ import { Tooltip } from "src/system-components";
 
 import Time from "src/components/Time";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { WEBHOOK_NAME_PATTERN } from "src/constants/webhooks";
+
 import RenderedJsonField from "../RenderedJsonField";
 import { TriggeredRuns } from "./TriggeredRuns";
+
+type EventSource = {
+  /** The extra key that named the source, which the rendered extra leaves out. */
+  readonly flag?: string;
+  readonly label: string;
+  readonly path?: string;
+};
+
+// A source task wins over every flag: a task can set any of them in its outlet events' extra.
+const getEventSource = (event: AssetEventResponse, translate: TFunction): EventSource | undefined => {
+  const { extra, source_dag_id: sourceDagId } = event;
+
+  if (typeof sourceDagId === "string" && sourceDagId !== "") {
+    return {
+      label: sourceDagId,
+      path: `/dags/${sourceDagId}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`,
+    };
+  }
+  if (extra?.from_rest_api === true) {
+    return { flag: "from_rest_api", label: translate("sources.api") };
+  }
+  if (extra?.from_trigger === true) {
+    return { flag: "from_trigger", label: translate("sources.trigger") };
+  }
+  if (extra?.from_webhook === true) {
+    const { inbound_delivery_id: inboundDeliveryId, webhook } = extra;
+
+    return {
+      flag: "from_webhook",
+      label: translate("sources.webhook"),
+      path:
+        typeof webhook === "string" &&
+        WEBHOOK_NAME_PATTERN.test(webhook) &&
+        typeof inboundDeliveryId === "string"
+          ? `/webhook_deliveries/${webhook}?${SearchParamsKeys.ID}=${encodeURIComponent(inboundDeliveryId)}`
+          : undefined,
+    };
+  }
+
+  return undefined;
+};
 
 export const AssetEvent = ({
   assetId,
@@ -39,15 +84,9 @@ export const AssetEvent = ({
 }) => {
   const { t: translate } = useTranslation("dashboard");
   const { t: rootTranslate } = useTranslation();
-  let source = "";
 
-  const { from_rest_api: fromRestAPI, from_trigger: fromTrigger, ...extra } = event.extra ?? {};
-
-  if (fromRestAPI === true) {
-    source = "API";
-  } else if (fromTrigger === true) {
-    source = "Trigger";
-  }
+  const source = getEventSource(event, translate);
+  const extra = Object.fromEntries(Object.entries(event.extra ?? {}).filter(([key]) => key !== source?.flag));
 
   return (
     <Box borderBottomWidth={1} fontSize={13} pb={2}>
@@ -80,19 +119,17 @@ export const AssetEvent = ({
           </Tooltip>
         </HStack>
       )}
-      {source === "" && !Boolean(event.source_dag_id) ? undefined : (
+      {source === undefined ? undefined : (
         <HStack flexWrap="wrap">
           <Box>{translate("source")}: </Box>
-          {source === "" ? (
-            <Link
-              to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
-            >
+          {source.path === undefined ? (
+            source.label
+          ) : (
+            <Link to={source.path}>
               <Box color="fg.info" overflowWrap="anywhere" padding={0}>
-                {event.source_dag_id}
+                {source.label}
               </Box>
             </Link>
-          ) : (
-            source
           )}
         </HStack>
       )}
