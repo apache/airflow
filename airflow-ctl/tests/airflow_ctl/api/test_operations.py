@@ -51,6 +51,8 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionVariableBody,
     BulkResponse,
     ClearTaskInstancesBody,
+    CliTokenBody,
+    CliTokenResponse,
     Config,
     ConfigOption,
     ConfigSection,
@@ -2185,6 +2187,26 @@ class TestAuthOperations:
             )
         )
         assert response.access_token == "NO_TOKEN"
+
+    def test_login_with_authorization_code(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/auth/cli/token"
+            assert json.loads(request.content) == {
+                "code": "one-time-code",
+                "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                "port": 53682,
+            }
+            return httpx.Response(200, json={"access_token": "WEB_TOKEN", "expires_in_seconds": 3600})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.NO_AUTH)
+        response = client.login.login_with_authorization_code(
+            CliTokenBody(
+                code="one-time-code",
+                code_verifier="dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                port=53682,
+            )
+        )
+        assert response == CliTokenResponse(access_token="WEB_TOKEN", expires_in_seconds=3600)
 
 
 class TestXComOperations:

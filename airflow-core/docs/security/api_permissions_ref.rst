@@ -114,6 +114,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/assets/{asset_id}/state-store/{key:path}``
      - ``Asset``
      - ``PUT``
+   * - ``POST``
+     - ``/api/v2/auth/cli/token``
+     - ``Public``
+     - ``No Airflow permission required``
    * - ``GET``
      - ``/api/v2/auth/login``
      - ``Public``

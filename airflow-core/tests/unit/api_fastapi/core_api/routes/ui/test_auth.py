@@ -158,3 +158,46 @@ class TestGenerateToken:
         response = unauthenticated_test_client.post("/auth/token", json={"token_type": "api"})
         assert response.status_code == 401
         assert response.json() == {"detail": "Not authenticated"}
+
+
+class TestAuthorizeCli:
+    # Test vector from RFC 7636, appendix B.
+    code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+    code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+    body = {"code_challenge": code_challenge, "code_challenge_method": "S256", "port": 53682}
+
+    def test_returns_a_code_bound_to_the_user_challenge_and_port(self, test_client):
+        from airflow.api_fastapi.auth.cli_authorization_code import (
+            build_loopback_redirect_uri,
+            validate_cli_authorization_code,
+        )
+
+        response = test_client.post("/auth/cli/authorize", json=self.body)
+
+        assert response.status_code == 200
+        claims = validate_cli_authorization_code(
+            response.json()["code"],
+            code_verifier=self.code_verifier,
+            redirect_uri=build_loopback_redirect_uri(53682),
+        )
+        assert claims["user"] == {"sub": "test", "role": "admin", "teams": ["team1"]}
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param({**body, "port": 80}, id="privileged-port"),
+            pytest.param({**body, "port": 65536}, id="port-too-large"),
+            pytest.param({**body, "code_challenge_method": "plain"}, id="plain-method"),
+            pytest.param({**body, "code_challenge": "too-short"}, id="malformed-challenge"),
+        ],
+    )
+    def test_rejects_requests_airflowctl_cannot_have_made(self, test_client, body):
+        response = test_client.post("/auth/cli/authorize", json=body)
+
+        assert response.status_code == 422
+
+    def test_with_unauthenticated_user(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post("/auth/cli/authorize", json=self.body)
+
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Not authenticated"}

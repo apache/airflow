@@ -346,6 +346,36 @@ class ClearTaskInstancesBody(BaseModel):
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
+class CliTokenBody(BaseModel):
+    """
+    Request body for exchanging a code approved in the UI for a CLI token.
+    """
+
+    code: Annotated[
+        str, Field(description="One-time code the UI sent to airflowctl's loopback callback.", title="Code")
+    ]
+    code_verifier: Annotated[
+        str,
+        Field(
+            description="PKCE verifier whose S256 challenge the code was issued for.",
+            pattern="^[A-Za-z0-9._~-]{43,128}$",
+            title="Code Verifier",
+        ),
+    ]
+    port: Annotated[
+        int, Field(description="Loopback port the code was issued for.", ge=1024, le=65535, title="Port")
+    ]
+
+
+class CliTokenResponse(BaseModel):
+    """
+    CLI token issued in exchange for a code approved in the UI.
+    """
+
+    access_token: Annotated[str, Field(title="Access Token")]
+    expires_in_seconds: Annotated[int, Field(title="Expires In Seconds")]
+
+
 class Value(RootModel[tuple[str, str]]):
     root: Annotated[tuple[str, str], Field(max_length=2, min_length=2, title="Value")]
 

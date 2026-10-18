@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import time
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlencode
 
 import jwt
 import pytest
+import time_machine
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -400,3 +402,135 @@ class TestLogoutTokenRevocation:
         assert response.status_code == 307
         cookies = response.headers.get_list("set-cookie")
         assert any(c.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") and "Max-Age=0" in c for c in cookies)
+
+
+class TestCreateCliToken:
+    """The exchange runs unauthenticated and records single use in the real database."""
+
+    # Test vector from RFC 7636, appendix B.
+    code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+    code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+    port = 53682
+
+    @pytest.fixture(autouse=True)
+    def cleanup_revoked_tokens(self):
+        clear_db_revoked_tokens()
+        yield
+        clear_db_revoked_tokens()
+
+    def issue_code(self, client, user: dict | None = None) -> str:
+        from airflow.api_fastapi.auth.cli_authorization_code import (
+            build_loopback_redirect_uri,
+            issue_cli_authorization_code,
+        )
+
+        return issue_cli_authorization_code(
+            user=user or {"sub": "test", "role": "admin", "teams": None},
+            code_challenge=self.code_challenge,
+            redirect_uri=build_loopback_redirect_uri(self.port),
+        )
+
+    def exchange(self, client, code: str, **overrides):
+        body = {"code": code, "code_verifier": self.code_verifier, "port": self.port, **overrides}
+        return client.post("/auth/cli/token", json=body)
+
+    def test_exchanges_a_code_for_a_cli_token(self, unauthenticated_test_client):
+        from airflow.configuration import conf
+
+        response = self.exchange(unauthenticated_test_client, self.issue_code(unauthenticated_test_client))
+
+        assert response.status_code == 200
+        data = response.json()
+        cli_expiration = conf.getint("api_auth", "jwt_cli_expiration_time")
+        assert data["expires_in_seconds"] == cli_expiration
+        auth_manager = unauthenticated_test_client.app.state.auth_manager
+        claims = auth_manager._get_token_validator().validated_claims(data["access_token"])
+        assert claims["sub"] == "test"
+        assert claims["role"] == "admin"
+        assert claims["exp"] - claims["iat"] == cli_expiration
+
+    def test_code_approved_through_the_ui_endpoint_is_exchangeable(
+        self, test_client, unauthenticated_test_client
+    ):
+        approval = test_client.post(
+            "http://testserver/ui/auth/cli/authorize",
+            json={"code_challenge": self.code_challenge, "code_challenge_method": "S256", "port": self.port},
+        )
+        assert approval.status_code == 200
+
+        response = self.exchange(unauthenticated_test_client, approval.json()["code"])
+
+        assert response.status_code == 200
+        auth_manager = unauthenticated_test_client.app.state.auth_manager
+        claims = auth_manager._get_token_validator().validated_claims(response.json()["access_token"])
+        assert claims["sub"] == "test"
+
+    def test_code_works_only_once(self, unauthenticated_test_client):
+        code = self.issue_code(unauthenticated_test_client)
+        assert self.exchange(unauthenticated_test_client, code).status_code == 200
+
+        response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The authorization code has already been used"}
+        assert RevokedToken.is_revoked(jwt.decode(code, options={"verify_signature": False})["jti"])
+
+    def test_rejects_a_verifier_that_does_not_match(self, unauthenticated_test_client):
+        response = self.exchange(
+            unauthenticated_test_client,
+            self.issue_code(unauthenticated_test_client),
+            code_verifier="not-the-verifier-not-the-verifier-not-the-verifier",
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The code verifier does not match the authorization code"}
+
+    def test_rejects_a_port_the_code_was_not_issued_for(self, unauthenticated_test_client):
+        response = self.exchange(
+            unauthenticated_test_client, self.issue_code(unauthenticated_test_client), port=self.port + 1
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The authorization code was not issued for this port"}
+
+    def test_rejects_an_expired_code(self, unauthenticated_test_client):
+        from airflow.api_fastapi.auth.cli_authorization_code import CLI_AUTHORIZATION_CODE_LIFETIME_SECONDS
+
+        code = self.issue_code(unauthenticated_test_client)
+
+        with time_machine.travel(timedelta(seconds=CLI_AUTHORIZATION_CODE_LIFETIME_SECONDS + 30), tick=False):
+            response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The authorization code has expired"}
+
+    def test_rejects_an_api_token_presented_as_a_code(self, unauthenticated_test_client):
+        auth_manager = unauthenticated_test_client.app.state.auth_manager
+        api_token = auth_manager._get_token_signer().generate({"sub": "test", "role": "admin"})
+
+        response = self.exchange(unauthenticated_test_client, api_token)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The authorization code is not valid"}
+
+    def test_rejects_a_code_whose_user_cannot_be_loaded(self, unauthenticated_test_client):
+        code = self.issue_code(unauthenticated_test_client, user={"sub": "test"})
+
+        response = self.exchange(unauthenticated_test_client, code)
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "The user who approved the login could not be loaded"}
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param({"code_verifier": "too-short"}, id="malformed-verifier"),
+            pytest.param({"port": 80}, id="privileged-port"),
+        ],
+    )
+    def test_rejects_requests_airflowctl_cannot_have_made(self, unauthenticated_test_client, overrides):
+        response = self.exchange(
+            unauthenticated_test_client, self.issue_code(unauthenticated_test_client), **overrides
+        )
+
+        assert response.status_code == 422

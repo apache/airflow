@@ -288,6 +288,10 @@ Stable API Permissions
      - PUT
      - Assets.can_edit
      - Op
+   * - ``/api/v2/auth/cli/token``
+     - POST
+     - None
+     - Public
    * - ``/api/v2/auth/login``
      - GET
      - None

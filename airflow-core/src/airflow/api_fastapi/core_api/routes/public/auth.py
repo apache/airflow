@@ -16,16 +16,25 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 import structlog
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy.exc import IntegrityError
 
 from airflow.api_fastapi.app import get_cookie_path
+from airflow.api_fastapi.auth.cli_authorization_code import (
+    InvalidCliAuthorizationCodeError,
+    build_loopback_redirect_uri,
+    validate_cli_authorization_code,
+)
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.auth import CliTokenBody, CliTokenResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     AuthManagerDep,
@@ -35,6 +44,7 @@ from airflow.api_fastapi.core_api.security import (
     oauth2_scheme,
 )
 from airflow.configuration import conf
+from airflow.models.revoked_token import RevokedToken
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -101,3 +111,56 @@ def logout(
         )
 
     return response
+
+
+@auth_router.post(
+    "/cli/token",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+)
+def create_cli_token(
+    body: CliTokenBody,
+    auth_manager: AuthManagerDep,
+    session: SessionDep,
+) -> CliTokenResponse:
+    """
+    Exchange a code approved in the UI (``airflowctl auth login --web``) for a CLI token.
+
+    Unauthenticated, like an OAuth token endpoint: the code and the PKCE verifier are the credential.
+    """
+    try:
+        claims = validate_cli_authorization_code(
+            body.code,
+            code_verifier=body.code_verifier,
+            redirect_uri=build_loopback_redirect_uri(body.port),
+        )
+    except InvalidCliAuthorizationCodeError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    # The code's jti goes into the table logout uses, so a replay fails on the primary key even when two
+    # API server replicas receive it at the same time.
+    try:
+        session.add(RevokedToken(jti=claims["jti"], exp=datetime.fromtimestamp(claims["exp"], tz=UTC)))
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="The authorization code has already been used"
+        )
+
+    try:
+        user = auth_manager.deserialize_user(claims["user"])
+    except (ValueError, KeyError):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="The user who approved the login could not be loaded"
+        )
+
+    expiration_seconds = conf.getint("api_auth", "jwt_cli_expiration_time")
+    log.info(
+        "Issued a CLI token through the browser login",
+        user=user.get_name(),
+        expires_in_seconds=expiration_seconds,
+    )
+    return CliTokenResponse(
+        access_token=auth_manager.generate_jwt(user, expiration_time_in_seconds=expiration_seconds),
+        expires_in_seconds=expiration_seconds,
+    )
