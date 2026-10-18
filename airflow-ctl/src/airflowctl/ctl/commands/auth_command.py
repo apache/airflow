@@ -22,7 +22,10 @@ import getpass
 import glob
 import json
 import os
+import secrets
 import sys
+import webbrowser
+from datetime import UTC, datetime, timedelta
 
 import keyring
 import rich
@@ -30,13 +33,33 @@ from keyring.errors import NoKeyringError
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, Credentials, provide_api_client
 from airflowctl.api.datamodels.auth_generated import LoginBody
+from airflowctl.api.datamodels.generated import CliTokenBody
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.utils.browser_login import (
+    BROWSER_LOGIN_TIMEOUT_SECONDS,
+    MIN_SERVER_VERSION,
+    LoopbackCallbackServer,
+    build_authorize_url,
+    generate_pkce_pair,
+    get_confirmation_code,
+    is_browser_login_supported,
+    is_ssh_session,
+)
 
 
 @provide_api_client(kind=ClientKind.AUTH)
 def login(args, api_client=NEW_API_CLIENT) -> None:
     """Login to a provider."""
     success_message = "[green]Login successful! Welcome to airflowctl![/green]"
+
+    if args.web:
+        expires_at = _login_with_browser(args, api_client)
+        rich.print(success_message)
+        rich.print(
+            f"The token expires at {expires_at.astimezone():%Y-%m-%d %H:%M %Z}. "
+            "Run this command again to log in after that."
+        )
+        return
 
     username = args.username
     password = args.password
@@ -102,6 +125,90 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         api_environment=args.env,
     ).save(args.skip_keyring)
     rich.print(success_message)
+
+
+def _login_with_browser(args, api_client) -> datetime:
+    """
+    Log in by approving the request in the Airflow UI, then save the resulting token.
+
+    Returns when the token expires. Exits with an explanation whenever the browser flow cannot work.
+    """
+    if args.api_token or args.username or args.password or args.skip_keyring:
+        rich.print(
+            "[red]--web cannot be combined with --api-token, --username, --password or --skip-keyring.[/red]"
+        )
+        sys.exit(1)
+    if is_ssh_session():
+        rich.print("[red]--web opens a browser on this machine, which is not possible over SSH.[/red]")
+        _print_generate_token_fallback()
+        sys.exit(1)
+
+    api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.NO_AUTH)
+    try:
+        server_version = api_client.version.get().version
+    except Exception as e:
+        rich.print(f"[red]Could not reach the Airflow API at {args.api_url}: {e}[/red]")
+        sys.exit(1)
+    if not is_browser_login_supported(server_version):
+        minimum = ".".join(str(part) for part in MIN_SERVER_VERSION)
+        rich.print(
+            f"[red]The Airflow API server runs {server_version}; logging in through the browser "
+            f"needs Airflow {minimum} or later.[/red]"
+        )
+        _print_generate_token_fallback()
+        sys.exit(1)
+
+    code_verifier, code_challenge = generate_pkce_pair()
+    state = secrets.token_urlsafe(32)
+    with LoopbackCallbackServer(expected_state=state) as server:
+        authorize_url = build_authorize_url(
+            args.api_url, port=server.port, state=state, code_challenge=code_challenge
+        )
+        rich.print(f"[blue]Opening[/blue] {authorize_url} [blue]in your browser.[/blue]")
+        if not webbrowser.open(authorize_url):
+            rich.print("[red]No browser could be opened on this machine.[/red]")
+            _print_generate_token_fallback()
+            sys.exit(1)
+        rich.print(f"Confirmation code: [bold]{get_confirmation_code(code_challenge)}[/bold]")
+        rich.print("Waiting for you to approve the login in the browser (Ctrl-C to cancel)...")
+        try:
+            result = server.wait_for_callback(timeout=BROWSER_LOGIN_TIMEOUT_SECONDS)
+        except KeyboardInterrupt:
+            rich.print("[red]Login cancelled.[/red]")
+            sys.exit(1)
+        port = server.port
+
+    if result is None:
+        rich.print(
+            f"[red]The browser did not respond within {BROWSER_LOGIN_TIMEOUT_SECONDS // 60} minutes. "
+            "Run the command again when you are ready to approve the login.[/red]"
+        )
+        sys.exit(1)
+    if result.code is None:
+        if result.error == "access_denied":
+            rich.print("[red]Login denied in the browser.[/red]")
+        else:
+            rich.print(f"[red]Login failed in the browser: {result.error}[/red]")
+        sys.exit(1)
+
+    try:
+        token_response = api_client.login.login_with_authorization_code(
+            CliTokenBody(code=result.code, code_verifier=code_verifier, port=port)
+        )
+    except Exception as e:
+        rich.print(f"[red]Login failed: {e}[/red]")
+        sys.exit(1)
+
+    Credentials(api_url=args.api_url, api_token=token_response.access_token, api_environment=args.env).save()
+    return datetime.now(tz=UTC) + timedelta(seconds=token_response.expires_in_seconds)
+
+
+def _print_generate_token_fallback() -> None:
+    rich.print(
+        "[green]Instead:[/green] open the Airflow UI, pick [bold]Generate Token[/bold] and "
+        "[bold]CLI Token[/bold] in the user menu (Airflow 3.2.0 or later), then run "
+        "[blue]airflowctl auth login --api-token <token>[/blue]."
+    )
 
 
 @provide_api_client(kind=ClientKind.AUTH)

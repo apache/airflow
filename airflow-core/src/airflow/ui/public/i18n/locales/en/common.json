@@ -33,6 +33,16 @@
     "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
+  "cliLogin": {
+    "approve": "Approve",
+    "deny": "Deny",
+    "description": "airflowctl on your computer is asking for a CLI token for {{username}}. The token can do everything your account can, until it expires.",
+    "framed": "This page cannot be shown inside another page. Open it directly in a browser tab.",
+    "invalidLink": "This link is not a valid airflowctl login request. Run airflowctl auth login --web again to get a new one.",
+    "onlyApprove": "Only approve if you just ran airflowctl auth login --web and it printed this confirmation code:",
+    "redirecting": "Sending the response to airflowctl. You can close this tab.",
+    "title": "Authorize airflowctl"
+  },
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "consumingAsset": "Consuming Asset",

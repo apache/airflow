@@ -22,10 +22,16 @@ import logging
 from fastapi import Depends
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.cli_authorization_code import (
+    build_loopback_redirect_uri,
+    issue_cli_authorization_code,
+)
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     AuthenticatedMeResponse,
+    CliAuthorizeBody,
+    CliAuthorizeResponse,
     GenerateTokenBody,
     GenerateTokenResponse,
     MenuItemCollectionResponse,
@@ -95,3 +101,25 @@ def generate_token(
         token_type=body.token_type,
         expires_in_seconds=expiration_seconds,
     )
+
+
+@auth_router.post("/auth/cli/authorize", dependencies=[Depends(action_logging())])
+def authorize_cli(
+    body: CliAuthorizeBody,
+    user: GetUserDep,
+) -> CliAuthorizeResponse:
+    """
+    Approve an ``airflowctl auth login --web`` request for the authenticated user.
+
+    The browser hands the code to airflowctl's loopback listener, which exchanges it for a CLI token
+    at ``POST /api/v2/auth/cli/token``. The result is the same token ``POST /auth/token`` generates.
+    """
+    code = issue_cli_authorization_code(
+        user=get_auth_manager().serialize_user(user),
+        code_challenge=body.code_challenge,
+        redirect_uri=build_loopback_redirect_uri(body.port),
+    )
+
+    log.info("User %s approved an airflowctl login with a callback on port %d", user.get_name(), body.port)
+
+    return CliAuthorizeResponse(code=code)

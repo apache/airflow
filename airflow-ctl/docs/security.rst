@@ -21,6 +21,7 @@ airflowctl is leveraging Apache Airflow Public API security features and additio
 airflowctl facilitates the seamless deployment of CLI and API features together, reducing redundancy and simplifying maintenance. Transitioning from direct database access to an API-driven model will enhance the CLI's capabilities and improve security.
 
 - **Authentication**: airflowctl uses authentication to ensure that only authorized users can access the system. This is done using an API Token. See more on https://airflow.apache.org/docs/apache-airflow/stable/security/api.html
+   - The token comes from ``airflowctl auth login``: pasted with ``--api-token``, obtained with ``--username`` and ``--password`` through the auth manager, or, with ``--web``, approved in the Airflow UI and delivered to airflowctl through a one-time code (Airflow 3.5.0 or later).
 
 - **Keyring**: airflowctl uses keyring to store the API Token securely. This ensures that the Token is not stored in plain text and is only accessible to authorized users.
    - In case no keyring is available, you can set the ``AIRFLOW_CLI_TOKEN`` environment variable or the ``--api-token`` flag for each command. Be cautious of not exposing this token to others.

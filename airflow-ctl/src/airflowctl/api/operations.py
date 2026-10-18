@@ -43,6 +43,8 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyVariableBody,
     BulkResponse,
     ClearTaskInstancesBody,
+    CliTokenBody,
+    CliTokenResponse,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -254,6 +256,17 @@ class LoginOperations:
         """Login to the API server."""
         return LoginResponse.model_validate_json(
             self.client.post("/token/cli", json=login.model_dump(mode="json")).content
+        )
+
+    def login_with_authorization_code(self, body: CliTokenBody) -> CliTokenResponse | ServerResponseError:
+        """
+        Exchange a code approved in the Airflow UI (``airflowctl auth login --web``) for a CLI token.
+
+        Unlike the auth manager's ``/token/cli``, this endpoint belongs to the public API, so the
+        client must be pointed at it with ``ClientKind.NO_AUTH`` first.
+        """
+        return CliTokenResponse.model_validate_json(
+            self.client.post("auth/cli/token", json=body.model_dump(mode="json")).content
         )
 
 

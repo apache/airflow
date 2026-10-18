@@ -52,7 +52,7 @@ airflowctl needs to be able to connect to the Airflow API. You should pass API U
 ``--api-url``. The URL should be in the form of ``http(s)://<host>:<port>``.
 You can also set the environment variable ``AIRFLOW_CLI_TOKEN`` to the token to use for authentication.
 
-There are two ways to authenticate with the Airflow API:
+There are three ways to authenticate with the Airflow API:
 
 1. Using a token acquired from the Airflow API
 
@@ -66,6 +66,21 @@ There are two ways to authenticate with the Airflow API:
 
   airflowctl auth login --api-url <api_url> --username <username> --password <password> --env <env_name:production>
 
+3. Through the Airflow UI in your browser, for example when you sign in to Airflow through SSO and have no
+   password that airflowctl could send
+
+.. code-block:: bash
+
+  airflowctl auth login --api-url <api_url> --web --env <env_name:production>
+
+airflowctl opens an approval page in the Airflow UI and waits. Sign in if the UI asks you to, check that the
+confirmation code on the page matches the one printed in the terminal, and click **Approve**. The browser hands a
+one-time code to airflowctl, which exchanges it for a CLI token and stores it like the other two methods do. The
+token expires after ``[api_auth] jwt_cli_expiration_time`` (one hour by default) and airflowctl cannot refresh it,
+so run the command again once it has expired. This needs Airflow 3.5.0 or later on the server and a browser on the
+machine running airflowctl; on older servers, generate a CLI token in the UI (user menu, **Generate Token**,
+**CLI Token**, available since Airflow 3.2.0) and pass it with ``--api-token`` instead.
+
 If there's no keyring available, common in headless systems like docker images, you can still use the tool by setting
 the environment variable ``AIRFLOW_CLI_TOKEN``.
 
@@ -75,7 +90,7 @@ the environment variable ``AIRFLOW_CLI_TOKEN``.
   airflowctl auth login --api-url <api_url> --env <env_name:production> --skip-keyring
 
 
-In both cases token is securely stored in the keyring backend. Only configuration persisted in ``~/.config/airflow`` file
+In all cases the token is securely stored in the keyring backend. Only configuration persisted in ``~/.config/airflow`` file
 is the API URL and the environment name. The token is stored in the keyring backend and is not persisted in the
 configuration file. The keyring backend is used to securely store the token and is not accessible to the user.
 
@@ -105,6 +120,10 @@ If you are not using ``--api-token`` or the environment variable ``AIRFLOW_CLI_T
 
 **--password**: This parameter is optional.
 If you provide a username via ``--username`` this is the required password to authenticate.
+
+**--web**: This parameter is optional.
+Logs in by approving the request in the Airflow UI in your browser. It cannot be combined with ``--api-token``,
+``--username``, ``--password`` or ``--skip-keyring``, and it needs Airflow 3.5.0 or later on the server.
 
 **--env**: This parameter is optional.
 The name of the environment to create or update. The default value is ``production``.

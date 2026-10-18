@@ -202,6 +202,20 @@ def init_views(app: FastAPI) -> None:
         """Catch all route to handle invalid API endpoints."""
         return JSONResponse(status_code=404, content={"error": "API route not found"})
 
+    # The page where a user approves ``airflowctl auth login --web`` must not be framed by another site,
+    # which could cover its Approve button with a decoy. The API server sends no framing headers
+    # otherwise, and embedding the rest of the UI stays allowed, so only this page denies every frame
+    # ancestor. It has to be registered ahead of the catch-all below to take precedence.
+    @app.get("/cli/authorize", response_class=HTMLResponse, include_in_schema=False)
+    def cli_authorize_page(request: Request):
+        return templates.TemplateResponse(
+            request,
+            "/index.html",
+            {"backend_server_base_url": request.base_url.path},
+            media_type="text/html",
+            headers={"X-Frame-Options": "DENY", "Content-Security-Policy": "frame-ancestors 'none'"},
+        )
+
     @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
     def webapp(request: Request, rest_of_path: str):
         return templates.TemplateResponse(

@@ -1770,7 +1770,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
   /api/v2/connections:
     get:
       tags:
@@ -4441,7 +4441,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
     patch:
       tags:
       - DAG
@@ -4568,7 +4568,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
   /api/v2/dags/{dag_id}/details:
     get:
       tags:
@@ -12398,6 +12398,43 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /api/v2/auth/cli/token:
+    post:
+      tags:
+      - Login
+      summary: Create Cli Token
+      description: 'Exchange a code approved in the UI (``airflowctl auth login --web``)
+        for a CLI token.
+
+
+        Unauthenticated, like an OAuth token endpoint: the code and the PKCE verifier
+        are the credential.'
+      operationId: create_cli_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CliTokenBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CliTokenResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -14210,6 +14247,45 @@ components:
       type: object
       title: ClearTaskInstancesBody
       description: Request body for Clear Task Instances endpoint.
+    CliTokenBody:
+      properties:
+        code:
+          type: string
+          title: Code
+          description: One-time code the UI sent to airflowctl's loopback callback.
+        code_verifier:
+          type: string
+          pattern: ^[A-Za-z0-9._~-]{43,128}$
+          title: Code Verifier
+          description: PKCE verifier whose S256 challenge the code was issued for.
+        port:
+          type: integer
+          maximum: 65535.0
+          minimum: 1024.0
+          title: Port
+          description: Loopback port the code was issued for.
+      type: object
+      required:
+      - code
+      - code_verifier
+      - port
+      title: CliTokenBody
+      description: Request body for exchanging a code approved in the UI for a CLI
+        token.
+    CliTokenResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        expires_in_seconds:
+          type: integer
+          title: Expires In Seconds
+      type: object
+      required:
+      - access_token
+      - expires_in_seconds
+      title: CliTokenResponse
+      description: CLI token issued in exchange for a code approved in the UI.
     Config:
       properties:
         sections:
