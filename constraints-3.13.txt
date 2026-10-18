@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-17T20:59:46.950704
+# This constraints file was automatically generated on 2026-10-18T21:47:10.508208
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 APScheduler==3.11.3
-Authlib==1.8.0
+Authlib==1.9.1
 Deprecated==3.0.0
 Events==0.5
 Flask-JWT-Extended==4.7.4
@@ -41,13 +41,13 @@ Flask-SQLAlchemy==3.1.1
 Flask-Session==0.8.0
 Flask-WTF==1.3.0
 Flask==3.1.3
-GitPython==3.2.0
+GitPython==3.2.1
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
 Mako==1.4.3
 Markdown==3.11.1
 MarkupSafe==3.0.4
-PyAthena==4.0.0
+PyAthena==4.1.0
 PyGithub==2.10.0
 PyHive==0.7.0
 PyJWT==2.15.1
@@ -79,7 +79,7 @@ aiosqlite==0.22.1
 airbyte-api==1.0.1
 akeyless==5.0.39
 alembic==1.20.0
-alibabacloud-adb20211201==4.5.0
+alibabacloud-adb20211201==4.5.1
 alibabacloud-credentials-api==1.0.1
 alibabacloud-credentials==1.0.12
 alibabacloud-gateway-spi==0.0.4
@@ -91,7 +91,7 @@ amqp==5.4.1
 annotated-doc==0.0.5
 annotated-types==0.8.0
 ansicolors==1.1.8
-anthropic==1.13.0
+anthropic==1.14.0
 anyio==4.15.1
 apache-airflow-providers-airbyte==6.2.0
 apache-airflow-providers-akeyless==0.3.2
@@ -249,7 +249,7 @@ bcrypt==5.0.0
 beartype==0.22.9
 beautifulsoup4==4.15.0
 billiard==4.3.1
-bitarray==3.12.1
+bitarray==3.12.2
 black==26.10.1
 bleach==6.4.0
 blinker==1.9.0
@@ -305,7 +305,7 @@ durationpy==0.11
 elastic-transport==9.4.2
 elasticsearch==9.5.1
 email-validator==2.3.0
-entrypoints==0.4
+entrypoints==0.4.1
 et_xmlfile==2.0.0
 eventlet==0.41.2
 executing==2.3.0
@@ -328,7 +328,7 @@ gcloud-aio-auth==5.5.1
 gcloud-aio-bigquery==7.2.0
 gcloud-aio-storage==9.6.5
 gcsfs==2026.10.0
-genai-prices==0.1.11
+genai-prices==0.1.12
 geomet==1.1.0
 gevent==26.9.0
 gitdb==4.0.12
@@ -490,7 +490,7 @@ microsoft-kiota-serialization-text==1.14.3
 mistune==3.3.4
 mmh3==5.3.1
 modal==1.6.1
-more-itertools==11.2.0
+more-itertools==11.2.1
 msal-extensions==1.3.1
 msal==1.39.0
 msgpack==1.2.3
@@ -585,11 +585,11 @@ pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.11
-pycryptodome==3.24.1
-pydantic-ai-slim==2.55.0
+pycryptodome==4.0.0
+pydantic-ai-slim==2.56.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.55.0
-pydantic-settings==2.15.0
+pydantic-graph==2.56.0
+pydantic-settings==2.16.0
 pydantic==2.14.1
 pydantic_core==2.50.1
 pydata-google-auth==1.9.1
@@ -598,7 +598,7 @@ pyexasol==2.4.1
 pygtrie==2.6.2
 pyiceberg==0.12.0
 pykerberos==1.2.4
-pymongo==4.18.3
+pymongo==4.19.0
 pymssql==2.4.4
 pyodbc==5.3.0
 pyodps==0.13.2
@@ -664,7 +664,7 @@ smbprotocol==1.17.0
 smmap==5.0.3
 sniffio==1.3.1
 snowflake-connector-python==4.8.0
-snowflake-snowpark-python==1.55.1
+snowflake-snowpark-python==1.55.2
 snowflake-sqlalchemy==1.11.1
 sortedcontainers==2.4.0
 soupsieve==3.0.3
@@ -716,7 +716,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.8.0
 uuid6==2025.0.1
-uv==0.13.0
+uv==0.13.1
 uvicorn==0.54.0
 uvloop==0.23.0
 validators==0.36.0
@@ -732,7 +732,7 @@ websocket-client==1.9.0
 websockets==16.1.1
 wheel==0.48.0
 wirerope==1.0.0
-wrapt==2.5.0
+wrapt==2.5.1
 xmltodict==1.0.4
 yandex-query-client==0.1.4
 yandexcloud==0.411.0
