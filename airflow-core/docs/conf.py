@@ -146,6 +146,19 @@ MODELS_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
 
 WEBHOOKS_MODULES_THAT_SHOULD_BE_INCLUDED_IN_API_DOCS: set[str] = {
     "base.py",
+    "naming.py",
+}
+
+# Public modules whose ``__all__`` re-exports names from a shared library in ``airflow._shared``.
+# AutoAPI leaves imported members out unless ``imported-members`` is set, which would add them to
+# every page. It also does not follow the symlinks under ``airflow/_shared``, so it can only resolve
+# names re-exported from the shared libraries that are added to ``autoapi_dirs``.
+MODULES_THAT_SHOULD_SHOW_IMPORTED_MEMBERS_IN_API_DOCS: set[str] = {
+    "airflow.webhooks.naming",
+}
+
+SHARED_LIBRARIES_THAT_SHOULD_BE_READ_FOR_API_DOCS: set[str] = {
+    "webhook_naming",
 }
 
 
@@ -320,7 +333,14 @@ viewcode_follow_imported_members = True
 
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
-autoapi_dirs = [AIRFLOW_CORE_SRC_PATH.as_posix(), SYSTEM_TESTS_DIR.as_posix()]
+autoapi_dirs = [
+    AIRFLOW_CORE_SRC_PATH.as_posix(),
+    SYSTEM_TESTS_DIR.as_posix(),
+    *(
+        (AIRFLOW_CORE_SRC_PATH / "airflow" / "_shared" / library).as_posix()
+        for library in sorted(SHARED_LIBRARIES_THAT_SHOULD_BE_READ_FOR_API_DOCS)
+    ),
+]
 
 # A directory that has user-defined templates to override our default templates.
 autoapi_template_dir = "autoapi_templates"
@@ -370,7 +390,15 @@ spelling_ignore_importable_modules = True
 graphviz_output_format = "svg"
 
 
+def show_reexported_members(app, what, name, obj, skip, options):
+    if obj.imported and name.rpartition(".")[0] in MODULES_THAT_SHOULD_SHOW_IMPORTED_MEMBERS_IN_API_DOCS:
+        return False
+    return None
+
+
 def setup(sphinx):
+    # Connected first, so that its answer for a re-exported member takes precedence.
+    sphinx.connect("autoapi-skip-member", show_reexported_members)
     sphinx.connect("autoapi-skip-member", skip_util_classes_extension)
 
 
