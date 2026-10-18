@@ -539,6 +539,14 @@ def clear_db_revoked_tokens():
 
 
 @_retry_db
+def clear_db_inbound_deliveries():
+    with create_session() as session:
+        from airflow.models.inbound_delivery import InboundDelivery
+
+        session.execute(delete(InboundDelivery))
+
+
+@_retry_db
 def clear_dag_specific_permissions():
     if "FabAuthManager" not in conf.get("core", "auth_manager"):
         return

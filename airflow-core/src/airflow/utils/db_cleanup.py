@@ -345,6 +345,7 @@ config_list: list[_TableConfig] = [
             column("state").in_(["success", "failed"]),
         ],
     ),
+    _TableConfig(table_name="inbound_delivery", recency_column_name="retain_until"),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration

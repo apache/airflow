@@ -54,6 +54,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
 from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.inbound_delivery import InboundDelivery
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskreschedule import TaskReschedule
@@ -96,6 +97,7 @@ from tests_common.test_utils.db import (
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
+    clear_db_inbound_deliveries,
     clear_db_runs,
     drop_tables_with_prefix,
 )
@@ -1998,6 +2000,48 @@ class TestConnectionTestRequestCleanup:
             assert seeded[state] in survivors, f"{state} row should NOT be cleaned up"
         for state in ("success", "failed"):
             assert seeded[state] not in survivors, f"{state} row should be cleaned up"
+
+
+class TestInboundDeliveryCleanup:
+    def setup_method(self):
+        clear_db_inbound_deliveries()
+
+    def teardown_method(self):
+        clear_db_inbound_deliveries()
+
+    def test_rows_are_kept_until_retain_until(self):
+        received_at = pendulum.datetime(2026, 1, 1, tz="UTC")
+        cutoff = received_at.add(days=30)
+        with create_session() as session:
+            for delivery_id, retain_until in (
+                ("expired", cutoff.subtract(days=1)),
+                ("retained", cutoff.add(days=1)),
+            ):
+                session.add(
+                    InboundDelivery(
+                        webhook="github",
+                        delivery_id=delivery_id,
+                        body_digest="0" * 64,
+                        received_at=received_at,
+                        retain_until=retain_until,
+                        source_type="github",
+                        outcome="no_subscribers",
+                    )
+                )
+
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["inbound_delivery"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as session:
+            assert session.scalars(select(InboundDelivery.delivery_id)).all() == ["retained"]
 
 
 class TestCallbackCleanupConfig:
