@@ -72,7 +72,12 @@ class AzureAISearchHook(BaseHook):
     *Search Index Data Contributor* to write.
 
     .. seealso::
-        https://learn.microsoft.com/en-us/azure/search/
+        - Azure AI Search: https://learn.microsoft.com/en-us/azure/search/
+        - Roles for Microsoft Entra ID: https://learn.microsoft.com/en-us/azure/search/search-security-rbac
+        - Limits of a write request (1000 documents, 16 MB):
+          https://learn.microsoft.com/en-us/azure/search/search-limits-quotas-capacity#api-request-limits
+        - Per-document results of a write (HTTP 207):
+          https://learn.microsoft.com/en-us/rest/api/searchservice/documents/index
 
     :param azure_ai_search_conn_id: The :ref:`Azure AI Search connection id<howto/connection:azure_ai_search>`.
         Default is ``azure_ai_search_default``.
@@ -87,7 +92,8 @@ class AzureAISearchHook(BaseHook):
     conn_type = "azure_ai_search"
     hook_name = "Azure AI Search"
 
-    # The service accepts at most 1000 documents per write request.
+    # The service accepts at most 1000 documents per write request, see
+    # https://learn.microsoft.com/en-us/azure/search/search-limits-quotas-capacity#api-request-limits
     MAX_BATCH_SIZE = 1000
 
     def __init__(
@@ -237,6 +243,12 @@ class AzureAISearchHook(BaseHook):
         the search fails with an ``HttpResponseError``. To read a larger index, order by a sortable and
         filterable key and filter on ranges of it, e.g. ``order_by=["id"]`` and
         ``filter="id gt '<last key read>'"``, one range per call.
+
+        .. seealso::
+            - Paging through a large number of results:
+              https://learn.microsoft.com/en-us/azure/search/search-pagination-page-layout#paging-through-a-large-number-of-results
+            - The ``skip`` limit of the search request:
+              https://learn.microsoft.com/en-us/rest/api/searchservice/documents/search-post
 
         :param search: Full-text query, ``*`` for every document.
         :param select: Fields to return, all retrievable fields when omitted.

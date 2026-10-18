@@ -43,9 +43,13 @@ Writing documents
 -----------------
 
 ``upload`` inserts documents and replaces the ones whose key exists. The documents are sent in batches
-of ``batch_size`` (1000 by default, the limit of the service), and the hook raises
+of ``batch_size`` (1000 by default, the
+`limit of the service <https://learn.microsoft.com/en-us/azure/search/search-limits-quotas-capacity#api-request-limits>`__),
+and the hook raises
 :class:`~airflow.providers.microsoft.azure.exceptions.AzureAISearchIndexingError` with the keys and
-reasons when the service rejects some of them.
+reasons when the service rejects some of them, from the
+`per-document results <https://learn.microsoft.com/en-us/rest/api/searchservice/documents/index>`__
+of the write.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_search.py
     :language: python
@@ -60,10 +64,12 @@ Searching documents
 Select the fields you need, and filter and sort with
 `OData expressions <https://learn.microsoft.com/en-us/azure/search/search-query-odata-filter>`__.
 
-The service pages the results with ``$skip``, which stops at 100,000 documents: past that many
-matches the search fails. To read a larger index, sort on a sortable and filterable key
-(``order_by=["id"]``) and filter on ranges of it (``filter="id gt '<last key read>'"``), one range
-per call.
+The service pages the results with
+`skip <https://learn.microsoft.com/en-us/rest/api/searchservice/documents/search-post>`__, which stops
+at 100,000 documents: past that many matches the search fails. To read a larger index, sort on a
+sortable and filterable key (``order_by=["id"]``) and filter on ranges of it
+(``filter="id gt '<last key read>'"``), one range per call, as described in
+`Paging through a large number of results <https://learn.microsoft.com/en-us/azure/search/search-pagination-page-layout#paging-through-a-large-number-of-results>`__.
 
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_search.py
     :language: python
