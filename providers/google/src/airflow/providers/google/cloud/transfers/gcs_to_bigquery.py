@@ -785,6 +785,7 @@ class GCSToBigQueryOperator(BaseOperator):
             and load_config.get("autodetect")
             and load_config.get("ignoreUnknownValues")
             and "schema" not in load_config
+            and "ALLOW_FIELD_ADDITION" not in (load_config.get("schemaUpdateOptions") or [])
         ):
             # autodetect=None only works against a table that exists when the load job runs,
             # and force_delete deletes it first.

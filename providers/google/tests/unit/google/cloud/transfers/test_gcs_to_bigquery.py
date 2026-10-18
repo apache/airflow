@@ -2198,6 +2198,16 @@ class TestGCSToBigQueryOperator:
                 False,
                 id="source_format_set_by_extra_config",
             ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_update_options": ["ALLOW_FIELD_ADDITION"]},
+                False,
+                id="field_addition_allowed",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_update_options": ["ALLOW_FIELD_RELAXATION"]},
+                True,
+                id="only_field_relaxation_allowed",
+            ),
         ],
     )
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
