@@ -3557,7 +3557,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
-@patch("airflow_breeze.utils.selective_checks.get_airflow_version")
+@patch("airflow_breeze.utils.selective_checks.get_airflow_version", autospec=True)
 def test_provider_compatibility_matrix_excludes_current_unreleased_version(mock_get_airflow_version):
     # The current branch's own version is added to the matrix by the version-bump commit before it is
     # released; it must be excluded so compat jobs don't try to pull an image/package that is not published yet.
