@@ -96,6 +96,33 @@ def test_custom_asset_condition_requires_batching():
         AssetTriggeredTimetable(condition, batch_asset_events=False).validate()
 
 
+def test_deserialize_without_batch_asset_events_key_uses_construct_default():
+    """A blob missing ``batch_asset_events`` must deserialize to the construct-time default.
+
+    Regression (#75007): blobs that predate the field (and the window before re-parse on
+    upgrade) came back ``batch_asset_events=True``, contradicting the opt-in ``False`` default.
+    """
+    with conf_vars({("scheduler", "batch_asset_events"): "False"}):
+        # Plain condition: opt-in default is False; an absent key must stay False.
+        plain = AssetTriggeredTimetable(Asset("a"))
+        assert plain.batch_asset_events is False
+        plain_blob = plain.serialize()
+        del plain_blob["batch_asset_events"]
+        assert AssetTriggeredTimetable.deserialize(plain_blob).batch_asset_events is False
+
+        # AND condition requires batching: default is True even without the key (not hardcoded False).
+        anded = AssetTriggeredTimetable(AssetAll(Asset("a"), Asset("b")))
+        assert anded.batch_asset_events is True
+        anded_blob = anded.serialize()
+        del anded_blob["batch_asset_events"]
+        assert AssetTriggeredTimetable.deserialize(anded_blob).batch_asset_events is True
+
+        # An explicitly serialized value is still honored.
+        explicit = plain.serialize()
+        explicit["batch_asset_events"] = True
+        assert AssetTriggeredTimetable.deserialize(explicit).batch_asset_events is True
+
+
 class MockTimetable(Timetable):
     """
     A mock Timetable class for testing purposes in Apache Airflow.

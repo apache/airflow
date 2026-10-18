@@ -65,10 +65,14 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
         from airflow.serialization.decoders import decode_asset_like, decode_timetable
 
+        # Absent key falls back to the construct-time default, not a hardcoded True.
+        kwargs: dict[str, typing.Any] = {}
+        if "batch_asset_events" in data:
+            kwargs["batch_asset_events"] = data["batch_asset_events"]
         return cls(
             assets=decode_asset_like(data["asset_condition"]),
             timetable=decode_timetable(data["timetable"]),
-            batch_asset_events=data.get("batch_asset_events", True),
+            **kwargs,
         )
 
     def validate(self) -> None:
