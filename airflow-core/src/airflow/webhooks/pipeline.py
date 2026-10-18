@@ -39,6 +39,7 @@ from sqlalchemy.exc import (
 )
 from starlette.requests import ClientDisconnect
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.models.inbound_delivery import (
     MAX_CORRELATION_KEY_LENGTH,
@@ -49,6 +50,7 @@ from airflow.models.inbound_delivery import (
 from airflow.utils.session import create_session
 from airflow.webhooks.base import WebhookVerificationError
 from airflow.webhooks.connections import ConfiguredWebhook, ResolutionFailure, WebhookConnectionCache
+from airflow.webhooks.registry import UNLISTED_WEBHOOK_TAG
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -128,6 +130,14 @@ class LogThrottle:
                 return False
             self._logged_at[key] = now
             return True
+
+
+@dataclass
+class TokenBucket:
+    """The deliveries one webhook can still make in this process, refilled continuously to the limit."""
+
+    tokens: float
+    updated_at: float
 
 
 def find_delivery(
@@ -225,14 +235,17 @@ class DeliveryPipeline:
     Serves deliveries to the webhooks that a registry lists, and keeps this process's state for them.
 
     A request passes, in order: its name, the webhook's connection, the body limit, verification, the
-    handshake, parsing, and one transaction that records the delivery. Verification is skipped only for
-    a handshake that the source type declares unsigned.
+    handshake, the rate limit, parsing, and one transaction that records the delivery. Verification is
+    skipped only for a handshake that the source type declares unsigned.
     """
 
     def __init__(self, registry: WebhookRegistry) -> None:
         self._registry = registry
         self._connections = WebhookConnectionCache(registry)
         self._log_throttle = LogThrottle(interval=60)
+        # One per webhook that has had a delivery verified, so only listed names ever get one.
+        self._rate_limit_buckets: dict[str, TokenBucket] = {}
+        self._rate_limit_lock = threading.Lock()
 
     def get_webhook(self, name: str) -> ConfiguredWebhook:
         """
@@ -296,13 +309,18 @@ class DeliveryPipeline:
         webhook = self._verify(webhook, request)
         if not webhook.source.unsigned_handshake and webhook.source.is_handshake(request):
             return self._answer_handshake(webhook, request)
+        self._limit_rate(webhook)
         delivery = self._parse(webhook, request)
         body_digest = hashlib.sha256(request.body).hexdigest()
+        timer = stats.timer("webhooks.delivery_duration", tags={"webhook": webhook.name})
+        timer.start()
         try:
             outcome = record_delivery(
                 webhook, delivery, body_digest=body_digest, retention=self._registry.delivery_retention
             )
         except Exception as e:
+            # Not timed: during an outage, recordings fail after as long as the pool or database takes.
+            timer.stop(send=False)
             if not _is_storage_unavailable(e):
                 raise
             if self._log_throttle.should_log((webhook.name, "storage")):
@@ -313,17 +331,32 @@ class DeliveryPipeline:
                     exc_info=e,
                 )
             raise WebhookUnavailable from e
+        timer.stop()
+        stats.incr("webhooks.deliveries", tags={"webhook": webhook.name, "outcome": outcome})
         status = HTTPStatus.OK if outcome == DUPLICATE else HTTPStatus.ACCEPTED
         return DeliveryAnswer(status, {"delivery_id": delivery.delivery_id, "outcome": outcome})
+
+    def count_rejection(self, name: str | None, status: int) -> None:
+        """Count a request that is refused with ``status``, to webhook ``name`` or to no webhook's path."""
+        webhook = self._get_listed_name(name) or UNLISTED_WEBHOOK_TAG
+        stats.incr("webhooks.rejections", tags={"webhook": webhook, "status": str(status)})
 
     def log_unhandled_error(self, name: str | None, error: Exception) -> None:
         """Log an error that a request to webhook ``name`` is answered 500 for, at most once a minute."""
         # Requests that nothing has verified can reach a bug too, such as one in the is_handshake of a
-        # source type with unsigned handshakes. Names that are not listed share one key, since the sender
-        # chooses them.
-        webhook = name if name is not None and name in self._registry.names else None
+        # source type with unsigned handshakes.
+        webhook = self._get_listed_name(name)
         if self._log_throttle.should_log((webhook, "error")):
             log.error("Unhandled error in the webhooks app", webhook=webhook, exc_info=error)
+
+    def _get_listed_name(self, name: str | None) -> str | None:
+        """
+        Return ``name`` if ``[webhooks] names`` lists it, or else None.
+
+        Names that are not listed are chosen by whoever sends the request, so they must share one log key
+        and one metric tag value rather than let anyone add keys or series.
+        """
+        return name if name in self._registry.names else None
 
     def _verify(self, webhook: ConfiguredWebhook, request: WebhookRequest) -> ConfiguredWebhook:
         """Return the webhook that the request verifies against; raise ``DeliveryRejected`` if none does."""
@@ -371,6 +404,35 @@ class DeliveryPipeline:
         except ValueError as e:
             raise self._reject_malformed(webhook, str(e)) from e
         return DeliveryAnswer(HTTPStatus.OK, body)
+
+    def _limit_rate(self, webhook: ConfiguredWebhook) -> None:
+        """
+        Refuse a verified delivery over ``rate_limit_per_minute``, before it is parsed or recorded.
+
+        Only verified deliveries count: a limit that unsigned requests could use up would let anyone have
+        the sender's own deliveries refused, and senders such as GitLab disable a webhook whose
+        deliveries keep failing.
+        """
+        if (limit := self._registry.rate_limit_per_minute) <= 0:
+            return
+        now = monotonic()
+        with self._rate_limit_lock:
+            bucket = self._rate_limit_buckets.setdefault(
+                webhook.name, TokenBucket(tokens=limit, updated_at=now)
+            )
+            bucket.tokens = min(limit, bucket.tokens + (now - bucket.updated_at) * limit / 60)
+            bucket.updated_at = now
+            if bucket.tokens >= 1:
+                bucket.tokens -= 1
+                return
+            retry_after = math.ceil((1 - bucket.tokens) * 60 / limit)
+        if self._log_throttle.should_log((webhook.name, "rate_limit")):
+            log.warning(
+                "Refused a webhook delivery: the webhook is over its rate limit",
+                webhook=webhook.name,
+                rate_limit_per_minute=limit,
+            )
+        raise DeliveryRejected(HTTPStatus.TOO_MANY_REQUESTS, "Too many deliveries", retry_after=retry_after)
 
     def _parse(self, webhook: ConfiguredWebhook, request: WebhookRequest) -> WebhookDelivery:
         try:

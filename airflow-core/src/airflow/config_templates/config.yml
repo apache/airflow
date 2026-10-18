@@ -2481,7 +2481,8 @@ webhooks:
         they cannot add calls to a secrets backend. Empty serves no webhook.
 
         A name has 1 to 64 lowercase letters, digits, ``-`` and ``_``, and starts with a letter or a
-        digit. Names qualified with a team, such as ``team:name``, are not supported yet.
+        digit. ``other`` is reserved: the webhook metrics give it to requests for names that are not
+        listed. Names qualified with a team, such as ``team:name``, are not supported yet.
       version_added: 3.5.0
       type: string
       example: "github,jira"
@@ -2541,6 +2542,20 @@ webhooks:
       type: integer
       example: "30"
       default: "7"
+    rate_limit_per_minute:
+      description: |
+        .. note:: |experimental|
+
+        Verified deliveries per minute that each API server process takes for a webhook, in bursts of up
+        to this many. Further deliveries are answered with 429 and a Retry-After header, before they are
+        parsed or recorded. Requests that fail verification, and handshakes, do not count, so unsigned
+        requests cannot use up the limit; a captured delivery that is sent again passes verification and
+        counts, as with any replay. Each process counts on its own, so N processes take up to N times as
+        many. 0 turns the limit off.
+      version_added: 3.5.0
+      type: integer
+      example: "600"
+      default: "0"
 lineage:
   description: ~
   options:

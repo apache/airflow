@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
 
 from airflow.webhooks.base import WebhookRequest
@@ -120,7 +122,15 @@ def create_webhooks_app(registry: WebhookRegistry) -> FastAPI:
     # Async, so that answering a refused request does not take a worker thread of its own.
     @app.exception_handler(DeliveryRejected)
     async def answer_rejection(request: Request, exc: DeliveryRejected) -> JSONResponse:
+        _get_pipeline(request).count_rejection(request.path_params.get("name"), exc.status)
         headers = None if exc.retry_after is None else {"Retry-After": str(exc.retry_after)}
         return JSONResponse({"detail": exc.detail}, status_code=exc.status, headers=headers)
+
+    # Requests that no route serves, such as POST /<name>/x or GET /<name>, which the router refuses.
+    @app.exception_handler(HTTPStatus.NOT_FOUND)
+    @app.exception_handler(HTTPStatus.METHOD_NOT_ALLOWED)
+    async def answer_unrouted(request: Request, exc: HTTPException) -> Response:
+        _get_pipeline(request).count_rejection(request.path_params.get("name"), exc.status_code)
+        return await http_exception_handler(request, exc)
 
     return app

@@ -38,6 +38,9 @@ class DeliveryOutcome(str, Enum):
     #: No Dag subscribes to the delivery, so nothing acted on it.
     NO_SUBSCRIBERS = "no_subscribers"
 
+    def __str__(self) -> str:
+        return self.value
+
 
 class InboundDelivery(Base):
     """A verified delivery received by an inbound webhook, and what Airflow did with it."""

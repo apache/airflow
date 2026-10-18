@@ -23,11 +23,9 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from airflow.models.inbound_delivery import InboundDelivery
+from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
 
 from tests_common.test_utils.db import clear_db_inbound_deliveries
-
-pytestmark = pytest.mark.db_test
 
 RECEIVED_AT = datetime(2026, 10, 18, tzinfo=UTC)
 
@@ -45,6 +43,14 @@ def build_delivery(**overrides: Any) -> InboundDelivery:
     return InboundDelivery(**(fields | overrides))
 
 
+class TestDeliveryOutcome:
+    @pytest.mark.parametrize("outcome", list(DeliveryOutcome))
+    def test_formats_as_its_value(self, outcome):
+        # As metric backends format tag values, which must not be the member's name.
+        assert f"{outcome}" == outcome.value
+
+
+@pytest.mark.db_test
 class TestInboundDelivery:
     def setup_method(self):
         clear_db_inbound_deliveries()

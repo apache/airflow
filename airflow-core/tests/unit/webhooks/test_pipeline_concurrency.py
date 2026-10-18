@@ -64,6 +64,7 @@ REGISTRY = WebhookRegistry(
     connection_cache_ttl=60,
     max_body_bytes=1024,
     delivery_retention=timedelta(days=7),
+    rate_limit_per_minute=0,
 )
 CONNECTION = {
     "AIRFLOW_CONN_WEBHOOK_FAKE": json.dumps({"conn_type": "inbound_webhook", "password": SECRET}),
