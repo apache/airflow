@@ -62,6 +62,7 @@ def _make_app(raise_exc: bool = False) -> Starlette:
         routes=[
             Route("/", homepage),
             Route("/api/v2/monitor/health", health),
+            Route("/webhooks/_health", health),
         ]
     )
     app.add_middleware(HttpAccessLogMiddleware)
@@ -86,10 +87,11 @@ def test_logs_request_fields():
     assert "client_addr" in record
 
 
-def test_health_path_not_logged():
+@pytest.mark.parametrize("path", ["/api/v2/monitor/health", "/webhooks/_health"])
+def test_health_path_not_logged(path):
     with structlog.testing.capture_logs() as logs:
         client = TestClient(_make_app(), raise_server_exceptions=False)
-        client.get("/api/v2/monitor/health")
+        client.get(path)
 
     assert logs == []
 

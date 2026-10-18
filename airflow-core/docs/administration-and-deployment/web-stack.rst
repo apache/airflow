@@ -65,6 +65,55 @@ at it wherever tasks run, for example ``http://airflow-execution-api:8080/execut
 ``base_url`` has a path such as ``/d12345``, the Execution API Server serves under that path too,
 so include it: ``http://airflow-execution-api:8080/d12345/execution/``.
 
+Serving inbound webhooks
+------------------------
+
+|experimental|
+
+.. versionadded:: 3.5.0
+
+Only an API server started with ``--apps webhooks`` receives inbound webhooks. ``all`` stays
+``core,execution``, and the Core API Server answers ``/webhooks`` and every path under it with 404
+rather than the UI.
+
+.. code-block:: bash
+
+   airflow api-server --apps webhooks --proxy-headers
+
+This process serves ``POST /webhooks/<name>`` for each webhook that
+:ref:`[webhooks] names <config:webhooks>` lists, and ``GET /webhooks/_health`` for health checks. It
+serves no UI, REST API or API documentation. It does not start if ``[webhooks] names`` lists no
+webhooks. At startup it logs an error for each webhook source type that it cannot serve: one that more
+than one installed provider declares and :ref:`[webhooks] source_type_owners <config:webhooks>` does
+not assign, or one that it assigns to a package that does not declare it while another package does.
+
+Anyone who can reach this process can call it without Airflow credentials, so run it apart from the
+Core API Server, and have the reverse proxy in front of it forward only ``/webhooks`` to it. The proxy
+should also limit requests per sender address: Airflow's ``[webhooks] rate_limit_per_minute`` counts
+verified deliveries per webhook, not requests per address. Have it buffer each request body and time out
+slow ones, such as with ``proxy_request_buffering on`` and ``client_body_timeout`` in nginx: the process
+reads a body for as long as the client takes to send it, holding the connection and up to the webhook's
+``max_body_bytes`` of memory. If ``base_url`` has a path such as ``/d12345``, deliveries are served
+under that path too, at ``/d12345/webhooks/<name>``, so have the proxy forward that path.
+
+Start the process with ``--proxy-headers`` so that its access log records each sender's address rather
+than the proxy's. Unless the proxy runs on the same host, also set ``FORWARDED_ALLOW_IPS`` to the
+proxy's addresses: Uvicorn trusts forwarded headers only from ``127.0.0.1`` by default, and with
+``[api] server_type`` set to ``gunicorn`` the process trusts them from every client while the variable
+is unset. Do not set it to ``*`` unless only the proxy can reach the process, since any sender that
+reaches the process directly could then choose the address that is logged. See
+:doc:`/howto/run-behind-proxy`.
+
+The process needs the metadata database connection and access to the secrets backend that holds the
+``webhook_<name>`` connections, and the Fernet key only if those connections are stored in the metadata
+database. It needs neither the JWT signing key (``[api_auth] jwt_secret`` or
+``[api_auth] jwt_private_key_path``) nor ``[api] secret_key``, and does not warn when they are unset;
+see :doc:`/security/security_model`.
+
+``webhooks`` can also be combined with other apps, for example ``--apps core,webhooks`` in development.
+Deliveries then also pass through the Core API's middlewares, including those of the auth manager and
+of plugins.
+
 Known Issues
 ------------
 

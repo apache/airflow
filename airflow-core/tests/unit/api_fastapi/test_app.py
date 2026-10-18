@@ -17,26 +17,45 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 import threading
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+import structlog.typing
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.routing import Mount
 from fastapi.testclient import TestClient
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
 from airflow import settings
+from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
+from airflow.exceptions import AirflowConfigException
+from airflow.providers_manager import ProvidersManager, WebhookSourceInfo
 from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_inbound_deliveries
+from tests_common.test_utils.webhooks import (
+    FakeHmacSource,
+    build_conn_env,
+    count_deliveries,
+    post_signed_delivery,
+)
+
+if TYPE_CHECKING:
+    from httpx2 import Response
 
 pytestmark = pytest.mark.db_test
 
@@ -194,13 +213,14 @@ def test_create_app_rejects_unknown_apps(apps, unknown_apps):
         ValueError,
         match=re.escape(
             f"Unknown API apps {unknown_apps} in --apps / AIRFLOW_API_APPS; "
-            "valid values are: core, execution, all"
+            "valid values are: core, execution, webhooks, all"
         ),
     ):
         app_module.create_app(apps=apps)
 
 
-@pytest.mark.parametrize("apps", ["all", "core", "execution"])
+@pytest.mark.parametrize("apps", ["all", "core", "execution", "webhooks"])
+@conf_vars({("webhooks", "names"): "demo"})
 def test_access_log_middleware_installed_outermost_for_every_apps_selection(apps):
     """Both server backends disable their own access logger, so a selection that skips this
     middleware has no access logging at all. It must also stay outermost so it times the full
@@ -212,8 +232,8 @@ def test_access_log_middleware_installed_outermost_for_every_apps_selection(apps
     assert installed[0] is HttpAccessLogMiddleware
 
 
-@pytest.mark.parametrize("apps", ["all", "core", "execution"])
-@conf_vars({("metrics", "statsd_on"): "True"})
+@pytest.mark.parametrize("apps", ["all", "core", "execution", "webhooks"])
+@conf_vars({("metrics", "statsd_on"): "True", ("webhooks", "names"): "demo"})
 def test_api_metrics_middleware_installed_for_every_apps_selection(apps):
     """The execution API is mounted as a sub-app and `--apps execution` never reaches
     ``init_middlewares``, so installing this middleware there would leave the surface every
@@ -226,22 +246,263 @@ def test_api_metrics_middleware_installed_for_every_apps_selection(apps):
         assert installed.index(HttpMetricsMiddleware) < installed.index(GZipMiddleware)
 
 
-@pytest.mark.parametrize("apps", ["all", "core", "execution"])
+@pytest.mark.parametrize("apps", ["all", "core", "execution", "webhooks"])
+@conf_vars({("webhooks", "names"): "demo"})
 def test_api_metrics_middleware_skipped_without_a_metrics_backend(apps):
     installed = [m.cls for m in app_module.create_app(apps=apps).user_middleware]
 
     assert HttpMetricsMiddleware not in installed
 
 
-def test_catch_all_route_last():
+@pytest.mark.parametrize("apps", ["all", "all,webhooks"])
+@conf_vars({("webhooks", "names"): "demo"})
+def test_catch_all_route_last(apps):
     """
     Ensure the catch all route that returns the initial html is the last route in the fastapi app.
 
     If it's not, it results in any routes/apps added afterwards to not be reachable, as the catch all
     route responds instead.
     """
-    test_app = app_module.create_app(apps="all")
+    test_app = app_module.create_app(apps=apps)
     assert test_app.routes[-1].path == "/{rest_of_path:path}"
+
+
+@conf_vars({("webhooks", "names"): "demo"})
+def test_webhooks_app_alone_serves_only_the_webhooks_mount():
+    # Anyone who can reach this process can call it, so a route added at its root must be added on purpose.
+    test_app = app_module.create_app(apps="webhooks")
+
+    assert [(type(route), route.path) for route in test_app.routes] == [(Mount, "/webhooks")]
+    client = TestClient(test_app)
+    assert client.get("/webhooks/_health").json() == {"status": "healthy"}
+    assert [client.get(path).status_code for path in ("/docs", "/redoc", "/openapi.json")] == [404] * 3
+
+
+@pytest.mark.parametrize(
+    ("apps", "documented"),
+    [("core,webhooks", True), ("execution", True), ("execution,webhooks", False)],
+)
+@conf_vars({("webhooks", "names"): "demo", ("api", "enable_swagger_ui"): "True"})
+def test_api_documentation_is_served_unless_webhooks_are_served_without_the_core_api(apps, documented):
+    test_app = app_module.create_app(apps=apps)
+
+    assert (test_app.docs_url, test_app.redoc_url, test_app.openapi_url) == (
+        ("/docs", "/redoc", "/openapi.json") if documented else (None, None, None)
+    )
+
+
+@conf_vars({("webhooks", "names"): "demo"})
+def test_all_apps_answer_webhook_requests_with_a_json_404():
+    test_app = app_module.create_app(apps="all")
+
+    assert "/webhooks" not in {route.path for route in test_app.routes if isinstance(route, Mount)}
+    assert not any(path.startswith("/webhooks") for path in test_app.openapi()["paths"])
+    client = TestClient(test_app)
+    responses = [
+        client.get("/webhooks"),
+        client.post("/webhooks"),
+        client.get("/webhooks/_health"),
+        client.post("/webhooks/demo"),
+    ]
+    assert [(response.status_code, response.json()) for response in responses] == [
+        (404, {"error": "Inbound webhooks are served only by airflow api-server --apps webhooks"})
+    ] * 4
+
+
+@conf_vars({("webhooks", "names"): ""})
+def test_webhooks_app_without_webhook_names_fails_to_start():
+    with pytest.raises(AirflowConfigException, match=re.escape("[webhooks] names lists no webhooks")):
+        app_module.create_app(apps="webhooks")
+
+
+def build_conflict_error(source_type: str) -> str:
+    return (
+        f"Webhook source type {source_type} is declared by pkg-a, pkg-b, so none of them serves it; set "
+        "[webhooks] source_type_owners to the package that serves it"
+    )
+
+
+def build_wrong_owner_error(source_type: str, owner: str, declared_by: str) -> str:
+    return (
+        f"[webhooks] source_type_owners names {owner} for source type {source_type}, which that package "
+        f"does not declare (declared by {declared_by}), so it is not served"
+    )
+
+
+@pytest.mark.parametrize(
+    ("source_type_owners", "expected_errors"),
+    [
+        pytest.param("", [build_conflict_error("github"), build_conflict_error("jira")], id="unresolved"),
+        pytest.param("jira=pkg-b", [build_conflict_error("github")], id="resolved"),
+        pytest.param(
+            "jira=pkg-c",
+            [build_conflict_error("github"), build_wrong_owner_error("jira", "pkg-c", "pkg-a, pkg-b")],
+            id="conflict-wrong-owner",
+        ),
+        pytest.param(
+            "slack=pkg-b,linear=pkg-b",
+            [
+                build_conflict_error("github"),
+                build_conflict_error("jira"),
+                build_wrong_owner_error("slack", "pkg-b", "pkg-a"),
+            ],
+            id="no-conflict-wrong-owner",
+        ),
+    ],
+)
+@mock.patch.object(ProvidersManager, "webhook_sources", new_callable=mock.PropertyMock)
+@mock.patch.object(ProvidersManager, "webhook_source_conflicts", new_callable=mock.PropertyMock)
+def test_webhooks_app_logs_each_source_type_it_cannot_serve(
+    mock_conflicts, mock_sources, source_type_owners, expected_errors, caplog
+):
+    declarations = [
+        WebhookSourceInfo(source_type=source_type, classpath=f"{package}.Source", package_name=package)
+        for source_type, packages in (
+            ("github", ["pkg-a", "pkg-b"]),
+            ("jira", ["pkg-a", "pkg-b"]),
+            ("slack", ["pkg-a"]),
+        )
+        for package in packages
+    ]
+    mock_sources.return_value = declarations
+    mock_conflicts.return_value = {
+        source_type: [info for info in declarations if info.source_type == source_type]
+        for source_type in ("github", "jira")
+    }
+
+    with conf_vars({("webhooks", "names"): "demo", ("webhooks", "source_type_owners"): source_type_owners}):
+        app_module.create_app(apps="webhooks")
+
+    assert [entry["event"] for entry in caplog if entry["log_level"] == "error"] == expected_errors
+
+
+@conf_vars({("webhooks", "names"): "demo", ("api", "secret_key"): ""})
+def test_webhooks_app_alone_runs_without_the_api_secret_key(caplog):
+    test_app = app_module.create_app(apps="webhooks")
+
+    assert not hasattr(test_app.state, "secret_key")
+    assert (
+        "`api/secret_key` was empty, using a generated one for now. Please set this in your config"
+        not in caplog
+    )
+
+
+@pytest.fixture
+def clean_inbound_deliveries():
+    clear_db_inbound_deliveries()
+    yield
+    clear_db_inbound_deliveries()
+
+
+@pytest.mark.parametrize(("name", "status_code"), [("fake", 202), ("unlisted", 404)])
+@pytest.mark.usefixtures("clean_inbound_deliveries")
+@mock.patch.dict(os.environ, build_conn_env("fake"))
+# Patched rather than read through caplog: test_http_access_log monkeypatches this module-level
+# logger, pinning it to the structlog processors of that moment, so caplog misses its events once
+# a later test reconfigures structlog.
+@mock.patch("airflow.api_fastapi.common.http_access_log.logger", spec=structlog.typing.FilteringBoundLogger)
+@mock.patch.object(ProvidersManager, "get_webhook_source_class", autospec=True, return_value=FakeHmacSource)
+@conf_vars({("webhooks", "names"): "fake"})
+def test_webhook_requests_are_access_logged_with_an_int_status(
+    mock_get_webhook_source_class, mock_access_logger, name, status_code
+):
+    client = TestClient(app_module.create_app(apps="webhooks"), base_url="http://testserver/webhooks")
+
+    post_signed_delivery(client, name=name)
+
+    mock_access_logger.info.assert_called_once()
+    logged_status = mock_access_logger.info.call_args.kwargs["status_code"]
+    assert (type(logged_status), logged_status) == (int, status_code)
+
+
+class RefuseRequestsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        return JSONResponse({"detail": "Refused"}, status_code=403)
+
+
+class MarkResponsesMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Plugin-Middleware"] = "passed"
+        return response
+
+
+@pytest.mark.usefixtures("clean_inbound_deliveries")
+@mock.patch.dict(os.environ, build_conn_env("fake"))
+class TestWebhookDeliveryThroughTheCoreMiddlewares:
+    """
+    Deliveries to ``--apps all,webhooks`` pass through the core API's middlewares.
+
+    Those middlewares wrap every route, the webhooks mount included.
+    """
+
+    @pytest.fixture(autouse=True)
+    def config(self):
+        with conf_vars(
+            {
+                ("webhooks", "names"): "fake",
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            }
+        ):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def source_classes(self):
+        with mock.patch.object(
+            ProvidersManager, "get_webhook_source_class", autospec=True, return_value=FakeHmacSource
+        ):
+            yield
+
+    def assert_delivery_is_recorded(self, app: FastAPI, session) -> Response:
+        response = post_signed_delivery(TestClient(app, base_url="http://testserver/webhooks"))
+
+        assert (response.status_code, response.json()) == (
+            202,
+            {"delivery_id": "delivery-1", "outcome": "no_subscribers"},
+        )
+        assert count_deliveries(session) == 1
+        return response
+
+    @conf_vars({("core", "simple_auth_manager_all_admins"): "True"})
+    def test_all_admins_middleware_adding_a_token(self, session):
+        app = app_module.create_app(apps="all,webhooks")
+
+        assert SimpleAllAdminMiddleware in [middleware.cls for middleware in app.user_middleware]
+        self.assert_delivery_is_recorded(app, session)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_team_scoped_plugin(self, session):
+        fastapi_apps = [
+            {"name": "team_app", "app": FastAPI(), "url_prefix": "/team_a", "team_name": "team_a"}
+        ]
+        root_middlewares = [
+            {"name": "team_middleware", "middleware": RefuseRequestsMiddleware, "team_name": "team_a"}
+        ]
+        with mock.patch.object(
+            plugins_manager,
+            "get_fastapi_plugins",
+            autospec=True,
+            return_value=(fastapi_apps, root_middlewares),
+        ):
+            app = app_module.create_app(apps="all,webhooks")
+
+        assert "/team_a" in [getattr(route, "path", None) for route in app.routes]
+        # Root middlewares of team-scoped plugins are skipped, so this one must not wrap the delivery.
+        assert RefuseRequestsMiddleware not in [middleware.cls for middleware in app.user_middleware]
+        self.assert_delivery_is_recorded(app, session)
+
+    def test_root_plugin_middleware(self, session):
+        root_middlewares = [{"name": "marker", "middleware": MarkResponsesMiddleware}]
+        with mock.patch.object(
+            plugins_manager, "get_fastapi_plugins", autospec=True, return_value=([], root_middlewares)
+        ):
+            app = app_module.create_app(apps="all,webhooks")
+
+        response = self.assert_delivery_is_recorded(app, session)
+        assert response.headers["X-Plugin-Middleware"] == "passed"
 
 
 @pytest.mark.parametrize(

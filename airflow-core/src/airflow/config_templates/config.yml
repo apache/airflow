@@ -2470,7 +2470,8 @@ execution_api:
       type: string
 webhooks:
   description: |
-    Settings for inbound webhooks, which the API server receives at ``POST /webhooks/<name>``.
+    Settings for inbound webhooks, which ``airflow api-server --apps webhooks`` receives at
+    ``POST /webhooks/<name>``.
   options:
     names:
       description: |
@@ -2478,7 +2479,8 @@ webhooks:
 
         Comma-separated names of the webhooks to serve, each configured by a ``webhook_<name>``
         connection. Requests for other names are answered with 404 without looking up a connection, so
-        they cannot add calls to a secrets backend. Empty serves no webhook.
+        they cannot add calls to a secrets backend. ``airflow api-server --apps webhooks`` does not start
+        when it is empty.
 
         A name has 1 to 64 lowercase letters, digits, ``-`` and ``_``, and starts with a letter or a
         digit. ``other`` is reserved: the webhook metrics give it to requests for names that are not

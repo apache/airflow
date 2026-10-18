@@ -27,6 +27,7 @@ from rich.console import Console
 from airflow.cli.commands import api_server_command
 from airflow.exceptions import AirflowConfigException
 
+from tests_common.test_utils.config import conf_vars
 from unit.cli.commands._common_cli_classes import _CommonCLIUvicornTestClass
 
 console = Console(width=400, color_system="standard")
@@ -86,6 +87,8 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             (["api-server", "--apps", "core,execution"]),
             (["api-server", "--apps", "core"]),
             (["api-server", "--apps", "execution"]),
+            (["api-server", "--apps", "webhooks"]),
+            (["api-server", "--apps", "core,webhooks"]),
         ],
         ids=[
             "default_apps",
@@ -93,6 +96,8 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             "multiple_apps_explicit",
             "single_app_core",
             "single_app_execution",
+            "single_app_webhooks",
+            "core_and_webhooks",
         ],
     )
     @pytest.mark.parametrize("dev_mode", [True, False])
@@ -100,6 +105,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
         "original_env",
         [None, "some_value"],
     )
+    @conf_vars({("webhooks", "names"): "demo"})
     def test_api_apps_env(self, args, dev_mode, original_env):
         """
         Test that AIRFLOW_API_APPS is set and unset in the environment when
@@ -135,17 +141,43 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             # Verify that the environment variable was set and cleaned up correctly
             mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
 
+    @pytest.mark.parametrize(
+        ("apps", "error", "message"),
+        [
+            pytest.param("foo", ValueError, "Unknown API apps ['foo']", id="unknown-app"),
+            pytest.param(
+                "webhooks", AirflowConfigException, "[webhooks] names lists no webhooks", id="no-webhooks"
+            ),
+        ],
+    )
     @pytest.mark.parametrize("dev_mode", [True, False])
+    @conf_vars({("webhooks", "names"): ""})
     @mock.patch("airflow.cli.commands.api_server_command.run_command_with_daemon_option", autospec=True)
     @mock.patch("fastapi_cli.cli._run", autospec=True)
-    def test_unknown_apps_fail_before_server_starts(self, mock_dev_run, mock_run_with_daemon, dev_mode):
-        args = ["api-server", "--apps", "foo"] + (["--dev"] if dev_mode else [])
+    def test_invalid_apps_fail_before_server_starts(
+        self, mock_dev_run, mock_run_with_daemon, dev_mode, apps, error, message
+    ):
+        args = ["api-server", "--apps", apps] + (["--dev"] if dev_mode else [])
 
-        with pytest.raises(ValueError, match=re.escape("Unknown API apps ['foo']")):
+        with pytest.raises(error, match=re.escape(message)):
             api_server_command.api_server(self.parser.parse_args(args))
 
         mock_dev_run.assert_not_called()
         mock_run_with_daemon.assert_not_called()
+
+    @pytest.mark.parametrize(("apps", "jwt_secret_needed"), [("webhooks", False), ("core,webhooks", True)])
+    @conf_vars({("webhooks", "names"): "demo", ("api_auth", "jwt_secret"): ""})
+    @mock.patch("airflow.cli.commands.api_server_command.run_command_with_daemon_option", autospec=True)
+    def test_jwt_secret_is_generated_only_for_apps_that_use_it(
+        self, mock_run_with_daemon, apps, jwt_secret_needed, caplog
+    ):
+        api_server_command.api_server(self.parser.parse_args(["api-server", "--apps", apps]))
+
+        mock_run_with_daemon.assert_called_once()
+        warning = (
+            "`api_auth/jwt_secret` was empty, using a generated one for now. Please set this in your config"
+        )
+        assert (warning in caplog) is jwt_secret_needed
 
     @pytest.mark.parametrize(
         ("cli_args", "expected_additional_kwargs"),
