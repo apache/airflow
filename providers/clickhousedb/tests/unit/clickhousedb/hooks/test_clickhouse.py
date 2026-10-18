@@ -499,7 +499,7 @@ class TestClickHouseHookClientKwargs:
 
     @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     def test_constructor_client_kwargs_can_enable_session_id(self, mock_get_connection):
-        """Users needing session-scoped state can opt back in via constructor client_kwargs."""
+        """An explicit autogenerate_session_id in client_kwargs is not overridden by the hook's default."""
         mock_get_connection.return_value = BASE_CONN
         hook = ClickHouseHook(
             clickhouse_conn_id="clickhouse_test",
@@ -616,21 +616,6 @@ class TestClickHouseHookClientKwargsFromExtra:
 
         assert "http_proxy" not in kwargs
         assert "pool_mgr_params" not in kwargs
-
-    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
-    def test_client_kwargs_from_extra_can_enable_session_id(self, mock_get_connection):
-        """Connection-level extra.client_kwargs can also opt back into session IDs."""
-        conn = Connection(
-            conn_id="ch_session_opt_in",
-            conn_type="clickhouse",
-            host="host",
-            extra=json.dumps({"client_kwargs": {"autogenerate_session_id": True}}),
-        )
-        mock_get_connection.return_value = conn
-        hook = ClickHouseHook(clickhouse_conn_id="ch_session_opt_in")
-        kwargs = hook._get_client_kwargs()
-
-        assert kwargs["autogenerate_session_id"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -761,6 +746,107 @@ class TestClickHouseConnection:
 
     def test_autocommit_attribute_is_true(self):
         assert ClickHouseConnection(MagicMock()).autocommit is True
+
+    def test_cursor_without_session_uses_client_directly(self):
+        mock_client = MagicMock()
+        assert ClickHouseConnection(mock_client).cursor().client is mock_client
+
+    def test_cursor_with_session_adds_session_id_to_every_call(self):
+        mock_client = MagicMock()
+        client = ClickHouseConnection(mock_client, session_id="sess-1").cursor().client
+
+        client.query("SELECT 1")
+        client.command("SELECT 1", settings={"max_threads": 2})
+        client.insert("t", [(1,)], ["x"])
+
+        assert mock_client.query.call_args.kwargs["settings"] == {"session_id": "sess-1"}
+        assert mock_client.command.call_args.kwargs["settings"] == {"session_id": "sess-1", "max_threads": 2}
+        assert mock_client.insert.call_args.kwargs["settings"] == {"session_id": "sess-1"}
+
+    def test_cursor_with_session_keeps_explicit_session_id(self):
+        mock_client = MagicMock()
+        client = ClickHouseConnection(mock_client, session_id="sess-1").cursor().client
+
+        client.query("SELECT 1", settings={"session_id": "other"})
+
+        assert mock_client.query.call_args.kwargs["settings"] == {"session_id": "other"}
+
+    def test_cursor_with_session_forwards_other_attributes(self):
+        mock_client = MagicMock()
+        client = ClickHouseConnection(mock_client, session_id="sess-1").cursor().client
+
+        assert client.server_version is mock_client.server_version
+
+
+# ---------------------------------------------------------------------------
+# Tests: ClickHouse sessions
+# ---------------------------------------------------------------------------
+
+
+class TestClickHouseHookSessions:
+    @pytest.fixture
+    def mock_client(self):
+        with (
+            patch(
+                "airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection",
+                return_value=BASE_CONN,
+            ),
+            patch("clickhouse_connect.get_client") as mock_get_client,
+        ):
+            yield mock_get_client.return_value
+
+    @staticmethod
+    def _session_ids(mock_method: MagicMock) -> list[str | None]:
+        return [(call.kwargs.get("settings") or {}).get("session_id") for call in mock_method.call_args_list]
+
+    def test_each_run_gets_its_own_session_shared_by_its_statements(self, mock_client):
+        hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
+
+        statements = ["CREATE TEMPORARY TABLE t (x UInt8)", "SELECT x FROM t"]
+
+        hook.run(statements)
+        hook.run(statements)
+
+        first_create, first_select, second_create, second_select = self._session_ids(mock_client.query)
+        assert first_create is not None
+        assert first_create == first_select
+        assert second_create == second_select
+        assert first_create != second_create
+
+    @pytest.mark.parametrize(
+        "hook_kwargs",
+        [
+            pytest.param({"client_kwargs": {"autogenerate_session_id": True}}, id="client-session"),
+            pytest.param({"client_kwargs": {"autogenerate_session_id": False}}, id="sessions-off"),
+            pytest.param({"client_kwargs": {"session_id": "fixed"}}, id="client-session-id"),
+            pytest.param({"session_settings": {"session_id": "fixed"}}, id="settings-session-id"),
+        ],
+    )
+    def test_user_configured_session_disables_per_connection_session(self, mock_client, hook_kwargs):
+        ClickHouseHook(clickhouse_conn_id="clickhouse_test", **hook_kwargs).run("SELECT 1")
+
+        assert self._session_ids(mock_client.query) == [None]
+
+    def test_session_id_setting_in_connection_extra_disables_per_connection_session(self, mock_client):
+        conn = Connection(
+            conn_id="ch_sessions_off",
+            conn_type="clickhouse",
+            host="host",
+            extra=json.dumps({"client_kwargs": {"autogenerate_session_id": False}}),
+        )
+        with patch(
+            "airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection",
+            return_value=conn,
+        ):
+            ClickHouseHook(clickhouse_conn_id="ch_sessions_off").run("SELECT 1")
+
+        assert self._session_ids(mock_client.query) == [None]
+
+    def test_global_autogenerate_session_id_off_disables_per_connection_session(self, mock_client):
+        with patch("clickhouse_connect.common.get_setting", return_value=False):
+            ClickHouseHook(clickhouse_conn_id="clickhouse_test").run("SELECT 1")
+
+        assert self._session_ids(mock_client.query) == [None]
 
 
 # ---------------------------------------------------------------------------
@@ -1371,14 +1457,15 @@ class TestClickHouseHookClientLifecycle:
 
     @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
-    def test_get_conn_does_not_close_cached_client(self, mock_get_client, mock_get_connection):
+    def test_run_does_not_close_cached_client(self, mock_get_client, mock_get_connection):
+        """run() closes its DB-API connection; the shared client must stay open for the next call."""
         mock_get_connection.return_value = BASE_CONN
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
 
-        hook.get_conn()
-        hook.get_conn()
+        hook.run("SELECT 1")
+        hook.run("SELECT 1")
 
         mock_get_client.assert_called_once()
         mock_client.close.assert_not_called()
@@ -1488,32 +1575,16 @@ class TestClickHouseHookBulkInsert:
     @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
     def test_bulk_insert_reuses_client_across_calls(self, mock_get_client, mock_get_connection):
-        """Multiple bulk_insert_rows calls on the same hook must share one client."""
+        """bulk_insert_rows() uses the hook's shared client, the same one get_client() returns."""
         mock_get_connection.return_value = BASE_CONN
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
+        client = hook.get_client()
+
         hook.bulk_insert_rows("t", [(1,)], column_names=["id"])
         hook.bulk_insert_rows("t", [(2,)], column_names=["id"])
 
         mock_get_client.assert_called_once()
-        assert mock_client.insert.call_count == 2
-
-    @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
-    @patch("clickhouse_connect.get_client")
-    def test_bulk_insert_rows_reuses_existing_client(self, mock_get_client, mock_get_connection):
-        mock_get_connection.return_value = BASE_CONN
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-
-        hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
-        client = hook.get_client()
-
-        hook.bulk_insert_rows("events", [(1, "a")], column_names=["id", "name"])
-
-        mock_get_client.assert_called_once()
-        assert hook.get_client() is client
+        assert client.insert.call_count == 2
 
     @patch("airflow.providers.clickhousedb.hooks.clickhouse.ClickHouseHook.get_connection")
     @patch("clickhouse_connect.get_client")
