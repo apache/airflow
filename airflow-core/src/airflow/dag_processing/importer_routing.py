@@ -21,11 +21,9 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter, find_claiming_importer
-from airflow.sdk.importers import get_importer_registry  # noqa: SDK001
-from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 
 if TYPE_CHECKING:
     from airflow.sdk.importers import AbstractDagImporter, DagImporterRegistry  # noqa: SDK001
@@ -38,7 +36,6 @@ def get_claiming_importer(
     bundle_name: str | None,
     *,
     registry: DagImporterRegistry | None = None,
-    bundle_importers: list[dict[str, Any] | str] | None | ArgNotSet = NOTSET,
 ) -> CoordinatorDagImporter | None:
     """
     Return the coordinator Dag importer that claims ``path``, or ``None`` when a Python child parses it.
@@ -47,8 +44,6 @@ def get_claiming_importer(
     importers cannot be loaded, the error is logged and a Python child parses the file.
     """
     try:
-        if is_arg_set(bundle_importers):
-            registry = get_importer_registry(bundle_name, bundle_importers=bundle_importers)
         if registry is not None:
             return find_claiming_importer(path, bundle_name, registry=registry)
         return find_claiming_importer(path, bundle_name)

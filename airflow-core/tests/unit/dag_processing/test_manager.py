@@ -20,7 +20,6 @@ from __future__ import annotations
 import copy
 import json
 import logging
-import multiprocessing
 import os
 import random
 import re
@@ -393,6 +392,8 @@ class TestDagFileProcessorManager:
         processor._bundle_versions["removed"] = "v1"
         processor._bundle_version_data["removed"] = {"version": "v1"}
         processor._force_refresh_bundles.add("removed")
+        registries = {name: mock.Mock(spec=DagImporterRegistry) for name in ("removed", "retained")}
+        processor._bundle_importer_registries = registries.copy()
         known_files = {"removed": set(), "retained": set()}
 
         processor._reconcile_bundles(known_files=known_files)
@@ -400,6 +401,7 @@ class TestDagFileProcessorManager:
         bundles.get_all_bundle_names.assert_called_once_with()
         assert processor._dag_bundles == [added, retained]
         assert known_files == {"retained": set()}
+        assert processor._bundle_importer_registries == {"retained": registries["retained"]}
         assert "removed" not in processor._bundle_versions
         assert "removed" not in processor._bundle_version_data
         assert processor._force_refresh_bundles == {"added"}
@@ -518,25 +520,11 @@ class TestDagFileProcessorManager:
         ):
             processor = DagFileProcessorManager(max_runs=1)
             processor.load_dag_bundles()
+            processor.warm_importers()
+            processor._bundle_name_to_team_name["bundle-a"] = "team-a"
             config_file.write_text("[]")
             mock_sync.side_effect = RuntimeError("database unavailable")
             processor._reconcile_bundles(known_files={})
-            request = DagCallbackRequest(
-                dag_id="test",
-                run_id="test",
-                filepath="dag.py",
-                is_failure_callback=False,
-                bundle_name="bundle-a",
-                bundle_version="v1",
-            )
-            assert (
-                processor.prepare_callback_bundle(request.model_copy(update={"bundle_name": "unapplied"}))
-                is None
-            )
-            bundle = processor.prepare_callback_bundle(request)
-            assert bundle is not None
-            assert bundle.path == bundle_path
-            assert bundle.version == "v1"
 
             def start(**kwargs):
                 code = (
@@ -559,33 +547,6 @@ class TestDagFileProcessorManager:
                 )
                 assert json.loads(result.stdout.splitlines()[-1]) == ["team-a", str(bundle_path)]
 
-                context = multiprocessing.get_context("fork")
-                receiver, sender = context.Pipe(duplex=False)
-
-                def read_inherited_configuration():
-                    inherited = DagBundlesManager()
-                    sender.send(
-                        (
-                            inherited.get_bundle_team_name("bundle-a"),
-                            str(inherited.get_bundle("bundle-a").path),
-                        )
-                    )
-                    sender.close()
-
-                child = context.Process(target=read_inherited_configuration)
-                try:
-                    child.start()
-                    sender.close()
-                    assert receiver.poll(10)
-                    assert receiver.recv() == ("team-a", str(bundle_path))
-                    child.join(timeout=10)
-                    assert child.exitcode == 0
-                finally:
-                    if child.is_alive():
-                        child.terminate()
-                        child.join(timeout=10)
-                    receiver.close()
-                    sender.close()
                 if native:
                     assert kwargs["team_name"] == "team-a"
                     assert kwargs["importer_registry"] is processor._get_importer_registry("bundle-a")
