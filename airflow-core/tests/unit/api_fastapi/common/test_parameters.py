@@ -607,7 +607,8 @@ class TestDatetimeRangeFilterFactory:
         assert "now()" not in sql
         assert "coalesce" not in sql
 
-    def test_null_lower_bound_clause_is_added_to_null_branch(self):
+    @pytest.mark.parametrize("lower_bound_name", ["lower_bound_gte", "lower_bound_gt"])
+    def test_null_lower_bound_clause_is_added_to_null_branch(self, lower_bound_name):
         """Custom NULL lower-bound clause is ANDed with the attribute IS NULL check."""
         bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
         depends = datetime_range_filter_factory(
@@ -615,12 +616,9 @@ class TestDatetimeRangeFilterFactory:
             DagRun,
             null_lower_bound_clause=DagRun.end_date.is_(None),
         )
-        rf = depends(
-            lower_bound_gte=bound,
-            lower_bound_gt=None,
-            upper_bound_lte=None,
-            upper_bound_lt=None,
-        )
+        bounds = dict(lower_bound_gte=None, lower_bound_gt=None, upper_bound_lte=None, upper_bound_lt=None)
+        bounds[lower_bound_name] = bound
+        rf = depends(**bounds)
 
         sql = _compile(rf.to_orm(select(DagRun)))
 
