@@ -918,6 +918,30 @@ class TestSchedulerJob:
 
         assert [row.id for row in runner._find_task_instances_without_heartbeats(session=session)] == [ti.id]
 
+    def test_find_task_instances_without_heartbeats_is_bounded_by_max_tis_per_query(self, dag_maker, session):
+        """A mass heartbeat-loss event must be purged in bounded batches, oldest heartbeat first."""
+        with dag_maker(serialized=True):
+            EmptyOperator(task_id="task")
+        runner = SchedulerJobRunner(Job(), executors=[MockExecutor(do_update=False)])
+        session.add(runner.job)
+        session.flush()
+        runner.job.max_tis_per_query = 2
+
+        ids_oldest_first = []
+        for i in range(3):
+            dr = dag_maker.create_dagrun(run_id=f"run_{i}", logical_date=DEFAULT_DATE + timedelta(days=i))
+            ti = dr.get_task_instance("task", session=session)
+            ti.state = State.RUNNING
+            ti.region_index = -1
+            ti.last_heartbeat_at = DEFAULT_DATE + timedelta(minutes=i)
+            ti.queued_by_job_id = runner.job.id
+            ids_oldest_first.append(ti.id)
+        session.commit()
+
+        found = runner._find_task_instances_without_heartbeats(session=session)
+        # Capped at max_tis_per_query, returning the two oldest-heartbeat rows; the third waits for a later loop.
+        assert [row.id for row in found] == ids_oldest_first[:2]
+
     @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING])
     def test_restarting_waits_for_terminal_executor_event(self, dag_maker, session, event_state):
         with dag_maker(dag_id="restart_waits_for_termination"):

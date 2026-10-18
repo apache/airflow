@@ -3994,6 +3994,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.execute(with_row_locks(run_query, of=DagRun, session=session, skip_locked=True))
         )
         query = query.where(or_(~regional_expression(TI), tuple_(TI.dag_id, TI.run_id).in_(locked_runs)))
+        # Bound the batch (oldest heartbeat first) so a mass heartbeat-loss event does not purge every
+        # stale row, each with per-TI work under FOR UPDATE, in one scheduler-stalling transaction.
+        query = query.order_by(TI.last_heartbeat_at)
+        if self.job.max_tis_per_query:
+            query = query.limit(self.job.max_tis_per_query)
         # Lock the rows (FOR UPDATE, of=TI so the FOR UPDATE isn't applied to the joined dag_model)
         # so a worker can't commit a terminal state on the same TI between this scan and the
         # handle_failure() in the purge that follows in the same transaction. skip_locked keeps HA
