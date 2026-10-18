@@ -2183,6 +2183,16 @@ class TestGCSToBigQueryOperator:
                 True,
                 id="ignore_unknown_values_set_by_extra_config",
             ),
+            pytest.param(
+                {"ignore_unknown_values": True, "source_format": "NEWLINE_DELIMITED_JSON"},
+                True,
+                id="json_source",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "source_format": "PARQUET"}, False, id="parquet_source"
+            ),
+            pytest.param({"ignore_unknown_values": True, "source_format": "AVRO"}, False, id="avro_source"),
+            pytest.param({"ignore_unknown_values": True, "source_format": "ORC"}, False, id="orc_source"),
         ],
     )
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
