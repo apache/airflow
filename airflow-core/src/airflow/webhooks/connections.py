@@ -25,7 +25,7 @@ import threading
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from time import monotonic
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, get_args
 
 import structlog
 
@@ -34,7 +34,7 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.connection import AirflowSecretsBackendAccessDenied
 from airflow.providers_manager import ProvidersManager
-from airflow.webhooks.base import WebhookSource
+from airflow.webhooks.base import StorePayload, WebhookSource
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -62,6 +62,8 @@ class ConfiguredWebhook:
     :param secret: The shared secret, which is the connection's password.
     :param max_body_bytes: The largest body it accepts: ``max_body_bytes`` from the connection's extra,
         or else ``[webhooks] max_body_bytes``.
+    :param store_payload: What is kept of a delivery's payload: ``store_payload`` from the connection's
+        extra, or else the source type's ``default_store_payload``, or else ``[webhooks] store_payload``.
     """
 
     name: str
@@ -69,6 +71,13 @@ class ConfiguredWebhook:
     source: WebhookSource
     secret: str = field(repr=False)
     max_body_bytes: int
+    store_payload: StorePayload
+
+    def select_payload(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Return what ``store_payload`` keeps of a delivery's payload."""
+        if self.store_payload == "summary":
+            return self.source.summarize(payload)
+        return payload if self.store_payload == "full" else None
 
 
 class ResolutionFailure(enum.Enum):
@@ -96,7 +105,12 @@ class UnresolvedWebhook:
 
 
 def _configure_webhook(
-    name: str, conn: Connection, *, source_type_owners: Mapping[str, str], default_max_body_bytes: int
+    name: str,
+    conn: Connection,
+    *,
+    source_type_owners: Mapping[str, str],
+    default_max_body_bytes: int,
+    default_store_payload: StorePayload,
 ) -> ConfiguredWebhook | UnresolvedWebhook:
     try:
         if conn.conn_type != CONN_TYPE:
@@ -148,12 +162,18 @@ def _configure_webhook(
         max_body_bytes = str(extra.get("max_body_bytes", default_max_body_bytes))
         if not max_body_bytes.isdecimal() or int(max_body_bytes) < 1:
             raise ValueError("max_body_bytes must be a positive integer")
+        store_payload = extra.get(
+            "store_payload", source_class.default_store_payload or default_store_payload
+        )
+        if store_payload not in get_args(StorePayload):
+            raise ValueError(f"store_payload must be one of {', '.join(get_args(StorePayload))}")
         return ConfiguredWebhook(
             name=name,
             source_type=source_type,
             source=source_class.from_extra(extra),
             secret=conn.password,
             max_body_bytes=int(max_body_bytes),
+            store_payload=store_payload,
         )
     except ValueError as e:
         return UnresolvedWebhook(failure=ResolutionFailure.MISCONFIGURED, reason=str(e))
@@ -172,20 +192,26 @@ def _configure_webhook(
 
 
 def resolve_webhook(
-    name: str, *, source_type_owners: Mapping[str, str], default_max_body_bytes: int
+    name: str,
+    *,
+    source_type_owners: Mapping[str, str],
+    default_max_body_bytes: int,
+    default_store_payload: StorePayload,
 ) -> ConfiguredWebhook | UnresolvedWebhook:
     """
     Resolve webhook ``name`` from connection ``webhook_<name>``, without a cache.
 
     The connection must have the type ``inbound_webhook``, and its password is the shared secret. Its
-    extra may set ``source_type``, which defaults to ``name``, ``max_body_bytes``, and the options the
-    source type documents.
+    extra may set ``source_type``, which defaults to ``name``, ``max_body_bytes``, ``store_payload``, and
+    the options the source type documents.
 
     :param name: The webhook's name.
     :param source_type_owners: The package that serves each source type listed, as in
         ``WebhookRegistry``.
     :param default_max_body_bytes: The largest body the webhook accepts if its connection does not
         set ``max_body_bytes``, as in ``WebhookRegistry``.
+    :param default_store_payload: What is kept of a delivery's payload if neither the connection nor the
+        source type says, as in ``WebhookRegistry``.
     """
     conn_id = f"{CONN_ID_PREFIX}{name}"
     backend_failure = None
@@ -214,6 +240,7 @@ def resolve_webhook(
                 conn,
                 source_type_owners=source_type_owners,
                 default_max_body_bytes=default_max_body_bytes,
+                default_store_payload=default_store_payload,
             )
     if backend_failure is not None:
         return UnresolvedWebhook(failure=ResolutionFailure.UNAVAILABLE, reason=backend_failure)
@@ -262,6 +289,7 @@ class WebhookConnectionCache:
             name,
             source_type_owners=self._registry.source_type_owners,
             default_max_body_bytes=self._registry.max_body_bytes,
+            default_store_payload=self._registry.store_payload,
         )
         count, previous = self._lookups.get(name, (0, None))
         self._lookups[name] = (count + 1, resolution)

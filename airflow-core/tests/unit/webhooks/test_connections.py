@@ -49,7 +49,7 @@ from tests_common.test_utils.webhooks import FakeHmacSource
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
 
-    from airflow.webhooks.base import WebhookSource
+    from airflow.webhooks.base import StorePayload, WebhookSource
 
 SECRET = "s3cret"
 CONN_ID = "webhook_github"
@@ -61,6 +61,8 @@ REGISTRY = WebhookRegistry(
     max_body_bytes=DEFAULT_MAX_BODY_BYTES,
     delivery_retention=timedelta(days=7),
     rate_limit_per_minute=0,
+    store_payload="full",
+    max_event_payload_bytes=65536,
 )
 
 
@@ -78,6 +80,10 @@ class CrashingSource(FakeHmacSource):
     @classmethod
     def from_extra(cls, extra: dict[str, Any]) -> CrashingSource:
         raise TypeError("unexpected extra")
+
+
+class SummarizingSource(FakeHmacSource):
+    default_store_payload = "summary"
 
 
 class ObservedLock:
@@ -122,10 +128,16 @@ def build_backend_failure() -> OperationalError:
 
 
 def resolve_github(
-    *, source_type_owners: dict[str, str] | None = None, default_max_body_bytes: int = DEFAULT_MAX_BODY_BYTES
+    *,
+    source_type_owners: dict[str, str] | None = None,
+    default_max_body_bytes: int = DEFAULT_MAX_BODY_BYTES,
+    default_store_payload: StorePayload = "full",
 ) -> ConfiguredWebhook | UnresolvedWebhook:
     return resolve_webhook(
-        "github", source_type_owners=source_type_owners or {}, default_max_body_bytes=default_max_body_bytes
+        "github",
+        source_type_owners=source_type_owners or {},
+        default_max_body_bytes=default_max_body_bytes,
+        default_store_payload=default_store_payload,
     )
 
 
@@ -139,6 +151,7 @@ def providers(cleanup_providers_manager):
                     {"source-type": "github", "classpath": f"{FakeHmacSource.__module__}.FakeHmacSource"},
                     {"source-type": "refusing", "classpath": f"{__name__}.RefusingSource"},
                     {"source-type": "crashing", "classpath": f"{__name__}.CrashingSource"},
+                    {"source-type": "summarizing", "classpath": f"{__name__}.SummarizingSource"},
                     {"source-type": "not_a_source", "classpath": f"{__name__}.NotAWebhookSource"},
                 ]
             },
@@ -213,6 +226,26 @@ class TestResolveWebhook:
         assert_configured(resolution, max_body_bytes=expected_max_body_bytes)
         assert SECRET not in repr(resolution)
 
+    @pytest.mark.parametrize(
+        ("extra", "expected_store_payload"),
+        [
+            pytest.param({"source_type": "summarizing", "store_payload": "full"}, "full", id="connection"),
+            pytest.param({"source_type": "summarizing"}, "summary", id="source-type"),
+            pytest.param({}, "none", id="option"),
+            # As the connection form saves a field left empty.
+            pytest.param({"source_type": "summarizing", "store_payload": ""}, "summary", id="empty-field"),
+        ],
+    )
+    def test_store_payload_is_the_connections_or_else_the_source_types_or_else_the_options(
+        self, backend, extra, expected_store_payload
+    ):
+        backend.connections[CONN_ID] = build_connection(**extra)
+
+        resolution = resolve_github(default_store_payload="none")
+
+        assert isinstance(resolution, ConfiguredWebhook)
+        assert resolution.store_payload == expected_store_payload
+
     @mock.patch("airflow.webhooks.connections.mask_secret", autospec=True)
     def test_extra_is_registered_with_the_secrets_masker(self, mock_mask_secret, backend):
         backend.connections[CONN_ID] = build_connection(api_token="t0ken", region=None)
@@ -259,6 +292,11 @@ class TestResolveWebhook:
                 {"max_body_bytes": "lots"},
                 "max_body_bytes must be a positive integer",
                 id="non-integer-max-body-bytes",
+            ),
+            pytest.param(
+                {"store_payload": "some"},
+                "store_payload must be one of full, summary, none",
+                id="unknown-store-payload",
             ),
         ],
     )
