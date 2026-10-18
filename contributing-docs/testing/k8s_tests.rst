@@ -379,7 +379,7 @@ The typical session for tests with Kubernetes looks like follows:
       kube-apiserver-airflow-python-3.11-v1.24.2-control-plane           1/1     Running   0          84s
       kube-controller-manager-airflow-python-3.11-v1.24.2-control-plane  1/1     Running   0          84s
       kube-proxy-dwfvp                                                   1/1     Running   0          71s
-      kube-scheduler-airflow-python-3.11-v1.24.2-control-plane            1/1     Running   0          84s
+      kube-scheduler-airflow-python-3.11-v1.24.2-control-plane           1/1     Running   0          84s
 
       KinD Cluster API server URL: http://localhost:48366
       Connecting to localhost:18150. Num try: 1

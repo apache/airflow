@@ -22,26 +22,12 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from airflow_breeze.utils.kubernetes_utils import FORWARDED_NODE_PORT, get_kubernetes_port_numbers
-from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
-
-KUBERNETES_CI_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes"
-
-SINGLE_NODE_CONFIG = """\
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-networking:
-  ipFamily: ipv4
-  apiServerAddress: "127.0.0.1"
-  apiServerPort: 48366
-nodes:
-  - role: control-plane
-    extraPortMappings:
-      - containerPort: 30007
-        hostPort: 18150
-        listenAddress: "127.0.0.1"
-        protocol: TCP
-"""
+from airflow_breeze.utils.kubernetes_utils import (
+    FORWARDED_NODE_PORT,
+    SCRIPTS_CI_KUBERNETES_PATH,
+    _render_kind_cluster_config,
+    get_kubernetes_port_numbers,
+)
 
 # Rendered config of a cluster created before the switch to single-node clusters —
 # port extraction must keep working for clusters that already exist on disk.
@@ -75,7 +61,12 @@ nodes:
 
 
 @pytest.mark.parametrize(
-    "config", [SINGLE_NODE_CONFIG, LEGACY_TWO_NODE_CONFIG], ids=["single-node", "legacy-two-node"]
+    "config",
+    [
+        _render_kind_cluster_config(forwarded_port_number=18150, k8s_api_server_port=48366),
+        LEGACY_TWO_NODE_CONFIG,
+    ],
+    ids=["current-template", "legacy-two-node"],
 )
 @patch("airflow_breeze.utils.kubernetes_utils._get_kind_cluster_config_content", autospec=True)
 def test_get_kubernetes_port_numbers_extracts_ports_from_any_node(mock_get_content, config):
@@ -90,20 +81,6 @@ def test_get_kubernetes_port_numbers_raises_when_forwarded_port_mapping_is_missi
         get_kubernetes_port_numbers(python="3.10", kubernetes_version="v1.30.13")
 
 
-def test_forwarded_node_port_matches_kind_config_and_nodeport_service():
-    # The template placeholders are not valid YAML scalars, so render them before parsing.
-    kind_conf = yaml.safe_load(
-        (KUBERNETES_CI_PATH / "kind-cluster-conf.yaml")
-        .read_text()
-        .replace("{{FORWARDED_PORT_NUMBER}}", "18150")
-        .replace("{{API_SERVER_PORT}}", "48366")
-    )
-    container_ports = [
-        port_mapping["containerPort"]
-        for node in kind_conf["nodes"]
-        for port_mapping in node.get("extraPortMappings", [])
-    ]
-    node_port_service = yaml.safe_load((KUBERNETES_CI_PATH / "nodeport.yaml").read_text())
-
-    assert container_ports == [FORWARDED_NODE_PORT]
+def test_nodeport_service_exposes_forwarded_node_port():
+    node_port_service = yaml.safe_load((SCRIPTS_CI_KUBERNETES_PATH / "nodeport.yaml").read_text())
     assert [port["nodePort"] for port in node_port_service["spec"]["ports"]] == [FORWARDED_NODE_PORT]

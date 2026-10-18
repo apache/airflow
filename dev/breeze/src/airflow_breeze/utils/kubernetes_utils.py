@@ -379,6 +379,20 @@ def _get_kind_cluster_config_content(python: str, kubernetes_version: str) -> di
     return yaml.safe_load(config_path.read_text())
 
 
+# Must match nodePort in scripts/ci/kubernetes/nodeport.yaml.
+FORWARDED_NODE_PORT = 30007
+
+
+def _render_kind_cluster_config(forwarded_port_number: int, k8s_api_server_port: int) -> str:
+    return (
+        (SCRIPTS_CI_KUBERNETES_PATH / "kind-cluster-conf.yaml")
+        .read_text()
+        .replace("{{FORWARDED_NODE_PORT}}", str(FORWARDED_NODE_PORT))
+        .replace("{{FORWARDED_PORT_NUMBER}}", str(forwarded_port_number))
+        .replace("{{API_SERVER_PORT}}", str(k8s_api_server_port))
+    )
+
+
 def set_random_cluster_ports(python: str, kubernetes_version: str, output: Output | None) -> None:
     """
     Creates cluster config file and returns sockets keeping the ports bound.
@@ -390,21 +404,13 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
         f"[info]Random ports: K8S API: {k8s_api_server_port}, API Server: {forwarded_port_number}"
     )
     cluster_conf_path = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
-    config = (
-        (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes" / "kind-cluster-conf.yaml")
-        .read_text()
-        .replace("{{FORWARDED_PORT_NUMBER}}", str(forwarded_port_number))
-        .replace("{{API_SERVER_PORT}}", str(k8s_api_server_port))
+    config = _render_kind_cluster_config(
+        forwarded_port_number=forwarded_port_number, k8s_api_server_port=k8s_api_server_port
     )
     cluster_conf_path.write_text(config)
     get_console(output=output).print(f"[info]Config created in {cluster_conf_path}:\n")
     get_console(output=output).print(config)
     get_console(output=output).print("\n")
-
-
-# Must match containerPort in scripts/ci/kubernetes/kind-cluster-conf.yaml and
-# nodePort in scripts/ci/kubernetes/nodeport.yaml.
-FORWARDED_NODE_PORT = 30007
 
 
 def _extract_forwarded_host_port(conf: dict[str, Any]) -> int:
