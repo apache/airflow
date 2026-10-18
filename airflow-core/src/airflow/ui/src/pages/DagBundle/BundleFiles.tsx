@@ -113,7 +113,7 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
   const { pagination } = tableURLState;
   const [errorFileloc, setErrorFileloc] = useState<string | undefined>(undefined);
 
-  const { data, error, isFetching, isLoading } = useDagBundleServiceGetDagBundleFiles(
+  const { data, error, isLoading } = useDagBundleServiceGetDagBundleFiles(
     {
       bundleName,
       limit: pagination.pageSize,
@@ -137,7 +137,6 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
         data={data?.dag_bundle_files ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:dagBundles.files.file"
         onStateChange={setTableURLState}
