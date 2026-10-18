@@ -21,7 +21,7 @@ import struct
 from collections.abc import Collection, Iterable, Iterator
 from datetime import datetime
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypeVar
 from uuid import UUID
 
 import attrs
@@ -72,6 +72,11 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.sqlalchemy import UUIDSelect
+
+# Bound unparameterised: no ``Select[...]`` spelling accepts every arity on both SQLAlchemy 2.0 and 2.1.
+# TODO: parameterise the bound with the variadic Select once the minimum SQLAlchemy is 2.1.
+_SelectT = TypeVar("_SelectT", bound="Select")
 
 
 def is_regional(region_id: UUID, region_index: int) -> bool:
@@ -566,8 +571,8 @@ def loop_position(
 
 
 def build_loop_family_legs(
-    query: Select[Any], family_member: DynamicRegion, *, iteration: int | None = None
-) -> tuple[Select[Any], Select[Any]]:
+    query: _SelectT, family_member: DynamicRegion, *, iteration: int | None = None
+) -> tuple[_SelectT, _SelectT]:
     """
     Split ``query``, a selection from ``task_instance``, into the rows that belong to one loop family.
 
@@ -648,7 +653,7 @@ def _match_any(column, value: str | Collection[str]) -> ColumnElement[bool]:
 
 
 def _filter_producers(
-    query: Select,
+    query: _SelectT,
     *,
     dag_id: str,
     run_id: str,
@@ -658,7 +663,7 @@ def _filter_producers(
     region_id: UUID | None,
     region_index: int | None,
     top_level_only: bool,
-) -> Select:
+) -> _SelectT:
     """Push every coordinate predicate that does not need loop ancestry into SQL."""
     from airflow.models.taskinstance import TaskInstance
 
@@ -707,7 +712,7 @@ def _validate_producer_request(
 
 
 def _build_candidate_query(
-    query: Select[Any],
+    query: _SelectT,
     *,
     dag_id: str,
     run_id: str,
@@ -718,7 +723,7 @@ def _build_candidate_query(
     region_id: UUID | None,
     region_index: int | None,
     session: Session,
-) -> Select[Any] | CompoundSelect | None:
+) -> _SelectT | CompoundSelect | None:
     """
     Narrow ``query`` to the candidate producers of the caller's scope, or ``None`` if there are none.
 
@@ -823,7 +828,7 @@ def select_current_producer_ids(
     region_id: UUID | None = None,
     region_index: int | None = None,
     session: Session,
-) -> Select[tuple[UUID]]:
+) -> UUIDSelect:
     """
     Select the ids of the live producers :func:`resolve_current_producers` would return.
 
@@ -928,7 +933,7 @@ def _build_pass_ownership_filter(
 
 def select_loop_producer_ids(
     *, dag_id: str, run_id: str, loop_node_id: str, task_id: str, is_mapped: bool, session: Session
-) -> Select[tuple[UUID]]:
+) -> UUIDSelect:
     """
     Select every live execution of ``task_id`` across all passes of the loop ``loop_node_id``.
 

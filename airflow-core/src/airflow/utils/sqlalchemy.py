@@ -52,6 +52,9 @@ if TYPE_CHECKING:
 
     from airflow.typing_compat import Self
 
+    # TODO: use Select[UUID] once the minimum SQLAlchemy is 2.1; 2.0 uses Select[tuple[UUID]].
+    UUIDSelect = Select
+
 
 log = logging.getLogger(__name__)
 

@@ -38,6 +38,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import RemovedInAirflow4Warning
+from airflow.models.pool import Pool
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -798,6 +799,22 @@ class TestBaseAuthManager:
         session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_pools(user=user, session=session)
         assert result == expected
+
+    @pytest.mark.db_test
+    def test_get_authorized_pools_skips_null_names(self, auth_manager, session):
+        session.add_all(
+            [
+                Pool(pool=None, slots=1, include_deferred=False),
+                Pool(pool="authorized_pool", slots=1, include_deferred=False),
+            ]
+        )
+        session.flush()
+        auth_manager.is_authorized_pool = create_autospec(auth_manager.is_authorized_pool, return_value=True)
+
+        result = auth_manager.get_authorized_pools(user=Mock(spec=BaseAuthManagerUserTest), session=session)
+
+        assert None not in result
+        assert "authorized_pool" in result
 
     @pytest.mark.parametrize(
         ("authorized_uri_prefix", "rows", "expected"),
