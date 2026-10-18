@@ -469,20 +469,18 @@ class TestPodManager:
         )
 
     @pytest.mark.asyncio
-    async def test_watch_pod_events_stops_when_reading_events_fails(self, caplog):
+    @mock.patch.object(PodManager, "read_pod_events", autospec=True, side_effect=ApiException(status=504))
+    async def test_watch_pod_events_stops_when_reading_events_fails(self, mock_read, caplog):
         mock_pod = mock.Mock(spec=V1Pod)
         mock_pod.metadata.name = "test-pod"
 
-        with mock.patch.object(
-            self.pod_manager, "read_pod_events", autospec=True, side_effect=ApiException(status=504)
-        ) as mock_read:
-            await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
+        await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
 
         mock_read.assert_called_once()
-        assert any(
-            r.levelno == logging.WARNING and "test-pod" in r.getMessage() and "504" in r.getMessage()
-            for r in caplog.records
-        )
+        assert {
+            "event": f"Stopped watching events of pod test-pod: {ApiException(status=504)}",
+            "log_level": "warning",
+        } in caplog
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
@@ -1562,10 +1560,10 @@ class TestAsyncPodManager:
         await self.async_pod_manager.watch_pod_events(mock_pod, startup_check_interval=30)
 
         self.mock_async_hook.watch_pod_events.assert_called_once()
-        assert any(
-            r.levelno == logging.WARNING and "test-pod" in r.getMessage() and "504" in r.getMessage()
-            for r in caplog.records
-        )
+        assert {
+            "event": f"Stopped watching events of pod test-pod: {ApiException(status=504)}",
+            "log_level": "warning",
+        } in caplog
 
     @pytest.mark.asyncio
     async def test_watch_pod_events_tracks_resource_version(self):

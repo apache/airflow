@@ -454,14 +454,14 @@ class PodManager(LoggingMixin):
         while not self.stop_watching_events:
             try:
                 events = self.read_pod_events(pod, resource_version)
+                if events.metadata and events.metadata.resource_version:
+                    resource_version = events.metadata.resource_version
+                for event in events.items:
+                    log_pod_event(self, event, seen_events)
+                    resource_version = event.metadata.resource_version
             except Exception as e:
                 self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e)
                 return
-            if events.metadata and events.metadata.resource_version:
-                resource_version = events.metadata.resource_version
-            for event in events.items:
-                log_pod_event(self, event, seen_events)
-                resource_version = event.metadata.resource_version
             await asyncio.sleep(check_interval)
 
     async def await_pod_start(
