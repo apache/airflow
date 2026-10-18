@@ -99,7 +99,7 @@ default, ``.yaml`` and ``.yml``):
       ]
 
 If no additional arguments are needed, an entry with only a classpath can also
-be given as a string, for example ``["my_company.importers.YamlDagImporter"]``.
+be given as a string, for example ``["my_company.importers.TomlDagImporter"]``.
 
 To register an importer for one bundle only, add an ``importers`` key, in the same format, to that bundle's
 entry in :ref:`config:dag_processor__dag_bundle_config_list`:
@@ -112,7 +112,7 @@ entry in :ref:`config:dag_processor__dag_bundle_config_list`:
           "name": "pipelines",
           "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
           "kwargs": {"path": "/opt/airflow/pipelines"},
-          "importers": ["my_company.importers.YamlDagImporter"]
+          "importers": ["my_company.importers.TomlDagImporter"]
         }
       ]
 
