@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection types <connections/inbound_webhook>
     Operators <operators/index>
     Sensors <sensors/index>
     Configuration <configurations-ref>
