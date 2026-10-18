@@ -795,6 +795,15 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
+    def refresh_config(self) -> None:
+        """
+        Refresh bundle configuration and update this manager.
+
+        :meta private:
+        """
+        _refresh_bundle_config_snapshot()
+        self._update_bundle_config()
+
     def _update_bundle_config(self) -> None:
         if self._bundle_config.keys() != _load_bundle_config_snapshot().names:
             self._bundle_config = {}
@@ -840,8 +849,7 @@ class DagBundlesManager(LoggingMixin):
         :return: list of DAG bundles.
         """
         if is_bundle_config_reload_enabled():
-            _refresh_bundle_config_snapshot()
-            self._update_bundle_config()
+            self.refresh_config()
         for name, cfg in self._bundle_config.items():
             try:
                 yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
