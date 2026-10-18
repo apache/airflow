@@ -181,7 +181,7 @@ export const Backfills = () => {
   const reprocessBehaviorParam = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
   const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
 
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
+  const { data, error, isLoading } = useBackfillServiceListBackfillsUi({
     completedAtGte: completedAtGte ?? undefined,
     completedAtLte: completedAtLte ?? undefined,
     createdAtGte: createdAtGte ?? undefined,
@@ -230,7 +230,6 @@ export const Backfills = () => {
       <DataTable
         columns={columns}
         data={data ? data.backfills : []}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:backfill"
         onStateChange={setTableURLState}
