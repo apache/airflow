@@ -6637,6 +6637,7 @@ dependencies = [
     { name = "azure-identity" },
     { name = "azure-keyvault-secrets" },
     { name = "azure-kusto-data" },
+    { name = "azure-mgmt-appcontainers" },
     { name = "azure-mgmt-compute" },
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-containerregistry" },
@@ -6719,6 +6720,7 @@ requires-dist = [
     { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "azure-keyvault-secrets", specifier = ">=4.10.0" },
     { name = "azure-kusto-data", specifier = ">=4.1.0,!=5.0.0" },
+    { name = "azure-mgmt-appcontainers", specifier = ">=5.1.0" },
     { name = "azure-mgmt-compute", specifier = ">=37.2.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.1.0" },
     { name = "azure-mgmt-containerregistry", specifier = ">=15.0.0" },
@@ -10129,6 +10131,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/77/8b/fea5daa608c7995ec662473ab76306965cc01c68dd3a958e779dd270d523/azure_kusto_data-6.0.4.tar.gz", hash = "sha256:409e2e14aec6dfbedc9d5bb03e1440dabbc252b10fd03437bc523f29dbda4710", size = 39695, upload-time = "2026-05-06T12:56:04.826Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a8/04/096484b34efd3738938db75b38e0055675453b1e0d47a11c27c1446a3b10/azure_kusto_data-6.0.4-py3-none-any.whl", hash = "sha256:7dad0628ccd47e5dd0692b41ebaaa878db28f9711435063d7c51cec7e3857307", size = 51637, upload-time = "2026-05-06T12:56:01.869Z" },
+]
+
+[[package]]
+name = "azure-mgmt-appcontainers"
+version = "5.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6c/8d/bbd0672d0fa6c5de6cddee66eb5607842ab6e0f1d56d0dafce2d1af0065c/azure_mgmt_appcontainers-5.1.0.tar.gz", hash = "sha256:d218843a49271cc4a47094bd543d491371dfd9254496a67a37359227631e53c2", size = 305513, upload-time = "2026-09-15T21:22:11.141Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/f8/e4c5685d93569b4b08c2e9b1c565ebbc9cc0fbe4bdd79f7d118aefec31c8/azure_mgmt_appcontainers-5.1.0-py3-none-any.whl", hash = "sha256:cf92a58c7bd609199da9530bf43c16e1c2725e4bb9e656c00c36a335e12947cb", size = 269913, upload-time = "2026-09-15T21:22:12.711Z" },
 ]
 
 [[package]]

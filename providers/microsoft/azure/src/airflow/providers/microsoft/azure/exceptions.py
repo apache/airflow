@@ -58,3 +58,7 @@ class AzureBatchJobPreparationTaskMissingError(AirflowException):
 
 class AzureBatchRequiredParametersMissingError(AirflowException):
     """Raised when one or more required pool, job or task parameters are missing."""
+
+
+class AzureContainerAppsJobExecutionError(AirflowException):
+    """Raised when a Container Apps Job execution fails, times out, or cannot be identified."""
