@@ -445,6 +445,16 @@ class TestMsSqlHookDbapiDriver:
         assert "dbapi_driver" not in uri
         assert "TrustServerCertificate=yes" in uri
 
+    def test_get_uri_strips_hook_only_extras_for_mssql_python(self):
+        hook = _mssql_hook(
+            '{"dbapi_driver": "mssql_python", "placeholder": "?", "escape_word_format": "[{}]", '
+            '"TrustServerCertificate": "yes"}'
+        )
+        uri = hook.get_uri()
+        assert "placeholder" not in uri
+        assert "escape_word_format" not in uri
+        assert "TrustServerCertificate=yes" in uri
+
     def test_mssql_python_placeholder_defaults_to_qmark(self):
         assert _mssql_hook('{"dbapi_driver": "mssql_python"}').placeholder == "?"
 
@@ -500,7 +510,8 @@ class TestMsSqlHookDbapiDriver:
         assert conn.autocommit is autocommit
         assert hook.get_autocommit(conn) is autocommit
 
-    def test_mssql_python_rows_become_tuples(self):
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.import_module")
+    def test_mssql_python_rows_become_tuples(self, mock_import_module):
         class Row:
             def __init__(self, *values):
                 self._values = values
@@ -509,9 +520,17 @@ class TestMsSqlHookDbapiDriver:
                 return iter(self._values)
 
         hook = _mssql_hook('{"dbapi_driver": "mssql_python"}')
+        mock_import_module.return_value.Row = Row
         assert hook._make_common_data_structure([Row(1, "a"), Row(2, "b")]) == [(1, "a"), (2, "b")]
         assert hook._make_common_data_structure(Row(1, "a")) == (1, "a")
         assert hook._make_common_data_structure(None) is None
+
+    @pytest.mark.parametrize("result", ["dbo", 5, 0, {"a": 1}, [{"a": 1}], [1, 2], (1, "a")])
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.import_module")
+    def test_mssql_python_non_row_results_are_left_alone(self, mock_import_module, result):
+        mock_import_module.return_value.Row = type("Row", (), {})
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python"}')
+        assert hook._make_common_data_structure(result) == result
 
     def test_pymssql_rows_are_left_alone(self):
         hook = _mssql_hook()
