@@ -189,3 +189,20 @@ describe("loadPlugin", () => {
     expect(component).not.toBe(componentA);
   });
 });
+
+const loading = (destination: ReactAppResponse["destination"]) =>
+  ({ bundle_url: "http://localhost/never-loaded.js", destination, name: "Unloaded" }) as ReactAppResponse;
+
+describe("ReactPlugin loading fallback", () => {
+  it("shows a spinner while a page plugin's bundle loads", () => {
+    const { container } = render(<ReactPlugin reactApp={loading("dag")} />, { wrapper: Wrapper });
+
+    expect(container.querySelector(".chakra-spinner")).toBeInTheDocument();
+  });
+
+  it("shows nothing while a base plugin's bundle loads", () => {
+    const { container } = render(<ReactPlugin reactApp={loading("base")} />, { wrapper: Wrapper });
+
+    expect(container.querySelector(".chakra-spinner")).not.toBeInTheDocument();
+  });
+});

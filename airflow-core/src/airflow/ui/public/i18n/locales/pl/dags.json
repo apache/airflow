@@ -6,6 +6,11 @@
       "warning": "Wszystkie metadane, włączając metadane Dagów, wykonań Dagów i zadań zostaną usunięte."
     }
   },
+  "draining": {
+    "badgeTooltip": "Ten Dag zostanie wstrzymany, gdy zakończą się jego trwające wykonania.",
+    "label": "Wygaszane",
+    "tooltip": "Wygaszanie {{dagDisplayName}} — wstrzymanie nastąpi po zakończeniu trwających wykonań. Kliknij, aby wznowić."
+  },
   "favoriteDag": "Ulubiony Dag",
   "filters": {
     "allRunTypes": "Wszystkie Typy Wykonań Dagów",
@@ -115,15 +120,6 @@
   },
   "schedulingBanner": {
     "message": "Ten Dag jest wygaszany. Zostanie wstrzymany, gdy zakończą się jego trwające wykonania."
-  },
-  "schedulingState": {
-    "active": "Aktywne",
-    "draining": "Wygaszane",
-    "drainingBadgeTooltip": "Ten Dag zostanie wstrzymany, gdy zakończą się jego trwające wykonania.",
-    "drainingTooltip": "Wygaszanie {{dagDisplayName}} — wstrzymanie nastąpi po zakończeniu trwających wykonań. Kliknij, aby wznowić.",
-    "label": "Stan harmonogramu",
-    "paused": "Wstrzymane",
-    "placeholder": "Wybierz stan harmonogramu…"
   },
   "search": {
     "advanced": "Wyszukiwanie zaawansowane",
