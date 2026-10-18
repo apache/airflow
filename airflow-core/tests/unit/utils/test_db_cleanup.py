@@ -57,8 +57,9 @@ from airflow.models.deadline import Deadline
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskinstance import LegacyTaskDataOwner
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XComModel, XComModelV2
+from airflow.models.xcom import XComModel, XComModelV1, XComModelV2
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -754,9 +755,20 @@ class TestDBCleanup:
 
         with create_session() as session:
             task_instances = session.scalars(select(TaskInstance).order_by(TaskInstance.start_date)).all()
+            session.add_all(
+                LegacyTaskDataOwner(
+                    dag_id=task_instance.dag_id,
+                    task_id=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    map_index=task_instance.map_index,
+                    task_instance_id=task_instance.id,
+                )
+                for task_instance in task_instances
+            )
+            session.flush()
             for index, task_instance in enumerate(task_instances):
                 session.add(
-                    XComModel(
+                    XComModelV1(
                         dag_run_id=task_instance.dag_run.id,
                         task_id=task_instance.task_id,
                         map_index=task_instance.map_index,
@@ -770,19 +782,19 @@ class TestDBCleanup:
             session.commit()
 
             _cleanup_table(
-                **config_dict["xcom"].__dict__,
+                **config_dict["xcom_v1"].__dict__,
                 clean_before_timestamp=base_date.add(days=10),
                 dry_run=False,
                 session=session,
-                table_names=["xcom"],
+                table_names=["xcom_v1"],
                 skip_archive=True,
                 batch_size=batch_size,
             )
 
-            assert session.scalar(select(func.count()).select_from(XComModel)) == 0
+            assert session.scalar(select(func.count()).select_from(XComModelV1)) == 0
             assert not any(
                 table_name.startswith(ARCHIVE_TABLE_PREFIX)
-                for table_name in _get_archived_table_names(["xcom"], session)
+                for table_name in _get_archived_table_names(["xcom_v1"], session)
             )
 
     def test_dag_version_cleanup_skips_versions_pinned_by_task_instance(self):
@@ -857,28 +869,30 @@ class TestDBCleanup:
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
     @pytest.mark.parametrize(
-        ("extra_unreferenced", "expected_count"),
+        ("skip_archive", "extra_unreferenced", "expected_count"),
         [
-            pytest.param(0, "1 of 1", id="whole-batch-skipped"),
-            pytest.param(1, "1 of 2", id="partial-skip"),
+            pytest.param(True, 0, None, id="direct-whole-batch-skipped"),
+            pytest.param(True, 1, None, id="direct-partial-skip"),
+            pytest.param(False, 0, "1 of 1", id="archive-whole-batch-skipped"),
+            pytest.param(False, 1, "1 of 2", id="archive-partial-skip"),
         ],
     )
     def test_do_delete_skip_if_referenced_guards_against_race(
-        self, extra_unreferenced, expected_count, cap_structlog
+        self, skip_archive, extra_unreferenced, expected_count, cap_structlog
     ):
         """_do_delete must not issue a DELETE that violates an ON DELETE RESTRICT FK.
 
         Reproduces the real race: the dag_version row passes the SELECT filter and is
-        archived, and only then does a task_instance referencing it appear.  The
-        skip_if_referenced guard on the DELETE must skip the row instead of failing with
-        IntegrityError, and the loop must still drain because the next SELECT pass
-        re-evaluates the same NOT EXISTS guard and excludes it.
+        selected, and only then does a task_instance referencing it appear. The
+        skip_if_referenced guard must skip the row instead of failing with IntegrityError,
+        and the loop must still drain because the next SELECT pass re-evaluates the same
+        NOT EXISTS guard and excludes it.
 
         Parametrized over how many *unreferenced* rows share the pass, because the guard
         skipping part of a batch is not the same as it skipping all of it.  The archive has
         already committed a copy of every row the SELECT found, so a skipped row is both
-        archived and still live and must be reported either way.  The partial case is the
-        one a ``deleted == 0`` condition stays silent for.
+        archived and still live and must be reported either way. The direct-delete path
+        instead re-evaluates the selection inside the DELETE and never copies the row.
         """
         from airflow.utils.db import reflect_tables
 
@@ -921,7 +935,7 @@ class TestDBCleanup:
             latest_id = latest.id
 
             # Query built while nothing references raced_old, so the first SELECT pass
-            # returns it and _do_delete archives it.
+            # returns it.
             cfg = config_dict["dag_version"]
             query = _build_query(
                 **cfg.__dict__,
@@ -942,7 +956,9 @@ class TestDBCleanup:
 
             def reflect_and_race(tables, session, **kwargs):
                 nonlocal raced
-                if not raced and tables == ["dag_version"]:
+                direct_delete_seam = skip_archive and tables == ["dag_version"]
+                archive_delete_seam = not skip_archive and len(tables) == 2
+                if not raced and (direct_delete_seam or archive_delete_seam):
                     raced = True
                     session.add_all([dag_run, ti])
                     session.commit()
@@ -952,7 +968,7 @@ class TestDBCleanup:
                 _do_delete(
                     query=query,
                     orm_model=cfg.orm_model,
-                    skip_archive=True,
+                    skip_archive=skip_archive,
                     session=session,
                     batch_size=None,
                     skip_if_referenced=cfg.skip_if_referenced,
@@ -965,12 +981,13 @@ class TestDBCleanup:
         assert raced_old_id in remaining, "dag_version referenced by a task_instance must not be deleted"
         assert latest_id in remaining, "the keep_last survivor must not be deleted"
         assert not unreferenced_ids & remaining, "unreferenced dag_versions must still be deleted"
-        # The count is what distinguishes a partial skip from a whole-batch one, and the
-        # partial case is what ``deleted == 0`` reported nothing for.
-        assert {
-            "event": re.compile(rf"{expected_count} rows from dag_version are still referenced"),
-            "log_level": "warning",
-        } in cap_structlog, cap_structlog.entries
+        if expected_count is not None:
+            # The count distinguishes a partial skip from a whole-batch one. The partial
+            # case is what a ``deleted == 0`` condition stays silent for.
+            assert {
+                "event": re.compile(rf"{expected_count} rows from dag_version are still referenced"),
+                "log_level": "warning",
+            } in cap_structlog, cap_structlog.entries
 
     def test_table_config_skip_if_referenced_requires_pk_column(self):
         """A misconfigured skip_if_referenced (pk not in columns) must fail fast at construction."""
