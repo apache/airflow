@@ -63,6 +63,7 @@ from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
@@ -163,12 +164,6 @@ _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 _REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
-
-# Task instance of the trigger whose code is running, so its SDK requests act as that task instance; tasks
-# serving several triggers must not inherit it.
-_current_trigger_ti_id: contextvars.ContextVar[UUID | None] = contextvars.ContextVar(
-    "airflow_current_trigger_ti_id", default=None
-)
 
 # Task instance of the trigger whose request the supervisor is handling, sent to the API as
 # ``TRIGGER_TI_ID_HEADER``.
@@ -1261,8 +1256,11 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
             # non-blocking for the foreign loop.
             cf = asyncio.run_coroutine_threadsafe(self.asend(msg), self._loop)
             return await asyncio.wrap_future(cf)
+        trigger_ti = _current_trigger_ti.get()
         frame = _RequestFrame(
-            id=next(self.id_counter), body=msg.model_dump(), ti_id=_current_trigger_ti_id.get()
+            id=next(self.id_counter),
+            body=msg.model_dump(),
+            ti_id=trigger_ti.id if trigger_ti else None,
         )
         future: asyncio.Future = current_loop.create_future()
         self._pending[frame.id] = future
@@ -1738,7 +1736,7 @@ class TriggerRunner:
 
         ti = trigger.task_instance
         if ti is not None:
-            _current_trigger_ti_id.set(ti.id)
+            _current_trigger_ti.set(ti)
         bind_log_contextvars(
             trigger_id=trigger_id,
             ti_id=str(ti.id) if ti else None,
@@ -1783,7 +1781,7 @@ class TriggerRunner:
                     # subscribe() may start the group's poll task, which copies the current context but
                     # serves several triggers.
                     subscribe_ctx = contextvars.copy_context()
-                    subscribe_ctx.run(_current_trigger_ti_id.set, None)
+                    subscribe_ctx.run(_current_trigger_ti.set, None)
                     shared_stream = subscribe_ctx.run(
                         self._shared_streams.subscribe,
                         trigger_id=trigger_id,
