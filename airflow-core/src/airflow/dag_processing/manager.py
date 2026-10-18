@@ -56,7 +56,6 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
-    _refresh_bundle_config_snapshot,
     is_bundle_config_reload_enabled,
 )
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
@@ -1012,8 +1011,8 @@ class DagFileProcessorManager(LoggingMixin):
         if not is_bundle_config_reload_enabled():
             return
         try:
-            _refresh_bundle_config_snapshot()
             dag_bundle_manager = DagBundlesManager()
+            dag_bundle_manager.refresh_config()
         except Exception:
             self.log.exception("Could not load Dag bundles; keeping the current bundles")
             return

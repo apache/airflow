@@ -1903,6 +1903,26 @@ def _expire_bundle_config_snapshot():
     _load_bundle_config_snapshot(metadata_only=True).last_checked = float("-inf")
 
 
+@pytest.mark.parametrize(
+    ("payload", "expected_names"),
+    [
+        (json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG), ["my-test-bundle", "second-bundle"]),
+        (json.dumps(SECOND_BUNDLE_CONFIG), ["second-bundle"]),
+        ("[]", []),
+        ("invalid json", ["my-test-bundle"]),
+    ],
+)
+def test_refresh_config_updates_existing_manager(dynamic_bundle_config, payload, expected_names):
+    manager = DagBundlesManager()
+    assert manager.get_all_bundle_names() == ["my-test-bundle"]
+    dynamic_bundle_config.write_text(payload)
+    _expire_bundle_config_snapshot()
+
+    manager.refresh_config()
+
+    assert manager.get_all_bundle_names() == expected_names
+
+
 def test_command_config_reloads_additions_and_removals(dynamic_bundle_config):
     assert DagBundlesManager.is_bundle_configured("my-test-bundle")
     dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG))
