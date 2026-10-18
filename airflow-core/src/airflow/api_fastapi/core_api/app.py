@@ -31,7 +31,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from airflow.api_fastapi.auth.tokens import get_signing_key
 from airflow.exceptions import AirflowConfigException, AirflowException
 
 log = logging.getLogger(__name__)
@@ -204,6 +203,17 @@ def init_views(app: FastAPI) -> None:
         """Catch all route to handle invalid API endpoints."""
         return JSONResponse(status_code=404, content={"error": "API route not found"})
 
+    webhook_methods = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+
+    @app.api_route("/webhooks", methods=webhook_methods, include_in_schema=False)
+    @app.api_route("/webhooks/{_:path}", methods=webhook_methods, include_in_schema=False)
+    def webhooks_not_found():
+        """Refuse webhook deliveries sent to this process, which only ``--apps webhooks`` serves."""
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Inbound webhooks are served only by airflow api-server --apps webhooks"},
+        )
+
     @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
     def webapp(request: Request, rest_of_path: str):
         return templates.TemplateResponse(
@@ -276,8 +286,6 @@ def init_config(app: FastAPI) -> None:
             allow_methods=allow_methods,
             allow_headers=allow_headers,
         )
-
-    app.state.secret_key = get_signing_key("api", "secret_key")
 
 
 def init_middlewares(app: FastAPI) -> None:

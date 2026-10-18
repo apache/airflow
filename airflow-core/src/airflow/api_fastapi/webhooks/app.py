@@ -68,7 +68,7 @@ def receive_delivery(
         method=request.method, headers=request.headers, query=request.query_params, body=body
     )
     answer = _get_pipeline(request).process(webhook, webhook_request)
-    return JSONResponse(answer.body, status_code=answer.status)
+    return JSONResponse(answer.body, status_code=int(answer.status))
 
 
 class AnswerUnhandledErrorsMiddleware:
@@ -124,7 +124,7 @@ def create_webhooks_app(registry: WebhookRegistry) -> FastAPI:
     async def answer_rejection(request: Request, exc: DeliveryRejected) -> JSONResponse:
         _get_pipeline(request).count_rejection(request.path_params.get("name"), exc.status)
         headers = None if exc.retry_after is None else {"Retry-After": str(exc.retry_after)}
-        return JSONResponse({"detail": exc.detail}, status_code=exc.status, headers=headers)
+        return JSONResponse({"detail": exc.detail}, status_code=int(exc.status), headers=headers)
 
     # Requests that no route serves, such as POST /<name>/x or GET /<name>, which the router refuses.
     @app.exception_handler(HTTPStatus.NOT_FOUND)

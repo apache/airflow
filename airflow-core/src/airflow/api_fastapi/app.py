@@ -28,6 +28,7 @@ from fastapi.routing import Mount
 from starlette.middleware import Middleware
 
 from airflow import settings
+from airflow.api_fastapi.auth.tokens import get_signing_key
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
@@ -39,10 +40,13 @@ from airflow.api_fastapi.core_api.app import (
     init_views,
 )
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+from airflow.api_fastapi.webhooks.app import create_webhooks_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.observability.metrics import stats_utils
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.webhooks.registry import WebhookRegistry
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -66,10 +70,10 @@ def get_cookie_path() -> str:
 
 
 # Fast API apps mounted under these prefixes are not allowed
-RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2"]
+RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2", "/webhooks"]
 
 # Keep in sync with the ARG_API_SERVER_APPS help text in cli/cli_config.py
-API_APPS = ("core", "execution", "all")
+API_APPS = ("core", "execution", "webhooks", "all")
 
 log = logging.getLogger(__name__)
 
@@ -131,6 +135,10 @@ def validate_apps(apps: str) -> list[str]:
 @providers_configuration_loaded
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = validate_apps(apps)
+    serves_core = "all" in apps_list or "core" in apps_list
+    # A process that serves webhooks without the core API is meant to face the senders' network.
+    serves_docs = serves_core or "webhooks" not in apps_list
+    enable_swagger_ui = serves_docs and conf.getboolean("api", "enable_swagger_ui")
 
     app = FastAPI(
         title="Airflow API",
@@ -152,8 +160,9 @@ def create_app(apps: str = "all") -> FastAPI:
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),
         version="2",
-        docs_url="/docs" if conf.getboolean("api", "enable_swagger_ui") else None,
-        redoc_url="/redoc" if conf.getboolean("api", "enable_swagger_ui") else None,
+        docs_url="/docs" if enable_swagger_ui else None,
+        redoc_url="/redoc" if enable_swagger_ui else None,
+        openapi_url="/openapi.json" if serves_docs else None,
     )
 
     dag_bag = create_dag_bag()
@@ -162,8 +171,13 @@ def create_app(apps: str = "all") -> FastAPI:
         task_exec_api_app = create_task_execution_api_app(dag_bag=dag_bag)
         app.mount("/execution", task_exec_api_app)
 
-    if "all" in apps_list or "core" in apps_list:
+    if "webhooks" in apps_list:
+        init_webhooks(app)
+
+    if serves_core:
         app.state.dag_bag = dag_bag
+        # Only the core API's routes sign and read tokens with it, and a webhooks process must run without it.
+        app.state.secret_key = get_signing_key("api", "secret_key")
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
@@ -251,6 +265,49 @@ def init_api_metrics(app: FastAPI) -> None:
     if not stats_utils.is_metrics_enabled():
         return
     app.add_middleware(HttpMetricsMiddleware)
+
+
+def build_webhook_registry() -> WebhookRegistry:
+    """Read ``[webhooks]``; raise ``AirflowConfigException`` if it is invalid or lists no webhook to serve."""
+    registry = WebhookRegistry.from_config()
+    if not registry.names:
+        raise AirflowConfigException(
+            "[webhooks] names lists no webhooks, so the webhooks app has nothing to serve: list the "
+            "webhooks to serve, or remove webhooks from --apps / AIRFLOW_API_APPS"
+        )
+    return registry
+
+
+def log_unserved_webhook_source_types(registry: WebhookRegistry) -> None:
+    """Log an error for each source type that installed providers declare but no package serves."""
+    providers_manager = ProvidersManager()
+    for source_type, declarations in providers_manager.webhook_source_conflicts.items():
+        if source_type not in registry.source_type_owners:
+            log.error(
+                "Webhook source type %s is declared by %s, so none of them serves it; set "
+                "[webhooks] source_type_owners to the package that serves it",
+                source_type,
+                ", ".join(info.package_name for info in declarations),
+            )
+    for source_type, owner in registry.source_type_owners.items():
+        packages = [
+            info.package_name for info in providers_manager.webhook_sources if info.source_type == source_type
+        ]
+        if packages and owner not in packages:
+            log.error(
+                "[webhooks] source_type_owners names %s for source type %s, which that package does not "
+                "declare (declared by %s), so it is not served",
+                owner,
+                source_type,
+                ", ".join(packages),
+            )
+
+
+def init_webhooks(app: FastAPI) -> None:
+    """Mount the inbound webhooks app, which serves the webhooks that ``[webhooks] names`` lists."""
+    registry = build_webhook_registry()
+    log_unserved_webhook_source_types(registry)
+    app.mount("/webhooks", create_webhooks_app(registry))
 
 
 def init_plugins(app: FastAPI) -> None:

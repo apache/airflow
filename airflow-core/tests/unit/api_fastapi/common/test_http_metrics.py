@@ -43,6 +43,17 @@ def _make_execution_app() -> FastAPI:
     return app
 
 
+def _make_webhooks_app() -> FastAPI:
+    """Stand in for the inbound webhooks app, which the real app mounts as a sub-app."""
+    app = FastAPI()
+
+    @app.post("/{name}")
+    async def receive_delivery(name: str):
+        return PlainTextResponse("ok")
+
+    return app
+
+
 @pytest.fixture(scope="module")
 def test_app() -> FastAPI:
     """Build a FastAPI app so route resolution behaves as it does in the real API server."""
@@ -77,6 +88,7 @@ def test_app() -> FastAPI:
         return PlainTextResponse("healthy")
 
     app.mount("/execution", _make_execution_app())
+    app.mount("/webhooks", _make_webhooks_app())
     app.add_middleware(HttpMetricsMiddleware)
     return app
 
@@ -180,6 +192,19 @@ def test_api_requests_emit_metrics(request_path, route_tag, test_client):
         "route": route_tag,
         "status_family": "2xx",
     }
+    mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
+    mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
+
+
+def test_webhook_deliveries_emit_metrics_tagged_with_the_route_template(test_client):
+    with (
+        mock.patch("airflow.api_fastapi.common.http_metrics.Stats.incr") as mock_incr,
+        mock.patch("airflow.api_fastapi.common.http_metrics.Stats.timing") as mock_timing,
+    ):
+        response = test_client.post("/webhooks/github")
+
+    assert response.status_code == 200
+    expected_tags = {"method": "POST", "route": "/webhooks/{name}", "status_family": "2xx"}
     mock_incr.assert_called_once_with("http_requests_total", tags=expected_tags)
     mock_timing.assert_called_once_with("http_request_duration_milliseconds", mock.ANY, tags=expected_tags)
 
