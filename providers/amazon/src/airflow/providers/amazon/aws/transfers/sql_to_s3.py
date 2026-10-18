@@ -28,7 +28,12 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+    BaseOperator,
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -185,8 +190,6 @@ class SqlToS3Operator(BaseOperator):
             import numpy as np
             import pandas as pd
         except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
             raise AirflowOptionalProviderFeatureException(e)
 
         for col in df:
@@ -222,18 +225,22 @@ class SqlToS3Operator(BaseOperator):
         return path
 
     def _ensure_parquet_engine(self) -> None:
-        needs_parquet = self.file_format == FILE_FORMAT.PARQUET or (
-            ("dtype_backend", "pyarrow") in self.read_kwargs.items()
-        )
-        if self.df_type != "pandas" or not needs_parquet:
+        if self.df_type != "pandas":
             return
-        if any(importlib.util.find_spec(engine) for engine in ("pyarrow", "fastparquet")):
+        engines: tuple[str, ...]
+        if ("dtype_backend", "pyarrow") in self.read_kwargs.items():
+            # pandas builds the frame through pyarrow itself here, so fastparquet cannot stand in
+            # for it even when the output format is Parquet.
+            trigger, engines = 'read_kwargs={"dtype_backend": "pyarrow"}', ("pyarrow",)
+        elif self.file_format == FILE_FORMAT.PARQUET:
+            trigger, engines = 'file_format="parquet"', ("pyarrow", "fastparquet")
+        else:
             return
-
-        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+        if any(importlib.util.find_spec(engine) for engine in engines):
+            return
 
         raise AirflowOptionalProviderFeatureException(
-            "Parquet support needs pyarrow or fastparquet. Install apache-airflow-providers-amazon[parquet]."
+            f"{trigger} needs {' or '.join(engines)}. Install apache-airflow-providers-amazon[parquet]."
         )
 
     def execute(self, context: Context) -> None:

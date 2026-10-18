@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import gzip
+import importlib.util
 import io
 from unittest import mock
 
@@ -32,6 +33,26 @@ from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 
 PANDAS_3_PLUS = Version(pd.__version__).major >= 3
+
+PARQUET_ENGINES = ("pyarrow", "fastparquet")
+REAL_FIND_SPEC = importlib.util.find_spec
+
+
+def build_find_spec_stub(available_engines):
+    """
+    Fake only the Parquet engines and resolve every other name for real.
+
+    The patch is installed process-wide and stays active while the operator is constructed and
+    executed, so a stub answering None for every name would also answer optional-dependency
+    probes these tests say nothing about, and a test could then pass for the wrong reason.
+    """
+
+    def find_spec(name, package=None):
+        if name in PARQUET_ENGINES:
+            return object() if name in available_engines else None
+        return REAL_FIND_SPEC(name, package)
+
+    return find_spec
 
 
 class TestSqlToS3Operator:
@@ -207,15 +228,31 @@ class TestSqlToS3Operator:
             pytest.param(
                 "pandas", "csv", {"dtype_backend": "pyarrow"}, set(), True, id="pandas-pyarrow-backend"
             ),
+            pytest.param(
+                "pandas",
+                "csv",
+                {"dtype_backend": "pyarrow"},
+                {"fastparquet"},
+                True,
+                id="pandas-pyarrow-backend-fastparquet-only",
+            ),
+            pytest.param(
+                "pandas",
+                "parquet",
+                {"dtype_backend": "pyarrow"},
+                {"fastparquet"},
+                True,
+                id="pandas-parquet-pyarrow-backend-fastparquet-only",
+            ),
             pytest.param("pandas", "csv", {}, set(), False, id="pandas-csv-no-engine"),
             pytest.param("polars", "parquet", {}, set(), False, id="polars-parquet-no-engine"),
         ],
     )
-    @mock.patch("importlib.util.find_spec")
+    @mock.patch("importlib.util.find_spec", autospec=True)
     def test_parquet_engine_required(
         self, mock_find_spec, df_type, file_format, read_kwargs, available_engines, should_raise
     ):
-        mock_find_spec.side_effect = lambda name: object() if name in available_engines else None
+        mock_find_spec.side_effect = build_find_spec_stub(available_engines)
         op = SqlToS3Operator(
             query="query",
             s3_bucket="bucket",
@@ -233,6 +270,28 @@ class TestSqlToS3Operator:
                 op._ensure_parquet_engine()
         else:
             op._ensure_parquet_engine()
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")
+    @mock.patch("importlib.util.find_spec", autospec=True)
+    def test_execute_checks_parquet_engine_before_querying(self, mock_find_spec, mock_s3_hook):
+        mock_find_spec.side_effect = build_find_spec_stub(set())
+        mock_dbapi_hook = mock.Mock()
+        mock_dbapi_hook.return_value.get_df.return_value = pd.DataFrame({"a": [1]})
+        op = SqlToS3Operator(
+            query="query",
+            s3_bucket="bucket",
+            s3_key="key",
+            sql_conn_id="mysql_conn_id",
+            task_id="task_id",
+            file_format="parquet",
+            dag=None,
+        )
+        op._get_hook = mock_dbapi_hook
+
+        with pytest.raises(AirflowOptionalProviderFeatureException, match=r"\[parquet\]"):
+            op.execute(None)
+
+        mock_dbapi_hook.return_value.get_df.assert_not_called()
 
     def test_invalid_file_format(self):
         with pytest.raises(AirflowException):
