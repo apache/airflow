@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
@@ -26,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from packaging.utils import InvalidName, canonicalize_name
 
+from airflow._shared.webhook_naming import WEBHOOK_NAME_PATTERN
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers_manager import WEBHOOK_SOURCE_TYPE_PATTERN
@@ -33,8 +33,6 @@ from airflow.providers_manager import WEBHOOK_SOURCE_TYPE_PATTERN
 if TYPE_CHECKING:
     from typing import Self
 
-# No leading underscore, so that no webhook can be named like the app's own routes, such as _health.
-WEBHOOK_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 #: The webhook tag that metrics give requests to names that are not listed, so no webhook can have it.
 UNLISTED_WEBHOOK_TAG = "other"
 # retain_until is a TIMESTAMP on MySQL, which ends in January 2038. Without a bound, a large value would

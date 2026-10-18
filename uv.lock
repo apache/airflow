@@ -169,6 +169,7 @@ apache-airflow-shared-serialization = false
 apache-airflow-shared-state = false
 apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
+apache-airflow-shared-webhook-naming = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
@@ -314,6 +315,7 @@ members = [
     "apache-airflow-shared-state",
     "apache-airflow-shared-template-rendering",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-webhook-naming",
     "apache-airflow-task-sdk",
     "apache-airflow-task-sdk-integration-tests",
 ]
@@ -1561,6 +1563,7 @@ ci-image = [
     { name = "apache-airflow-shared-state" },
     { name = "apache-airflow-shared-template-rendering" },
     { name = "apache-airflow-shared-timezones" },
+    { name = "apache-airflow-shared-webhook-naming" },
     { name = "apache-airflow-task-sdk", extra = ["all"] },
     { name = "apache-airflow-task-sdk-integration-tests" },
     { name = "plyvel" },
@@ -1590,6 +1593,7 @@ dev = [
     { name = "apache-airflow-shared-state" },
     { name = "apache-airflow-shared-template-rendering" },
     { name = "apache-airflow-shared-timezones" },
+    { name = "apache-airflow-shared-webhook-naming" },
     { name = "apache-airflow-task-sdk", extra = ["all"] },
     { name = "apache-airflow-task-sdk-integration-tests" },
 ]
@@ -1880,6 +1884,7 @@ ci-image = [
     { name = "apache-airflow-shared-state", editable = "shared/state" },
     { name = "apache-airflow-shared-template-rendering", editable = "shared/template_rendering" },
     { name = "apache-airflow-shared-timezones", editable = "shared/timezones" },
+    { name = "apache-airflow-shared-webhook-naming", editable = "shared/webhook_naming" },
     { name = "apache-airflow-task-sdk", extras = ["all"], editable = "task-sdk" },
     { name = "apache-airflow-task-sdk-integration-tests", editable = "task-sdk-integration-tests" },
     { name = "plyvel", specifier = ">=1.5.1" },
@@ -1909,6 +1914,7 @@ dev = [
     { name = "apache-airflow-shared-state", editable = "shared/state" },
     { name = "apache-airflow-shared-template-rendering", editable = "shared/template_rendering" },
     { name = "apache-airflow-shared-timezones", editable = "shared/timezones" },
+    { name = "apache-airflow-shared-webhook-naming", editable = "shared/webhook_naming" },
     { name = "apache-airflow-task-sdk", extras = ["all"], editable = "task-sdk" },
     { name = "apache-airflow-task-sdk-integration-tests", editable = "task-sdk-integration-tests" },
 ]
@@ -9397,6 +9403,25 @@ requires-dist = [
     { name = "methodtools", specifier = ">=0.4.7" },
     { name = "pendulum", specifier = ">=3.1.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-shared-webhook-naming"
+version = "0.0"
+source = { editable = "shared/webhook_naming" }
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow-devel-common" },
+]
+mypy = [
+    { name = "apache-airflow-devel-common", extra = ["mypy"] },
+]
+
+[package.metadata]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
