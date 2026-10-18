@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
@@ -26,6 +27,16 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
+
+MAX_DELIVERY_ID_LENGTH = 255
+MAX_CORRELATION_KEY_LENGTH = 255
+
+
+class DeliveryOutcome(str, Enum):
+    """What Airflow did with a recorded delivery, as ``InboundDelivery.outcome`` stores it."""
+
+    #: No Dag subscribes to the delivery, so nothing acted on it.
+    NO_SUBSCRIBERS = "no_subscribers"
 
 
 class InboundDelivery(Base):
@@ -37,7 +48,7 @@ class InboundDelivery(Base):
     # Lets a later ingress kind share the table; every row written by inbound webhooks is "webhook".
     source_kind: Mapped[str] = mapped_column(String(16), nullable=False, default="webhook")
     webhook: Mapped[str] = mapped_column(StringID(length=64), nullable=False)
-    delivery_id: Mapped[str | None] = mapped_column(StringID(length=255), nullable=True)
+    delivery_id: Mapped[str | None] = mapped_column(StringID(length=MAX_DELIVERY_ID_LENGTH), nullable=True)
     body_digest: Mapped[str] = mapped_column(String(64), nullable=False)
     received_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     # ``airflow db clean`` ages rows out on this rather than on received_at, so a clean with any cutoff
@@ -48,7 +59,7 @@ class InboundDelivery(Base):
     attributes: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True), nullable=True)
     candidates: Mapped[list[str] | None] = mapped_column(JSON(none_as_null=True), nullable=True)
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True), nullable=True)
-    correlation_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    correlation_key: Mapped[str | None] = mapped_column(String(MAX_CORRELATION_KEY_LENGTH), nullable=True)
     outcome: Mapped[str] = mapped_column(String(32), nullable=False)
     actions: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True), nullable=True)
     # Not a foreign key to team.name, as for Log.team_name: deleting a team must not rewrite or
