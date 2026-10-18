@@ -1012,13 +1012,12 @@ class DagFileProcessorManager(LoggingMixin):
             return
         try:
             dag_bundle_manager = DagBundlesManager()
-            dag_bundle_manager.refresh_config()
+            bundle_names = set(dag_bundle_manager.get_all_bundle_names())
         except Exception:
             self.log.exception("Could not load Dag bundles; keeping the current bundles")
             return
 
         loaded_bundles = {bundle.name: bundle for bundle in self._dag_bundles}
-        bundle_names = set(dag_bundle_manager.get_all_bundle_names())
         if self.bundle_names_to_parse:
             bundle_names.intersection_update(self.bundle_names_to_parse)
         removed_names = loaded_bundles.keys() - bundle_names
