@@ -398,7 +398,7 @@ of the default branch, so it could write that branch's GitHub Actions cache: wha
 cache untouched is that no step saves one. Do not add caching (for example `actions/cache` or
 the cache option of a `setup-*` action) to this workflow. Reports use the saved image artifact.
 
-The report runs at most three jobs concurrently. Each job has a 90-minute limit and saves
+The report runs at most three jobs concurrently. Each job has a 150-minute limit and saves
 its output, including partial output on failure. A failed or timed-out report is incomplete;
 it does not invalidate the canary's test result. Find diagnostics in the **Dependency
 upgrade report** workflow, whose summary links to the source canary. To repeat diagnostics,

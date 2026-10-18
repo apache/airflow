@@ -121,7 +121,8 @@ jobs:
     if: needs.plan.outputs.has-reports == 'true'
     name: "Explain ${{ matrix.python }}:${{ matrix.mode }}"
     runs-on: ubuntu-22.04
-    timeout-minutes: 90
+    # Explaining constraints-source-providers took up to 115 minutes in the canary (Oct 2026).
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       max-parallel: 3
