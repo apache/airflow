@@ -36,7 +36,7 @@ class _JobOperator(_resumable_job_mixin.ResumableJobMixin, _Base):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.calls = MagicMock()
+        self.calls = MagicMock(spec=["submit_job", "poll_until_complete", "get_job_result"])
 
     def submit_job(self, context):
         self.calls.submit_job(context)
