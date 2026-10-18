@@ -200,6 +200,10 @@ class MSGraphAsyncOperator(BaseOperator):
                     query_parameters=cursor["query_parameters"],
                     method_name=self.execute_complete.__name__,
                 )
+        elif self.durable:
+            self.log.warning(
+                "task_state_store not available in context, crash recovery is disabled for this run"
+            )
 
         self.defer(
             trigger=MSGraphTrigger(
@@ -303,14 +307,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
     def get_task_state_store(self, context: Context) -> TaskStateStoreAccessor | None:
         """Return the task state store when this task is durable and the store is available."""
-        if not self.durable:
-            return None
-        task_state_store = context.get("task_state_store")
-        if task_state_store is None:
-            self.log.warning(
-                "task_state_store not available in context, crash recovery is disabled for this run"
-            )
-        return task_state_store
+        return context.get("task_state_store") if self.durable else None
 
     @staticmethod
     def get_cursor(task_state_store: TaskStateStoreAccessor) -> PaginationCursor | None:

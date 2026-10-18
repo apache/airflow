@@ -646,7 +646,8 @@ class TestDurableMSGraphAsyncOperator:
 
         assert task_state_store.values == {}
 
-    def test_durable_without_task_state_store_keeps_pages_in_xcom(self):
+    @mock.patch.object(MSGraphAsyncOperator, "log", new_callable=mock.PropertyMock)
+    def test_durable_without_task_state_store_keeps_pages_in_xcom(self, mock_log):
         operator = users_operator(durable=True)
         context = mock_context(task=operator)
 
@@ -654,3 +655,16 @@ class TestDurableMSGraphAsyncOperator:
             operator.execute_complete(context=context, event=users_event("users.json"))
 
         assert context["ti"].xcom_pull(task_ids=operator.task_id, dag_id=operator.dag_id, key="return_value")
+        mock_log.return_value.warning.assert_not_called()
+
+    @mock.patch.object(MSGraphAsyncOperator, "log", new_callable=mock.PropertyMock)
+    def test_durable_without_task_state_store_warns_in_execute(self, mock_log):
+        operator = users_operator(durable=True)
+        context = mock_context(task=operator)
+
+        with pytest.raises(TaskDeferred):
+            operator.execute(context)
+
+        mock_log.return_value.warning.assert_called_once_with(
+            "task_state_store not available in context, crash recovery is disabled for this run"
+        )
