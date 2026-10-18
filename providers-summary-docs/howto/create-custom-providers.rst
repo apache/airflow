@@ -127,7 +127,8 @@ Exposing customized functionality to the Airflow's core:
 * ``webhook-sources`` - this field should contain the list of the inbound webhook source types that the
   provider provides, each a ``source-type`` together with the ``classpath`` of the
   ``airflow.webhooks.base.WebhookSource`` subclass that implements it. A source type declared by more than
-  one installed provider is served by none of them. |experimental|
+  one installed provider is served by none of them, unless ``[webhooks] source_type_owners`` (see
+  :doc:`apache-airflow:configurations-ref`) names the package that serves it. |experimental|
   See :doc:`/core-extensions/webhook-sources` for the source types of the community-managed providers.
 
 .. note:: Deprecated values

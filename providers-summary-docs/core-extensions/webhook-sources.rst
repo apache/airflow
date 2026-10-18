@@ -28,8 +28,10 @@ parses the inbound webhook deliveries of one kind of sender, and is implemented 
 ``airflow.webhooks.base.WebhookSource``. Each provider can declare its own source types under
 ``webhook-sources`` in its ``provider.yaml``.
 
-A source type declared by more than one installed provider is served by none of them.
-``airflow providers webhook-sources`` lists every declared source type and shows such conflicts.
+A source type declared by more than one installed provider is served by none of them, unless
+``[webhooks] source_type_owners`` (see :doc:`apache-airflow:configurations-ref`) names the package that
+serves it, for example ``github=apache-airflow-providers-github``. ``airflow providers webhook-sources``
+lists every declared source type and shows such conflicts, and which package ``source_type_owners`` picks.
 
 These are the webhook source types provided by the community-managed providers:
 

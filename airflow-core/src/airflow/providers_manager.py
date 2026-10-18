@@ -63,7 +63,7 @@ BLOCKED_PROVIDER_MIN_VERSIONS = {
 }
 
 # inbound_delivery.source_type is a String(64).
-_WEBHOOK_SOURCE_TYPE_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,63}")
+WEBHOOK_SOURCE_TYPE_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,63}")
 
 
 def _is_source_install(dist: Distribution) -> bool:
@@ -1386,7 +1386,7 @@ class ProvidersManager(LoggingMixin):
                 classpath = fields.get("classpath")
                 if not (
                     isinstance(source_type, str)
-                    and _WEBHOOK_SOURCE_TYPE_PATTERN.fullmatch(source_type)
+                    and WEBHOOK_SOURCE_TYPE_PATTERN.fullmatch(source_type)
                     and isinstance(classpath, str)
                     and classpath
                 ):

@@ -24,6 +24,8 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import provider_command
 from airflow.providers_manager import ProviderInfo, WebhookSourceInfo
 
+from tests_common.test_utils.config import conf_vars
+
 RST_DESCRIPTION = "`Apache Beam <https://beam.apache.org/>`__.\n"
 PLAIN_DESCRIPTION = "Apache Beam https://beam.apache.org/"
 
@@ -93,3 +95,53 @@ class TestCliProviderWebhookSources:
             },
             {"source_type": "fake", "classpath": "fake.FakeSource", "package_name": "fake", "status": "ok"},
         ]
+
+    @pytest.mark.parametrize(
+        ("source_type_owners", "expected_statuses"),
+        [
+            pytest.param(
+                "dup=Second",
+                [
+                    "not served: [webhooks] source_type_owners picks second",
+                    "ok: picked by [webhooks] source_type_owners",
+                    "ok",
+                ],
+                id="conflict-settled",
+            ),
+            pytest.param(
+                "fake=first",
+                [
+                    "conflict: served by none",
+                    "conflict: served by none",
+                    "not served: [webhooks] source_type_owners picks first",
+                ],
+                id="other-package-picked",
+            ),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.provider_command.AirflowConsole", autospec=True)
+    @mock.patch("airflow.cli.commands.provider_command.ProvidersManager", autospec=True)
+    def test_webhook_sources_shows_the_package_source_type_owners_picks(
+        self, mock_providers_manager, mock_console, source_type_owners, expected_statuses
+    ):
+        first = WebhookSourceInfo(source_type="dup", classpath="first.FirstSource", package_name="first")
+        second = WebhookSourceInfo(source_type="dup", classpath="second.SecondSource", package_name="second")
+        served = WebhookSourceInfo(source_type="fake", classpath="fake.FakeSource", package_name="fake")
+        mock_providers_manager.return_value.webhook_sources = [first, second, served]
+        mock_providers_manager.return_value.webhook_source_conflicts = {"dup": [first, second]}
+
+        with conf_vars({("webhooks", "source_type_owners"): source_type_owners}):
+            provider_command.webhook_sources_list(self.parser.parse_args(["providers", "webhook-sources"]))
+
+        print_as_kwargs = mock_console.return_value.print_as.call_args.kwargs
+        assert [
+            print_as_kwargs["mapper"](info)["status"] for info in print_as_kwargs["data"]
+        ] == expected_statuses
+
+    @mock.patch("airflow.cli.commands.provider_command.ProvidersManager", autospec=True)
+    @conf_vars({("webhooks", "source_type_owners"): "GitHub=apache-airflow-providers-github"})
+    def test_webhook_sources_exits_on_invalid_source_type_owners(self, mock_providers_manager):
+        with pytest.raises(SystemExit, match=r"^\[webhooks\] source_type_owners lists 'GitHub'"):
+            provider_command.webhook_sources_list(self.parser.parse_args(["providers", "webhook-sources"]))
+
+        mock_providers_manager.assert_not_called()
