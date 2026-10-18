@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from itsdangerous import URLSafeSerializer
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import and_, delete, exists, or_, select, update
 from sqlalchemy.orm import selectinload
 
@@ -88,11 +88,12 @@ def _guess_best_bundle_for_fileloc(
 class _ExternalBundleConfig(BaseModel):
     """Schema defining the user-specified configuration for a DAG bundle."""
 
+    model_config = ConfigDict(extra="allow")
+
     name: str
     classpath: str
     kwargs: dict
     team_name: str | None = None
-    importers: list[dict[str, Any] | str] | None = None
 
 
 class _InternalBundleConfig(BaseModel):
@@ -813,15 +814,6 @@ class DagBundlesManager(LoggingMixin):
                 params[placeholder] = field_value
 
         return params
-
-    def get_bundle_importers(self, name: str) -> list[dict[str, Any] | str] | None:
-        """Get importer settings from this manager's accepted configuration."""
-        config = self._snapshot.configs.get(name)
-        return config.importers if config else None
-
-    def get_bundle_team_name(self, name: str) -> str | None:
-        """Get ownership from this manager's accepted configuration."""
-        return self._snapshot.team_names.get(name)
 
     def get_bundle_config_env(self) -> dict[str, str]:
         """Get the accepted configuration to pass to a fresh parser interpreter."""

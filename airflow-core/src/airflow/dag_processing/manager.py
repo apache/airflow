@@ -75,9 +75,12 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
-from airflow.sdk.importers import DagImportError, get_importer_registry, reset_importer_registry
+from airflow.sdk.importers import (
+    DagImporterRegistry,
+    DagImportError,
+    get_importer_registry,
+)
 from airflow.sdk.log import init_log_file, logging_processors
-from airflow.serialization.definitions.notset import NOTSET
 from airflow.typing_compat import assert_never
 from airflow.utils.file import find_enclosing_file
 from airflow.utils.helpers import prune_dict
@@ -106,7 +109,6 @@ if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
-    from airflow.sdk.importers import DagImporterRegistry  # noqa: SDK001
 
 
 class BundleState(NamedTuple):
@@ -262,6 +264,7 @@ class DagFileProcessorManager(LoggingMixin):
     _dag_bundles: list[BaseDagBundle] = attrs.field(factory=list, init=False)
     _bundle_versions: dict[str, str | None] = attrs.field(factory=dict, init=False)
     _bundle_version_data: dict[str, dict | None] = attrs.field(factory=dict, init=False)
+    _bundle_importer_registries: dict[str, DagImporterRegistry] = attrs.field(factory=dict, init=False)
     _multi_team: bool = attrs.field(factory=lambda: conf.getboolean("core", "multi_team"), init=False)
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
@@ -353,8 +356,7 @@ class DagFileProcessorManager(LoggingMixin):
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
         manager = DagBundlesManager()
         bundles = list(manager.get_all_dag_bundles())
-        if is_bundle_config_reload_enabled():
-            reset_importer_registry()
+        self._bundle_importer_registries.clear()
         self._dag_bundle_manager = manager
         return bundles
 
@@ -388,11 +390,15 @@ class DagFileProcessorManager(LoggingMixin):
         """Tear down state after the parsing loop exits. Default no-op; override to customize."""
 
     def _get_importer_registry(self, bundle_name: str) -> DagImporterRegistry:
-        if is_bundle_config_reload_enabled():
-            return get_importer_registry(
-                bundle_name, bundle_importers=self._dag_bundle_manager.get_bundle_importers(bundle_name)
-            )
-        return get_importer_registry(bundle_name)
+        if bundle_name in self._bundle_importer_registries:
+            return self._bundle_importer_registries[bundle_name]
+        config_env = self._dag_bundle_manager.get_bundle_config_env()
+        if not config_env:
+            return get_importer_registry(bundle_name)
+        with patch_environ(config_env):
+            registry = DagImporterRegistry.from_config(bundle_name=bundle_name)
+        self._bundle_importer_registries[bundle_name] = registry
+        return registry
 
     def warm_importers(self) -> None:
         """Build each bundle's Dag importers, so parse processes forked later share them."""
@@ -787,15 +793,15 @@ class DagFileProcessorManager(LoggingMixin):
 
         Reuse loaded bundles for unversioned requests; versioning bundles must be initialized.
         """
-        loaded = next((b for b in self._dag_bundles if b.name == request.bundle_name), None)
-        if loaded is None and (request.bundle_version is None or is_bundle_config_reload_enabled()):
-            self.log.error(
-                "Bundle %s is not parsed by this processor, skipping callback", request.bundle_name
-            )
-            return None
         if request.bundle_version is None:
             # Reuse the scan path without fetching or checking out per callback.
-            if loaded is not None and loaded.supports_versioning and not loaded.is_initialized:
+            loaded = next((b for b in self._dag_bundles if b.name == request.bundle_name), None)
+            if loaded is None:
+                self.log.error(
+                    "Bundle %s is not parsed by this processor, skipping callback", request.bundle_name
+                )
+                return None
+            if loaded.supports_versioning and not loaded.is_initialized:
                 self.log.error("Bundle %s is not initialized, skipping callback", request.bundle_name)
                 return None
             return loaded
@@ -826,11 +832,7 @@ class DagFileProcessorManager(LoggingMixin):
             get_claiming_importer(
                 request.filepath,
                 request.bundle_name,
-                bundle_importers=(
-                    self._dag_bundle_manager.get_bundle_importers(request.bundle_name)
-                    if is_bundle_config_reload_enabled()
-                    else NOTSET
-                ),
+                registry=self._bundle_importer_registries.get(request.bundle_name),
             )
             is not None
         ):
@@ -1071,12 +1073,12 @@ class DagFileProcessorManager(LoggingMixin):
         self._dag_bundle_manager = dag_bundle_manager
         if not removed_names and not bundle_instances:
             return
-        reset_importer_registry()
         loaded_bundles.update(bundle_instances)
         self._dag_bundles = [loaded_bundles[name] for name in sorted(bundle_names & loaded_bundles.keys())]
         self._force_refresh_bundles.update(bundle_instances)
         self._bundle_name_to_team_name.clear()
         for name in removed_names:
+            self._bundle_importer_registries.pop(name, None)
             self._bundle_versions.pop(name, None)
             self._bundle_version_data.pop(name, None)
             known_files.pop(name, None)
@@ -1568,18 +1570,16 @@ class DagFileProcessorManager(LoggingMixin):
         native = get_claiming_importer(
             dag_file.absolute_path,
             dag_file.bundle_name,
-            bundle_importers=(
-                self._dag_bundle_manager.get_bundle_importers(dag_file.bundle_name)
-                if is_bundle_config_reload_enabled()
-                else NOTSET
-            ),
+            registry=self._bundle_importer_registries.get(dag_file.bundle_name),
         )
         processor_class: type[BaseDagFileProcessorProcess]
         if native is not None:
             processor_class = LangSDKDagFileProcessorProcess
-            kwargs: dict[str, Any] = {"importer_registry": self._get_importer_registry(dag_file.bundle_name)}
+            kwargs: dict[str, Any] = {
+                "importer_registry": self._bundle_importer_registries.get(dag_file.bundle_name)
+            }
             if is_bundle_config_reload_enabled():
-                kwargs["team_name"] = self._dag_bundle_manager.get_bundle_team_name(dag_file.bundle_name)
+                kwargs["team_name"] = self._get_team_name(dag_file.bundle_name)
         else:
             processor_class = DagFileProcessorProcess
             kwargs = {"callbacks": callback_to_execute_for_file}
