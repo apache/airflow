@@ -402,7 +402,9 @@ class TestConnection:
         ] == []
 
     def test_rejects_uri_with_zero_port_argument(self):
-        with pytest.raises(AirflowException, match="You must create an object using the URI or individual values"):
+        with pytest.raises(
+            AirflowException, match="You must create an object using the URI or individual values"
+        ):
             Connection(uri="http://example.com", port=0)
 
     @pytest.mark.parametrize("port", [0, 65535, None])
