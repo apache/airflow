@@ -58,4 +58,10 @@ def get_provider_info():
                 },
             }
         ],
+        "webhook-sources": [
+            {
+                "source-type": "github",
+                "classpath": "airflow.providers.github.webhooks.github.GitHubWebhookSource",
+            }
+        ],
     }
