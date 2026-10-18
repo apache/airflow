@@ -448,7 +448,12 @@ class PodManager(LoggingMixin):
         resource_version = None
         seen_events: set[str] = set()
         while not self.stop_watching_events:
-            events = self.read_pod_events(pod, resource_version)
+            # Startup event logging is best-effort and must never decide the task outcome.
+            try:
+                events = self.read_pod_events(pod, resource_version)
+            except Exception as e:
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e)
+                return
             if events.metadata and events.metadata.resource_version:
                 resource_version = events.metadata.resource_version
             for event in events.items:
@@ -1196,15 +1201,20 @@ class AsyncPodManager(LoggingMixin):
         seen_events: set[str] = set()
         resource_version = None
         while not self.stop_watching_events:
-            async for event in self._hook.watch_pod_events(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                resource_version=resource_version,
-                timeout_seconds=startup_check_interval,
-            ):
-                if event:
-                    log_pod_event(self, event, seen_events)
-                    resource_version = event.metadata.resource_version
+            # Startup event logging is best-effort and must never decide the task outcome.
+            try:
+                async for event in self._hook.watch_pod_events(
+                    name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    resource_version=resource_version,
+                    timeout_seconds=startup_check_interval,
+                ):
+                    if event:
+                        log_pod_event(self, event, seen_events)
+                        resource_version = event.metadata.resource_version
+            except Exception as e:
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e)
+                return
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1

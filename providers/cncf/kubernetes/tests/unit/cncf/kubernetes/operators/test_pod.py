@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 import re
@@ -46,6 +47,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
     PodLaunchTimeoutException,
     PodLoggingStatus,
+    PodManager,
     PodNotFoundException,
     PodPhase,
 )
@@ -227,6 +229,22 @@ class TestKubernetesPodOperator:
         yield
 
         patch.stopall()
+
+    def test_await_pod_start_ignores_failed_event_watcher(self):
+        self.watch_pod_events.stop()
+
+        async def _await_pod_start(*_, **__):
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+
+        k = KubernetesPodOperator(task_id="task", name="test", namespace="default")
+        with (
+            mock.patch.object(PodManager, "read_pod_events", side_effect=ApiException(status=504)) as read,
+            mock.patch.object(PodManager, "await_pod_start", side_effect=_await_pod_start),
+        ):
+            k.await_pod_start(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod", namespace="default")))
+
+        read.assert_called_once()
 
     def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesPodOperator"

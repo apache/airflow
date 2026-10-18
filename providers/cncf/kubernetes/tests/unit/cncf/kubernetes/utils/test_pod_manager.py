@@ -468,6 +468,22 @@ class TestPodManager:
         )
 
     @pytest.mark.asyncio
+    async def test_watch_pod_events_stops_when_reading_events_fails(self, caplog):
+        mock_pod = mock.Mock()
+        mock_pod.metadata.name = "test-pod"
+
+        with mock.patch.object(
+            self.pod_manager, "read_pod_events", side_effect=ApiException(status=504)
+        ) as mock_read:
+            await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
+
+        mock_read.assert_called_once()
+        assert any(
+            r.levelno == logging.WARNING and "test-pod" in r.getMessage() and "504" in r.getMessage()
+            for r in caplog.records
+        )
+
+    @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
     async def test_watch_pod_events_tracks_resource_version(self, mock_sleep):
         """Test that watch_pod_events tracks resource version."""
@@ -1529,6 +1545,26 @@ class TestAsyncPodManager:
 
         # Verify hook was called
         self.mock_async_hook.watch_pod_events.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_watch_pod_events_stops_when_hook_watch_fails(self, caplog):
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        async def failing_generator(*_, **__):
+            raise ApiException(status=504)
+            yield
+
+        self.mock_async_hook.watch_pod_events = mock.Mock(side_effect=failing_generator)
+
+        await self.async_pod_manager.watch_pod_events(mock_pod, startup_check_interval=30)
+
+        self.mock_async_hook.watch_pod_events.assert_called_once()
+        assert any(
+            r.levelno == logging.WARNING and "test-pod" in r.getMessage() and "504" in r.getMessage()
+            for r in caplog.records
+        )
 
     @pytest.mark.asyncio
     async def test_watch_pod_events_tracks_resource_version(self):
