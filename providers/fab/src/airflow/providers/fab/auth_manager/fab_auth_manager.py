@@ -200,6 +200,12 @@ if hasattr(MenuItem, "DEADLINES"):
 if hasattr(MenuItem, "DAG_BUNDLES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG
 
+# Reading a webhook's deliveries takes read access to its webhook_<name> connection, so the entry is
+# gated on the Connections resource. No "Webhook Deliveries" FAB resource exists: unmapped, the entry
+# would be hidden for every role.
+if hasattr(MenuItem, "WEBHOOK_DELIVERIES"):
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.WEBHOOK_DELIVERIES] = RESOURCE_CONNECTION
+
 
 class FabAuthManager(BaseAuthManager[User]):
     """

@@ -74,6 +74,7 @@ import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
+import { WebhookDeliveries } from "src/pages/WebhookDeliveries";
 import { XCom } from "src/pages/XCom";
 
 import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
@@ -199,6 +200,16 @@ export const routerConfig = [
       {
         element: <Connections />,
         path: "connections",
+      },
+      // Never under /webhooks, where the API server serves inbound webhooks: a reload there would
+      // never reach the UI.
+      {
+        element: <WebhookDeliveries />,
+        path: "webhook_deliveries",
+      },
+      {
+        element: <WebhookDeliveries />,
+        path: "webhook_deliveries/:webhookName",
       },
       {
         element: <Jobs />,

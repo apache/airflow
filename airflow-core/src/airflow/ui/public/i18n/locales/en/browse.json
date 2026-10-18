@@ -58,6 +58,41 @@
     },
     "title": "Deadlines"
   },
+  "webhookDeliveries": {
+    "columns": {
+      "correlationKey": "Correlation Key",
+      "deliveryId": "Delivery ID",
+      "outcome": "Outcome",
+      "receivedAt": "Received At",
+      "sourceType": "Source Type",
+      "webhook": "Webhook"
+    },
+    "delivery_one": "Delivery",
+    "delivery_other": "Deliveries",
+    "details": {
+      "actions": "Actions",
+      "assetEvents": "Asset Events",
+      "attributes": "Attributes",
+      "candidates": "Topic Names",
+      "id": "ID",
+      "notFound": "No delivery with this ID is recorded for a webhook you may read.",
+      "show": "Show Details",
+      "title": "Delivery Details"
+    },
+    "outcomeExplanations": {
+      "accepted": "Airflow recorded an event on each of this delivery's topic names that an unpaused Dag schedules on, so those Dags can run.",
+      "dag_paused": "The only Dags that schedule on this delivery's topic names are paused, so Airflow recorded no event and unpausing one will not replay it.",
+      "no_subscribers": "No Dag schedules on any of this delivery's topic names, so Airflow recorded no event.",
+      "unknown": "This version of the UI has no description of this outcome."
+    },
+    "outcomes": {
+      "accepted": "Accepted",
+      "dag_paused": "Dag Paused",
+      "no_subscribers": "No Subscribers"
+    },
+    "title": "Deliveries to {{webhookName}}",
+    "view": "View $t(webhookDeliveries.delivery_other)"
+  },
   "xcom": {
     "add": {
       "error": "Failed to add XCom",

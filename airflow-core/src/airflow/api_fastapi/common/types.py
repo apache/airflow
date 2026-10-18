@@ -128,6 +128,7 @@ class MenuItem(Enum):
     POOLS = "Pools"
     PROVIDERS = "Providers"
     VARIABLES = "Variables"
+    WEBHOOK_DELIVERIES = "Webhook Deliveries"
     XCOMS = "XComs"
 
 

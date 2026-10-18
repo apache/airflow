@@ -53,6 +53,11 @@ const links = [
     title: "Jobs",
   },
   {
+    href: "/webhook_deliveries",
+    key: "webhookDeliveries",
+    title: "Webhook Deliveries",
+  },
+  {
     href: "/xcoms",
     key: "xcoms",
     title: "XComs",
