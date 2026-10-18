@@ -407,18 +407,19 @@ class TestLocalExecutor:
         payload_size = 128 * 1024
         submitted = [_make_task_workload() for _ in range(result_count)]
         worker_queue = ctx.SimpleQueue()
-        for workload in submitted:
-            executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
-            worker_queue.put(workload)
-        with mock.patch.object(executor, "_check_workers", autospec=True):
-            executor._process_workloads(submitted)
         proc = ctx.Process(
             target=_write_large_results_to_queue,
             args=(executor.result_queue, worker_queue, result_count, payload_size),
         )
         proc.start()
+        # Register the fake worker before dispatch so _process_workloads routes every workload to it
+        # instead of spawning a real worker that nothing would ever stop.
         executor.workers = {proc.pid: proc}
         executor._worker_queues = {proc.pid: worker_queue}
+        for workload in submitted:
+            executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
+        with mock.patch.object(executor, "_check_workers", autospec=True):
+            executor._process_workloads(submitted)
 
         executor.end()
 
