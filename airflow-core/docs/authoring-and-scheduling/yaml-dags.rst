@@ -26,14 +26,14 @@ Writing Dags in YAML
 
 Airflow can build a Dag from a YAML document. One YAML document describes one
 Dag, and the YAML Dag importer turns it into the same Dag structure that Airflow
-runs like any other source. The tasks can be ordinary Airflow operators, so
-every provider operator is available without writing code.
+runs like any other source. The tasks can be ordinary Airflow operators,
+or a pointer to a task handler implemented in a Language SDK. (Support for the
+Python Task SDK is planned for a future release.)
 
 A document is declarative. Everything in it is a value, and the shape of each
-value decides what it means. Since the format round-trips through JSON, a
-document may equally be written as JSON.
+value decides what it means.
 
-The following is a example YAML file defining a Dag:
+The following is an example YAML file defining a Dag:
 
 .. code-block:: yaml
 
@@ -55,7 +55,7 @@ The following is a example YAML file defining a Dag:
         with:
           bash_command: "publish.sh"
 
-This Dag runs every day at 03:00, The first task ``extract`` renders the date
+This Dag runs every day at 03:00. The first task ``extract`` renders the date
 into its command. The second ``publish`` waits for ``extract`` through
 ``needs`` and runs a fixed command.
 
@@ -70,8 +70,27 @@ The YAML importer is opt-in. Register it in
     [dag_processor]
     dag_importer_configs = [{"classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter"}]
 
+Set this same configuration on every component that loads Dags, including the
+Dag processor, the workers, and wherever ``airflow dags`` commands run.
+
 The importer handles ``.yaml`` and ``.yml`` files that declare a Dag ``$schema``
-(see below). For per-bundle registration and other options, see
+(see below).
+
+A document can also be written as JSON, which the YAML importer reads as-is.
+Discovery is still by file extension, so write such a document in a ``.yaml`` or
+``.yml`` file, or add ``.json`` to the importer's ``extensions``:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_importer_configs = [
+        {
+          "classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter",
+          "extensions": [".yaml", ".yml", ".json"]
+        }
+      ]
+
+For per-bundle registration and other options, see
 :doc:`../administration-and-deployment/dag-importers`.
 
 The shape of a document
@@ -80,22 +99,26 @@ The shape of a document
 ``$schema`` (required)
     The format version the document is written against, given as the URL of a
     published schema. The version it names selects the rules the document is
-    parsed with. ``$schema`` is also how Airflow recognizes the file
-    as a Dag; a file without it is silently skipped. Editors that understand
+    parsed with. ``$schema`` is also how Airflow recognizes that a file contains
+    Dags. By default (see :ref:`config:core__dag_discovery_safe_mode`), a file
+    that does not carry the canonical ``$schema`` URL is skipped, so a mistyped
+    URL makes the file disappear the same way. Editors that understand
     ``$schema`` will offer validation and completion with no extra setup.
 
 Dag-level keys
-    Attribute of the Dag sit at the top level, such as ``dag_id``, ``schedule``,
-    ``params``, etc. An unknown key is reported as an error.
+    Dag attributes sit at the top level, such as ``dag_id``, ``schedule``,
+    ``params``. An unknown key is reported as an error.
 
 ``tasks``
-    A list of tasks. Each task has an ``id`` and exactly one body.
+    A list of tasks. Each task has an ``id`` and at most one body.
 
 Task body: ``uses`` or ``run``
     ``uses:`` names a ready-made operator by its fully-qualified Python import
     path (e.g. ``airflow.providers.standard.operators.bash.BashOperator``).
     ``run:`` holds the arguments of a code task you implement elsewhere (see
-    `Code tasks`_ below). A task may have one or the other.
+    `Code tasks`_ below). A task can have one or the other. It can even have
+    neither; such task becomes an ``EmptyOperator`` by default, which is handy
+    as a join or marker point.
 
 ``with``
     Operator-specific arguments. These are what you would pass to the operator's
@@ -105,9 +128,10 @@ Task body: ``uses`` or ``run``
 Task-level keys
     Scheduling and common attributes sit next to the body, distinct from
     ``with:``. These include things like ``retries``, ``trigger_rule``,
-    ``queue``, etc. Any key that is not one of the structural keys (``id``,
-    ``uses``, ``run``, ``with``, ``needs``, ``extends``) is passed to the
-    operator type, which validates it.
+    ``queue``, etc. Any key that is not a structural key (``id``, ``uses``,
+    ``run``, ``with``, ``needs``, ``extends``) must be a base operator argument;
+    an operator-specific argument goes under ``with:`` instead, and a key that
+    is neither is an error.
 
 ``needs``
     A list of upstream tasks (referenced by ``id``) that must run before this
@@ -160,11 +184,11 @@ non-existent template is referenced.
 Values are literal by default
 -----------------------------
 
-A value under ``with:`` (or ``run:``) is taken literally, unless it is a
-single-key object whose key is a reserved ``$``-marker. For example,
-``"echo foo.sh"`` and ``"{{ not rendered }}"`` specifies exactly that string,
-not a template, even if ``bash_command`` is listed on the operator as a template
-field.
+A value under ``with:`` (or ``run:``, with the restrictions in `Code tasks`_) is
+taken literally, unless it is a single-key object whose key is a reserved
+``$``-marker. For example, ``"echo foo.sh"`` and ``"{{ not rendered }}"`` are
+taken as exactly that string, not a template, even if ``bash_command`` is listed
+on the operator as a template field.
 
 Four markers opt a value into special handling:
 
@@ -182,14 +206,27 @@ Four markers opt a value into special handling:
     list it in ``needs:``. The long form is ``{$xcom: ...}``.
 
 ``{$f: path}`` reads a file's contents
-    The contents of a file stored next to the document is read and used.
+    The contents of a file are read and used. The path is resolved against the
+    directory containing the current YAML document. A path that leaves the
+    containing directory after resolution (including symlinks) is rejected.
     ``{$t: {$f: path}}`` allows reading the file and then rendering its contents
     as a template. The long form is ``{$file: path}``. A file is loaded only
     when you ask with ``$f``; it is never inferred from a filename suffix.
 
 ``{$const: value}`` is a forced literal
-    An escape for the rare case that real data is shaped exactly like a marker.
-    ``{$const: {$x: 1}}`` is the literal dict ``{"$x": 1}``, not an XCom.
+    This can be used to wrap contents that would otherwise carry a reserved ``$``
+    meaning. For example, ``{$const: {$x: 1}}`` is the dict ``{"$x": 1}``, not
+    an XCom.
+
+The ``$t``, ``$x`` and ``$f`` markers may only be used on a field specified by
+the operator as template-able (listed in ``template_fields``). Using them on any
+other field causes an error. ``$const`` and plain values may be used anywhere.
+For an operator you write yourself, the operator decides which fields may accept
+markers; see `Using your own operators`_.
+
+The ``$`` prefix in mapping keys is reserved for these markers. Prefixing any
+other key with ``$`` causes a parse error. To include a key that must start with
+``$``, wrap the mapping in ``$const``.
 
 Markers nest. A marker inside a list, or inside a nested mapping such as an
 ``env`` dict, is resolved by the same rules, so references and templates compose
@@ -212,11 +249,12 @@ and they mean the same thing:
 .. code-block:: yaml
 
     start_date: "2024-01-01" # ISO-8601 string
-    start_date: 2024-01-01 # YAML date
+    # start_date: 2024-01-01 # or a YAML-native date (same value)
     end_date: "2024-06-01T12:00:00" # ISO-8601 datetime string
+    # end_date: 2024-06-01 12:00:00 # or a YAML-native datetime (same value)
 
-These are converted to a Python ``datetime`` before the Dag or task is built. A bare date becomes
-midnight, and an ISO-8601 string is parsed.
+These are converted to a Python ``datetime`` before the Dag or task is built. A
+bare date becomes midnight, and an ISO-8601 string is parsed.
 
 The conversion is applied only to an argument that expects a datetime. This is
 decided from the operator's or Dag's argument **type annotation**.
@@ -231,17 +269,18 @@ operator class can work exactly like a provider's.
 
     - id: ingest
       uses: my_company.operators.IngestOperator
-      trigger_rule: all_done # base arguments at the task-level
+      trigger_rule: all_done # base arguments at the task level
       with: # your operator's own arguments
         source: s3://bucket/incoming
         cutoff: 2024-01-01
 
-An operator takes two kinds of argument, kept in separate places. Your operator's own constructor
-arguments go under ``with:``. The arguments every operator inherits from the base operator --
-``retries``, ``retry_delay``, ``trigger_rule``, ``queue``, ``pool``, ``priority_weight``,
-``depends_on_past``, ``start_date``, and the rest of the task model -- go at the task level, beside
-the body. Placing a base argument under ``with:``, or an operator-specific one at the task level, is
-an error, so each argument has a single home.
+An operator takes two kinds of argument, kept in separate places. Your
+operator's own constructor arguments go under ``with:``. The arguments every
+operator inherits from the base operator, such as ``retries``, ``retry_delay``,
+``trigger_rule``, ``queue``, ``pool``, ``priority_weight``, ``depends_on_past``,
+``start_date``, and the rest of the task model go at the task level beside the
+body. Placing a base argument under ``with:``, or an operator-specific one at
+the task level, is an error, so each argument has a single home.
 
 The task is constructed roughly like this:
 
@@ -257,17 +296,18 @@ The task is constructed roughly like this:
 Templated argument rendering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A task argument is literal by default. For one to be rendered as a Jinja
-template, two things must satisfy: the operator must allow that field to be
-templated (for Python operators, by specifying it in ``template_fields``), and
-the Dag author must use the ``{$t: ...}`` syntax. A value not marked explicitly
-stays literal. Try to use the template syntax on a field not specified by the
-operator results in an error.
+A task argument is literal by default; only a value marked with ``{$t: ...}``
+is rendered as a Jinja template. As `Values are literal by default`_ notes, a
+marker may be used only on a field the operator templates, so an operator you
+write must list the field in its ``template_fields`` before a marker works on it.
 
-A field leave unset keeps the operator's own default, including any templating
-the operator applies to that default. A value is also never read from a file
-because of its name or suffix (Python's ``template_ext`` does not apply); a file
-is loaded only where you ask with ``{$f: ...}``.
+A field left unset keeps the operator's own default, including any templating
+the operator applies to that default. An operator can also derive one of its own
+templated fields from the arguments you give it, and that derived field still
+renders, so an unmarked value can reach a rendered field indirectly. A value is
+also never read from a file because of its name or suffix (in other words,
+Python's ``template_ext`` does not apply when the operator is used in YAML); a
+file is loaded only where you ask with ``{$f: ...}``.
 
 Literal values inside a rendered container
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -279,7 +319,7 @@ operator whose ``__init__`` reads the individual entries of such a container may
 notice edge cases, but operator authors should be aware that argument processing
 in ``__init__`` is generally considered bad practice in the first place. Such
 processing should generally be done in ``execute`` instead, which is always
-called after template rendering has be performed.
+called after template rendering has been performed.
 
 Accepting a date argument
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -325,7 +365,7 @@ Scheduling
 * a cron string (``"0 3 * * *"``) or a preset (``"@daily"``);
 * ``null`` or an omitted key, for a Dag that is only triggered manually or
   externally;
-* an object ``{uses: <timetable import path>, with: {...}}`` to construct any
+* an object ``{uses: <timetable import path>, with: {...}}`` to construct a
   timetable, the same ``uses`` / ``with`` idea used for operators.
 
 Support for asset-triggering is planned for a future release.
@@ -339,11 +379,20 @@ which holds the code's arguments directly:
 .. code-block:: yaml
 
     - id: transform
+      queue: go-workers # to route to a coordinator
       run:
         source: {$x: extract}
         factor: 2
 
-A ``run:`` task is built into a stub that a Task SDK runtime executes. See
-:doc:`language-sdks/index` to understand how to write a task handler for runtime
-execution. A top-level ``{$x: ...}`` argument binds an upstream task's output;
-every other argument must be a JSON-serializable literal.
+A ``run:`` task is executed by a Task SDK runtime, so it must be routed to a
+coordinator. In practice, a ``run:`` task always needs a task-level ``queue:``
+mapped to a coordinator under ``[sdk] queue_to_coordinator``. See
+:doc:`language-sdks/index` for writing the handler and configuring the
+coordinator.
+
+Each argument in ``run:`` is either a JSON-serializable literal, or an upstream
+task's output, in the ``{$x: task}`` form, which also wires the dependency.
+``$f`` and ``$const`` resolve to literals. Due to restrictions imposed by the
+cross-language task handler design, the ``run:`` syntax does not support
+a template (``$t``), a ``$x`` referencing a custom XCom key (not the return
+value), or an ``$x`` nested inside a larger value.

@@ -81,14 +81,25 @@ with:
 
     [dag_processor]
     dag_importer_configs = [
+        {"classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter"}
+      ]
+
+Additional configurations may be added if the importer accepts them. The YAML
+importer, for example, allows customizing the file extensions it scans (by
+default, ``.yaml`` and ``.yml``):
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_importer_configs = [
         {
           "classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter",
-          "extensions": [".yaml", ".yml"]
+          "extensions": [".yaml", ".yml", ".json"]
         }
       ]
 
-Without ``extensions``, the importer handles the extensions its class declares. An entry with only a
-classpath can be given as a string, for example ``["my_company.importers.YamlDagImporter"]``.
+If no additional arguments are needed, an entry with only a classpath can also
+be given as a string, for example ``["my_company.importers.YamlDagImporter"]``.
 
 To register an importer for one bundle only, add an ``importers`` key, in the same format, to that bundle's
 entry in :ref:`config:dag_processor__dag_bundle_config_list`:
