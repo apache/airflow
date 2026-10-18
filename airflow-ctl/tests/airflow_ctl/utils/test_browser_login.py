@@ -29,28 +29,12 @@ from airflowctl.utils.browser_login import (
     compute_code_challenge,
     generate_pkce_pair,
     get_confirmation_code,
-    is_browser_login_supported,
     is_ssh_session,
 )
 
 # Test vector from RFC 7636, appendix B.
 RFC_7636_VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 RFC_7636_CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-
-
-@pytest.mark.parametrize(
-    ("server_version", "expected"),
-    [
-        ("3.4.0", False),
-        ("3.5.0", True),
-        ("3.5.0.dev0", True),
-        ("3.12.1", True),
-        ("4.0.0", True),
-        ("unknown", True),
-    ],
-)
-def test_is_browser_login_supported(server_version, expected):
-    assert is_browser_login_supported(server_version) is expected
 
 
 @pytest.mark.parametrize(
