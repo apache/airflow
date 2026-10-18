@@ -60,6 +60,11 @@ Searching documents
 Select the fields you need, and filter and sort with
 `OData expressions <https://learn.microsoft.com/en-us/azure/search/search-query-odata-filter>`__.
 
+The service pages the results with ``$skip``, which stops at 100,000 documents: past that many
+matches the search fails. To read a larger index, sort on a sortable and filterable key
+(``order_by=["id"]``) and filter on ranges of it (``filter="id gt '<last key read>'"``), one range
+per call.
+
 .. exampleinclude:: /../tests/system/microsoft/azure/example_azure_ai_search.py
     :language: python
     :dedent: 0

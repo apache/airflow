@@ -233,6 +233,11 @@ class AzureAISearchHook(BaseHook):
         """
         Yield every document of the index matching ``search`` and ``filter``.
 
+        The service pages the results with ``$skip``, which stops at 100,000: past that many matches
+        the search fails with an ``HttpResponseError``. To read a larger index, order by a sortable and
+        filterable key and filter on ranges of it, e.g. ``order_by=["id"]`` and
+        ``filter="id gt '<last key read>'"``, one range per call.
+
         :param search: Full-text query, ``*`` for every document.
         :param select: Fields to return, all retrievable fields when omitted.
         :param filter: OData filter, e.g. ``"category eq 'report'"``.

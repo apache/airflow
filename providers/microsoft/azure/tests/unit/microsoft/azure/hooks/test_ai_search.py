@@ -85,6 +85,8 @@ class FakeSearchClient:
     async def get_document(self, key, selected_fields=None):
         for document in self.documents:
             if document["id"] == key:
+                if selected_fields:
+                    return {field: document.get(field) for field in selected_fields}
                 return document
         raise ResourceNotFoundError("not found")
 
@@ -326,6 +328,13 @@ class TestAzureAISearchHookAsync:
 
         assert await hook.get_document("2") == {"id": "2", "title": "title 2", "category": None}
         assert await hook.get_document("9") is None
+
+    async def test_get_document_with_select(self, search_service):
+        search_service.documents = docs(3)
+
+        document = await AzureAISearchHook(CONN_ID).get_document("2", select=["id", "title"])
+
+        assert document == {"id": "2", "title": "title 2"}
 
     @pytest.mark.parametrize(
         ("method", "sdk_method"),
