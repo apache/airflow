@@ -4969,6 +4969,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        decision_reason:
+          type: string
+          title: Decision Reason
+          description: Why the loop's gate continued or stopped the loop at this iteration,
+            if its until callable said.
       type: object
       required:
       - index

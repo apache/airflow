@@ -12211,6 +12211,11 @@ export const $LoopIterationSummary = {
                 }
             ],
             title: 'End Date'
+        },
+        decision_reason: {
+            type: 'string',
+            title: 'Decision Reason',
+            description: "Why the loop's gate continued or stopped the loop at this iteration, if its until callable said."
         }
     },
     type: 'object',
