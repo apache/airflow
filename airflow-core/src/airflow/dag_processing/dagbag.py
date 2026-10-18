@@ -122,13 +122,18 @@ def _get_bundle_team_name(bundle_name: str | None) -> str | None:
     return DagBundlesManager()._bundle_config[bundle_name].team_name
 
 
-def _validate_executor_fields(dag: DAG | SerializedDAG, bundle_name: str | None = None) -> None:
+def _validate_executor_fields(
+    dag: DAG | SerializedDAG,
+    bundle_name: str | None = None,
+    *,
+    team_name: str | None | ArgNotSet = NOTSET,
+) -> None:
     """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
     import logging
 
     log = logging.getLogger(__name__)
 
-    dag_team_name = _get_bundle_team_name(bundle_name)
+    dag_team_name = team_name if is_arg_set(team_name) else _get_bundle_team_name(bundle_name)
     if dag_team_name:
         log.debug("Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name)
 

@@ -19,16 +19,17 @@
 from __future__ import annotations
 
 import contextlib
-import functools
 import logging
 import os
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
@@ -450,7 +451,12 @@ class DagImporterRegistry:
             self._register_default_importers()
 
     @classmethod
-    def from_config(cls, bundle_name: str | None = None) -> Self:
+    def from_config(
+        cls,
+        bundle_name: str | None = None,
+        *,
+        bundle_importers: list[dict[str, Any] | str] | None | ArgNotSet = NOTSET,
+    ) -> Self:
         """
         Create and configure a DagImporterRegistry.
 
@@ -472,7 +478,8 @@ class DagImporterRegistry:
             registry.register_specs(global_importers, context="global configuration")
 
         if bundle_name:
-            bundle_importers = cls._get_bundle_importers_config(bundle_name)
+            if not is_arg_set(bundle_importers):
+                bundle_importers = cls._get_bundle_importers_config(bundle_name)
             if bundle_importers:
                 registry.register_specs(bundle_importers, context=f"bundle '{bundle_name}'")
 
@@ -529,7 +536,7 @@ class DagImporterRegistry:
         if importer not in self._ordered_importers:
             self._ordered_importers.append(importer)
 
-    def register_specs(self, configs: list[dict[str, Any]], context: str) -> None:
+    def register_specs(self, configs: list[dict[str, Any] | str], context: str) -> None:
         """Register importer specifications from configuration dictionaries."""
         for spec in _parse_importer_specs(configs, context=context):
             if spec.extensions is None:
@@ -669,7 +676,7 @@ class DagImporterRegistry:
                 self._ordered_importers.remove(evicted)
 
     @staticmethod
-    def _get_bundle_importers_config(bundle_name: str) -> list[dict[str, Any]] | None:
+    def _get_bundle_importers_config(bundle_name: str) -> list[dict[str, Any] | str] | None:
         """Retrieve importer configs for a specific bundle from configuration."""
         bundle_config_list = conf.getjson("dag_processor", "dag_bundle_config_list", fallback=None)
         if isinstance(bundle_config_list, list):
@@ -679,10 +686,23 @@ class DagImporterRegistry:
         return None
 
 
-@functools.cache
-def get_importer_registry(bundle_name: str | None = None) -> DagImporterRegistry:
-    """Get the cached DagImporterRegistry instance for global or bundle scope."""
-    return DagImporterRegistry.from_config(bundle_name=bundle_name)
+_importer_registries: dict[
+    str | None, tuple[list[dict[str, Any] | str] | None | ArgNotSet, DagImporterRegistry]
+] = {}
+
+
+def get_importer_registry(
+    bundle_name: str | None = None,
+    *,
+    bundle_importers: list[dict[str, Any] | str] | None | ArgNotSet = NOTSET,
+) -> DagImporterRegistry:
+    """Get the cached registry, using explicit bundle importer settings when supplied."""
+    cached = _importer_registries.get(bundle_name)
+    if cached is None or (is_arg_set(bundle_importers) and bundle_importers != cached[0]):
+        registry = DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=bundle_importers)
+        _importer_registries[bundle_name] = (deepcopy(bundle_importers), registry)
+        return registry
+    return cached[1]
 
 
 def reset_importer_registry() -> None:
@@ -691,5 +711,5 @@ def reset_importer_registry() -> None:
 
     The coordinator manager decides which Dag importers a registry holds, so it is cleared as well.
     """
-    get_importer_registry.cache_clear()
+    _importer_registries.clear()
     get_coordinator_manager.cache_clear()

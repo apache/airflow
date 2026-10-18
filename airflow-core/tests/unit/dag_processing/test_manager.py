@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import multiprocessing
 import os
 import random
 import re
@@ -53,7 +54,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.dagbag import DagBag, _get_bundle_team_name
+from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.manager import (
     BundleState,
@@ -484,11 +485,14 @@ class TestDagFileProcessorManager:
         bundles.sync_bundles_to_db.assert_not_called()
         mock_removed.assert_not_called()
 
+    @pytest.mark.parametrize("native", [False, True])
     @mock.patch.object(DagBundlesManager, "sync_bundles_to_db", autospec=True)
-    @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
-    @mock.patch.object(DagFileProcessorManager, "_get_team_names", autospec=True, return_value={})
+    @mock.patch.object(DagFileProcessorProcess, "start", autospec=True)
+    @mock.patch.object(LangSDKDagFileProcessorProcess, "start", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    @mock.patch("airflow.dag_processing.manager.get_claiming_importer", autospec=True)
     def test_failed_reconciliation_preserves_configuration_for_active_work(
-        self, mock_teams, mock_create, mock_sync, tmp_path
+        self, mock_claim, mock_logger, mock_native, mock_python, mock_sync, tmp_path, native
     ):
         bundle_path = tmp_path / "$HOME"
         bundle_path.mkdir()
@@ -502,6 +506,8 @@ class TestDagFileProcessorManager:
         ]
         config_file = tmp_path / "bundles.json"
         config_file.write_text(json.dumps(config))
+        mock_logger.return_value = (structlog.get_logger(), mock.Mock(spec=["close"]))
+        mock_claim.return_value = mock.sentinel.importer if native else None
         with conf_vars(
             {
                 ("core", "multi_team"): "True",
@@ -523,23 +529,25 @@ class TestDagFileProcessorManager:
                 bundle_name="bundle-a",
                 bundle_version="v1",
             )
+            assert (
+                processor.prepare_callback_bundle(request.model_copy(update={"bundle_name": "unapplied"}))
+                is None
+            )
             bundle = processor.prepare_callback_bundle(request)
             assert bundle is not None
             assert bundle.path == bundle_path
             assert bundle.version == "v1"
 
-            def create_process(manager, file):
-                assert _get_bundle_team_name(file.bundle_name) == "team-a"
+            def start(**kwargs):
+                code = (
+                    "from airflow.dag_processing.dagbag import _get_bundle_team_name; "
+                    "from airflow.dag_processing.bundles.manager import DagBundlesManager; "
+                    "import json; "
+                    "print(json.dumps([_get_bundle_team_name('bundle-a'), "
+                    "str(DagBundlesManager().get_bundle('bundle-a').path)]))"
+                )
                 result = subprocess.run(
-                    [
-                        sys.executable,
-                        "-c",
-                        "from airflow.dag_processing.dagbag import _get_bundle_team_name; "
-                        "from airflow.dag_processing.bundles.manager import DagBundlesManager; "
-                        "import json; "
-                        "print(json.dumps([_get_bundle_team_name('bundle-a'), "
-                        "str(DagBundlesManager().get_bundle('bundle-a').path)]))",
-                    ],
+                    [sys.executable, "-c", code],
                     env={
                         **os.environ,
                         "AIRFLOW__CORE__MULTI_TEAM": "True",
@@ -550,24 +558,45 @@ class TestDagFileProcessorManager:
                     check=True,
                 )
                 assert json.loads(result.stdout.splitlines()[-1]) == ["team-a", str(bundle_path)]
-                return mock.Mock(spec=DagFileProcessorProcess)
 
-            mock_create.side_effect = create_process
-            processor._file_queue[
+                context = multiprocessing.get_context("fork")
+                receiver, sender = context.Pipe(duplex=False)
+
+                def read_inherited_configuration():
+                    inherited = DagBundlesManager()
+                    sender.send(
+                        (
+                            inherited.get_bundle_team_name("bundle-a"),
+                            str(inherited.get_bundle("bundle-a").path),
+                        )
+                    )
+                    sender.close()
+
+                child = context.Process(target=read_inherited_configuration)
+                try:
+                    child.start()
+                    sender.close()
+                    assert receiver.poll(10)
+                    assert receiver.recv() == ("team-a", str(bundle_path))
+                    child.join(timeout=10)
+                    assert child.exitcode == 0
+                finally:
+                    if child.is_alive():
+                        child.terminate()
+                        child.join(timeout=10)
+                    receiver.close()
+                    sender.close()
+                if native:
+                    assert kwargs["team_name"] == "team-a"
+                    assert kwargs["importer_registry"] is processor._get_importer_registry("bundle-a")
+                return mock.Mock(spec=LangSDKDagFileProcessorProcess if native else DagFileProcessorProcess)
+
+            mock_start = mock_native if native else mock_python
+            mock_start.side_effect = start
+            processor._create_process(
                 DagFileInfo(bundle_name="bundle-a", bundle_path=bundle_path, rel_path=Path("dag.py"))
-            ] = None
-            processor._start_new_processes()
-            mock_create.assert_called_once()
-
-            def handle_response(_):
-                assert _get_bundle_team_name("bundle-a") == "team-a"
-                return True
-
-            processor.selector = mock.Mock(spec=selectors.BaseSelector)
-            processor.selector.select.return_value = [
-                (selectors.SelectorKey(0, 0, selectors.EVENT_READ, (handle_response, None)), 0)
-            ]
-            processor._service_processor_sockets(timeout=0)
+            )
+            mock_start.assert_called_once()
             assert "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST" not in os.environ
 
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])

@@ -25,8 +25,6 @@ import time
 import warnings
 from collections import defaultdict
 from configparser import ConfigParser
-from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -44,11 +42,10 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.process_utils import patch_environ
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterable
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
@@ -95,7 +92,7 @@ class _ExternalBundleConfig(BaseModel):
     classpath: str
     kwargs: dict
     team_name: str | None = None
-    importers: list[dict[str, Any]] | None = None
+    importers: list[dict[str, Any] | str] | None = None
 
 
 class _InternalBundleConfig(BaseModel):
@@ -126,9 +123,6 @@ class _BundleConfigSnapshot:
     names: frozenset[str]
     team_names: dict[str, str | None]
     last_checked: float = field(default_factory=lambda: time.monotonic())
-
-
-_bundle_config_context: ContextVar[_BundleConfigSnapshot | None] = ContextVar("bundle_config", default=None)
 
 
 def _get_bundle_config_reload_option() -> tuple[str, str] | None:
@@ -179,11 +173,18 @@ def _load_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfi
     return _create_bundle_config_snapshot(_read_bundle_config_list())
 
 
+def _reset_bundle_config_after_fork() -> None:
+    # Parsers receive an explicit list; other forks retain the last valid snapshot.
+    if "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST" in os.environ:
+        _load_bundle_config_snapshot.cache_clear()
+
+
+os.register_at_fork(after_in_child=_reset_bundle_config_after_fork)
+
+
 def _refresh_bundle_config_snapshot(
     *, force: bool = False, metadata_only: bool = False
 ) -> _BundleConfigSnapshot:
-    if snapshot := _bundle_config_context.get():
-        return snapshot
     snapshot = (
         _load_bundle_config_snapshot(metadata_only=True) if metadata_only else _load_bundle_config_snapshot()
     )
@@ -437,7 +438,7 @@ class DagBundlesManager(LoggingMixin):
 
         :meta private:
         """
-        snapshot = _bundle_config_context.get() or _load_bundle_config_snapshot()
+        snapshot = _load_bundle_config_snapshot()
         self._snapshot = replace(snapshot)
         if self._bundle_config.keys() == snapshot.names:
             return
@@ -813,24 +814,20 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
-    @contextmanager
-    def use_bundle_config(self) -> Iterator[None]:
-        """
-        Use this manager's accepted configuration for active bundle work.
+    def get_bundle_importers(self, name: str) -> list[dict[str, Any] | str] | None:
+        """Get importer settings from this manager's accepted configuration."""
+        config = self._snapshot.configs.get(name)
+        return config.importers if config else None
 
-        :meta private:
-        """
+    def get_bundle_team_name(self, name: str) -> str | None:
+        """Get ownership from this manager's accepted configuration."""
+        return self._snapshot.team_names.get(name)
+
+    def get_bundle_config_env(self) -> dict[str, str]:
+        """Get the accepted configuration to pass to a fresh parser interpreter."""
         if not is_bundle_config_reload_enabled():
-            yield
-            return
-        snapshot = self._snapshot
-        token = _bundle_config_context.set(snapshot)
-        try:
-            # Fresh interpreters inherit the environment, but cannot inherit the accepted snapshot.
-            with patch_environ({"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": snapshot.config_json}):
-                yield
-        finally:
-            _bundle_config_context.reset(token)
+            return {}
+        return {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": self._snapshot.config_json}
 
     def _refresh_config(self) -> None:
         """Refresh bundle configuration and update this manager."""
@@ -849,10 +846,9 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
-        snapshot = _bundle_config_context.get() or _load_bundle_config_snapshot()
-        if name not in snapshot.names:
-            snapshot = _refresh_bundle_config_snapshot(force=True)
-        if name not in self._bundle_config or name not in snapshot.names:
+        if name not in self._bundle_config:
+            if name not in _load_bundle_config_snapshot().names:
+                _refresh_bundle_config_snapshot(force=True)
             self.parse_config()
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
