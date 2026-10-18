@@ -1258,6 +1258,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
+    data_interval_start = association_proxy("dag_run", "data_interval_start")
+    data_interval_end = association_proxy("dag_run", "data_interval_end")
     team_name = association_proxy("dag_run", "team_name")
     task_instance_note = relationship(
         "TaskInstanceNote",
