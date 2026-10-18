@@ -52,6 +52,10 @@ from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryPolicy, RetryRule
 from airflow.sdk.log import mask_secret
 
+requires_reschedule = pytest.mark.skipif(
+    not hasattr(RetryAction, "RESCHEDULE"), reason="RESCHEDULE needs Airflow 3.5+"
+)
+
 HOOK = "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook"
 
 
@@ -1135,6 +1139,37 @@ class TestOnUncertain:
         assert decision.retry_delay == timedelta(seconds=9)
         assert decision.reason == "escalated (model_error)"
 
+    @requires_reschedule
+    def test_reschedule_from_fallback_policy_keeps_its_bounds(self):
+        inner = MagicMock(spec=LLMRetryPolicy)
+        inner.evaluate.return_value = RetryDecision.reschedule(
+            timedelta(minutes=10), max_reschedules=6, reason="quota full"
+        )
+        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, fallback_policy=inner)
+
+        decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision == RetryDecision.reschedule(
+            timedelta(minutes=10), max_reschedules=6, reason="escalated (model_error); quota full"
+        )
+
+    @requires_reschedule
+    def test_reschedule_from_fallback_rules_keeps_its_bounds(self):
+        rule = RetryRule(
+            exception=RuntimeError,
+            action=RetryAction.RESCHEDULE,
+            reschedule_timeout=timedelta(hours=4),
+            reason="quota full",
+        )
+        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, fallback_rules=[rule])
+
+        decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision == RetryDecision.reschedule(
+            reschedule_timeout=timedelta(hours=4),
+            reason="classifier answer not applied (model_error); quota full",
+        )
+
     @pytest.mark.parametrize(
         "inner_decision",
         [
@@ -1150,7 +1185,7 @@ class TestOnUncertain:
         ],
     )
     def test_any_default_from_fallback_policy_lets_the_outer_rules_run(self, inner_decision, caplog):
-        """Only RETRY or FAIL ends the chain; the reason text on a DEFAULT does not make it a decision."""
+        """Only a decision other than DEFAULT ends the chain; the reason text on a DEFAULT does not make it one."""
         inner = MagicMock(spec=LLMRetryPolicy)
         inner.evaluate.return_value = inner_decision
         policy = ClassifierRetryPolicy(
