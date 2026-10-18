@@ -37,7 +37,7 @@ from airflow_breeze.global_constants import MOUNT_SELECTED
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.console import Output, console_print
 from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
-from airflow_breeze.utils.github import download_constraints_file
+from airflow_breeze.utils.github import download_constraints_file, get_branch_commit
 from airflow_breeze.utils.packages import load_pyproject_toml
 from airflow_breeze.utils.parallel import get_temp_file_name
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -302,6 +302,20 @@ def get_first_newer_release_date_str(releases, current_version):
         return None
 
 
+def save_constraints(constraints: str, constraints_commit: str | None, directory: Path) -> None:
+    """Keep the checked constraints for a later report. Failing to keep them never fails the check."""
+    if not constraints_commit:
+        console_print("[warning]Constraints not saved: the constraints commit could not be read.[/]")
+        return
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "constraints.txt").write_text(constraints)
+        # Written last, so that its presence means the copy is complete.
+        (directory / "constraints-commit.txt").write_text(f"{constraints_commit}\n")
+    except OSError as e:
+        console_print(f"[warning]Constraints not saved to {directory}: {e}[/]")
+
+
 def constraints_version_check(
     python: str,
     airflow_constraints_mode: str,
@@ -312,6 +326,7 @@ def constraints_version_check(
     github_repository: str | None = None,
     cooldown_days: int = 4,
     constraints_file: Path | None = None,
+    save_constraints_to: Path | None = None,
 ):
     console_print(f"[bold cyan]Python version:[/] [white]{python}[/]")
     console_print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]")
@@ -324,16 +339,25 @@ def constraints_version_check(
     if constraints_file is not None:
         lines = constraints_file.read_text().splitlines()
     else:
+        # A saved copy records its commit, so the branch is resolved first and downloaded at that commit.
+        constraints_commit = (
+            get_branch_commit(DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH, github_token)
+            if save_constraints_to
+            else None
+        )
         with tempfile.TemporaryDirectory() as temp_dir:
             downloaded_file = Path(temp_dir) / "constraints.txt"
             download_constraints_file(
-                constraints_reference=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+                constraints_reference=constraints_commit or DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
                 python_version=python,
                 airflow_constraints_mode=airflow_constraints_mode,
                 github_token=github_token,
                 output_file=downloaded_file,
             )
-            lines = downloaded_file.read_text().splitlines()
+            constraints = downloaded_file.read_text()
+        if save_constraints_to:
+            save_constraints(constraints, constraints_commit, save_constraints_to)
+        lines = constraints.splitlines()
     constraints_date = parse_constraints_generation_date(lines)
     if constraints_date:
         console_print(

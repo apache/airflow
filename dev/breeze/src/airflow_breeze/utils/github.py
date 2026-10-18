@@ -325,6 +325,37 @@ def download_constraints_file(
     )
 
 
+def get_branch_commit(branch: str, github_token: str | None = None, timeout: int = 60) -> str | None:
+    """
+    Returns the commit a branch of the GitHub repository of Apache Airflow points to.
+
+    Unlike the downloads above, it never exits the process: any error is reported as a warning.
+
+    :param branch: branch to resolve
+    :param github_token: GitHub token to use for authentication
+    :param timeout: timeout in seconds for the request, default is 60 seconds
+    :return: the commit SHA, or None if it could not be read
+    """
+    import requests
+
+    url = f"https://api.github.com/repos/apache/airflow/commits/{branch}"
+    headers = {"Accept": "application/vnd.github.sha"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+    try:
+        response = requests.get(url, headers=headers, timeout=timeout)
+    except requests.RequestException as e:
+        console_print(f"[warning]Could not read the commit of {branch}: {e}")
+        return None
+    commit = response.text.strip()
+    if response.status_code != 200 or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        log_github_rate_limit_error(response)
+        console_print(f"[warning]Could not read the commit of {branch}. Status code {response.status_code}")
+        return None
+    return commit
+
+
 def get_tag_date(tag: str) -> str | None:
     """
     Returns UTC timestamp of the tag in the repo in iso time format 8601

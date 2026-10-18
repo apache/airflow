@@ -4976,6 +4976,12 @@ def publish_schemas_to_s3(
     help="Check this saved constraints file instead of downloading the current constraints branch.",
 )
 @click.option(
+    "--save-constraints-to",
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Also save the downloaded constraints and their commit to this directory. "
+    "A failure to save them is reported as a warning and does not fail the check.",
+)
+@click.option(
     "--diff-mode",
     type=click.Choice(["full", "diff-all", "diff-constraints"], case_sensitive=False),
     default="full",
@@ -5007,6 +5013,7 @@ def version_check(
     python: str,
     airflow_constraints_mode: str,
     constraints_file: Path | None,
+    save_constraints_to: Path | None,
     diff_mode,
     package: tuple[str],
     explain_why: bool,
@@ -5015,6 +5022,11 @@ def version_check(
     github_repository: str,
     builder: str,
 ):
+    if constraints_file and save_constraints_to:
+        console_print(
+            "[error]--save-constraints-to saves downloaded constraints, not a --constraints-file.[/]"
+        )
+        sys.exit(1)
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -5038,6 +5050,7 @@ def version_check(
         github_repository=github_repository,
         cooldown_days=cooldown_days,
         constraints_file=constraints_file,
+        save_constraints_to=save_constraints_to,
     )
 
 

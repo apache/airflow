@@ -597,6 +597,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--airflow-constraints-mode",
                 "--constraints-file",
+                "--save-constraints-to",
                 "--github-repository",
                 "--github-token",
             ],

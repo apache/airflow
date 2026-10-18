@@ -24,6 +24,7 @@ import pytest
 from airflow_breeze.utils.github import (
     env_without_github_tokens,
     format_github_token_scope_guidance,
+    get_branch_commit,
     retrieve_github_token,
     run_gh_command,
 )
@@ -182,3 +183,37 @@ def test_run_gh_command_skips_subprocess_in_dry_run(mock_run):
 
     assert result.returncode == 0
     mock_run.assert_not_called()
+
+
+@mock.patch("requests.get")
+def test_get_branch_commit_returns_the_commit_sha(mock_get):
+    mock_get.return_value = mock.Mock(status_code=200, text="c" * 40 + "\n")
+
+    assert get_branch_commit("constraints-main", github_token="token") == "c" * 40
+    assert (
+        mock_get.call_args.args[0] == "https://api.github.com/repos/apache/airflow/commits/constraints-main"
+    )
+    assert mock_get.call_args.kwargs["headers"]["Authorization"] == "Bearer token"
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        mock.Mock(status_code=403, text="", headers={}, **{"json.return_value": {"message": "rate limit"}}),
+        mock.Mock(status_code=200, text="<html>not a sha</html>", headers={}),
+    ],
+)
+@mock.patch("requests.get")
+def test_get_branch_commit_returns_none_instead_of_exiting(mock_get, response):
+    mock_get.return_value = response
+
+    assert get_branch_commit("constraints-main") is None
+
+
+@mock.patch("requests.get")
+def test_get_branch_commit_returns_none_when_github_is_unreachable(mock_get):
+    import requests
+
+    mock_get.side_effect = requests.ConnectionError("unreachable")
+
+    assert get_branch_commit("constraints-main") is None
