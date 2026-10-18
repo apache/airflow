@@ -182,6 +182,10 @@ def get_dag_deadline_alerts(
     dag_id: str,
     session: SessionDep,
     limit: QueryLimit,
+    name: Annotated[
+        FilterParam[str | None],
+        Depends(filter_param_factory(DeadlineAlert.name, str | None)),
+    ],
     offset: QueryOffset,
     order_by: Annotated[
         SortParam,
@@ -221,7 +225,7 @@ def get_dag_deadline_alerts(
 
     alerts_select, total_entries = paginated_select(
         statement=query,
-        filters=None,
+        filters=[name],
         order_by=order_by,
         offset=offset,
         limit=limit,
