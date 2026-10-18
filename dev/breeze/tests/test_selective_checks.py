@@ -38,6 +38,7 @@ from airflow_breeze.global_constants import (
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
+    get_airflow_version,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
@@ -3524,6 +3525,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
                         check
                         for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                         if check["python-version"] == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+                        and check["airflow-version"] != get_airflow_version()
                     ]
                 ),
             },
@@ -3531,7 +3533,15 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         ),
         pytest.param(
             ("all versions",),
-            {"providers-compatibility-tests-matrix": json.dumps(PROVIDERS_COMPATIBILITY_TESTS_MATRIX)},
+            {
+                "providers-compatibility-tests-matrix": json.dumps(
+                    [
+                        check
+                        for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
+                        if check["airflow-version"] != get_airflow_version()
+                    ]
+                )
+            },
             id="full tests",
         ),
     ],
@@ -3545,6 +3555,32 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@patch("airflow_breeze.utils.selective_checks.get_airflow_version")
+def test_provider_compatibility_matrix_excludes_current_unreleased_version(mock_get_airflow_version):
+    # The current branch's own version is added to the matrix by the version-bump commit before it is
+    # released; it must be excluded so compat jobs don't try to pull an image/package that is not published yet.
+    current_version = PROVIDERS_COMPATIBILITY_TESTS_MATRIX[-1]["airflow-version"]
+    mock_get_airflow_version.return_value = current_version
+    stderr = SelectiveChecks(
+        files=(),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=("all versions",),
+        default_branch="main",
+    )
+    expected = json.dumps(
+        [
+            check
+            for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
+            if check["airflow-version"] != current_version
+        ]
+    )
+    assert_outputs_are_printed({"providers-compatibility-tests-matrix": expected}, str(stderr))
+    assert f'"airflow-version": "{current_version}"' not in get_outputs_from_stderr(str(stderr)).get(
+        "providers-compatibility-tests-matrix", ""
+    )
 
 
 @pytest.mark.parametrize(
