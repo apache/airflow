@@ -17,12 +17,16 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import type { HttpHandler } from "msw";
 import { setupServer, type SetupServer } from "msw/node";
 import { beforeEach, beforeAll, afterAll, afterEach, vi } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
+
+// Route modules are loaded asynchronously in production. Give full-suite runs
+// enough time to resolve them when test workers are competing for CPU.
+configure({ asyncUtilTimeout: 10_000 });
 
 // ELK creates a Worker at module-load time, which is not available in
 // happy-dom. Mock useGraphLayout so the Worker is never constructed. Any
