@@ -428,18 +428,8 @@ def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
     return full_command
 
 
-def _build_metrics(func_name, namespace):
-    """
-    Build metrics dict from function args.
-
-    It assumes that function arguments is from airflow.bin.cli module's function
-    and has Namespace instance where it optionally contains "dag_id", "task_id",
-    "logical_date", and a team name.
-
-    :param func_name: name of function
-    :param namespace: Namespace instance from argparse
-    :return: dict with metrics
-    """
+def _mask_full_command(full_command: list[str], namespace) -> list[str]:
+    """Mask the secrets in the command line recorded in the audit log."""
     from airflow._shared.secrets_masker import _secrets_masker
 
     sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
@@ -449,7 +439,7 @@ def _build_metrics(func_name, namespace):
     # providers (``keycloak-auth-manager ... --password``), so they are masked everywhere. ``-p``
     # is only a password on the subcommands above; elsewhere it is e.g. ``--port``.
     always_sensitive_fields = {"--password", "--conn-password"}
-    full_command = list(sys.argv)
+    full_command = list(full_command)
     sub_command = full_command[1] if len(full_command) > 1 else None
     # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
     if sub_command in sub_commands_to_check_for_sensitive_key:
@@ -480,7 +470,30 @@ def _build_metrics(func_name, namespace):
 
     # Options carrying secrets (on their own, or inside JSON and URIs) are masked by their
     # parsed value, whatever spelling was used for them on the command line.
-    full_command = _mask_parsed_arguments(full_command, namespace)
+    return _mask_parsed_arguments(full_command, namespace)
+
+
+def _build_metrics(func_name, namespace):
+    """
+    Build metrics dict from function args.
+
+    It assumes that function arguments is from airflow.bin.cli module's function
+    and has Namespace instance where it optionally contains "dag_id", "task_id",
+    "logical_date", and a team name.
+
+    :param func_name: name of function
+    :param namespace: Namespace instance from argparse
+    :return: dict with metrics
+    """
+    try:
+        full_command = _mask_full_command(sys.argv, namespace)
+    except Exception as e:
+        # This runs before the command itself, so a masking bug must not abort the command, and
+        # must not record anything a secret could be in; the error text could quote it too.
+        logger.warning(
+            "Could not mask the command line for the audit log (%s); recording it masked", type(e).__name__
+        )
+        full_command = [*sys.argv[:1], MASKED_VALUE]
 
     metrics = {
         "sub_command": func_name,

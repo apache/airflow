@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import ast
 import json
 import os
@@ -855,6 +856,53 @@ class TestCliUtil:
             "********",
         ]
 
+    @mock.patch.object(cli, "_mask_parsed_arguments", side_effect=RuntimeError("cannot mask S3CRET"))
+    @mock.patch.object(cli_action_loggers, "on_pre_execution", autospec=True)
+    def test_masking_failure_does_not_abort_the_command_or_leak_the_secret(
+        self, mock_on_pre_execution, _mock_mask
+    ):
+        command = ["airflow", "users", "create", "-u", "alice", "--password", "S3CRET"]
+        with mock.patch.object(sys, "argv", command):
+            assert returns_ran(Namespace(username="alice", password="S3CRET")) == "ran"
+
+        recorded = mock_on_pre_execution.call_args.kwargs["full_command"]
+        assert ast.literal_eval(recorded) == ["airflow", "********"]
+        assert "S3CRET" not in recorded
+
+    def test_short_option_table_matches_the_parsers(self):
+        """The short-option table must follow the command definitions, or masking drifts silently."""
+        from airflow.cli import cli_parser
+
+        def get_subparsers(parser):
+            for action in parser._actions:
+                if isinstance(action, argparse._SubParsersAction):
+                    return action.choices
+            return {}
+
+        masked_dests = {*cli._SECRET_OPTIONS, *cli._JSON_OPTIONS, *cli._URI_OPTIONS}
+        groups = get_subparsers(cli_parser.get_parser())
+        actual = {}
+        for group, group_parser in groups.items():
+            for command, command_parser in get_subparsers(group_parser).items():
+                short = {
+                    option[1]: action
+                    for action in command_parser._actions
+                    for option in action.option_strings
+                    if len(option) == 2 and option != "-h"
+                }
+                if any(action.dest in masked_dests for action in short.values()):
+                    flags = "".join(sorted(o for o, a in short.items() if a.nargs == 0))
+                    values = "".join(sorted(o for o, a in short.items() if a.nargs != 0))
+                    actual[(group, command)] = (flags, values)
+
+        # Provider command groups (``users``, ``celery``) only exist when the provider is installed.
+        expected = {
+            key: ("".join(sorted(flags)), "".join(sorted(values)))
+            for key, (flags, values) in cli._SHORT_OPTION_ARITY.items()
+            if key[0] in groups
+        }
+        assert expected == actual
+
     def test_action_log_records_team_name(self, session):
         namespace = Namespace(team_name="payments")
         with (
@@ -1011,6 +1059,11 @@ def fail_func(_):
 @cli.action_cli(check_db=False)
 def success_func(_):
     pass
+
+
+@cli.action_cli(check_db=False)
+def returns_ran(_):
+    return "ran"
 
 
 def test__search_for_dags_file():
