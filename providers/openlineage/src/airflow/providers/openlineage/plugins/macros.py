@@ -24,8 +24,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_job_name,
     get_parent_information_from_dagrun_conf,
     get_root_information_from_dagrun_conf,
-    get_task_instance_map_index,
-    is_task_instance_in_loop,
+    get_task_instance_run_id,
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -65,15 +64,7 @@ def lineage_run_id(task_instance: TaskInstance):
         For more information take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
-    if is_task_instance_in_loop(task_instance):
-        return str(task_instance.id)
-    return OpenLineageAdapter.build_task_instance_run_id(
-        dag_id=task_instance.dag_id,
-        task_id=task_instance.task_id,
-        try_number=task_instance.try_number,
-        logical_date=_get_logical_date(task_instance),
-        map_index=get_task_instance_map_index(task_instance),
-    )
+    return get_task_instance_run_id(task_instance, logical_date=_get_logical_date(task_instance))
 
 
 def lineage_parent_id(task_instance: TaskInstance):

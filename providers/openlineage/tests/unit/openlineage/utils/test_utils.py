@@ -83,10 +83,10 @@ from airflow.providers.openlineage.utils.utils import (
     get_task_documentation,
     get_task_instance_map_index,
     get_task_instance_position,
+    get_task_instance_run_id,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
     is_dag_run_asset_triggered,
-    is_task_instance_in_loop,
     is_valid_uuid,
     translate_airflow_asset,
 )
@@ -3944,7 +3944,7 @@ def test_orm_lineage_facets_project_public_index(dag_maker, session, mapped):
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
 @pytest.mark.parametrize("in_loop", [False, True])
-def test_task_instance_is_in_loop_only_inside_a_loop(in_loop):
+def test_task_instance_run_id_is_the_attempt_uuid_only_inside_a_loop(in_loop):
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
 
@@ -3960,15 +3960,40 @@ def test_task_instance_is_in_loop_only_inside_a_loop(in_loop):
             body()
     ti = SimpleNamespace(
         id=uuid4(),
+        dag_id="run_id_dag",
+        task_id="body.work",
+        try_number=1,
         region_id=uuid4(),
         map_index=-1,
         task=dag.get_task("body.work"),
         get_template_context=MagicMock(),
     )
+    logical_date = timezone.datetime(2024, 1, 1)
 
-    assert is_task_instance_in_loop(ti) is in_loop
+    run_id = get_task_instance_run_id(ti, logical_date=logical_date)
+
+    assert run_id == (
+        str(ti.id)
+        if in_loop
+        else build_task_instance_ol_run_id(
+            dag_id="run_id_dag", task_id="body.work", try_number=1, logical_date=logical_date, map_index=-1
+        )
+    )
     assert get_task_instance_map_index(ti) == -1
     ti.get_template_context.assert_not_called()
+
+
+def test_task_instance_run_id_uses_the_map_index_of_the_given_position():
+    ti = SimpleNamespace(id=uuid4(), dag_id="dag", task_id="task", try_number=2)
+    logical_date = timezone.datetime(2024, 1, 1)
+
+    run_id = get_task_instance_run_id(
+        ti, logical_date=logical_date, position=TaskInstancePosition(in_loop=False, map_index=3)
+    )
+
+    assert run_id == build_task_instance_ol_run_id(
+        dag_id="dag", task_id="task", try_number=2, logical_date=logical_date, map_index=3
+    )
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
@@ -4026,6 +4051,62 @@ def test_runtime_task_instance_position_without_its_iteration_when_the_context_f
     assert get_task_instance_position(ti) == TaskInstancePosition(
         in_loop=True, map_index=-1, loop_group_id="body"
     )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+def test_stored_mapped_task_in_loop_is_placed_without_iteration_when_its_region_query_fails():
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("stored_mapped_loop_dag") as dag:
+
+        @task_group
+        def body():
+            PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+
+        create_loop(body, max_iterations=3)
+    ti = TaskInstance(task=dag.get_task("body.work"), dag_version_id=uuid7())
+    ti.region_id = uuid4()
+    ti.region_index = 1
+    session = MagicMock(spec=Session)
+    session.execute.side_effect = OSError("connection lost")
+
+    positions = get_orm_task_instance_positions([ti], session=session)
+
+    assert positions == {
+        ti.id: TaskInstancePosition(in_loop=True, map_index=1, loop_max_iterations=3, loop_group_id="body")
+    }
+    session.begin_nested.assert_called_once_with()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+def test_stored_task_instance_without_task_still_raises_when_its_region_query_fails():
+    ti = TaskInstance(task=MagicMock(), run_id="run_id", dag_version_id=uuid7())
+    ti.region_id = uuid4()
+    ti.region_index = 1
+    ti.task = None
+    session = MagicMock(spec=Session)
+    session.execute.side_effect = OSError("connection lost")
+
+    with pytest.raises(OSError, match="connection lost"):
+        get_orm_task_instance_positions([ti], session=session)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+def test_task_in_a_task_group_of_unknown_type_is_assumed_in_a_loop():
+    task = SimpleNamespace(task_id="work", task_group=SimpleNamespace(group_id="unknown"))
+    ti = SimpleNamespace(id=uuid4(), region_id=uuid4(), map_index=-1, task=task)
+
+    assert get_task_instance_position(ti) == TaskInstancePosition(in_loop=True, map_index=-1)
+
+
+def test_task_instance_info_uses_a_given_position_as_is():
+    ti = SimpleNamespace(id=uuid4(), map_index=-1, get_template_context=MagicMock())
+
+    info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=True, map_index=-1)))
+
+    assert "loop_index" not in info
+    ti.get_template_context.assert_not_called()
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
@@ -4088,10 +4169,10 @@ def test_runtime_task_instance_info_has_loop_index_only_inside_a_loop(in_loop, m
 @pytest.mark.parametrize(
     ("until", "loop_index", "expected", "runs_out"),
     [
-        pytest.param(None, 1, {"stop": False, "reason": None}, False, id="no_until_continues"),
-        pytest.param(None, 2, {"stop": True, "reason": None}, False, id="no_until_stops_at_last"),
+        pytest.param(None, 1, {"stop": False}, False, id="no_until_continues"),
+        pytest.param(None, 2, {"stop": True}, False, id="no_until_stops_at_last"),
         pytest.param("done", 0, {"stop": True, "reason": "done"}, False, id="until_stops_with_reason"),
-        pytest.param(False, 2, {"stop": False, "reason": None}, True, id="until_false_at_last"),
+        pytest.param(False, 2, {"stop": False}, True, id="until_false_at_last"),
     ],
 )
 def test_task_instance_info_has_the_decision_of_a_loop_gate(until, loop_index, expected, runs_out):
@@ -4189,9 +4270,7 @@ def test_stored_mapped_task_in_loop_gets_its_iteration_from_its_region(with_sess
     ti.region_id = uuid4()
     ti.region_index = 1
     session = MagicMock(spec=Session)
-    session.execute.return_value = [
-        SimpleNamespace(id=ti.region_id, node_id="body.work", parent_region_id=uuid4(), parent_region_index=2)
-    ]
+    session.execute.return_value = [_region_row(ti.region_id, "body.work", parent=(uuid4(), 2, "body"))]
 
     positions = get_orm_task_instance_positions([ti], session=session if with_session else None)
 
@@ -4266,6 +4345,208 @@ def test_task_group_info_has_loop_attributes_only_for_a_loop():
     )
 
 
+def _region_row(region_id, node_id, *, parent=None, grandparent_region_id=None):
+    """Build a row of the region query: ``parent`` is ``(parent_region_id, parent_region_index, parent_node_id)``."""
+    parent_region_id, parent_region_index, parent_node_id = parent or (None, None, None)
+    return SimpleNamespace(
+        id=region_id,
+        node_id=node_id,
+        parent_region_id=parent_region_id,
+        parent_region_index=parent_region_index,
+        parent_node_id=parent_node_id,
+        grandparent_region_id=grandparent_region_id,
+    )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
+@pytest.mark.parametrize(
+    ("own_region", "parent", "grandparent_region_id", "map_index"),
+    [
+        pytest.param(True, (uuid4(), 2, "outer"), uuid4(), 1, id="mapped_task_two_levels_deep"),
+        pytest.param(False, (uuid4(), 2, "outer"), None, -1, id="enclosing_region_not_top_level"),
+        pytest.param(False, None, None, -1, id="region_missing"),
+    ],
+)
+def test_stored_task_instance_in_an_unexpected_region_shape_is_placed_without_iteration(
+    own_region, parent, grandparent_region_id, map_index
+):
+    ti = TaskInstance(task=MagicMock(), run_id="run_id", dag_version_id=uuid7())
+    ti.task_id = "work"
+    ti.region_id = uuid4()
+    ti.region_index = 1
+    ti.task = None
+    session = MagicMock(spec=Session)
+    rows = []
+    if parent is not None or own_region:
+        rows = [
+            _region_row(
+                ti.region_id,
+                "work" if own_region else "group",
+                parent=parent,
+                grandparent_region_id=grandparent_region_id,
+            )
+        ]
+    session.execute.return_value = rows
+
+    assert get_orm_task_instance_positions([ti], session=session) == {
+        ti.id: TaskInstancePosition(in_loop=True, map_index=map_index)
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+@pytest.mark.parametrize(
+    ("parent", "grandparent_region_id"),
+    [
+        pytest.param((uuid4(), 2, "another_loop"), None, id="parent_is_not_its_loop"),
+        pytest.param((uuid4(), 2, "body"), uuid4(), id="loop_region_not_top_level"),
+    ],
+)
+def test_stored_mapped_task_in_loop_keeps_no_iteration_from_an_unexpected_region_shape(
+    parent, grandparent_region_id
+):
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("stored_mapped_loop_dag") as dag:
+
+        @task_group
+        def body():
+            PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+
+        create_loop(body, max_iterations=3)
+    ti = TaskInstance(task=dag.get_task("body.work"), dag_version_id=uuid7())
+    ti.region_id = uuid4()
+    ti.region_index = 1
+    session = MagicMock(spec=Session)
+    session.execute.return_value = [
+        _region_row(ti.region_id, "body.work", parent=parent, grandparent_region_id=grandparent_region_id)
+    ]
+
+    assert get_orm_task_instance_positions([ti], session=session) == {
+        ti.id: TaskInstancePosition(in_loop=True, map_index=1, loop_max_iterations=3, loop_group_id="body")
+    }
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+@pytest.mark.parametrize("task_attached", [False, True])
+def test_region_shapes_of_airflow_are_the_ones_openlineage_places(dag_maker, session, task_attached):
+    """
+    Pin the regions Airflow creates, which ``get_orm_task_instance_positions`` relies on to place task instances.
+
+    If this fails, Airflow changed which regions it creates or how they nest: update the region parsing in
+    ``get_orm_task_instance_positions`` and its comment before changing these expectations.
+    """
+    from airflow.sdk import task, task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with dag_maker(serialized=True) as dag:
+
+        @task_group
+        def body():
+            plain = EmptyOperator(task_id="plain")
+            mapped = PythonOperator.partial(task_id="mapped", python_callable=list).expand(op_kwargs=[{}, {}])
+
+            @task_group
+            def mapped_group(x):
+                @task
+                def member(x):
+                    return x
+
+                member(x)
+
+            last = EmptyOperator(task_id="last")
+            plain >> mapped >> mapped_group.expand(x=[1, 2]) >> last
+
+        create_loop(body, max_iterations=2)
+
+        @task_group
+        def top_group(x):
+            @task
+            def top_member(x):
+                return x
+
+            top_member(x)
+
+        top_group.expand(x=[1, 2])
+    run = dag_maker.create_dagrun()
+    tis = [ti for ti in run.task_instances if ti.task_id != "body.__loop_gate"]
+    for ti in tis:
+        ti.task = dag.get_task(ti.task_id) if task_attached else None
+    in_loop_extra = {"loop_max_iterations": 2} if task_attached else {}
+
+    positions = get_orm_task_instance_positions(tis, session=session)
+
+    assert {(ti.task_id, ti.region_index): positions[ti.id] for ti in tis} == {
+        ("body.plain", 0): TaskInstancePosition(
+            in_loop=True, map_index=-1, loop_index=0, loop_group_id="body", **in_loop_extra
+        ),
+        ("body.last", 0): TaskInstancePosition(
+            in_loop=True, map_index=-1, loop_index=0, loop_group_id="body", **in_loop_extra
+        ),
+        **{
+            (task_id, map_index): TaskInstancePosition(
+                in_loop=True, map_index=map_index, loop_index=0, loop_group_id="body", **in_loop_extra
+            )
+            for task_id in ("body.mapped", "body.mapped_group.member")
+            for map_index in (0, 1)
+        },
+        **{
+            ("top_group.top_member", map_index): TaskInstancePosition(in_loop=False, map_index=map_index)
+            for map_index in (0, 1)
+        },
+    }
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+@pytest.mark.parametrize("shape", ["nested_loop", "loop_in_mapped_group", "expand_in_mapped_group"])
+def test_region_shapes_stay_limited_by_the_task_sdk(shape):
+    """
+    Pin the Dag shapes the task SDK rejects, which ``get_orm_task_instance_positions`` relies on.
+
+    If one of them stops raising, a task can sit two region levels deep, which OpenLineage places as a loop
+    without its iteration: support the new shape in ``get_orm_task_instance_positions``, then update this test.
+    """
+    from airflow.sdk import task, task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    def define_dag():
+        with DAG(f"{shape}_dag"):
+
+            @task_group
+            def inner():
+                EmptyOperator(task_id="work")
+
+            if shape == "nested_loop":
+
+                @task_group
+                def outer():
+                    create_loop(inner, max_iterations=2)
+
+                create_loop(outer, max_iterations=2)
+            elif shape == "loop_in_mapped_group":
+
+                @task_group
+                def mapped_outer(x):
+                    create_loop(inner, max_iterations=2)
+
+                mapped_outer.expand(x=[1, 2])
+            else:
+
+                @task_group
+                def mapped_outer(x):
+                    @task
+                    def member(y):
+                        return y
+
+                    member.expand(y=[x])
+
+                mapped_outer.expand(x=[1, 2])
+
+    with pytest.raises(NotImplementedError):
+        define_dag()
+
+
 @pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
 @pytest.mark.parametrize("kind", ["plain_loop", "mapped", "mapped_in_loop"])
@@ -4295,7 +4576,7 @@ def test_stored_regional_instance_without_its_task_is_placed_from_its_region(dag
     ti.task = None
 
     with pytest.raises(ValueError, match="has no task attached"):
-        is_task_instance_in_loop(ti)
+        get_task_instance_run_id(ti, logical_date=timezone.datetime(2024, 1, 1))
     with assert_queries_count(1):
         positions = get_orm_task_instance_positions([ti], session=session)
 
@@ -4304,7 +4585,7 @@ def test_stored_regional_instance_without_its_task_is_placed_from_its_region(dag
             in_loop=kind != "mapped",
             map_index=ti.region_index if mapped else -1,
             loop_index=2 if kind != "mapped" else None,
-            loop_group_id="loop" if kind == "plain_loop" else None,
+            loop_group_id="loop" if kind != "mapped" else None,
         )
     }
 

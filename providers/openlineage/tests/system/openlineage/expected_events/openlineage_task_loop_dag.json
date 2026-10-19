@@ -23,6 +23,13 @@
                             "has_until": true,
                             "max_iterations": 3,
                             "terminal_task_id": "poll.check"
+                        },
+                        "process_batch.fetch": {
+                            "parent_group": "process_batch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
                         }
                     }
                 }
@@ -1771,6 +1778,270 @@
         },
         "job": {
             "name": "openlineage_task_loop_dag.poll.ready"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "map_index": 0,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "loop_group_id": "process_batch",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "map_index": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "loop_group_id": "process_batch",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "map_index": 0,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "loop_group_id": "process_batch",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "map_index": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "loop_group_id": "process_batch",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "map_index": 0,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "loop_group_id": "process_batch",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "map_index": 1,
+                        "loop_index": 0,
+                        "loop_max_iterations": 2,
+                        "loop_group_id": "process_batch",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "map_index": 0,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "loop_group_id": "process_batch",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "map_index": 1,
+                        "loop_index": 1,
+                        "loop_max_iterations": 2,
+                        "loop_group_id": "process_batch",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
         }
     }
 ]

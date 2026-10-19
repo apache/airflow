@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from system.openlineage.operator import OpenLineageTestOperator, check_run_id_integrity
@@ -248,3 +250,18 @@ def test_operator_derives_repeated_starts_from_event_count_assertions(event_coun
     )
 
     assert operator._expects_repeated_events("dag.task.event.start") is expected
+
+
+@mock.patch("system.openlineage.operator.time.sleep")
+@mock.patch("system.openlineage.operator.check_run_id_integrity", autospec=True)
+def test_operator_skips_the_run_id_check_when_a_template_fails(check_integrity, _sleep):
+    operator = OpenLineageTestOperator(
+        task_id="check_events", event_templates={"dag.task.event.start": {}}, clear_variables=False
+    )
+
+    with mock.patch.object(operator, "_check_key", side_effect=ValueError("template mismatch")):
+        with pytest.raises(ValueError, match="template mismatch") as err:
+            operator.execute(context={})
+
+    check_integrity.assert_not_called()
+    assert "runId integrity" not in str(err.value)

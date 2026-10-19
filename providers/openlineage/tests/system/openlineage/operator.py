@@ -414,7 +414,7 @@ class OpenLineageTestOperator(BaseOperator):
     :param check_run_ids: if True (default), additionally check the collected events with
         ``check_run_id_integrity``: START and COMPLETE/FAIL of one attempt share a ``runId``, while another
         try, map index or loop iteration gets its own. Set to False only for a Dag whose expected events
-        intentionally list a task's lifecycle partially.
+        intentionally list a task's lifecycle partially. It runs only once every key matches its template.
 
     Special sentinel values in expected dicts:
 
@@ -489,7 +489,10 @@ class OpenLineageTestOperator(BaseOperator):
                     if self.fail_fast:
                         raise
                     errors[key] = str(e)
-            if self.check_run_ids:
+            if self.check_run_ids and errors:
+                # A key that failed its template is missing from events_by_key, so its runIds would look incomplete
+                log.info("Skipping the runId integrity check until the event templates match")
+            elif self.check_run_ids:
                 if problems := check_run_id_integrity(
                     events_by_key,
                     repeated_start_keys={key for key in events_by_key if self._expects_repeated_events(key)},
