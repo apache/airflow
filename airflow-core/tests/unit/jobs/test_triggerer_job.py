@@ -47,7 +47,9 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import TypeAdapter
-from sqlalchemy import delete, update
+from sqlalchemy import create_engine, delete, event, func, select, text, update
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.pool import NullPool
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -683,6 +685,71 @@ def test_heartbeat_watchdog_disabled_when_threshold_is_zero(supervisor_builder, 
     supervisor.heartbeat()
 
     perform_heartbeat_mock.assert_called_once()
+
+
+def _is_trigger_delete(statement: str) -> bool:
+    return "delete from trigger" in " ".join(statement.lower().replace('"', "").replace("`", "").split())
+
+
+def test_clean_unused_retries_failed_batches_in_new_transactions(jobless_supervisor, session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+
+    delete_attempt_count = 0
+    begin_count = 0
+
+    def fail_first_two_deletes(connection, cursor, statement, parameters, context, executemany):
+        nonlocal delete_attempt_count
+        if _is_trigger_delete(statement):
+            delete_attempt_count += 1
+            if delete_attempt_count <= 2:
+                raise OperationalError(statement, parameters, RuntimeError("injected cleanup failure"))
+
+    def count_begin(cleanup_session, transaction, connection):
+        nonlocal begin_count
+        begin_count += 1
+
+    event.listen(session.bind, "before_cursor_execute", fail_first_two_deletes)
+    event.listen(session.__class__, "after_begin", count_begin)
+    try:
+        jobless_supervisor.clean_unused()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", fail_first_two_deletes)
+        event.remove(session.__class__, "after_begin", count_begin)
+
+    assert (delete_attempt_count, begin_count) == (3, 3)
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+
+
+@pytest.mark.backend("postgres")
+def test_clean_unused_recovers_after_the_database_connection_drops(jobless_supervisor, session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+
+    killer_engine = create_engine(session.bind.url, poolclass=NullPool)
+    terminated = []
+
+    def terminate_connection_before_delete(connection, cursor, statement, parameters, context, executemany):
+        if not terminated and _is_trigger_delete(statement):
+            backend_pid = connection.connection.dbapi_connection.info.backend_pid
+            with killer_engine.connect() as killer:
+                terminated.append(
+                    killer.execute(
+                        text("SELECT pg_terminate_backend(:pid, 5000)"), {"pid": backend_pid}
+                    ).scalar()
+                )
+
+    event.listen(session.bind, "before_cursor_execute", terminate_connection_before_delete)
+    try:
+        jobless_supervisor.clean_unused()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", terminate_connection_before_delete)
+        killer_engine.dispose()
+
+    assert terminated == [True]
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
 
 
 def test_metric_tags_default_uses_job_hostname(supervisor_builder):
