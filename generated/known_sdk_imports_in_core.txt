@@ -17,7 +17,7 @@ airflow-core/src/airflow/models/connection.py::5
 airflow-core/src/airflow/models/dag.py::1
 airflow-core/src/airflow/models/dagrun.py::2
 airflow-core/src/airflow/models/taskinstance.py::1
-airflow-core/src/airflow/models/trigger.py::4
+airflow-core/src/airflow/models/trigger.py::3
 airflow-core/src/airflow/models/variable.py::8
 airflow-core/src/airflow/models/xcom_arg.py::1
 airflow-core/src/airflow/plugins_manager.py::1
