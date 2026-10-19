@@ -115,10 +115,10 @@ API-level message the model reads, not the handler's return value or the MCP wir
 that keeps failing ends the run with
 ``ToolCallError: query kept failing after 1 correction(s): ...``. The retry budget is
 counted per run of
-:meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.run`, not per model
-turn: the SDK's handler does not identify which model turn a call belongs to, so calls
-that run at the same time count as one failure, the same way the ADK adapter counts them
-(see :doc:`adk`). A call whose arguments fail the SDK's own JSON Schema validation never
+:meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.run`, and a model
+turn counts as one failure however many of its calls fail, the same way the Anthropic and
+Strands adapters count them. The turn is the ``AssistantMessage.message_id``; without one,
+calls that run at the same time count as one failure. A call whose arguments fail the SDK's own JSON Schema validation never
 reaches Airflow's tools, so it is not counted against the budget and not recorded in the
 ``common_ai.tool_calls`` metric; see `max_turns`_ below.
 

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 try:
     from claude_agent_sdk import (
+        AssistantMessage,
         ClaudeAgentOptions,
         McpSdkServerConfig,
         Message,
@@ -104,11 +105,19 @@ def _describe_error_result(result: ResultMessage) -> str:
     return f"The Claude Agent SDK run ended with an error result ({', '.join(details)})."
 
 
+async def _close_stream(messages: AsyncIterable[Message]) -> None:
+    # ``AsyncIterable`` does not guarantee ``aclose``; ``query()`` and ``receive_response()`` do.
+    aclose = getattr(messages, "aclose", None)
+    if aclose is not None:
+        await aclose()
+
+
 class _Run:
     """One run of :meth:`AirflowTools.run`: identifies its calls and collects their failures."""
 
     def __init__(self) -> None:
         self.failures: list[ToolCallError] = []
+        self.turn: str | None = None
 
 
 class AirflowTools:
@@ -220,6 +229,10 @@ class AirflowTools:
 
         ``ClaudeSDKClient.receive_messages()`` is not supported: it never ends.
 
+        ``messages`` is closed when this returns or raises. For ``query()`` that ends the CLI
+        session, so it stops asking for tool calls; a ``ClaudeSDKClient`` stays connected until
+        you disconnect it, for example by leaving its ``async with`` block.
+
         :raises RuntimeError: when this instance is already running a query, when
             ``messages`` ends without a :class:`~claude_agent_sdk.ResultMessage`, or when
             the result message has ``is_error`` set (for example ``max_turns`` reached or
@@ -233,9 +246,14 @@ class AirflowTools:
             )
         state = _Run()
         self._run = state
+        raised = True
         try:
             result: ResultMessage | None = None
             async for message in messages:
+                if isinstance(message, AssistantMessage):
+                    # The CLI sends each turn's message before running that turn's tools, which is
+                    # what ``handle_tool_call`` relies on. Observed with the bundled CLI, not documented.
+                    state.turn = message.message_id
                 if isinstance(message, ResultMessage):
                     result = message
                 if state.failures:
@@ -246,9 +264,17 @@ class AirflowTools:
                 raise RuntimeError("The Claude Agent SDK stream ended without a ResultMessage.")
             if result.is_error:
                 raise RuntimeError(_describe_error_result(result))
+            raised = False
             return result
         finally:
-            self._run = None
+            try:
+                await _close_stream(messages)
+            except Exception as e:
+                if not raised:
+                    raise
+                log.warning("Closing the Claude Agent SDK stream failed: %s", e)
+            finally:
+                self._run = None
 
     @staticmethod
     def _build_tool_schema(airflow_tool: AirflowTool) -> dict[str, Any]:
@@ -271,7 +297,10 @@ class AirflowTools:
                     ],
                     "is_error": True,
                 }
-            with calling_framework("claude_agent_sdk"), tool_call_scope(run=state):
+            with (
+                calling_framework("claude_agent_sdk"),
+                tool_call_scope(run=state, turn=state.turn if state is not None else None),
+            ):
                 try:
                     result = await airflow_tool.call(args)
                 except ToolCallError as e:
