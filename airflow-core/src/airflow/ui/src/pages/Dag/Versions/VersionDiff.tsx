@@ -52,6 +52,10 @@ const IMPACT_COLORS: Record<string, string> = {
 // unfold into one unreadable table cell.
 const MAX_VALUE_LENGTH = 120;
 
+// Serialized values are long and have no spaces to break at, so without this a single cell
+// widens the table past the pane and the last ("after") column is clipped.
+const WRAP_PROPS = { overflowWrap: "anywhere", whiteSpace: "pre-wrap" } as const;
+
 const renderValue = (value: unknown) => {
   if (value === undefined) {
     return "—";
@@ -71,13 +75,21 @@ const buildValueColumns = (translate: TFunction<"dag">): ChangeColumns => [
     accessorKey: "before_value",
     // Read off the record rather than the accessor value, so a key the server omitted stays
     // distinguishable from one holding a stored null.
-    cell: ({ row }) => <Code fontSize="sm">{renderValue(row.original.before_value)}</Code>,
+    cell: ({ row }) => (
+      <Code fontSize="sm" {...WRAP_PROPS}>
+        {renderValue(row.original.before_value)}
+      </Code>
+    ),
     enableSorting: false,
     header: translate("versions.columns.before"),
   },
   {
     accessorKey: "after_value",
-    cell: ({ row }) => <Code fontSize="sm">{renderValue(row.original.after_value)}</Code>,
+    cell: ({ row }) => (
+      <Code fontSize="sm" {...WRAP_PROPS}>
+        {renderValue(row.original.after_value)}
+      </Code>
+    ),
     enableSorting: false,
     header: translate("versions.columns.after"),
   },
@@ -86,7 +98,11 @@ const buildValueColumns = (translate: TFunction<"dag">): ChangeColumns => [
 const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): ChangeColumns => [
   {
     accessorKey: "path",
-    cell: ({ row }) => <Code fontSize="sm">{row.original.path}</Code>,
+    cell: ({ row }) => (
+      <Code fontSize="sm" {...WRAP_PROPS}>
+        {row.original.path}
+      </Code>
+    ),
     enableSorting: false,
     header: translate("versions.columns.path"),
   },
