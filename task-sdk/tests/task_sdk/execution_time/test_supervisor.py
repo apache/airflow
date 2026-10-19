@@ -5548,6 +5548,33 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
     ]
 
 
+def test_process_log_messages_reserved_kwarg_names_are_forwarded():
+    """
+    A log event with a key named ``target`` or ``msg`` must not collide with the
+    parameter names of ``_log_to_target``. Spreading such an event raised a
+    TypeError that escaped the supervisor loop: the task process was orphaned,
+    the heartbeat stopped, and a successful task was recorded as failed.
+    """
+    target_logger = mock.Mock(spec=FilteringBoundLogger)
+
+    def fake_reconfigure(logger, *args, **kwargs):
+        return logger
+
+    with mock.patch(
+        "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+        side_effect=fake_reconfigure,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(target_logger,))
+        next(gen)
+
+        gen.send(b'{"level": "info", "event": "deploying", "target": "prod"}\n')
+        gen.send(b'{"level": "info", "event": "deploying", "msg": "prod"}\n')
+
+    assert target_logger.log.call_count == 2
+    target_logger.log.assert_any_call(logging.INFO, "deploying", target="prod")
+    target_logger.log.assert_any_call(logging.INFO, "deploying", msg="prod")
+
+
 @pytest.mark.parametrize(
     "error_message",
     ["write to closed file", "I/O operation on closed file"],
