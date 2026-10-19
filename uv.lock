@@ -34,7 +34,6 @@ apache-airflow-providers-elasticsearch = false
 apache-airflow-providers-duckdb = false
 apache-airflow-docker-tests = false
 apache-airflow-providers-microsoft-winrm = false
-typesafe-sdk = "2026-09-19T00:00:00Z"
 apache-airflow-providers = false
 apache-airflow-providers-fab = false
 apache-airflow-providers-openlineage = false
@@ -9323,6 +9322,7 @@ dependencies = [
     { name = "asgiref" },
     { name = "attrs" },
     { name = "babel" },
+    { name = "cadwyn" },
     { name = "colorlog" },
     { name = "fsspec" },
     { name = "greenback" },
@@ -9342,6 +9342,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pygtrie" },
     { name = "python-dateutil" },
+    { name = "pyyaml" },
     { name = "structlog" },
     { name = "tenacity" },
     { name = "truststore" },
@@ -9399,6 +9400,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=24.2.0,!=25.2.0" },
     { name = "babel", specifier = ">=2.17.0" },
+    { name = "cadwyn", specifier = ">=6.1.1" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "datadog", marker = "extra == 'all'", specifier = ">=0.50.0" },
     { name = "datadog", marker = "extra == 'datadog'", specifier = ">=0.50.0" },
@@ -9426,6 +9428,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">2.11.0" },
     { name = "pygtrie", specifier = ">=2.5.0" },
     { name = "python-dateutil", specifier = ">=2.7.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sentry-sdk", marker = "extra == 'all'", specifier = ">=2.30.0" },
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "statsd", marker = "extra == 'all'", specifier = ">=3.3.0" },
@@ -24255,18 +24258,21 @@ wheels = [
 
 [[package]]
 name = "typesafe-sdk"
-version = "0.7.0"
+version = "0.7.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "anyio" },
     { name = "httpx2" },
+    { name = "packaging" },
     { name = "pydantic" },
     { name = "pydantic-core" },
     { name = "tenacity" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/28/e2/ac317772d4d5cfabf3cecdeacd83cc838523e240bb4e1cf256837e6005bb/typesafe_sdk-0.7.0.tar.gz", hash = "sha256:930d42fd73cfed6f25bccae488ce0f30f6043eaedd8682ef59734e79ab94a876", size = 22235, upload-time = "2026-09-18T09:12:30.846Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/26/4d/383aa14f4cfe5fb41023ea1cab52d7f79cc31ab200ee7314317cf89db744/typesafe_sdk-0.7.5.tar.gz", hash = "sha256:1eeeb0dc80a7161d84896db42a5016dc0a7c8872fa16540b70163e5357b6d398", size = 34152, upload-time = "2026-10-14T21:21:42.837Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/2a/16f4163e6d8827ef80b2ed7a400c80688e1ebf571c10f143f792bdafc654/typesafe_sdk-0.7.0-py3-none-any.whl", hash = "sha256:c6d2257c4b04b8d4d81cff2b55489b4188795fd44fb40b9cef26ff243b2d1080", size = 35352, upload-time = "2026-09-18T09:12:29.625Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/f6/bee4c3b49570c2d312057c9e37c1446cf37eb1b86bf5872f7a797e803326/typesafe_sdk-0.7.5-py3-none-any.whl", hash = "sha256:967a8b61494d536abb55ee3f3a2b10e81685cb6baad6ccdcab588bdc6c9b86d2", size = 49948, upload-time = "2026-10-14T21:21:41.337Z" },
 ]
 
 [[package]]
