@@ -680,11 +680,11 @@
                         "downstream_task_ids": "{{ 'task_3' in result and 'check_events' in result }}",
                         "executor_config": {},
                         "ignore_first_depends_on_past": false,
-                        "inlets": "[{'uri': 'file://host1/dir2/file2.txt', 'extra': {}, 'type': 'asset'}, {'uri': 'unknown_scheme://host1/dir2/file3.txt', 'extra': {}, 'type': 'asset'}]",
+                        "inlets": "[{'uri': 'file://host1/dir2/file2.txt', 'extra': {'etag': '\"0x8D0000000000001\"', 'owner': \"O'Brien\", 'has_header': True, 'note': None}, 'type': 'asset'}, {'uri': 'unknown_scheme://host1/dir2/file3.txt', 'extra': {}, 'type': 'asset'}]",
                         "inlets_list": [
                             {
                                 "uri": "file://host1/dir2/file2.txt",
-                                "extra": {},
+                                "extra": {"etag": "\"0x8D0000000000001\"", "owner": "O'Brien", "has_header": true},
                                 "type": "asset"
                             },
                             {
@@ -870,11 +870,11 @@
                         "downstream_task_ids": "{{ 'task_3' in result and 'check_events' in result }}",
                         "executor_config": {},
                         "ignore_first_depends_on_past": false,
-                        "inlets": "[{'uri': 'file://host1/dir2/file2.txt', 'extra': {}, 'type': 'asset'}, {'uri': 'unknown_scheme://host1/dir2/file3.txt', 'extra': {}, 'type': 'asset'}]",
+                        "inlets": "[{'uri': 'file://host1/dir2/file2.txt', 'extra': {'etag': '\"0x8D0000000000001\"', 'owner': \"O'Brien\", 'has_header': True, 'note': None}, 'type': 'asset'}, {'uri': 'unknown_scheme://host1/dir2/file3.txt', 'extra': {}, 'type': 'asset'}]",
                         "inlets_list": [
                             {
                                 "uri": "file://host1/dir2/file2.txt",
-                                "extra": {},
+                                "extra": {"etag": "\"0x8D0000000000001\"", "owner": "O'Brien", "has_header": true},
                                 "type": "asset"
                             },
                             {
@@ -1061,11 +1061,11 @@
                         "operator_class": "EmptyOperator",
                         "operator_class_path": "airflow.providers.standard.operators.empty.EmptyOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
-                        "outlets": "[{'uri': 'file://host/dir/file.txt', 'extra': {}, 'type': 'asset'}]",
+                        "outlets": "[{'uri': 'file://host/dir/file.txt', 'extra': {'checks': [{'passed': True}], 'ratio': 0.5}, 'type': 'asset'}]",
                         "outlets_list": [
                             {
                                 "uri": "file://host/dir/file.txt",
-                                "extra": {},
+                                "extra": {"checks": [{"passed": true}], "ratio": 0.5},
                                 "type": "asset"
                             }
                         ],
@@ -1239,11 +1239,11 @@
                         "operator_class": "EmptyOperator",
                         "operator_class_path": "airflow.providers.standard.operators.empty.EmptyOperator",
                         "operator_provider_version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
-                        "outlets": "[{'uri': 'file://host/dir/file.txt', 'extra': {}, 'type': 'asset'}]",
+                        "outlets": "[{'uri': 'file://host/dir/file.txt', 'extra': {'checks': [{'passed': True}], 'ratio': 0.5}, 'type': 'asset'}]",
                         "outlets_list": [
                             {
                                 "uri": "file://host/dir/file.txt",
-                                "extra": {},
+                                "extra": {"checks": [{"passed": true}], "ratio": 0.5},
                                 "type": "asset"
                             }
                         ],
