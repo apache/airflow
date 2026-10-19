@@ -177,7 +177,9 @@ class TestSQLToolsetToolPrefix:
 
 
 def _call_prefixed(ts: SQLToolset, name: str, args: dict):
-    return asyncio.run(ts.call_tool(name, args, ctx=MagicMock(), tool=MagicMock()))
+    return asyncio.run(
+        ts.call_tool(name, args, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool))
+    )
 
 
 class TestSQLToolsetNameConflictHint:
