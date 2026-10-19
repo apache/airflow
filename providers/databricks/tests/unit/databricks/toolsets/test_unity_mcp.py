@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import importlib
+import inspect
 import json
 import sys
 import threading
@@ -29,7 +31,9 @@ import pytest
 pytest.importorskip("fastmcp")
 pytest.importorskip("airflow.providers.common.ai")
 
+from mcp_types import jsonrpc
 from pydantic_ai import ModelRetry, RunContext
+from pydantic_ai.mcp import MCPToolset as PydanticAIMCPToolset
 
 from airflow.models import Connection
 from airflow.providers.common.ai.utils import toolset_base
@@ -41,6 +45,7 @@ from airflow.providers.databricks.exceptions import (
     DatabricksUnityMCPTransportError,
 )
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.toolsets import unity_mcp
 from airflow.providers.databricks.toolsets.unity_mcp import DatabricksUnityMCPToolset
 
 CONN_ID = "databricks_unity"
@@ -66,8 +71,8 @@ class _StubGateway(BaseHTTPRequestHandler):
     service_reply: dict[str, tuple[int, dict[str, str], str | None]] = {}
     notification_status: int | None = None
     tool_call_barrier: threading.Barrier | None = None
-    # Seconds to hold the answer to ``initialize``; ``release`` ends any wait early on teardown.
-    initialize_delay: float = 0
+    # Seconds to hold the answer to each MCP method; ``release`` ends any wait early on teardown.
+    delays: dict[str, float] = {}
     release = threading.Event()
     requests: list[tuple[str, str | None, str | None]] = []
 
@@ -81,8 +86,8 @@ class _StubGateway(BaseHTTPRequestHandler):
             return self._reply_error(status, body.get("id"), error, headers)
         if "id" not in body:
             return self._reply(self.notification_status or 202)
+        self.release.wait(self.delays.get(method, 0))
         if method == "initialize":
-            self.release.wait(self.initialize_delay)
             result = {
                 "protocolVersion": body["params"]["protocolVersion"],
                 "capabilities": {"tools": {}},
@@ -142,7 +147,7 @@ def gateway():
     _StubGateway.service_reply = {}
     _StubGateway.notification_status = None
     _StubGateway.tool_call_barrier = None
-    _StubGateway.initialize_delay = 0
+    _StubGateway.delays = {}
     _StubGateway.release = threading.Event()
     _StubGateway.requests = []
     server = ThreadingHTTPServer(("127.0.0.1", 0), _StubGateway)
@@ -475,9 +480,63 @@ class TestErrors:
             _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
 
 
+# The MCP client gives up on a request after pydantic-ai's read_timeout, 5 minutes by default.
+@mock.patch.object(
+    unity_mcp, "PydanticAIMCPToolset", functools.partial(PydanticAIMCPToolset, read_timeout=0.5)
+)
+class TestRequestTimeout:
+    def test_tool_call_without_an_answer_is_not_left_to_the_model(self, gateway, gateway_conn):
+        _StubGateway.delays = {"tools/call": 2}
+
+        with pytest.raises(DatabricksUnityMCPTransportError, match="may or may not have run"):
+            _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
+
+        assert [m for _, _, m in _StubGateway.requests].count("tools/call") == 1
+
+    def test_listing_tools_without_an_answer_is_a_transport_error(self, gateway, gateway_conn):
+        _StubGateway.delays = {"tools/list": 2}
+
+        with pytest.raises(DatabricksUnityMCPTransportError, match="Timed out waiting") as err:
+            _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
+
+        assert "init_timeout" not in str(err.value)
+
+
+class TestClientErrorMessages:
+    """
+    The errors the MCP client makes up are told from the server's own by their text.
+
+    A failure here means an MCP SDK or fastmcp update changed that text: update the constants in
+    ``toolsets/unity_mcp.py`` to match, or such failures are mistaken for the server's answers.
+    """
+
+    MADE_UP_ERRORS = [
+        ("mcp.client.streamable_http", "INTERNAL_ERROR", "Server returned an error response"),
+        ("mcp.client.streamable_http", "METHOD_NOT_FOUND", "Not Found"),
+        ("mcp.client.streamable_http", "INVALID_REQUEST", "Session terminated"),
+        ("mcp.shared.jsonrpc_dispatcher", "CONNECTION_CLOSED", "Connection closed"),
+    ]
+
+    @pytest.mark.parametrize(("module", "code", "message"), MADE_UP_ERRORS)
+    def test_error_is_still_made_up_by_the_client(self, module, code, message):
+        assert f'code={code}, message="{message}"' in inspect.getsource(importlib.import_module(module))
+
+    def test_every_matched_error_is_checked(self):
+        expected = {(getattr(jsonrpc, code), message) for _, code, message in self.MADE_UP_ERRORS}
+        assert expected == unity_mcp._CLIENT_ERRORS
+
+    @pytest.mark.parametrize("prefix", unity_mcp._CLIENT_ERROR_PREFIXES)
+    def test_message_prefix_is_still_made_up_by_the_client(self, prefix):
+        assert prefix in inspect.getsource(importlib.import_module("mcp.client.streamable_http"))
+
+    def test_handshake_timeout_message_is_still_raised_by_fastmcp(self):
+        source = inspect.getsource(importlib.import_module("fastmcp.client.client"))
+        assert unity_mcp._HANDSHAKE_TIMEOUT_MESSAGE in source
+
+
 class TestHandshakeTimeout:
     def test_slow_handshake_within_init_timeout_connects(self, gateway, gateway_conn):
-        _StubGateway.initialize_delay = 1
+        _StubGateway.delays = {"initialize": 1}
 
         _, result = _run(
             _list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID, init_timeout=10))
@@ -487,7 +546,7 @@ class TestHandshakeTimeout:
 
     def test_handshake_beyond_init_timeout_is_a_transport_error(self, gateway, gateway_conn):
         # Shorter than pydantic-ai's own 5 second default, so this only fails if init_timeout is used.
-        _StubGateway.initialize_delay = 2
+        _StubGateway.delays = {"initialize": 2}
 
         with pytest.raises(DatabricksUnityMCPTransportError, match="within 0.5 seconds. Raise init_timeout"):
             _run(

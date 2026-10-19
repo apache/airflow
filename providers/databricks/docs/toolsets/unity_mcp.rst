@@ -101,10 +101,14 @@ which are also raised for failures while connecting and listing tools:
     * - ``DatabricksUnityMCPThrottledError``
       - HTTP 429. Its ``retry_after`` attribute holds the ``Retry-After`` delay in seconds, when given.
     * - ``DatabricksUnityMCPTransportError``
-      - The gateway could not be reached, the connection dropped, or the MCP handshake did not finish
-        within ``init_timeout``.
+      - The gateway could not be reached, the connection dropped, a request got no answer in time,
+        or the MCP handshake did not finish within ``init_timeout``.
     * - ``DatabricksUnityMCPError``
-      - Any other gateway error, or a failure to get a token from the connection.
+      - Any other gateway error, or a failure to get a token from the connection after the toolset
+        connected.
+
+A connection that cannot be used at all, such as one without a host or without token-based
+authentication, raises ``ValueError`` when the toolset connects.
 
 Unity Gateway forwards a response only once the MCP server has finished sending it, so connecting
 to a server that keeps its response stream open takes as long as the server keeps it open. The toolset

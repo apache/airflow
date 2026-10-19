@@ -89,7 +89,9 @@ dependencies = [
     "azure-identity>=1.25.3",
 ]
 "common.ai" = [
-    "apache-airflow-providers-common-ai[mcp]>=0.11.0",  # use next version
+    "apache-airflow-providers-common-ai[mcp]>=1.0.0",
+    # 3.x is built on httpx and MCP SDK 1.x; the toolset needs the httpx2 and MCP SDK 2.x of 4.0.
+    "fastmcp-slim[client]>=4.0.0",
 ]
 "fab" = [
     "apache-airflow-providers-fab>=2.2.0"
@@ -126,10 +128,9 @@ dev = [
     "deltalake>=1.1.3,!=1.3.0",
     "apache-airflow-providers-fab>=2.2.0",
     "apache-airflow-providers-microsoft-azure",
-    "apache-airflow-providers-common-ai[mcp]",
     "apache-airflow-providers-common-sql[pandas,polars]",
     "apache-airflow-providers-fab",
-    "apache-airflow-providers-databricks[sqlalchemy]",
+    "apache-airflow-providers-databricks[common.ai,sqlalchemy]",
 ]
 
 # To build docs:

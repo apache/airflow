@@ -22,6 +22,7 @@ import asyncio
 import contextlib
 import ipaddress
 import json
+import logging
 import re
 import threading
 from dataclasses import dataclass, field
@@ -68,6 +69,8 @@ else:
         except ImportError:
             from airflow.utils.log.secrets_masker import mask_secret
 
+log = logging.getLogger(__name__)
+
 GATEWAY_MCP_SERVICES_PATH = "ai-gateway/mcp-services"
 
 # Restricting each part to these characters keeps the name from adding a path, query or
@@ -91,6 +94,10 @@ _CLIENT_ERRORS = {
 # What fastmcp raises, in place of the TimeoutError it loses, when the MCP handshake outlasts
 # init_timeout (see fastmcp.client.client).
 _HANDSHAKE_TIMEOUT_MESSAGE = "Failed to initialize server session"
+# What the MCP client raises when a request outlasts its read timeout (see
+# mcp.shared.jsonrpc_dispatcher). A server may use the same code, so the message is matched too.
+_REQUEST_TIMEOUT_CODE = -32001
+_REQUEST_TIMEOUT_MESSAGE = re.compile(r"Request '[^']*' timed out")
 _CLIENT_ERROR_PREFIXES = (
     "Unexpected content type:",
     "Failed to parse JSON response:",
@@ -160,6 +167,14 @@ def _is_handshake_timeout(error: BaseException) -> bool:
         isinstance(e, TimeoutError)
         or (isinstance(e, RuntimeError) and str(e).endswith(_HANDSHAKE_TIMEOUT_MESSAGE))
         for e in _walk_exceptions(error)
+    )
+
+
+def _is_request_timeout(error: McpError | None) -> bool:
+    return (
+        error is not None
+        and error.error.code == _REQUEST_TIMEOUT_CODE
+        and _REQUEST_TIMEOUT_MESSAGE.fullmatch(error.error.message) is not None
     )
 
 
@@ -394,6 +409,21 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         ambiguous = (
             " The tool call may or may not have run, so it was not retried." if during_tool_call else ""
         )
+        if (transport_error := _find(error, httpx2.TransportError)) is not None:
+            return DatabricksUnityMCPTransportError(
+                f"Could not reach Unity Gateway for MCP Service {service!r}: {transport_error}.{ambiguous}"
+            )
+        # The MCP client reports its own timeouts as MCP errors, so they are told apart from the
+        # server's answers before those are.
+        if _is_request_timeout(mcp_error) or (during_tool_call and _is_handshake_timeout(error)):
+            return DatabricksUnityMCPTransportError(
+                f"Timed out waiting for Unity Gateway to answer MCP Service {service!r}.{ambiguous}"
+            )
+        if _is_handshake_timeout(error):
+            return DatabricksUnityMCPTransportError(
+                f"Unity Gateway did not complete the MCP handshake for MCP Service {service!r} within "
+                f"{self._init_timeout:g} seconds. Raise init_timeout if the service is slow to answer."
+            )
         if mcp_error is not None:
             if not _is_client_error(mcp_error):
                 # The server's own answer: for a tool call, it reaches the model as a retry.
@@ -408,19 +438,6 @@ class DatabricksUnityMCPToolset(AirflowToolset):
             return DatabricksUnityMCPError(
                 f"Unity Gateway returned {what} for MCP Service {service!r}.{ambiguous}",
                 http_status_code=status,
-            )
-        if (transport_error := _find(error, httpx2.TransportError)) is not None:
-            return DatabricksUnityMCPTransportError(
-                f"Could not reach Unity Gateway for MCP Service {service!r}: {transport_error}.{ambiguous}"
-            )
-        if _is_handshake_timeout(error):
-            if during_tool_call:
-                return DatabricksUnityMCPTransportError(
-                    f"Timed out waiting for Unity Gateway to answer MCP Service {service!r}.{ambiguous}"
-                )
-            return DatabricksUnityMCPTransportError(
-                f"Unity Gateway did not complete the MCP handshake for MCP Service {service!r} within "
-                f"{self._init_timeout:g} seconds. Raise init_timeout if the service is slow to answer."
             )
         return None
 
@@ -446,9 +463,19 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         return self
 
     async def __aexit__(self, *args: Any) -> bool | None:
-        if self._server is not None:
+        if self._server is None:
+            return None
+        if args[0] is None:
             return await self._server.__aexit__(*args)
-        return None
+        try:
+            return await self._server.__aexit__(*args)
+        except Exception:
+            # Closing the session re-raises the failure of a request that already failed, such
+            # as the read timeout of a tool call, which would hide the error explaining it.
+            log.warning(
+                "Error while closing the session of MCP Service %r", self._service_name, exc_info=True
+            )
+            return None
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         async with self._gateway_operation():
