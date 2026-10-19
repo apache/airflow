@@ -47,17 +47,21 @@ class _DogStatsdTimer(Timer):
     milliseconds when it does, so the duration measured by ``Timer`` is sent instead.
     """
 
-    def __init__(self, dogstatsd: DogStatsd, stat: str, tags: list[str], **kwargs) -> None:
+    def __init__(
+        self, dogstatsd: DogStatsd, stat: str, tags: list[str], sample_rate: float | None = None
+    ) -> None:
         super().__init__()
         self.dogstatsd = dogstatsd
         self.stat = stat
         self.tags = tags
-        self.kwargs = kwargs
+        self.sample_rate = sample_rate
 
     def stop(self, send: bool = True) -> None:
         super().stop(send)
         if send and self.duration is not None:
-            self.dogstatsd.timing(metric=self.stat, value=self.duration, tags=self.tags, **self.kwargs)
+            self.dogstatsd.timing(
+                metric=self.stat, value=self.duration, tags=self.tags, sample_rate=self.sample_rate
+            )
 
 
 class SafeDogStatsdLogger:
@@ -155,12 +159,12 @@ class SafeDogStatsdLogger:
         self,
         stat: str | None = None,
         tags: dict[str, str] | None = None,
-        **kwargs,
+        sample_rate: float | None = None,
     ) -> Timer:
         """Timer metric that can be cancelled."""
         tags_list = self._build_tags_list(tags)
         if stat and self.metrics_validator.test(stat):
-            return _DogStatsdTimer(self.dogstatsd, stat, tags_list, **kwargs)
+            return _DogStatsdTimer(self.dogstatsd, stat, tags_list, sample_rate)
         return Timer()
 
 

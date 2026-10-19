@@ -105,8 +105,8 @@ class Timer(TimerProtocol):
     # pystatsd and dogstatsd both have a timer class, but present different API
     # so we can't use this as a mixin on those, instead this class contains the "real" timer
 
-    _start_time: float | None
-    duration: float | None
+    _start_time: float | None = None
+    duration: float | None = None
 
     def __init__(self, real_timer: BackendTimerProtocol | None = None) -> None:
         self.real_timer = real_timer

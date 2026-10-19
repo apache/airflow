@@ -259,9 +259,26 @@ class TestDogStats:
             pass
         assert timer.duration == pytest.approx(0.4)
         self.dogstatsd_client.timing.assert_called_once_with(
-            metric="empty_timer", value=timer.duration, tags=[]
+            metric="empty_timer", value=pytest.approx(0.4), tags=[], sample_rate=None
         )
         self.dogstatsd_client.timed.assert_not_called()
+
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 1.0])
+    def test_timer_stop_without_send(self, time_mock):
+        timer = self.dogstatsd.timer("empty_timer").start()
+        timer.stop(send=False)
+        assert timer.duration == 1000.0
+        self.dogstatsd_client.timing.assert_not_called()
+
+    def test_timer_stop_without_start(self):
+        timer = self.dogstatsd.timer("empty_timer")
+        timer.stop()
+        assert timer.duration is None
+        self.dogstatsd_client.timing.assert_not_called()
+
+    def test_timer_rejects_unsupported_arguments_on_creation(self):
+        with pytest.raises(TypeError):
+            self.dogstatsd.timer("empty_timer", use_ms=True)
 
     def test_empty_timer(self):
         with self.dogstatsd.timer():
