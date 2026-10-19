@@ -73,14 +73,15 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 Running multiple Airflow instances on the same host
 ---------------------------------------------------
 
-Browsers scope cookies by host name and path, not by port. If several Airflow instances are served
-from the same host name (for example ``https://lab.mycompany.com``, or ``localhost`` on different ports)
-and they share the same ``base_url`` path, they also share the authentication cookie: logging in to one
-instance logs you out of the others.
+If you serve several Airflow instances from the same host name (for example ``https://lab.mycompany.com``,
+or ``localhost`` on different ports), give each instance its own path in ``[api] base_url``. Browsers scope
+cookies by host name and path, not by port, so instances that share the same ``base_url`` path also share
+the authentication cookie: logging in to one instance logs you out of the others.
 
-To keep the sessions separate, give each instance its own path in ``[api] base_url``. Since Airflow 3.1.8,
-Airflow scopes its authentication cookie to that path (with the FAB auth manager, this also requires
-``apache-airflow-providers-fab`` 3.5.0 or later)::
+Airflow scopes its authentication cookie to the ``base_url`` path since Airflow 3.1.8. With the FAB,
+Keycloak or AWS auth manager, this also requires ``apache-airflow-providers-fab`` 3.5.0,
+``apache-airflow-providers-keycloak`` 0.6.0 or ``apache-airflow-providers-amazon`` 9.23.0 or later.
+For example::
 
     # instance serving production
     base_url = https://lab.mycompany.com/prod
@@ -95,11 +96,10 @@ ends with ``/``, so the cookie of one instance is not sent to the other.
 
     Do not serve one instance at the root path (``/``) while other instances on the same host name use
     sub-paths. The browser sends the root instance's cookie with every request to that host, so the other
-    instances read the root instance's token instead of their own, reject the request and clear the
-    cookies of both instances.
+    instances read the root instance's token instead of their own and cannot keep you logged in.
 
-Serving each instance from a different host name (for example ``prod.lab.mycompany.com`` and
-``dev.lab.mycompany.com``) also keeps the cookies separate.
+Alternatively, serve each instance from its own host name, for example ``prod.lab.mycompany.com`` and
+``dev.lab.mycompany.com``.
 
 Helm Chart Configuration
 ------------------------
