@@ -403,12 +403,12 @@ def clear_task_instances(
     from airflow.models.dagbag import DBDagBag
 
     scheduler_dagbag = DBDagBag(load_op_links=False)
-    # Cache per-dag lookups of the latest serialized DAG and DagVersion:
-    # get_latest_version_of_dag deserializes the whole DAG on every call, so
-    # calling it per task instance makes clearing O(n) full-DAG loads. One
+    # Cache per-dag lookups of the latest serialized Dag and DagVersion:
+    # get_latest_version_of_dag deserializes the whole Dag on every call, so
+    # calling it per task instance makes clearing O(n) full-Dag loads. One
     # lookup per dag_id also keeps the clear consistent if a new version is
     # serialized while it runs.
-    latest_dags: dict[str, Any] = {}
+    latest_dags: dict[str, SerializedDAG | None] = {}
     latest_versions: dict[str, DagVersion | None] = {}
     for ti in tis:
         ti.prepare_db_for_next_try(session)
