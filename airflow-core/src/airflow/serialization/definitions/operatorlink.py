@@ -26,6 +26,7 @@ import attrs
 
 from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.xcom import XComModel, xcom_entity
+from airflow.serialization.stringify import stringify as stringify_xcom
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
 
@@ -79,21 +80,10 @@ class XComOperatorLink(LoggingMixin):
             )
             return ""
 
-        from airflow.serialization.stringify import (
-            StringifyNotSupportedError,
-            stringify as stringify_xcom,
-        )
-
         try:
             parsed_value = json.loads(result.value)
         except (ValueError, TypeError):
             # Handling for cases when types do not need to be deserialized (e.g. when value is a simple string link)
             parsed_value = result.value
 
-        try:
-            return str(stringify_xcom(parsed_value))
-        except StringifyNotSupportedError:
-            # If stringify doesn't support the type, return the raw value as a string.
-            # This avoids the XComModel.deserialize_value() call that could
-            # instantiate arbitrary classes from untrusted XCom data.
-            return str(parsed_value)
+        return str(stringify_xcom(parsed_value))

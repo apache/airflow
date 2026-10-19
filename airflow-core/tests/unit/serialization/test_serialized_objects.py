@@ -1703,25 +1703,22 @@ def test_deadline_fields_refuse_unexpected_classes_without_constructing_them(fie
     assert _DeadlineGadget.instantiated is False, "the class was constructed before being rejected"
 
 
-def test_deadline_callback_kwargs_still_construct_nested_classes():
-    """Documents a known residual: kwargs are still generically deserialized.
+@pytest.mark.parametrize("encoding", ["current", "legacy"])
+def test_deadline_callback_kwargs_are_kept_encoded(encoding):
+    """Callback kwargs are not decoded with the alert: classes named there are not constructed.
 
-    The outer payload is a valid AsyncCallback and the class sits under ``kwargs``,
-    which serde deserializes recursively. This is NOT closed here, and the test asserts
-    the current behaviour rather than the desired one so the gap is visible and a future
-    change has to update it deliberately.
-
-    It is not specific to deadlines -- it is the general property of deserializing
-    Dag-author data, shared with every other serde call site. Closing it means deferring
-    the kwargs decode to the process that runs the callback, which spans two consumption
-    paths using two different encodings and belongs with that broader work.
+    The kwargs are decoded where the callback runs, so the decoded alert holds them exactly as
+    they were stored, and encoding the alert again writes them back unchanged.
     """
     from unittest import mock
 
     from airflow.sdk import serde
+    from airflow.sdk._shared.serialization import OLD_DATA, OLD_TYPE
 
     gadget_name = f"{_DeadlineGadget.__module__}.{_DeadlineGadget.__qualname__}"
     _DeadlineGadget.instantiated = False
+    nested = _encode_as(gadget_name) if encoding == "current" else {OLD_TYPE: gadget_name, OLD_DATA: {}}
+    encoded_kwargs = {"nested": nested, "items": [nested], "plain": "value"}
 
     valid = DeadlineAlert(
         reference=DeadlineReference.DAGRUN_QUEUED_AT,
@@ -1730,15 +1727,72 @@ def test_deadline_callback_kwargs_still_construct_nested_classes():
     )
     serialized = BaseSerialization.serialize(valid)
     callback_payload = serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK]
-    callback_payload[serde.DATA]["kwargs"] = {"evil": _encode_as(gadget_name)}
+    callback_payload[serde.DATA]["kwargs"] = encoded_kwargs
 
     with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {gadget_name}):
+        decoded = BaseSerialization.deserialize(serialized)
+        reencoded = BaseSerialization.serialize(decoded)
+
+    assert _DeadlineGadget.instantiated is False
+    assert isinstance(decoded.callback, AsyncCallback)
+    assert decoded.callback.kwargs == encoded_kwargs
+    assert reencoded[Encoding.VAR][DeadlineAlertFields.CALLBACK] == callback_payload
+
+
+def test_deadline_callback_kwargs_legacy_container_is_unwrapped():
+    from airflow.sdk import serde
+    from airflow.sdk._shared.serialization import OLD_DATA, OLD_DICT, OLD_TYPE
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    callback_payload = serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK]
+    callback_payload[serde.DATA]["kwargs"] = {OLD_TYPE: OLD_DICT, OLD_DATA: TEST_CALLBACK_KWARGS}
+
+    decoded = BaseSerialization.deserialize(serialized)
+
+    assert decoded.callback.kwargs == TEST_CALLBACK_KWARGS
+
+
+@pytest.mark.parametrize("kwargs", [["not", "a", "mapping"], _encode_as("builtins.dict")])
+def test_deadline_callback_kwargs_must_be_a_mapping(kwargs):
+    from airflow.sdk import serde
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK][serde.DATA]["kwargs"] = kwargs
+
+    with pytest.raises(ValueError, match="kwargs is not a mapping"):
         BaseSerialization.deserialize(serialized)
 
-    assert _DeadlineGadget.instantiated is True, (
-        "kwargs deserialization behaviour changed -- if this is now closed, update the "
-        "docstring on _decode_deadline_callback and this test together"
+
+def test_deadline_alert_with_live_callback_kwargs_round_trips():
+    """An alert written by the Dag processor keeps its kwargs encoded through decode and re-encode."""
+    from airflow.sdk import serde
+
+    original = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(
+            TEST_CALLBACK_PATH, kwargs={"interval": timedelta(minutes=5), "pair": (1, 2), "plain": {"a": 1}}
+        ),
     )
+    serialized = BaseSerialization.serialize(original)
+
+    decoded = BaseSerialization.deserialize(serialized)
+
+    assert (
+        decoded.callback.kwargs
+        == serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK][serde.DATA]["kwargs"]
+    )
+    assert BaseSerialization.serialize(decoded) == serialized
 
 
 @pytest.mark.parametrize("field", [DeadlineAlertFields.CALLBACK, DeadlineAlertFields.INTERVAL])

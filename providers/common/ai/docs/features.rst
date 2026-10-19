@@ -299,7 +299,7 @@ See what ran
      - None
    * - :ref:`AI Model tab <howto/observability:model-tab>`
      - Shows the model on the task instance page of ``@task.llm`` and ``@task.agent``
-       tasks, and for ``@task.agent`` the token counts and an estimated cost.
+       tasks, and their token counts and an estimated cost.
      - None
 
 .. toctree::

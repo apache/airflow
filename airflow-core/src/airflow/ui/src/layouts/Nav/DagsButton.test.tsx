@@ -16,22 +16,50 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren } from "react";
+
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { Wrapper } from "src/utils/Wrapper";
+import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { DagsButton } from "./DagsButton";
 
-const getTrigger = () => screen.getByRole("link", { name: "nav.dags" });
+const getTrigger = () => screen.getByRole("button", { name: "nav.dags" });
+
+const wrapperAt = (path: string) => {
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <BaseWrapper>
+      <MemoryRouter initialEntries={[path]}>{children}</MemoryRouter>
+    </BaseWrapper>
+  );
+
+  return wrapper;
+};
 
 describe("DagsButton", () => {
-  it("links straight to the Dags list", () => {
+  it("opens the menu on click instead of navigating", async () => {
     render(<DagsButton authorizedMenuItems={["Dags"]} />, { wrapper: Wrapper });
 
-    expect(getTrigger()).toHaveAttribute("href", "/dags");
+    expect(getTrigger()).not.toHaveAttribute("href");
+
+    fireEvent.click(getTrigger());
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("menuitem")).toHaveLength(3);
+    });
   });
+
+  it.each(["/dags", "/dags/example_dag/runs", "/dag_runs", "/task_instances"])(
+    "is highlighted on %s",
+    (path) => {
+      render(<DagsButton authorizedMenuItems={["Dags"]} />, { wrapper: wrapperAt(path) });
+
+      expect(getTrigger()).toHaveAttribute("aria-current", "page");
+    },
+  );
 
   it("reveals the dags, dag runs and task instances links on hover", async () => {
     render(<DagsButton authorizedMenuItems={["Dags"]} />, { wrapper: Wrapper });

@@ -88,6 +88,7 @@ def mock_context(task: Operator | SerializedOperator, run_id: str | None = None)
             map_indexes: int | Iterable[int] | None = None,
             default: Any = None,
             run_id: str | None = None,
+            full: bool = True,
         ) -> Any:
             key = f"{self.task_id}_{self.dag_id}_{key}"
             if map_indexes is not None and (not isinstance(map_indexes, int) or map_indexes >= 0):

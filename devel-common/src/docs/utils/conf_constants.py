@@ -296,6 +296,7 @@ def get_intersphinx_mapping() -> dict[str, tuple[str, tuple[str]]]:
         [
             "boto3",
             "celery",
+            "dateutil",
             "docker",
             "hdfs",
             "jinja2",

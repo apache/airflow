@@ -231,10 +231,10 @@ class Backfill(Base):
         elif dialect_name == "sqlite":
             duration_expr = (func.julianday(cls.completed_at) - func.julianday(cls.created_at)) * 86400
         else:
-            duration_expr = func.extract("epoch", cls.completed_at - cls.created_at)  # type: ignore[operator, arg-type]
+            duration_expr = func.extract("epoch", cls.completed_at - cls.created_at)
 
         when_condition = (
-            cls.completed_at.isnot(None) & cls.created_at.isnot(None),  # type: ignore[union-attr, attr-defined]
+            cls.completed_at.isnot(None) & cls.created_at.isnot(None),
             duration_expr,
         )
 

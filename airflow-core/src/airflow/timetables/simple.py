@@ -44,7 +44,7 @@ try:
 except ModuleNotFoundError:
     BaseAsset: TypeAlias = SerializedAssetBase  # type: ignore[no-redef]
 
-    def ensure_serialized_asset(o):  # type: ignore[misc,no-redef]
+    def ensure_serialized_asset(o):  # type: ignore[no-redef]
         return o
 
 
