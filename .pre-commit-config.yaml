@@ -17,11 +17,15 @@
 ---
 default_stages: [pre-commit, pre-push]
 default_install_hook_types: [pre-commit, commit-msg]
-minimum_prek_version: '0.3.4'
+minimum_prek_version: '0.4.8'
 default_language_version:
-  python: python3
+  python: ">=3.11"
   node: 22.19.0
   golang: 1.25.0
+default_env:
+  # Unless overridden, no hook defined in this file should change the resolutions in uv.lock; they use
+  # the committed ones. Hooks in nested configs do not inherit this and must pass --frozen to uv themselves.
+  UV_FROZEN: "1"
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -565,6 +569,7 @@ repos:
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
         stages: ['manual']
+        env: {UV_FROZEN: "0"}
         language: python
         files: >
           (?x)
@@ -577,6 +582,7 @@ repos:
         name: Upgrade curated dependency floors (manual)
         entry: ./scripts/ci/prek/upgrade_dependency_floors.py
         stages: ['manual']
+        env: {UV_FROZEN: "0"}
         language: python
         files: >
           (?x)
@@ -1155,6 +1161,12 @@ repos:
         language: python
         files: ^.*/example_dags/.*\.py$
         pass_filenames: true
+      - id: check-example-dag-shell-commands
+        name: Check example Dags do not build shell commands from runtime values
+        entry: ./scripts/ci/prek/check_example_dag_shell_commands.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
+        pass_filenames: true
       - id: check-apache-license-rat
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/prek/check_license.py
@@ -1585,13 +1597,15 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/global_constants\.py$
         require_serial: true
         # This is a fast regular hook that runs when any pyproject.toml changes.
-        # It runs locally with `--frozen` so the lock is only verified against pyproject.toml,
-        # never silently rewritten during a commit. If a pyproject.toml change makes the lock
-        # stale, the hook fails and the contributor must run `uv lock` explicitly and commit
-        # the refreshed uv.lock — which keeps lock updates intentional and reviewable.
+        # It runs `uv lock --check`, so the lock is verified against pyproject.toml but never
+        # rewritten during a commit. If a pyproject.toml change makes the lock stale, the hook
+        # fails and the contributor must run `uv lock` explicitly and commit the refreshed
+        # uv.lock — which keeps lock updates intentional and reviewable. UV_FROZEN is disabled
+        # because under it `--check` only validates the lock, it does not detect staleness.
       - id: update-uv-lock
         name: Update uv.lock
-        entry: uv lock --frozen
+        entry: uv lock --check
+        env: {UV_FROZEN: "0"}
         language: system
         files: >
           (?x)

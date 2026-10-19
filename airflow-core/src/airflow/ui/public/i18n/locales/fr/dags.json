@@ -6,6 +6,11 @@
       "warning": "Cela supprimera toutes les métadonnées liées au Dag, y compris les exécutions et les tâches."
     }
   },
+  "draining": {
+    "badgeTooltip": "Ce Dag se met en pause une fois ses exécutions de Dag en cours terminées.",
+    "label": "Drainage en cours",
+    "tooltip": "Drainage de {{dagDisplayName}} — se met en pause une fois les exécutions de Dag en cours terminées. Cliquez pour reprendre."
+  },
   "favoriteDag": "Ajouter le Dag aux favoris",
   "filters": {
     "allRunTypes": "Tous les types de Run",
@@ -108,15 +113,6 @@
   },
   "schedulingBanner": {
     "message": "Ce Dag est en cours de drainage. Il se mettra en pause une fois ses exécutions de Dag en cours terminées."
-  },
-  "schedulingState": {
-    "active": "Actif",
-    "draining": "Drainage en cours",
-    "drainingBadgeTooltip": "Ce Dag se met en pause une fois ses exécutions de Dag en cours terminées.",
-    "drainingTooltip": "Drainage de {{dagDisplayName}} — se met en pause une fois les exécutions de Dag en cours terminées. Cliquez pour reprendre.",
-    "label": "État de planification",
-    "paused": "En pause",
-    "placeholder": "Sélectionner l'état de planification…"
   },
   "search": {
     "advanced": "Recherche avancée",

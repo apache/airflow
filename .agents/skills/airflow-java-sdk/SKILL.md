@@ -6,7 +6,7 @@ description: >
   coordinator in `task-sdk/src/airflow/sdk/coordinators/java/` — whether they
   want to add a feature, write tests, fix a bug, understand the architecture, or
   prepare a PR. Trigger on phrases like "Java SDK", "JavaCoordinator",
-  "java-sdk", "annotation processor", "Builder.Task", "BundleBuilder", or
+  "java-sdk", "annotation processor", "Airflow.Task", "BundleBuilder", or
   anything about running JVM tasks in Airflow.
 ---
 
@@ -87,7 +87,7 @@ the Dag bundle or startup fails. Every JAR in the Dag bundle goes on one classpa
 | `java-sdk/sdk/.../execution/Client.kt` | Supervisor wire calls |
 | `java-sdk/sdk/.../execution/Comm.kt` | 4-byte-prefix MessagePack framing |
 | `java-sdk/sdk/.../Server.kt` | Entry-point; drives the execution loop |
-| `java-sdk/processor/.../BuilderProcessor.kt` | Kapt annotation processor |
+| `java-sdk/processor/.../AirflowProcessor.kt` | Kapt annotation processor |
 | `java-sdk/plugin/.../AirflowSdkPlugin.kt` | Gradle bundle plugin |
 | `task-sdk/.../coordinators/java/coordinator.py` | Python side — spawns the JVM |
 | `task-sdk/.../schema/schema.json` | Wire protocol definition (both sides) |

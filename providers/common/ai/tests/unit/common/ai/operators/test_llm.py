@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
 from datetime import timedelta
 from decimal import Decimal
@@ -25,20 +26,25 @@ from uuid import uuid4
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
+from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
 from airflow.providers.common.ai.operators import llm as llm_module
 from airflow.providers.common.ai.operators.llm import DecisionPolicy, LLMOperator
+from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
+from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
+from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
+from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -46,7 +52,11 @@ except ImportError:
     _CORE_WALKER = False
 
 from airflow.providers.common.compat.notifier import BaseNotifier
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    TaskDeferred,
+)
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
 if AIRFLOW_V_3_3_PLUS:
@@ -99,10 +109,53 @@ class TestLLMOperator:
             "model_id",
             "fallback_conn_ids",
             "system_prompt",
-            "agent_params",
+            "model_settings",
             "usage_limits",
         }
         assert set(LLMOperator.template_fields) == expected
+
+    @pytest.mark.parametrize(
+        ("operator_cls", "operator_kwargs"),
+        [
+            pytest.param(LLMOperator, {}, id="llm"),
+            pytest.param(LLMBranchOperator, {}, id="llm_branch"),
+            pytest.param(LLMSQLQueryOperator, {}, id="llm_sql"),
+            pytest.param(LLMFileAnalysisOperator, {"file_path": "/tmp/app.log"}, id="llm_file_analysis"),
+            pytest.param(
+                LLMSchemaCompareOperator,
+                {"db_conn_ids": ["db_a", "db_b"], "table_names": ["orders"]},
+                id="llm_schema_compare",
+            ),
+        ],
+    )
+    def test_llm_operators_reject_agent_params(self, operator_cls, operator_kwargs):
+        """No LLM operator accepts agent_params, the one argument that reached Agent(tools=...)."""
+        # Airflow 2's BaseOperator reports an unexpected argument as AirflowException.
+        with pytest.raises(TypeError if AIRFLOW_V_3_0_PLUS else AirflowException, match="agent_params"):
+            operator_cls(
+                task_id="test",
+                prompt="p",
+                llm_conn_id="my_llm",
+                agent_params={"tools": []},
+                **operator_kwargs,
+            )
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_output_retries_bound_how_often_invalid_output_is_retried(self, mock_hook_cls):
+        calls = []
+
+        def respond(messages, info: AgentInfo):
+            calls.append(messages)
+            return ModelResponse(parts=[TextPart(content="not a number")])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="my_llm", output_type=int, output_retries=2)
+
+        with pytest.raises(UnexpectedModelBehavior):
+            op.execute(context=MagicMock())
+        assert len(calls) == 3
 
     @pytest.mark.parametrize(
         "bad",
@@ -127,19 +180,23 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_returns_string_output(self, mock_hook_cls, make_mock_run_result):
         """Default output_type=str returns the LLM string directly."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("Paris is the capital of France.")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
         op = LLMOperator(task_id="test", prompt="What is the capital of France?", llm_conn_id="my_llm")
-        result = op.execute(context=MagicMock())
+        result = op.execute(context=_make_context(ti_id="ti-1"))
 
         assert result == "Paris is the capital of France."
         mock_agent.run_sync.assert_called_once_with(
-            "What is the capital of France?", usage_limits=None, cancellation_token=ANY
+            "What is the capital of France?",
+            usage=ANY,
+            usage_limits=None,
+            run_id="ti-1",
+            cancellation_token=ANY,
         )
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
-            output_type=str, instructions=""
+            output_type=str, instructions="", model_settings=None, retries=None
         )
         mock_hook_cls.get_hook.assert_called_once_with(
             "my_llm", hook_params={"model_id": None, "fallback_conn_ids": None}
@@ -163,11 +220,55 @@ class TestLLMOperator:
         )
         op.execute(context=usage_budget_context)
 
-        # ``usage=`` is the cross-attempt usage budget, which only exists on Airflow >= 3.3.
-        expected_usage = {"usage": ANY} if AIRFLOW_V_3_3_PLUS else {}
         mock_agent.run_sync.assert_called_once_with(
-            "Summarize", usage_limits=limits, cancellation_token=ANY, **expected_usage
+            "Summarize", usage=ANY, usage_limits=limits, cancellation_token=ANY
         )
+
+    @patch("airflow.providers.common.ai.operators.llm.stamp_identity_on_agent_spans", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_stamps_identity_on_agent_spans(self, mock_hook_cls, mock_stamp, make_mock_run_result):
+        """execute() derives the identity from the task instance and stamps it on the agent's spans."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="my_llm")
+        op.execute(context=_make_context(ti_id="ti-9"))
+
+        mock_stamp.assert_called_once()
+        agent_arg, attrs = mock_stamp.call_args.args
+        assert agent_arg is mock_agent
+        assert attrs["airflow.task_instance.id"] == "ti-9"
+
+    @patch("airflow.providers.common.ai.operators.llm.stamp_identity_on_agent_spans", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_without_task_instance_skips_identity_and_run_id(
+        self, mock_hook_cls, mock_stamp, make_mock_run_result
+    ):
+        """A hand-built context with no task instance runs untracked: no identity stamp, no run_id."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="my_llm")
+        result = op.execute(context={})
+
+        assert result == "ok"
+        mock_stamp.assert_not_called()
+        mock_agent.run_sync.assert_called_once_with("p", usage=ANY, usage_limits=None, cancellation_token=ANY)
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failed_run_without_task_instance_reports_no_run_id(self, mock_hook_cls, caplog):
+        """A failed run with no task instance has no run id to report, and still raises its own exception."""
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.side_effect = UsageLimitExceeded("boom")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="my_llm")
+        with caplog.at_level(logging.WARNING), pytest.raises(UsageLimitExceeded):
+            op.execute(context={})
+
+        assert caplog.messages == ["No task instance in the context; 'usage' was not pushed to XCom."]
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(
@@ -245,9 +346,20 @@ class TestLLMOperator:
             FunctionModel(_build_priced_response), **kw
         )
 
+        ti = MagicMock(
+            spec=["id", "max_tries", "xcom_push", "dag_id", "task_id", "run_id", "try_number", "map_index"]
+        )
+        ti.id = uuid4()
+        ti.max_tries = 0
+        usage_budget_context["task_instance"] = ti
+
         op = LLMOperator(task_id="test", prompt="Summarize", llm_conn_id="my_llm", **cap_kwargs)
         with pytest.raises(UsageLimitExceeded, match=r"cost_limit.*0\.05"):
             op.execute(context=usage_budget_context)
+
+        pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
+        assert pushes["usage"]["requests"] == 1
+        assert pushes["usage"]["cost"] == str(PRICED_COST)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_completes_when_cost_stays_under_cap(self, mock_hook_cls, usage_budget_context):
@@ -283,7 +395,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_structured_output_with_all_params(self, mock_hook_cls, make_mock_run_result):
         """Structured output returns the Pydantic instance unchanged so downstream tasks keep the type."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(Entities(names=["Alice", "Bob"]))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -294,7 +406,8 @@ class TestLLMOperator:
             model_id="openai:gpt-5",
             system_prompt="You are an extractor.",
             output_type=Entities,
-            agent_params={"retries": 3, "model_settings": {"temperature": 0.9}},
+            model_settings={"temperature": 0.9},
+            output_retries=3,
         )
         result = op.execute(context=MagicMock())
 
@@ -306,14 +419,14 @@ class TestLLMOperator:
         mock_hook_cls.get_hook.return_value.create_agent.assert_called_once_with(
             output_type=Entities,
             instructions="You are an extractor.",
-            retries=3,
             model_settings={"temperature": 0.9},
+            retries=3,
         )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_forwards_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
         """``fallback_conn_ids`` on the operator overrides the connection's own extra field."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -332,7 +445,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_forwards_empty_fallback_conn_ids_to_hook(self, mock_hook_cls, make_mock_run_result):
         """An explicit ``[]`` disables a chain configured on the connection, not just an override."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("ok")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -359,7 +472,7 @@ class TestLLMOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_serialize_output_returns_dict(self, mock_hook_cls, make_mock_run_result):
         """serialize_output=True dumps the BaseModel to a dict on the wire."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(Entities(names=["A", "B"]))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -399,7 +512,7 @@ class TestLLMOperatorUsageBudget:
                 raise error
             return make_mock_run_result("ok")
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.side_effect = run_sync
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         return mock_agent
@@ -412,7 +525,7 @@ class TestLLMOperatorUsageBudget:
 
         self._make_operator().execute(context=usage_budget_context)
 
-        mock_agent.run_sync.assert_called_once_with("p", usage_limits=None, cancellation_token=ANY)
+        mock_agent.run_sync.assert_called_once_with("p", usage=ANY, usage_limits=None, cancellation_token=ANY)
         task_state_store_accessor.get.assert_not_called()
         task_state_store_accessor.set.assert_not_called()
         task_state_store_accessor.delete.assert_not_called()
@@ -427,7 +540,8 @@ class TestLLMOperatorUsageBudget:
         )
 
         _, kwargs = mock_agent.run_sync.call_args
-        assert "usage" not in kwargs
+        # A fresh count for this attempt, not one loaded from the task state store.
+        assert kwargs["usage"] == RunUsage()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -469,6 +583,30 @@ class TestLLMOperatorUsageBudget:
             op.execute(context=usage_budget_context)
 
         assert task_state_store_accessor.get(USAGE_BUDGET_KEY)["usage"]["requests"] == 2
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
+    @pytest.mark.parametrize("error", [None, RuntimeError("boom")], ids=["success", "failure"])
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_usage_xcom_is_this_attempts_usage(
+        self, mock_hook_cls, make_mock_run_result, task_state_store_accessor, seed_usage_budget, error
+    ):
+        """The ``usage`` XCom holds what this attempt spent, not the cross-attempt total."""
+        seed_usage_budget(task_state_store_accessor, requests=2, input_tokens=20)
+        self._stub_agent(mock_hook_cls, make_mock_run_result, requests_used=1, error=error)
+        ti = MagicMock(
+            spec=["id", "max_tries", "xcom_push", "dag_id", "task_id", "run_id", "try_number", "map_index"]
+        )
+        ti.id = uuid4()
+        ti.max_tries = 0
+        context = {"task_instance": ti, "task_state_store": task_state_store_accessor}
+        op = self._make_operator(usage_limits=UsageLimits(request_limit=10))
+
+        with contextlib.nullcontext() if error is None else pytest.raises(RuntimeError, match="boom"):
+            op.execute(context=context)
+
+        pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
+        assert pushes["usage"]["requests"] == 1
+        assert pushes["usage"]["input_tokens"] == 10
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="usage budget needs Airflow >= 3.3")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -514,8 +652,8 @@ class TestLLMOperatorUsageBudget:
 class TestLLMOperatorConfidenceGate:
     """decision_policy on a structured output, and the decision XCom."""
 
-    def _result(self, make_mock_run_result, output, details):
-        result = make_mock_run_result(output)
+    def _result(self, make_mock_run_result, output, details, *, cost=None):
+        result = make_mock_run_result(output, cost=cost)
         result.response = ModelResponse(parts=[], model_name="jev-1.13.0", provider_details=details)
         return result
 
@@ -544,13 +682,33 @@ class TestLLMOperatorConfidenceGate:
         assert "No task instance in the context; 'decision' was not pushed to XCom." in caplog.messages
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_resolved_model_name_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
-        """The model that actually answered is exposed on its own namespaced XCom key."""
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_agent.run_sync.return_value = self._result(make_mock_run_result, Summary(text="t"), None)
+    def test_resolved_model_name_and_usage_pushed_to_xcom(self, mock_hook_cls, make_mock_run_result):
+        """The model that actually answered, the run id, and the run's usage/cost are exposed on XCom."""
+        cost = Decimal("0.0042")
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        result = self._result(make_mock_run_result, Summary(text="t"), None, cost=cost)
+        result.run_id = "ti-9"
+
+        def _run_sync(*args, **kwargs):
+            # A real run updates the ``usage=`` object it is called with, which is what the
+            # operator pushes, rather than the result's own ``.usage``.
+            kwargs["usage"].incr(
+                RunUsage(
+                    requests=1,
+                    input_tokens=120,
+                    output_tokens=45,
+                    tool_calls=2,
+                    cache_read_tokens=5,
+                    cache_write_tokens=3,
+                    cost=cost,
+                )
+            )
+            return result
+
+        mock_agent.run_sync.side_effect = _run_sync
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Summary)
-        context = MagicMock(spec=dict)
+        context = _make_context(ti_id="ti-9")
 
         op.execute(context)
 
@@ -558,6 +716,118 @@ class TestLLMOperatorConfidenceGate:
             c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
         }
         assert pushes[MODEL_NAME_XCOM_KEY] == "jev-1.13.0"
+        assert pushes["run_id"] == "ti-9"
+        assert pushes["usage"] == {
+            "requests": 1,
+            "input_tokens": 120,
+            "output_tokens": 45,
+            "total_tokens": 165,
+            "tool_calls": 2,
+            "cache_read_tokens": 5,
+            "cache_write_tokens": 3,
+            "cost": str(cost),
+        }
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failure_pushes_partial_usage_to_xcom(self, mock_hook_cls):
+        """A run that raises before finishing (e.g. a cost_limit) still reports the run id and usage incurred."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+
+        def _run_sync(*args, **kwargs):
+            kwargs["usage"].incr(RunUsage(requests=1, input_tokens=10, cost=Decimal("0.1")))
+            raise UsageLimitExceeded("boom")
+
+        mock_agent.run_sync.side_effect = _run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        context = _make_context(ti_id="ti-1")
+        with pytest.raises(UsageLimitExceeded):
+            op.execute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushes["run_id"] == "ti-1"
+        assert pushes["usage"] == {
+            "requests": 1,
+            "input_tokens": 10,
+            "output_tokens": 0,
+            "total_tokens": 10,
+            "tool_calls": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "cost": "0.1",
+        }
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failure_logs_partial_usage_without_xcom(self, mock_hook_cls, caplog):
+        """The failed run's usage reaches the task log even with ``do_xcom_push=False``."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+
+        def _run_sync(*args, **kwargs):
+            kwargs["usage"].incr(RunUsage(requests=1, input_tokens=10, cost=Decimal("0.1")))
+            raise UsageLimitExceeded("boom")
+
+        mock_agent.run_sync.side_effect = _run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", do_xcom_push=False)
+        context = _make_context(ti_id="ti-1")
+        with caplog.at_level(logging.INFO), pytest.raises(UsageLimitExceeded):
+            op.execute(context)
+
+        assert (
+            "LLM run failed: requests=1, tool_calls=0, input_tokens=10, output_tokens=0, total_tokens=10"
+            in caplog.messages
+        )
+        assert "LLM run cost: $0.1 (USD, best-effort)" in caplog.messages
+        context["task_instance"].xcom_push.assert_not_called()
+
+    @patch("airflow.providers.common.ai.operators.llm.log_run_usage", autospec=True)
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failed_usage_log_while_reporting_does_not_mask_the_original_exception(
+        self, mock_hook_cls, mock_log_run_usage
+    ):
+        """A failure logging the failed run's usage must not replace the run's own exception."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.side_effect = UsageLimitExceeded("boom")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        mock_log_run_usage.side_effect = RuntimeError("log down")
+
+        context = _make_context(ti_id="ti-1")
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        with pytest.raises(UsageLimitExceeded):
+            op.execute(context)
+
+        mock_log_run_usage.assert_called_once()
+        assert {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list} == {
+            "usage",
+            "run_id",
+        }
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_failed_xcom_push_while_reporting_does_not_mask_the_original_exception(self, mock_hook_cls):
+        """A failing XCom push while reporting the failed run must not replace the run's own exception."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+
+        def _run_sync(*args, **kwargs):
+            kwargs["usage"].incr(RunUsage(requests=1))
+            raise UsageLimitExceeded("boom")
+
+        mock_agent.run_sync.side_effect = _run_sync
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        context = _make_context(ti_id="ti-1")
+        context["task_instance"].xcom_push.side_effect = RuntimeError("xcom down")
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
+        with pytest.raises(UsageLimitExceeded):
+            op.execute(context)
+        assert {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list} == {
+            "usage",
+            "run_id",
+        }
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="a reviewing decision_policy needs the HITL flow, Airflow >= 3.1"
@@ -566,7 +836,7 @@ class TestLLMOperatorConfidenceGate:
     def test_confident_output_returns_and_records_per_field_confidence(
         self, mock_hook_cls, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(
             make_mock_run_result,
             Summary(text="t"),
@@ -605,7 +875,7 @@ class TestLLMOperatorConfidenceGate:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """The least confident of the fields that reported a confidence is what the bar is compared against."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(
             make_mock_run_result,
             Assessment(category="billing", score=0.3),
@@ -627,6 +897,9 @@ class TestLLMOperatorConfidenceGate:
 
         body = mock_upsert.call_args.kwargs["body"]
         assert "Confidence: 0.40 (minimum 0.70)" in body
+        # The JSON a reviewer can paste into the edit field, not the model's repr.
+        assert '{"category":"billing","score":0.3}' in body
+        assert "category='billing'" not in body
         pushes = {
             c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
         }
@@ -645,7 +918,7 @@ class TestLLMOperatorConfidenceGate:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_a_field_that_reports_no_confidence_is_not_gated(self, mock_hook_cls, make_mock_run_result):
         """A bounded float field reports no confidence (the probability is the answer); only reported fields count."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(
             make_mock_run_result,
             Assessment(category="billing", score=0.3),
@@ -671,7 +944,7 @@ class TestLLMOperatorConfidenceGate:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_nan_confidence_counts_as_not_reported(self, mock_hook_cls, make_mock_run_result):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = self._result(
             make_mock_run_result,
             Summary(text="t"),
@@ -805,7 +1078,7 @@ class TestLLMOperatorConfidenceGate:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_no_bar_keeps_todays_behaviour_and_still_records(self, mock_hook_cls, make_mock_run_result):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("plain text")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c")
@@ -830,7 +1103,7 @@ class TestLLMOperatorConfidenceGate:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_text_model_with_a_bar_can_fail(self, mock_hook_cls, make_mock_run_result):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("plain text")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMOperator(
@@ -1029,7 +1302,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """When require_approval=True, execute() defers instead of returning output."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("LLM response")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1056,7 +1329,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """On Airflow versions < 3.3 (flag pinned), execute() falls back to deferring to HITLTrigger."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("LLM response")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1082,7 +1355,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """allow_modifications=True passes an editable 'output' param."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("draft output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1108,7 +1381,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """approval_timeout is passed to the trigger."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1137,7 +1410,7 @@ class TestLLMOperatorApproval:
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """Structured (BaseModel) output is serialized before deferring."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(Summary(text="hello"))
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1321,6 +1594,51 @@ class TestLLMOperatorApproval:
         result = op.execute_complete({}, generated_output=generated_output, event=event)
 
         assert result == expected
+
+    def test_execute_complete_fails_on_edit_invalid_for_output_type(self):
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            output_type=int,
+            require_approval=True,
+            allow_modifications=True,
+        )
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": "thirty-one"},
+        }
+
+        with pytest.raises(ReviewedOutputValidationError, match="'thirty-one'"):
+            op.execute_complete({}, generated_output="5", event=event)
+
+    @requires_typed_xcom
+    def test_execute_complete_restores_a_model_the_form_sent_back_as_an_object(self):
+        # The HITL form parses a JSON-object value into an object, so an untouched model comes back as a dict.
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            output_type=Summary,
+            require_approval=True,
+            allow_modifications=True,
+        )
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "admin"},
+            "params_input": {"output": {"text": "hello"}},
+        }
+
+        result = op.execute_complete({}, generated_output='{"text":"hello"}', event=event)
+
+        assert result == Summary(text="hello")
+
+    def test_execute_complete_returns_an_unedited_output_that_does_not_validate_back(self):
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=int, require_approval=True)
+        event = {"chosen_options": ["Approve"], "responded_by_user": {"id": "u1", "name": "admin"}}
+
+        assert op.execute_complete({}, generated_output="null", event=event) == "null"
 
 
 @pytest.mark.skipif(

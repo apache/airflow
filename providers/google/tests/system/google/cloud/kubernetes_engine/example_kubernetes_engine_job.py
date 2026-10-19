@@ -49,7 +49,10 @@ GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_LOCATION = "europe-north1-a"
 CLUSTER_NAME = f"gke-job-{ENV_ID}".replace("_", "-")
-CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
+CLUSTER = {
+    "name": CLUSTER_NAME,
+    "node_pools": [{"name": "default-pool", "initial_node_count": 1}],
+}
 
 JOB_NAME = "test-pi"
 JOB_NAME_DEF = "test-pi-def"

@@ -71,6 +71,7 @@ class TestStreamingEndpointSessionScope:
         allowed = {
             "airflow.api_fastapi.core_api.routes.public.log.get_log",
             "airflow.api_fastapi.core_api.routes.public.dag_run.wait_dag_run_until_finished",
+            "airflow.api_fastapi.core_api.routes.ui.deadlines.get_callback_logs",
         }
 
         app = create_app()

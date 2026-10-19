@@ -117,6 +117,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "task_logs_to_stdout": {
+                        "description": "Also forward task subprocess stdout/stderr to the Celery worker's own stdout,\nso task logs reach a container-level log collector (e.g. Kubernetes/Loki) in\naddition to the task-log handler and the UI. When set, this takes precedence over the global\n``[logging] task_logs_to_stdout`` setting, allowing the Celery worker to override\nit independently. When unset (the default), the value falls back to\n``[logging] task_logs_to_stdout``, which itself defaults to ``False``. Airflow 3+\nonly. On apache-airflow<3.0.0 tasks are still routed through ``execute_command``\nrather than ``supervise``.\n",
+                        "version_added": None,
+                        "type": "boolean",
+                        "example": None,
+                        "default": None,
+                    },
                     "broker_url": {
                         "description": "The Celery broker URL. Celery supports multiple broker types. See:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview\n",
                         "version_added": None,
@@ -134,7 +141,7 @@ def get_provider_info():
                         "default": None,
                     },
                     "result_backend_sqlalchemy_engine_options": {
-                        "description": "Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.\n",
+                        "description": "Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.\nFor psycopg (v3), ``connect_args.prepare_threshold`` defaults to ``None`` to disable\nautomatic prepared statements unless explicitly overridden.\n",
                         "version_added": None,
                         "type": "string",
                         "example": '{"pool_recycle": 1800}',

@@ -417,7 +417,9 @@ def get_data_dependencies(
             select(TaskInletAssetReference.dag_id).where(TaskInletAssetReference.asset_id == asset_id),
             select(DagScheduleAssetReference.dag_id).where(DagScheduleAssetReference.asset_id == asset_id),
         )
-        connected_dag_ids = set(session.scalars(select(connected_dag_ids_query.subquery().c.dag_id)))
+        connected_dag_ids: set[str] = set(
+            session.scalars(select(connected_dag_ids_query.subquery().c.dag_id))
+        )
         if not connected_dag_ids & readable_dag_ids:
             return {"nodes": [], "edges": []}
 
@@ -631,6 +633,8 @@ def get_data_dependencies(
             .distinct()
         )
         for event_asset_id, source_dag_id, source_task_id in alias_events:
+            if source_dag_id is None or source_task_id is None:
+                continue
             if readable_dag_ids is not None and source_dag_id not in readable_dag_ids:
                 continue
             asset_node_id = f"asset:{event_asset_id}"

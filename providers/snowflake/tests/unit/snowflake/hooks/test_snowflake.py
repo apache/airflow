@@ -27,6 +27,7 @@ from unittest import mock
 from unittest.mock import Mock, PropertyMock
 
 import pytest
+import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -1218,7 +1219,10 @@ class TestPytestSnowflakeHook:
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1"]
         hook.get_connection = mock.MagicMock()
-        hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+            authority="auth", scheme="scheme", database="mydb"
+        )
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         ti = mock.MagicMock()
 
@@ -1230,6 +1234,8 @@ class TestPytestSnowflakeHook:
                 "query_source_namespace": "scheme://auth",
                 "task_instance": ti,
                 "query_for_extra_metadata": True,
+                "default_database": "mydb",
+                "default_schema": "myschema",
             }
         )
         assert result == OperatorLineage(
@@ -1243,7 +1249,10 @@ class TestPytestSnowflakeHook:
         hook = SnowflakeHook(snowflake_conn_id="test_conn")
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
-        hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_database_info = lambda x: mock.MagicMock(
+            authority="auth", scheme="scheme", database="mydb"
+        )
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         ti = mock.MagicMock()
 
@@ -1255,6 +1264,8 @@ class TestPytestSnowflakeHook:
                 "query_source_namespace": "scheme://auth",
                 "task_instance": ti,
                 "query_for_extra_metadata": True,
+                "default_database": "mydb",
+                "default_schema": "myschema",
             }
         )
         assert result is None
@@ -1265,9 +1276,10 @@ class TestPytestSnowflakeHook:
         hook.query_ids = ["query1", "query2"]
         hook.get_connection = mock.MagicMock()
         hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
+        hook.get_openlineage_default_schema = lambda: "myschema"
 
         expected_err = (
-            "OpenLineage provider version `1.99.0` is lower than required `2.5.0`, "
+            "OpenLineage provider version `1.99.0` is lower than required `2.16.0`, "
             "skipping function `emit_openlineage_events_for_snowflake_queries` execution"
         )
         with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
@@ -1555,6 +1567,131 @@ class TestPytestSnowflakeHook:
 
         assert called_data["scope"] == "default"
         assert called_data["grant_type"] == "client_credentials"
+
+    @mock.patch("requests.post")
+    def test_get_oauth_token_with_password_grant_type(self, mock_requests_post):
+        """
+        Verify that `get_oauth_token` returns an access token and includes the
+        provided required parameters for password type of grant in the outgoing OAuth request payload.
+        """
+
+        mock_requests_post.return_value = Mock(
+            spec=requests.Response,
+            status_code=200,
+            json=lambda: {"access_token": "dummy_token", "expires_in": 600},
+        )
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "password",
+                "token_endpoint": "https://localhost",
+                "oauth_username": "user1",
+                "oauth_password": "password1",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            token = hook.get_oauth_token(grant_type="password")
+
+        assert token == "dummy_token"
+
+        called_data = mock_requests_post.call_args.kwargs["data"]
+
+        assert called_data["grant_type"] == "password"
+        assert called_data["username"] == "user1"
+        assert called_data["password"] == "password1"
+
+    @mock.patch("requests.post")
+    def test_get_conn_params_removes_oauth_credentials_for_password_grant(self, mock_requests_post):
+        """
+        Verify that `_get_conn_params` strips oauth_username and oauth_password
+        after obtaining the OAuth token (they must not leak into the connector params).
+        """
+        mock_requests_post.return_value = Mock(
+            spec=requests.Response,
+            status_code=200,
+            json=lambda: {"access_token": "dummy_token", "expires_in": 600},
+        )
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "password",
+                "token_endpoint": "https://localhost",
+                "oauth_username": "user1",
+                "oauth_password": "password1",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params()
+
+        assert "oauth_username" not in conn_params
+        assert "oauth_password" not in conn_params
+        assert conn_params.get("token") == "dummy_token"
+
+    @pytest.mark.parametrize(
+        ("missing_extra", "expected_message"),
+        [
+            (
+                "oauth_password",
+                "Resource owner user password must be provided for password grant type",
+            ),
+            (
+                "oauth_username",
+                "Resource owner user name must be provided for password grant type",
+            ),
+            (
+                "token_endpoint",
+                "Token endpoint must be provided for password grant type",
+            ),
+        ],
+    )
+    def test_get_conn_params_should_fail_on_missing_oauth_credential__or_endpoint_for_password_grant(
+        self, missing_extra, expected_message
+    ):
+        extra = {
+            "database": "db",
+            "account": "airflow",
+            "warehouse": "af_wh",
+            "region": "af_region",
+            "role": "af_role",
+            "authenticator": "oauth",
+            "grant_type": "password",
+            "token_endpoint": "https://localhost",
+            "oauth_username": "test1",
+            "oauth_password": "pass1",
+        }
+        extra.pop(missing_extra)
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": extra,
+        }
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            pytest.raises(ValueError, match=expected_message),
+        ):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
 
     @mock.patch("requests.post")
     def test_get_oauth_token_without_scope(self, mock_requests_post):

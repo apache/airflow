@@ -183,6 +183,7 @@ from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
+    _axcom_push,
     _defer_task,
     _execute_task,
     _find_native_dag_importer,
@@ -192,6 +193,7 @@ from airflow.sdk.execution_time.task_runner import (
     _run_execute_callable,
     _serialize_outlet_events,
     _xcom_push,
+    check_xcom_backend_supports_loops,
     finalize,
     get_startup_details,
     parse,
@@ -207,6 +209,7 @@ from airflow.triggers.testing import SuccessTrigger
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
+from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -290,8 +293,9 @@ def test_parse(test_dags_dir: Path, make_ti_context, coordinates, map_index):
     assert ti.map_index == map_index
 
 
+@mock.patch("airflow.sdk.execution_time.task_runner.check_xcom_backend_supports_loops", autospec=True)
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
-def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
+def test_parse_dag_bag(mock_dagbag, mock_check_xcom_backend, test_dags_dir: Path, make_ti_context):
     """Test that checks that the BundleDagBag is constructed as expected during parsing"""
     mock_bag_instance = mock.Mock()
     mock_dagbag.return_value = mock_bag_instance
@@ -339,6 +343,7 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     ):
         parse(what, mock.Mock())
 
+    mock_check_xcom_backend.assert_called_once_with(mock_dag)
     mock_dagbag.assert_called_once_with(
         dag_folder=mock.ANY,
         safe_mode=False,
@@ -1097,6 +1102,45 @@ def test_parse_fails_a_task_of_a_native_dag_without_retries(
     )
 
 
+class _StoreXCom(SerializeValueOnlyXCom):
+    @classmethod
+    def store_value(cls, coordinate, key, value):
+        return value
+
+
+def _make_dag(with_loop: bool) -> DAG:
+    @task_group
+    def body():
+        BaseOperator(task_id="work")
+
+    with DAG("xcom_backend_check", schedule=None) as dag:
+        if with_loop:
+            create_loop(body, max_iterations=2)
+        else:
+            body()
+    return dag
+
+
+@pytest.mark.parametrize(
+    ("backend", "with_loop"),
+    [
+        pytest.param(SerializeValueOnlyXCom, False, id="legacy-without-loop"),
+        pytest.param(_StoreXCom, True, id="store-value-with-loop"),
+    ],
+)
+def test_check_xcom_backend_supports_loops_accepts(backend, with_loop, monkeypatch):
+    monkeypatch.setattr("airflow.sdk.execution_time.task_runner.XCom", backend)
+
+    check_xcom_backend_supports_loops(_make_dag(with_loop))
+
+
+def test_check_xcom_backend_supports_loops_rejects_legacy_backend_in_loop_dag(monkeypatch):
+    monkeypatch.setattr("airflow.sdk.execution_time.task_runner.XCom", SerializeValueOnlyXCom)
+
+    with pytest.raises(TypeError, match="uses a loop"):
+        check_xcom_backend_supports_loops(_make_dag(with_loop=True))
+
+
 @patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
 def test_parse_exits_non_zero_when_the_failure_cannot_be_reported(
     mock_bag, native_dag_startup, mock_supervisor_comms
@@ -1701,6 +1745,197 @@ def test_exhausted_logs_about_retry_policy_decision(create_runtime_ti, mock_supe
         try_number=3,
         max_tries=2,
     )
+
+
+class _CapacityError(Exception):
+    """Stands in for a cluster rejecting a pod because its resource quota is full."""
+
+
+class _NoCapacityTask(BaseOperator):
+    def execute(self, context):
+        raise _CapacityError("exceeded quota")
+
+
+def _reschedule_policy(retry_delay: timedelta | None = timedelta(minutes=10), **bounds):
+    return ExceptionRetryPolicy(
+        rules=[
+            RetryRule(
+                exception=_CapacityError,
+                action=RetryAction.RESCHEDULE,
+                retry_delay=retry_delay,
+                reason="cluster full",
+                **bounds,
+            )
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    ("bounds", "task_reschedule_count", "first_rescheduled_ago"),
+    [
+        pytest.param({"max_reschedules": 3}, 0, timedelta(0), id="first-failure"),
+        pytest.param({"max_reschedules": 3}, 2, timedelta(minutes=20), id="below-max-reschedules"),
+        pytest.param(
+            {"reschedule_timeout": timedelta(hours=1)}, 2, timedelta(minutes=20), id="within-timeout"
+        ),
+    ],
+)
+def test_retry_policy_reschedule_does_not_use_a_retry(
+    time_machine,
+    create_runtime_ti,
+    mock_supervisor_comms,
+    bounds,
+    task_reschedule_count,
+    first_rescheduled_ago,
+):
+    """RESCHEDULE within its bounds reschedules the try, even with no retries configured."""
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    task = _NoCapacityTask(task_id="no_capacity", retries=0, retry_policy=_reschedule_policy(**bounds))
+    ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
+    ti._ti_context_from_server.first_task_reschedule_start_date = now - first_rescheduled_ago
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert msg == RescheduleTask(reschedule_date=now + timedelta(minutes=10), end_date=now)
+
+
+def test_retry_policy_reschedule_without_delay_uses_the_task_retry_delay(
+    time_machine, create_runtime_ti, mock_supervisor_comms
+):
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    task = _NoCapacityTask(
+        task_id="no_capacity",
+        retry_delay=timedelta(minutes=7),
+        retry_policy=_reschedule_policy(retry_delay=None, max_reschedules=3),
+    )
+    ti = create_runtime_ti(task=task)
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert msg.reschedule_date == now + timedelta(minutes=7)
+
+
+@pytest.mark.parametrize(
+    ("bounds", "task_reschedule_count", "first_rescheduled_ago", "limit"),
+    [
+        pytest.param(
+            {"max_reschedules": 3}, 3, timedelta(minutes=30), "max_reschedules=3", id="max-reschedules"
+        ),
+        pytest.param(
+            {"reschedule_timeout": timedelta(hours=1)},
+            5,
+            timedelta(hours=2),
+            "reschedule_timeout=1:00:00",
+            id="reschedule-timeout",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    ("retries", "expected_state", "expected_msg"),
+    [
+        pytest.param(
+            1,
+            TaskInstanceState.UP_FOR_RETRY,
+            lambda now, reason: RetryTask(end_date=now, retry_reason=reason),
+            id="retry-left",
+        ),
+        pytest.param(
+            0,
+            TaskInstanceState.FAILED,
+            lambda now, reason: TaskState(state=TaskInstanceState.FAILED, end_date=now, retry_reason=reason),
+            id="no-retry-left",
+        ),
+    ],
+)
+def test_retry_policy_reschedule_past_its_bound_applies_the_standard_retry_logic(
+    time_machine,
+    create_runtime_ti,
+    mock_supervisor_comms,
+    bounds,
+    task_reschedule_count,
+    first_rescheduled_ago,
+    limit,
+    retries,
+    expected_state,
+    expected_msg,
+):
+    """Past its bound the task retries on its own retry_delay, not the reschedule delay, or fails."""
+    now = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)
+    time_machine.move_to(now, tick=False)
+    task = _NoCapacityTask(task_id="no_capacity", retries=retries, retry_policy=_reschedule_policy(**bounds))
+    ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
+    ti._ti_context_from_server.first_task_reschedule_start_date = now - first_rescheduled_ago
+
+    state, msg, error = run(ti, ti.get_template_context(), structlog.get_logger())
+
+    assert state == expected_state
+    assert msg == expected_msg(now, f"Reschedule limit reached ({limit}): cluster full")
+
+
+def test_retry_policy_reschedule_runs_no_failure_callbacks_or_metrics(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """A reschedule is waiting, not failing: no retry or failure callback runs and no failure is counted."""
+    called = []
+    task = _NoCapacityTask(
+        task_id="no_capacity",
+        retries=1,
+        retry_policy=_reschedule_policy(max_reschedules=3),
+        on_retry_callback=lambda context: called.append("on_retry_callback"),
+        on_failure_callback=lambda context: called.append("on_failure_callback"),
+    )
+    ti = create_runtime_ti(task=task)
+    context = ti.get_template_context()
+    log = structlog.get_logger()
+    stats_backend = mock.MagicMock(spec=StatsLogger)
+
+    with mock.patch("airflow.sdk.execution_time.task_runner.stats", stats_backend):
+        state, _, error = run(ti, context, log)
+        finalize(ti, state, context, log, error)
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert called == []
+    counted = {call.args[0] for call in stats_backend.incr.call_args_list if call.args}
+    assert counted.isdisjoint({"ti_failures", "operator_failures"})
+
+
+class _SensorStyleReschedule(BaseOperator):
+    def execute(self, context):
+        raise AirflowRescheduleException(reschedule_date=datetime(2026, 10, 14, 10, 0, tzinfo=UTC))
+
+
+@pytest.mark.parametrize(
+    ("task", "should_fail_closed"),
+    [
+        pytest.param(
+            _NoCapacityTask(task_id="no_capacity", retry_policy=_reschedule_policy(max_reschedules=3)),
+            True,
+            id="policy-reschedule-after-an-exception",
+        ),
+        pytest.param(_SensorStyleReschedule(task_id="poke"), False, id="task-raised-reschedule"),
+    ],
+)
+def test_run_fails_closed_when_a_policy_reschedule_cannot_be_reported(
+    create_runtime_ti, mock_supervisor_comms, task, should_fail_closed
+):
+    """A task that raised must not exit 0 (and so count as SUCCESS) because its reschedule was lost."""
+    runtime_ti = create_runtime_ti(task=task)
+
+    def send_side_effect(msg=None, **kwargs):
+        if isinstance(msg, RescheduleTask):
+            raise BrokenPipeError("supervisor IPC broken")
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = send_side_effect
+
+    state, _, _ = run(runtime_ti, runtime_ti.get_template_context(), structlog.get_logger())
+
+    assert state == TaskInstanceState.UP_FOR_RESCHEDULE
+    assert runtime_ti._terminal_state_send_failed is should_fail_closed
 
 
 def test_finalize_emits_endgroup(create_runtime_ti, mock_supervisor_comms):
@@ -2541,6 +2776,45 @@ def test_execute_success_task_with_rendered_map_index(create_runtime_ti, mock_su
     run(ti, ti.get_template_context(), log=mock.MagicMock())
 
     assert ti.rendered_map_index == "Hello! test_run"
+
+
+@pytest.mark.parametrize(
+    ("map_index_template", "expected"),
+    [
+        ("{{ ti.try_number }}", "1"),
+        ("index-{{ ti.try_number }}", "index-1"),
+        ("{{ '3.10' }}", "3.10"),
+    ],
+)
+@pytest.mark.parametrize("render_template_as_native_obj", [False, True])
+def test_execute_success_task_with_numeric_rendered_map_index(
+    create_runtime_ti,
+    mock_supervisor_comms,
+    map_index_template,
+    expected,
+    render_template_as_native_obj,
+):
+    """Test that numeric-looking map indices remain strings in both rendering modes."""
+
+    def test_function():
+        return "test function"
+
+    with DAG(
+        dag_id="dag_with_numeric_map_index_template",
+        schedule=None,
+        render_template_as_native_obj=render_template_as_native_obj,
+    ):
+        task = PythonOperator(
+            task_id="test_task",
+            python_callable=test_function,
+            map_index_template=map_index_template,
+        )
+
+    ti = create_runtime_ti(task)
+
+    run(ti, ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.rendered_map_index == expected
 
 
 def test_execute_failed_task_with_rendered_map_index(create_runtime_ti, mock_supervisor_comms):
@@ -4409,18 +4683,22 @@ class TestXComAfterTaskExecution:
 
         runtime_ti = create_runtime_ti(task=task)
 
-        with mock.patch.object(XCom, "set") as mock_xcom_set:
+        with mock.patch.object(XCom, "_push", autospec=True) as mock_xcom_push:
             _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=7)
-            mock_xcom_set.assert_called_once_with(
-                key=BaseXCom.XCOM_RETURN_KEY,
-                value=result,
-                dag_id=runtime_ti.dag_id,
-                task_id=runtime_ti.task_id,
-                run_id=runtime_ti.run_id,
-                map_index=runtime_ti.map_index,
-                dag_result=False,
-                _mapped_length=7,
+            mock_xcom_push.assert_called_once_with(
+                runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, dag_result=False, mapped_length=7
             )
+
+    @pytest.mark.asyncio
+    async def test_axcom_push_passes_the_task_instance(self, create_runtime_ti):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="push_task"))
+
+        with mock.patch.object(XCom, "_apush", autospec=True) as mock_xcom_apush:
+            await _axcom_push(runtime_ti, "key", "value")
+
+        mock_xcom_apush.assert_awaited_once_with(
+            runtime_ti, "key", "value", dag_result=False, mapped_length=None
+        )
 
     def test_xcom_with_multiple_outputs_and_no_mapping_result(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned without mapping."""
@@ -4480,15 +4758,12 @@ class TestXComAfterTaskExecution:
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_xcom_backend.set.assert_called_once_with(
-            key=BaseXCom.XCOM_RETURN_KEY,
-            value="pushing to xcom backend!",
-            dag_id="test_dag",
-            task_id="pull_task",
-            run_id="test_run",
-            map_index=-1,
+        mock_xcom_backend._push.assert_called_once_with(
+            runtime_ti,
+            BaseXCom.XCOM_RETURN_KEY,
+            "pushing to xcom backend!",
             dag_result=False,
-            _mapped_length=None,
+            mapped_length=None,
         )
 
         # assert that we didn't call the API when XCom backend is configured

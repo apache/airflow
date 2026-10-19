@@ -38,6 +38,8 @@ log = logging.getLogger(__name__)
 
 _AIRFLOW_PATH = Path(__file__).parents[3]
 
+_STATIC_URL_PATH = "/static"
+
 # Language codes ("en", "zh-CN") and namespaces ("common") of the UI translation files. Anchored
 # so a path parameter cannot smuggle in path separators or ``..`` and escape the locales directory.
 _I18N_SEGMENT = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -168,7 +170,7 @@ def init_views(app: FastAPI) -> None:
         )
 
     app.mount(
-        "/static",
+        _STATIC_URL_PATH,
         StaticFiles(
             directory=directory,
             html=True,
@@ -282,7 +284,7 @@ def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.app import get_auth_manager
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 
-    app.add_middleware(JWTRefreshMiddleware)
+    app.add_middleware(JWTRefreshMiddleware, skip_path_prefixes=(f"{_STATIC_URL_PATH}/",))
 
     for middleware_cls, middleware_kwargs in get_auth_manager().get_fastapi_middlewares():
         app.add_middleware(middleware_cls, **middleware_kwargs)

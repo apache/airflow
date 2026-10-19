@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Bundles <bundles/index>
     Connection types <connections/index>
     Email backend <email-backend>
     Message queues <message-queues/index>
@@ -106,9 +107,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ===================
+==========================================  =====================
 PIP package                                 Version required
-==========================================  ===================
+==========================================  =====================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.21.0``
 ``adlfs``                                   ``>=2026.5.0``
@@ -122,6 +123,7 @@ PIP package                                 Version required
 ``azure-keyvault-secrets``                  ``>=4.10.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
 ``azure-mgmt-resource``                     ``>=25.0.0``
+``azure-search-documents``                  ``>=11.6.0,!=12.0.0``
 ``azure-storage-blob``                      ``>=12.28.0``
 ``azure-mgmt-storage``                      ``>=24.0.1``
 ``azure-storage-file-share``                ``>=12.24.0``
@@ -142,7 +144,7 @@ PIP package                                 Version required
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
 ``microsoft-kiota-authentication-azure``    ``>=1.9.4,<2.0.0``
 ``msal-extensions``                         ``>=1.3.0``
-==========================================  ===================
+==========================================  =====================
 
 Optional cross provider package dependencies
 --------------------------------------------

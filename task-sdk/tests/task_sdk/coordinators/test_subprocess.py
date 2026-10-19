@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import pathlib
 import signal
@@ -27,16 +28,20 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import UTC, datetime
 from unittest.mock import ANY, MagicMock, call, patch
 
 import attrs
+import httpx2
+import msgspec
 import psutil
 import pytest
+from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.sdk.api.client import Client, TaskInstanceOperations
-from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance, TIRunContext
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
@@ -61,7 +66,7 @@ if not AIRFLOW_V_3_3_PLUS:
     pytest.skip("Coordinator is only compatible with Airflow >= 3.3.0", allow_module_level=True)
 
 
-def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstance:
+def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket", map_index: int = -1) -> TaskInstance:
     return TaskInstance(
         id=uuid7(),
         dag_version_id=uuid7(),
@@ -69,7 +74,7 @@ def _make_ti(dag_id: str = "tutorial_dag", queue: str = "socket") -> TaskInstanc
         dag_id=dag_id,
         run_id="run_1",
         try_number=1,
-        map_index=-1,
+        map_index=map_index,
         queue=queue,
     )
 
@@ -931,6 +936,174 @@ class TestPopenActivitySubprocessStart:
                 subprocess_logs_to_stdout=False,
             )
         assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
+
+
+# This script connects back to the supervisor the way a language SDK runtime does, then waits for
+# StartupDetails. It exits with code 0 as soon as the supervisor sends anything or closes the
+# connection. It exits with code 3 if 10 seconds pass and neither has happened.
+_RUNTIME_AWAITING_STARTUP = """
+import socket
+import sys
+
+def connect(flag):
+    host, _, port = next(arg for arg in sys.argv if arg.startswith(flag)).split("=", 1)[1].rpartition(":")
+    return socket.create_connection((host, int(port)))
+
+comm = connect("--comm=")
+logs = connect("--logs=")
+comm.settimeout(10)
+try:
+    comm.recv(1)
+except TimeoutError:
+    sys.exit(3)
+"""
+
+
+class TestPopenActivitySubprocessClearXComs:
+    @pytest.mark.parametrize(
+        ("map_index", "query"),
+        [
+            pytest.param(-1, "", id="unmapped"),
+            pytest.param(0, "map_index=0", id="map-index-0"),
+            pytest.param(2, "map_index=2", id="map-index-2"),
+        ],
+    )
+    @pytest.mark.log_level(logging.DEBUG)
+    @patch.object(ActivitySubprocess, "_register_pipe_readers", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess._accept_connections", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.subprocess.Popen", autospec=True)
+    def test_deletes_listed_xcoms_before_the_runtime_gets_the_task(
+        self, mock_popen, mock_accept, mock_register, make_ti_context_dict, captured_logs, map_index, query
+    ):
+        ti = _make_ti(map_index=map_index)
+        ti_context = {
+            **make_ti_context_dict(),
+            "xcom_keys_to_clear": ["return_value", "skipmixin_key"],
+            "start_date": "2024-12-01T00:30:00Z",
+            "arg_bindings": [{"name": "country", "kind": "literal", "value": "uk"}],
+        }
+        events: list = []
+
+        def logged_keys() -> list[tuple[str, str, str]]:
+            return [
+                (log["logger"], log["level"], log["key"])
+                for log in captured_logs
+                if log.get("event") == "Clearing XCom with key"
+            ]
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            events.append((request.method, request.url.path, request.url.query.decode(), logged_keys()))
+            if request.url.path.endswith("/run"):
+                return httpx2.Response(200, json=ti_context)
+            return httpx2.Response(200, json={})
+
+        def record_frame(frame: bytearray) -> None:
+            body = msgspec.msgpack.decode(frame[4:])[1]
+            events.append((body["type"], TIRunContext.model_validate(body["ti_context"])))
+
+        comm_sock = MagicMock(spec=socket.socket)
+        comm_sock.sendall.side_effect = record_frame
+        mock_popen.return_value.pid = 12345
+        mock_accept.side_effect = lambda servers, drains, proc, **kw: (
+            {servers["comm"]: comm_sock, servers["logs"]: MagicMock(spec=socket.socket)},
+            {soc: b"" for soc in drains.values()},
+        )
+
+        _PopenActivitySubprocess.start(
+            what=ti,
+            dag_rel_path="bundle",
+            bundle_info=FAKE_BUNDLE,
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
+            command=["/bin/true"],
+            subprocess_logs_to_stdout=False,
+        )
+
+        first = ("task", "debug", "return_value")
+        second = ("task", "debug", "skipmixin_key")
+        assert events == [
+            ("PATCH", f"/task-instances/{ti.id}/run", "", []),
+            ("DELETE", "/xcoms/tutorial_dag/run_1/task_1/return_value", query, [first]),
+            ("DELETE", "/xcoms/tutorial_dag/run_1/task_1/skipmixin_key", query, [first, second]),
+            ("StartupDetails", TIRunContext.model_validate({**ti_context, "xcom_keys_to_clear": []})),
+        ]
+
+    @pytest.mark.parametrize(
+        ("delete_error", "should_retry", "state", "error_text"),
+        [
+            pytest.param("forbidden", True, "up_for_retry", "Forbidden", id="forbidden-retry"),
+            pytest.param("forbidden", False, "failed", "Forbidden", id="forbidden-no-retry"),
+            pytest.param("unreachable", True, "up_for_retry", "Connection refused", id="unreachable-retry"),
+        ],
+    )
+    # The patch turns off the API client's retry policy, so the case where the API server is
+    # unreachable fails at once instead of after the client's retries and their waits.
+    @patch.object(Client, "_request_with_retry", Client._request_without_retry)
+    @patch.object(ActivitySubprocess, "send_msg", autospec=True)
+    def test_fails_the_try_without_starting_the_task_when_an_xcom_cannot_be_deleted(
+        self,
+        mock_send_msg,
+        make_ti_context_dict,
+        captured_logs,
+        time_machine,
+        delete_error,
+        should_retry,
+        state,
+        error_text,
+    ):
+        time_machine.move_to(datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC), tick=False)
+        ti = _make_ti()
+        ti_context = {
+            **make_ti_context_dict(),
+            "xcom_keys_to_clear": ["return_value", "skipmixin_key", "summary"],
+            "should_retry": should_retry,
+        }
+        requests: list[tuple[str, str]] = []
+        reports: list[tuple[str, str, str]] = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append((request.method, request.url.path))
+            if request.url.path.endswith("/run"):
+                return httpx2.Response(200, json=ti_context)
+            if request.method == "DELETE":
+                if not request.url.path.endswith("/skipmixin_key"):
+                    return httpx2.Response(200, json={})
+                if delete_error == "unreachable":
+                    raise httpx2.ConnectError("Connection refused", request=request)
+                return httpx2.Response(403, json={"detail": "Forbidden"})
+            report = json.loads(request.content)
+            reports.append((report["state"], report["end_date"], report["retry_reason"]))
+            return httpx2.Response(204)
+
+        proc = _PopenActivitySubprocess.start(
+            what=ti,
+            dag_rel_path="bundle",
+            bundle_info=FAKE_BUNDLE,
+            client=make_client(transport=httpx2.MockTransport(handle_request)),
+            command=[sys.executable, "-c", _RUNTIME_AWAITING_STARTUP],
+            subprocess_logs_to_stdout=False,
+        )
+
+        assert proc.wait() == -signal.SIGKILL
+        mock_send_msg.assert_not_called()
+        assert requests == [
+            ("PATCH", f"/task-instances/{ti.id}/run"),
+            ("DELETE", "/xcoms/tutorial_dag/run_1/task_1/return_value"),
+            ("DELETE", "/xcoms/tutorial_dag/run_1/task_1/skipmixin_key"),
+            ("PATCH", f"/task-instances/{ti.id}/state"),
+        ]
+        assert reports == [
+            (state, "2026-01-02T03:04:05Z", f"Failed to clear XCom 'skipmixin_key': {error_text}"),
+        ]
+        assert proc.final_state == state
+        assert {
+            "event": "Failed to clear XCom; not running the task",
+            "key": "skipmixin_key",
+            "level": "error",
+            "logger": "task",
+            "timestamp": ANY,
+            "exc_info": ANY,
+            "loc": ANY,
+        } in captured_logs
 
 
 class TestResolveArtifactBundle:
