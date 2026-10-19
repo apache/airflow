@@ -99,7 +99,7 @@ spec:
         - name: KRB5CCNAME
           value:  {{ include "kerberos_ccache_path" . | quote }}
         {{- include "custom_airflow_environment" . | indent 6 }}
-        {{- include "standard_airflow_environment" . | indent 6 }}
+        {{- include "standard_airflow_environment" (merge (dict "ExcludeDatabase" (semverCompare ">=3.4.0" .Values.airflowVersion)) .) | indent 6 }}
     {{- end }}
   containers:
     - envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
@@ -218,7 +218,7 @@ spec:
         - name: KRB5CCNAME
           value:  {{ include "kerberos_ccache_path" . | quote }}
         {{- include "custom_airflow_environment" . | indent 6 }}
-        {{- include "standard_airflow_environment" . | indent 6 }}
+        {{- include "standard_airflow_environment" (merge (dict "ExcludeDatabase" (semverCompare ">=3.4.0" .Values.airflowVersion)) .) | indent 6 }}
     {{- end }}
     {{- if .Values.workers.kubernetes.extraContainers }}
       {{- tpl (toYaml .Values.workers.kubernetes.extraContainers) . | nindent 4 }}
