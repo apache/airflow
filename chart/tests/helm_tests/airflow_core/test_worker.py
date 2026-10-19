@@ -167,12 +167,24 @@ class TestWorker:
             ({"persistence": {"enabled": True, "subPath": "test/logs"}}, "test/logs"),
         ],
     )
-    def test_logs_mount_on_wait_for_migrations_initcontainer(self, logs_values, expect_sub_path):
+    @pytest.mark.parametrize(
+        ("airflow_home", "expected_logs_mount_path"),
+        [
+            (None, "/opt/airflow/logs"),
+            ("/usr/local/airflow", "/usr/local/airflow/logs"),
+        ],
+    )
+    def test_logs_mount_on_wait_for_migrations_initcontainer(
+        self, logs_values, expect_sub_path, airflow_home, expected_logs_mount_path
+    ):
+        values = {
+            "executor": "CeleryExecutor",
+            "logs": logs_values,
+        }
+        if airflow_home is not None:
+            values["airflowHome"] = airflow_home
         docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "logs": logs_values,
-            },
+            values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -183,11 +195,16 @@ class TestWorker:
         assert mounts is not None, (
             "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
         )
-        assert any(m.get("name") == "logs" and m.get("mountPath") == "/opt/airflow/logs" for m in mounts)
+        main_container_logs_mount_path = jmespath.search(
+            "spec.template.spec.containers[?name=='worker'] | [0].volumeMounts[?name=='logs'] | [0].mountPath",
+            docs[0],
+        )
+        assert main_container_logs_mount_path == expected_logs_mount_path
+        assert any(m.get("name") == "logs" and m.get("mountPath") == expected_logs_mount_path for m in mounts)
         if expect_sub_path is not None:
             assert any(
                 m.get("name") == "logs"
-                and m.get("mountPath") == "/opt/airflow/logs"
+                and m.get("mountPath") == expected_logs_mount_path
                 and m.get("subPath") == expect_sub_path
                 for m in mounts
             )
