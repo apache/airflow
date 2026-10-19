@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import copy
+
 import pytest
 
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("The AI Model panel is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
+from airflow import plugins_manager
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.decorators.llm import _LLMDecoratedOperator
 from airflow.providers.common.ai.operators.agent import AgentOperator
@@ -63,10 +67,22 @@ class TestModelPanelPlugin:
         """Tied to the actual operator/decorator names a task instance would record,
         so a rename of either doesn't silently desync the tab's scoping from reality."""
         app = ModelPanelPlugin.react_apps[0]
-        operator_names = app["applies_to"]["operator_names"]
+        operator_names = app["applies_to"]["operator_name"]
         assert set(operator_names) == {
             LLMOperator.__name__,
             AgentOperator.__name__,
             _LLMDecoratedOperator.custom_operator_name,
             _AgentDecoratedOperator.custom_operator_name,
         }
+
+    @requires_3_4
+    def test_react_app_survives_core_applies_to_validation(self):
+        """Core withholds a React App whose applies_to path names no TaskInstanceResponse field."""
+        plugin = ModelPanelPlugin()
+        # Core rewrites each view's applies_to in place, so validate a copy, not the class-level list.
+        plugin.react_apps = copy.deepcopy(ModelPanelPlugin.react_apps)
+
+        with mock_plugin_manager(plugins=[plugin]):
+            _, react_apps = plugins_manager._get_ui_plugins()
+
+        assert [app["name"] for app in react_apps] == ["AI Model"]

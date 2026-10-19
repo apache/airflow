@@ -114,9 +114,8 @@ again. Whether a capability's work is replayed depends on where it runs:
         names one without it when the agent is built. An ``id`` on a ``Toolset`` capability
         does not reach the toolset inside it, so set it on that toolset.
     * - pydantic-ai-harness ``CodeMode``
-      - Not allowed: the operator raises ``ValueError``. This includes a ``CodeMode`` inside a
-        ``CombinedCapability`` or a wrapper such as ``PrefixTools``, but not one a capability
-        function builds when the run starts.
+      - Each ``run_code`` snippet runs again, and the tool calls it makes are replayed; see
+        :ref:`durable-code-mode`.
 
 See :doc:`durable_execution` for how replay works.
 

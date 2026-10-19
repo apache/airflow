@@ -526,6 +526,8 @@ export type AssignedUsers1 = HITLUser[] | null;
 export type Type54 = "HITLDetailRequestResult";
 export type InactiveAssets = AssetProfile[] | null;
 export type Type55 = "InactiveAssetsResult";
+export type Stop1 = boolean;
+export type Reason = string | null;
 export type Name14 = string | null;
 export type Type56 = "MaskSecret";
 export type Ok = boolean;
@@ -1619,6 +1621,16 @@ export interface InactiveAssetsResult {
   type?: Type55;
 }
 /**
+ * A loop gate's evaluation of its ``until`` callable.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "LoopDecisionPayload".
+ */
+export interface LoopDecisionPayload {
+  stop: Stop1;
+  reason?: Reason;
+}
+/**
  * Add a new value to be redacted in task logs.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1853,6 +1865,7 @@ export interface SucceedTask {
   task_outlets?: TaskOutlets;
   outlet_events?: OutletEvents;
   rendered_map_index?: RenderedMapIndex4;
+  loop_decision?: LoopDecisionPayload | null;
   type?: Type75;
 }
 /**
@@ -1899,6 +1912,7 @@ export interface TaskState {
   type?: Type79;
   rendered_map_index?: RenderedMapIndex5;
   retry_reason?: RetryReason1;
+  loop_decision?: LoopDecisionPayload | null;
 }
 /**
  * Response to GetTaskStateStore; wraps the generated API response for supervisor to worker comms.

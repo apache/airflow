@@ -1252,25 +1252,10 @@ class EksPodOperator(KubernetesPodOperator):
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-        session = eks_hook.get_session()
-        credentials_obj = session.get_credentials()
-        if credentials_obj is None:
-            raise AirflowException(
-                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
-                "Please check your AWS connection configuration."
-            )
-        credentials = credentials_obj.get_frozen_credentials()
-        with eks_hook._secure_credential_context(
-            credentials.access_key, credentials.secret_key, credentials.token
-        ) as credentials_file:
-            # Store credentials file path for potential refresh during long-running tasks
-            self._credentials_file_path = credentials_file
-            with eks_hook.generate_config_file(
-                eks_cluster_name=self.cluster_name,
-                pod_namespace=self.namespace,
-                credentials_file=credentials_file,
-            ) as self.config_file:
-                return super().execute(context)
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
+        ) as (self.config_file, self._credentials_file_path):
+            return super().execute(context)
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         eks_hook = EksHook(
@@ -1279,25 +1264,10 @@ class EksPodOperator(KubernetesPodOperator):
         )
         eks_cluster_name = event["eks_cluster_name"]
         pod_namespace = event["namespace"]
-        session = eks_hook.get_session()
-        credentials_obj = session.get_credentials()
-        if credentials_obj is None:
-            raise AirflowException(
-                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
-                "Please check your AWS connection configuration."
-            )
-        credentials = credentials_obj.get_frozen_credentials()
-        with eks_hook._secure_credential_context(
-            credentials.access_key, credentials.secret_key, credentials.token
-        ) as credentials_file:
-            # Store credentials file path for potential refresh during long-running tasks
-            self._credentials_file_path = credentials_file
-            with eks_hook.generate_config_file(
-                eks_cluster_name=eks_cluster_name,
-                pod_namespace=pod_namespace,
-                credentials_file=credentials_file,
-            ) as self.config_file:
-                return super().trigger_reentry(context, event)
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=eks_cluster_name, pod_namespace=pod_namespace
+        ) as (self.config_file, self._credentials_file_path):
+            return super().trigger_reentry(context, event)
 
     def _write_credentials_to_file(
         self, credentials_file_path: str, access_key: str, secret_key: str, session_token: str | None

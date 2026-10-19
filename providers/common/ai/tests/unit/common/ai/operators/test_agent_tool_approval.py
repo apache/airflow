@@ -739,7 +739,6 @@ class TestWhenApprovalApplies:
     @pytest.mark.parametrize(
         "kwargs",
         [
-            pytest.param({"durable": True}, id="durable"),
             pytest.param({"enable_hitl_review": True}, id="hitl_review"),
             pytest.param({"toolsets": [SandboxToolset(_NoopBackend())]}, id="sandbox"),
             pytest.param(

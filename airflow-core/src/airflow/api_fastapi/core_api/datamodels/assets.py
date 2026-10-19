@@ -116,8 +116,22 @@ class AssetResponse(BaseModel):
         asset: AssetModel,
         last_asset_event_id: int | None,
         last_asset_event_timestamp: datetime | None,
+        *,
+        readable_dag_ids: set[str] | None,
     ) -> AssetResponse:
-        """Build a response from an ``AssetModel`` row joined with its last AssetEvent id/timestamp."""
+        """
+        Build a response from an ``AssetModel`` row joined with its last AssetEvent id/timestamp.
+
+        The scheduled Dag, producing task and consuming task references are narrowed to the Dags in
+        ``readable_dag_ids``; ``None`` means the caller may read every Dag. It has no default so that
+        a new caller has to decide, rather than return every reference by omission.
+        """
+
+        def _readable(refs):
+            if readable_dag_ids is None:
+                return refs
+            return [ref for ref in refs if ref.dag_id in readable_dag_ids]
+
         watchers_data = [
             {
                 "name": watcher.name,
@@ -129,6 +143,9 @@ class AssetResponse(BaseModel):
         return cls.model_validate(
             {
                 **asset.__dict__,
+                "scheduled_dags": _readable(asset.scheduled_dags),
+                "producing_tasks": _readable(asset.producing_tasks),
+                "consuming_tasks": _readable(asset.consuming_tasks),
                 "aliases": asset.aliases,
                 "watchers": watchers_data,
                 "last_asset_event": {

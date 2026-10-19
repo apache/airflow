@@ -237,9 +237,9 @@ Extra            Dependencies
 ``opensandbox``  ``opensandbox>=1.1.0``
 ``boat``         ``boat-sdk>=1.9.3``
 ``openshell``    ``openshell>=0.1.2,<0.2``, ``grpcio>=1.78.0``, ``protobuf>=6.31.1``
-``code-mode``    ``pydantic-ai-harness[codemode]>=0.24.0``
+``code-mode``    ``pydantic-ai-harness[codemode]>=0.35.0``
 ``shields``      ``pydantic-ai-shields>=0.3.4``
-``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
+``skills``       ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0,<2``
 ``islo``         ``islo>=0.3.19``
 ``avro``         ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``      ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -36,6 +37,7 @@ from airflow_breeze.commands.release_management_commands import (
     is_package_in_dist,
 )
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+from airflow_breeze.utils import shared_options
 
 
 @pytest.mark.parametrize(
@@ -386,3 +388,29 @@ def test_prepare_provider_distributions_skip_git_fetch(
 
     assert exc_info.value.code == 0
     assert len(fetches) == expected_fetches
+
+
+def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path):
+    commands: list[list[str]] = []
+
+    def fake_run_command(cmd, **kwargs):
+        commands.append(cmd)
+        if cmd[:4] == ["git", "remote", "get-url", "--push"]:
+            if shared_options.get_dry_run(kwargs.get("dry_run_override")):
+                return SimpleNamespace(returncode=0, stdout="")
+            if cmd[-1] == "upstream":
+                return SimpleNamespace(returncode=0, stdout="https://github.com/apache/airflow.git\n")
+            raise subprocess.CalledProcessError(2, cmd)
+        return SimpleNamespace(returncode=0, stdout="")
+
+    monkeypatch.setattr(release_management_commands, "run_command", fake_run_command)
+    monkeypatch.setattr(release_management_commands, "AIRFLOW_DIST_PATH", tmp_path)
+    (tmp_path / "apache_airflow_providers_amazon-9.29.0-py3-none-any.whl").touch()
+
+    shared_options.set_dry_run(True)
+    try:
+        release_management_commands.tag_providers.callback(clean_tags=False, release_date="2026-08-06")
+    finally:
+        shared_options.set_dry_run(False)
+
+    assert ["git", "push", "upstream", "providers-amazon/9.29.0"] in commands

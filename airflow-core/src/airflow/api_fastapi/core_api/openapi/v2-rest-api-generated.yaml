@@ -4185,13 +4185,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+            next_dagrun, last_run_state, last_run_start_date`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+          next_dagrun, last_run_state, last_run_start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -7392,6 +7392,17 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: exclude_internal_keys
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Leave out XComs whose keys Airflow reserves for itself, such
+            as loop decision reasons.
+          default: false
+          title: Exclude Internal Keys
+        description: Leave out XComs whose keys Airflow reserves for itself, such
+          as loop decision reasons.
       - name: limit
         in: query
         required: false
