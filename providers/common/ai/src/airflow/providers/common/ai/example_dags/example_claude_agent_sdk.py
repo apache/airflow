@@ -40,10 +40,6 @@ from __future__ import annotations
 import asyncio
 import os
 
-from claude_agent_sdk import query
-
-from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
-from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import BaseHook, dag, task
 
 LLM_CONN_ID = os.environ.get("LLM_CONN_ID", "anthropic_default")
@@ -60,6 +56,11 @@ def example_claude_agent_sdk():
 
     @task
     def ask_the_warehouse(question: str = DEFAULT_QUESTION) -> str | None:
+        from claude_agent_sdk import query
+
+        from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
+        from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
         llm = BaseHook.get_connection(LLM_CONN_ID)
         tools = AirflowTools(SQLToolset(db_conn_id=DB_CONN_ID))
         options = tools.build_options(
