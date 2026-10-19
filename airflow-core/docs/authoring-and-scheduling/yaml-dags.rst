@@ -402,6 +402,11 @@ Scheduling
 * an object ``{uses: <timetable import path>, with: {...}}`` to construct a
   timetable, the same ``uses`` / ``with`` idea used for operators.
 
+Values under a timetable's ``with:`` receive the same date and delta coercion as
+operator arguments (see `Dates, datetimes, and deltas`_), matched against the
+timetable's constructor annotations. Value markers (``$t``, ``$x``, ``$f``) are
+not interpreted there since timetables do not accept execution-time resolution.
+
 Support for asset-triggering is planned for a future release.
 
 Code tasks
