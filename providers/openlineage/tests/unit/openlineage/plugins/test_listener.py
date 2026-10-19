@@ -292,8 +292,27 @@ class TestExecutorInitializer:
         mock_configure_orm.assert_called_once()
 
 
+def _build_fake_task_run_id(dag_id, task_id, try_number, logical_date, map_index):
+    return f"{logical_date.isoformat()}.{dag_id}.{task_id}.{try_number}.{map_index}"
+
+
+@pytest.fixture
+def task_run_id_builder():
+    """Patch how a task's runId is built outside a loop, with a readable fake that keeps its inputs."""
+    with mock.patch(
+        "airflow.providers.openlineage.utils.utils.build_task_instance_ol_run_id",
+        autospec=True,
+        side_effect=_build_fake_task_run_id,
+    ) as builder:
+        yield builder
+
+
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
 class TestOpenLineageListenerAirflow2:
+    @pytest.fixture(autouse=True)
+    def _use_task_run_id_builder(self, task_run_id_builder):
+        self.build_task_run_id = task_run_id_builder
+
     @patch("airflow.models.TaskInstance.xcom_push")
     @patch("airflow.models.BaseOperator.render_template")
     def test_listener_does_not_change_task_instance(self, render_mock, xcom_push_mock):
@@ -421,9 +440,6 @@ class TestOpenLineageListenerAirflow2:
         def mock_dag_id(dag_id, logical_date, clear_number):
             return f"{logical_date.isoformat()}.{dag_id}.{clear_number}"
 
-        def mock_task_id(dag_id, task_id, try_number, logical_date, map_index):
-            return f"{logical_date.isoformat()}.{dag_id}.{task_id}.{try_number}.{map_index}"
-
         listener = OpenLineageListener()
         listener.extractor_manager = mock.Mock()
 
@@ -433,7 +449,6 @@ class TestOpenLineageListenerAirflow2:
 
         adapter = mock.Mock()
         adapter.build_dag_run_id.side_effect = mock_dag_id
-        adapter.build_task_instance_run_id.side_effect = mock_task_id
         adapter.start_task = mock.Mock()
         adapter.fail_task = mock.Mock()
         adapter.complete_task = mock.Mock()
@@ -875,12 +890,12 @@ class TestOpenLineageListenerAirflow2:
         """Tests the OpenLineageListener's response when a task instance is in the running state.
 
         This test ensures that when an Airflow task instance transitions to the running state,
-        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        the task's runId is built exactly once from the correct
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
         listener.on_task_instance_running(None, task_instance, None)
-        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+        self.build_task_run_id.assert_called_once_with(
             dag_id="dag_id",
             task_id="task_id",
             logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
@@ -895,7 +910,7 @@ class TestOpenLineageListenerAirflow2:
         """Tests the OpenLineageListener's response when a task instance is in the failed state.
 
         This test ensures that when an Airflow task instance transitions to the failed state,
-        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        the task's runId is built exactly once from the correct
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
@@ -904,7 +919,7 @@ class TestOpenLineageListenerAirflow2:
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_kwargs, session=None
         )
-        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+        self.build_task_run_id.assert_called_once_with(
             dag_id="dag_id",
             task_id="task_id",
             logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
@@ -919,12 +934,12 @@ class TestOpenLineageListenerAirflow2:
         """Tests the OpenLineageListener's response when a task instance is in the success state.
 
         This test ensures that when an Airflow task instance transitions to the success state,
-        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        the task's runId is built exactly once from the correct
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
         listener.on_task_instance_success(None, task_instance, None)
-        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+        self.build_task_run_id.assert_called_once_with(
             dag_id="dag_id",
             task_id="task_id",
             logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
@@ -1011,7 +1026,7 @@ class TestOpenLineageListenerAirflow2:
         listener.on_task_instance_running(None, task_instance, None)
         mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.start_task.assert_not_called()
 
@@ -1037,7 +1052,7 @@ class TestOpenLineageListenerAirflow2:
         )
         mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.fail_task.assert_not_called()
 
@@ -1059,7 +1074,7 @@ class TestOpenLineageListenerAirflow2:
         listener.on_task_instance_success(None, task_instance, None)
         mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.complete_task.assert_not_called()
 
@@ -1141,6 +1156,10 @@ class TestOpenLineageListenerAirflow2:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
 class TestOpenLineageListenerAirflow3:
+    @pytest.fixture(autouse=True)
+    def _use_task_run_id_builder(self, task_run_id_builder):
+        self.build_task_run_id = task_run_id_builder
+
     @pytest.mark.parametrize("state", ["success", "failed", "skipped"])
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
     def test_manual_regional_event_uses_same_execution_uuid(self, mocker, state):
@@ -1150,9 +1169,7 @@ class TestOpenLineageListenerAirflow3:
         listener, ti = self._create_listener_and_task_instance(runtime_ti=False)
         listener._executor = mocker.Mock(spec=ProcessPoolExecutor)
         listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
-        listener.adapter.build_task_instance_run_id.side_effect = (
-            OpenLineageAdapter.build_task_instance_run_id
-        )
+        self.build_task_run_id.side_effect = OpenLineageAdapter.build_task_instance_run_id
         with DAG("loop_dag") as loop_dag:
 
             @task_group
@@ -1173,7 +1190,7 @@ class TestOpenLineageListenerAirflow3:
         listener._on_task_instance_manual_state_change(ti, ti.dag_run, state)
 
         assert submit.call_args.kwargs["run_id"] == str(ti.id)
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
 
     @pytest.mark.parametrize("state", ["running", "success", "failed", "skipped"])
     @pytest.mark.parametrize("map_index", [-1, 2])
@@ -1195,9 +1212,7 @@ class TestOpenLineageListenerAirflow3:
             create_loop(body, max_iterations=2)
         ti.task = loop_dag.get_task("body.work")
         listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
-        listener.adapter.build_task_instance_run_id.side_effect = (
-            OpenLineageAdapter.build_task_instance_run_id
-        )
+        self.build_task_run_id.side_effect = OpenLineageAdapter.build_task_instance_run_id
         ti.region_id = uuid.uuid4()
         ti.region_index = 2
         ti.map_index = map_index
@@ -1208,7 +1223,7 @@ class TestOpenLineageListenerAirflow3:
         method = {"running": "start_task", "failed": "fail_task"}.get(state, "complete_task")
         assert getattr(listener.adapter, method).call_args.kwargs["run_id"] == str(ti.id)
         assert lineage_run_id(ti) == str(ti.id)
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
 
     @pytest.mark.parametrize("state", ["running", "success", "failed", "skipped"])
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
@@ -1284,7 +1299,7 @@ class TestOpenLineageListenerAirflow3:
 
         getattr(listener, f"on_task_instance_{state}")(None, ti, **kwargs)
 
-        assert listener.adapter.build_task_instance_run_id.call_args.kwargs["map_index"] == 2
+        assert self.build_task_run_id.call_args.kwargs["map_index"] == 2
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
     def test_manual_event_passes_its_stored_position_to_the_airflow_run_facet(self, mocker):
@@ -1572,9 +1587,6 @@ class TestOpenLineageListenerAirflow3:
         def mock_dag_id(dag_id, logical_date, clear_number):
             return f"{logical_date.isoformat()}.{dag_id}.{clear_number}"
 
-        def mock_task_id(dag_id, task_id, try_number, logical_date, map_index):
-            return f"{logical_date.isoformat()}.{dag_id}.{task_id}.{try_number}.{map_index}"
-
         listener = OpenLineageListener()
         listener.extractor_manager = mock.Mock()
 
@@ -1584,7 +1596,6 @@ class TestOpenLineageListenerAirflow3:
 
         adapter = mock.Mock()
         adapter.build_dag_run_id.side_effect = mock_dag_id
-        adapter.build_task_instance_run_id.side_effect = mock_task_id
         adapter.start_task = mock.Mock()
         adapter.fail_task = mock.Mock()
         adapter.complete_task = mock.Mock()
@@ -2479,12 +2490,12 @@ class TestOpenLineageListenerAirflow3:
         """Tests the OpenLineageListener's response when a task instance is in the running state.
 
         This test ensures that when an Airflow task instance transitions to the running state,
-        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        the task's runId is built exactly once from the correct
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
         listener.on_task_instance_running(None, task_instance)
-        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+        self.build_task_run_id.assert_called_once_with(
             dag_id="dag_id",
             task_id="task_id",
             logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
@@ -2557,7 +2568,7 @@ class TestOpenLineageListenerAirflow3:
         """Tests the OpenLineageListener's response when a task instance is in the failed state.
 
         This test ensures that when an Airflow task instance transitions to the failed state,
-        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        the task's runId is built exactly once from the correct
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
@@ -2566,7 +2577,7 @@ class TestOpenLineageListenerAirflow3:
         listener.on_task_instance_failed(
             previous_state=None, task_instance=task_instance, **on_task_failed_kwargs
         )
-        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+        self.build_task_run_id.assert_called_once_with(
             dag_id="dag_id",
             task_id="task_id",
             logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
@@ -2581,12 +2592,12 @@ class TestOpenLineageListenerAirflow3:
         """Tests the OpenLineageListener's response when a task instance is in the success state.
 
         This test ensures that when an Airflow task instance transitions to the success state,
-        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        the task's runId is built exactly once from the correct
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
         listener.on_task_instance_success(None, task_instance)
-        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+        self.build_task_run_id.assert_called_once_with(
             dag_id="dag_id",
             task_id="task_id",
             logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
@@ -2614,7 +2625,7 @@ class TestOpenLineageListenerAirflow3:
         listener.on_task_instance_running(None, task_instance)
         mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.start_task.assert_not_called()
 
@@ -2640,7 +2651,7 @@ class TestOpenLineageListenerAirflow3:
         )
         mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.fail_task.assert_not_called()
 
@@ -2662,7 +2673,7 @@ class TestOpenLineageListenerAirflow3:
         listener.on_task_instance_success(None, task_instance)
         mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.complete_task.assert_not_called()
 
@@ -2673,12 +2684,12 @@ class TestOpenLineageListenerAirflow3:
         """Tests the OpenLineageListener's response when a task instance is skipped.
 
         This test ensures that when an Airflow task instance is skipped via AirflowSkipException,
-        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        the task's runId is built exactly once from the correct
         parameters derived from the task instance.
         """
         listener, task_instance = self._create_listener_and_task_instance()
         listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
-        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+        self.build_task_run_id.assert_called_once_with(
             dag_id="dag_id",
             task_id="task_id",
             logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
@@ -2704,7 +2715,7 @@ class TestOpenLineageListenerAirflow3:
         listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
         mock_disabled.assert_called_once_with(operator=task_instance.task, dag_id="dag_id", task_id="task_id")
         listener.adapter.build_dag_run_id.assert_not_called()
-        listener.adapter.build_task_instance_run_id.assert_not_called()
+        self.build_task_run_id.assert_not_called()
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.complete_task.assert_not_called()
 

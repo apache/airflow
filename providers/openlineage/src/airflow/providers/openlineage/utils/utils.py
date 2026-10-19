@@ -1194,16 +1194,19 @@ class TaskInstanceInfo(InfoJsonEncodable):
     }
 
     def __init__(self, obj, position: TaskInstancePosition | None = None):
-        # Pass the position when the caller has already placed the task instance, e.g. from its stored region
+        # Pass the position when the caller has already placed the task instance, e.g. from its stored region or
+        # with get_task_instance_position; it is then used as is.
         self._position = position
         super().__init__(obj)
 
     def _extend_fields(self) -> None:
-        # A stored task instance whose task isn't attached can't be placed without its region, and a facet must
-        # not fail the whole event, so then it describes the task instance without its position.
-        position = self._position or _get_task_instance_position(self.obj)
-        if position is not None:
-            position = _add_runtime_loop_iteration(self.obj, position)
+        position = self._position
+        if position is None:
+            # A stored task instance whose task isn't attached can't be placed without its region, and a facet
+            # must not fail the whole event, so then it describes the task instance without its position.
+            position = _get_task_instance_position(self.obj)
+            if position is not None:
+                position = _add_runtime_loop_iteration(self.obj, position)
         map_index = position.map_index if position else -1
         self.map_index = map_index if map_index != -1 else None
         self.rendered_map_index = getattr(self.obj, "rendered_map_index", None) if map_index != -1 else None
@@ -1223,7 +1226,9 @@ class TaskInstanceInfo(InfoJsonEncodable):
         # Only a loop gate's runtime task instance has one, once it has evaluated ``until``. Read from a private
         # attribute until the task SDK exposes it.
         if (decision := getattr(self.obj, "_loop_decision", None)) is not None:
-            self.loop_decision = {"stop": decision.stop, "reason": decision.reason}
+            self.loop_decision = {"stop": decision.stop}
+            if decision.reason is not None:
+                self.loop_decision["reason"] = decision.reason
             self._fields.append("loop_decision")
         # A runtime task instance in no region carries the sentinel region id instead of None
         region_id = getattr(self.obj, "region_id", None)
@@ -1587,18 +1592,13 @@ def is_dag_run_asset_triggered(
 @attrs.frozen
 class TaskInstancePosition:
     """
-    Where a task instance runs: inside a loop body or not, the map index users see and the loop iteration.
+    Where a task instance runs: in a loop or not, the map index users see, and its loop iteration.
 
-    A plain mapped task keeps the region of its own expansion, so its dag, task, try, logical date and
-    map index stay unique; inside a loop they repeat on every pass, so only the execution UUID identifies
-    the run. ``loop_index`` is the zero-based iteration and ``loop_max_iterations`` the limit of the loop, the
-    counterparts of ``try_number`` and the maximum number of tries, and ``loop_group_id`` the loop's group id.
-    All three describe the innermost loop and are ``None`` outside a loop. A stored task whose task isn't
-    attached has no ``loop_max_iterations``, nor ``loop_group_id`` when it is mapped, and a stored mapped task
-    in a loop has no ``loop_index`` unless ``get_orm_task_instance_positions`` could read its region. A runtime
-    task instance has no ``loop_index`` nor ``loop_max_iterations`` unless placed with
-    ``get_task_instance_position``, as only its template context holds them.
-    ``TaskInstanceInfo`` explains how these read together with the try and the region in events.
+    The loop fields are ``None`` outside a loop, and also when they can't be known: a stored task whose task
+    isn't attached has no ``loop_max_iterations``, nor ``loop_group_id`` when it is mapped; a stored mapped task
+    has no ``loop_index`` unless ``get_orm_task_instance_positions`` could read its region; and a runtime task
+    instance has no ``loop_index`` nor ``loop_max_iterations`` unless placed with ``get_task_instance_position``,
+    as only its template context holds them. ``TaskInstanceInfo`` explains what these fields mean in events.
     """
 
     in_loop: bool
@@ -1608,7 +1608,8 @@ class TaskInstancePosition:
     loop_group_id: str | None = None
 
 
-def _get_enclosing_loop(task: Any) -> Any | None:
+def _find_enclosing_loop(task: Any) -> tuple[bool, Any | None]:
+    """Tell whether a task runs in a loop, and return that loop's group when it is known."""
     from airflow.sdk.definitions._internal.loop import LoopTaskGroup
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedTaskGroup
@@ -1616,9 +1617,19 @@ def _get_enclosing_loop(task: Any) -> Any | None:
     group = getattr(task, "task_group", None)
     while isinstance(group, (TaskGroup, SerializedTaskGroup)):
         if isinstance(group, (LoopTaskGroup, SerializedLoopTaskGroup)):
-            return group
+            return True, group
         group = group.parent_group
-    return None
+    if group is None:
+        return False, None
+    # A group of an unknown type could be a loop. Assuming one only gives each iteration its own runId, while
+    # missing one would merge the runs of all its iterations, which share every coordinate but the UUID.
+    log.warning(
+        "OpenLineage can't tell whether task `%s` runs in a loop, as its task group has an unknown type `%s`; "
+        "assuming it does",
+        getattr(task, "task_id", None),
+        type(group).__name__,
+    )
+    return True, None
 
 
 def _get_task_instance_position(
@@ -1634,12 +1645,11 @@ def _get_task_instance_position(
         return TaskInstancePosition(in_loop=False, map_index=map_index)
     if (task := getattr(task_instance, "task", None)) is None:
         return None
-    enclosing_loop = _get_enclosing_loop(task)
-    in_loop = enclosing_loop is not None
+    in_loop, enclosing_loop = _find_enclosing_loop(task)
     loop_index: int | None = None
     loop_max_iterations: int | None = None
     loop_group_id = enclosing_loop.group_id if enclosing_loop is not None else None
-    if in_loop and is_stored:
+    if enclosing_loop is not None and is_stored:
         loop_max_iterations = getattr(enclosing_loop, "max_iterations", None)
     if is_stored and not task.get_needs_expansion():
         # The stored region_index means a map index only for a mapped task. A task that isn't mapped has none,
@@ -1718,53 +1728,93 @@ def get_orm_task_instance_positions(
         raise ValueError("Placing a stored task instance without its task needs the session it was loaded in")
 
     from sqlalchemy import select
+    from sqlalchemy.orm import aliased
 
     from airflow.models.dynamic_region import DynamicRegion
 
-    regions = {
-        row.id: row
-        for row in session.execute(
-            select(
-                DynamicRegion.id,
-                DynamicRegion.node_id,
-                DynamicRegion.parent_region_id,
-                DynamicRegion.parent_region_index,
-            ).where(
-                DynamicRegion.id.in_(
-                    {task_instance.region_id for task_instance in (*unplaced, *without_iteration)}
-                )
+    parent = aliased(DynamicRegion)
+    query = (
+        select(
+            DynamicRegion.id,
+            DynamicRegion.node_id,
+            DynamicRegion.parent_region_id,
+            DynamicRegion.parent_region_index,
+            parent.node_id.label("parent_node_id"),
+            parent.parent_region_id.label("grandparent_region_id"),
+        )
+        .outerjoin(parent, parent.id == DynamicRegion.parent_region_id)
+        .where(
+            DynamicRegion.id.in_(
+                {task_instance.region_id for task_instance in (*unplaced, *without_iteration)}
             )
         )
-    }
+    )
+    if unplaced:
+        regions = {row.id: row for row in session.execute(query)}
+    else:
+        # Only mapped tasks' iterations are missing, and they only describe the run, so failing to read them
+        # must not cost the event. The savepoint keeps the caller's transaction usable after a failure.
+        try:
+            with session.begin_nested():
+                regions = {row.id: row for row in session.execute(query)}
+        except Exception:
+            log.warning(
+                "OpenLineage failed to read the loop iteration of mapped task instances from their regions"
+            )
+            log.debug("Exception details:", exc_info=True)
+            return positions
+
+    # Airflow creates a region for each run of a loop and for the expansion of each mapped task, a task in a
+    # mapped task group included. As loops can't be nested nor sit in a mapped task group, a loop's region is
+    # top-level and a mapped task's region sits directly in its loop's region, if any. The provider's
+    # test_region_shapes_* tests check this against Airflow. Any other shape is placed as a loop without its
+    # iteration, which keeps the runId of each execution unique, instead of guessing.
     for task_instance in unplaced:
         region = regions.get(task_instance.region_id)
+        position = None
+        map_index = -1
         if region is not None and region.node_id == task_instance.task_id:
-            positions[task_instance.id] = TaskInstancePosition(
-                in_loop=region.parent_region_id is not None,
-                map_index=task_instance.region_index,
-                loop_index=region.parent_region_index,
-            )
-        else:
-            # Only a found region tells that the task isn't mapped, so that its region is the loop's and its
-            # region_index the iteration
-            positions[task_instance.id] = TaskInstancePosition(
+            map_index = task_instance.region_index
+            if region.parent_region_id is None:
+                position = TaskInstancePosition(in_loop=False, map_index=map_index)
+            elif region.grandparent_region_id is None:
+                position = TaskInstancePosition(
+                    in_loop=True,
+                    map_index=map_index,
+                    loop_index=region.parent_region_index,
+                    loop_group_id=region.parent_node_id,
+                )
+        elif region is not None and region.parent_region_id is None:
+            position = TaskInstancePosition(
                 in_loop=True,
                 map_index=-1,
-                loop_index=task_instance.region_index if region is not None else None,
-                loop_group_id=region.node_id if region is not None else None,
+                loop_index=task_instance.region_index,
+                loop_group_id=region.node_id,
             )
+        if position is None:
+            log.warning(
+                "OpenLineage can't place task instance %s from its region, which has an unexpected shape; "
+                "assuming it runs in a loop",
+                task_instance.id,
+            )
+            position = TaskInstancePosition(in_loop=True, map_index=map_index)
+        positions[task_instance.id] = position
     for task_instance in without_iteration:
+        position = positions[task_instance.id]
         region = regions.get(task_instance.region_id)
-        if region is not None and region.parent_region_index is not None:
-            positions[task_instance.id] = attrs.evolve(
-                positions[task_instance.id], loop_index=region.parent_region_index
+        if (
+            region is not None
+            and region.parent_node_id == position.loop_group_id
+            and region.grandparent_region_id is None
+        ):
+            positions[task_instance.id] = attrs.evolve(position, loop_index=region.parent_region_index)
+        else:
+            log.warning(
+                "OpenLineage can't read the loop iteration of task instance %s, as its region isn't directly "
+                "in its loop's region",
+                task_instance.id,
             )
     return positions
-
-
-def is_task_instance_in_loop(task_instance: TaskInstance | RuntimeTaskInstance) -> bool:
-    """Tell whether a task instance runs in a loop, where only its attempt UUID identifies the run."""
-    return _require_task_instance_position(task_instance).in_loop
 
 
 def build_task_instance_ol_run_id(
@@ -1792,6 +1842,31 @@ def build_task_instance_ol_run_id(
             instant=logical_date,
             data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}.{map_index}".encode(),
         )
+    )
+
+
+def get_task_instance_run_id(
+    task_instance: TaskInstance | RuntimeTaskInstance,
+    *,
+    logical_date: datetime.datetime,
+    position: TaskInstancePosition | None = None,
+) -> str:
+    """
+    Return the OpenLineage runId of a task instance's attempt, which all its events must share.
+
+    In a loop the iterations share every coordinate but the attempt UUID, so that is the runId. Otherwise it is
+    built from the coordinates.
+    """
+    if position is None:
+        position = _require_task_instance_position(task_instance)
+    if position.in_loop:
+        return str(task_instance.id)
+    return build_task_instance_ol_run_id(
+        dag_id=task_instance.dag_id,
+        task_id=task_instance.task_id,
+        try_number=task_instance.try_number,
+        logical_date=logical_date,
+        map_index=position.map_index,
     )
 
 

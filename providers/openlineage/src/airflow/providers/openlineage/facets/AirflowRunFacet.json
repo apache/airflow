@@ -142,6 +142,22 @@
             },
             "upstream_task_ids": {
               "type": "string"
+            },
+            "max_iterations": {
+              "description": "Maximum number of iterations of the loop (Airflow 3.4+). Present for a loop group only.",
+              "type": "integer"
+            },
+            "has_until": {
+              "description": "Whether the loop has an until condition that can stop it before max_iterations (Airflow 3.4+). Present for a loop group only.",
+              "type": "boolean"
+            },
+            "gate_task_id": {
+              "description": "Id of the loop's gate, the task that ends each iteration and decides whether the loop goes on (Airflow 3.4+). Present for a loop group only.",
+              "type": "string"
+            },
+            "terminal_task_id": {
+              "description": "Id of the last task of the loop body, whose result the gate and the next iteration read (Airflow 3.4+). Present for a loop group only.",
+              "type": "string"
             }
           },
           "additionalProperties": true,

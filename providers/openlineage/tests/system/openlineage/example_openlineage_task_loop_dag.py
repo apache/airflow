@@ -18,7 +18,8 @@
 DAG with a plain task and task loops, some of their tasks retrying and one stopped early by `until`
 (requires Airflow 3.4+).
 
-It checks, for a plain task, tasks in a loop, a mapped task in a loop and the loop gates:
+It checks, for a plain task, tasks in a loop, a mapped task and a mapped task group in a loop, and the loop
+gates:
     - taskInstance's `try_number`, `map_index`, `loop_index` and `loop_max_iterations` of every event: the
       iteration is the zero-based `loop_index`, `map_index` the mapped position, and a plain task has no
       `loop_index`
@@ -31,6 +32,8 @@ It checks, for a plain task, tasks in a loop, a mapped task in a loop and the lo
       iteration and no `reason`; for the loop with `until` (whose gate is named after it), the `reason` it
       returns and `stop` true at the iteration it ends the loop, before `max_iterations`; absent for the plain
       task
+    - a mapped task group inside a loop: its task's `map_index` and `region_index` are the mapped position,
+      its `loop_index` the iteration, and its `loop_group_id` the loop's, unlike its own `task_group`
     - the loop groups' `max_iterations`, `has_until`, `gate_task_id` and `terminal_task_id`, in the task's
       `task_group` and in the `taskGroups` of the Dag's job facet
     - a retried task emits START and FAIL for each failed try, then START and COMPLETE for the last one
@@ -107,7 +110,16 @@ with DAG(
                 raise ValueError(f"Intentional failure, iteration {loop.index}, try {ti.try_number}")
             return value + loop.index
 
-        process.expand(value=choose_items())
+        @task_group
+        def fetch(source):
+            @task(max_active_tis_per_dagrun=1)  # Execute sequentially to not overwrite each other OL events
+            def download(source, *, loop):
+                return f"{source}-{loop.index}"
+
+            download(source)
+
+        items = choose_items()
+        fetch.expand(source=["a", "b"]) >> process.expand(value=items)
 
     @task_group
     def poll():
