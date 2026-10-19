@@ -557,7 +557,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return self._exit_code is None
 
     @classmethod
-    def start(  # type: ignore[override]
+    def start(
         cls,
         *,
         job: Job | None = None,
