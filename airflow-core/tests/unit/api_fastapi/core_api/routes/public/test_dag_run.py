@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -3742,6 +3743,30 @@ class TestTriggerDagRun:
         response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json=post_body)
         assert response.status_code == 422
         assert response.json() == expected_detail
+
+    @pytest.mark.parametrize(
+        ("key", "conf"),
+        [
+            ("__classname__", {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}),
+            ("__type", {"nested": {"__type": "datetime", "__var": 0.0}}),
+        ],
+    )
+    def test_trigger_dag_run_rejects_reserved_conf_keys(self, test_client, session, key, conf):
+        count_runs = select(func.count()).select_from(DagRun).where(DagRun.dag_id == DAG1_ID)
+        runs_before = session.scalar(count_runs)
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"conf": conf, "logical_date": None})
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+        assert session.scalar(count_runs) == runs_before
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_keeps_json_string_conf_value(self, test_client):
+        conf = {"nested": json.dumps({"__type": "datetime", "__var": 0.0})}
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"conf": conf, "logical_date": None})
+        assert response.status_code == 200
+        assert response.json()["conf"] == conf
 
     def test_post_dag_runs_with_empty_payload(self, test_client):
         response = test_client.post(
