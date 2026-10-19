@@ -47,6 +47,9 @@ GRPC Port (optional)
 
 Prefer GRPC (optional)
     Whether to use GRPC for custom methods. Defaults to ``False``.
+    When you define the connection extra yourself, for example in JSON or an environment variable,
+    use the ``prefer_grpc`` key. The ``prefer_gprc`` key saved by the connection form is still read,
+    and ``prefer_grpc`` takes precedence when both are set.
 
 HTTPS (optional)
     Whether to use HTTPS for requests. Defaults to ``True`` if an API key is provided. ``False`` otherwise.
