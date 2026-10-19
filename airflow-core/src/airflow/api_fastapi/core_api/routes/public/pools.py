@@ -46,9 +46,30 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService, update_orm_from_pydantic
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.models.pool import Pool
+from airflow.models.pool import Pool, PoolStats
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
+
+
+def _build_pool_response(pool: Pool, stats: PoolStats) -> PoolResponse:
+    occupied_slots = stats["running"] + stats["queued"]
+    if pool.include_deferred:
+        occupied_slots += stats["deferred"]
+    return PoolResponse.model_validate(
+        {
+            "pool": pool.pool,
+            "slots": pool.slots,
+            "description": pool.description,
+            "include_deferred": pool.include_deferred,
+            "team_name": pool.team_name,
+            "occupied_slots": occupied_slots,
+            "running_slots": stats["running"],
+            "queued_slots": stats["queued"],
+            "scheduled_slots": stats["scheduled"],
+            "open_slots": stats["open"],
+            "deferred_slots": stats["deferred"],
+        }
+    )
 
 
 @pools_router.delete(
@@ -119,10 +140,16 @@ def get_pools(
         session=session,
     )
 
-    pools = session.scalars(pools_select)
+    pools = session.scalars(pools_select).all()
+    pool_stats = Pool.slots_stats(session=session)
 
     return PoolCollectionResponse(
-        pools=[PoolResponse.model_validate(pool) for pool in pools],
+        pools=[
+            _build_pool_response(pool, pool_stats[pool.pool])
+            for pool in pools
+            # Skip a pool deleted between the two reads.
+            if pool.pool in pool_stats
+        ],
         total_entries=total_entries,
     )
 
