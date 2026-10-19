@@ -2780,6 +2780,18 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    unreferenced_triggers_cleanup_batch_size:
+      description: |
+        Maximum number of unreferenced ``trigger`` rows the scheduler removes per
+        transaction during its periodic trigger cleanup (see
+        ``[scheduler] parsing_cleanup_interval``). Batching avoids holding row locks
+        on the ``trigger`` table for the duration of a single large delete, which
+        would otherwise block the triggerer's own writers and stall the scheduler
+        main loop. Must be at least ``1``.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "500"
     dag_cache_size:
       description: |
         Max number of deserialized SerializedDAG objects the scheduler keeps in memory, keyed by Dag version
