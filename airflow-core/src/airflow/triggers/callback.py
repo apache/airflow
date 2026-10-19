@@ -41,19 +41,15 @@ def _validate_callback(callback: Any, callback_path: str) -> None:
     """
     Check that the object resolved from ``callback_path`` can be used as a triggerer callback.
 
-    Triggerer callbacks (``AsyncCallback``) are coroutine functions or awaitable callables such as
-    notifier classes, which is also what ``AsyncCallback`` checks when the callback is defined.
-    Callable objects with an ``async def __call__`` are accepted as well.
-    The callback path is validated here before the callable is invoked, the same way trigger
-    classpaths are validated before a trigger is instantiated.
+    It accepts exactly what ``AsyncCallback.verify_callable`` in the Task SDK accepts when the
+    callback is defined, and is run again because the path is read back from the database. Core
+    cannot import that check from the SDK, so keep the two in step. The path is validated before
+    the callable is invoked, the same way trigger classpaths are validated before a trigger is
+    instantiated.
     """
     if not callable(callback):
         raise InvalidCallbackPathError(f"The callback path {callback_path!r} does not resolve to a callable.")
-    if not (
-        inspect.iscoroutinefunction(callback)
-        or hasattr(callback, "__await__")
-        or inspect.iscoroutinefunction(type(callback).__call__)
-    ):
+    if not (inspect.iscoroutinefunction(callback) or hasattr(callback, "__await__")):
         raise InvalidCallbackPathError(
             f"The callback path {callback_path!r} does not resolve to a coroutine function or "
             f"an awaitable callable; refusing to run it on the triggerer."
