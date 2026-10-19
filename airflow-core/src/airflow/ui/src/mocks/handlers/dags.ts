@@ -231,6 +231,9 @@ export const handlers: Array<HttpHandler> = [
     });
   }),
   dagsListHandler(),
+  http.get("/ui/dags/run_state_counts", () => HttpResponse.json({ dags: [], state_count_limit: 1000 })),
+  http.get("/ui/dags/recent_task_instance_state_counts", () => HttpResponse.json({ dags: [] })),
+  http.get("/ui/teams", () => HttpResponse.json({ teams: [], total_entries: 0 })),
   http.get("/api/v2/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
