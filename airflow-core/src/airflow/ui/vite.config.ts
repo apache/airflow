@@ -76,8 +76,10 @@ export default defineConfig({
     environment: "happy-dom",
     exclude: ["**/node_modules/**", "**/dist/**", "tests/e2e/**"],
     globals: true,
+    maxWorkers: 4,
     mockReset: true,
     restoreMocks: true,
     setupFiles: "./testsSetup.ts",
+    testTimeout: 15_000,
   },
 });

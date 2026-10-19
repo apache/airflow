@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import type { SetupServer } from "msw/node";
 import { beforeEach, afterEach, vi } from "vitest";
 
@@ -25,6 +25,10 @@ import { server as sharedServer } from "src/mocks/server";
 
 // tsconfig.dev.json, which covers this file, has no `src/*` path alias, so the import is untyped here.
 const server = sharedServer as SetupServer;
+
+// Route modules are loaded asynchronously in production. Give full-suite runs
+// enough time to resolve them when test workers are competing for CPU.
+configure({ asyncUtilTimeout: 10_000 });
 
 // ELK creates a Worker at module-load time, which is not available in
 // happy-dom. Mock useGraphLayout so the Worker is never constructed. Any
