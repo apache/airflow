@@ -70,6 +70,26 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 - Please make sure your proxy does not enforce http-only status on the Set-Cookie headers.
   Airflow frontend needs to access the cookies through javascript, and a http-only flag would disturb this functionality.
 
+Running multiple Airflow instances on the same host
+---------------------------------------------------
+
+Browsers scope cookies by host name and path, not by port. If several Airflow instances are served
+from the same host name (for example ``https://lab.mycompany.com``, or ``localhost`` on different ports)
+and they share the same ``base_url`` path, they also share the authentication cookie: logging in to one
+instance logs you out of the others.
+
+To keep the sessions separate, give each instance its own path in ``[api] base_url``. Airflow scopes
+its authentication cookie to that path::
+
+    # instance serving production
+    base_url = https://lab.mycompany.com/prod
+
+    # instance serving development
+    base_url = https://lab.mycompany.com/dev
+
+Serving each instance from a different host name (for example ``prod.lab.mycompany.com`` and
+``dev.lab.mycompany.com``) also keeps the cookies separate.
+
 Helm Chart Configuration
 ------------------------
 
