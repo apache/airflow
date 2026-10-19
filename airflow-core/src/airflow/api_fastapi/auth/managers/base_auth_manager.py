@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -53,7 +54,6 @@ from airflow.models.asset import AssetModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
 from airflow.models.team import Team, dag_bundle_team_association_table
-from airflow.typing_compat import Unpack
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -163,7 +163,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid: %s", e)
             raise e
 
-        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
+        # A synchronous DB lookup, kept off the event loop
+        if (jti := payload.get("jti")) and await run_in_threadpool(RevokedToken.is_revoked, jti):
             raise InvalidTokenError("Token has been revoked")
 
         try:
@@ -718,7 +719,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             )
         )
         # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-        rows: Sequence[Row[Unpack[tuple[str, str]]]] = session.execute(stmt).all()  # type: ignore[type-arg]
+        rows: Sequence[Row[*tuple[str, str]]] = session.execute(stmt).all()  # type: ignore[type-arg]
         dags_by_team: dict[str, set[str]] = defaultdict(set)
         for dag_id, team_name in rows:
             dags_by_team[team_name].add(dag_id)
@@ -787,7 +788,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         rows = session.execute(stmt).all()
         pools_by_team: dict[str | None, set[str]] = defaultdict(set)
         for pool_name, team_name in rows:
-            pools_by_team[team_name].add(pool_name)
+            if pool_name is not None:
+                pools_by_team[team_name].add(pool_name)
 
         pool_names: set[str] = set()
         for team_name, team_pool_names in pools_by_team.items():

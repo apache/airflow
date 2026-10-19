@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"reflect"
 	"strings"
 	"testing"
@@ -65,8 +64,8 @@ func TestIfAddsTheConditionAsATask(t *testing.T) {
 	assert.Same(t, gate.task, dag.tasksByID["hasRows"])
 	assertInputs(t, gate.task, read)
 	assert.Equal(t, reflect.TypeFor[bool](), gate.task.resultType)
-	assert.Same(t, gate, gate.task.ifRef)
-	assert.Nil(t, read.ifRef, "a task from DagRef.Task is not a condition")
+	assert.Same(t, gate, gate.task.decider)
+	assert.Nil(t, read.decider, "a task from DagRef.Task is not a condition")
 
 	named := dag.If(isReady, TaskSpec{TaskID: "is_ready"})
 	assert.Equal(t, "is_ready", named.task.taskID)
@@ -192,7 +191,7 @@ func TestIfPanicsUnderItsOwnName(t *testing.T) {
 		{
 			name: "nil input",
 			add:  func(dag *DagRef) { dag.If(hasRows, Inputs(nil)) },
-			want: "airflow.Inputs got a nil *airflow.TaskRef",
+			want: "airflow.Inputs got a nil input",
 		},
 		{
 			name: "input from another Dag",
@@ -200,14 +199,14 @@ func TestIfPanicsUnderItsOwnName(t *testing.T) {
 			want: "cannot take an input from task",
 		},
 		{
-			name: "input that DagRef.Task did not return",
+			name: "input that DagRef.Task or TaskGroupRef.Task did not return",
 			add:  func(dag *DagRef) { dag.If(hasRows, Inputs(&TaskRef{})) },
-			want: "that DagRef.Task did not return",
+			want: "that DagRef.Task or TaskGroupRef.Task did not return",
 		},
 		{
 			name: "missing input",
 			add:  func(dag *DagRef) { dag.If(hasRows) },
-			want: "but airflow.Inputs passes no task",
+			want: "but airflow.Inputs passes no input",
 		},
 		{
 			name: "input from TriggerDagRun",
@@ -308,12 +307,12 @@ func TestThenAndElseRejectATaskOutsideTheDag(t *testing.T) {
 		{
 			name: "zero TaskRef",
 			task: &TaskRef{},
-			want: `got a *airflow.TaskRef that DagRef.Task did not return`,
+			want: `got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name: "copy of a task of the Dag",
 			task: &loadedCopy,
-			want: `got a *airflow.TaskRef that DagRef.Task did not return`,
+			want: `got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task did not return`,
 		},
 		{
 			name: "task of another Dag",
@@ -417,11 +416,13 @@ func TestIfRefThatDagRefIfDidNotReturnPanics(t *testing.T) {
 	for name, ref := range map[string]*IfRef{"nil": nilRef, "zero": {}, "copy": &gateCopy} {
 		t.Run(name, func(t *testing.T) {
 			assert.PanicsWithValue(t,
-				"airflow.IfRef.Then: DagRef.If did not return the *airflow.IfRef",
+				"airflow.IfRef.Then: DagRef.If or TaskGroupRef.If did not return "+
+					"the *airflow.IfRef",
 				func() { ref.Then(loaded) },
 			)
 			assert.PanicsWithValue(t,
-				"airflow.IfRef.Else: DagRef.If did not return the *airflow.IfRef",
+				"airflow.IfRef.Else: DagRef.If or TaskGroupRef.If did not return "+
+					"the *airflow.IfRef",
 				func() { ref.Else(loaded) },
 			)
 		})
@@ -459,18 +460,18 @@ func TestRegisterRejectsAConditionWithoutThen(t *testing.T) {
 	}
 }
 
-// conditionClient answers GetXCom from results, which maps a task_id to the result of that task.
-// It records the XComs that a condition pushes. Its skip method stands in for the function that
-// the runtime passes through bundle.WithSkipDownstreamTasks, and records the task_ids that the
-// condition skips.
-type conditionClient struct {
+// deciderClient answers GetXCom from results, which maps a task_id to the result of that task. It
+// records the XComs that a condition or a switch pushes. Its skip method stands in for the
+// function that the runtime passes through bundle.WithSkipDownstreamTasks, and records the
+// task_ids that the condition or the switch skips.
+type deciderClient struct {
 	sdk.Client
 	results map[string]any
 	xcoms   map[string]any
 	skipped [][]string
 }
 
-func (c *conditionClient) GetXCom(
+func (c *deciderClient) GetXCom(
 	_ context.Context,
 	_, _, taskID string,
 	_ *int,
@@ -480,30 +481,27 @@ func (c *conditionClient) GetXCom(
 	return c.results[taskID], nil
 }
 
-func (c *conditionClient) PushXCom(_ context.Context, _ sdk.TaskInstance, key string, v any) error {
+func (c *deciderClient) PushXCom(_ context.Context, _ sdk.TaskInstance, key string, v any) error {
 	c.xcoms[key] = v
 	return nil
 }
 
-func (c *conditionClient) skip(_ context.Context, taskIDs []string) error {
+func (c *deciderClient) skip(_ context.Context, taskIDs []string) error {
 	c.skipped = append(c.skipped, taskIDs)
 	return nil
 }
 
-// runCondition runs the task of gate through its Execute method, as the runtime runs a task. It
-// passes one XCom binding per input, named after the arg tag of rowSet, so that a struct
-// parameter shows whether it takes the whole result. results maps the task_id of each upstream
-// task to its result. earlier maps each key to an XCom that an earlier try of the task left.
-func runCondition(gate *IfRef, results, earlier map[string]any) (*conditionClient, error) {
-	args := make([]binding.Arg, len(gate.task.inputs))
-	for i, upstream := range gate.task.inputs {
-		args[i] = binding.XComArg{Kind: "xcom", Name: "rows", TaskID: upstream.taskID}
+// runDecider runs task, the task of a condition or a switch, through its Execute method, as the
+// runtime runs a task. It passes one XCom binding per input, named after the arg tag of rowSet, so
+// that a struct parameter shows whether it takes the whole result. results maps the task_id of
+// each upstream task to its result.
+func runDecider(task *TaskRef, results map[string]any) (*deciderClient, error) {
+	args := make([]binding.Arg, len(task.inputs))
+	for i, upstream := range task.inputs {
+		args[i] = binding.XComArg{Kind: "xcom", Name: "rows", TaskID: upstream.ref.taskID}
 	}
-	client := &conditionClient{results: results, xcoms: maps.Clone(earlier)}
-	if client.xcoms == nil {
-		client.xcoms = map[string]any{}
-	}
-	ti := sdk.TaskInstance{DagID: "etl", RunID: "run1", TaskID: gate.task.taskID}
+	client := &deciderClient{results: results, xcoms: map[string]any{}}
+	ti := sdk.TaskInstance{DagID: "etl", RunID: "run1", TaskID: task.taskID}
 	ctx := context.WithValue(
 		context.Background(),
 		sdkcontext.SdkClientContextKey,
@@ -515,7 +513,7 @@ func runCondition(gate *IfRef, results, earlier map[string]any) (*conditionClien
 		sdk.NewTIRunContext(context.Background(), ti, sdk.DagRun{DagID: "etl", RunID: "run1"}),
 	)
 	ctx = bundle.WithSkipDownstreamTasks(ctx, client.skip)
-	return client, gate.task.task.Execute(ctx, discardLogger(), args)
+	return client, task.task.Execute(ctx, discardLogger(), args)
 }
 
 // TestRegisterRejectsACycleThroughACondition pins that the edge Then records is one the cycle
@@ -584,26 +582,27 @@ func TestConditionSkipsTheSideThatItDoesNotTake(t *testing.T) {
 			}
 			Bundle().Register(dag)
 
-			client, err := runCondition(gate, map[string]any{
+			client, err := runDecider(gate.task, map[string]any{
 				"readRows": map[string]any{"rows": tt.rows},
-			}, nil)
+			})
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.want, client.xcoms["return_value"])
 			if len(tt.skipped) == 0 {
 				assert.Empty(t, client.skipped)
+				assert.NotContains(t, client.xcoms, "skipmixin_key")
 			} else {
 				assert.Equal(t, [][]string{tt.skipped}, client.skipped)
+				assert.Equal(t,
+					map[string][]string{"skipped": tt.skipped},
+					client.xcoms["skipmixin_key"],
+				)
 			}
-			assert.Equal(t,
-				map[string][]string{"skipped": tt.skipped},
-				client.xcoms["skipmixin_key"],
-			)
 		})
 	}
 }
 
-func TestConditionThatFailsSkipsNothing(t *testing.T) {
+func TestConditionThatFailsPushesAndSkipsNothing(t *testing.T) {
 	dag := Dag("etl")
 	gate := dag.If(
 		func(Context) (bool, error) { return false, errors.New("cannot reach the table") },
@@ -611,19 +610,11 @@ func TestConditionThatFailsSkipsNothing(t *testing.T) {
 	).Then(dag.Task(load)).Else(dag.Task(reportEmpty))
 	Bundle().Register(dag)
 
-	// An earlier try of the condition skipped load, and this try fails before it decides which
-	// side to skip.
-	client, err := runCondition(gate, nil, map[string]any{
-		"skipmixin_key": map[string][]string{"skipped": {"load"}},
-	})
+	client, err := runDecider(gate.task, nil)
 
 	require.EqualError(t, err, "cannot reach the table")
 	assert.Empty(t, client.skipped)
-	assert.Equal(t,
-		map[string][]string{"skipped": {}},
-		client.xcoms["skipmixin_key"],
-		"the list of the earlier try must not be left behind",
-	)
+	assert.Empty(t, client.xcoms)
 }
 
 // Else and Register both take the lock of the Dag, so each Else call either names its task before

@@ -509,6 +509,22 @@ class DagModel(Base):
         self.is_paused = state == DagSchedulingState.PAUSED
         self.is_draining = state == DagSchedulingState.DRAINING
 
+    @classmethod
+    def start_drain(cls, dag_id: str, *, session: Session) -> None:
+        """
+        Put the Dag into the draining state.
+
+        Lock the Dag row and change its scheduling state in the caller's transaction.
+        Call this in the transaction that creates the explicit runs so the state change
+        commits or rolls back with them.
+        """
+        dag_model = session.scalars(
+            with_row_locks(
+                select(cls).where(cls.dag_id == dag_id), of=cls, session=session
+            ).execution_options(populate_existing=True)
+        ).one()
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+
     def is_rollup_asset(self, *, name: str, uri: str) -> bool:
         """
         Return whether the asset identified by *name*/*uri* uses a rollup mapper.

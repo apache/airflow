@@ -836,6 +836,13 @@ func describeShapes(shapes []schemaShape) string {
 	return "JSON-schema alternatives " + strings.Join(parts, " | ")
 }
 
+// DecodeLiteral decodes the value of a literal argument into a value of the target type, as
+// Resolve does for a LiteralArg. It lets a Dag check at build time what Resolve accepts at run
+// time.
+func DecodeLiteral(raw any, target reflect.Type) (reflect.Value, error) {
+	return decodeValue(raw, target)
+}
+
 func decodeValue(raw any, target reflect.Type) (reflect.Value, error) {
 	out := reflect.New(target)
 

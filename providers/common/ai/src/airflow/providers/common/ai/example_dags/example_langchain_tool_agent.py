@@ -371,7 +371,7 @@ def _build_tools(hook, index_dir: str, survey_csv_path: str) -> list:
         merge freeze active right now", "how recent is the survey data").
         LLMs cannot reliably know the wall-clock time on their own.
         """
-        return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        return datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
 
     return [search_knowledge_base, query_survey_data, search_web, get_current_utc_time]
 

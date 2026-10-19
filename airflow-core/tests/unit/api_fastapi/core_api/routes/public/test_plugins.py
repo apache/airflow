@@ -39,11 +39,12 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                19,
+                20,
                 [
                     "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
+                    "ai_model_panel",
                     "business_day_window_plugin",
                     "databricks_workflow",
                     "decreasing_priority_weight_strategy_plugin",
@@ -64,14 +65,14 @@ class TestGetPlugins:
             ),
             (
                 {"limit": 3, "offset": 3},
-                19,
+                20,
                 [
+                    "ai_model_panel",
                     "business_day_window_plugin",
                     "databricks_workflow",
-                    "decreasing_priority_weight_strategy_plugin",
                 ],
             ),
-            ({"limit": 1}, 19, ["InformaticaProviderPlugin"]),
+            ({"limit": 1}, 20, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -105,11 +106,8 @@ class TestGetPlugins:
                 "category": "browse",
                 "nav_top_level": False,
                 "applies_to": {
-                    "dag_tags": ["ml", "production"],
-                    "dag_ids": ["example_dag"],
-                    "task_ids": None,
-                    "operators": None,
-                    "operator_names": None,
+                    "dag.tags.name": ["ml", "production"],
+                    "dag.dag_id": ["example_dag"],
                 },
             },
         ]
@@ -165,27 +163,28 @@ class TestGetPlugins:
 
         assert view.applies_to is None
 
-    def test_applies_to_parses_nested_criteria(self):
+    def test_applies_to_accepts_any_field_path(self):
         from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
 
         view = ExternalViewResponse(
             name="Scoped",
             href="https://example.com/",
             applies_to={
-                "dag_tags": ["ml"],
-                "operators": ["KubernetesPodOperator"],
-                "operator_names": ["@task.bash"],
+                "dag.tags.name": ["ml"],
+                "operator_name": ["@task.bash"],
+                "state": ["failed", "upstream_failed"],
             },
         )
 
         assert view.applies_to is not None
-        assert view.applies_to.dag_tags == ["ml"]
-        assert view.applies_to.operators == ["KubernetesPodOperator"]
-        assert view.applies_to.operator_names == ["@task.bash"]
-        assert view.applies_to.dag_ids is None
-        assert view.applies_to.task_ids is None
+        # An open map: the key set is whatever the entity records expose, not a fixed list.
+        assert view.applies_to.root == {
+            "dag.tags.name": ["ml"],
+            "operator_name": ["@task.bash"],
+            "state": ["failed", "upstream_failed"],
+        }
 
-    def test_applies_to_rejects_unknown_criteria(self):
+    def test_applies_to_rejects_non_list_values(self):
         from pydantic import ValidationError
 
         from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
@@ -194,7 +193,7 @@ class TestGetPlugins:
             ExternalViewResponse(
                 name="Scoped",
                 href="https://example.com/",
-                applies_to={"dag_tag": ["ml"]},
+                applies_to={"state": "failed"},
             )
 
     def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):
@@ -222,7 +221,7 @@ class TestGetPlugins:
         assert len(plugins_page) == 8
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 19
+        assert body["total_entries"] == 20
 
 
 @skip_if_force_lowest_dependencies_marker

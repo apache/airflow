@@ -75,9 +75,15 @@ const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvance
         control={control}
         name="note"
         render={({ field }) => (
-          <Field.Root mt={6}>
-            <Field.Label fontSize="md">{translate("note.dagRun")}</Field.Label>
-            <EditableMarkdown field={field} placeholder={translate("note.placeholder")} />
+          <Field.Root mt={6} orientation="horizontal">
+            <Stack>
+              <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                {translate("note.dagRun")}
+              </Field.Label>
+            </Stack>
+            <Stack css={{ flexBasis: "70%" }}>
+              <EditableMarkdown field={field} placeholder={translate("note.placeholder")} />
+            </Stack>
           </Field.Root>
         )}
       />

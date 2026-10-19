@@ -221,3 +221,36 @@ class TestS3DagBundle:
         bundle.refresh()
         assert bundle._log.debug.call_count == 2
         assert bundle._log.debug.call_args_list == [download_log_call, download_log_call]
+
+    @pytest.mark.parametrize("prefix", ["dags", "dags/", "project/dags", "project/dags/"])
+    @pytest.mark.parametrize("extra_suffix", ["_archive/other.py", pytest.param("", id="key_equals_prefix")])
+    def test_refresh_uses_directory_prefix(self, s3_client, prefix, extra_suffix):
+        s3_client.create_bucket(Bucket=S3_BUCKET_NAME)
+        directory = prefix.rstrip("/")
+        old_key = f"{directory}/nested/old.py"
+        extra_key = directory + extra_suffix
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=old_key, Body=b"old")
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=extra_key, Body=b"outside")
+
+        bundle = S3DagBundle(name="test", bucket_name=S3_BUCKET_NAME, prefix=prefix)
+        original_url = bundle.view_url_template()
+        original_repr = repr(bundle)
+        bundle.initialize()
+        assert bundle.is_initialized
+        assert (bundle.path / "nested/old.py").read_bytes() == b"old"
+        assert {p.relative_to(bundle.path).as_posix() for p in bundle.path.rglob("*") if p.is_file()} == {
+            "nested/old.py"
+        }
+
+        s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=old_key)
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=f"{directory}/new.py", Body=b"new-content")
+        bundle.refresh()
+        assert not (bundle.path / "nested").exists()
+        assert (bundle.path / "new.py").read_bytes() == b"new-content"
+        assert {p.relative_to(bundle.path).as_posix() for p in bundle.path.rglob("*") if p.is_file()} == {
+            "new.py"
+        }
+        assert bundle.prefix == prefix
+        assert repr(bundle) == original_repr
+        assert bundle.view_url_template() == original_url
+        assert s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=extra_key)["Body"].read() == b"outside"

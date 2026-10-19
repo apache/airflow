@@ -147,7 +147,7 @@ Chain can also do *pairwise* dependencies for lists the same size (this is diffe
 Loading Dags
 ------------
 
-Airflow loads Dags from Python source files in Dag bundles. It will take each file, execute it, and then load any Dag objects from that file.
+Airflow loads Dags from Python source files in Dag bundles. It will take each file, execute it, and then load any Dag objects from that file. Other formats can be loaded with a :doc:`Dag importer </administration-and-deployment/dag-importers>`.
 
 This means you can define multiple Dags per Python file, or even spread one very complex Dag across multiple Python files using imports.
 
@@ -624,6 +624,78 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
 
     When using the ``@task_group`` decorator, the decorated-function's docstring will be used as the TaskGroups tooltip in the UI except when a ``tooltip`` value is explicitly supplied.
 
+.. _concepts:taskgroup-cycles:
+
+Cyclic TaskGroup dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. deprecated:: 3.4.0
+    Dags with cyclic TaskGroup dependencies are planned to fail Dag parsing from Airflow 3.5.
+
+When each TaskGroup is treated as a single unit, a TaskGroup and its siblings must not depend on each other
+in a cycle. A dependency into or out of any task in a group counts as a dependency of the whole group. This
+can make a group both upstream and downstream of a sibling, although no task-level dependency forms a cycle:
+
+.. code-block:: python
+
+    with TaskGroup("group1"):
+        a1 = EmptyOperator(task_id="a1")
+        a2 = EmptyOperator(task_id="a2")
+
+    with TaskGroup("group2"):
+        b1 = EmptyOperator(task_id="b1")
+        b2 = EmptyOperator(task_id="b2")
+
+    a1 >> b1  # group2 depends on group1
+    b2 >> a2  # group1 depends on group2
+
+A path that leaves a TaskGroup and comes back into it also forms a cycle, even when the tasks inside the
+group are ordered directly as well:
+
+.. code-block:: python
+
+    with TaskGroup("group"):
+        a = EmptyOperator(task_id="a")
+        b = EmptyOperator(task_id="b")
+        a >> b
+
+    bridge = EmptyOperator(task_id="bridge")
+
+    a >> bridge >> b  # group -> bridge -> group
+
+This includes a setup and teardown pair inside a TaskGroup with the work they wrap outside it. This is
+intended: a TaskGroup that holds a setup and its teardown must also hold the tasks between them.
+
+.. code-block:: python
+
+    with TaskGroup("cluster"):
+        create = EmptyOperator(task_id="create")
+        delete = EmptyOperator(task_id="delete")
+
+    work = EmptyOperator(task_id="work")
+
+    create >> work >> delete.as_teardown(setups=create)  # cluster -> work -> cluster
+
+These Dags still parse and run, but features that act on a TaskGroup as a whole need an unambiguous order
+between groups. Parsing them emits a ``TaskGroupCycleDeprecationWarning`` and a Dag warning in the UI that
+name the TaskGroups and tasks involved. The warning lists at most five members of each cycle and at most ten
+cycles, with a count of the ones left out.
+
+To remove the cycle, move tasks between TaskGroups, or out of them, so that each group depends on the others
+in one direction only. In the second example, move ``bridge`` into ``group``, or move ``b`` out of it. In the
+setup and teardown example, move ``work`` into ``cluster``.
+
+Only Dags authored with the Python Task SDK are checked. Dags from the Go, Java and TypeScript SDKs are not
+checked yet.
+
+To catch these Dags in CI, turn the warning into an error. The check runs when a Dag is added to a
+``DagBag``, so this works for a pytest test that loads your Dags into a ``DagBag`` and asserts there are no
+import errors, but not for one that only imports a Dag file:
+
+.. code-block:: bash
+
+    pytest -W error::airflow.sdk.exceptions.TaskGroupCycleDeprecationWarning tests/test_dags.py
+
 .. _concepts:edge-labels:
 
 Edge Labels
@@ -706,6 +778,8 @@ This is especially useful if your tasks are built dynamically from configuration
         with TaskGroup("extract", doc_md="### Extract tasks"):
             EmptyOperator(task_id="extract_orders")
 
+
+.. _concepts-packaging-dags:
 
 Packaging Dags
 --------------
@@ -796,6 +870,8 @@ with different data intervals. These dependencies are calculated by the schedule
 The dependency detector is configurable, so you can implement your own logic different than the defaults in
 :class:`~airflow.serialization.serialized_objects.DependencyDetector`
 
+.. _concepts:dag-pausing:
+
 Dag pausing, deactivation and deletion
 --------------------------------------
 
@@ -812,6 +888,17 @@ tasks. As with a paused Dag, you can still trigger runs explicitly. After the ou
 the scheduler automatically changes the Dag to paused. A backfill started while the Dag is draining extends
 the drain until its Dag runs have been created and finished. While a Dag is draining, you can cancel the drain
 to make the Dag active again.
+
+A manual run, backfill or asset materialization on a paused Dag can drain the Dag instead of unpausing it.
+Choose **Drain** under **Dag is paused** in the UI form, or set ``drain_dag`` to ``true`` in the REST API
+request. This changes the whole Dag, not only the new run: unfinished Dag runs can start or resume, except
+those held by paused backfills. Paused backfills remain paused, and their unfinished runs prevent draining
+from completing until those backfills are resumed and their runs finish. The scheduler creates no scheduled
+or asset-triggered Dag runs, and the Dag pauses again once all unfinished runs finish. The Dag starts draining
+in the same transaction that creates the run, so if the run is rejected, the Dag stays paused. Setting ``drain_dag`` on an
+active Dag drains it the same way, so the Dag also ends up paused. Because it changes the Dag's scheduling
+state, ``drain_dag`` requires the same permission as pausing the Dag, in addition to the permission to create
+the run.
 
 Dags can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When the Dag processor parses the ``DAGS_FOLDER`` and misses the Dag that it had seen

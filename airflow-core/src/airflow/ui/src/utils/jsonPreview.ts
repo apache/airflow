@@ -60,18 +60,14 @@ export const getJsonPreviewEntries = (content: object): Array<JsonPreviewEntry> 
 
     // Items nested in an array have no key to identify them, so one badge each would read
     // `{…} {…} {…}`. Summarise the array as a whole instead.
-    if (!content.every((item: unknown) => isPrimitive(item))) {
-      return [{ id: "items", isComplex: true, itemCount: content.length, value: "[…]" }];
-    }
-
-    return content.map((item: unknown, index) => ({ id: String(index), ...formatValue(item) }));
+    return content.every((item: unknown) => isPrimitive(item))
+      ? content.map((item: unknown, index) => ({ id: String(index), ...formatValue(item) }))
+      : [{ id: "items", isComplex: true, itemCount: content.length, value: "[…]" }];
   }
 
   const entries = Object.entries(content);
 
-  if (entries.length === 0) {
-    return undefined;
-  }
-
-  return entries.map(([key, value]) => ({ id: key, label: key, ...formatValue(value) }));
+  return entries.length === 0
+    ? undefined
+    : entries.map(([key, value]) => ({ id: key, label: key, ...formatValue(value) }));
 };

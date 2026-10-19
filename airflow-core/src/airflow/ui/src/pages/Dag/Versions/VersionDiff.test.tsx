@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import "@testing-library/jest-dom/vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   $DagVersionDiffCategory,
@@ -79,10 +79,10 @@ const authorized: DagVersionDiffResponse = {
   values_status: "available",
 };
 
-const renderDiff = (diff: DagVersionDiffResponse) =>
+const renderDiff = (diff: DagVersionDiffResponse, maxChanges?: number) =>
   render(
     <Wrapper>
-      <VersionDiff baseVersionNumber={1} diff={diff} targetVersionNumber={2} />
+      <VersionDiff baseVersionNumber={1} diff={diff} maxChanges={maxChanges} targetVersionNumber={2} />
     </Wrapper>,
   );
 
@@ -102,8 +102,8 @@ describe("VersionDiff summary", () => {
   it("carries both plural forms, since i18next resolves it with a count", () => {
     // A single `summary` key would render "1 changes" for a one-change comparison.
     expect(dagLocale.versions).not.toHaveProperty("summary");
-    expect(dagLocale.versions.summary_one).toContain("{{count}}");
-    expect(dagLocale.versions.summary_other).toContain("{{count}}");
+    expect(dagLocale.versions.summary_one).toContain("{{count, number}}");
+    expect(dagLocale.versions.summary_other).toContain("{{count, number}}");
   });
 });
 
@@ -114,8 +114,6 @@ describe("VersionDiff", () => {
     expect(screen.getByText("/dag/tasks/*/retries")).toBeInTheDocument();
     expect(screen.queryByText("versions.columns.before")).not.toBeInTheDocument();
     expect(screen.queryByText("versions.columns.after")).not.toBeInTheDocument();
-    // Says what would grant them, since nothing here can.
-    expect(screen.getByText("versions.codeAccess")).toBeInTheDocument();
   });
 
   it("renders every returned record", () => {
@@ -154,10 +152,32 @@ describe("VersionDiff", () => {
     expect(screen.getByText("bob")).toBeInTheDocument();
   });
 
-  it("warns that a truncated count is a lower bound", () => {
+  it("says a truncated count is a lower bound and points at the limit that was set", () => {
+    renderDiff({ ...redacted, truncated: true }, 10);
+
+    expect(screen.getByText("versions.summaryAtLeast")).toBeInTheDocument();
+    expect(screen.getByText("versions.limitReached.title")).toBeInTheDocument();
+    expect(screen.getByText("versions.limitReached.description")).toBeInTheDocument();
+  });
+
+  it("names the default limit when no bound was set", () => {
     renderDiff({ ...redacted, truncated: true });
 
-    expect(screen.getByText("versions.truncated.description")).toBeInTheDocument();
+    expect(screen.getByText("versions.limitReached.descriptionDefault")).toBeInTheDocument();
+  });
+
+  it("counts changes once, in the summary, not again above the table", () => {
+    renderDiff(redacted);
+
+    expect(screen.getByText("versions.summary")).toBeInTheDocument();
+    expect(screen.queryByText(/dag:versions\.record|versions\.record/u)).not.toBeInTheDocument();
+  });
+
+  it("gives an exact count when nothing was dropped", () => {
+    renderDiff(redacted);
+
+    expect(screen.getByText("versions.summary")).toBeInTheDocument();
+    expect(screen.queryByText("versions.limitReached.title")).not.toBeInTheDocument();
   });
 
   it("marks the side an added change does not have", () => {
@@ -235,11 +255,34 @@ describe("VersionDiff", () => {
     expect(cells[6]).toHaveTextContent("bob");
   });
 
-  it("labels the disclosure state the response reports", () => {
+  it("shows no disclosure chrome when the caller may see values", () => {
     renderDiff(authorized);
 
-    expect(screen.getByText("versions.valuesShown")).toBeInTheDocument();
     expect(screen.queryByText("versions.valuesHidden")).not.toBeInTheDocument();
+    expect(screen.queryByText("versions.codeAccess")).not.toBeInTheDocument();
+  });
+
+  it("flags hidden values, saying on hover what would grant them", async () => {
+    vi.useFakeTimers();
+
+    try {
+      renderDiff(redacted);
+
+      const pill = screen.getByText("versions.valuesHidden");
+
+      // Only on hover: not repeated as inline text next to the pill.
+      expect(screen.queryByText("versions.codeAccess")).not.toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.focus(pill);
+        fireEvent.pointerEnter(pill);
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      expect(screen.getByRole("tooltip")).toHaveTextContent("versions.codeAccess");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("says so when two versions hold the same state", () => {

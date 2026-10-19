@@ -23,7 +23,7 @@ Cross-attempt ``pydantic_ai.usage.RunUsage`` accounting, backed by the task stat
 pydantic-ai field is carried through automatically. This module has no
 top-level import of any Airflow >= 3.3-only symbol: it must stay importable on
 older Airflow versions, even though :class:`TaskStateStoreUsageBudget` is only
-constructed on 3.3+ (see ``AgentOperator._build_usage_budget``).
+constructed on 3.3+ (see ``UsageBudgetMixin._build_usage_budget``).
 """
 
 from __future__ import annotations
@@ -72,7 +72,8 @@ def load_run_usage(raw: Any, *, key: str) -> RunUsage:
     module still loads. Only the fields ``RunUsage`` currently declares are read.
 
     :raises ValueError: *raw* is not a dict, or a field has the wrong shape (``cost``
-        not a valid number, a count field not an int, ``details`` not a dict). The
+        not a valid number, a count field not an int, a float field such as
+        ``audio_seconds`` not a number, ``details`` not a dict). The
         message names *key* so the error points at which task state store key to
         delete to reset the budget.
     """
@@ -107,6 +108,15 @@ def load_run_usage(raw: Any, *, key: str) -> RunUsage:
             # loaded RunUsage silently mutate the raw dict this was read from (matters
             # most for copy_run_usage's dump/load round trip of a live RunUsage).
             kwargs["details"] = dict(value)
+        elif field.type in (float, "float"):
+            # A measure rather than a count, such as ``audio_seconds`` (pydantic-ai 2.50+).
+            # usage.py uses postponed annotations, so ``field.type`` is the string "float".
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                raise ValueError(
+                    f"{key!r}[{field.name!r}] in the task state store is not a number (got {value!r}); "
+                    "delete the key to reset."
+                )
+            kwargs[field.name] = float(value)
         else:
             if not isinstance(value, int) or isinstance(value, bool):
                 raise ValueError(
@@ -153,6 +163,14 @@ def subtract_run_usage(total: RunUsage, base: RunUsage) -> RunUsage:
         else:
             kwargs[field.name] = getattr(total, field.name) - getattr(base, field.name)
     return RunUsage(**kwargs)
+
+
+def delete_usage_record(accessor: TaskStateStoreAccessor) -> None:
+    """Best-effort delete of the persisted usage record; a failure is logged, never raised."""
+    try:
+        accessor.delete(USAGE_BUDGET_KEY)
+    except Exception:
+        log.warning("Usage budget: failed to delete cumulative usage key", exc_info=True)
 
 
 class TaskStateStoreUsageBudget:
@@ -209,7 +227,4 @@ class TaskStateStoreUsageBudget:
 
     def clear(self) -> None:
         """Best-effort delete, called once the whole execute succeeds."""
-        try:
-            self._store.delete(USAGE_BUDGET_KEY)
-        except Exception:
-            log.warning("Usage budget: failed to delete cumulative usage key", exc_info=True)
+        delete_usage_record(self._store)

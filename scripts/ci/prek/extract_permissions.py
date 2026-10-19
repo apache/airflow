@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# ///
 """
 Extract permission requirements from FastAPI routes in Airflow REST API.
 
@@ -30,6 +33,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import re
 import sys
 from dataclasses import dataclass
 
@@ -42,6 +46,13 @@ OUTPUT_RST = REPO_ROOT / "airflow-core/docs/security/api_permissions_ref.rst"
 
 # The global /api/v2 prefix comes from public_router in __init__.py
 API_PREFIX = "/api/v2"
+
+
+# ---------------------------------------------------------------------------
+# Errors
+# ---------------------------------------------------------------------------
+class RouteParseError(Exception):
+    """A route file could not be read or parsed, so its endpoints are unknown."""
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +94,34 @@ def _resolve_string_node(node: ast.expr, module_consts: dict[str, str]) -> str:
         return module_consts[node.id]
     # Give up — return an unresolvable marker (will surface in tests)
     return f"<unresolved:{ast.unparse(node)}>"
+
+
+def strip_path_converters(path: str) -> str:
+    """
+    Drop Starlette path converters from a route path.
+
+    A route declared as ``/{pool_name:path}`` is served, and documented in the
+    OpenAPI spec, as ``/{pool_name}``. The converter only tells Starlette how to
+    match the segment, so leaving it in prints a URL that no client ever calls.
+    """
+    return re.sub(r"\{([^{}:]+):[^{}]+\}", r"{\1}", path)
+
+
+def _extract_route_path(decorator: ast.Call, module_consts: dict[str, str]) -> str:
+    """
+    Resolve the route path from a route decorator.
+
+    FastAPI accepts the path either positionally or as ``path=``, and both forms
+    are in use here. Reading only the positional form silently resolves the whole
+    file to its router prefix, which collapses every route onto one bogus row
+    instead of failing.
+    """
+    if decorator.args:
+        return _resolve_string_node(decorator.args[0], module_consts)
+    path_kwarg = next((kw for kw in decorator.keywords if kw.arg == "path"), None)
+    if path_kwarg is not None:
+        return _resolve_string_node(path_kwarg.value, module_consts)
+    raise RouteParseError(f"Route decorator has no path: {ast.unparse(decorator)}")
 
 
 def _extract_module_string_constants(tree: ast.Module) -> dict[str, str]:
@@ -276,8 +315,10 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source)
     except (OSError, SyntaxError) as exc:
-        print(f"[WARN] Could not parse {path.name}: {exc}", file=sys.stderr)
-        return []
+        # Returning no entries here would quietly shrink a security reference that readers
+        # trust to be complete, and the caller has no way to tell that apart from a file
+        # that genuinely declares no routes.
+        raise RouteParseError(f"Could not parse {path}: {exc}") from exc
 
     # Build lookup tables for this file
     module_consts = _extract_module_string_constants(tree)
@@ -301,9 +342,7 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
                 continue
 
             # Resolve the route path
-            route_suffix = ""
-            if decorator.args:
-                route_suffix = _resolve_string_node(decorator.args[0], module_consts)
+            route_suffix = _extract_route_path(decorator, module_consts)
 
             # Resolve the prefix based on the router variable used in the decorator
             router_prefix = ""
@@ -311,7 +350,7 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
                 router_var = decorator.func.value.id
                 router_prefix = routers.get(router_var, "")
 
-            full_path = API_PREFIX + router_prefix + route_suffix
+            full_path = strip_path_converters(API_PREFIX + router_prefix + route_suffix)
 
             # Extract tag (for grouping in the RST table)
             tag = _extract_tag_from_decorator(decorator)
@@ -440,7 +479,7 @@ RST_HEADER = """\
     under the License.
 
 .. THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
-   Regenerate with:  python scripts/ci/prek/extract_permissions.py
+   Regenerate with:  uv run scripts/ci/prek/extract_permissions.py
    Trigger:          prek run generate-api-permissions-doc --all-files
 
 API Endpoint Permission Reference
@@ -517,7 +556,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    try:
+        entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    except RouteParseError as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        return 1
     content = render_rst(entries)
 
     if args.print_only:
@@ -527,14 +570,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         if not OUTPUT_RST.exists():
             print(
-                f"[FAIL] {OUTPUT_RST} does not exist. Run: python scripts/ci/prek/extract_permissions.py",
+                f"[FAIL] {OUTPUT_RST} does not exist. Run: uv run scripts/ci/prek/extract_permissions.py",
                 file=sys.stderr,
             )
             return 1
         existing = OUTPUT_RST.read_text(encoding="utf-8")
         if existing != content:
             print(
-                f"[FAIL] {OUTPUT_RST} is stale. Run: python scripts/ci/prek/extract_permissions.py",
+                f"[FAIL] {OUTPUT_RST} is stale. Run: uv run scripts/ci/prek/extract_permissions.py",
                 file=sys.stderr,
             )
             return 1

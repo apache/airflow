@@ -71,7 +71,7 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/comprehend.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::5
 providers/amazon/src/airflow/providers/amazon/aws/operators/ec2.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::7
-providers/amazon/src/airflow/providers/amazon/aws/operators/eks.py::12
+providers/amazon/src/airflow/providers/amazon/aws/operators/eks.py::10
 providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::24
 providers/amazon/src/airflow/providers/amazon/aws/operators/eventbridge.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/glue.py::6
@@ -279,7 +279,7 @@ providers/google/src/airflow/providers/google/cloud/sensors/cloud_composer.py::4
 providers/google/src/airflow/providers/google/cloud/sensors/cloud_storage_transfer_service.py::1
 providers/google/src/airflow/providers/google/cloud/sensors/dataflow.py::8
 providers/google/src/airflow/providers/google/cloud/sensors/dataform.py::3
-providers/google/src/airflow/providers/google/cloud/sensors/datafusion.py::2
+providers/google/src/airflow/providers/google/cloud/sensors/datafusion.py::1
 providers/google/src/airflow/providers/google/cloud/sensors/dataplex.py::7
 providers/google/src/airflow/providers/google/cloud/sensors/dataproc.py::6
 providers/google/src/airflow/providers/google/cloud/sensors/dataproc_metastore.py::2

@@ -58,3 +58,7 @@ class AzureBatchJobPreparationTaskMissingError(AirflowException):
 
 class AzureBatchRequiredParametersMissingError(AirflowException):
     """Raised when one or more required pool, job or task parameters are missing."""
+
+
+class AzureAISearchIndexingError(AirflowException):
+    """Raised when Azure AI Search rejects some documents of a write."""

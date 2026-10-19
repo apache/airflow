@@ -22,9 +22,6 @@ IBM MQ connection
 
 The MQ connection type enables connection to an IBM MQ.
 
-.. raw:: html
-
-  <div align="center" style="padding-bottom:10px">
-    <img src="images/mq_connection.png"
-         alt="IBM MQ connection form">
-  </div>
+.. image:: images/mq_connection.png
+    :alt: IBM MQ connection form
+    :align: center

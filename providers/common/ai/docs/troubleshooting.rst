@@ -44,8 +44,9 @@ Model and connection errors
     version suffixes, for example), use the matching vendor connection type instead of
     the generic one.
 
-An ``ImportError`` for ``pydantic_ai.models.<vendor>`` or the vendor SDK
-    The provider is installed without the extra for that vendor. Install it, quoting the
+An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pydantic_ai_harness``
+    The provider is installed without the extra for that vendor, or without ``code-mode``
+    for ``pydantic_ai_harness``. Install it, quoting the
     package name so the brackets survive the shell:
 
     .. code-block:: bash
@@ -64,6 +65,14 @@ An ``ImportError`` for ``pydantic_ai.models.<vendor>`` or the vendor SDK
     Every entry in ``fallback_conn_ids`` must be one of the ``pydanticai`` connection
     types. Chains are also not resolved recursively, so a fallback connection may not
     declare its own ``fallback_conn_ids``; list every vendor directly on the primary.
+
+``Connection '...' has type '...', but a Pydantic AI hook needs one of [...]``
+    The connection named by ``llm_conn_id`` is not a ``pydanticai`` connection type. This
+    is easy to hit by picking a similarly named type such as ``openai`` when the OpenAI
+    provider is installed. Change the connection type to ``pydanticai``, put the API key
+    in the **API Key** field (the password) and the model, for example ``openai:gpt-5``,
+    in **Model**. For Azure, Bedrock or Vertex use the matching ``pydanticai_azure``,
+    ``pydanticai_bedrock`` or ``pydanticai_vertex`` type instead; see :doc:`model_providers`.
 
 .. _troubleshooting-conn-type-rename:
 
@@ -102,16 +111,28 @@ as a task failure.
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
-``durable=True and enable_hitl_review=True cannot be used together`` / ``durable=True and code_mode=True cannot be used together``
-    Durable replay assumes a stable step order across attempts, which neither a human
-    review loop nor code mode provides. Pick one. See :doc:`durable_execution`.
+``durable=True and enable_hitl_review=True cannot be used together``
+    Durable replay matches each step to the one at the same position in the previous
+    attempt, which a human review loop's regenerations do not keep. Pick one. See
+    :doc:`durable_execution`.
+
+``durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders')``
+    Durable replay records each tool call under its toolset's id, so a
+    ``FunctionToolset``, ``MCPToolset`` or ``DynamicToolset`` without one is refused when
+    the Dag loads. Set ``id=`` on the toolset itself; an id on a ``Toolset`` capability
+    around it does not reach it. See :doc:`durable_execution`.
+
+``durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders'``
+    Two different toolset objects share an id, so durable replay could not tell their
+    recorded calls apart. Give each its own ``id=``. See :doc:`durable_execution`.
+
+``durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both.``
+    ``AgentOperator(durable=True)`` adds the capability to the agent, so a second one in
+    ``capabilities`` would record every step twice. Drop one of them.
 
 ``message_history and enable_hitl_review=True cannot be used together``
     The post-review transcript is not recoverable today, so the operator refuses rather
     than silently dropping the reviewed turns. See :doc:`message_history`.
-
-``code_mode=True requires the 'code-mode' extra``
-    Install ``apache-airflow-providers-common-ai[code-mode]``. See :doc:`code_mode`.
 
 ``... does not support decision_policy yet``
     Only ``LLMOperator`` and ``LLMBranchOperator`` honor a ``DecisionPolicy`` with a
@@ -127,11 +148,16 @@ as a task failure.
 Run-time errors
 ---------------
 
-``Agent model must be set when durable=True``
+``An agent needs to have a model in order to be used with Airflow, it cannot be set at agent run time.``
     The agent was built without a model, usually because the connection has no
     ``model`` and no ``model_id`` was passed. Durable execution needs the model resolved
-    up front so that replayed steps can be matched against their fingerprints. Fix the connection as described
-    above.
+    up front so that replayed steps can be matched against their fingerprints. Fix the
+    connection as described above.
+
+``DurableJournalError: durable execution could not record a step's result, because it is not JSON-serializable``
+    A tool returned a value that cannot be encoded as JSON. The model could not have read
+    it either, so the task fails without retrying. Return text, numbers, lists, dicts or a
+    Pydantic model. See :doc:`durable_execution`.
 
 ``durable=True`` on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
     On Airflow versions older than 3.3 the step cache lives in object storage and

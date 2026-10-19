@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from pydantic_ai.usage import RunUsage
+
+from airflow.providers.common.ai.utils.usage_budget import TaskStateStoreUsageBudget
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -99,3 +102,48 @@ def make_mock_run_result():
         return mock_result
 
     return _make
+
+
+@pytest.fixture
+def task_state_store_accessor():
+    """A ``MagicMock(spec=TaskStateStoreAccessor)`` backed by a plain dict.
+
+    For a test that engages the usage budget (``usage_limits`` set, Airflow >= 3.3): a
+    bare ``MagicMock()``'s ``.get()`` returns a non-``None``, non-dict value, which trips
+    ``TaskStateStoreUsageBudget.load()``'s malformed-record ``ValueError``.
+
+    ``TaskStateStoreAccessor`` doesn't exist below Airflow 3.3, so fall back to a plain
+    method-name spec there to keep the fixture usable by tests that never touch the store.
+    """
+    try:
+        from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+    except ImportError:
+        spec = ["get", "set", "delete"]
+    else:
+        spec = TaskStateStoreAccessor
+
+    store = {}
+    accessor = MagicMock(spec=spec)
+    accessor.get.side_effect = lambda key, default=None: store.get(key, default)
+    accessor.set.side_effect = lambda key, value, retention=None: store.__setitem__(key, value)
+    accessor.delete.side_effect = lambda key: store.pop(key, None)
+    return accessor
+
+
+@pytest.fixture
+def seed_usage_budget():
+    """Return a function that writes an earlier attempt's cumulative usage into a task state store."""
+
+    def seed(accessor, *, max_tries=0, **usage_fields):
+        TaskStateStoreUsageBudget(accessor, max_tries=max_tries).save(RunUsage(**usage_fields))
+
+    return seed
+
+
+@pytest.fixture
+def usage_budget_context(task_state_store_accessor):
+    """A context carrying what the usage budget reads: a ``task_instance`` and the task state store."""
+    ti = MagicMock(spec=["id", "max_tries"])
+    ti.id = uuid4()
+    ti.max_tries = 0
+    return {"task_instance": ti, "task_state_store": task_state_store_accessor}

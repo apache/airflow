@@ -32,11 +32,9 @@ export const SegmentedStateBar = ({ childStates, fallbackState, height = "6px" }
   const entries = sortStateEntries(childStates);
 
   if (entries.length === 0) {
-    if (!fallbackState) {
-      return undefined;
-    }
-
-    return <Box bg={`${fallbackState}.solid`} borderRadius="2px" height={height} mt="auto" />;
+    return fallbackState ? (
+      <Box bg={`${fallbackState}.solid`} borderRadius="2px" height={height} mt="auto" />
+    ) : undefined;
   }
 
   return (

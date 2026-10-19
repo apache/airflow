@@ -28,8 +28,8 @@ it is, and add Airflow's toolsets to its tools with the
 
 .. note::
 
-    ``AirflowTools`` and the framework-neutral tool interface it builds on are
-    experimental. They may change in a minor release of this provider.
+    ``AirflowTools`` is experimental: it may change in a minor release of this provider.
+    The framework-neutral tool interface it builds on is stable.
     See :ref:`howto/stability`.
 
 Run an ADK agent in a task
@@ -99,7 +99,7 @@ Installation
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai "google-adk>=2.9.1"
+    pip install "apache-airflow-providers-common-ai[sql]" "google-adk>=2.9.1"
 
 ADK caps ``opentelemetry-api`` and ``opentelemetry-sdk`` at 1.42.1, which is lower than
 the version pinned in Airflow's constraints file, so the command above fails when

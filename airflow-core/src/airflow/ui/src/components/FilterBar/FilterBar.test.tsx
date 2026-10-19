@@ -18,7 +18,7 @@
  */
 import type { PropsWithChildren } from "react";
 
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";

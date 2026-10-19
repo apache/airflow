@@ -125,6 +125,7 @@ from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
     enter_shell,
     execute_command_in_shell,
+    find_other_worktree_projects,
     fix_ownership_using_docker,
     perform_environment_checks,
 )
@@ -892,7 +893,6 @@ def _build_python_docs(
     clean_inventory_cache: bool,
     refresh_airflow_inventories: bool,
     fail_on_missing_third_party_inventories: bool,
-    docs_only: bool,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
@@ -900,7 +900,6 @@ def _build_python_docs(
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
-    spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
     # Docs are always built on the default Python. The Sphinx configuration mocks third-party
@@ -948,8 +947,6 @@ def _build_python_docs(
     doc_packages = docs_list_as_tuple or doc_packages
     doc_builder = DocBuildParams(
         package_filter=package_filter,
-        docs_only=docs_only,
-        spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         include_commits=include_commits,
         fail_on_missing_third_party_inventories=fail_on_missing_third_party_inventories,
@@ -1004,7 +1001,6 @@ def _build_python_docs(
     help="Fail the build if any third-party inventory cannot be downloaded. "
     "By default, missing third-party inventories are warned about but do not fail the build.",
 )
-@click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option(
     "--include-commits", help="Include commits in the documentation.", is_flag=True, envvar="INCLUDE_COMMITS"
 )
@@ -1033,7 +1029,6 @@ def _build_python_docs(
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
-@click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_sdk
 @click.option(
     "--sdk-docs-only",
@@ -1049,7 +1044,6 @@ def build_docs(
     clean_inventory_cache: bool,
     refresh_airflow_inventories: bool,
     fail_on_missing_third_party_inventories: bool,
-    docs_only: bool,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
@@ -1057,7 +1051,6 @@ def build_docs(
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
-    spellcheck_only: bool,
     sdk: tuple[str, ...],
     sdk_docs_only: bool,
     doc_packages: tuple[str, ...],
@@ -1079,7 +1072,6 @@ def build_docs(
             clean_inventory_cache=clean_inventory_cache,
             refresh_airflow_inventories=refresh_airflow_inventories,
             fail_on_missing_third_party_inventories=fail_on_missing_third_party_inventories,
-            docs_only=docs_only,
             github_repository=github_repository,
             include_not_ready_providers=include_not_ready_providers,
             include_removed_providers=include_removed_providers,
@@ -1087,7 +1079,6 @@ def build_docs(
             one_pass_only=one_pass_only,
             package_filter=package_filter,
             distributions_list=distributions_list,
-            spellcheck_only=spellcheck_only,
             doc_packages=doc_packages,
         )
     # Every requested SDK is built even if an earlier one failed, so a single run reports
@@ -1157,11 +1148,13 @@ def down(
     if all_worktrees and project_name:
         raise click.UsageError("--all-worktrees and --project-name cannot be used together.")
     perform_environment_checks(cleanup_stale_worktrees=False)
+    # Resources keep this worktree's label when isolation is disabled later, so select them either way.
+    current_worktree = str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else ""
     brought_down = bring_compose_projects_down(
         preserve_volumes=preserve_volumes,
         all_worktrees=all_worktrees,
         only_project=project_name,
-        current_worktree=str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else "",
+        current_worktree=current_worktree,
     )
     if brought_down:
         action = "Would remove" if get_dry_run() else "Removed"
@@ -1170,6 +1163,16 @@ def down(
         )
     else:
         console_print("[info]No matching Docker resources to remove.[/]")
+    if not all_worktrees and not project_name:
+        other_worktrees = find_other_worktree_projects(current_worktree)
+        if other_worktrees:
+            console_print("[warning]Other worktrees still have Breeze containers or volumes:[/]")
+            for other_worktree, projects in other_worktrees.items():
+                console_print(f"[warning]  {other_worktree}: {', '.join(projects)}[/]")
+            console_print(
+                "[warning]Run `breeze down` in those worktrees, or `breeze down --all-worktrees` "
+                "to remove them all.[/]"
+            )
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)

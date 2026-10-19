@@ -46,7 +46,7 @@ def min_airflow_module():
 @pytest.mark.parametrize(
     ("python_version", "expected_airflow_version"),
     [
-        ("3.10", "2.11.0"),
+        ("3.11", "2.11.0"),
         ("3.12", "2.11.0"),
         ("3.13", "3.1.0"),
         ("3.14", "3.2.0"),
@@ -60,5 +60,5 @@ def test_get_min_airflow_version_for_python_is_monotonic(
 
 
 def test_get_min_airflow_version_for_python_raises_for_older_python(min_airflow_module):
-    with pytest.raises(ValueError, match="No minimum Airflow version defined for Python 3.9"):
-        min_airflow_module.get_min_airflow_version_for_python("3.9")
+    with pytest.raises(ValueError, match="No minimum Airflow version defined for Python 3.10"):
+        min_airflow_module.get_min_airflow_version_for_python("3.10")

@@ -27,6 +27,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts" / "ci" / 
 
 from common_prek_utils import AIRFLOW_ROOT_PATH, run_command
 
+# The features of test_dags.yaml that tests/conformance/serialize_typescript.ts can build. A Dag that
+# requires another feature is left out until the builder gets it.
+SUPPORTED_FEATURES: list[str] = []
+
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
@@ -40,5 +44,14 @@ if __name__ == "__main__":
     )
     compare = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "lang_sdk_serialization" / "compare.py"
     serializer = ["pnpm", "--dir", "ts-sdk", "exec", "tsx", "tests/conformance/serialize_typescript.ts"]
-    command = [sys.executable, str(compare), "--sdk", "typescript", "--", *serializer]
+    command = [
+        sys.executable,
+        str(compare),
+        "--sdk",
+        "typescript",
+        "--supports",
+        ",".join(SUPPORTED_FEATURES),
+        "--",
+        *serializer,
+    ]
     sys.exit(subprocess.run(command, check=False).returncode)

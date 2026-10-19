@@ -138,6 +138,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
     run_id: str
     try_number: int
     map_index: int | None
+    region_id: uuid.UUID | None
+    region_index: int | None
     max_tries: int
     hostname: str | None = None
     start_date: AwareDatetime
@@ -188,7 +190,14 @@ class RuntimeTaskInstanceProtocol(Protocol):
         state: TaskInstanceState | None = None,
         logical_date: AwareDatetime | None = None,
         map_index: int = -1,
-    ) -> PreviousTIResponse | None: ...
+    ) -> PreviousTIResponse | None:
+        """
+        Return the previous task instance matching the given criteria.
+
+        Inside a loop, this is the task instance at the same iteration in the closest earlier Dag run
+        that reached that iteration, not that run's last iteration.
+        """
+        ...
 
     @staticmethod
     def get_ti_count(

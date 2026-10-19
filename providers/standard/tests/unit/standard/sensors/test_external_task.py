@@ -2019,7 +2019,7 @@ def run_tasks(
                 session=session,
             )
         else:
-            runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[attr-defined,call-arg]
+            runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[attr-defined,call-arg,union-attr]
                 run_id=dag.timetable.generate_run_id(  # type: ignore[attr-defined,call-arg,union-attr]
                     run_type=DagRunType.MANUAL,
                     logical_date=logical_date,

@@ -21,6 +21,7 @@ import argparse
 import ast
 import json
 import os
+import shutil
 import sys
 from argparse import Namespace
 from contextlib import contextmanager
@@ -33,15 +34,23 @@ from sqlalchemy import select
 import airflow
 from airflow import settings
 from airflow._shared.timezones import timezone
+from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
+from airflow.dag_processing.processor import DagFileParsingResult
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
 from airflow.models.team import Team
+from airflow.sdk import DAG, BaseOperator
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils import cli, cli_action_loggers
 from airflow.utils.cli import _search_for_dag_file
+from airflow.utils.session import create_session
 
+from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
+from unit.dag_processing.fake_lang_sdk import fake_coordinator, write_native_file
 
 # Mark entire module as db_test because ``action_cli`` wrapper still could use DB on callbacks:
 # - ``cli_action_loggers.on_pre_execution``
@@ -49,6 +58,41 @@ from tests_common.test_utils.config import conf_vars
 pytestmark = pytest.mark.db_test
 repo_root = Path(airflow.__file__).parents[1]
 MASKED = "*" * 8
+
+_DEFERRED_BUNDLE_NAME = "deferred-path-bundle"
+_DEFERRED_BUNDLE_DAG_ID = "deferred_path_bundle_dag"
+
+
+class _DeferredPathBundle(BaseDagBundle):
+    """Bundle whose files only land on disk in ``initialize()``, like the Git bundle's clone."""
+
+    def __init__(self, *, source: Path, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._source = source
+        self._path = source.parent / "checkout"
+
+    def initialize(self) -> None:
+        shutil.copytree(self._source, self._path, dirs_exist_ok=True)
+        super().initialize()
+
+    def get_current_version(self) -> None:
+        return None
+
+    def refresh(self) -> None:
+        """Nothing to refresh."""
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+
+def _make_deferred_path_bundle(tmp_path: Path) -> _DeferredPathBundle:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "dag.py").write_text(
+        f"from airflow.sdk import DAG\nwith DAG({_DEFERRED_BUNDLE_DAG_ID!r}, schedule=None):\n    pass\n"
+    )
+    return _DeferredPathBundle(name=_DEFERRED_BUNDLE_NAME, source=source)
 
 
 class TestCliUtil:
@@ -107,6 +151,30 @@ class TestCliUtil:
 
         with pytest.raises(AirflowException):
             cli.get_dags(None, "foobar", True)
+
+    @pytest.mark.parametrize(
+        "get_matching_dags",
+        [
+            pytest.param(
+                lambda: cli.get_bagged_dag([_DEFERRED_BUNDLE_NAME], _DEFERRED_BUNDLE_DAG_ID),
+                id="get_bagged_dag",
+            ),
+            pytest.param(
+                lambda: cli.get_dags([_DEFERRED_BUNDLE_NAME], f"^{_DEFERRED_BUNDLE_DAG_ID}$", use_regex=True)[
+                    0
+                ],
+                id="get_dags_regex",
+            ),
+        ],
+    )
+    @mock.patch("airflow.utils.cli.DagBundlesManager", autospec=True)
+    def test_explicit_bundle_name_is_initialized(self, mock_manager_cls, tmp_path, get_matching_dags):
+        bundle = _make_deferred_path_bundle(tmp_path)
+        mock_manager_cls.return_value.get_bundle.return_value = bundle
+        mock_manager_cls.return_value.get_all_dag_bundles.return_value = []
+
+        assert get_matching_dags().dag_id == _DEFERRED_BUNDLE_DAG_ID
+        assert bundle.is_initialized
 
     @pytest.mark.parametrize(
         ("given_command", "expected_masked_command", "is_command_list"),
@@ -1080,6 +1148,77 @@ def test__search_for_dags_file():
     assert _search_for_dag_file(existing_folder.as_posix()) is None
     # when multiple files found, default to the dags folder
     assert _search_for_dag_file("any/hi/__init__.py") is None
+
+
+def _mock_bundle(path: Path) -> mock.MagicMock:
+    bundle = mock.MagicMock(spec=BaseDagBundle, path=path, version=None)
+    bundle.name = "testing"
+    return bundle
+
+
+@pytest.mark.parametrize("bundle_names", [["testing"], None], ids=["named-bundle", "every-bundle"])
+@mock.patch("airflow.dag_processing.dagbag.sync_bag_to_db", autospec=True)
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
+@mock.patch.object(cli, "DagBundlesManager", autospec=True)
+def test_get_bagged_dag_refuses_a_native_dag(mock_manager, mock_bag, mock_sync, bundle_names):
+    mock_manager.return_value.get_all_dag_bundles.return_value = [_mock_bundle(Path("/bundle"))]
+    native = DagSerialization.from_dict(DagSerialization.to_dict(DAG("native", schedule=None)))
+    mock_bag.return_value.dags = {"native": native}
+
+    with pytest.raises(SystemExit, match="is a native Lang-SDK Dag"):
+        cli.get_bagged_dag(bundle_names, "native")
+
+    assert mock_bag.call_args.kwargs["parse_lang_sdk_files"] is False
+
+
+@pytest.mark.parametrize("bundle_names", [["testing"], None], ids=["named-bundle", "every-bundle"])
+@mock.patch("airflow.dag_processing.dagbag.sync_bag_to_db", autospec=True)
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
+@mock.patch.object(cli, "DagBundlesManager", autospec=True)
+def test_get_bagged_dag_returns_a_native_dag_when_allowed(mock_manager, mock_bag, mock_sync, bundle_names):
+    mock_manager.return_value.get_all_dag_bundles.return_value = [_mock_bundle(Path("/bundle"))]
+    native = DagSerialization.from_dict(DagSerialization.to_dict(DAG("native", schedule=None)))
+    mock_bag.return_value.dags = {"native": native}
+
+    assert cli.get_bagged_dag(bundle_names, "native", allow_lang_sdk_dag=True) is native
+    assert mock_bag.call_args.kwargs["parse_lang_sdk_files"] is True
+
+
+@pytest.fixture
+def _clear_db_dags():
+    db.clear_db_dags()
+    db.clear_db_serialized_dags()
+    yield
+    db.clear_db_dags()
+    db.clear_db_serialized_dags()
+
+
+@pytest.mark.parametrize("allow_lang_sdk_dag", [False, True])
+@pytest.mark.usefixtures("_clear_db_dags", "testing_dag_bundle")
+@mock.patch.object(LangSDKDagFileProcessorProcess, "run", autospec=True)
+@mock.patch.object(cli, "DagBundlesManager", autospec=True)
+def test_get_bagged_dag_returns_a_python_dag_bagged_with_a_native_one(
+    mock_manager, mock_run, tmp_path, allow_lang_sdk_dag
+):
+    (tmp_path / "python_dag.py").write_text(
+        "from airflow.sdk import DAG\nwith DAG('python_dag', schedule=None): pass\n"
+    )
+    native_file = write_native_file(tmp_path / "dags.native")
+    with DAG("native_dag", schedule=None) as native_dag:
+        BaseOperator(task_id="extract")
+    mock_run.return_value = DagFileParsingResult(
+        fileloc=os.fspath(native_file), serialized_dags=[LazyDeserializedDAG.from_dag(native_dag)]
+    )
+    mock_manager.return_value.get_all_dag_bundles.return_value = [_mock_bundle(tmp_path)]
+
+    with fake_coordinator():
+        dag = cli.get_bagged_dag(None, "python_dag", allow_lang_sdk_dag=allow_lang_sdk_dag)
+
+    assert isinstance(dag, DAG)
+    assert dag.dag_id == "python_dag"
+    assert mock_run.call_count == int(allow_lang_sdk_dag)
+    with create_session() as session:
+        assert set(session.scalars(select(DagModel.dag_id))) == {"python_dag"}
 
 
 def test_validate_dag_bundle_arg():

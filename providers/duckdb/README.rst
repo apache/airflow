@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-duckdb``
 
-Release: ``0.2.0``
+Release: ``0.2.1``
 
 
 `DuckDB <https://duckdb.org/>`__ provider for Apache Airflow. Runs SQL against an in-process
@@ -38,7 +38,7 @@ This is a provider package for ``duckdb`` provider. All classes for this provide
 are in ``airflow.providers.duckdb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-duckdb/0.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-duckdb/0.2.1/>`_.
 
 Installation
 ------------
@@ -47,7 +47,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-duckdb``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -61,4 +61,4 @@ PIP package                              Version required
 =======================================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-duckdb/0.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-duckdb/0.2.1/changelog.html>`_.

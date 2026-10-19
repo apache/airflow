@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "待回應的任務實例",
   "requiredAction_other": "待回應的任務實例",
-  "requiredActionCount_one": "待回應的任務實例數 ({{count}})",
-  "requiredActionCount_other": "待回應的任務實例數 ({{count}})",
+  "requiredActionCount_one": "待回應的任務實例數 ({{count, number}})",
+  "requiredActionCount_other": "待回應的任務實例數 ({{count, number}})",
   "requiredActionState": "待回應的任務實例狀態",
   "response": {
     "created": "建立時間：",
@@ -29,10 +29,10 @@
       "selectRequiredAction": "選擇一個待回應的任務實例以查看詳細資訊"
     },
     "list": {
-      "completedRequiredActions": "已回應的任務實例 ({{count}})",
+      "completedRequiredActions": "已回應的任務實例 ({{count, number}})",
       "loadError": "無法載入待回應的任務實例",
       "loadingActions": "正在載入待回應的任務實例...",
-      "pendingRequiredActions": "待回應的任務實例 ({{count}})"
+      "pendingRequiredActions": "待回應的任務實例 ({{count, number}})"
     },
     "openReviewDrawer": "開啟回應面板",
     "pageLimitHint": "這裡僅顯示前幾項任務實例。請使用「$t(review.viewAll)」以查看全部。",
