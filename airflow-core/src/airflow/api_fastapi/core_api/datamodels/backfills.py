@@ -23,7 +23,7 @@ from datetime import datetime
 from pydantic import AliasPath, Field, NonNegativeInt, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.api_fastapi.core_api.datamodels.dag_run import check_conf_reserved_keys
+from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
 from airflow.models.backfill import ReprocessBehavior
 from airflow.utils.state import DagRunState
 

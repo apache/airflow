@@ -26,7 +26,7 @@ from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, field_vali
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
+from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
@@ -34,20 +34,6 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
-
-
-def check_conf_reserved_keys(conf: dict | None, *, root: str) -> dict | None:
-    """Reject a Dag run conf holding reserved serialization keys, as XCom and HITL values do."""
-    # Conf reaches code that runs a full serde decode (e.g. the Deadline callback context). Unlike
-    # XCom, nothing parses a string conf value back into a container, so strings stay unchecked.
-    found = find_reserved_keys(conf, root=root)
-    if found is not None:
-        path, keys = found
-        raise ValueError(
-            f"{path} contains reserved serialization keys: {', '.join(keys)}. "
-            "These keys are reserved for internal use."
-        )
-    return conf
 
 
 class DagRunMutableStates(str, Enum):
