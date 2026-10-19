@@ -18,20 +18,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook, mask_secret
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-    from airflow.sdk.execution_time.secrets_masker import mask_secret
-else:
-    try:
-        from airflow.sdk.log import mask_secret
-    except ImportError:
-        try:
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
-        except ImportError:
-            from airflow.utils.log.secrets_masker import mask_secret
 
 
 class MCPHook(BaseHook):
