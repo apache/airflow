@@ -46,6 +46,10 @@ def _no_merged_commits_missing(base_ref: str) -> bool:
     return False
 
 
+def _run_nothing(commands: list[str]) -> list[int]:
+    return [0] * len(commands)
+
+
 @pytest.fixture(autouse=True)
 def _no_git_lookups_against_the_checkout():
     """Keep CLI tests independent of the developer's remotes; tests that need these patch them again."""
@@ -74,6 +78,12 @@ def _pin_branch_to_main():
             "airflow_breeze.commands.verify_commands.DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH", "constraints-main"
         ),
     ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _no_commands_run_for_real():
+    with patch("airflow_breeze.commands.verify_commands.run_verification_commands", new=_run_nothing):
         yield
 
 
@@ -343,10 +353,17 @@ def test_detects_target_branch_commits_the_base_may_not_have(
     if update:
         _git(tmp_path, update, *(["--no-edit"] if update == "merge" else []), f"{remote}/main")
     with patch("airflow_breeze.commands.verify_commands.AIRFLOW_ROOT_PATH", tmp_path):
-        assert is_base_possibly_stale(base.replace("upstream/", f"{remote}/")) is expected
+        assert is_base_possibly_stale(base) is expected
 
 
-@pytest.mark.parametrize("args", [[], ["--run"], ["--json"]])
+@pytest.mark.parametrize(
+    ("args", "warning_stream", "runs"),
+    [
+        pytest.param([], "stdout", False, id="list"),
+        pytest.param(["--run"], "stdout", True, id="run"),
+        pytest.param(["--json"], "stderr", False, id="json"),
+    ],
+)
 @patch("airflow_breeze.commands.verify_commands.run_verification_commands", autospec=True, return_value=[0])
 @patch("airflow_breeze.commands.verify_commands.is_base_possibly_stale", autospec=True, return_value=True)
 @patch(
@@ -354,12 +371,14 @@ def test_detects_target_branch_commits_the_base_may_not_have(
     autospec=True,
     return_value=("airflow-core/docs/index.rst",),
 )
-def test_a_possibly_stale_base_is_only_a_warning(mock_files, mock_stale, mock_run, args: list[str]):
+def test_a_possibly_stale_base_is_only_a_warning(
+    mock_files, mock_stale, mock_run, args: list[str], warning_stream: str, runs: bool
+):
     result = CliRunner().invoke(verify, ["--base-ref", "upstream/main", *args], catch_exceptions=False)
     mock_stale.assert_called_once_with("upstream/main")
-    assert mock_run.called is ("--run" in args)
+    assert mock_run.called is runs
     assert result.exit_code == 0
-    stream = " ".join(ANSI.sub("", result.stderr if "--json" in args else result.stdout).split())
+    stream = " ".join(ANSI.sub("", getattr(result, warning_stream)).split())
     assert "upstream/main may be out of date, so the list can include commits that are not yours" in stream
     if "--json" in args:
         assert json.loads(result.stdout)["base_ref"] == "upstream/main"

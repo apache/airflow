@@ -125,6 +125,35 @@ def test_unit_test_commands_pass_the_test_types_to_the_shell_verbatim():
         assert printed.splitlines()[-1] == test_types
 
 
+def test_docs_command_passes_each_package_to_the_shell_verbatim():
+    packages = ["amazon[x]", "$HOME;"]
+    sc = _mock_selective_checks(docs_build=True, docs_list_as_string=" ".join(packages))
+    (command,) = [
+        item["command"]
+        for item in build_local_verification_plan(sc, (), "main", full_tests_needed=False)["items"]
+    ]
+    echo = command.replace("breeze build-docs", "printf '%s\\n'", 1)
+    printed = subprocess.run(["bash", "-c", echo], capture_output=True, text=True, check=True).stdout
+    assert printed.splitlines() == packages
+
+
+def test_shared_distribution_loop_passes_each_name_to_the_shell_verbatim(tmp_path):
+    names = ["$HOME;", "a b"]
+    for name in names:
+        (tmp_path / "shared" / name).mkdir(parents=True)
+    sc = _mock_selective_checks(shared_distributions_as_json=json.dumps(names))
+    items = build_local_verification_plan(sc, (), "main", full_tests_needed=False, full=True)["items"]
+    (loop,) = [item["command"] for item in items if item["command"].startswith("for d in")]
+    printed = subprocess.run(
+        ["bash", "-c", loop.replace("uv run --group dev pytest", "pwd -P")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert printed.splitlines() == [str((tmp_path / "shared" / name).resolve()) for name in names]
+
+
 def test_every_selective_checks_run_flag_is_classified():
     run_flags = {
         name
