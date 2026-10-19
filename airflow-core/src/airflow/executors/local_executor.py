@@ -345,19 +345,36 @@ class LocalExecutor(BaseExecutor):
             # that are not running yet.
             self.running.add(key)
             self._dispatch_counts[key] = self._dispatch_counts.get(key, 0) + 1
+            # Counted before the put so a worker taking the message never decrements below zero, and so
+            # _check_workers sees it as outstanding while the put is blocked.
+            with self._unread_messages:
+                self._unread_messages.value += 1
             self._read_results()
-            self._put_workload(workload)
-        with self._unread_messages:
-            self._unread_messages.value += len(workload_list)
+            if (put_error := self._put_workload(workload)) is not None:
+                self._undo_dispatch(key, workload)
+                raise put_error
         self._check_workers()
 
-    def _put_workload(self, workload: ExecutorWorkload) -> None:
+    def _undo_dispatch(self, key: WorkloadKey, workload: ExecutorWorkload) -> None:
+        """Reverse the bookkeeping of a workload whose put failed, leaving it queued as it was before."""
+        self.executor_queues[workload.type][key] = workload
+        remaining = self._dispatch_counts.pop(key, 1) - 1
+        if remaining > 0:
+            self._dispatch_counts[key] = remaining
+        else:
+            self.running.discard(key)
+        with self._unread_messages:
+            self._unread_messages.value -= 1
+
+    def _put_workload(self, workload: ExecutorWorkload) -> BaseException | None:
         """
         Put ``workload`` on the activity queue while continuing to drain the result queue.
 
         The put blocks while the activity pipe is full. If the workers are at the same time blocked
         writing to a full result pipe, a put on this thread alone would never return, so it runs on a
         helper thread while this thread keeps reading results.
+
+        :return: the error the put itself raised, in which case the workload was not sent.
         """
         put_errors: list[BaseException] = []
 
@@ -372,6 +389,11 @@ class LocalExecutor(BaseExecutor):
             putter.start()
             putter.join(timeout=0.05)
             while putter.is_alive():
+                if sum(proc.is_alive() for proc in self.workers.values()) < self.parallelism:
+                    # Only a live worker can take the pending write, and workers are otherwise only
+                    # spawned or replaced after the batch: with spawn there are none before the first one,
+                    # and each call starts just one, so a single busy worker must not stop the rest.
+                    self._check_workers()
                 self._read_results()
                 putter.join(timeout=0.05)
         except BaseException:
@@ -382,8 +404,7 @@ class LocalExecutor(BaseExecutor):
                 self._read_results()
                 putter.join(timeout=0.05)
             raise
-        if put_errors:
-            raise put_errors[0]
+        return put_errors[0] if put_errors else None
 
     def _finish_dispatch(self, key: WorkloadKey, state: WorkloadState) -> None:
         # A resumed attempt reuses its key, so the previous dispatch can finish while the next one is live.
