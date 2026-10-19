@@ -372,17 +372,23 @@ def ti_run(
             multi_team=conf.getboolean("core", "multi_team"),
         )
         resolver = TaskCoordinateResolver(dag_bag, session)
-        if loop_context := resolver.loop_context(ti):
-            group, index = loop_context
+        position = resolver.get_execution_position(ti)
+        if position.expanded_ti_count is not None:
+            context.expanded_ti_count = position.expanded_ti_count
+        if (loop := position.loop) is not None:
             terminal = resolver.get_task(
-                ti.dag_id, ti.run_id, group.terminal_task_id, dag_version_id=ti.dag_version_id
+                ti.dag_id, ti.run_id, loop.group.terminal_task_id, dag_version_id=ti.dag_version_id
             )
             context.loop = LoopContext(
-                node_id=group.node_id,
-                index=index,
-                max_iterations=group.max_iterations,
-                terminal_task_id=group.terminal_task_id,
+                node_id=loop.group.node_id,
+                index=loop.index,
+                max_iterations=loop.group.max_iterations,
+                terminal_task_id=loop.group.terminal_task_id,
                 terminal_is_mapped=terminal.get_needs_expansion(),
+                region_id=loop.region_id,
+                trajectory=loop.trajectory,
+                forked_from_region_id=loop.forked_from_region_id,
+                resumes_from_index=loop.resumes_from_index,
             )
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date

@@ -74,6 +74,7 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.context import render_template_to_string
+from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -266,6 +267,27 @@ class RuntimeTaskInstance(TaskInstance):
             self.region_id = UUID(int=0)
         if self.region_index is None:
             self.region_index = self.map_index
+
+    @property
+    def loop(self) -> LoopContextAccessor | None:
+        """The iteration of the innermost loop this task instance runs in, ``None`` outside a loop."""
+        if self._ti_context_from_server is None or self._ti_context_from_server.loop is None:
+            return None
+        return LoopContextAccessor(self._ti_context_from_server.loop, self)
+
+    @property
+    def loop_decision(self) -> LoopDecision | None:
+        """A loop gate's decision, set once the gate has evaluated whether the loop stops."""
+        if self._loop_decision is None:
+            return None
+        return LoopDecision(stop=self._loop_decision.stop, reason=self._loop_decision.reason)
+
+    @property
+    def expanded_ti_count(self) -> int | None:
+        """Number of instances in this mapped task's expansion, ``None`` for a task that isn't mapped."""
+        if self._ti_context_from_server is None:
+            return None
+        return self._ti_context_from_server.expanded_ti_count
 
     @property
     def stats_tags(self) -> dict[str, str]:

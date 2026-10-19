@@ -33,6 +33,7 @@ from airflow.models.task_coordinates import (
     TaskCoordinateResolver,
     build_coordinate_filters,
     get_public_map_index,
+    get_task_instance_execution_position,
     is_plain_expansion,
 )
 from airflow.models.taskinstance import TaskInstance
@@ -105,6 +106,9 @@ def test_mapped_task_loop_iteration_is_separate_from_map_index(dag_maker, sessio
 
     assert resolver.loop_iterations(ti) == [("body", 3)]
     assert resolver.public_map_index(ti) == 1
+    position = resolver.get_loop_position(ti)
+    assert position is not None
+    assert (position.index, position.region_id, position.trajectory) == (3, loop_region.id, 1)
 
 
 @pytest.mark.parametrize("run_count", [1, 3])
@@ -163,6 +167,53 @@ def test_loop_context_reuses_ancestry_loaded_by_loop_iterations(loop_coordinates
         group, index = resolver.loop_context(previous)
 
     assert (group.group_id, index) == ("body", 1)
+
+
+def test_loop_position_describes_the_region_holding_the_iteration(forked_loop_coordinates, session):
+    _, producer, consumer, _, outside = forked_loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    original = resolver.get_loop_position(producer)
+    fork = resolver.get_loop_position(consumer)
+
+    assert original is not None
+    assert fork is not None
+    assert (original.region_id, original.trajectory, original.forked_from_region_id) == (
+        producer.region_id,
+        1,
+        None,
+    )
+    assert original.resumes_from_index == 0
+    assert (fork.region_id, fork.trajectory, fork.forked_from_region_id) == (
+        consumer.region_id,
+        2,
+        producer.region_id,
+    )
+    assert fork.resumes_from_index == 2
+    assert resolver.get_loop_position(outside) is None
+
+
+def test_execution_position_of_a_stored_task_instance(loop_coordinates, dag_maker, session):
+    with dag_maker("mapped-execution-position", serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]])
+    mapped = sorted(dag_maker.create_dagrun().task_instances, key=lambda ti: ti.map_index)
+    mapped[2].state = TaskInstanceState.REMOVED
+    _, _, consumer, _, outside = loop_coordinates
+    session.flush()
+
+    in_loop = get_task_instance_execution_position(consumer, session=session)
+    plain = get_task_instance_execution_position(outside, session=session)
+    expanded = get_task_instance_execution_position(mapped[1], session=session)
+
+    assert (in_loop.map_index, in_loop.expanded_ti_count) == (-1, None)
+    assert in_loop.loop is not None
+    assert (in_loop.loop.group.group_id, in_loop.loop.index, in_loop.loop.region_id) == (
+        "body",
+        2,
+        consumer.region_id,
+    )
+    assert (plain.map_index, plain.expanded_ti_count, plain.loop) == (-1, None, None)
+    assert (expanded.map_index, expanded.expanded_ti_count, expanded.loop) == (1, 2, None)
 
 
 def test_removed_task_coordinates_degrade_to_stored_region_data(dag_maker, session):

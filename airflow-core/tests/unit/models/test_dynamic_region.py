@@ -36,6 +36,7 @@ from airflow.models.dynamic_region import (
     ProducerContext,
     build_loop_family_legs,
     build_loop_sequence_order,
+    get_trajectory,
     resolve_current_producers,
     select_loop_producer_ids,
 )
@@ -1114,3 +1115,17 @@ def test_loop_sequence_of_mapped_task_skips_passes_a_fork_replaced(loop_run, ses
         (True, 3, 0),
         (True, 3, 1),
     ]
+
+
+@pytest.mark.parametrize("forks", [0, 1, 2])
+def test_trajectory_counts_the_forks_a_region_descends_from(forks):
+    regions = {}
+    region = DynamicRegion(id=uuid4(), dag_id="dag", run_id="run", node_id="loop")
+    regions[region.id] = region
+    for _ in range(forks):
+        region = DynamicRegion(
+            id=uuid4(), dag_id="dag", run_id="run", node_id="loop", forked_from_region_id=region.id
+        )
+        regions[region.id] = region
+
+    assert get_trajectory(region, regions) == forks + 1
