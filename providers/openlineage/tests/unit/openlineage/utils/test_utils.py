@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime
 import enum
-import logging
 import pathlib
 from decimal import Decimal
 from types import SimpleNamespace
@@ -5257,11 +5256,11 @@ class TestTaskInfoAssetLists:
         task = BashOperator(
             task_id="t",
             bash_command="echo 1",
-            inlets=[Asset(uri="s3://bucket/in.csv")],
+            inlets=[Asset(uri="s3://bucket/in.csv", extra={"k": "v"})],
             outlets=[Asset(uri="s3://bucket/out.csv", extra=extra)],
         )
         info = TaskInfo(task)
-        assert info["inlets_list"] == [{"uri": "s3://bucket/in.csv", "extra": {}, "type": "asset"}]
+        assert info["inlets_list"] == [{"uri": "s3://bucket/in.csv", "extra": {"k": "v"}, "type": "asset"}]
         assert info["outlets_list"] == [{"uri": "s3://bucket/out.csv", "extra": extra, "type": "asset"}]
 
     def test_no_assets_gives_empty_lists(self):
@@ -5292,9 +5291,11 @@ class TestTaskInfoAssetLists:
         assert info["inlets_list"] == []
 
     def test_task_info_complete_includes_lists(self):
-        task = BashOperator(task_id="t", bash_command="echo 1", outlets=[Asset(uri="s3://bucket/out.csv")])
+        task = BashOperator(
+            task_id="t", bash_command="echo 1", outlets=[Asset(uri="s3://bucket/out.csv", extra={"k": "v"})]
+        )
         assert TaskInfoComplete(task)["outlets_list"] == [
-            {"uri": "s3://bucket/out.csv", "extra": {}, "type": "asset"}
+            {"uri": "s3://bucket/out.csv", "extra": {"k": "v"}, "type": "asset"}
         ]
 
 
@@ -5323,12 +5324,15 @@ def test_convert_to_json_safe_list(value, expected):
     assert _convert_to_json_safe_list(value, "outlets") == expected
 
 
-def test_convert_to_json_safe_list_returns_none_on_failure(caplog):
-    with caplog.at_level(logging.WARNING):
-        circular: list = []
-        circular.append(circular)
-        assert _convert_to_json_safe_list(circular, "outlets") is None
-    assert "Unable to serialize task `outlets` to a JSON list: Circular reference detected" in caplog
+@patch("airflow.providers.openlineage.utils.utils.log", autospec=True)
+def test_convert_to_json_safe_list_returns_none_on_failure(mock_log):
+    circular: list = []
+    circular.append(circular)
+    assert _convert_to_json_safe_list(circular, "outlets") is None
+    mock_log.warning.assert_called_once_with(
+        "Unable to serialize task `%s` to a JSON list: %s", "outlets", mock.ANY
+    )
+    assert str(mock_log.warning.call_args.args[2]) == "Circular reference detected"
 
 
 @patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets")
