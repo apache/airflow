@@ -137,7 +137,8 @@ To submit a new AWS Glue job you can use :class:`~airflow.providers.amazon.aws.o
 
 .. note::
   The same AWS IAM role used for the crawler can be used here as well, but it will need
-  policies to provide access to the output location for result data.
+  policies to provide access to the output location for result data, as well as the
+  ``glue:StartJobRun``, ``glue:GetJobRun``, and ``glue:GetJobRuns`` IAM permissions.
 
 A Glue job run that ends in ``STOPPED`` is treated as a failure, not a success -- on every
 attempt, first or retry, regardless of ``durable``. Glue's API has no way to tell a run cancelled
