@@ -377,3 +377,23 @@ describe("DagFolderTree (multiple bundles)", () => {
     expect(node("ml")).toHaveAttribute("aria-selected", "false");
   });
 });
+
+it("selects the correct bundle when names and folder paths contain colons", async () => {
+  const onSelectFolder = vi.fn();
+
+  render(
+    <DagFolderTree
+      folders={[
+        { bundle_name: "a", folder: "b:c" },
+        { bundle_name: "a:b", folder: "c" },
+      ]}
+      onSelectFolder={onSelectFolder}
+      selectedBundle="a:b"
+      selectedFolder={undefined}
+    />,
+    { wrapper: BaseWrapper },
+  );
+
+  fireEvent.click(screen.getByTitle("c"), { button: 0 });
+  await waitFor(() => expect(onSelectFolder).toHaveBeenCalledWith({ bundleName: "a:b", folder: "c" }));
+});
