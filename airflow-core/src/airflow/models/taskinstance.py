@@ -3583,7 +3583,7 @@ def find_relevant_relatives(
                     continue
                 relative_map_indexes = _get_relevant_map_indexes(
                     task=task,
-                    relative=relative,  # type: ignore[arg-type]
+                    relative=relative,
                     run_id=run_id,
                     map_index=map_index,
                     ti_count=ti_count,

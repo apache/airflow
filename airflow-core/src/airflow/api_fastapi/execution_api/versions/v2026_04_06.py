@@ -48,14 +48,14 @@ class AddPartitionKeyField(VersionChange):
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_partition_key_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_partition_key_from_dag_run(response: ResponseInfo) -> None:
         """Remove the `partition_key` field from the dag_run object when converting to the previous version."""
         dag_run = response.body.get("dag_run")
         if isinstance(dag_run, dict):
             dag_run.pop("partition_key", None)
 
     @convert_response_to_previous_version_for(AssetEventsResponse)  # type: ignore[arg-type]
-    def remove_partition_key_from_asset_events(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_partition_key_from_asset_events(response: ResponseInfo) -> None:
         """Remove the `partition_key` field from the dag_run object when converting to the previous version."""
         events = response.body["asset_events"]
         for elem in events:
@@ -91,7 +91,7 @@ class MakeDagRunStartDateNullable(VersionChange):
     instructions_to_migrate_to_previous_version = (schema(DagRun).field("start_date").had(type=UtcDateTime),)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def ensure_start_date_in_ti_run_context(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def ensure_start_date_in_ti_run_context(response: ResponseInfo) -> None:
         """
         Ensure start_date is never None in DagRun for previous API versions.
 
@@ -103,7 +103,7 @@ class MakeDagRunStartDateNullable(VersionChange):
             dag_run["start_date"] = dag_run.get("run_after")
 
     @convert_response_to_previous_version_for(DagRun)  # type: ignore[arg-type]
-    def ensure_start_date_in_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def ensure_start_date_in_dag_run(response: ResponseInfo) -> None:
         """Ensure start_date is never None in direct DagRun responses for previous API versions."""
         if response.body.get("start_date") is None:
             response.body["start_date"] = response.body.get("run_after")
@@ -120,7 +120,7 @@ class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def convert_next_kwargs_to_base_serialization(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def convert_next_kwargs_to_base_serialization(response: ResponseInfo) -> None:
         """
         Convert next_kwargs from SDK serde format to BaseSerialization format for old workers.
 
@@ -160,7 +160,7 @@ class RemoveUpstreamMapIndexesField(VersionChange):
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def add_upstream_map_indexes_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def add_upstream_map_indexes_field(response: ResponseInfo) -> None:
         """Add upstream_map_indexes field with None for older API versions."""
         response.body["upstream_map_indexes"] = None
 
@@ -176,7 +176,7 @@ class AddNoteField(VersionChange):
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_note_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_note_field(response: ResponseInfo) -> None:
         """Remove note field for older API versions."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("note", None)
@@ -190,7 +190,7 @@ class AddTaskInstanceStartDateField(VersionChange):
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("start_date").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_start_date_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_start_date_field(response: ResponseInfo) -> None:
         """Remove start_date field for older API versions."""
         response.body.pop("start_date", None)
 

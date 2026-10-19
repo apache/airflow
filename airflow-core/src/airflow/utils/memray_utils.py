@@ -52,7 +52,7 @@ def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[
 
     def decorator(func: Callable[PS, RT]) -> Callable[PS, RT]:
         @wraps(func)
-        def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:  # type: ignore[return]
+        def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:
             _memray_trace_components = conf.getenumlist(
                 "profiling", "memray_trace_components", MemrayTraceComponents
             )
