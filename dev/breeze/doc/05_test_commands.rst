@@ -714,13 +714,27 @@ The runner is overlay-agnostic. For every overlay it:
   ``timeout_seconds``,
 * checks pods in the target namespace with the Helm chart's
   ``release=<release-name>`` label. Each pod must be ``Running`` with
-  its ``Ready`` condition true, or have completed successfully
+  its ``Ready`` condition true or have completed successfully
   (``Succeeded``). Terminating pods are retried until they disappear.
-  An empty selection or only completed pods cannot pass this check.
+  Failed Job attempts and evicted pods are ignored unless terminating.
+  At least one pod must be ``Running`` and ``Ready`` without a deletion timestamp.
+  Failed or empty pod queries are retried. Container waiting reasons listed
+  above fail immediately. The pod-health check is skipped during ``--dry-run``.
   The check uses the overlay's ``verify.timeout_seconds`` (default 300)
   and prints pod diagnostics on timeout. It also runs with ``--no-pytest``,
 * runs the optional per-overlay pytest module,
 * deletes the overlay (skip with ``--skip-cleanup``).
+
+``verify.timeout_seconds`` applies to each resource check.
+The pod-health check gets a separate timeout of the same length.
+The checks run in sequence without a shared deadline.
+Two resources with a timeout of 300 seconds have a combined waiting budget
+of 900 seconds including the pod-health check. Other steps add time.
+
+The pod-health check covers the whole release rather than only workloads
+changed by the overlay. Problems that existed before the run can fail the
+check and block ``--promote-status``. A failure does not establish that the
+overlay caused the problem.
 
 See ``chart/kustomize-overlays/CONTRIBUTING.rst`` for the full
 lifecycle and how an overlay's ``STATUS`` advances from ``not-tested``

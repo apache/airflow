@@ -253,13 +253,21 @@ under ``chart/kustomize-overlays/`` with a ``verify:`` block:
    ``timeout_seconds``.
 5. **Check the Airflow deployment's pod health.** Pods in the target namespace
    with the chart's ``release=<release-name>`` label must be ``Running``
-   and ``Ready``, or ``Succeeded`` for completed work such as Helm hook Jobs.
-   There must be at least one active pod; an empty selection or only completed
-   pods does not establish a healthy deployment. The runner rechecks the pod
-   list while pods start or terminate, up to ``verify.timeout_seconds``
-   (default 300), and dumps pod status and descriptions on timeout.
-   This baseline runs even with ``--no-pytest``. It checks pod readiness,
-   not application-level behaviour or end-to-end Dag execution.
+   and ``Ready`` or ``Succeeded`` for completed work such as Helm hook Jobs.
+   Failed Job attempts and evicted pods are ignored unless they are terminating.
+   At least one pod must be ``Running`` and ``Ready`` without a deletion timestamp.
+   Completed or ignored pods alone do not establish a healthy deployment.
+   The runner retries failed or empty pod queries and rechecks the pod
+   list while pods start or terminate. It waits up to ``verify.timeout_seconds``
+   (default 300). It dumps pod status and descriptions on timeout.
+   Container waiting reasons listed in step 4 also fail this check immediately.
+   The pod-health check is skipped during ``--dry-run``.
+   This baseline runs even with ``--no-pytest``. It checks pod readiness.
+   It does not test application behaviour or end-to-end Dag execution.
+   It checks the whole release rather than only workloads changed by the overlay.
+   A problem that existed before the run can fail this check and block
+   ``--promote-status``. A failed check does not establish that the overlay
+   caused the problem.
 6. **Run the optional per-overlay pytest module.** If
    ``chart/tests/overlay_tests/test_<name>.py``
    exists and ``--no-pytest`` was not passed, it is executed with
@@ -271,6 +279,13 @@ under ``chart/kustomize-overlays/`` with a ``verify:`` block:
 7. **Clean up.** The same substituted manifest is fed to
    ``kubectl delete -f -`` (with ``--ignore-not-found``) unless
    ``--skip-cleanup`` was passed.
+
+``verify.timeout_seconds`` applies to each resource check in step 4.
+Step 5 gets a separate timeout of the same length.
+These checks run in sequence. They do not share a deadline.
+With two resources and a timeout of 300 seconds the checks have a combined
+waiting budget of 900 seconds. This is not a limit on the whole smoke test.
+Command execution and the other steps can add time.
 
 Rules for images and per-overlay tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

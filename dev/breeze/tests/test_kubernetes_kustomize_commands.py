@@ -86,13 +86,15 @@ class TestFindDisallowedOverlayImages:
         assert _find_disallowed_overlay_images(images) == expected
 
 
-def build_pod(name="scheduler", phase="Running", ready="True", terminating=False):
+def build_pod(name="scheduler", phase="Running", ready="True", terminating=False, reason=None, owner=None):
     metadata = {"name": name}
     if terminating:
         metadata["deletionTimestamp"] = "2026-01-01T00:00:00Z"
+    if owner:
+        metadata["ownerReferences"] = [{"kind": owner}]
     return {
         "metadata": metadata,
-        "status": {"phase": phase, "conditions": [{"type": "Ready", "status": ready}]},
+        "status": {"phase": phase, "reason": reason, "conditions": [{"type": "Ready", "status": ready}]},
     }
 
 
@@ -103,6 +105,10 @@ def build_pod(name="scheduler", phase="Running", ready="True", terminating=False
         (build_pod(phase="Succeeded", ready="False"), []),
         (build_pod(phase="Pending", ready="False"), ["scheduler: Pending"]),
         (build_pod(phase="Failed", ready="False"), ["scheduler: Failed"]),
+        (build_pod(phase="Failed", reason="Evicted"), []),
+        (build_pod(phase="Failed", owner="Job"), []),
+        (build_pod(phase="Failed", owner="ReplicaSet"), ["scheduler: Failed"]),
+        (build_pod(phase="Failed", owner="Job", terminating=True), ["scheduler: terminating"]),
         (build_pod(ready="False"), ["scheduler: not Ready"]),
         (build_pod(ready="Unknown"), ["scheduler: not Ready"]),
         (build_pod(terminating=True), ["scheduler: terminating"]),
@@ -118,6 +124,18 @@ def test_get_pod_health_problems(pod, expected):
 
 
 class TestWaitForAirflowPods:
+    @pytest.mark.parametrize(
+        "failed_pod", [build_pod(phase="Failed", reason="Evicted"), build_pod(phase="Failed", owner="Job")]
+    )
+    @mock.patch.object(overlay_commands, "run_command", autospec=True)
+    def test_ignores_old_failures_with_healthy_pod(self, run_command, failed_pod):
+        failed_pod["status"]["containerStatuses"] = [{"state": {"waiting": {"reason": "CrashLoopBackOff"}}}]
+        run_command.return_value = CompletedProcess(
+            [], 0, stdout=json.dumps({"items": [failed_pod, build_pod()]})
+        )
+
+        assert _wait_for_airflow_pods("airflow", "airflow", 30, {}) == 0
+
     @mock.patch.object(overlay_commands, "run_command", autospec=True)
     def test_checks_release_in_namespace_and_allows_completed_jobs(self, run_command):
         run_command.return_value = CompletedProcess(
@@ -168,6 +186,9 @@ class TestWaitForAirflowPods:
             [],
             [build_pod("migrate", "Succeeded", "False")],
             [build_pod(phase="Failed")],
+            [build_pod(phase="Failed", reason="Evicted")],
+            [build_pod(phase="Failed", owner="Job")],
+            [build_pod(phase="Succeeded"), build_pod(phase="Failed", owner="Job")],
             [build_pod(ready="False")],
             [build_pod(), build_pod("worker", ready="False")],
         ],
@@ -187,12 +208,73 @@ class TestWaitForAirflowPods:
             mock.call([kubectl, "describe", "pods", *scope], env={}, check=False),
         ]
 
+    @pytest.mark.parametrize(
+        "query_result",
+        [CompletedProcess([], 1, stdout="", stderr="Unavailable"), CompletedProcess([], 0, stdout=" \n")],
+    )
+    @mock.patch.object(overlay_commands.time, "sleep", autospec=True)
     @mock.patch.object(overlay_commands, "run_command", autospec=True)
-    def test_query_failure_fails_health_check(self, run_command):
-        run_command.return_value = CompletedProcess([], 1, stdout="", stderr="Forbidden")
+    def test_retries_query_until_recovery(self, run_command, sleep, query_result):
+        run_command.side_effect = [
+            query_result,
+            CompletedProcess([], 0, stdout=json.dumps({"items": [build_pod()]})),
+        ]
+
+        assert _wait_for_airflow_pods("airflow", "airflow", 30, {}) == 0
+        assert run_command.call_count == 2
+        sleep.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "query_result",
+        [CompletedProcess([], 1, stdout="", stderr="Forbidden"), CompletedProcess([], 0, stdout="")],
+    )
+    @mock.patch.object(overlay_commands.time, "monotonic", autospec=True, side_effect=[0, 0, 0, 0, 1, 1])
+    @mock.patch.object(overlay_commands.time, "sleep", autospec=True)
+    @mock.patch.object(overlay_commands, "run_command", autospec=True)
+    def test_query_failure_retries_until_timeout(self, run_command, sleep, monotonic, query_result):
+        run_command.return_value = query_result
+
+        assert _wait_for_airflow_pods("airflow", "airflow", 1, {}) == 1
+        assert run_command.call_count == 4
+        assert sleep.call_count == 2
+        assert run_command.call_args.args[0][1:3] == ["describe", "pods"]
+
+    @mock.patch.object(overlay_commands, "get_dry_run", autospec=True, return_value=True)
+    @mock.patch.object(overlay_commands, "run_command", autospec=True)
+    def test_dry_run_skips_health_check(self, run_command, get_dry_run):
+        assert _wait_for_airflow_pods("airflow", "airflow", 30, {}) == 0
+        run_command.assert_not_called()
+
+    @pytest.mark.parametrize("reason", sorted(overlay_commands._TERMINAL_POD_WAITING_REASONS))
+    @pytest.mark.parametrize("container_key", ["containerStatuses", "initContainerStatuses"])
+    @mock.patch.object(overlay_commands.time, "sleep", autospec=True)
+    @mock.patch.object(overlay_commands, "run_command", autospec=True)
+    def test_terminal_waiting_reason_fails_immediately(self, run_command, sleep, reason, container_key):
+        pod = build_pod(ready="False")
+        pod["status"][container_key] = [{"state": {"waiting": {"reason": reason}}}]
+        run_command.return_value = CompletedProcess([], 0, stdout=json.dumps({"items": [pod]}))
 
         assert _wait_for_airflow_pods("airflow", "airflow", 30, {}) == 1
-        run_command.assert_called_once()
+        sleep.assert_not_called()
+        assert run_command.call_count == 2
+        assert run_command.call_args.args[0][1:3] == ["describe", "pods"]
+
+    @pytest.mark.parametrize(
+        ("reason", "terminating"), [("ContainerCreating", False), ("CrashLoopBackOff", True)]
+    )
+    @mock.patch.object(overlay_commands.time, "sleep", autospec=True)
+    @mock.patch.object(overlay_commands, "run_command", autospec=True)
+    def test_waits_for_recoverable_or_terminating_pods(self, run_command, sleep, reason, terminating):
+        pod = build_pod(ready="False", terminating=terminating)
+        pod["status"]["containerStatuses"] = [{"state": {"waiting": {"reason": reason}}}]
+        run_command.side_effect = [
+            CompletedProcess([], 0, stdout=json.dumps({"items": [pod]})),
+            CompletedProcess([], 0, stdout=json.dumps({"items": [build_pod()]})),
+        ]
+
+        assert _wait_for_airflow_pods("airflow", "airflow", 30, {}) == 0
+        assert run_command.call_count == 2
+        sleep.assert_called_once()
 
 
 @pytest.mark.parametrize("health_result", [0, 1])

@@ -57,6 +57,7 @@ from airflow_breeze.utils.kubernetes_utils import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.shared_options import get_dry_run
 
 # Allow-list of third-party container images that kustomize overlays under
 # chart/kustomize-overlays/ may declare. `breeze k8s smoke-test-overlay`
@@ -290,6 +291,12 @@ def _get_pod_health_problems(pods: list[dict[str, Any]]) -> list[str]:
             problems.append(f"{name}: terminating")
         elif phase == "Succeeded":
             continue
+        elif phase == "Failed" and (
+            status.get("reason") == "Evicted"
+            or any(owner.get("kind") == "Job" for owner in pod["metadata"].get("ownerReferences", []))
+        ):
+            # Failed Job attempts and evicted pods can remain after their replacements are healthy.
+            continue
         elif phase != "Running":
             problems.append(f"{name}: {phase}")
         elif not any(
@@ -307,6 +314,8 @@ def _wait_for_airflow_pods(
     kubectl = str(KUBECTL_BIN_PATH)
     scope = ["-n", namespace, "-l", f"release={release_name}"]
     console_print(f"[info]Checking Airflow pod health for release {release_name} in {namespace}...")
+    if get_dry_run():
+        return 0
     deadline = time.monotonic() + timeout_seconds
     problems = ["No healthy Airflow pods observed"]
     while time.monotonic() < deadline:
@@ -318,12 +327,36 @@ def _wait_for_airflow_pods(
             text=True,
         )
         if result.returncode != 0:
-            console_print(f"[error]Could not check Airflow pod health: {result.stderr}")
-            return 1
+            problems = [f"Could not list pods: {(result.stderr or '').strip()}"]
+            time.sleep(min(5, max(0, deadline - time.monotonic())))
+            continue
+        if not result.stdout.strip():
+            problems = ["Pod query returned empty output"]
+            time.sleep(min(5, max(0, deadline - time.monotonic())))
+            continue
         pods = json.loads(result.stdout)["items"]
         problems = _get_pod_health_problems(pods)
-        # Completed Helm hook Jobs alone must not count as a healthy Airflow deployment.
-        if not any(pod.get("status", {}).get("phase") != "Succeeded" for pod in pods):
+        unrecoverable = [
+            f"{pod['metadata']['name']}: {reason}"
+            for pod in pods
+            if not pod["metadata"].get("deletionTimestamp")
+            and pod.get("status", {}).get("phase") not in ("Failed", "Succeeded")
+            for container in [
+                *pod.get("status", {}).get("containerStatuses", []),
+                *pod.get("status", {}).get("initContainerStatuses", []),
+            ]
+            if (reason := container.get("state", {}).get("waiting", {}).get("reason"))
+            in _TERMINAL_POD_WAITING_REASONS
+        ]
+        if unrecoverable:
+            console_print(f"[error]Airflow pods failed health check: {'; '.join(unrecoverable)}")
+            run_command([kubectl, "describe", "pods", *scope], env=env, check=False)
+            return 1
+        # Ignored failures and completed Jobs cannot establish a healthy deployment.
+        if not any(
+            pod.get("status", {}).get("phase") == "Running" and not pod["metadata"].get("deletionTimestamp")
+            for pod in pods
+        ):
             problems.append("No active Airflow pods found")
         if not problems:
             console_print("[success]Airflow pods are healthy after applying the overlay.")
@@ -653,10 +686,10 @@ def _smoke_test_overlay_impl(
     "--promote-status",
     is_flag=True,
     help=(
-        "If the run is green (verify block + per-overlay pytest both pass), rewrite the "
-        "overlay's STATUS.yaml in place to `status: tested` with chart-version from "
-        "chart/Chart.yaml and today's date as last-verified. Opt-in because it modifies "
-        "a checked-in file; review with `git diff` and commit. Refused when CI=true."
+        "Set STATUS.yaml to `status: tested` after the verify block and Airflow pod-health check pass. "
+        "The per-overlay pytest module must also pass unless skipped or absent. "
+        "Set chart-version from chart/Chart.yaml and last-verified to today's date. "
+        "Review the file with `git diff` before committing. Refused when CI=true."
     ),
 )
 @option_verbose
