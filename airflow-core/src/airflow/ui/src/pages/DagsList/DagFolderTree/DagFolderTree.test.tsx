@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DagFolderResponse } from "openapi/requests/types.gen";
@@ -47,6 +47,53 @@ const node = (label: string) =>
   nodes().find(
     (item) => item.querySelector('[data-part="branch-text"], [data-part="item-text"]')?.textContent === label,
   );
+
+it.each([
+  {
+    bundleName: "dags-folder",
+    folder: "team_a",
+    folders: SINGLE_BUNDLE,
+    parent: "team_a",
+    selectedBundle: undefined,
+  },
+  {
+    bundleName: "ml",
+    folder: undefined,
+    folders: MULTI_BUNDLE,
+    parent: "ml",
+    selectedBundle: "ml",
+  },
+])(
+  "collapses $parent in one click when a child is selected",
+  async ({ bundleName, folder, folders, parent, selectedBundle }) => {
+    const onSelectFolder = vi.fn();
+    const { rerender } = render(
+      <DagFolderTree
+        folders={folders}
+        onSelectFolder={onSelectFolder}
+        selectedBundle={selectedBundle}
+        selectedFolder="team_a/etl"
+      />,
+      { wrapper: BaseWrapper },
+    );
+
+    expect(node(parent)).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByTitle(parent), { button: 0 });
+    await waitFor(() => expect(onSelectFolder).toHaveBeenLastCalledWith({ bundleName, folder }));
+
+    rerender(
+      <DagFolderTree
+        folders={folders}
+        onSelectFolder={onSelectFolder}
+        selectedBundle={bundleName}
+        selectedFolder={folder}
+      />,
+    );
+
+    await waitFor(() => expect(node(parent)).toHaveAttribute("aria-expanded", "false"));
+    expect(node(parent)).toHaveAttribute("aria-selected", "true");
+  },
+);
 
 describe("DagFolderTree (single bundle)", () => {
   it("renders the top-level folders and an 'All Dags' entry, without a bundle level", () => {
@@ -304,6 +351,15 @@ describe("DagFolderTree (multiple bundles)", () => {
     const selected = nodes().filter((item) => item.getAttribute("aria-selected") === "true");
 
     expect(selected.map((item) => item.getAttribute("data-value"))).toEqual(["folder:ml:team_a/etl"]);
+  });
+
+  it("keeps a selected bundle collapsed when the folder parameter is empty", () => {
+    render(
+      <DagFolderTree folders={MULTI_BUNDLE} onSelectFolder={vi.fn()} selectedBundle="ml" selectedFolder="" />,
+      { wrapper: BaseWrapper },
+    );
+
+    expect(node("ml")).toHaveAttribute("aria-expanded", "false");
   });
 
   it("marks a bundle as selected when only the bundle is selected", () => {
