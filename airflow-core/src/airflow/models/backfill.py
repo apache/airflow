@@ -220,7 +220,7 @@ class Backfill(Base):
     @duration.expression  # type: ignore[no-redef]
     def duration(cls) -> Any:
         @provide_session
-        def _get_dialect(*, session: Session = NEW_SESSION) -> str:
+        def _get_dialect(*, session: Session = NEW_SESSION) -> str | None:
             return get_dialect_name(session=session)
 
         dialect_name = _get_dialect()
