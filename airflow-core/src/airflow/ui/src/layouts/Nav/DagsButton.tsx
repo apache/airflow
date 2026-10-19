@@ -47,15 +47,13 @@ export const DagsButton = ({ authorizedMenuItems }: { readonly authorizedMenuIte
   const { t: translate } = useTranslation();
   const isAuthorized = authorizedMenuItems.includes("Dags");
 
-  // Stays a link to the Dags list: hovering reveals the menu, clicking goes straight there.
   const trigger = (
     <NavButton
       data-testid="nav-dags-link"
       disabled={!isAuthorized}
       icon={DagIcon}
-      matchPaths={["dag_runs", "task_instances"]}
       title={translate("nav.dags")}
-      to="/dags"
+      to={links.map(({ href }) => href)}
     />
   );
 
