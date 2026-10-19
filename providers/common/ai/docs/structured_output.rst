@@ -24,6 +24,7 @@ Set ``output_type`` to a Pydantic ``BaseModel`` subclass. The LLM is instructed
 to return structured data, and the model instance is pushed to XCom unchanged
 so downstream tasks can type-hint the class directly
 (``def downstream(result: MyModel)``) and use attribute access (``result.field``).
+Inside a list of types (``[MyModel, int]``) the model is pushed as a ``dict`` instead.
 
 The declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list[...]`` types) is registered for XCom deserialization by
@@ -34,6 +35,8 @@ classes nested inside a function or ``@dag``-decorated body, parameterized
 generics, and dynamically-built classes whose ``__name__`` does not match the
 attribute they are bound to cannot be re-imported, so they are skipped with a
 warning at worker startup and the value fails to deserialize at the consumer.
+A list of types (``output_type=[MyModel, int]``) registers no class, so the operator pushes the
+model as a ``dict`` even when ``serialize_output`` is ``False``.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm.py
     :language: python
