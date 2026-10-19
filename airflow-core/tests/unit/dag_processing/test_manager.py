@@ -6049,7 +6049,7 @@ class TestDagFileProcessorManager:
         work = ProcessorWorkItem(
             id=str(uuid7()), claim_id=uuid7(), bundle_name=bundle.name, relative_fileloc="a.py"
         )
-        manager._priority_claims[work.id] = PriorityParseClaim(work=work, refresh_generation=1)
+        manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, refresh_generation=1)
         manager._bundles_waiting_for_refresh.add(bundle.name)
         manager._bundle_versions[bundle.name] = "previous"
 
@@ -6065,7 +6065,7 @@ class TestDagFileProcessorManager:
         assert not manager._force_refresh_bundles
         assert not manager._bundles_waiting_for_refresh
         assert not manager._priority_claims
-        assert manager._pending_work_acks == [("priority", work, True)]
+        assert manager._pending_work_acks == [("priority", work)]
         manager._acknowledge_requested_work()
         client.claim_work.return_value = []
         manager.claim_priority_files()
@@ -6857,10 +6857,10 @@ def test_callback_constructor_outage_allows_other_work_until_retry_expires(
         manager._add_callback_to_queue(request)
     assert not manager._deferred_api_callbacks
     assert not manager._deferred_callback_retries
-    assert manager._pending_work_acks == [("callbacks", work[0], True)]
+    assert manager._pending_work_acks == [("callbacks", work[0])]
     manager._acknowledge_requested_work()
     manager._acknowledge_requested_work()
-    client.acknowledge_work.assert_called_once_with("callbacks", work[0], failed=True)
+    client.acknowledge_work.assert_called_once_with("callbacks", work[0])
 
 
 @pytest.mark.parametrize("outcome", ["queued", "expired", "unsupported"])
@@ -6900,7 +6900,7 @@ def test_equal_claimed_callbacks_are_removed_by_identity(prepare, importer, cloc
         assert not manager._pending_work_acks
     else:
         assert id(second) not in manager._callback_claims
-        assert manager._pending_work_acks == [("callbacks", work[1], True)]
+        assert manager._pending_work_acks == [("callbacks", work[1])]
 
 
 @mock.patch("airflow.dag_processing.manager.get_claiming_importer", autospec=True, return_value=None)
@@ -6955,8 +6955,8 @@ def test_equal_claimed_callbacks_dispatch_once_each_after_preparation_recovers(
     assert not manager._deferred_callback_retries
     assert not manager._callback_to_execute
     assert client.acknowledge_work.call_args_list == [
-        mock.call("callbacks", work[1], failed=False),
-        mock.call("callbacks", work[0], failed=False),
+        mock.call("callbacks", work[1]),
+        mock.call("callbacks", work[0]),
     ]
 
 
@@ -7045,7 +7045,7 @@ def test_catalog_omission_releases_priority_capacity_and_allows_recovery(
         manager._bundle_parse_sources[name] = DagParseSource()
         work = ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name=name, relative_fileloc="a.py")
         claims[name] = PriorityParseClaim(work=work, refresh_generation=1)
-        manager._priority_claims[work.id] = claims[name]
+        manager._priority_claims[work.id, work.claim_id] = claims[name]
     manager._dag_bundles = list(bundles.values())
     previous_files = files.copy()
     previous_versions = manager._bundle_versions.copy()
@@ -7076,9 +7076,12 @@ def test_catalog_omission_releases_priority_capacity_and_allows_recovery(
     assert files == previous_files
     assert manager._bundle_versions == previous_versions
     assert manager._bundle_parse_sources["ready"] is ready_source
-    assert manager._priority_claims[claims["ready"].work.id] is claims["ready"]
+    assert manager._priority_claims[claims["ready"].work.id, claims["ready"].work.claim_id] is claims["ready"]
     if catalog_failed:
-        assert manager._priority_claims[claims["missing"].work.id] is claims["missing"]
+        assert (
+            manager._priority_claims[claims["missing"].work.id, claims["missing"].work.claim_id]
+            is claims["missing"]
+        )
         assert not manager._pending_work_acks
         assert manager._force_refresh_bundles == {"missing"}
         assert manager._bundles_waiting_for_refresh == {"missing"}
@@ -7091,8 +7094,8 @@ def test_catalog_omission_releases_priority_capacity_and_allows_recovery(
         return
 
     client.publish_inventory.assert_not_called()
-    assert claims["missing"].work.id not in manager._priority_claims
-    assert manager._pending_work_acks == [("priority", claims["missing"].work, True)]
+    assert (claims["missing"].work.id, claims["missing"].work.claim_id) not in manager._priority_claims
+    assert manager._pending_work_acks == [("priority", claims["missing"].work)]
     assert not manager._pending_inventories
     assert not manager._force_refresh_bundles
     assert not manager._bundles_waiting_for_refresh
@@ -7316,7 +7319,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
             work = ProcessorWorkItem(
                 id=str(uuid7()), claim_id=uuid7(), bundle_name=name, relative_fileloc="b.py"
             )
-            retained_claims[work.id] = PriorityParseClaim(
+            retained_claims[work.id, work.claim_id] = PriorityParseClaim(
                 work=work, refresh_generation=1, attempt_id=attempt_id
             )
             if name == "oversized":
@@ -7334,7 +7337,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
     manager._priority_claims.update(retained_claims)
     client.claim_work.side_effect = [[rejected_work], [ready_work]]
     manager._queue_requested_files_for_parsing()
-    assert manager._priority_claims[rejected_work.id].attempt_id is None
+    assert manager._priority_claims[rejected_work.id, rejected_work.claim_id].attempt_id is None
     body = DagBundleInventoryBody(
         attempt_id=uuid7(),
         dispatch_sequence=1,
@@ -7349,7 +7352,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
     manager._publish_bundle_inventory("oversized", {})
 
     assert manager._priority_claims == retained_claims
-    assert manager._pending_work_acks == [("priority", rejected_work, True)]
+    assert manager._pending_work_acks == [("priority", rejected_work)]
     if rejection == "local_limit":
         client.publish_inventory.assert_not_called()
     else:
@@ -7357,7 +7360,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
     assert manager.claim_priority_files() == []
     client.claim_work.assert_called_once_with("priority", ["oversized", "ready"], 1)
     manager._acknowledge_requested_work()
-    client.acknowledge_work.assert_called_once_with("priority", rejected_work, failed=True)
+    client.acknowledge_work.assert_called_once_with("priority", rejected_work)
     manager._queue_requested_files_for_parsing()
     assert client.claim_work.call_args_list == [
         mock.call("priority", ["oversized", "ready"], 1),
@@ -7387,10 +7390,12 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
     manager._start_new_processes()
 
     create.assert_called_once_with(manager, ready_file)
-    assert manager._priority_claims[ready_work.id].attempt_id == process.id
-    assert {key: claim for key, claim in manager._priority_claims.items() if key != ready_work.id} == (
-        retained_claims
-    )
+    assert manager._priority_claims[ready_work.id, ready_work.claim_id].attempt_id == process.id
+    assert {
+        key: claim
+        for key, claim in manager._priority_claims.items()
+        if key != (ready_work.id, ready_work.claim_id)
+    } == (retained_claims)
     assert not manager._pending_work_acks
 
 
@@ -7429,7 +7434,7 @@ def test_requested_work_ack_retains_only_retryable_failures(status_code):
     work = ProcessorWorkItem(
         id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py"
     )
-    manager._pending_work_acks.append(("callbacks", work, False))
+    manager._pending_work_acks.append(("callbacks", work))
     response = httpx2.Response(status_code, request=httpx2.Request("POST", "http://api/ack"))
     client.acknowledge_work.side_effect = httpx2.HTTPStatusError(
         "Unavailable", request=response.request, response=response
@@ -7476,7 +7481,7 @@ def test_inventory_only_fails_priority_requests_after_authoritative_refresh(gene
     work = ProcessorWorkItem(
         id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="archive.zip/a.py"
     )
-    manager._priority_claims[work.id] = PriorityParseClaim(work=work, refresh_generation=1)
+    manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, refresh_generation=1)
     body = DagBundleInventoryBody(
         attempt_id=uuid7(),
         dispatch_sequence=1,
@@ -7491,8 +7496,8 @@ def test_inventory_only_fails_priority_requests_after_authoritative_refresh(gene
     manager._publish_bundle_inventory("testing", {})
 
     failed = generation == 1 and not discovery_failed
-    assert manager._pending_work_acks == ([("priority", work, True)] if failed else [])
-    assert (work.id in manager._priority_claims) is not failed
+    assert manager._pending_work_acks == ([("priority", work)] if failed else [])
+    assert ((work.id, work.claim_id) in manager._priority_claims) is not failed
 
 
 @pytest.mark.parametrize("kind", ["callbacks", "priority"])
@@ -7508,7 +7513,7 @@ def test_pending_requested_work_does_not_block_other_available_capacity(kind):
         id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="missing.py"
     )
     if kind == "priority":
-        manager._priority_claims[work.id] = PriorityParseClaim(work=work, refresh_generation=1)
+        manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, refresh_generation=1)
         manager.claim_priority_files()
     else:
         manager._callback_claims[1] = work
@@ -7520,7 +7525,7 @@ def _claim_priority_parse(manager: DagFileProcessorManager, file: DagFileInfo) -
     work = ProcessorWorkItem(
         id=str(uuid7()), claim_id=uuid7(), bundle_name=file.bundle_name, relative_fileloc=str(file.rel_path)
     )
-    manager._priority_claims[work.id] = PriorityParseClaim(
+    manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(
         work=work, refresh_generation=0, attempt_id=uuid7()
     )
     manager._file_stats[file] = DagFileStat()
@@ -7588,7 +7593,7 @@ def test_priority_request_waits_for_its_own_refreshed_import(create, tmp_path, p
     else:
         manager._kill_timed_out_processors()
     assert not manager._pending_work_acks
-    assert work.id in manager._priority_claims
+    assert (work.id, work.claim_id) in manager._priority_claims
     assert file in manager._file_queue
     create.assert_not_called()
 
@@ -7606,14 +7611,14 @@ def test_priority_request_waits_for_its_own_refreshed_import(create, tmp_path, p
     manager._start_new_processes()
     create.assert_called_once_with(manager, file)
 
-    later = work.model_copy(update={"id": str(uuid7()), "claim_id": uuid7()})
+    later = work.model_copy(update={"claim_id": uuid7()})
     manager._parallelism = 2
     client.claim_work.return_value = [later]
     manager._queue_requested_files_for_parsing()
     manager.handle_parsing_result(file, new)
     manager._publish_pending_results()
-    assert manager._pending_work_acks == [("priority", work, False)]
-    assert later.id in manager._priority_claims
+    assert manager._pending_work_acks == [("priority", work)]
+    assert (later.id, later.claim_id) in manager._priority_claims
     assert file in manager._file_queue
 
 
@@ -7666,7 +7671,7 @@ def test_priority_request_during_publication_retry_completes_after_refresh(creat
     manager._publish_pending_results()
     assert not manager._pending_work_acks
 
-    later = first.model_copy(update={"id": str(uuid7()), "claim_id": uuid7()})
+    later = first.model_copy(update={"claim_id": uuid7()})
     client.claim_work.return_value = [later]
     manager._queue_requested_files_for_parsing()
     client.publish_parse_result.side_effect = None
@@ -7677,8 +7682,8 @@ def test_priority_request_during_publication_retry_completes_after_refresh(creat
         assert create.call_count == 1
         manager._pending_publications[file].next_attempt_time = 0
         manager._publish_pending_results()
-        assert manager._pending_work_acks == [("priority", first, False)]
-        assert later.id in manager._priority_claims
+        assert manager._pending_work_acks == [("priority", first)]
+        assert (later.id, later.claim_id) in manager._priority_claims
     manager._refresh_dag_bundles(known_files)
     assert bundle.refresh.call_count == 2
     replacement = mock.create_autospec(DagFileProcessorProcess, instance=True)
@@ -7692,21 +7697,19 @@ def test_priority_request_during_publication_retry_completes_after_refresh(creat
     manager._processors.pop(file)
     manager.handle_parsing_result(file, replacement)
     manager._publish_pending_results()
-    assert manager._pending_work_acks == [("priority", first, False), ("priority", later, False)]
+    assert manager._pending_work_acks == [("priority", first), ("priority", later)]
     assert not manager._priority_claims
     assert not manager._pending_publications
     manager._acknowledge_requested_work()
     manager._acknowledge_requested_work()
     assert client.acknowledge_work.call_args_list == [
-        mock.call("priority", first, failed=False),
-        mock.call("priority", later, failed=False),
+        mock.call("priority", first),
+        mock.call("priority", later),
     ]
 
 
-@pytest.mark.parametrize(
-    ("status_code", "failed"), [(None, False), (409, True)], ids=["published", "rejected"]
-)
-def test_publication_outcome_acknowledges_priority_claims(status_code, failed):
+@pytest.mark.parametrize("status_code", [None, 409], ids=["published", "rejected"])
+def test_publication_outcome_acknowledges_priority_claims(status_code):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     file = _get_file_infos(["a.py"])[0]
@@ -7714,7 +7717,9 @@ def test_publication_outcome_acknowledges_priority_claims(status_code, failed):
     manager._pending_publications[file] = PendingDagPublication(
         body=mock.create_autospec(DagParseResultBody, instance=True), stat=DagFileStat(), refresh_generation=0
     )
-    manager._pending_publications[file].body.attempt_id = manager._priority_claims[work.id].attempt_id
+    manager._pending_publications[file].body.attempt_id = manager._priority_claims[
+        work.id, work.claim_id
+    ].attempt_id
     if status_code:
         response = httpx2.Response(status_code, request=httpx2.Request("POST", "http://api/parse-results"))
         client.publish_parse_result.side_effect = httpx2.HTTPStatusError(
@@ -7723,7 +7728,7 @@ def test_publication_outcome_acknowledges_priority_claims(status_code, failed):
 
     manager._publish_pending_results()
 
-    assert manager._pending_work_acks == [("priority", work, failed)]
+    assert manager._pending_work_acks == [("priority", work)]
     assert not manager._priority_claims
 
 
@@ -7735,7 +7740,9 @@ def test_publication_for_a_changed_source_refreshes_and_reparses():
     manager._pending_publications[file] = PendingDagPublication(
         body=mock.create_autospec(DagParseResultBody, instance=True), stat=DagFileStat(), refresh_generation=0
     )
-    manager._pending_publications[file].body.attempt_id = manager._priority_claims[work.id].attempt_id
+    manager._pending_publications[file].body.attempt_id = manager._priority_claims[
+        work.id, work.claim_id
+    ].attempt_id
     response = httpx2.Response(
         409,
         json={"detail": {"reason": "source_changed"}},
@@ -7750,7 +7757,7 @@ def test_publication_for_a_changed_source_refreshes_and_reparses():
     assert not manager._pending_publications
     assert manager._force_refresh_bundles == {"testing"}
     assert list(manager._file_queue) == [file]
-    assert manager._priority_claims[work.id].work == work
+    assert manager._priority_claims[work.id, work.claim_id].work == work
     assert not manager._pending_work_acks
 
 
@@ -7760,7 +7767,7 @@ def test_rejected_inventory_releases_priority_attempt_discarded_after_source_cha
     file = _get_file_infos(["a.py"])[0]
     work = _claim_priority_parse(manager, file)
     body = mock.create_autospec(DagParseResultBody, instance=True)
-    body.attempt_id = manager._priority_claims[work.id].attempt_id
+    body.attempt_id = manager._priority_claims[work.id, work.claim_id].attempt_id
     manager._pending_publications[file] = PendingDagPublication(
         body=body, stat=DagFileStat(), refresh_generation=0
     )
@@ -7769,7 +7776,7 @@ def test_rejected_inventory_releases_priority_attempt_discarded_after_source_cha
     manager._publish_pending_results()
 
     assert not manager._pending_publications
-    assert manager._priority_claims[work.id].attempt_id is not None
+    assert manager._priority_claims[work.id, work.claim_id].attempt_id is not None
     inventory = DagBundleInventoryBody(
         attempt_id=uuid7(), dispatch_sequence=2, expected_revision=None, files=["a.py"]
     )
@@ -7783,10 +7790,10 @@ def test_rejected_inventory_releases_priority_attempt_discarded_after_source_cha
     manager._publish_bundle_inventory(file.bundle_name, {})
 
     assert not manager._priority_claims
-    assert manager._pending_work_acks == [("priority", work, True)]
+    assert manager._pending_work_acks == [("priority", work)]
     assert not manager._force_refresh_bundles
     manager._acknowledge_requested_work()
-    client.acknowledge_work.assert_called_once_with("priority", work, failed=True)
+    client.acknowledge_work.assert_called_once_with("priority", work)
     client.claim_work.return_value = []
     manager.claim_priority_files()
     client.claim_work.assert_called_once_with("priority", [], 1)
@@ -7819,7 +7826,7 @@ def test_parse_without_publication_acknowledges_priority_claims(outcome, acknowl
     file = _get_file_infos(["a.py"])[0]
     work = _claim_priority_parse(manager, file)
     proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
-    proc.id = manager._priority_claims[work.id].attempt_id
+    proc.id = manager._priority_claims[work.id, work.claim_id].attempt_id
     proc.start_time = time.monotonic()
     proc.had_callbacks = outcome == "callback_only"
     proc.parse_source = DagParseSource()
@@ -7830,7 +7837,7 @@ def test_parse_without_publication_acknowledges_priority_claims(outcome, acknowl
     with mock.patch.object(manager, "_build_parse_result", side_effect=ValueError("invalid result")):
         manager.handle_parsing_result(file, proc)
 
-    assert manager._pending_work_acks == ([("priority", work, True)] if acknowledged else [])
+    assert manager._pending_work_acks == ([("priority", work)] if acknowledged else [])
     assert bool(manager._priority_claims) is not acknowledged
 
 
@@ -7841,7 +7848,7 @@ def test_timed_out_parse_acknowledges_priority_claims(had_callbacks):
     file = _get_file_infos(["a.py"])[0]
     work = _claim_priority_parse(manager, file)
     processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
-    processor.id = manager._priority_claims[work.id].attempt_id
+    processor.id = manager._priority_claims[work.id, work.claim_id].attempt_id
     processor.start_time = time.monotonic() - 5
     processor.had_callbacks = had_callbacks
     manager._processors[file] = processor
@@ -7849,7 +7856,7 @@ def test_timed_out_parse_acknowledges_priority_claims(had_callbacks):
     manager._kill_timed_out_processors()
 
     processor.kill.assert_called_once_with(signal.SIGKILL)
-    assert manager._pending_work_acks == ([] if had_callbacks else [("priority", work, True)])
+    assert manager._pending_work_acks == ([] if had_callbacks else [("priority", work)])
 
 
 @pytest.mark.parametrize("recovers", [False, True], ids=["dropped", "recovered"])
@@ -7891,7 +7898,7 @@ def test_unpreparable_callback_is_retried_with_backoff_until_the_job_heartbeat_t
         assert not manager._pending_work_acks
     else:
         assert not manager._callback_claims
-        assert manager._pending_work_acks == [("callbacks", work, True)]
+        assert manager._pending_work_acks == [("callbacks", work)]
 
 
 def _make_pending_publication(
@@ -7967,7 +7974,7 @@ def test_result_the_api_refuses_is_replaced_by_an_import_error(error, message):
     work = _claim_priority_parse(manager, file)
     original = _make_pending_publication(
         file,
-        attempt_id=manager._priority_claims[work.id].attempt_id,
+        attempt_id=manager._priority_claims[work.id, work.claim_id].attempt_id,
         import_errors={"a.py/member.py": "member failed"},
     )
     manager._pending_publications[file] = original
@@ -7985,7 +7992,7 @@ def test_result_the_api_refuses_is_replaced_by_an_import_error(error, message):
     assert not manager._pending_publications
     assert manager._file_stats[file].num_dags == 0
     assert manager._file_stats[file].import_errors == 1
-    assert manager._pending_work_acks == [("priority", work, True)]
+    assert manager._pending_work_acks == [("priority", work)]
 
 
 @conf_vars({("workers", "execution_api_retries"): "1"})
@@ -7997,7 +8004,9 @@ def test_server_failure_after_publication_retries_preserves_previous_result():
     work = _claim_priority_parse(manager, file)
     previous = DagFileStat(num_dags=2, last_finish_time=DEFAULT_DATE)
     manager._file_stats[file] = previous
-    pending = _make_pending_publication(file, attempt_id=manager._priority_claims[work.id].attempt_id)
+    pending = _make_pending_publication(
+        file, attempt_id=manager._priority_claims[work.id, work.claim_id].attempt_id
+    )
     manager._pending_publications[file] = pending
 
     manager._publish_pending_results()
@@ -8007,7 +8016,7 @@ def test_server_failure_after_publication_retries_preserves_previous_result():
     assert manager._file_stats[file].num_dags == previous.num_dags
     assert manager._file_stats[file].last_finish_time == previous.last_finish_time
     assert manager._file_stats[file].last_attempt_time is not None
-    assert manager._pending_work_acks == [("priority", work, True)]
+    assert manager._pending_work_acks == [("priority", work)]
 
 
 @mock.patch("airflow.dag_processing.manager.MAX_PUBLICATION_BYTES", 32 * 1024)
@@ -8119,7 +8128,7 @@ def test_result_over_the_publication_limit_is_reported_without_sending_it():
     dag.fileloc = "/worker/a.py"
     dag.relative_fileloc = "a.py"
     proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
-    proc.id = manager._priority_claims[work.id].attempt_id
+    proc.id = manager._priority_claims[work.id, work.claim_id].attempt_id
     proc.start_time = time.monotonic()
     proc.had_callbacks = False
     proc.dispatch_sequence = 1
@@ -8136,7 +8145,7 @@ def test_result_over_the_publication_limit_is_reported_without_sending_it():
     assert pending.body.import_errors == {
         "a.py": "The parsing result was not published: it exceeds the 1 MiB publication limit."
     }
-    assert manager._pending_work_acks == [("priority", work, True)]
+    assert manager._pending_work_acks == [("priority", work)]
     client.publish_parse_result.assert_not_called()
 
 
@@ -8147,15 +8156,13 @@ def test_acknowledgments_are_sent_within_the_loop_budget():
         ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py")
         for _ in range(3)
     ]
-    manager._pending_work_acks = [("priority", item, False) for item in work]
+    manager._pending_work_acks = [("priority", item) for item in work]
 
     manager._acknowledge_requested_work(deadline=time.monotonic())
     client.acknowledge_work.assert_not_called()
 
     manager._acknowledge_requested_work()
-    assert client.acknowledge_work.call_args_list == [
-        mock.call("priority", item, failed=False) for item in work
-    ]
+    assert client.acknowledge_work.call_args_list == [mock.call("priority", item) for item in work]
     assert not manager._pending_work_acks
 
 
@@ -8168,7 +8175,7 @@ def test_shutdown_acknowledges_finished_work(failure):
         ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="a.py")
         for _ in range(2)
     ]
-    manager._pending_work_acks = [("callbacks", item, False) for item in work]
+    manager._pending_work_acks = [("callbacks", item) for item in work]
 
     manager.end()
 

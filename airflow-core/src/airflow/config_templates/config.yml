@@ -3519,12 +3519,12 @@ dag_processor:
         or listing a single bundle, so set this above the longest of those operations; the local
         health check must also tolerate them, through ``health_check_threshold`` and the probe's
         failure budget. It also bounds how long a processor retries preparing the bundle
-        version of a claimed callback before acknowledging the callback as failed.
+        version of a claimed callback before acknowledging it without running it.
+        A callback that ran before its acknowledgment was recorded can run again after the Job
+        times out, repeating its side effects. Callbacks should tolerate repeated execution.
         The scheduler reads this value to end Jobs and the processor reads it to stop, so set the
         same value for both; changing it only in the processor's configuration has no effect on
         when the scheduler ends the Job.
-        A callback that ran before its acknowledgment was recorded can run again after the Job
-        times out, repeating its side effects. Callbacks should tolerate repeated execution.
       version_added: 3.5.0
       type: integer
       example: ~

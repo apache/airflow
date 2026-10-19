@@ -146,6 +146,7 @@ class DagProcessorAPIClient(Client):
         self._completion_state: TerminalJobState | None = None
         self._completed = False
         self._pending_claims: dict[str, ProcessorWorkClaimBody] = {}
+        self._claim_sequences: dict[str, int] = {}
         super().__init__(base_url=base_url, token="", **kwargs)
 
     @property
@@ -411,6 +412,7 @@ class DagProcessorAPIClient(Client):
             kind,
             ProcessorWorkClaimBody(
                 claim_id=uuid7(),
+                claim_sequence=self._claim_sequences.get(kind, 0) + 1,
                 bundle_names=bundle_names,
                 limit=min(limit, 100),
             ),
@@ -424,13 +426,12 @@ class DagProcessorAPIClient(Client):
             timeout=self._get_bounded_timeout(),
         )
         work = [ProcessorWorkItem.model_validate(item) for item in response.json()]
+        self._claim_sequences[kind] = body.claim_sequence
         del self._pending_claims[kind]
         return work
 
-    def acknowledge_work(
-        self, kind: Literal["callbacks", "priority"], work: ProcessorWorkItem, *, failed: bool = False
-    ) -> None:
-        body = ProcessorWorkAckBody(claim_id=work.claim_id, state="failed" if failed else "success")
+    def acknowledge_work(self, kind: Literal["callbacks", "priority"], work: ProcessorWorkItem) -> None:
+        body = ProcessorWorkAckBody(claim_id=work.claim_id)
         self.request(
             "POST",
             f"jobs/{self._require_job_id()}/requested-work/{kind}/{work.id}/ack",

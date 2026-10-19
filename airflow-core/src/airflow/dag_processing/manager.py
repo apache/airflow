@@ -368,8 +368,8 @@ class DagFileProcessorManager(LoggingMixin):
     _deferred_api_callbacks: list[CallbackRequest] = attrs.field(factory=list, init=False)
     _deferred_callback_retries: dict[int, DeferredCallback] = attrs.field(factory=dict, init=False)
     _callback_attempts: dict[UUID, list[ProcessorWorkItem]] = attrs.field(factory=dict, init=False)
-    _priority_claims: dict[str, PriorityParseClaim] = attrs.field(factory=dict, init=False)
-    _pending_work_acks: list[tuple[Literal["callbacks", "priority"], ProcessorWorkItem, bool]] = attrs.field(
+    _priority_claims: dict[tuple[str, UUID], PriorityParseClaim] = attrs.field(factory=dict, init=False)
+    _pending_work_acks: list[tuple[Literal["callbacks", "priority"], ProcessorWorkItem]] = attrs.field(
         factory=list, init=False
     )
     _num_run: int = attrs.field(default=0, init=False)
@@ -833,7 +833,7 @@ class DagFileProcessorManager(LoggingMixin):
         available = (
             self._parallelism
             - len(self._priority_claims)
-            - sum(kind == "priority" for kind, _, _ in self._pending_work_acks)
+            - sum(kind == "priority" for kind, _ in self._pending_work_acks)
         )
         if available <= 0:
             return []
@@ -845,7 +845,7 @@ class DagFileProcessorManager(LoggingMixin):
             return []
         files = []
         for item in work:
-            self._priority_claims[item.id] = PriorityParseClaim(
+            self._priority_claims[item.id, item.claim_id] = PriorityParseClaim(
                 work=item, refresh_generation=self._bundle_refresh_generations[item.bundle_name] + 1
             )
             bundle = bundles[item.bundle_name]
@@ -920,7 +920,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.max_callbacks_per_loop
             - len(self._callback_claims)
             - sum(len(work) for work in self._callback_attempts.values())
-            - sum(kind == "callbacks" for kind, _, _ in self._pending_work_acks)
+            - sum(kind == "callbacks" for kind, _ in self._pending_work_acks)
         )
         if available <= 0:
             return list(self._deferred_api_callbacks)
@@ -945,9 +945,9 @@ class DagFileProcessorManager(LoggingMixin):
         if deadline is None:
             deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
         while self._pending_work_acks and time.monotonic() < deadline:
-            kind, item, failed = self._pending_work_acks[0]
+            kind, item = self._pending_work_acks[0]
             try:
-                self.api_client.acknowledge_work(kind, item, failed=failed)
+                self.api_client.acknowledge_work(kind, item)
             except httpx2.HTTPStatusError as error:
                 if error.response.status_code >= 500:
                     self.log.warning("Unable to acknowledge requested work; retaining the claim")
@@ -967,13 +967,13 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _finish_callback_attempt(self, proc: BaseDagFileProcessorProcess) -> None:
         for item in self._callback_attempts.pop(proc.id, []):
-            self._pending_work_acks.append(("callbacks", item, proc._exit_code != 0))
+            self._pending_work_acks.append(("callbacks", item))
 
-    def _finish_priority_claims(self, attempt_id: UUID, *, failed: bool) -> None:
+    def _finish_priority_claims(self, attempt_id: UUID) -> None:
         """Acknowledge only requests assigned to this import, never newer requests for its file."""
         for key, claim in list(self._priority_claims.items()):
             if claim.attempt_id == attempt_id:
-                self._pending_work_acks.append(("priority", claim.work, failed))
+                self._pending_work_acks.append(("priority", claim.work))
                 del self._priority_claims[key]
 
     def _get_priority_claims(self, file: DagFileInfo) -> list[PriorityParseClaim]:
@@ -1088,7 +1088,7 @@ class DagFileProcessorManager(LoggingMixin):
         if get_claiming_importer(request.filepath, request.bundle_name) is not None:
             self._log_dropped_lang_sdk_callback(request)
             if item := self._callback_claims.pop(id(request), None):
-                self._pending_work_acks.append(("callbacks", item, True))
+                self._pending_work_acks.append(("callbacks", item))
                 self._remove_deferred_callback(request)
             return
         retry = self._deferred_callback_retries.get(id(request))
@@ -1121,7 +1121,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._deferred_callback_retries.pop(id(request), None)
 
     def _defer_claimed_callback(self, request: CallbackRequest) -> None:
-        """Retry preparing a claimed callback's bundle with backoff, then acknowledge it as failed."""
+        """Retry preparing a claimed callback's bundle with backoff, then drop the unpreparable request."""
         now = time.monotonic()
         timeout = conf.getint("dag_processor", "job_heartbeat_timeout")
         retry = self._deferred_callback_retries.setdefault(id(request), DeferredCallback(now + timeout))
@@ -1134,7 +1134,7 @@ class DagFileProcessorManager(LoggingMixin):
                 request.bundle_version,
                 timeout,
             )
-            self._pending_work_acks.append(("callbacks", self._callback_claims.pop(id(request)), True))
+            self._pending_work_acks.append(("callbacks", self._callback_claims.pop(id(request))))
             self._remove_deferred_callback(request)
             return
         retry.attempts += 1
@@ -1245,7 +1245,7 @@ class DagFileProcessorManager(LoggingMixin):
                 and item.relative_fileloc not in pending.body.files
                 and not is_source_discovery_failed(item.relative_fileloc, failed_sources)
             ):
-                self._pending_work_acks.append(("priority", item, True))
+                self._pending_work_acks.append(("priority", item))
                 del self._priority_claims[key]
 
     def _discard_unusable_bundle_source(self, bundle_name: str) -> None:
@@ -1263,7 +1263,7 @@ class DagFileProcessorManager(LoggingMixin):
         )
         for key, claim in list(self._priority_claims.items()):
             if claim.work.bundle_name == bundle_name and claim.attempt_id not in active_attempts:
-                self._pending_work_acks.append(("priority", claim.work, True))
+                self._pending_work_acks.append(("priority", claim.work))
                 del self._priority_claims[key]
 
     def _invalidate_bundle_parse_source(self, bundle_name: str) -> None:
@@ -1934,11 +1934,11 @@ class DagFileProcessorManager(LoggingMixin):
                     file.bundle_name,
                 )
                 self._record_failed_publication(file, next_stat)
-                self._finish_priority_claims(proc.id, failed=True)
+                self._finish_priority_claims(proc.id)
                 return
 
         if proc.parsing_result is None and not is_callback_only:
-            self._finish_priority_claims(proc.id, failed=True)
+            self._finish_priority_claims(proc.id)
         self._file_stats[file] = next_stat
 
     def _record_failed_publication(self, file: DagFileInfo, stat: DagFileStat) -> None:
@@ -2017,10 +2017,9 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
                 self.log.exception("Failed to publish parsing result for %s", file)
                 self._record_failed_publication(file, pending.stat)
-                self._finish_priority_claims(pending.body.attempt_id, failed=True)
             else:
                 self._file_stats[file] = pending.stat
-                self._finish_priority_claims(pending.body.attempt_id, failed=False)
+            self._finish_priority_claims(pending.body.attempt_id)
             del self._pending_publications[file]
 
     def _build_pending_publication(
@@ -2070,7 +2069,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         :param attempt_id: The import whose result is replaced; its priority requests are released.
         """
-        self._finish_priority_claims(attempt_id, failed=True)
+        self._finish_priority_claims(attempt_id)
         self._dispatch_sequence += 1
         if len(reason) > _MAX_REJECTION_REASON_LENGTH:
             reason = reason[:_MAX_REJECTION_REASON_LENGTH] + "..."
@@ -2629,7 +2628,7 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 self._file_stats[file] = stat
                 if not processor.had_callbacks:
-                    self._finish_priority_claims(processor.id, failed=True)
+                    self._finish_priority_claims(processor.id)
 
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
