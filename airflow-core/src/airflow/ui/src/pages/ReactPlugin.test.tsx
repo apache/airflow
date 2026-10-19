@@ -198,6 +198,27 @@ describe("loadPlugin", () => {
 
     expect(component).not.toBe(componentA);
   });
+
+  it("registers plugin dependencies before importing the plugin bundle", async () => {
+    const calls: Array<string> = [];
+
+    await loadPlugin(
+      pluginA,
+      () => {
+        calls.push("bundle");
+        (globalThis as Record<string, unknown>).AirflowPlugin = componentA;
+
+        return Promise.resolve();
+      },
+      () => {
+        calls.push("dependencies");
+
+        return Promise.resolve();
+      },
+    );
+
+    expect(calls).toEqual(["dependencies", "bundle"]);
+  });
 });
 
 const loading = (destination: ReactAppResponse["destination"]) =>
