@@ -1245,8 +1245,17 @@ class TestOpenLineageListenerAirflow3:
         ti.task = loop_dag.get_task("body.work")
         ti.region_id = uuid.uuid4()
         ti.region_index = 1
+        forked_from_region_id = uuid.uuid4()
         ti._ti_context_from_server.loop = LoopContext(
-            node_id="body", index=1, max_iterations=3, terminal_task_id="body.work", terminal_is_mapped=False
+            node_id="body",
+            index=1,
+            max_iterations=3,
+            terminal_task_id="body.work",
+            terminal_is_mapped=False,
+            region_id=ti.region_id,
+            trajectory=2,
+            forked_from_region_id=forked_from_region_id,
+            resumes_from_index=1,
         )
         kwargs = {"error": ValueError("test")} if state == "failed" else {}
 
@@ -1254,12 +1263,15 @@ class TestOpenLineageListenerAirflow3:
 
         method = {"running": "start_task", "failed": "fail_task"}.get(state, "complete_task")
         run_facets = getattr(listener.adapter, method).call_args.kwargs["run_facets"]
-        task_instance_facet = run_facets["airflow"].taskInstance
-        assert (
-            task_instance_facet["loop_index"],
-            task_instance_facet["loop_max_iterations"],
-            task_instance_facet["loop_group_id"],
-        ) == (1, 3, "body")
+        assert run_facets["airflow"].taskInstance["loop"] == {
+            "group_id": "body",
+            "index": 1,
+            "max_iterations": 3,
+            "region_id": str(ti.region_id),
+            "trajectory": 2,
+            "forked_from_region_id": str(forked_from_region_id),
+            "resumes_from_index": 1,
+        }
 
     @pytest.mark.parametrize("state", ["running", "success", "failed"])
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
@@ -1282,9 +1294,12 @@ class TestOpenLineageListenerAirflow3:
             getattr(listener.adapter, method).call_args.kwargs["run_facets"]["airflow"].taskInstance
         )
         if state == "running":
-            assert "loop_decision" not in task_instance_facet
+            assert "loop" not in task_instance_facet
         else:
-            assert task_instance_facet["loop_decision"] == {"stop": state == "success", "reason": "checked"}
+            assert task_instance_facet["loop"]["decision"] == {
+                "stop": state == "success",
+                "reason": "checked",
+            }
 
     @pytest.mark.parametrize("state", ["running", "success", "failed", "skipped"])
     @mock.patch(

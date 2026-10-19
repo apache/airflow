@@ -19,20 +19,22 @@ DAG with a plain task and task loops, some of their tasks retrying and one stopp
 (requires Airflow 3.4+).
 
 It checks, for a plain task, tasks, a mapped task and a mapped task group in a loop, and loop gates:
-    - taskInstance's `try_number`, `map_index`, `loop_index` and `loop_max_iterations` of every event: the
-      iteration is the zero-based `loop_index`, `map_index` the mapped position, and a plain task has no
-      `loop_index`
-    - taskInstance's `loop_group_id` of every event: the loop group of a task in a loop, absent for a plain task
+    - taskInstance's `try_number`, `map_index` and `loop` of every event: `loop.index` is the zero-based
+      iteration, `loop.max_iterations` the loop's limit and `loop.group_id` its group, `map_index` the mapped
+      position, and a plain task has no `loop`
+    - `loop.region_id`, the loop region of the iteration, shared by the tasks of one iteration, mapped ones
+      included, and `loop.trajectory` 1 and `loop.resumes_from_index` 0, as no loop is cleared
+    - taskInstance's `expanded_ti_count` of the mapped tasks, the size of their expansion in the iteration
     - taskInstance's `max_tries` of the tasks other than the gates, the `retries` of each task
     - taskInstance's `id` of every event, and `region_id` and `region_index` of the tasks in a loop: the
       `region_index` is the iteration for a task that isn't mapped and the map index for a mapped one, and a
       plain task has neither
-    - the gates' `loop_decision`: absent on START; for the loops without `until`, `stop` true only at the last
+    - the gates' `loop.decision`: absent on START; for the loops without `until`, `stop` true only at the last
       iteration and no `reason`; for the loop with `until` (whose gate is named after it), the `reason` it
       returns and `stop` true at the iteration it ends the loop, before `max_iterations`; absent for the plain
       task
     - a mapped task group inside a loop: its task's `map_index` and `region_index` are the mapped position,
-      its `loop_index` the iteration, and its `loop_group_id` the loop's, unlike its own `task_group`
+      its `loop.index` the iteration, and its `loop.group_id` the loop's, unlike its own `task_group`
     - the loop groups' `max_iterations`, `has_until`, `gate_task_id` and `terminal_task_id`, in the task's
       `task_group` and in the `taskGroups` of the Dag's job facet
     - a retried task emits START and FAIL for each failed try, then START and COMPLETE for the last one
@@ -58,7 +60,7 @@ def sort_by_execution(event: dict) -> tuple[int, int, int]:
     # Dag run events have no airflow facet
     task_instance = event["run"]["facets"].get("airflow", {}).get("taskInstance", {})
     return (
-        task_instance.get("loop_index", -1),
+        task_instance.get("loop", {}).get("index", -1),
         task_instance.get("map_index") if task_instance.get("map_index") is not None else -1,
         task_instance.get("try_number", -1),
     )

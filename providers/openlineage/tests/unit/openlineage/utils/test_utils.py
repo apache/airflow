@@ -80,6 +80,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_parent_information_from_dagrun_conf,
     get_root_information_from_dagrun_conf,
     get_runtime_outlet_assets,
+    get_stored_task_instance_position,
     get_task_documentation,
     get_task_instance_map_index,
     get_task_instance_position,
@@ -4054,6 +4055,110 @@ def test_runtime_task_instance_position_without_its_iteration_when_the_context_f
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+def test_runtime_task_instance_position_reads_its_loop_and_expansion_from_the_task_instance():
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("position_dag") as dag:
+
+        @task_group
+        def body():
+            PythonOperator.partial(task_id="work", python_callable=list).expand(op_kwargs=[{}, {}])
+
+        create_loop(body, max_iterations=3)
+    loop_region_id, forked_from_region_id = uuid4(), uuid4()
+    ti = SimpleNamespace(
+        id=uuid4(),
+        region_id=uuid4(),
+        map_index=1,
+        task=dag.get_task("body.work"),
+        expanded_ti_count=2,
+        loop=SimpleNamespace(
+            index=2,
+            max_iterations=3,
+            region_id=loop_region_id,
+            trajectory=2,
+            forked_from_region_id=forked_from_region_id,
+            resumes_from_index=1,
+        ),
+        get_template_context=MagicMock(),
+    )
+
+    assert get_task_instance_position(ti) == TaskInstancePosition(
+        in_loop=True,
+        map_index=1,
+        expanded_ti_count=2,
+        loop_index=2,
+        loop_max_iterations=3,
+        loop_group_id="body",
+        loop_region_id=loop_region_id,
+        loop_trajectory=2,
+        loop_forked_from_region_id=forked_from_region_id,
+        loop_resumes_from_index=1,
+    )
+    ti.get_template_context.assert_not_called()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+@mock.patch("airflow.models.task_coordinates.get_task_instance_execution_position", autospec=True)
+def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(mock_get_position):
+    from airflow.models.task_coordinates import LoopPosition, TaskInstanceExecutionPosition
+
+    loop_region_id, forked_from_region_id = uuid4(), uuid4()
+    mock_get_position.return_value = TaskInstanceExecutionPosition(
+        map_index=1,
+        expanded_ti_count=2,
+        loop=LoopPosition(
+            group=SimpleNamespace(group_id="body", max_iterations=3),
+            index=2,
+            region_id=loop_region_id,
+            trajectory=2,
+            forked_from_region_id=forked_from_region_id,
+            resumes_from_index=1,
+        ),
+    )
+    ti = TaskInstance(task=MagicMock(), run_id="run_id", dag_version_id=uuid7())
+    ti.region_id = uuid4()
+    session = MagicMock(spec=Session)
+
+    assert get_stored_task_instance_position(ti, session=session) == TaskInstancePosition(
+        in_loop=True,
+        map_index=1,
+        expanded_ti_count=2,
+        loop_index=2,
+        loop_max_iterations=3,
+        loop_group_id="body",
+        loop_region_id=loop_region_id,
+        loop_trajectory=2,
+        loop_forked_from_region_id=forked_from_region_id,
+        loop_resumes_from_index=1,
+    )
+    mock_get_position.assert_called_once_with(ti, session=session)
+    session.execute.assert_not_called()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+@mock.patch(
+    "airflow.models.task_coordinates.get_task_instance_execution_position",
+    autospec=True,
+    side_effect=ValueError("Pinned Dag not found"),
+)
+def test_stored_task_instance_is_placed_from_its_rows_when_airflow_fails_to(_):
+    ti = TaskInstance(task=MagicMock(), run_id="run_id", dag_version_id=uuid7())
+    ti.dag_id = "dag_id"
+    ti.task_id = "task_id"
+    ti.region_id = uuid4()
+    ti.region_index = 1
+    ti.task = None
+    session = MagicMock(spec=Session)
+    session.execute.return_value = []
+
+    assert get_stored_task_instance_position(ti, session=session) == TaskInstancePosition(
+        in_loop=True, map_index=-1
+    )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
 def test_stored_mapped_task_in_loop_is_placed_without_iteration_when_its_region_query_fails():
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
@@ -4105,7 +4210,7 @@ def test_task_instance_info_uses_a_given_position_as_is():
 
     info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=True, map_index=-1)))
 
-    assert "loop_index" not in info
+    assert "loop" not in info
     ti.get_template_context.assert_not_called()
 
 
@@ -4128,7 +4233,7 @@ def test_stored_task_instance_without_task_or_region_has_no_loop_index():
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
 @pytest.mark.parametrize("mapped", [False, True])
 @pytest.mark.parametrize("in_loop", [False, True])
-def test_runtime_task_instance_info_has_loop_index_only_inside_a_loop(in_loop, mapped):
+def test_runtime_task_instance_info_has_loop_only_inside_a_loop(in_loop, mapped):
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
 
@@ -4158,11 +4263,9 @@ def test_runtime_task_instance_info_has_loop_index_only_inside_a_loop(in_loop, m
 
     assert info["map_index"] == (1 if mapped else None)
     if in_loop:
-        assert (info["loop_index"], info["loop_max_iterations"], info["loop_group_id"]) == (2, 3, "body")
+        assert info["loop"] == {"group_id": "body", "index": 2, "max_iterations": 3}
     else:
-        assert "loop_index" not in info
-        assert "loop_max_iterations" not in info
-        assert "loop_group_id" not in info
+        assert "loop" not in info
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
@@ -4197,7 +4300,7 @@ def test_task_instance_info_has_the_decision_of_a_loop_gate(until, loop_index, e
         execute_loop_gate(gate, context)
     info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=False, map_index=-1)))
 
-    assert info["loop_decision"] == expected
+    assert info["loop"]["decision"] == expected
 
 
 def test_task_instance_info_has_no_loop_decision_for_other_tasks():
@@ -4205,7 +4308,7 @@ def test_task_instance_info_has_no_loop_decision_for_other_tasks():
 
     info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=False, map_index=-1)))
 
-    assert "loop_decision" not in info
+    assert "loop" not in info
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Attempt UUIDs require Airflow 3")
@@ -4297,23 +4400,37 @@ def test_task_instance_info_of_stored_instance_without_task_does_not_raise():
     info = dict(TaskInstanceInfo(ti))
 
     assert info["map_index"] is None
-    assert "loop_index" not in info
+    assert "loop" not in info
 
 
 def test_task_instance_info_uses_the_position_it_is_given():
     ti = SimpleNamespace(id=uuid4(), region_id=uuid4(), map_index=-1)
+    loop_region_id, forked_from_region_id = uuid4(), uuid4()
     position = TaskInstancePosition(
-        in_loop=True, map_index=1, loop_index=2, loop_max_iterations=3, loop_group_id="body"
+        in_loop=True,
+        map_index=1,
+        expanded_ti_count=4,
+        loop_index=2,
+        loop_max_iterations=3,
+        loop_group_id="body",
+        loop_region_id=loop_region_id,
+        loop_trajectory=2,
+        loop_forked_from_region_id=forked_from_region_id,
+        loop_resumes_from_index=2,
     )
 
     info = dict(TaskInstanceInfo(ti, position=position))
 
-    assert (info["map_index"], info["loop_index"], info["loop_max_iterations"], info["loop_group_id"]) == (
-        1,
-        2,
-        3,
-        "body",
-    )
+    assert (info["map_index"], info["expanded_ti_count"]) == (1, 4)
+    assert info["loop"] == {
+        "group_id": "body",
+        "index": 2,
+        "max_iterations": 3,
+        "region_id": str(loop_region_id),
+        "trajectory": 2,
+        "forked_from_region_id": str(forked_from_region_id),
+        "resumes_from_index": 2,
+    }
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")

@@ -283,7 +283,7 @@ def _get_attempt(event: dict) -> Attempt | None:
         clear_number=dag_run.get("clear_number"),
         try_number=task_instance.get("try_number"),
         map_index=task_instance.get("map_index"),
-        loop_index=task_instance.get("loop_index"),
+        loop_index=(task_instance.get("loop") or {}).get("index"),
         region_id=task_instance.get("region_id"),
     )
 
@@ -299,7 +299,7 @@ def check_run_id_integrity(
     Check that ``run.runId`` identifies exactly one attempt of exactly one job, and return the problems found.
 
     Events are grouped by ``runId``. The attempt of an event is its Dag run id and clear number, plus for a task
-    event ``(try_number, map_index, loop_index, region_id)``, all from ``run.facets.airflow`` (``airflowDagRun`` for Dag
+    event ``(try_number, map_index, loop.index, region_id)``, all from ``run.facets.airflow`` (``airflowDagRun`` for Dag
     events). Query events, which are child runs of a task, have no attempt. For every group:
 
     1. all events share one ``job.name``;
