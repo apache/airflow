@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
@@ -67,6 +68,7 @@ from airflow.models.dynamic_region import LOOP_XCOM_PREFIX
 from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel, build_xcom_read_query, select_producers, xcom_entity
+from airflow.serialization.stringify import stringify as stringify_xcom
 
 xcom_router = AirflowRouter(
     tags=["XCom"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
@@ -141,28 +143,15 @@ def get_xcom_entry(
     value = result.value
 
     if deserialize:
-        # Custom XCom backends may store references (eg: object storage paths) in the database.
-        # The custom XCom backend's deserialize_value() resolves these to actual values, but that is only
-        # used on workers during task execution. The API reads directly from the database and uses
-        # stringify() to convert DB values (references or serialized data) to human readable
-        # format for UI display or for API users.
-        import json
-
-        from airflow.serialization.stringify import (
-            StringifyNotSupportedError,
-            stringify as stringify_xcom,
-        )
-
+        # The value is rendered from what is stored in the database: no XCom backend is involved and no
+        # object is reconstructed from it. A custom backend may store a reference (eg: an object
+        # storage path) there; only workers resolve it into the actual value.
         try:
             parsed_value = json.loads(result.value)
         except (ValueError, TypeError):
             # Already deserialized (e.g., set via Task Execution API)
             parsed_value = result.value
-
-        try:
-            value = stringify_xcom(parsed_value)
-        except StringifyNotSupportedError:
-            value = XComModel.deserialize_value(result)
+        value = stringify_xcom(parsed_value)
     else:
         # For native format, return the raw serialized value from the database
         # This preserves the JSON string format that the API expects

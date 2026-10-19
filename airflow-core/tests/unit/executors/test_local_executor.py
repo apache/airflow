@@ -108,7 +108,7 @@ def _write_large_results_to_queue(result_queue, activity_queue, unread_messages,
 
 
 def _refill_worker(activity_queue, result_queue, barrier, count, payload_size):
-    """Stand-in worker: consume activity items and emit large results over real pipes."""
+    """Stand-in worker: consume activity items and emit results over real pipes."""
     payload = b"x" * payload_size
     barrier.wait()
     for _ in range(count):
@@ -491,7 +491,7 @@ class TestLocalExecutor:
         executor._dispatch_counts = {}
         mocker.patch.object(executor, "_check_workers", autospec=True)
 
-        count = 200
+        count = 400
         submitted = [_make_task_workload() for _ in range(count)]
         for workload in submitted:
             executor.executor_queues.setdefault(workload.type, {})[executor.get_workload_key(workload)] = (
@@ -499,9 +499,11 @@ class TestLocalExecutor:
             )
 
         barrier = ctx.Barrier(2)
+        # Keep results smaller than a workload, as in production: drain-before-put only guarantees progress
+        # while the worker can free a page of the activity pipe before it fills the result pipe.
         proc = ctx.Process(
             target=_refill_worker,
-            args=(executor.activity_queue, executor.result_queue, barrier, count, 16 * 1024),
+            args=(executor.activity_queue, executor.result_queue, barrier, count, 512),
         )
         proc.start()
         executor.workers = {proc.pid: proc}
@@ -1137,6 +1139,29 @@ class TestLocalExecutorCallbackSupport:
             token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
             server=TestLocalExecutorCallbackSupport.TEST_SERVER,
         )
+
+    @mock.patch("airflow.sdk.execution_time.callback_supervisor.supervise_callback", return_value=0)
+    def test_execute_workload_passes_kwargs_encoding_to_supervise_callback(self, mock_supervise_callback):
+        encoded_kwargs = {
+            "interval": {"__classname__": "datetime.timedelta", "__version__": 2, "__data__": 1.0}
+        }
+        callback_data = CallbackDTO(
+            id=self.CALLBACK_UUID,
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.module.my_callback", "kwargs": encoded_kwargs, "kwargs_encoding": "serde"},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path=Path("test.py"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        BaseExecutor.run_workload(callback_workload)
+
+        assert mock_supervise_callback.call_args.kwargs["callback_kwargs"] == encoded_kwargs
+        assert mock_supervise_callback.call_args.kwargs["callback_kwargs_encoding"] == "serde"
 
     @mock.patch(
         "airflow.sdk.execution_time.callback_supervisor.supervise_callback",

@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import warnings
 from contextlib import suppress
 from unittest import mock
 from unittest.mock import ANY, MagicMock
@@ -53,7 +52,6 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
 from airflow.providers.google.cloud.operators.bigquery import (
-    _DURABLE_UNSET,
     BigQueryCheckOperator,
     BigQueryColumnCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
@@ -76,7 +74,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
     BigQueryValueCheckOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -3458,18 +3455,3 @@ class TestBigQueryListRoutinesOperator:
         call_kwargs = mock_hook.return_value.list_routines.call_args.kwargs
         assert call_kwargs["dataset_id"] == TEST_DATASET
         assert call_kwargs["max_results"] == 10
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False

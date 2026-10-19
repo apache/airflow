@@ -16,13 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from datetime import timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import structlog
 from sqlalchemy import select
 
 from airflow._shared.module_loading import accepts_context
+from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.executors.workloads.callback import CALLBACK_KWARGS_ENCODING_KEY, CallbackDTO
 from airflow.models import Trigger
 from airflow.models.callback import (
     Callback,
@@ -32,9 +38,14 @@ from airflow.models.callback import (
     ExecutorCallback,
     TriggererCallback,
 )
+from airflow.sdk import serde
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.execution_time.callback_supervisor import execute_callback
+from airflow.serialization.decoders import decode_deadline_alert, smart_decode_trigger_kwargs
+from airflow.serialization.encoders import encode_deadline_alert
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
+from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY, CallbackTrigger
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
@@ -57,6 +68,71 @@ TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 TEST_ASYNC_CALLBACK = AsyncCallback(async_callback, kwargs=TEST_CALLBACK_KWARGS)
 TEST_SYNC_CALLBACK = SyncCallback(sync_callback, kwargs=TEST_CALLBACK_KWARGS)
 TEST_DAG_ID = "test_dag"
+
+
+class _TrackedKwarg:
+    """A class named in callback kwargs, to tell where the kwargs are decoded."""
+
+    instantiated = False
+
+    def __init__(self):
+        type(self).instantiated = True
+
+    def serialize(self):
+        return {}
+
+    @staticmethod
+    def deserialize(data, version):
+        return _TrackedKwarg()
+
+
+_TRACKED_KWARG_NAME = f"{_TrackedKwarg.__module__}.{_TrackedKwarg.__qualname__}"
+
+ENCODED_CALLBACK_KWARGS = {
+    "current": {
+        "interval": {serde.CLASSNAME: "datetime.timedelta", serde.VERSION: 2, serde.DATA: 3600.0},
+        "pair": {serde.CLASSNAME: "builtins.tuple", serde.VERSION: 1, serde.DATA: [1, 2]},
+        "plain": {"nested": [1, "two"]},
+        "tracked": {serde.CLASSNAME: _TRACKED_KWARG_NAME, serde.VERSION: 0, serde.DATA: {}},
+    },
+    "legacy": {
+        "interval": {"__type": "timedelta", "__var": 3600.0},
+        "pair": {"__type": "tuple", "__var": [1, 2]},
+        "plain": {"nested": [1, "two"]},
+        "tracked": {"__type": _TRACKED_KWARG_NAME, "__var": {}},
+    },
+}
+
+received_sync_kwargs: dict = {}
+
+
+def recording_sync_callback(**kwargs):
+    """Sync callable which records the kwargs it was called with."""
+    received_sync_kwargs.clear()
+    received_sync_kwargs.update(kwargs)
+
+
+def _decode_callback_def(callback_def, encoded_kwargs):
+    """Return ``callback_def`` as the scheduler sees it after decoding the stored deadline alert."""
+    encoded = encode_deadline_alert(
+        DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT, interval=timedelta(hours=1), callback=callback_def
+        )
+    )
+    encoded["callback"][serde.DATA]["kwargs"] = encoded_kwargs
+    return decode_deadline_alert(encoded).callback
+
+
+def _assert_decoded(kwargs):
+    assert isinstance(kwargs.pop("tracked"), _TrackedKwarg)
+    assert kwargs == {"interval": timedelta(hours=1), "pair": (1, 2), "plain": {"nested": [1, "two"]}}
+
+
+@pytest.fixture
+def allow_tracked_kwarg():
+    _TrackedKwarg.instantiated = False
+    with patch.object(serde, "_extra_allowed", serde._extra_allowed | {_TRACKED_KWARG_NAME}):
+        yield
 
 
 @pytest.fixture
@@ -116,6 +192,54 @@ class TestCallback:
             "kwargs": '{"email": "test@example.com"}',
             "dag_id": TEST_DAG_ID,
         }
+
+    @pytest.mark.parametrize(
+        "encoded_interval",
+        [
+            pytest.param(
+                {serde.CLASSNAME: "datetime.timedelta", serde.VERSION: 2, serde.DATA: 3600.0}, id="current"
+            ),
+            pytest.param({"__type": "timedelta", "__var": 3600.0}, id="legacy"),
+        ],
+    )
+    @pytest.mark.usefixtures("allow_tracked_kwarg")
+    def test_metric_tags_and_repr_show_kwargs_readably(self, encoded_interval):
+        kwargs = {
+            "interval": encoded_interval,
+            "pair": {serde.CLASSNAME: "builtins.tuple", serde.VERSION: 1, serde.DATA: [1, 2]},
+            "tracked": {serde.CLASSNAME: _TRACKED_KWARG_NAME, serde.VERSION: 0, serde.DATA: {}},
+        }
+        expected = {"interval": "1:00:00", "pair": [1, 2], "tracked": f"{_TRACKED_KWARG_NAME}({{}})"}
+        executor_callback = ExecutorCallback(
+            SyncCallback(sync_callback, kwargs=kwargs), fetch_method=CallbackFetchMethod.IMPORT_PATH
+        )
+        triggerer_callback = TriggererCallback(AsyncCallback(async_callback, kwargs=kwargs))
+
+        tags = executor_callback.get_metric_info(CallbackState.SUCCESS, "0")["tags"]
+
+        assert tags["kwargs"] == json.dumps(expected, sort_keys=True)
+        assert repr(executor_callback) == f"{executor_callback.data['path']}({expected}) on None executor"
+        assert repr(triggerer_callback) == f"{triggerer_callback.data['path']}({expected}) on a triggerer"
+        assert _TrackedKwarg.instantiated is False
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(float("nan"), "datetime.timedelta(nan)", id="nan"),
+            pytest.param(float("inf"), "datetime.timedelta(inf)", id="inf"),
+            pytest.param(float("-inf"), "datetime.timedelta(-inf)", id="-inf"),
+            pytest.param(1e300, "datetime.timedelta(1e+300)", id="too-large"),
+            pytest.param("an hour", "datetime.timedelta(an hour)", id="not-a-number"),
+        ],
+    )
+    def test_metric_tags_and_repr_fall_back_for_unusable_intervals(self, data, expected):
+        kwargs = {"interval": {serde.CLASSNAME: "datetime.timedelta", serde.VERSION: 2, serde.DATA: data}}
+        callback = TriggererCallback(AsyncCallback(async_callback, kwargs=kwargs))
+
+        tags = callback.get_metric_info(CallbackState.SUCCESS, "0")["tags"]
+
+        assert tags["kwargs"] == json.dumps({"interval": expected})
+        assert repr(callback) == f"{callback.data['path']}({ {'interval': expected} }) on a triggerer"
 
     def test_get_metric_info_includes_queue(self):
         """``queue`` is stored in ``self.data`` for a queued AsyncCallback, so it flows into metric tags."""
@@ -196,6 +320,33 @@ class TestTriggererCallback:
         assert callback.trigger.kwargs["callback_kwargs"] == TEST_ASYNC_CALLBACK.kwargs
         assert callback.trigger.queue is None
         assert callback.state == CallbackState.QUEUED
+
+    @pytest.mark.usefixtures("allow_tracked_kwarg")
+    @pytest.mark.parametrize("encoding", ["current", "legacy"])
+    def test_queue_leaves_kwargs_for_the_triggerer_to_decode(self, session, encoding):
+        callback_def = _decode_callback_def(
+            AsyncCallback(async_callback, kwargs=TEST_CALLBACK_KWARGS), ENCODED_CALLBACK_KWARGS[encoding]
+        )
+        callback = TriggererCallback(callback_def)
+        session.add(callback)
+        session.commit()
+        session.expunge_all()
+        callback = session.get(Callback, callback.id)
+        deadline_time = timezone.datetime(2025, 1, 1)
+        context = {"deadline": {"id": "1", "deadline_time": deadline_time}}
+        callback.data = {**callback.data, "kwargs": {**callback.data["kwargs"], "context": context}}
+
+        callback.queue(session=session)
+
+        assert _TrackedKwarg.instantiated is False
+
+        # Decode the way the triggerer does before it creates the trigger.
+        trigger_kwargs = Trigger._decrypt_kwargs(callback.trigger.encrypted_kwargs)
+        trigger = CallbackTrigger(**{k: smart_decode_trigger_kwargs(v) for k, v in trigger_kwargs.items()})
+
+        assert trigger.callback_path == callback_def.path
+        assert trigger.callback_kwargs.pop("context") == context
+        _assert_decoded(trigger.callback_kwargs)
 
     def test_queue_populates_trigger_queue(self, session):
         queued_callback = AsyncCallback(async_callback, kwargs=TEST_CALLBACK_KWARGS, queue="custom-queue")
@@ -323,7 +474,7 @@ class TestExecutorCallback:
         retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
         assert isinstance(retrieved, ExecutorCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
-        assert retrieved.data == TEST_SYNC_CALLBACK.serialize()
+        assert retrieved.data == {**TEST_SYNC_CALLBACK.serialize(), CALLBACK_KWARGS_ENCODING_KEY: "serde"}
         assert retrieved.state == CallbackState.SCHEDULED.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
@@ -336,6 +487,51 @@ class TestExecutorCallback:
 
         callback.queue(session=session)
         assert callback.state == CallbackState.QUEUED
+
+    @pytest.mark.usefixtures("allow_tracked_kwarg")
+    @pytest.mark.parametrize("encoding", ["current", "legacy"])
+    def test_workload_leaves_kwargs_for_the_callback_runner_to_decode(self, session, encoding):
+        callback_def = _decode_callback_def(
+            SyncCallback(recording_sync_callback, kwargs=TEST_CALLBACK_KWARGS),
+            ENCODED_CALLBACK_KWARGS[encoding],
+        )
+        callback = ExecutorCallback(callback_def, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+        session.add(callback)
+        session.commit()
+        session.expunge_all()
+        callback = session.get(Callback, callback.id)
+
+        workload_callback = CallbackDTO.model_validate_json(
+            CallbackDTO.model_validate(callback, from_attributes=True).model_dump_json()
+        )
+
+        assert _TrackedKwarg.instantiated is False
+        assert workload_callback.data["kwargs"] == ENCODED_CALLBACK_KWARGS[encoding]
+        assert workload_callback.data[CALLBACK_KWARGS_ENCODING_KEY] == "serde"
+
+        success, error = execute_callback(
+            callback_path=workload_callback.data["path"],
+            callback_kwargs=workload_callback.data["kwargs"],
+            dag_rel_path=Path("test.py"),
+            bundle_path=None,
+            log=structlog.get_logger(),
+            callback_kwargs_encoding=workload_callback.data[CALLBACK_KWARGS_ENCODING_KEY],
+        )
+
+        assert (success, error) == (True, None)
+        _assert_decoded(received_sync_kwargs)
+
+    def test_kwargs_are_stored_encoded_with_their_encoding(self):
+        callback = ExecutorCallback(
+            SyncCallback(sync_callback, kwargs={"interval": timedelta(hours=1), "arg1": "value1"}),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+        )
+
+        assert callback.data["kwargs"] == serde.serialize({"interval": timedelta(hours=1), "arg1": "value1"})
+        assert callback.data[CALLBACK_KWARGS_ENCODING_KEY] == "serde"
+        assert (
+            CALLBACK_KWARGS_ENCODING_KEY not in callback.get_metric_info(CallbackState.SUCCESS, "ok")["tags"]
+        )
 
     def test_session_get_requires_uuid_not_str(self, session):
         """Filtering the UUID id column with a plain str breaks on SQLite, so

@@ -270,6 +270,7 @@ export interface TaskGroupOptions {
 export interface OrderEdge {
   readonly upstream: string;
   readonly downstream: string;
+  readonly label?: string;
 }
 
 // A task id cannot hold a NUL, so a joined pair cannot collide with one.
@@ -291,6 +292,15 @@ export interface TaskGroupRecord {
 
 /** Separates a group ID from what it contains, as Python's `prefix_group_id` does. */
 const GROUP_SEPARATOR = ".";
+
+/**
+ * Internal: suffixes of the join nodes the Airflow UI draws at each end of a
+ * task group, as Python's `TaskGroup.upstream_join_id` and
+ * `downstream_join_id` name them.
+ */
+export const UPSTREAM_JOIN_SUFFIX = ".upstream_join_id";
+export const DOWNSTREAM_JOIN_SUFFIX = ".downstream_join_id";
+const JOIN_SUFFIXES = [UPSTREAM_JOIN_SUFFIX, DOWNSTREAM_JOIN_SUFFIX];
 
 /** The Dag's own view of a group, which it appends to as an author declares. */
 interface MutableTaskGroupRecord extends TaskGroupRecord {
@@ -317,8 +327,52 @@ export function isTaskRef(value: unknown): value is TaskRef {
 
 const conditionTasks = new WeakMap<object, TaskRef>();
 
+const labelledNodes = new WeakMap<object, { readonly node: Node; readonly text: string }>();
+
 function resolveNode(node: Node): Node {
-  return (typeof node === "object" && node !== null && conditionTasks.get(node)) || node;
+  if (typeof node !== "object" || node === null) return node;
+  return labelledNodes.get(node)?.node ?? conditionTasks.get(node) ?? node;
+}
+
+/**
+ * Label the edge that `before` or `after` draws to `node`, as Python's `Label` does.
+ * The result only goes into `before` or `after`; calling either on it throws.
+ * `text` cannot be empty.
+ *
+ * ```ts
+ * checked.before(label(processed, "rows found"), label(emptyNotice, "no rows"));
+ * ```
+ */
+export function label(node: Node, text: string): Node {
+  if (typeof text !== "string") {
+    throw new Error(`label() takes a string to name the edge with, not ${describeValue(text)}`);
+  }
+  if (text === "") {
+    throw new Error("label() takes the text to put on the edge, not an empty string");
+  }
+  const target = resolveNode(node);
+  const id = nodeId(target);
+  if (id === undefined) {
+    throw new Error(`label() takes a task or task group reference, not ${describeValue(node)}`);
+  }
+  const misuse = (verb: "before" | "after"): never => {
+    throw new Error(
+      `label(..., ${JSON.stringify(text)}) on "${id}" of Dag "${target.dagId}" names the edge ` +
+        `drawn to it, so pass it to before() or after() rather than calling ${verb}() on it`,
+    );
+  };
+  const labelled: Node = {
+    dagId: target.dagId,
+    before: () => misuse("before"),
+    after: () => misuse("after"),
+  };
+  brand(labelled, "LabelledNode");
+  labelledNodes.set(labelled, { node: target, text });
+  return Object.freeze(labelled);
+}
+
+function isLabelledNode(value: unknown): boolean {
+  return hasBrand(value, "LabelledNode");
 }
 
 /**
@@ -334,6 +388,8 @@ function resolveNode(node: Node): Node {
 function findNestedTaskRef(value: unknown, seen: WeakSet<object>): TaskRef | undefined {
   if (typeof value !== "object" || value === null) return undefined;
   if (isTaskRef(value)) return value;
+  const labelled = labelledNodes.get(value)?.node;
+  if (labelled !== undefined) return isTaskRef(labelled) ? labelled : undefined;
   // A literal that refers back to itself is not JSON either, but it reaches
   // here before anything else has rejected it.
   if (seen.has(value)) return undefined;
@@ -693,6 +749,7 @@ export class Dag {
             "a condition names each side once",
         );
       }
+      this.#rejectLabel(target, `The "${side}" branch of "${taskId}"`, taskId);
       const taskRef = resolveNode(target) as TaskRef;
       this.#validateOwnNode(taskRef, `the "${side}" branch of "${taskId}"`);
       if (!isTaskRef(taskRef)) {
@@ -800,6 +857,7 @@ export class Dag {
       dagId: this.dagId,
       taskId,
       case: (taskRef) => {
+        this.#rejectLabel(taskRef, `A case of "${taskId}"`, taskId);
         this.#validateOwnNode(taskRef, `a case of "${taskId}"`);
         if (!isTaskRef(taskRef)) {
           throw new Error(
@@ -1070,10 +1128,20 @@ export class Dag {
 
   // Tasks and groups share one namespace, as they do in Python: a serialized
   // Dag addresses both by a bare ID, so `dag.task("x")` and `dag.taskGroup("x")`
-  // cannot both exist.
+  // cannot both exist. A group's join node IDs are in it too, since edge labels
+  // at a group end are keyed by them.
   #reserveNodeId(id: string, kind: "Task" | "Task group"): void {
     if (this.#tasks.has(id) || this.#groups.has(id)) {
       throw new Error(`${kind} "${id}" is already registered for Dag "${this.dagId}"`);
+    }
+    for (const suffix of JOIN_SUFFIXES) {
+      const groupId = id.endsWith(suffix) ? id.slice(0, -suffix.length) : undefined;
+      if (groupId !== undefined && this.#groups.has(groupId)) {
+        throw new Error(
+          `${kind} "${id}" of Dag "${this.dagId}" takes the ID of a join node of task group ` +
+            `"${groupId}"; pick another ID`,
+        );
+      }
     }
   }
 
@@ -1121,6 +1189,7 @@ export class Dag {
   }
 
   #addOrderEdge(upstreamNode: Node, downstreamNode: Node, verb: "before" | "after"): void {
+    const text = labelledNodes.get(verb === "before" ? downstreamNode : upstreamNode)?.text;
     const upstream = resolveNode(upstreamNode);
     const downstream = resolveNode(downstreamNode);
     if (this.#finalized) {
@@ -1143,25 +1212,42 @@ export class Dag {
     }
     const key = `${upstreamId}${EDGE_KEY_SEPARATOR}${downstreamId}`;
     // Idempotent, so an edge drawn from both ends is one edge.
-    if (!this.#orderEdges.has(key)) {
-      this.#orderEdges.set(
-        key,
-        Object.freeze({ upstream: upstreamId!, downstream: downstreamId! }),
+    const edgeLabel = text ?? this.#orderEdges.get(key)?.label;
+    this.#orderEdges.set(
+      key,
+      Object.freeze({
+        upstream: upstreamId!,
+        downstream: downstreamId!,
+        ...(edgeLabel === undefined ? {} : { label: edgeLabel }),
+      }),
+    );
+  }
+
+  #rejectLabel(node: unknown, context: string, deciderId: string): void {
+    if (isLabelledNode(node)) {
+      throw new Error(
+        `${context} of Dag "${this.dagId}" was given a label(); label a branch edge by ` +
+          `redrawing it from "${deciderId}" with before(label(task, "text"))`,
       );
     }
   }
 
-  #validateOwnNode(node: Node, label: string): void {
+  #validateOwnNode(node: Node, context: string): void {
     const id = nodeId(node);
+    if (id === undefined && isLabelledNode(node)) {
+      throw new Error(
+        `${context} on Dag "${this.dagId}" was given a label() that ${DUPLICATE_COPY_HINT}`,
+      );
+    }
     if (id === undefined) {
       throw new Error(
-        `${label} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
+        `${context} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
           "not arbitrary values",
       );
     }
     if (node.dagId !== this.dagId) {
       throw new Error(
-        `${label} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
+        `${context} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
           `"${this.dagId}"; an edge joins two nodes of one Dag`,
       );
     }
@@ -1171,7 +1257,7 @@ export class Dag {
     // the edge at this Dag's own group of that name.
     if (isTaskRef(node) ? this.#tasks.get(id)?.task !== node : this.#groupRefs.get(id) !== node) {
       throw new Error(
-        `${label} was given a reference to "${id}" that this Dag did not hand out; ` +
+        `${context} was given a reference to "${id}" that this Dag did not hand out; ` +
           `it comes from another Dag object with the same ID, or ${DUPLICATE_COPY_HINT}`,
       );
     }
@@ -1217,6 +1303,12 @@ export class Dag {
         );
       }
       const value = inputs[key];
+      if (isLabelledNode(value)) {
+        throw new Error(
+          `Input "${key}" of task "${taskId}" was given a label(), which only goes into ` +
+            "before() or after(); pass the reference itself",
+        );
+      }
       // Anything unbranded is a literal argument, including a look-alike
       // `{dagId, taskId}` object: only a real reference makes an edge.
       if (!isTaskRef(value)) {
