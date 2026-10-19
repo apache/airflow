@@ -2836,6 +2836,11 @@
     },
     "GetXCom": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2888,6 +2893,11 @@
     "GetXComCount": {
       "description": "Get the number of (mapped) XCom values available.",
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2922,6 +2932,11 @@
     },
     "GetXComSequenceItem": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -2961,6 +2976,11 @@
     },
     "GetXComSequenceSlice": {
       "properties": {
+        "previous_iteration": {
+          "default": false,
+          "title": "Previous Iteration",
+          "type": "boolean"
+        },
         "key": {
           "title": "Key",
           "type": "string"
@@ -3222,6 +3242,69 @@
       "title": "LazyDeserializedDAG",
       "type": "object"
     },
+    "LoopContext": {
+      "description": "Pinned loop definition and enclosing iteration for a task execution.",
+      "properties": {
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "max_iterations": {
+          "exclusiveMinimum": 0,
+          "title": "Max Iterations",
+          "type": "integer"
+        },
+        "terminal_task_id": {
+          "title": "Terminal Task Id",
+          "type": "string"
+        },
+        "terminal_is_mapped": {
+          "title": "Terminal Is Mapped",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "node_id",
+        "index",
+        "max_iterations",
+        "terminal_task_id",
+        "terminal_is_mapped"
+      ],
+      "title": "LoopContext",
+      "type": "object"
+    },
+    "LoopDecisionPayload": {
+      "additionalProperties": false,
+      "description": "A loop gate's evaluation of its ``until`` callable.",
+      "properties": {
+        "stop": {
+          "title": "Stop",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "stop"
+      ],
+      "title": "LoopDecisionPayload",
+      "type": "object"
+    },
     "MaskSecret": {
       "description": "Add a new value to be redacted in task logs.",
       "properties": {
@@ -3441,6 +3524,31 @@
           ],
           "default": -1,
           "title": "Map Index"
+        },
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
         },
         "duration": {
           "anyOf": [
@@ -3717,6 +3825,27 @@
         "value"
       ],
       "title": "SetAssetStateStoreByUri",
+      "type": "object"
+    },
+    "SetExecutionTimeout": {
+      "description": "Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process.",
+      "properties": {
+        "timeout_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Timeout Seconds",
+          "type": "number"
+        },
+        "type": {
+          "const": "SetExecutionTimeout",
+          "default": "SetExecutionTimeout",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "timeout_seconds"
+      ],
+      "title": "SetExecutionTimeout",
       "type": "object"
     },
     "SetRenderedFields": {
@@ -4012,6 +4141,17 @@
           "default": null,
           "title": "Rendered Map Index"
         },
+        "loop_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopDecisionPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "type": {
           "const": "SucceedTask",
           "default": "SucceedTask",
@@ -4258,6 +4398,17 @@
           ],
           "default": null,
           "title": "Retry Reason"
+        },
+        "loop_decision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopDecisionPayload"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -5108,10 +5259,34 @@
         "dag_run": {
           "$ref": "#/$defs/DagRun"
         },
+        "loop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LoopContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "task_reschedule_count": {
           "default": 0,
           "title": "Task Reschedule Count",
           "type": "integer"
+        },
+        "first_task_reschedule_start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Task Reschedule Start Date"
         },
         "max_tries": {
           "title": "Max Tries",
@@ -5244,6 +5419,15 @@
         "map_index": {
           "default": -1,
           "title": "Map Index",
+          "type": "integer"
+        },
+        "region_id": {
+          "format": "uuid",
+          "title": "Region Id",
+          "type": "string"
+        },
+        "region_index": {
+          "title": "Region Index",
           "type": "integer"
         },
         "hostname": {

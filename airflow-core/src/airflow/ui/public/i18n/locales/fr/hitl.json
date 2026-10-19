@@ -11,9 +11,9 @@
   "requiredAction_many": "Actions requises",
   "requiredAction_one": "Actions requises",
   "requiredAction_other": "Actions requises",
-  "requiredActionCount_many": "Actions requises ({{count}})",
-  "requiredActionCount_one": "Action requise ({{count}})",
-  "requiredActionCount_other": "Actions requises ({{count}})",
+  "requiredActionCount_many": "Actions requises ({{count, number}})",
+  "requiredActionCount_one": "Action requise ({{count, number}})",
+  "requiredActionCount_other": "Actions requises ({{count, number}})",
   "requiredActionState": "État de l'action requise",
   "response": {
     "created": "Réponse créée le ",
@@ -31,10 +31,10 @@
       "selectRequiredAction": "Sélectionnez une action requise pour voir les détails"
     },
     "list": {
-      "completedRequiredActions": "Actions requises terminées ({{count}})",
+      "completedRequiredActions": "Actions requises terminées ({{count, number}})",
       "loadError": "Impossible de charger les actions requises",
       "loadingActions": "Chargement des actions requises...",
-      "pendingRequiredActions": "Actions requises en attente ({{count}})"
+      "pendingRequiredActions": "Actions requises en attente ({{count, number}})"
     },
     "openReviewDrawer": "Ouvrir le panneau de revue",
     "pageLimitHint": "Seules les premières actions sont affichées ici. Utilisez « $t(review.viewAll) » pour toutes les voir.",

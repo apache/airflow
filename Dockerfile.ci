@@ -349,12 +349,15 @@ function install_python() {
         [3.13]="thomas@python.org"
         # https://peps.python.org/pep-0745/#release-manager-and-crew
         [3.14]="hugo@python.org"
+        # https://peps.python.org/pep-0790/#release-manager-and-crew
+        [3.15]="hugo@python.org"
     )
     declare -A sigstore_issuers=(
         [3.11]="https://accounts.google.com"
         [3.12]="https://accounts.google.com"
         [3.13]="https://accounts.google.com"
         [3.14]="https://github.com/login/oauth"
+        [3.15]="https://github.com/login/oauth"
     )
     wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
         "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
@@ -1821,14 +1824,14 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && chmod +x /usr/local/bin/helm
 
 # Install mprocs - a modern process manager for managing multiple Airflow components
-ARG MPROCS_VERSION="0.9.6"
+ARG MPROCS_VERSION="0.10.2"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM="$(uname -m)" \
-    && MPROCS_URL="https://github.com/pvolok/mprocs/releases/download/v${MPROCS_VERSION}/mprocs-${MPROCS_VERSION}-${SYSTEM}-${PLATFORM}-musl.tar.gz" \
+    && MPROCS_URL="https://github.com/pvolok/dekit/releases/download/v${MPROCS_VERSION}/dekit-${PLATFORM}-unknown-${SYSTEM}-musl.tar.gz" \
     && echo "Downloading mprocs from ${MPROCS_URL}" \
     && curl --silent --location --fail --retry 3 --retry-delay 5 -o /tmp/mprocs.tar.gz "${MPROCS_URL}" \
-    && tar -xzf /tmp/mprocs.tar.gz -C /usr/local/bin/ mprocs \
+    && tar -xzf /tmp/mprocs.tar.gz -O dekit > /usr/local/bin/mprocs \
     && rm -f /tmp/mprocs.tar.gz \
     && chmod +x /usr/local/bin/mprocs
 

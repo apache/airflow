@@ -114,6 +114,15 @@ def test_module_contract_preserves_supports_deferrable_true():
     assert validated["modules"][0]["supports_deferrable"] is True
 
 
+def test_module_contract_omits_guide_url_for_undocumented_classes():
+    assert ModuleContract.model_validate(_module_payload()).guide_url is None
+
+
+def test_module_contract_preserves_guide_url_value():
+    guide_url = "https://example.invalid/docs/toolsets.html#exampletoolset"
+    assert ModuleContract.model_validate(_module_payload(guide_url=guide_url)).guide_url == guide_url
+
+
 def test_connection_type_contract_defaults_external_services_to_empty_list():
     """Legacy connection-types entries (provider.yaml without `external-services`)
     must still validate, with the field defaulting to an empty list."""

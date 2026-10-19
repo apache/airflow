@@ -48,6 +48,7 @@ def build_serialized(fileloc: str, tasks: list[dict]) -> dict:
                 "timezone": "UTC",
                 "catchup": False,
                 "tags": ["a"],
+                "params": [],
                 "task_group": {"prefix_group_id": True, "children": {"extract": ["operator", "extract"]}},
                 "tasks": [{"__type": "operator", "__var": task} for task in tasks],
             },
@@ -120,6 +121,16 @@ def test_accepts_the_differences_an_sdk_is_allowed():
             lambda sdk: sdk["d"]["dag"].update(tags=["b"]),
             ["d: tags[0] is 'b', Python writes 'a'"],
             id="nested-list",
+        ),
+        pytest.param(
+            lambda sdk: sdk["d"]["dag"].update(
+                params=[["limit", {"__class": "airflow.sdk.definitions.param.Param", "default": 5}]]
+            ),
+            [
+                "d: params is [['limit', {'__class': 'airflow.sdk.definitions.param.Param', 'default': 5}]], "
+                "Python writes []"
+            ],
+            id="dag-params",
         ),
         pytest.param(
             lambda sdk: sdk["d"]["dag"]["task_group"].update(prefix_group_id=False),

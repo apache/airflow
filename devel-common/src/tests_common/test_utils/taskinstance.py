@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow import settings
 from airflow.models.taskinstance import TaskInstance
@@ -28,7 +28,7 @@ from airflow.utils.session import NEW_SESSION
 
 from tests_common.test_utils.compat import SerializedBaseOperator, SerializedMappedOperator
 from tests_common.test_utils.dag import create_scheduler_dag
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_4_PLUS
 
 try:
     from airflow.serialization.serialized_objects import create_scheduler_operator
@@ -146,11 +146,15 @@ def run_task_instance(
     from airflow.sdk.definitions.dag import _run_task
 
     # Session handling is a mess in tests; use a fresh ti to run the task.
+    # Without a region, get_task_instance applies public_region_filter, which excludes loop regions, so
+    # a loop pass would not be found and the caller's ti would run instead of this pass's row.
+    region_kwargs: dict[str, Any] = {"region_id": ti.region_id} if AIRFLOW_V_3_4_PLUS else {}
     new_ti = TaskInstance.get_task_instance(
         dag_id=ti.dag_id,
         run_id=ti.run_id,
         task_id=ti.task_id,
         map_index=ti.map_index,
+        **region_kwargs,
         **session_kwargs,
     )
     # Some tests don't even save the ti at all, in which case new_ti is None.

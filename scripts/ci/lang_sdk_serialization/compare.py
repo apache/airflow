@@ -35,6 +35,9 @@ features the SDK has, as a comma-separated list or ``all``, and the copy of test
 the Dags whose features are all among them. A Dag that requires nothing is always in it, and the SDK
 has to write exactly the Dags of the copy.
 
+Each SDK's own prek hook runs it this way, such as
+java-sdk/scripts/ci/prek/check_serialization_conformance.py for the Java SDK.
+
 On a failure the files are kept, and their directory is printed.
 """
 
@@ -42,6 +45,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -54,6 +58,11 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
 TEST_DAGS = HERE / "test_dags.yaml"
 SCHEMA = REPO_ROOT / "airflow-core" / "src" / "airflow" / "serialization" / "schema.json"
+# Not the workspace's .venv: prek runs other projects' hooks at the same time, and some of them sync
+# that .venv to another set of packages (the chart's kubeconform hook installs the cncf.kubernetes
+# provider there through `breeze k8s setup-env`). A provider that lands there after Python started
+# has its entry point found but its sources off sys.path, and loading the config then fails.
+PYTHON_SERIALIZER_VENV = REPO_ROOT / ".build" / "lang-sdk-serialization-venv"
 
 # The features that a Dag of test_dags.yaml may require of an SDK. The comment at the top of
 # test_dags.yaml says what each one adds to a Dag.
@@ -136,8 +145,8 @@ def filter_cases(text: str, supported: frozenset[str]) -> tuple[str, list[str]]:
     return "".join(kept), ids
 
 
-def run(command: list[str]) -> None:
-    if subprocess.run(command, cwd=REPO_ROOT, check=False).returncode:
+def run(command: list[str], env: dict[str, str] | None = None) -> None:
+    if subprocess.run(command, cwd=REPO_ROOT, check=False, env=env).returncode:
         raise SystemExit(f"`{' '.join(command)}` failed")
 
 
@@ -147,21 +156,25 @@ def get_task_defaults() -> dict[str, Any]:
     return {key: field["default"] for key, field in fields.items() if field.get("default") is not None}
 
 
-def normalize_as_javascript(value: Any) -> Any:
-    """Read a JSON value as JavaScript does: one number type, and a bool that is not a number."""
+def normalize_numbers(value: Any) -> Any:
+    """
+    Read a JSON value with one number type, and a bool that is not a number.
+
+    An SDK may write ``2`` where Python writes ``2.0``, as JavaScript does, which has one number type.
+    """
     if isinstance(value, bool):
         return ("bool", value)
     if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, list):
-        return [normalize_as_javascript(item) for item in value]
+        return [normalize_numbers(item) for item in value]
     if isinstance(value, dict):
-        return {key: normalize_as_javascript(item) for key, item in value.items()}
+        return {key: normalize_numbers(item) for key, item in value.items()}
     return value
 
 
 def is_same_json(python: Any, sdk: Any) -> bool:
-    return normalize_as_javascript(python) == normalize_as_javascript(sdk)
+    return normalize_numbers(python) == normalize_numbers(sdk)
 
 
 def find_differences(path: str, python: Any, sdk: Any) -> list[str]:
@@ -290,7 +303,8 @@ def main(argv: list[str] | None = None) -> int:
             "--receive",
             str(sdk_output),
             str(received_output),
-        ]
+        ],
+        env={**os.environ, "UV_PROJECT_ENVIRONMENT": str(PYTHON_SERIALIZER_VENV)},
     )
 
     python = json.loads(python_output.read_text())

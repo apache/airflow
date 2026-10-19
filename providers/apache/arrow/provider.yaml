@@ -21,7 +21,7 @@ name: Apache Arrow
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1744788833
+source-date-epoch: 1791328843
 description: |
   `Apache Arrow <https://arrow.apache.org/>`__ provider for Airflow. Offers ``AdbcHook``,
   a general-purpose hook that connects to any database supported by an
@@ -33,6 +33,7 @@ description: |
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 0.1.1
   - 0.1.0
 
 integrations:

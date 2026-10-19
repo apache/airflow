@@ -140,6 +140,7 @@ class TestPatchConnectionTestCommitOnSuccess:
             host="new-host.example.com",
             login="new_user",
             commit_on_success=True,
+            commit_allows_update=True,
         )
         ct.state = ConnectionTestState.RUNNING
         session.add(ct)
@@ -155,6 +156,38 @@ class TestPatchConnectionTestCommitOnSuccess:
         conn = session.scalar(select(Connection).filter_by(conn_id="existing_conn"))
         assert conn.conn_type == "postgres"
         assert conn.host == "new-host.example.com"
+
+    def test_success_with_create_only_commit_does_not_overwrite_existing(self, client, session):
+        """A create-only commit does not overwrite a connection created after the test was enqueued."""
+        ct = ConnectionTestRequest(
+            connection_id="raced_conn",
+            conn_type="postgres",
+            host="tested-host.example.com",
+            login="tested_user",
+            password="tested_secret",
+            commit_on_success=True,
+        )
+        ct.state = ConnectionTestState.RUNNING
+        session.add(ct)
+        session.add(Connection(conn_id="raced_conn", conn_type="http", host="other-host.example.com"))
+        session.commit()
+
+        response = client.patch(
+            f"/execution/connection-tests/{ct.id}",
+            json={"state": "success", "result_message": "Connection OK"},
+        )
+        assert response.status_code == 204
+
+        session.expire_all()
+        conn = session.scalar(select(Connection).filter_by(conn_id="raced_conn"))
+        assert conn.conn_type == "http"
+        assert conn.host == "other-host.example.com"
+        assert conn.login is None
+        assert conn.password is None
+
+        ct = session.get(ConnectionTestRequest, ct.id)
+        assert ct.state == ConnectionTestState.FAILED
+        assert "were not saved" in ct.result_message
 
     def test_success_without_commit_does_not_create(self, client, session):
         """PATCH with state=success but commit_on_success=False does not create a connection."""

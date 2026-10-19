@@ -28,10 +28,36 @@ from cadwyn import (
 )
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    PreviousTIResponse,
+    TaskInstance,
     TerminalStateNonSuccess,
     TIRunContext,
+    TISuccessStatePayload,
     TITerminalStatePayload,
 )
+
+
+class AddLoopContext(VersionChange):
+    """Provide the pinned loop definition and enclosing iteration at task startup."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("loop").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_loop_context(response: ResponseInfo) -> None:
+        response.body.pop("loop", None)
+
+
+class AddTaskInstanceRegionCoordinates(VersionChange):
+    """Carry task execution coordinates independently of public mapped position, omitting them outside a region."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(TaskInstance).field("region_id").didnt_exist,
+        schema(TaskInstance).field("region_index").didnt_exist,
+        schema(PreviousTIResponse).field("region_id").didnt_exist,
+        schema(PreviousTIResponse).field("region_index").didnt_exist,
+    )
 
 
 class AddStoppedTaskReport(VersionChange):
@@ -62,7 +88,7 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_arg_bindings_field(response: ResponseInfo) -> None:
         """Strip ``arg_bindings`` from the run context for older clients."""
         response.body.pop("arg_bindings", None)
 
@@ -97,6 +123,17 @@ class AddTerminalStateRetryReasonField(VersionChange):
     )
 
 
+class AddLoopDecisionField(VersionChange):
+    """Add the `loop_decision` field a loop gate reports with its terminal state."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TISuccessStatePayload).field("loop_decision").didnt_exist,
+        schema(TITerminalStatePayload).field("loop_decision").didnt_exist,
+    )
+
+
 class AddMultiTeamToTIRunContext(VersionChange):
     """Add ``multi_team`` so a worker can determine multi-team (e.g. for plugin scoping) without needing to trust its own config."""
 
@@ -105,6 +142,16 @@ class AddMultiTeamToTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("multi_team").didnt_exist,)
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_multi_team_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_multi_team_field(response: ResponseInfo) -> None:
         """Strip ``multi_team`` from the run context for older clients."""
         response.body.pop("multi_team", None)
+
+
+class AddFirstTaskRescheduleStartDateField(VersionChange):
+    """Add the ``first_task_reschedule_start_date`` field to TIRunContext."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )

@@ -20,6 +20,7 @@ import copy
 import json
 import logging
 import math
+import re
 import traceback
 import warnings
 from datetime import timedelta
@@ -50,6 +51,10 @@ from airflow.providers.common.ai.utils.decision import picked_key
 from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryPolicy, RetryRule
 from airflow.sdk.log import mask_secret
+
+requires_reschedule = pytest.mark.skipif(
+    not hasattr(RetryAction, "RESCHEDULE"), reason="RESCHEDULE needs Airflow 3.5+"
+)
 
 HOOK = "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook"
 
@@ -468,9 +473,9 @@ class TestClassification:
         assert (first.action, second.action) == (RetryAction.RETRY, RetryAction.FAIL)
         prompts = [call.args[0] for call in agent.run_sync.call_args_list]
         assert "ConnectionError: reset" in prompts[0]
-        assert "attempt 1 of 3" in prompts[0]
+        assert "attempt 1 of 4" in prompts[0]
         assert "PermissionError: expired" in prompts[1]
-        assert "attempt 2 of 3" in prompts[1]
+        assert "attempt 2 of 4" in prompts[1]
 
     @patch(HOOK, autospec=True)
     def test_custom_instructions_forwarded_to_agent(self, mock_hook_cls):
@@ -656,7 +661,7 @@ class TestConfidenceGate:
         assert decision.reason == "category=auth confidence=0.05 threshold=n/a action=fail"
 
 
-PROMPT_HEADER = "Classify this error from a data pipeline task (attempt 2 of 4):\n\n"
+PROMPT_HEADER = "Classify this error from a data pipeline task (attempt 2 of 5):\n\n"
 
 POLICY_CLASSES = [
     pytest.param(ClassifierRetryPolicy, id="classifier"),
@@ -687,13 +692,15 @@ def _truncated_read(*, explicit: bool = True) -> Exception:
     )
 
 
-def _prompt_for(mock_hook_cls, policy_cls, exception, **kwargs) -> str:
+def _prompt_for(
+    mock_hook_cls, policy_cls, exception, *, try_number: int = 2, max_tries: int = 4, **kwargs
+) -> str:
     """Evaluate ``exception`` under a ``policy_cls`` built with ``kwargs`` and return the prompt the model got."""
     if policy_cls is ClassifierRetryPolicy:
         agent = _install(mock_hook_cls, _agent("data"))
     else:
         agent = _install(mock_hook_cls, _open_agent("data", should_retry=False))
-    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=2, max_tries=4)
+    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=try_number, max_tries=max_tries)
     return agent.run_sync.call_args.args[0]
 
 
@@ -707,7 +714,36 @@ class TestPrompt:
 
         prompt = agent.run_sync.call_args.args[0]
         assert "ValueError: bad column type" in prompt
-        assert "attempt 2 of 5" in prompt
+        assert "attempt 2 of 6" in prompt
+
+    @pytest.mark.parametrize(
+        ("try_number", "max_tries", "expected"),
+        [
+            pytest.param(1, 1, "attempt 1 of 2", id="first-try-with-one-retry-left"),
+            pytest.param(2, 1, "attempt 2 of 2", id="last-try"),
+            pytest.param(3, 3, "attempt 3 of 4", id="after-clear"),
+        ],
+    )
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_counts_the_first_try_in_the_attempt_total(
+        self, mock_hook_cls, policy_cls, try_number, max_tries, expected
+    ):
+        """
+        ``max_tries`` is the last try number that may still retry, so the final attempt is one more.
+
+        It equals ``retries`` on a fresh run; a clear adds the tries already used, so a ``retries=1``
+        task cleared after two tries runs try 3 with ``max_tries=3``.
+        """
+        prompt = _prompt_for(
+            mock_hook_cls,
+            policy_cls,
+            ValueError("bad column type"),
+            try_number=try_number,
+            max_tries=max_tries,
+        )
+
+        assert f"({expected})" in prompt
 
     @pytest.mark.enable_redact
     @patch(HOOK, autospec=True)
@@ -723,7 +759,7 @@ class TestPrompt:
         )
 
         assert agent.run_sync.call_args.args[0] == (
-            "Classify this error from a data pipeline task (attempt 1 of 3):\n\n"
+            "Classify this error from a data pipeline task (attempt 1 of 4):\n\n"
             "ConnectionError: could not authenticate with password ***"
         )
 
@@ -990,8 +1026,8 @@ class TestFallbackBehaviour:
 
         assert decision.action == RetryAction.DEFAULT
         assert decision.reason == "classifier answer not applied (model_error); task retry settings apply"
-        assert "answered 'not_a_category', which is not a configured category" in caplog.text
-        assert "KeyError" not in caplog.text
+        assert "Classifier answered 'not_a_category', which is not a configured category" in caplog.messages
+        assert not [r for r in caplog.records if r.exc_info and r.exc_info[0] is KeyError]
 
 
 class TestOnUncertain:
@@ -1134,6 +1170,37 @@ class TestOnUncertain:
         assert decision.retry_delay == timedelta(seconds=9)
         assert decision.reason == "escalated (model_error)"
 
+    @requires_reschedule
+    def test_reschedule_from_fallback_policy_keeps_its_bounds(self):
+        inner = MagicMock(spec=LLMRetryPolicy)
+        inner.evaluate.return_value = RetryDecision.reschedule(
+            timedelta(minutes=10), max_reschedules=6, reason="quota full"
+        )
+        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, fallback_policy=inner)
+
+        decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision == RetryDecision.reschedule(
+            timedelta(minutes=10), max_reschedules=6, reason="escalated (model_error); quota full"
+        )
+
+    @requires_reschedule
+    def test_reschedule_from_fallback_rules_keeps_its_bounds(self):
+        rule = RetryRule(
+            exception=RuntimeError,
+            action=RetryAction.RESCHEDULE,
+            reschedule_timeout=timedelta(hours=4),
+            reason="quota full",
+        )
+        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, fallback_rules=[rule])
+
+        decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision == RetryDecision.reschedule(
+            reschedule_timeout=timedelta(hours=4),
+            reason="classifier answer not applied (model_error); quota full",
+        )
+
     @pytest.mark.parametrize(
         "inner_decision",
         [
@@ -1149,7 +1216,7 @@ class TestOnUncertain:
         ],
     )
     def test_any_default_from_fallback_policy_lets_the_outer_rules_run(self, inner_decision, caplog):
-        """Only RETRY or FAIL ends the chain; the reason text on a DEFAULT does not make it a decision."""
+        """Only a decision other than DEFAULT ends the chain; the reason text on a DEFAULT does not make it one."""
         inner = MagicMock(spec=LLMRetryPolicy)
         inner.evaluate.return_value = inner_decision
         policy = ClassifierRetryPolicy(
@@ -1162,7 +1229,11 @@ class TestOnUncertain:
         assert decision.action == RetryAction.RETRY
         assert decision.retry_delay == timedelta(seconds=5)
         assert decision.reason == "classifier answer not applied (model_error); rule"
-        assert "decided nothing" in caplog.text
+        assert any(
+            r.name == "airflow.providers.common.ai.policies.retry"
+            and re.match(r"MagicMock decided nothing", r.getMessage())
+            for r in caplog.records
+        )
 
     def test_fallback_policy_raising_falls_to_the_outer_rules(self, caplog):
         """A third-party policy that blows up must not take the classifier's rules floor with it."""
@@ -1180,7 +1251,7 @@ class TestOnUncertain:
 
         assert decision.action == RetryAction.RETRY
         assert decision.reason == "classifier answer not applied (model_error); rule"
-        assert "fallback_policy failed" in caplog.text
+        assert "fallback_policy failed, using fallback rules" in caplog.messages
 
     @patch(HOOK, autospec=True)
     def test_nested_classifiers_both_down_still_reach_the_outer_fail_rule(self, mock_hook_cls):
@@ -1343,7 +1414,10 @@ class TestLLMRetryPolicy:
             decision = policy.evaluate(ValueError("x"), try_number=1, max_tries=3)
 
         assert decision.action == RetryAction.DEFAULT
-        assert "use ClassifierRetryPolicy" in caplog.text
+        assert (
+            "This model cannot answer ErrorClassification. If it is a decision model, "
+            "use ClassifierRetryPolicy, which asks it a typed question."
+        ) in caplog.messages
 
     def test_no_warning_for_any_instructions(self):
         with warnings.catch_warnings():

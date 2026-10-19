@@ -24,10 +24,10 @@ import static java.lang.System.Logger.Level.INFO;
 
 import org.apache.airflow.sdk.*;
 
-// A Dag defined entirely in Java, annotation-style. The @Builder.Dag and
-// @Builder.Task attributes carry the configuration and the @Builder.Deps class
+// A Dag defined entirely in Java, annotation-style. The @Airflow.Dag and
+// @Airflow.Task attributes carry the configuration and the @Airflow.Deps class
 // declares the graph -- the single place dependencies are defined.
-@Builder.Dag(
+@Airflow.Dag(
     id = "java_native_annotation_example",
     description = "Pure-Java Dag authored with annotations",
     schedule = "@daily",
@@ -37,37 +37,86 @@ import org.apache.airflow.sdk.*;
 public class AnnotationExample {
   private static final System.Logger log = System.getLogger(AnnotationExample.class.getName());
 
-  @Builder.Task(id = "extract", retries = 2)
+  @Airflow.Task(id = "extract", retries = 2)
   public long extract() {
     log.log(INFO, "Extracting a value");
     return 42L;
   }
 
-  @Builder.Task(id = "transform")
+  @Airflow.Task(id = "transform")
   public long transform(long extracted, double factor) {
     log.log(INFO, "Transforming {0} by {1}", extracted, factor);
     return (long) (extracted * factor);
   }
 
-  @Builder.Task(id = "load")
+  @Airflow.Task(id = "load")
   public void load(long transformed) {
     log.log(INFO, "Loaded {0}", transformed);
   }
 
-  @Builder.Task(id = "audit")
-  public void audit() {
-    log.log(INFO, "Audited the run");
+  @Airflow.Task(id = "load_empty")
+  public void loadEmpty() {
+    log.log(INFO, "Nothing to load");
+  }
+
+  // A condition: its boolean picks one of the two loads, and the other is
+  // skipped.
+  @Airflow.If(id = "has_rows")
+  public boolean hasRows(long transformed) {
+    return transformed > 0;
+  }
+
+  @Airflow.Task(id = "report_long")
+  public void reportLong() {
+    log.log(INFO, "Long report");
+  }
+
+  @Airflow.Task(id = "report_short")
+  public void reportShort() {
+    log.log(INFO, "Short report");
+  }
+
+  // A switch: it names the one case that runs by the class generated for it,
+  // and every other case is skipped.
+  @Airflow.Switch(id = "pick_report")
+  public Class<? extends Task> pickReport(long transformed) {
+    return transformed > 100
+        ? AnnotationExampleBuilder.ReportLong.class
+        : AnnotationExampleBuilder.ReportShort.class;
+  }
+
+  // A task that starts a run of another Dag. The method runs when this Dag is
+  // built, not when the task runs, so it takes no arguments.
+  @Airflow.Task(id = "trigger_downstream")
+  public TriggerDagRun triggerDownstream() {
+    return new TriggerDagRun("java_native_target_example").config("note", "from the annotation example");
+  }
+
+  // A task group: everything it declares is prefixed with its id, so this is
+  // the task "checks.audit".
+  @Airflow.TaskGroup(id = "checks")
+  static class Checks {
+    @Airflow.Task(id = "audit")
+    public void audit() {
+      log.log(INFO, "Audited the run");
+    }
   }
 
   // Implements the generated wiring view, so javac type-checks the graph:
   // extract() yields a TaskRef<Long>, which is an Arg<Long> for transform.
-  @Builder.Deps
+  @Airflow.Deps
   static class Wiring implements AnnotationExampleDeps {
     void depends() {
       var extracted = extract();
-      load(transform(extracted, lit(1.5)));
-      // Ordering-only edge: audit runs after extract, with no data flowing.
-      extracted.before(audit());
+      var transformed = transform(extracted, lit(1.5));
+      var loaded = load(transformed);
+      hasRows(transformed).Then(loaded).Else(loadEmpty());
+      pickReport(transformed).Case(reportLong()).Case(reportShort());
+      loaded.before(triggerDownstream());
+      // Ordering-only edge: the checks group runs after extract, with no data
+      // flowing.
+      extracted.before(checks());
+      checks().audit();
     }
   }
 }

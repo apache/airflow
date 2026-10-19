@@ -109,7 +109,7 @@ class JWTGenerator:
         # Use uppercase for the account identifier.
         return account.upper()
 
-    def get_token(self) -> str | None:
+    def get_token(self) -> str:
         """
         Generate a new JWT.
 

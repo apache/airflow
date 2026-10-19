@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -223,5 +223,11 @@ describe("Versions", () => {
     fireEvent.input(input, { target: { value: "42" } });
 
     await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("max_changes=42"));
+  });
+
+  it("does not flag the empty max changes field as invalid", () => {
+    renderVersions("?base_version_number=1&target_version_number=3");
+
+    expect(screen.getByLabelText("versions.maxChanges")).not.toHaveAttribute("aria-invalid");
   });
 });

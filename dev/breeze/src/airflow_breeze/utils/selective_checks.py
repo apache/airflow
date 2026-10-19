@@ -66,6 +66,7 @@ from airflow_breeze.global_constants import (
     SelectiveTestType,
     all_helm_test_packages,
     all_selective_core_test_types,
+    get_airflow_version,
     providers_test_type,
 )
 from airflow_breeze.utils.console import console_print, get_console
@@ -140,6 +141,7 @@ class FileGroupForCi(Enum):
     AGENT_FRAMEWORK_FILES = auto()
     GO_SDK_FILES = auto()
     JAVA_SDK_FILES = auto()
+    JAVA_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_FILES = auto()
     TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
@@ -195,6 +197,18 @@ class HashableDict(dict[T, list[str]]):
     def __hash__(self):
         return hash(frozenset(self))
 
+
+# Core and Task SDK sources specific to the native Lang-SDK Dag path: routing a file to a
+# coordinator, parsing it through the coordinator's runtime, validating the serialized Dag,
+# and reading its source. Shared Dag processing files are left to the canary run.
+LANG_SDK_NATIVE_DAG_PARSING_FILES = (
+    r"^airflow-core/src/airflow/dag_processing/(importer_routing|lang_sdk_processor)\.py$",
+    r"^airflow-core/src/airflow/models/dagcode\.py$",
+    r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+    r"^task-sdk/src/airflow/sdk/coordinators/_dag_importer\.py$",
+    r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
+    r"^task-sdk/src/airflow/sdk/importers/.*",
+)
 
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
@@ -262,11 +276,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
             r"^airflow-e2e-tests/java-test-bundle/.*",
+            r"^airflow-e2e-tests/java-native-bundle/.*",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/.*",
             r"^airflow-e2e-tests/docker/java\.yml$",
             r"^airflow-e2e-tests/docker/Dockerfile\.java$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/java/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.GO_SDK_E2E_FILES: [
             # `.md` excluded — doc-only edits do not affect the Go build or e2e tests.
@@ -299,6 +315,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -517,6 +534,14 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
         ],
+        FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES: [
+            # The Java SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^java-sdk/(?!.*\.md$).*",
+            r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+            r"^airflow-core/src/airflow/serialization/schema\.json$",
+            r"^scripts/ci/lang_sdk_serialization/.*",
+        ],
         FileGroupForCi.TS_SDK_DOCS_FILES: [
             # TypeDoc renders the reference from the SDK sources and category entry points,
             # and the landing page is authored in ts-sdk/docs — unlike TS_SDK_FILES, `.md`
@@ -531,10 +556,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.TS_SDK_FILES: [
             # Documentation entry points and `.md` files do not affect the generated
-            # supervisor schema. `ts-sdk/docs/package.json` and its lock file are excluded
-            # too — they pin the docs toolchain's own dependencies and do not affect the SDK
-            # build.
-            r"^ts-sdk/(?!api-docs/)(?!.*\.md$)(?!docs/package(-lock)?\.json$).*",
+            # supervisor schema or the unit tests. `ts-sdk/docs/` is excluded too — it is the
+            # docs toolchain's own package, with its own tests that vitest does not run.
+            r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -1330,6 +1354,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.JAVA_SDK_FILES)
 
     @cached_property
+    def run_ts_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_FILES)
+
+    @cached_property
     def run_ts_sdk_docs(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
 
@@ -1898,7 +1926,6 @@ class SelectiveChecks:
     def skip_prek_hooks(self) -> str:
         prek_hooks_to_skip = set()
         prek_hooks_to_skip.add("identity")
-        prek_hooks_to_skip.add("update-uv-lock")
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             prek_hooks_to_skip.update(
@@ -1942,10 +1969,17 @@ class SelectiveChecks:
             # from Maven Central. Skip it when no java-sdk files changed so unrelated PRs do not
             # depend on that resolution.
             prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
+        if not self._matching_files(FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES, CI_FILE_GROUP_MATCHES):
+            # This hook compiles the Java SDK with Gradle and resolves its dependencies from Maven
+            # Central. Skip it unless a java-sdk file, Airflow's serializer or schema, or the shared
+            # harness changed. Those last do not force full_tests_needed, so they need their own group.
+            prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
-            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the wire schema and
-            # diffs it. Schema-only changes deliberately do not trigger it: regenerating the
-            # ts-sdk types is the ts-sdk follow-up PR's job, not the schema author's.
+            # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
+            # and diffs it, so it is skipped when no ts-sdk/ files changed. A supervisor-schema
+            # change on the Python side is not deferred to a follow-up PR: sync-ts-sdk-schemas is
+            # triggered by that source, refreshes the vendored copy (a ts-sdk/ file), and fails on
+            # the PR that caused it, which is then what makes this check run.
             prek_hooks_to_skip.add("check-ts-sdk-supervisor-schema")
         if not (
             self._matching_files(
@@ -2099,12 +2133,23 @@ class SelectiveChecks:
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:
-        """Provider compatibility input matrix for the current run. Filter out python versions not built"""
+        """Provider compatibility input matrix for the current run.
+
+        Filters out python versions that are not built. Also drops the entry whose
+        ``airflow-version`` matches the current branch version: on a ``vX-Y-test``
+        branch the just-bumped ``X.Y.0`` is added to the matrix by the version-bump
+        commit before it is released, so compat jobs that pull the released
+        ``apache/airflow:X.Y.0`` image/package would fail until GA. The entry starts
+        running again once the branch bumps to the next patch (``X.Y.1``) and ``X.Y.0``
+        is a real release.
+        """
+        current_airflow_version = get_airflow_version()
         return json.dumps(
             [
                 check
                 for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                 if check["python-version"] in self.python_versions
+                and check["airflow-version"] != current_airflow_version
             ]
         )
 

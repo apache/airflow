@@ -51,7 +51,7 @@ export const useRecentTaskStateCounts = (
   const { data, isLoading } = useDagServiceGetRecentTaskInstanceStateCountsUi({ dagRunIds }, undefined, {
     enabled: show && dagRunIds.length > 0,
     placeholderData: (prev) => prev,
-    refetchInterval: hasUnfinishedRun ? refetchInterval : false,
+    refetchInterval: hasUnfinishedRun && refetchInterval,
   });
 
   return {

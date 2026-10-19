@@ -58,6 +58,23 @@ def _no_git_lookups_against_the_checkout():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _pin_branch_to_main():
+    """Assert ``main`` behaviour regardless of the checked-out branch.
+
+    These tests hardcode ``main`` expectations, but ``branch_defaults.AIRFLOW_BRANCH`` is different on a
+    release branch (``vX-Y-test``), which flows into the base ref and the ``default_branch`` passed to
+    selective checks. Pin the constants so the suite passes on any branch.
+    """
+    with (
+        patch("airflow_breeze.commands.verify_commands.AIRFLOW_BRANCH", "main"),
+        patch(
+            "airflow_breeze.commands.verify_commands.DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH", "constraints-main"
+        ),
+    ):
+        yield
+
+
 @patch(
     "airflow_breeze.commands.verify_commands.get_changed_files_against",
     autospec=True,
@@ -155,6 +172,24 @@ def test_full_suite_expansion_is_explained(files: tuple[str, ...], expanded: boo
     assert "CI also runs the full suite" not in " ".join(full.output.split())
     assert ("breeze testing core-tests" in " ".join(full.output.split())) is expanded
     assert "breeze testing core-tests" not in " ".join(result.output.split())
+
+
+@pytest.mark.parametrize(
+    ("files", "has_commands"),
+    [
+        (("README.md",), False),
+        (("airflow-core/docs/index.rst",), True),
+    ],
+)
+def test_table_is_shown_only_when_there_are_commands(files: tuple[str, ...], has_commands: bool):
+    with patch(
+        "airflow_breeze.commands.verify_commands.get_changed_files_against", autospec=True, return_value=files
+    ):
+        result = CliRunner().invoke(verify, [], catch_exceptions=False)
+    assert result.exit_code == 0
+    output = " ".join(result.output.split())
+    assert ("What to run for this change" in output) is has_commands
+    assert ("No tests or docs builds to run locally for the changed files." in output) is not has_commands
 
 
 @patch("airflow_breeze.commands.verify_commands.run_command", autospec=True)

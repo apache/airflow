@@ -55,7 +55,9 @@ from pathlib import Path
 
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
+from extract_versions import detect_layout, git_tag_exists, read_guide_docs as read_guide_docs_at_tag
 from registry_contract_models import validate_modules_catalog, validate_provider_parameters
+from registry_tools.docs_guides import attach_guide_urls, collect_guide_anchors, is_guide_page
 from registry_tools.types import (
     BASE_CLASS_IMPORTS,
     CLASS_LEVEL_CATEGORY_OVERRIDES,
@@ -98,6 +100,7 @@ class Module:
     provider_name: str
     supports_durable_execution: bool
     supports_deferrable: bool
+    guide_url: str | None = None
 
 
 def get_category(integration_name: str) -> str:
@@ -738,6 +741,41 @@ def _resolve_decorated_operator_class(decorator_fn: object) -> type | None:
     return candidate if inspect.isclass(candidate) else None
 
 
+def read_guide_docs(docs_dir: Path) -> dict[str, str]:
+    """Read a provider's authored reST docs from the working tree, keyed by path relative to ``docs_dir``."""
+    if not docs_dir.is_dir():
+        return {}
+    docs = {}
+    for path in sorted(docs_dir.rglob("*.rst")):
+        relative = path.relative_to(docs_dir).as_posix()
+        if not is_guide_page(relative):
+            continue
+        docs[relative] = path.read_text(encoding="utf-8")
+    return docs
+
+
+def read_released_guide_docs(
+    provider_id: str, version: str, provider_rel_path: Path
+) -> dict[str, str] | None:
+    """Read a provider's guide docs at its release tag, or None when there is no tag to read.
+
+    The guide links point at ``/stable``, which serves the released docs, so the
+    anchors must come from the same content; the working tree may be ahead of it.
+    A tag from the old flat layout yields an empty dict, meaning no guide links
+    rather than a fallback to the working tree.
+    """
+    if not version:
+        return None
+    tag = f"providers-{provider_id}/{version}"
+    if not git_tag_exists(tag):
+        return None
+    dir_path = provider_rel_path.as_posix()
+    layout = detect_layout(tag, dir_path)
+    if layout is None:
+        return None
+    return read_guide_docs_at_tag(tag, layout, dir_path)
+
+
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],
@@ -748,7 +786,8 @@ def discover_classes_from_provider(
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with every `Module` dataclass field.
+    and returns metadata for each discovered class with every required `Module`
+    dataclass field, plus ``guide_url`` when a how-to guide documents the class.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
@@ -984,6 +1023,11 @@ def discover_classes_from_provider(
                 "supports_deferrable": supports_deferrable(decorated_cls) if decorated_cls else False,
             }
         )
+
+    guide_docs = read_released_guide_docs(provider_id, version, provider_rel_path)
+    if guide_docs is None:
+        guide_docs = read_guide_docs(provider_yaml_path.parent / "docs")
+    attach_guide_urls(discovered, collect_guide_anchors(guide_docs), base_docs_url)
 
     return discovered
 

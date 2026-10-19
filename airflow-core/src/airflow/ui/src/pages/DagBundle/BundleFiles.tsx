@@ -28,6 +28,7 @@ import { useDagBundleServiceGetDagBundleFiles } from "openapi/queries";
 import type { DagBundleFileResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -47,7 +48,7 @@ const createColumns = (
   translate: TFunction,
   locale: string,
   onShowImportError: (relativeFileloc: string) => void,
-): Array<ColumnDef<DagBundleFileResponse>> => [
+): Array<ColumnDef<DataTableFeatures, DagBundleFileResponse>> => [
   {
     accessorKey: "relative_fileloc",
     cell: ({ row: { original } }: FileRow) => <Text fontFamily="mono">{original.relative_fileloc}</Text>,
@@ -112,7 +113,7 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
   const { pagination } = tableURLState;
   const [errorFileloc, setErrorFileloc] = useState<string | undefined>(undefined);
 
-  const { data, error, isFetching, isLoading } = useDagBundleServiceGetDagBundleFiles(
+  const { data, error, isLoading } = useDagBundleServiceGetDagBundleFiles(
     {
       bundleName,
       limit: pagination.pageSize,
@@ -136,7 +137,6 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
         data={data?.dag_bundle_files ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:dagBundles.files.file"
         onStateChange={setTableURLState}
