@@ -420,6 +420,9 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         backend's storage.
 
         If an XCom cannot be deleted, this try fails and the task does not run.
+
+        Once the XComs are deleted, this also arms the execution timeout from the run context, since a
+        language SDK runtime does not tell the supervisor when the task starts running.
         """
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
@@ -438,6 +441,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 )
                 self.kill(signal.SIGKILL)
                 return None
+        if ti_context.execution_timeout is not None:
+            self._arm_execution_timeout(ti_context.execution_timeout)
         # The supervisor has already deleted the listed XComs, so it sends the runtime an empty list.
         # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
         # them a second time.

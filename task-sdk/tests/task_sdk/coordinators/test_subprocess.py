@@ -1150,6 +1150,41 @@ class TestPopenActivitySubprocessClearXComs:
         } in captured_logs
 
 
+class TestPopenActivitySubprocessExecutionTimeout:
+    @pytest.mark.parametrize(
+        ("execution_timeout", "killed"),
+        [
+            pytest.param(30.0, True, id="with-timeout"),
+            pytest.param(None, False, id="without-timeout"),
+        ],
+    )
+    @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+    @patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill", autospec=True)
+    @patch("time.monotonic", autospec=True, return_value=1.0)
+    def test_arms_execution_timeout_from_run_context(
+        self, mock_monotonic, mock_kill, execution_timeout, killed
+    ):
+        proc = _PopenActivitySubprocess(
+            process_log=MagicMock(),
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(spec=socket.socket),
+            process=MagicMock(),
+            client=MagicMock(),
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+
+        proc._prepare_ti_context(
+            _make_ti(),
+            TIRunContext.model_construct(execution_timeout=execution_timeout, xcom_keys_to_clear=[]),
+        )
+
+        mock_monotonic.return_value += 35
+        proc._handle_execution_timeout_if_needed()
+        assert mock_kill.called is killed
+
+
 class TestResolveArtifactBundle:
     """Execute-time resolution of the Dag bundle holding the artifacts."""
 

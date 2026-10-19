@@ -1740,9 +1740,6 @@ class ActivitySubprocess(WatchedSubprocess):
             return
         ti_context = prepared
 
-        if ti_context.execution_timeout is not None:
-            self._arm_execution_timeout(ti_context.execution_timeout)
-
         # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
         # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
         # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
@@ -2005,10 +2002,10 @@ class ActivitySubprocess(WatchedSubprocess):
         period is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
         For a Python task, ``SetExecutionTimeout`` arms the deadline right before ``execute()``, so bundle
-        loading and Dag parsing are not covered. For a task a language SDK runs, the ``execution_timeout``
-        the server sends in the run context arms it when the runtime starts, and a runtime that also sends
-        ``SetExecutionTimeout`` re-arms it right before running the task. Either way, the process is sent
-        SIGTERM ``killed_task_cleanup_time`` after the timeout elapses.
+        loading and Dag parsing are not covered; Dag parsing has its own ``dagbag_import_timeout``. For a
+        task a language SDK runs, the coordinator arms it from the run context once the runtime has
+        started. Either way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the timeout
+        elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return
