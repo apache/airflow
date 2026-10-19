@@ -78,14 +78,25 @@ from the same host name (for example ``https://lab.mycompany.com``, or ``localho
 and they share the same ``base_url`` path, they also share the authentication cookie: logging in to one
 instance logs you out of the others.
 
-To keep the sessions separate, give each instance its own path in ``[api] base_url``. Airflow scopes
-its authentication cookie to that path::
+To keep the sessions separate, give each instance its own path in ``[api] base_url``. Since Airflow 3.1.8,
+Airflow scopes its authentication cookie to that path (with the FAB auth manager, this also requires
+``apache-airflow-providers-fab`` 3.5.0 or later)::
 
     # instance serving production
     base_url = https://lab.mycompany.com/prod
 
     # instance serving development
     base_url = https://lab.mycompany.com/dev
+
+Paths that share a prefix, such as ``/airflow`` and ``/airflow_dev``, are fine: the cookie path always
+ends with ``/``, so the cookie of one instance is not sent to the other.
+
+.. warning::
+
+    Do not serve one instance at the root path (``/``) while other instances on the same host name use
+    sub-paths. The browser sends the root instance's cookie with every request to that host, so the other
+    instances read the root instance's token instead of their own, reject the request and clear the
+    cookies of both instances.
 
 Serving each instance from a different host name (for example ``prod.lab.mycompany.com`` and
 ``dev.lab.mycompany.com``) also keeps the cookies separate.
