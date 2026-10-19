@@ -620,21 +620,27 @@ observed server revision; conflicting refreshes must
 rediscover before retrying. Imports carry the accepted revision, so an older snapshot cannot
 publish after a changed inventory. Only accepted publications establish missing Dags within
 a file; rejected requests and incomplete discovery do not establish absence. Every
-``[scheduler] parsing_cleanup_interval``, the scheduler marks the Dags of inactive or unassigned
-bundles stale, removes stale warnings, and ends expired processor Jobs, in bounded batches and in
+``[scheduler] parsing_cleanup_interval``, the scheduler marks the Dags of inactive bundles stale,
+removes stale warnings, and ends expired processor Jobs, in bounded batches and in
 both modes.
 
 Callback and priority requests remain stored while claimed. A lost claim response or
-acknowledgment can be retried, and requests from a retired Job become available to another
-processor. A callback acknowledgment confirms delivery, not successful execution of user
-code. As with other at-least-once delivery, a crash after a callback's side effect and before
-acknowledgment can repeat that side effect. A graceful shutdown acknowledges finished work
-before the processor's Job ends. When a callback's bundle version cannot be
-prepared, the processor retries with backoff for up to ``[dag_processor] job_heartbeat_timeout``
-and then acknowledges the callback as failed. Priority requests are assigned to an import
-started after their requested refresh. Only that import's publication or terminal failure
-acknowledges the request; an older in-flight import cannot consume it. Discovery after the
-requested refresh can also acknowledge a request if it confirms the definition is absent.
+acknowledgment can be retried. Claims use increasing sequences per Job and work type; the
+client waits for a claim response before sending the next sequence for that type.
+Retrying an empty claim remains empty, even if work arrives
+afterward, and retrying an older claim cannot consume newly requested work. Requests from a
+retired Job become available to another processor. A callback acknowledgment confirms
+delivery, not successful execution of user code. As with other at-least-once delivery, a crash
+after a callback's side effect and before acknowledgment can repeat that side effect. A graceful
+shutdown acknowledges finished work before the processor's Job ends. When a callback's bundle
+version cannot be prepared, the processor retries with backoff for up to
+``[dag_processor] job_heartbeat_timeout``
+and then acknowledges the request without running the callback. Priority requests are assigned
+to an import started after their requested refresh. Only that import's publication or terminal
+failure acknowledges the request; an older in-flight import cannot consume it. Discovery after
+the requested refresh can also acknowledge a request if it confirms the definition is absent.
+A new request for a file already being imported remains pending for a subsequent import,
+even if the earlier import has not yet been acknowledged.
 
 The manager retains a bounded queue of pending publications. Each loop it sends queued
 publications and acknowledgments for up to a second, stopping at the first failure that may
