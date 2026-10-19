@@ -29,8 +29,8 @@ give it Airflow's toolsets with the
 
 .. note::
 
-    ``AirflowTools`` and the framework-neutral tool interface it builds on are
-    experimental. They may change in a minor release of this provider.
+    ``AirflowTools`` is experimental: it may change in a minor release of this provider.
+    The framework-neutral tool interface it builds on is stable.
     See :ref:`howto/stability`.
 
 Run a Strands agent in a task
@@ -296,7 +296,7 @@ Installation
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai "strands-agents>=1.56.0"
+    pip install "apache-airflow-providers-common-ai[sql]" "strands-agents>=1.56.0"
 
 Pin the ``strands-agents`` lower bound as above; 1.56 is the release this
 integration is tested with. Without a bound, a resolver that cannot satisfy Strands'

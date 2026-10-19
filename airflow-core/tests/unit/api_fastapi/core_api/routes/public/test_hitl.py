@@ -853,6 +853,95 @@ class TestUpdateHITLDetailEndpoint:
         }
 
     @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_response_for_a_replaced_request_is_refused(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+        session: Session,
+    ) -> None:
+        """A form loaded before the task asked again names the old request; it must not answer the new one."""
+        loaded = test_client.get(f"{sample_ti_url_identifier}/hitlDetails").json()["created_at"]
+        # The task asks again: core replaces the request, and with it created_at.
+        detail = session.get(HITLDetail, sample_ti.id)
+        assert detail is not None
+        detail.created_at = detail.created_at + timedelta(minutes=5)
+        session.commit()
+
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": {}, "request_created_at": loaded},
+        )
+
+        assert response.status_code == 409
+        assert "replaced after it was loaded" in response.json()["detail"]
+        session.expire_all()
+        unanswered = session.get(HITLDetail, sample_ti.id)
+        assert unanswered is not None
+        assert not unanswered.response_received
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_stale_response_to_an_answered_request_reports_it_answered(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+        session: Session,
+    ) -> None:
+        """Nothing is waiting, so the error must not tell the user to answer the waiting request."""
+        loaded = test_client.get(f"{sample_ti_url_identifier}/hitlDetails").json()["created_at"]
+        detail = session.get(HITLDetail, sample_ti.id)
+        assert detail is not None
+        detail.created_at = detail.created_at + timedelta(minutes=5)
+        session.commit()
+        answered = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+        )
+        assert answered.status_code == 200
+
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": {}, "request_created_at": loaded},
+        )
+
+        assert response.status_code == 409
+        assert "already been updated" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_naive_request_created_at_is_rejected(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+    ) -> None:
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "request_created_at": "2025-07-03T00:00:00"},
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_response_naming_the_waiting_request_is_applied(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+    ) -> None:
+        loaded = test_client.get(f"{sample_ti_url_identifier}/hitlDetails").json()["created_at"]
+
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={
+                "chosen_options": ["Approve"],
+                "params_input": {"input_1": 2},
+                "request_created_at": loaded,
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["chosen_options"] == ["Approve"]
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_422_with_empty_option(
         self,
         test_client: TestClient,

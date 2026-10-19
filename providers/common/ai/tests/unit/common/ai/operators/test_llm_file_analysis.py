@@ -95,12 +95,41 @@ class TestLLMFileAnalysisOperator:
             "model_id",
             "fallback_conn_ids",
             "system_prompt",
-            "agent_params",
+            "model_settings",
             "usage_limits",
             "file_path",
             "file_conn_id",
         }
         assert set(LLMFileAnalysisOperator.template_fields) == expected
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_builds_agent_with_model_settings_and_output_retries_only(
+        self, mock_build_request, mock_hook_cls
+    ):
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt", resolved_paths=["/tmp/app.log"], total_size_bytes=10
+        )
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result("Analysis complete")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMFileAnalysisOperator(
+            task_id="test",
+            prompt="Summarize the file",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.log",
+            model_settings={"temperature": 0},
+            output_retries=2,
+        )
+        op.execute(context={})
+
+        create_agent_kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert set(create_agent_kwargs) == {"output_type", "instructions", "model_settings", "retries"}
+        assert create_agent_kwargs["model_settings"] == {"temperature": 0}
+        assert create_agent_kwargs["retries"] == 2
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(

@@ -38,8 +38,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, with_row_locks
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -231,42 +231,45 @@ class Trigger(Base):
         return set(session.scalars(query))
 
     @classmethod
-    @provide_session
-    def clean_unused(cls, *, session: Session = NEW_SESSION) -> None:
+    def clean_unused(cls) -> None:
         """
-        Delete all triggers that have no tasks dependent on them and are not associated to an asset.
+        Delete up to one batch of triggers that have no dependent tasks, assets, or callbacks.
 
         Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
-        Afterward we can drop the triggers not referenced by anyone.
+        Afterward we can drop unreferenced triggers; later triggerer loops drain any remaining batches.
         """
-        # Update all task instances with trigger IDs that are not DEFERRED to remove them
+        batch_size = conf.getint("triggerer", "unreferenced_triggers_cleanup_batch_size", fallback=500)
+        if batch_size <= 0:
+            raise ValueError("[triggerer] unreferenced_triggers_cleanup_batch_size must be at least 1")
+
         for attempt in run_with_db_retries():
             with attempt:
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
+                with create_session(scoped=False) as session:
+                    # Update all task instances with trigger IDs that are not DEFERRED to remove them
+                    session.execute(
+                        update(TaskInstance)
+                        .where(
+                            TaskInstance.state != TaskInstanceState.DEFERRED,
+                            TaskInstance.trigger_id.is_not(None),
+                        )
+                        .values(trigger_id=None)
                     )
-                    .values(trigger_id=None)
-                )
+                    cls._delete_unused_batch(batch_size, session=session)
 
-        # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
-        ids = select(cls.id).where(
-            ~cls.assets.any(),
-            ~cls.callback.has(),
-            ~cls.task_instance.has(),
-        )
+    @classmethod
+    def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> None:
+        unreferenced = (~cls.assets.any(), ~cls.callback.has(), ~cls.task_instance.has())
+        ids = select(cls.id).where(*unreferenced).order_by(cls.id).limit(batch_size)
         ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
-        if get_dialect_name(session) == "mysql":
-            # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
-            ids_list = list(session.scalars(ids).all())
-            session.execute(
-                delete(Trigger).where(Trigger.id.in_(ids_list)).execution_options(synchronize_session=False)
-            )
-        else:
-            session.execute(
-                delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
-            )
+        ids_list = list(session.scalars(ids))
+        if not ids_list:
+            return
+
+        session.execute(
+            delete(cls)
+            .where(cls.id.in_(ids_list), *unreferenced)
+            .execution_options(synchronize_session=False)
+        )
 
     @classmethod
     @provide_session
@@ -305,9 +308,14 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
+    def submit_failure(
+        cls, trigger_id, exc=None, *, triggerer_id: int | None = None, session: Session = NEW_SESSION
+    ) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
+
+        With ``triggerer_id``, only act while that triggerer still owns the trigger: a reassigned
+        trigger is being run elsewhere, so a failure from its previous owner must not fail the task.
 
         Notably, we have to actually run the failure code from a worker as it may
         have linked callbacks, so hilariously we have to re-schedule the task
@@ -317,11 +325,12 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
         """
-        for task_instance in session.scalars(
-            select(TaskInstance).where(
-                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
-            )
-        ):
+        query = select(TaskInstance).where(
+            TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+        )
+        if triggerer_id is not None:
+            query = query.join(cls, cls.id == TaskInstance.trigger_id).where(cls.triggerer_id == triggerer_id)
+        for task_instance in session.scalars(query):
             # Add the error and set the next_method to the fail state
             if isinstance(exc, BaseException):
                 traceback = format_exception(type(exc), exc, exc.__traceback__)

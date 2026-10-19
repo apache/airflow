@@ -54,4 +54,24 @@ describe("DataTable column visibility", () => {
     expect(screen.getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Added" })).toBeNull();
   });
+
+  it("shows a column that cannot be hidden even when stored as hidden", () => {
+    localStorage.setItem("dataTable:pinned:columnVisibility", JSON.stringify({ Added: false, name: false }));
+
+    render(
+      <DataTable
+        columns={[
+          { accessorKey: "name", cell: () => "Name", enableHiding: false, header: "Name" },
+          { cell: () => "Added", header: "Added", id: "Added" },
+        ]}
+        data={[{ name: "John Doe" }]}
+        modelName="pinned"
+        total={1}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Added" })).toBeNull();
+  });
 });

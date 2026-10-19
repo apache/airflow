@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pytest
+from pydantic import BaseModel, Field, computed_field
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -108,6 +111,61 @@ def mock_ti(mock_supervisor_comms):
 @pytest.fixture
 def context(mock_ti):
     return {"task_instance": mock_ti}
+
+
+class _SerializationAliased(BaseModel):
+    user_name: str = Field(serialization_alias="userName")
+
+
+class _Computed(BaseModel):
+    a: int
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def double(self) -> int:
+        return self.a * 2
+
+
+class _NoSchema:
+    def __repr__(self):
+        return "no-schema"
+
+
+@dataclass
+class _UnresolvedForwardReference:
+    value: Missing  # type: ignore[name-defined]  # noqa: F821
+
+    def __repr__(self):
+        return "unresolved"
+
+
+class TestToString:
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            (["tag-a", "tag-b"], '["tag-a","tag-b"]'),
+            ([_SerializationAliased(user_name="kax")], '[{"user_name":"kax"}]'),
+            (_Computed(a=1), '{"a":1,"double":2}'),
+            (_NoSchema(), "no-schema"),
+            ([_NoSchema()], "[no-schema]"),
+            (_UnresolvedForwardReference(value=1), "unresolved"),
+        ],
+        ids=[
+            "list",
+            "serialization-aliased-list",
+            "computed-field-shown",
+            "no-schema-falls-back-to-str",
+            "unserializable-falls-back-to-str",
+            "unresolved-schema-falls-back-to-str",
+        ],
+    )
+    def test_to_string_dumps_json_or_falls_back_to_str(self, output, expected):
+        assert HITLReviewMixin._to_string(output) == expected
+
+    def test_warns_when_it_falls_back_to_str(self, caplog):
+        HITLReviewMixin._to_string(_NoSchema())
+
+        assert any("Cannot serialize a _NoSchema" in message for message in caplog.messages)
 
 
 class TestHITLReviewMixin:

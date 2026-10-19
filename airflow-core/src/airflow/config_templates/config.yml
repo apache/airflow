@@ -2067,7 +2067,7 @@ api:
       default: ~
     client_use_public_certs:
       description: |
-        Enable loading of public CA certificates from certifi into the client SSL context.
+        Enable trusting public CA certificates from the system trust store in the client SSL context.
       version_added: ~
       type: boolean
       example: ~
@@ -2949,8 +2949,10 @@ scheduler:
       default: "1000"
     use_job_schedule:
       description: |
-        Turn off scheduler use of cron intervals by setting this to ``False``.
-        DAGs submitted manually in the web UI or with trigger_dag will still run.
+        Set to ``False`` to stop the scheduler creating Dag runs on its own, whether a Dag is due
+        by its timetable or has received asset events. Manually triggered Dag runs and backfills
+        are still created. Asset events received while this is off stay queued and create their
+        runs once it is turned back on.
       version_added: 1.10.2
       type: boolean
       example: ~
@@ -3135,6 +3137,14 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    unreferenced_triggers_cleanup_batch_size:
+      description: |
+        Maximum number of unreferenced triggers deleted in one triggerer loop and database
+        transaction. Remaining triggers are handled in later triggerer loops. This value must be at least 1.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "500"
     on_kill_timeout:
       description: |
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete

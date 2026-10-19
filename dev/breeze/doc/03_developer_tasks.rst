@@ -331,7 +331,8 @@ the warnings go to stderr.
      breeze verify --base-ref main
 
 Each row says what kind of check it is, whether it runs on the host or needs Docker and the
-CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
+CI image (``breeze``), and the exact command. When there is no command to list, a single line
+says so instead of an empty table. Jobs CI runs on every PR regardless of the change
 (breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
 check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
 Static checks are not listed either: ``prek`` already picks the hooks to run for the changed files,

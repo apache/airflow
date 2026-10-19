@@ -35,7 +35,9 @@ toolsets, nested capabilities, and MCP toolsets. Output tools such as
 ``final_result`` and provider-native tools, including native MCP, are not
 covered by Airflow's real-time tool-call logging. Tools added by another
 capability through its own wrapper toolset, such as ToolSearch's
-``search_tools`` and CodeMode's ``run_code``, are also not covered.
+``search_tools`` and CodeMode's ``run_code``, are also not covered. A tool hidden with
+``.defer_loading()`` is logged once the model finds it, and its result is masked like
+any other (see :doc:`progressive_disclosure`).
 
 ``AgentOperator`` adds ``ToolLoggingCapability`` automatically when
 ``enable_tool_logging=True``. If ``capabilities=`` already contains one,

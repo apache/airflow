@@ -20,20 +20,14 @@ Framework-neutral tools backed by Airflow connections.
 An :class:`AirflowTool` is one operation an agent can call: a name, a
 description, a JSON Schema for its arguments, and an async function. Nothing in
 it belongs to a particular agent framework, so the same tool can be handed to
-Strands Agents, Google ADK or LangChain through a small adapter, while the agent
-itself stays native to that framework.
+Strands Agents, Google ADK, LangChain, the Anthropic SDK's tool runner or the OpenAI
+Agents SDK through a small adapter, while the agent itself stays native to that framework.
 
 The toolsets this provider ships, such as
 :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` and
 :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`, implement
 :class:`ToolProvider` and expose their tools through
 :meth:`ToolProvider.airflow_tools`.
-
-.. note::
-
-    Experimental: this interface can change or be removed in a minor release of this
-    provider.
-    See :ref:`howto/stability`.
 """
 
 from __future__ import annotations

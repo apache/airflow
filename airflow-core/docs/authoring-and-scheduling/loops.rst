@@ -51,7 +51,7 @@ function. Supply a positive integer ``max_iterations`` to limit the number of
 iterations. An optional ``until`` callable decides when to stop early.
 
 Airflow evaluates ``until`` in a gate task downstream of the body's terminal task.
-It must return a ``bool``:
+It must return a ``bool``, or a ``LoopDecision`` as described in :ref:`loops-decision-reason`:
 
 * ``True`` means stop: the condition has been met.
 * ``False`` means continue, provided another iteration is allowed.
@@ -109,6 +109,27 @@ give another loop a different ``group_id``:
 .. exampleinclude:: /../src/airflow/example_dags/example_task_loops.py
    :start-after: [START partial_override_loop]
    :end-before: [END partial_override_loop]
+
+.. _loops-decision-reason:
+
+Explain a decision
+------------------
+
+As well as a ``bool``, ``until`` can return a ``LoopDecision``, which lets you provide free text
+for display to users in the UI. The text is shown as plain text: HTML and Markdown are not rendered.
+
+Returning a ``LoopDecision(stop=..., reason=...)`` instead of a ``bool`` lets you include more
+detailed information about why the loop continued or finished. ``stop`` has the same meaning as the
+plain ``bool`` return value. The ``reason`` field is optional text, written by the Dag author, that
+the Airflow UI shows next to the iteration's outcome, for example ``error 0.17, needs < 1e-06``. It
+is limited to 512 bytes of UTF-8; anything longer will result in the gate task failing outright. This
+decision will then show up in the UI on Task Instance Details section of the gate task.
+
+The reason is also recorded when the loop fails because it reached ``max_iterations`` without
+stopping.
+
+The ``accurate_enough`` condition in the ``refine_estimate`` example above returns a
+``LoopDecision``, so each iteration of that loop shows its error next to its outcome.
 
 Read the loop context
 =====================
@@ -179,6 +200,7 @@ task's latest iteration.
 Limitations:
 
 * ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull; see :ref:`loops-outside-result`.
+* A Dag that uses a loop needs an XCom backend that supports loops. The default backend does. If your backend does not, for example a custom one written before loops existed, the Dag fails with an error when it is parsed and again when a task starts. See Custom XCom Backends in :doc:`/core-concepts/xcoms`.
 * The experimental DagRun wait API also requires an outside-loop result task. Marking a loop member as the Dag result raises ``ValueError`` while the Dag is parsed, and the wait API rejects results selected directly from a loop member. Mark a task outside the loop as the result instead, for example one that returns the last element of a loop task's results. See :ref:`dag-result`.
 
 Connect a loop to other tasks
@@ -293,9 +315,10 @@ counts iterations.
 
 An exception in ``until`` fails the gate task and appears in its logs; the
 gate is retried according to ``retries``. An ``until`` that returns anything
-other than a ``bool``, and a loop that reaches its iteration limit without
-meeting ``until``, fail the gate without retrying, because a retry would see the
-same result. In the second case the final gate fails; downstream tasks with the
+other than a ``bool`` or a valid ``LoopDecision``, a reason longer than 512
+bytes, and a loop that reaches its iteration limit without meeting ``until``,
+fail the gate without retrying, because a retry would see the same result. When
+the loop reaches its limit, the final gate fails; downstream tasks with the
 default ``all_success`` trigger rule will not run, as described under
 non-convergence above.
 

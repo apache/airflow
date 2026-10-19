@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.serialization.definitions.dag import SerializedDAG, SerializedOperator
+    from airflow.utils.sqlalchemy import UUIDSelect
 
 
 LOOP_GATE_OPERATOR = "LoopGateOperator"
@@ -113,7 +114,9 @@ def get_public_map_index(task_instance: TaskInstance, *, session: Session) -> in
     if task_instance.region_id == SENTINEL_REGION_ID:
         return task_instance.region_index
     return session.execute(
-        select(public_map_index_expression(TaskInstance)).where(TaskInstance.id == task_instance.id)
+        select(public_map_index_expression(TaskInstance))
+        .where(TaskInstance.id == task_instance.id)
+        .execution_options(include_all_attempts=True)
     ).scalar_one()
 
 
@@ -361,7 +364,7 @@ class TaskCoordinateResolver:
         run_id: str,
         task_ids: Collection[str],
         slots: Collection[tuple[str, int]],
-    ) -> Select[tuple[UUID]]:
+    ) -> UUIDSelect:
         """Select, in one statement, the region-less task instances that the named tasks or slots address."""
         targets = []
         if task_ids:
@@ -730,7 +733,7 @@ class TaskCoordinateResolver:
 
     def select_skip_target_ids(
         self, *, caller: TaskInstance, task_id: str, map_indexes: int | None = None
-    ) -> Select[tuple[UUID]]:
+    ) -> UUIDSelect:
         """
         Select the task instance ids a skip request from ``caller`` reaches for ``task_id``.
 
@@ -765,7 +768,7 @@ class TaskCoordinateResolver:
             map_indexes=map_indexes,
         )
 
-    def _select_loop_producer_ids(self, request: _ProducerRequest) -> Select[tuple[UUID]]:
+    def _select_loop_producer_ids(self, request: _ProducerRequest) -> UUIDSelect:
         if TYPE_CHECKING:
             assert request.loop_node_id is not None
         return select_loop_producer_ids(
@@ -789,7 +792,7 @@ class TaskCoordinateResolver:
         map_indexes: int | Collection[int] | None = None,
         previous_iteration: bool = False,
         all_iterations: bool = False,
-    ) -> Select[tuple[UUID]]:
+    ) -> UUIDSelect:
         """Select the task instance ids :meth:`resolve` returns, without loading the producers."""
         if region_index is not None and region_id is None:
             raise ValueError("region_index requires an explicit producer region_id")

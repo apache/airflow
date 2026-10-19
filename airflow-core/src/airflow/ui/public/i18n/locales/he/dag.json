@@ -6,6 +6,7 @@
     "title": "תלויות החוסמות את תזמון המשימה"
   },
   "calendar": {
+    "backfill": "השלמה למפרע",
     "daily": "יומי",
     "hourly": "שעתי",
     "legend": {
@@ -42,6 +43,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "חייב להסתיים תוך {{interval}} מ-{{reference}}",
+    "completionRuleDynamic": "חייב להסתיים תוך מרווח זמן משתנה מ-{{reference}}",
     "count_one": "מועד אחד",
     "count_other": "{{count, number}} מועדים",
     "count_two": "{{count, number}} מועדים",
@@ -94,10 +96,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "מסך מלא",
-      "tooltip": "לחץ {{hotkey}} למסך מלא"
-    },
     "info": "INFO",
     "noTryNumber": "אין מספר ניסיון",
     "search": {
@@ -106,8 +104,43 @@
       "placeholder": "חפש רישומים..."
     },
     "settings": "הגדרות רישום",
+    "tryNotStarted": "הניסיון הזה עדיין לא התחיל.",
+    "viewFailedTry": "הצג יומנים של ניסיון {{tryNumber}} שנכשל",
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
+    "viewPreviousTry": "הצג יומנים של ניסיון קודם {{tryNumber}}",
+    "waitingToRetry": "ניסיון {{tryNumber}} ממתין לניסיון חוזר.",
     "warning": "WARNING"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "מגבלה: {{max}}",
+      "iterationsAxis": "איטרציות",
+      "stats": {
+        "capHits": "הגיעו למגבלה",
+        "medianIterations": "חציון איטרציות"
+      },
+      "title": "איטרציות לכל הרצה"
+    },
+    "iterationLabel": "איטרציה {{index}}",
+    "iterations": "איטרציות",
+    "outcome": "תוצאה",
+    "reason": {
+      "cap_reached": "הגיע למגבלת האיטרציות ({{max}})",
+      "failed": "נכשל באיטרציה {{index}}",
+      "iteration_failed": "איטרציה {{index}} נכשלה ב-{{taskId}}",
+      "ran_to_cap": "הריץ את כל {{max}} האיטרציות המותרות",
+      "removed": "הוסר",
+      "running": "בריצה",
+      "skipped": "דולג",
+      "stopped_early": "נעצר מוקדם באיטרציה {{index}}"
+    },
+    "rules": {
+      "behaviour": "התנהגות",
+      "boundedFor": "מריץ מספר קבוע של איטרציות",
+      "exitCriteria": "תנאי יציאה",
+      "maxIterations": "מספר איטרציות מרבי",
+      "whileUntil": "חוזר עד ש-{{criteria}}"
+    }
   },
   "notFound": {
     "back": "חזור",
@@ -128,9 +161,9 @@
       "failedTaskInstance_two": "מופעי משימות שנכשלו"
     },
     "charts": {
-      "assetEvent_one": "אירוע בנכס שנוצר",
-      "assetEvent_other": "אירועי בנכסים שנוצרו",
-      "assetEvent_two": "אירועים בנכסים שנוצרו"
+      "assetEvent_one": "אירוע נכס שנוצר",
+      "assetEvent_other": "אירועי נכס שנוצרו",
+      "assetEvent_two": "אירועי נכס שנוצרו"
     },
     "deadlines": {
       "showAll": "הצג הכל",
@@ -154,13 +187,7 @@
       "label": "מספר הרצות Dag"
     },
     "dependencies": {
-      "label": "תלויות",
-      "options": {
-        "allDagDependencies": "כל תלויות ה-Dag",
-        "externalConditions": "תנאים חיצוניים",
-        "onlyTasks": "משימות בלבד"
-      },
-      "placeholder": "תלויות"
+      "allDagDependencies": "כל התלויות של ה-Dag"
     },
     "graphDirection": {
       "label": "כיוון התרשים"
@@ -236,6 +263,7 @@
     "taskInstances": "מופעי משימות",
     "taskStateStore": "מאגר מצבי משימות",
     "tasks": "משימות",
+    "versions": "גרסאות",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -253,6 +281,9 @@
     "deleteWarning": "המשימה תאבד את הזיכרון השמור הזה. אם המשימה משתמשת במפתח זה למעקב אחר עבודה חיצונית (לדוגמה, מזהה עבודה חיצוני), היא לא תוכל להמשיך אותה.",
     "edit": "ערוך מאגר מצבי משימות",
     "emptyStore": "מאגר מצבי המשימות שומר ערכים הנשמרים בין ניסיונות חוזרים. עובדים יכולים לכתוב למאגר מצבי המשימות באמצעות Task SDK.",
+    "entry_one": "רשומה",
+    "entry_other": "רשומות",
+    "entry_two": "רשומות",
     "expiresAt": {
       "column": "תקף עד",
       "custom": "מותאם אישית",
@@ -261,5 +292,68 @@
       "never": "לעולם לא"
     },
     "title": "מאגר מצבי משימות"
+  },
+  "versions": {
+    "aboutThisComparison": "מידע על ההשוואה",
+    "base": "השווה מתוך",
+    "categories": {
+      "asset": "נכס",
+      "authorization": "הרשאה",
+      "callback": "קריאה חוזרת",
+      "deadline": "מועד יעד",
+      "dependency": "תלות",
+      "metadata": "מטא-נתונים",
+      "param": "פרמטר",
+      "provenance": "מקור",
+      "schedule": "תזמון",
+      "task": "משימה",
+      "unknown": "לא ידוע"
+    },
+    "codeAccess": "הערכים דורשים גישה לקוד ה-Dag",
+    "columns": {
+      "after": "אחרי",
+      "before": "לפני",
+      "category": "קטגוריה",
+      "impact": "השפעה",
+      "occurrences": "מופעים",
+      "operation": "פעולה",
+      "path": "נתיב"
+    },
+    "heading": "גרסה {{base}} → גרסה {{target}}",
+    "impacts": {
+      "authorization": "הרשאה",
+      "execution": "ביצוע",
+      "metadata": "מטא-נתונים",
+      "provenance": "מקור",
+      "unknown": "לא ידוע"
+    },
+    "maxChanges": "מספר השינויים המרבי",
+    "maxChangesDefault": "ברירת מחדל",
+    "noChanges": "הגרסאות האלה מכילות את אותו מצב.",
+    "observedStateBoundary": "ההשוואה מתייחסת למצב המאוחסן כעת, ולא לראיות מזמן היצירה. אין אפשרות להשוות את המקור בגרסאות היסטוריות; השתמש בכרטיסייה Code כדי להשוות את המקור.",
+    "operations": {
+      "added": "נוסף",
+      "changed": "השתנה",
+      "removed": "הוסר"
+    },
+    "record_one": "רשומה",
+    "record_other": "רשומות",
+    "record_two": "רשומות",
+    "schemaChange": "סכימה לאחר סריאליזציה {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "בחר שתי גרסאות כדי לראות את ההבדלים ביניהן.",
+    "summary_one": "{{count, number}} שינוי",
+    "summary_other": "{{count, number}} שינויים",
+    "summary_two": "{{count, number}} שינויים",
+    "target": "השווה אל",
+    "truncated": {
+      "description": "שינויים בנתיבים שלא הוצגו הושמטו כדי לעמוד במגבלה, ולכן הספירה היא חסם תחתון.",
+      "title": "חלק מהשינויים לא הוחזרו"
+    },
+    "unavailable": {
+      "description": "לא ניתן להשוות בין הגרסאות האלה. סיבה:",
+      "title": "ההשוואה אינה זמינה",
+      "withoutReason": "לא ניתן להשוות בין הגרסאות האלה."
+    },
+    "valuesHidden": "הערכים מוסתרים"
   }
 }

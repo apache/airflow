@@ -25,6 +25,8 @@ import inspect
 import re
 import types
 import warnings
+from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
 
 from pydantic_ai.exceptions import ModelRetry
@@ -58,6 +60,50 @@ _TYPE_MAP: dict[type, dict[str, Any]] = {
 }
 
 _BASE64_PARAM_NOTE = "Provide this value base64-encoded."
+_DATETIME_PARAM_NOTE = "An ISO 8601 date-time with a UTC offset, such as 2026-09-01T00:00:00Z."
+
+
+def _decode_base64(value: str) -> bytes:
+    # Whitespace never carries data, so line-wrapped base64 is accepted. validate=True
+    # because the default discards any other character outside the alphabet instead of
+    # failing, which would store the wrong bytes without a word.
+    return base64.b64decode("".join(value.split()), validate=True)
+
+
+def _parse_aware_datetime(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value)
+    if parsed.utcoffset() is None:
+        # A naive value is ambiguous: S3Hook.list_keys and GCSHook.list_by_timespan raise
+        # TypeError comparing it with an aware time, other hooks assume UTC for it.
+        raise ValueError(f"{value!r} has no UTC offset")
+    return parsed
+
+
+@dataclass(frozen=True)
+class _StringEncoding:
+    """How a parameter type JSON cannot carry is sent as a string, and turned back."""
+
+    schema: dict[str, Any]
+    """The JSON Schema of the string."""
+    note: str
+    """Added to the parameter's description."""
+    expected: str
+    """What the value must be, for the retry prompt."""
+    decode: Callable[[str], Any]
+    """Raises ``ValueError`` for a value it cannot decode."""
+
+
+_STRING_ENCODINGS: dict[type, _StringEncoding] = {
+    bytes: _StringEncoding(
+        {"type": "string"}, _BASE64_PARAM_NOTE, "base64-encoded binary data", _decode_base64
+    ),
+    datetime: _StringEncoding(
+        {"type": "string", "format": "date-time"},
+        _DATETIME_PARAM_NOTE,
+        "an ISO 8601 date-time with a UTC offset",
+        _parse_aware_datetime,
+    ),
+}
 
 
 class HookToolset(AirflowToolset):
@@ -82,7 +128,7 @@ class HookToolset(AirflowToolset):
         (``"s3_"`` → ``"s3_list_keys"``, ``"s3"`` → ``"s3list_keys"``) and not validated.
         Passing it with ``tool_prefix`` raises ``ValueError`` unless it equals
         ``"<tool_prefix>_"``.
-    :param pinned_arguments: Experimental. Arguments the Dag author fixes, such as the bucket a
+    :param pinned_arguments: Arguments the Dag author fixes, such as the bucket a
         storage hook may use: ``{"bucket_name": "reports"}``. Each is left out of the
         arguments the model sees, refused if the model supplies it anyway, and passed to
         every allowed method as it is written here, not rendered as a template. Every allowed
@@ -175,7 +221,7 @@ class HookToolset(AirflowToolset):
         if conn_attr is None or not hasattr(hook, conn_attr):
             conn_attr = "conn_id" if hasattr(hook, "conn_id") else None
         self._conn_attr = conn_attr
-        self._bytes_params = {
+        self._encoded_params = {
             method_name: _introspect_signature(getattr(hook, method_name))[1]
             for method_name in allowed_methods
         }
@@ -208,7 +254,7 @@ class HookToolset(AirflowToolset):
             method = getattr(self._hook, method_name)
             tool_name = f"{self._name_prefix}{method_name}"
 
-            json_schema, bytes_params = _introspect_signature(method)
+            json_schema, encoded_params = _introspect_signature(method)
             description = _extract_description(method)
             param_docs = _parse_param_docs(method.__doc__ or "")
             properties = json_schema["properties"]
@@ -220,10 +266,10 @@ class HookToolset(AirflowToolset):
             # After the loop above, which would otherwise overwrite the note. The encoding is
             # stated in the description rather than as ``contentEncoding``: Gemini drops that
             # keyword, and pydantic-ai passes it through to OpenAI strict mode.
-            for param_name in bytes_params:
+            for param_name, encoding in encoded_params.items():
                 existing = properties[param_name].get("description")
                 properties[param_name]["description"] = (
-                    f"{existing} {_BASE64_PARAM_NOTE}" if existing else _BASE64_PARAM_NOTE
+                    f"{existing} {encoding.note}" if existing else encoding.note
                 )
             _drop_properties(json_schema, self._pinned)
             # The validator accepts the pinned names, with any value, so a model that sends one
@@ -254,18 +300,20 @@ class HookToolset(AirflowToolset):
                 args_validator=build_args_validator(args_schema),
                 # Refused during validation, so an approval gate never asks about such a call.
                 args_validator_func=(
-                    functools.partial(self._validate_args, bytes_params)
-                    if self._pinned or bytes_params
+                    functools.partial(self._validate_args, encoded_params)
+                    if self._pinned or encoded_params
                     else None
                 ),
             )
         return tools
 
-    def _validate_args(self, bytes_params: frozenset[str], ctx: RunContext[Any], /, **tool_args: Any) -> None:
+    def _validate_args(
+        self, encoded_params: dict[str, _StringEncoding], ctx: RunContext[Any], /, **tool_args: Any
+    ) -> None:
         self._refuse_pinned(ctx, **tool_args)
-        # Only checked here: the decoded bytes are not kept, so what the toolset chain passes
-        # on, and CachingToolset fingerprints, stays JSON.
-        _decode_bytes_args(tool_args, bytes_params)
+        # Only checked here: the decoded values are not kept, so what the toolset chain passes
+        # on, and the durable journal fingerprints, stays JSON.
+        _decode_string_args(tool_args, encoded_params)
 
     def _refuse_pinned(self, ctx: RunContext[Any], /, **tool_args: Any) -> None:
         if supplied := sorted(self._pinned.keys() & tool_args.keys()):
@@ -288,9 +336,9 @@ class HookToolset(AirflowToolset):
         # The framework bridges validate arguments without args_validator_func, so check again here.
         self._refuse_pinned(ctx, **tool_args)
         # Decoded here rather than in the args validator: validated arguments travel the whole
-        # toolset chain, and CachingToolset fingerprints them with a plain json.dumps, so bytes
-        # upstream of this point would make every binary call unverifiable on durable replay.
-        tool_args = _decode_bytes_args(tool_args, self._bytes_params[method_name])
+        # toolset chain, and the durable journal fingerprints them with a plain json.dumps, so bytes
+        # or datetimes upstream of this point would make such calls unverifiable on durable replay.
+        tool_args = _decode_string_args(tool_args, self._encoded_params[method_name])
         # A copy per call, so a method that modifies an argument it is given cannot change the pin.
         result = await self.run_blocking(method, **tool_args, **copy.deepcopy(self._pinned))
         return serialize_for_llm(result)
@@ -329,31 +377,41 @@ def _python_type_to_json_schema(annotation: Any) -> dict[str, Any]:
     return dict(schema) if schema else {}
 
 
-def _resolves_to_bytes(annotation: Any) -> bool:
-    """Whether ``annotation`` is ``bytes`` or ``bytes | None``."""
-    if annotation is bytes:
-        return True
+def _string_encoding(annotation: Any) -> _StringEncoding | None:
+    """Return the encoding of ``annotation`` when it is ``T`` or ``T | None`` for a ``T`` in ``_STRING_ENCODINGS``."""
     if get_origin(annotation) in (types.UnionType, Union):
         non_none = [arg for arg in get_args(annotation) if arg is not type(None)]
-        return len(non_none) == 1 and _resolves_to_bytes(non_none[0])
-    return False
+        return _string_encoding(non_none[0]) if len(non_none) == 1 else None
+    return _STRING_ENCODINGS.get(annotation)
 
 
-def _decode_bytes_args(tool_args: dict[str, Any], bytes_params: frozenset[str]) -> dict[str, Any]:
-    """Decode the base64 strings the model supplied for ``bytes``-typed parameters."""
+def _string_encoded_schema(annotation: Any, encoding: _StringEncoding) -> dict[str, Any]:
+    """Return ``encoding.schema`` for ``T``, and it or null for ``T | None``."""
+    if get_origin(annotation) in (types.UnionType, Union):
+        return {
+            "anyOf": [
+                {"type": "null"} if arg is type(None) else _string_encoded_schema(arg, encoding)
+                for arg in get_args(annotation)
+            ]
+        }
+    return dict(encoding.schema)
+
+
+def _decode_string_args(
+    tool_args: dict[str, Any], encoded_params: dict[str, _StringEncoding]
+) -> dict[str, Any]:
+    """Decode the strings the model supplied for parameters of a type JSON cannot carry."""
     decoded = dict(tool_args)
-    for name in bytes_params & tool_args.keys():
+    for name in encoded_params.keys() & tool_args.keys():
         value = tool_args[name]
         if not isinstance(value, str):
             continue
+        encoding = encoded_params[name]
         try:
-            # Whitespace never carries data, so line-wrapped base64 is accepted. validate=True
-            # because the default discards any other character outside the alphabet instead of
-            # failing, which would store the wrong bytes without a word.
-            decoded[name] = base64.b64decode("".join(value.split()), validate=True)
+            decoded[name] = encoding.decode(value)
         except ValueError as e:
             # ModelRetry asks the model to correct the call; a ValueError would fail the run.
-            raise ModelRetry(f"Parameter {name!r} must be base64-encoded binary data: {e}.") from e
+            raise ModelRetry(f"Parameter {name!r} must be {encoding.expected}: {e}.") from e
     return decoded
 
 
@@ -380,19 +438,21 @@ def _resolve_annotations(method: Callable[..., Any]) -> dict[str, Any]:
     return hints
 
 
-def _introspect_signature(method: Callable[..., Any]) -> tuple[dict[str, Any], frozenset[str]]:
+def _introspect_signature(
+    method: Callable[..., Any],
+) -> tuple[dict[str, Any], dict[str, _StringEncoding]]:
     """
-    Build ``method``'s JSON Schema and the names of its ``bytes``-typed parameters.
+    Build ``method``'s JSON Schema and the string encoding of each parameter that needs one.
 
-    Both come from one pass, so the parameters described to the model as base64 are
-    exactly the ones decoded on the way back.
+    Both come from one pass, so the parameters described to the model as an encoded
+    string are exactly the ones decoded on the way back.
     """
     sig = inspect.signature(method)
     hints = _resolve_annotations(method)
 
     properties: dict[str, Any] = {}
     required: list[str] = []
-    bytes_params: set[str] = set()
+    encoded_params: dict[str, _StringEncoding] = {}
     allows_additional_properties = False
 
     for name, param in sig.parameters.items():
@@ -405,10 +465,13 @@ def _introspect_signature(method: Callable[..., Any]) -> tuple[dict[str, Any], f
             continue
 
         annotation = hints.get(name, param.annotation)
-        prop = _python_type_to_json_schema(annotation)
-        properties[name] = prop
-        if _resolves_to_bytes(annotation):
-            bytes_params.add(name)
+        if encoding := _string_encoding(annotation):
+            # Only here, not in _TYPE_MAP: a datetime nested in a list is not decoded, so it is
+            # not described as an encoded string either.
+            properties[name] = _string_encoded_schema(annotation, encoding)
+            encoded_params[name] = encoding
+        else:
+            properties[name] = _python_type_to_json_schema(annotation)
 
         if param.default is inspect.Parameter.empty:
             required.append(name)
@@ -418,7 +481,7 @@ def _introspect_signature(method: Callable[..., Any]) -> tuple[dict[str, Any], f
         schema["required"] = required
     if allows_additional_properties:
         schema["additionalProperties"] = True
-    return schema, frozenset(bytes_params)
+    return schema, encoded_params
 
 
 def _extract_description(method: Callable[..., Any]) -> str:
