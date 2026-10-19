@@ -35,11 +35,13 @@ from airflowctl.api.datamodels.generated import (
     ConnectionTestResponse,
     DAGPatchBody,
     DagSchedulingState,
+    PoolPatchBody,
 )
 from airflowctl.api.operations import (
     ConnectionsOperations,
     DagRunOperations,
     DagsOperations,
+    PoolsOperations,
     ServerResponseError,
 )
 from airflowctl.ctl import cli_parser
@@ -1130,7 +1132,6 @@ class TestCliConfigMethods:
     @pytest.mark.parametrize(
         ("extra_argv", "expected_body"),
         [
-            pytest.param([], DAGPatchBody(), id="omitted-flag-does-not-unpause"),
             pytest.param(
                 ["--scheduling-state", "paused"],
                 DAGPatchBody(scheduling_state=DagSchedulingState.PAUSED),
@@ -1142,12 +1143,53 @@ class TestCliConfigMethods:
     )
     @mock.patch.object(AirflowConsole, "print_as", autospec=True)
     @mock.patch.object(DagsOperations, "update", autospec=True)
-    def test_dags_update_omitted_is_paused_stays_unset(
+    def test_dags_update_sends_only_given_state(
         self, mocked_update, mocked_print_as, extra_argv, expected_body
     ):
-        """Omitting ``--is-paused``/``--no-is-paused`` must not send ``is_paused=False`` and unpause the Dag."""
         args = cli_parser.get_parser().parse_args(["dags", "update", "my_dag", *extra_argv])
 
         args.func(args, api_client=mock.MagicMock(spec=Client))
 
         assert mocked_update.call_args.kwargs["dag_body"] == expected_body
+
+    @pytest.mark.parametrize(
+        "extra_argv",
+        [
+            pytest.param([], id="no-state-does-not-unpause"),
+            pytest.param(["--is-paused", "--scheduling-state", "paused"], id="both-states"),
+        ],
+    )
+    @mock.patch.object(DagsOperations, "update", autospec=True)
+    def test_dags_update_requires_exactly_one_state(self, mocked_update, extra_argv):
+        args = cli_parser.get_parser().parse_args(["dags", "update", "my_dag", *extra_argv])
+
+        with pytest.raises(
+            SystemExit, match="exactly one of --is-paused / --no-is-paused or --scheduling-state"
+        ):
+            args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        mocked_update.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_include_deferred"),
+        [
+            pytest.param([], None, id="omitted-flag-keeps-stored-value"),
+            pytest.param(["--include-deferred"], True, id="explicit-include"),
+            pytest.param(["--no-include-deferred"], False, id="explicit-exclude"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(PoolsOperations, "update", autospec=True)
+    def test_pools_update_omitted_include_deferred_stays_unset(
+        self, mocked_update, mocked_print_as, extra_argv, expected_include_deferred
+    ):
+        """Omitting ``--include-deferred`` must not send ``include_deferred=False`` and turn it off."""
+        args = cli_parser.get_parser().parse_args(
+            ["pools", "update", "--pool", "p", "--slots", "10", *extra_argv]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_update.call_args.kwargs["pool_body"] == PoolPatchBody(
+            pool="p", slots=10, include_deferred=expected_include_deferred
+        )
