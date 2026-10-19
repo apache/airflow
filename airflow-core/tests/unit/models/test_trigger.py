@@ -27,7 +27,7 @@ import pytest
 import pytz
 import sqlalchemy as sa
 from cryptography.fernet import Fernet
-from sqlalchemy import delete, event, func, insert, select, update
+from sqlalchemy import delete, event, func, insert, select, text, update
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
@@ -53,7 +53,7 @@ from airflow.triggers.base import (
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
@@ -121,6 +121,20 @@ def test_fetch_trigger_ids_with_non_task_associations(session):
     session.commit()
     results = Trigger.fetch_trigger_ids_with_non_task_associations()
     assert results == {asset_trigger.id, callback_trigger.id}
+
+
+@pytest.mark.backend("sqlite")
+def test_clean_unused_callback_lookup_uses_callback_trigger_index(session):
+    with capture_orm_selects("trigger") as statements:
+        Trigger._delete_unused_batch(500, session=session)
+    plan = [
+        row[-1]
+        for statement in statements
+        for row in session.execute(text(f"EXPLAIN QUERY PLAN {statement.removesuffix(' FOR UPDATE')}")).all()
+    ]
+
+    assert statements
+    assert any("callback" in row and "idx_callback_trigger_id" in row for row in plan), plan
 
 
 def test_fetch_assignments_maps_surviving_rows_to_their_triggerer(session):
