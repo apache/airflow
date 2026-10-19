@@ -354,23 +354,24 @@ def _coerce_temporal(mapping: dict[str, Any], target: type) -> dict[str, Any]:
     """
     Coerce scalars to datetime or time delta types expected by *target*.
 
-    Coercion follows how each argument is typed in the argument list.
+    Coercion follows how each argument is typed in the argument list. A value
+    bound to ``datetime`` is promoted to a datetime. A YAML date becomes
+    midnight. An ISO string is parsed
 
-    A value bound to ``datetime`` is promoted to a datetime. A YAML date becomes
-    midnight. An ISO string is parsed.
+    A value bound to ``date`` is parsed from an ISO string; a YAML date or
+    datetime is passed through, so a datetime keeps its time rather than being
+    narrowed.
 
-    A value bound to ``date`` becomes a plain date. A YAML date or date-time is
-    returned unchanged.
+    A value bound to ``timedelta``, ``relativedelta``, or ``pendulum.Duration``
+    is parsed from a duration string.
 
-    A value bound to ``timedelta`` or ``relativedelta`` is parsed from a
-    duration string.
+    The concrete type follows the annotation. A ``pendulum`` annotation
+    (``DateTime``, ``Date``, or ``Duration``) yields a Pendulum value, and a
+    standard library or ``dateutil`` annotation yields a value of that type. A
+    datetime passed to a ``date`` argument is the one exception, keeping its
+    stdlib type.
 
-    The concrete type follows the annotation. A ``pendulum.DateTime`` or
-    ``pendulum.Date`` argument gets a Pendulum value. A standard library
-    :class:`~datetime.date` or :class:`~datetime.datetime` gets a stdlib value.
-
-    An argument of neither type is left untouched, so a string that merely looks
-    like a date or duration keeps its type.
+    An argument of none of these types is left untouched.
     """
     coercer = _FieldCoercer.for_target(target)
     return {key: coercer.coerce(key, value) for key, value in mapping.items()}
@@ -396,7 +397,7 @@ class _FieldCoercer(dict):
     # Date arguments, stdlib or pendulum.
     _DATE_TYPE_NAMES = frozenset({"date", "Date"})
     # Time-delta arguments, stdlib timedelta or dateutil relativedelta.
-    _DELTA_TYPE_NAMES = frozenset({"timedelta", "relativedelta"})
+    _DELTA_TYPE_NAMES = frozenset({"timedelta", "relativedelta", "Duration"})
 
     # ISO 8601 duration format.
     _ISO_DURATION_RE = re.compile(
@@ -481,47 +482,85 @@ class _FieldCoercer(dict):
 
     @classmethod
     def _match_delta_annotation(cls, annotation: str) -> frozenset[str]:
-        """Check if *annotation* names a duration delta type."""
+        """Return the duration delta type names *annotation* mentions, stdlib, dateutil, or pendulum."""
         names = (ref.rsplit(".", 1)[-1] for ref in cls._TYPE_NAME_RE.findall(annotation))
         return frozenset(name for name in names if name in cls._DELTA_TYPE_NAMES)
 
     @classmethod
     def _to_delta(cls, value: Any, allowed: frozenset[str]) -> Any:
         """
-        Parse a duration string into a ``timedelta`` or ``relativedelta``.
+        Parse a duration string into a Python type.
 
-        An ISO-8601 format duration (e.g. ``P1DT6H``, ``P1Y2M``) is accepted for
-        both stdlib timedelta and dateutil relativedelta arguments; a short form
-        (``5m``, ``1h30m``) is also accepted for timedelta. Years and months
-        need a relativedelta, so an ISO duration carrying them is left untouched
-        unless relativedelta is allowed.
+        This can produce a :class:`datetime.timedelta`,
+        :class:`dateutil.relativedelta.relativedelta`, or ``pendulum.Duration``.
 
-        A value that does not parse as a duration string is returned unchanged.
+        An ISO-8601 format duration (e.g. ``P1DT6H``, ``P1Y2M``) and a short
+        form (``5m``, ``1h30m``) are accepted. A value that cannot be parsed
+        into the target duration type is returned unchanged.
+
+        The short form does not support specifying years or months. Similarly,
+        when ``timedelta`` is the only accepted duration type on an argument, an
+        ISO duration string carrying year or month components would be left
+        unparsed. A ``relativedelta`` or ``pendulum.Duration`` argument would
+        accept those components, so the same ISO duration string would be parsed.
+
+        The concrete type follows the annotation. When more than one annotated
+        type can hold the value, a ``timedelta`` is preferred for a value without
+        years or months, and a ``relativedelta`` over a ``pendulum.Duration`` for
+        years and months (which ``pendulum.Duration`` only approximates).
         """
         if not isinstance(value, str):
             return value
         if (parts := cls._parse_iso_duration(value)) is not None:
             if parts["years"] or parts["months"]:
-                return cls._as_relativedelta(parts) if "relativedelta" in allowed else value
+                if "relativedelta" in allowed:
+                    return cls._as_relativedelta(parts)
+                if "Duration" in allowed:
+                    return cls._as_duration(parts)
+                return value
             if "timedelta" in allowed:
-                return datetime.timedelta(
-                    weeks=parts["weeks"],
-                    days=parts["days"],
-                    hours=parts["hours"],
-                    minutes=parts["minutes"],
-                    seconds=parts["seconds"],
-                )
+                return cls._as_timedelta(parts)
+            if "Duration" in allowed:
+                return cls._as_duration(parts)
             if "relativedelta" in allowed:
                 return cls._as_relativedelta(parts)
             return value
-        if "timedelta" in allowed and (parts := cls._parse_short_duration(value)) is not None:
-            return datetime.timedelta(**parts)
+        if (parts := cls._parse_short_duration(value)) is not None:
+            if "timedelta" in allowed:
+                return datetime.timedelta(**parts)
+            if "Duration" in allowed:
+                return pendulum.Duration(**parts)
+            return value
         return value
 
     @classmethod
     def _as_relativedelta(cls, parts: dict[str, int]) -> relativedelta:
         """Build a relativedelta from duration component ints."""
         return relativedelta(
+            years=parts["years"],
+            months=parts["months"],
+            weeks=parts["weeks"],
+            days=parts["days"],
+            hours=parts["hours"],
+            minutes=parts["minutes"],
+            seconds=parts["seconds"],
+        )
+
+    @classmethod
+    def _as_timedelta(cls, parts: dict[str, int]) -> datetime.timedelta:
+        """Build a timedelta from duration component ints (years/months ignored)."""
+        return datetime.timedelta(
+            weeks=parts["weeks"],
+            days=parts["days"],
+            hours=parts["hours"],
+            minutes=parts["minutes"],
+            seconds=parts["seconds"],
+        )
+
+    @classmethod
+    def _as_duration(cls, parts: dict[str, int]) -> pendulum.Duration:
+        """Build a pendulum.Duration from duration component ints."""
+        return pendulum.Duration(
             years=parts["years"],
             months=parts["months"],
             weeks=parts["weeks"],

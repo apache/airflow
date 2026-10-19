@@ -115,12 +115,14 @@ class _PeriodOperator(BaseOperator):
         gap: datetime.timedelta | None = None,
         window: relativedelta | None = None,
         either: datetime.timedelta | relativedelta | None = None,
+        span: pendulum.Duration | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.gap = gap
         self.window = window
         self.either = either
+        self.span = span
 
 
 OP_PERIOD = f"{__name__}.{_PeriodOperator.__name__}"
@@ -384,6 +386,27 @@ def test_import_coerces_relativedelta_with_arg(mock_bundle):
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert result.success, result.errors
     assert result.dags[0].get_task("a").window == relativedelta(years=1, months=2)
+
+
+def test_import_coerces_pendulum_duration_with_arg(mock_bundle):
+    # a pendulum.Duration arg accepts the short form and an ISO duration carrying
+    # years/months (which a timedelta cannot represent)
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(
+            f"- {{id: a, uses: {OP_PERIOD}, with: {{span: 5m}}}}\n"
+            f"- {{id: b, uses: {OP_PERIOD}, with: {{span: P1Y2M}}}}",
+        ),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    span_a = result.dags[0].get_task("a").span
+    span_b = result.dags[0].get_task("b").span
+    assert type(span_a) is pendulum.Duration
+    assert span_a == pendulum.Duration(minutes=5)
+    assert type(span_b) is pendulum.Duration
+    assert (span_b.years, span_b.months) == (1, 2)
 
 
 def test_import_period_union_picks_type_by_components(mock_bundle):
