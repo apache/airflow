@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ChangeEvent, KeyboardEvent } from "react";
+
 import { Box, Input, Text } from "@chakra-ui/react";
-import type { ChangeEvent } from "react";
 import { MdClose } from "react-icons/md";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
+
 import type { ValidationError } from "src/hooks/useDateRangeFilter";
 
 type DateInputProps = {
+  readonly disabled?: boolean;
   readonly field: "end" | "start";
   readonly getBorderColor: (field: ValidationError["field"]) => string;
   readonly getFieldError: (field: ValidationError["field"]) => ValidationError | undefined;
@@ -35,12 +38,14 @@ type DateInputProps = {
   readonly inputValue: string;
   readonly label: string;
   readonly onClear: () => void;
+  readonly onCommit?: () => void;
   readonly onDateBlur?: () => void;
   readonly onFocus?: () => void;
   readonly placeholder: string;
 };
 
 export const DateInput = ({
+  disabled,
   field,
   getBorderColor,
   getFieldError,
@@ -49,11 +54,17 @@ export const DateInput = ({
   inputValue,
   label,
   onClear,
+  onCommit,
   onDateBlur,
   onFocus,
   placeholder,
 }: DateInputProps) => {
   const fieldName = inputType === "date" ? field : (`${field}Time` as const);
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      onCommit?.();
+    }
+  };
 
   return (
     <Box flex="1">
@@ -64,16 +75,18 @@ export const DateInput = ({
         <Input
           _focus={{ borderColor: "brand.focusRing" }}
           borderColor={getBorderColor(fieldName)}
+          disabled={disabled}
           fontSize="sm"
           fontWeight="medium"
           onBlur={onDateBlur}
           onChange={handleInputChange(field, inputType)}
           onFocus={onFocus}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           value={inputValue}
           w="full"
         />
-        {Boolean(inputValue) && (
+        {Boolean(inputValue) && !Boolean(disabled) && (
           <IconButton
             aria-label={`Clear ${field} ${inputType}`}
             onClick={(event) => {

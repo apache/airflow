@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { JSX, ReactNode } from "react";
+
 import { chakra } from "@chakra-ui/react";
 import Anser, { type AnserJsonEntry } from "anser";
-import type { JSX, ReactNode } from "react";
 
 const fixBackspace = (inputText: string): string => {
   let tmp = inputText;
@@ -59,11 +60,7 @@ const createClass = (bundle: AnserJsonEntry): string | undefined => {
     classNames += `ansi-${bundle.decoration} `;
   }
 
-  if (classNames === "") {
-    return undefined;
-  }
-
-  return classNames.slice(0, classNames.length - 1);
+  return classNames === "" ? undefined : classNames.slice(0, classNames.length - 1);
 };
 
 // Map RGB values to Chakra UI semantic tokens

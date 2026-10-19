@@ -16,37 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  createListCollection,
-  Flex,
-  Popover,
-  Portal,
-  Select,
-  type SelectValueChangeDetails,
-  VStack,
-} from "@chakra-ui/react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
+
+import { Box, Flex, Popover, Portal, Select, type SelectValueChangeDetails, VStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useRef, type RefObject, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
 import { LuChartGantt } from "react-icons/lu";
 import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
-import type { ImperativePanelGroupHandle } from "react-resizable-panels";
+import type { GroupImperativeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
+
+import {
+  IconButton,
+  Switch,
+  Tooltip,
+  type ButtonGroupOption,
+  ButtonGroupToggle,
+} from "src/system-components";
 
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
-import { IconButton, Switch } from "src/components/ui";
-import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+
 import type { DagView } from "src/constants/dagView";
 import { SHOW_ALL_DEPENDENCIES_KEY } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
-import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
 import { RunTypeLegend } from "./Grid/RunTypeLegend";
@@ -54,38 +52,38 @@ import { GridFilters } from "./GridFilters";
 import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 import { VersionIndicatorSelect } from "./VersionIndicatorSelect";
+import { getWidthBasedConfig } from "./runLimitConfig";
 
 type Props = {
+  readonly containerWidth: number;
   readonly dagView: DagView;
   readonly limit: number;
-  readonly panelGroupRef: RefObject<ImperativePanelGroupHandle | null>;
+  readonly panelGroupRef: RefObject<GroupImperativeHandle | null>;
   readonly setDagView: (value: DagView) => void;
   readonly setLimit: (value: number) => void;
   readonly setShowVersionIndicatorMode: Dispatch<SetStateAction<VersionIndicatorOptions>>;
   readonly showVersionIndicatorMode: VersionIndicatorOptions;
 };
 
-const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) => {
-  const breakpoints = enableResponsiveOptions
-    ? [
-        { limit: 100, min: 1600, options: ["1", "5", "10", "25", "50"] }, // xl: extra large screens
-        { limit: 25, min: 1024, options: ["1", "5", "10", "25"] }, // lg: large screens
-        { limit: 10, min: 384, options: ["1", "5", "10"] }, // md: medium screens
-        { limit: 5, min: 0, options: ["1", "5"] }, // sm: small screens and below
-      ]
-    : [{ limit: 5, min: 0, options: ["1", "5", "10", "25", "50"] }];
-
-  const config = breakpoints.find(({ min }) => width >= min) ?? breakpoints[breakpoints.length - 1];
-
-  return {
-    displayRunOptions: createListCollection({
-      items: config?.options.map((value) => ({ label: value, value })) ?? [],
-    }),
-    limit: config?.limit ?? 5,
-  };
-};
+/**
+ * The options popover's trigger. Tooltip and popover each need their own element: both set an `id` on
+ * whatever they wrap and zag resolves a trigger by id, so sharing one element leaves the loser unable
+ * to find its anchor and positioning at the viewport origin.
+ */
+const OptionsTrigger = ({ label }: { readonly label: string }) => (
+  <Tooltip content={label} portalled>
+    <Box display="flex">
+      <Popover.Trigger asChild>
+        <IconButton aria-label={label} bg="bg" variant="outline">
+          <MdSettings />
+        </IconButton>
+      </Popover.Trigger>
+    </Box>
+  </Tooltip>
+);
 
 export const PanelButtons = ({
+  containerWidth,
   dagView,
   limit,
   panelGroupRef,
@@ -102,8 +100,6 @@ export const PanelButtons = ({
     SHOW_ALL_DEPENDENCIES_KEY,
     false,
   );
-  const containerRef = useRef<HTMLDivElement>(null);
-  const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
     const runLimit = Number(event.value[0]);
 
@@ -112,20 +108,14 @@ export const PanelButtons = ({
 
   const enableResponsiveOptions = dagView === "gantt";
 
-  const { displayRunOptions, limit: defaultLimit } = getWidthBasedConfig(
-    containerWidth,
-    enableResponsiveOptions,
-  );
-
-  useEffect(() => {
-    if (enableResponsiveOptions && limit > defaultLimit) {
-      setLimit(defaultLimit);
-    }
-  }, [defaultLimit, enableResponsiveOptions, limit, setLimit]);
+  const { displayRunOptions } = getWidthBasedConfig(containerWidth, enableResponsiveOptions);
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
-      const newLayout = view === "graph" ? [70, 30] : [30, 70];
+      const newLayout =
+        view === "graph"
+          ? { "details-panel": 30, "main-panel": 70 }
+          : { "details-panel": 70, "main-panel": 30 };
 
       panelGroupRef.current.setLayout(newLayout);
       // Used setTimeout to ensure DOM has been updated
@@ -179,24 +169,27 @@ export const PanelButtons = ({
   });
 
   return (
-    <Box bg="bg" pr={4} ref={containerRef} width="100%" zIndex={1}>
+    <Box position="relative" width="100%" zIndex={1}>
       <Flex justifyContent="space-between">
-        <ButtonGroupToggle isIcon onChange={handleDagViewChange} options={dagViewOptions} value={dagView} />
+        <ButtonGroupToggle
+          bg="bg"
+          borderRadius="md"
+          isIcon
+          onChange={handleDagViewChange}
+          options={dagViewOptions}
+          value={dagView}
+        />
         <Flex alignItems="center" gap={1} justifyContent="space-between">
-          <ToggleGroups />
-          <TaskStreamFilter />
+          {dagView !== "graph" && <RunTypeLegend />}
+          <ToggleGroups bg="bg" borderRadius="md" />
           {dagView === "graph" && <GraphTaskFilters />}
+          <TaskStreamFilter />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
-            <Popover.Trigger asChild>
-              <IconButton label={translate("dag:panel.buttons.options")}>
-                <MdSettings />
-              </IconButton>
-            </Popover.Trigger>
+            <OptionsTrigger label={translate("dag:panel.buttons.options")} />
             <Portal>
               <Popover.Positioner>
                 <Popover.Content>
-                  <Popover.Arrow />
                   <Popover.Body
                     display="flex"
                     flexDirection="column"
@@ -266,11 +259,8 @@ export const PanelButtons = ({
       </Flex>
 
       {dagView !== "graph" && (
-        <Flex justifyContent="space-between" mt={1}>
+        <Flex justifyContent="space-between" mt={2}>
           <GridFilters />
-          <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>
-            <RunTypeLegend />
-          </Flex>
         </Flex>
       )}
     </Box>

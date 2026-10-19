@@ -18,10 +18,11 @@
  */
 /// <reference types="@testing-library/jest-dom" />
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { HITLDetailHistory, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { HITLResponseForm } from "./HITLResponseForm";
@@ -37,8 +38,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+const { updateHITLResponse } = vi.hoisted(() => ({ updateHITLResponse: vi.fn() }));
+
 vi.mock("src/queries/useUpdateHITLDetail", () => ({
-  useUpdateHITLDetail: () => ({ updateHITLResponse: vi.fn() }),
+  useUpdateHITLDetail: () => ({ updateHITLResponse }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -173,5 +176,35 @@ describe("HITLResponseForm – pending-state enablement", () => {
     });
     expect(screen.getByTestId("hitl-option-Yes")).toBeDisabled();
     expect(screen.getByTestId("hitl-option-No")).toBeDisabled();
+  });
+});
+
+describe("HITLResponseForm – the answer names the request it was given for", () => {
+  it("sends the created_at of the request the form was loaded for", () => {
+    updateHITLResponse.mockClear();
+    const loaded = "2026-10-14T01:00:00.123456Z";
+
+    renderForm(["Approve", "Reject"], { created_at: loaded });
+    fireEvent.click(screen.getByTestId("hitl-option-Approve"));
+
+    expect(updateHITLResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ chosen_options: ["Approve"], request_created_at: loaded }),
+    );
+  });
+
+  it("keeps the loaded created_at when the request under an open form is replaced", () => {
+    updateHITLResponse.mockClear();
+    const loaded = "2026-10-14T01:00:00.123456Z";
+    const { rerender } = renderForm(["Approve", "Reject"], { created_at: loaded });
+
+    // The task asked again while the form stayed open; a polled refetch hands the form the new request.
+    rerender(
+      <HITLResponseForm
+        hitlDetail={makeHITLDetail(["Approve", "Reject"], { created_at: "2026-10-14T01:05:00.000000Z" })}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("hitl-option-Approve"));
+
+    expect(updateHITLResponse).toHaveBeenCalledWith(expect.objectContaining({ request_created_at: loaded }));
   });
 });

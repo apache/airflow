@@ -173,7 +173,7 @@ Filter → "Filtrer"
 
 - Match tone, style, gender agreement, and casing from existing `fr/*.json` files
 - Use formal French ("vous" form) throughout
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{type}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{type}}`, etc.
 - Apply correct French elision (d', l', j', etc.)
 - Provide all needed plural suffixes (`_one`, `_many`, `_other`) for each key
 

@@ -16,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { useEffect, useState, type ReactNode } from "react";
+
+import { Heading, Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { MdError } from "react-icons/md";
 
 import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import ReactMarkdown from "../ReactMarkdown";
-import { Accordion } from "../ui";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 
@@ -38,14 +38,14 @@ const FlatSection = ({
   readonly title: string;
 }) => (
   <Stack gap={2}>
-    <Text color={hasError ? "fg.error" : undefined} fontWeight="medium">
+    <Heading color={hasError ? "fg.error" : undefined} size="lg">
       {title}
       {hasError ? (
         <Icon color="fg.error" margin="-1" ml={1}>
           <MdError />
         </Icon>
       ) : undefined}
-    </Text>
+    </Heading>
     {children}
   </Stack>
 );
@@ -76,7 +76,6 @@ export type FlexibleFormProps = {
   readonly isHITL?: boolean;
   readonly key?: string;
   readonly namespace?: string;
-  readonly noAccordion?: boolean;
   readonly setError: (error: boolean) => void;
   readonly subHeader?: string;
 };
@@ -88,7 +87,6 @@ export const FlexibleForm = ({
   initialParamsDict,
   isHITL,
   namespace = "default",
-  noAccordion,
   setError,
   subHeader,
 }: FlexibleFormProps) => {
@@ -135,132 +133,51 @@ export const FlexibleForm = ({
     setError(Boolean(error) || newSectionError.size > 0);
   };
 
-  if (noAccordion) {
-    return Object.keys(params).length > 0 ? (
-      <>
-        {Object.entries(params).map(([, secParam]) => {
-          const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
-
-          if (processedSections.has(currentSection)) {
-            return undefined;
-          }
-          processedSections.set(currentSection, true);
-
-          return (
-            <FlatSection
-              hasError={Boolean(sectionError.get(currentSection))}
-              key={currentSection}
-              title={currentSection}
-            >
-              {Boolean(subHeader) ? (
-                <Text color="fg.muted" fontSize="xs">
-                  {subHeader}
-                </Text>
-              ) : undefined}
-              <Stack separator={<StackSeparator py={2} />}>
-                {Boolean(flexFormDescription) ? (
-                  <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
-                ) : undefined}
-                {Object.entries(params)
-                  .filter(
-                    ([, param]) =>
-                      param.schema.section === currentSection ||
-                      (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
-                  )
-                  .map(([name]) => (
-                    <Row key={name} name={name} namespace={namespace} onUpdate={onUpdate} />
-                  ))}
-              </Stack>
-            </FlatSection>
-          );
-        })}
-      </>
-    ) : isHITL ? (
-      <FlatSection
-        hasError={Boolean(sectionError.get(flexibleFormDefaultSection))}
-        title={flexibleFormDefaultSection}
-      >
-        {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
-      </FlatSection>
-    ) : undefined;
-  }
-
   return Object.keys(params).length > 0 ? (
-    Object.entries(params).map(([, secParam]) => {
-      const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
+    <>
+      {Object.entries(params).map(([, secParam]) => {
+        const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
 
-      if (processedSections.has(currentSection)) {
-        return undefined;
-      } else {
+        if (processedSections.has(currentSection)) {
+          return undefined;
+        }
         processedSections.set(currentSection, true);
 
         return (
-          <Accordion.Item
-            // We need to make the item content overflow visible for dropdowns to work, but directly applying the style does not work
-            css={{
-              "& > div:nth-of-type(1)": {
-                overflow: "visible",
-              },
-            }}
+          <FlatSection
+            hasError={Boolean(sectionError.get(currentSection))}
             key={currentSection}
-            value={currentSection}
+            title={currentSection}
           >
-            <Accordion.ItemTrigger cursor="button">
-              <Text color={sectionError.get(currentSection) ? "fg.error" : undefined}>{currentSection}</Text>
-              {sectionError.get(currentSection) ? (
-                <Icon color="fg.error" margin="-1">
-                  <MdError />
-                </Icon>
+            {Boolean(subHeader) ? (
+              <Text color="fg.muted" fontSize="xs">
+                {subHeader}
+              </Text>
+            ) : undefined}
+            <Stack separator={<StackSeparator py={2} />}>
+              {Boolean(flexFormDescription) ? (
+                <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
               ) : undefined}
-            </Accordion.ItemTrigger>
-
-            <Accordion.ItemContent pt={0}>
-              <Accordion.ItemBody>
-                {Boolean(subHeader) ? (
-                  <Text color="fg.muted" fontSize="xs" mb={2}>
-                    {subHeader}
-                  </Text>
-                ) : undefined}
-                <Stack separator={<StackSeparator py={2} />}>
-                  {Boolean(flexFormDescription) ? (
-                    <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
-                  ) : undefined}
-                  {Object.entries(params)
-                    .filter(
-                      ([, param]) =>
-                        param.schema.section === currentSection ||
-                        (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
-                    )
-                    .map(([name]) => (
-                      <Row key={name} name={name} namespace={namespace} onUpdate={onUpdate} />
-                    ))}
-                </Stack>
-              </Accordion.ItemBody>
-            </Accordion.ItemContent>
-          </Accordion.Item>
+              {Object.entries(params)
+                .filter(
+                  ([, param]) =>
+                    param.schema.section === currentSection ||
+                    (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
+                )
+                .map(([name]) => (
+                  <Row key={name} name={name} namespace={namespace} onUpdate={onUpdate} />
+                ))}
+            </Stack>
+          </FlatSection>
         );
-      }
-    })
+      })}
+    </>
   ) : isHITL ? (
-    <Accordion.Item key={flexibleFormDefaultSection} value={flexibleFormDefaultSection}>
-      <Accordion.ItemTrigger cursor="button">
-        <Text color={sectionError.get(flexibleFormDefaultSection) ? "fg.error" : undefined}>
-          {flexibleFormDefaultSection}
-        </Text>
-        {sectionError.get(flexibleFormDefaultSection) ? (
-          <Icon color="fg.error" margin="-1">
-            <MdError />
-          </Icon>
-        ) : undefined}
-      </Accordion.ItemTrigger>
-
-      <Accordion.ItemContent pt={0}>
-        <Accordion.ItemBody>
-          <Stack separator={<StackSeparator py={2} />}>
-            {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
-          </Stack>
-        </Accordion.ItemBody>
-      </Accordion.ItemContent>
-    </Accordion.Item>
+    <FlatSection
+      hasError={Boolean(sectionError.get(flexibleFormDefaultSection))}
+      title={flexibleFormDefaultSection}
+    >
+      {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
+    </FlatSection>
   ) : undefined;
 };

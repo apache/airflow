@@ -18,6 +18,7 @@
  */
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
+
 import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 import { BasePage } from "./BasePage";

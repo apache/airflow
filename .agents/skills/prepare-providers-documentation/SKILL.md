@@ -680,7 +680,11 @@ breeze release-management update-providers-next-version
 ```
 
 This rewrites every `# use next version` dependency to the just-bumped
-version of the referenced provider and removes the comment.
+version of the referenced provider and removes the comment. Pins whose
+referenced provider already has a final release tag are left alone (the
+"next version" is then a future release); when only release candidate tags
+exist the pin is updated with a warning, revert it if that provider is in
+vote rather than re-cut in this release.
 
 > [!IMPORTANT]
 > **Run this every time, before opening the PR — even when you believe no
@@ -691,6 +695,14 @@ version of the referenced provider and removes the comment.
 > next version" step in `dev/README_RELEASE_PROVIDERS.md` — it lives between
 > doc preparation and PR creation, so it is easy to forget when the skill
 > hands back to the regular release workflow.
+
+The command only resolves pins an author marked. While classifying, also
+note every PR that starts importing a symbol from another provider (most often
+`common.compat`) and check that the importing provider's floor is at least
+the first release that shipped it, even when the importing provider is not in
+this wave. If it is not, raise the floor in this PR and tell the release
+manager. The recipe is in "Update versions of dependent providers to the next
+version" in `dev/README_RELEASE_PROVIDERS.md`.
 
 **Provider dependency-bump CI guard.** Every `>=` bump this produces (and any
 inter-provider `>=` bump made during the wave, e.g. a `breaking` provider that
@@ -792,6 +804,13 @@ provider-by-provider:
   packages and versions from the PR diff (Phase 4b). Reviewers reliably catch
   all of these, so fix them before handing off.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
+- **List every provider in this wave that is an initial release** (no prior
+  release tag — the Phase 1 `note`/`error` case) and remind the release
+  manager that each needs an entry in the `apache/airflow-site` docs index:
+  open that PR before publishing the docs, merge it after.
+  `breeze workflow-run publish-docs --site-env live` fails while a provider is
+  neither in the index nor added by an open PR. Follow
+  [Update airflow-site index for new providers](../../../dev/README_RELEASE_PROVIDERS.md#update-airflow-site-index-for-new-providers).
 
 Stop here. Do not commit, do not push — the release manager opens the PR
 themselves following the regular release workflow in
@@ -901,6 +920,28 @@ git diff --name-only <base-branch>..HEAD -- '**/provider.yaml' \
 - **Bucket B — not in the wave.** The provider has unrecorded commits but no
   new version section, so it is a candidate to *join*. Classify it
   (Incremental Phase 3), then take it to **Incremental Phase 3.6**.
+- **Bucket C — in the wave but no longer warranting a release.** The sweep
+  above only finds commits *missing* from a wave; this bucket is the opposite
+  direction, and nothing else in the flow looks for it. A provider that review
+  has since concluded is internal-only or documentation-only still carries the
+  version bump and changelog section written by the initial run, so it would
+  still be built and uploaded to PyPI. Find these by re-reading the entries of
+  each in-wave provider's newest changelog section: if every entry is
+  `Doc-only`, or review reclassified the last remaining non-doc entry as
+  documentation, the provider should leave the wave.
+
+  Drop it back with the dedicated command rather than editing the files by
+  hand — it restores `provider.yaml` and `changelog.rst` to their released
+  state and writes the marker in one step:
+
+  ```bash
+  breeze release-management prepare-provider-documentation --mark-doc-only <provider-id>
+  ```
+
+  Then commit `providers/<provider-path>/docs/.latest-doc-only-change.txt`.
+  **Ask the release manager before doing it** — taking a provider out of a wave
+  is their decision, and a `Misc` entry that merely *looks* internal may still
+  be something they want released.
 
 Most Bucket B rows are ordinary noise — repo-wide tooling and test commits
 that correctly keep a provider out of the release. A Bucket B provider whose

@@ -26,7 +26,7 @@ Releasing Airflow with security patches
 ---------------------------------------
 
 Apache Airflow uses a strict `SemVer <https://semver.org>`_ versioning policy, which means that we strive for
-any release of a given ``MAJOR`` Version (version "2" currently) to be backwards compatible. When we
+any release of a given ``MAJOR`` Version (version "3" currently) to be backwards compatible. When we
 release a ``MINOR`` version, the development continues in the ``main`` branch where we prepare the next
 ``MINOR`` version, but we release ``PATCHLEVEL`` releases with selected bugfixes (including security
 bugfixes) cherry-picked to the latest released ``MINOR`` line of Apache Airflow. At the moment, when we

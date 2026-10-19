@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field, Stack, Textarea, Input, InputGroup } from "@chakra-ui/react";
 import { useState } from "react";
+
+import { Field, Stack, Textarea, Input, InputGroup } from "@chakra-ui/react";
 import { type Control, Controller } from "react-hook-form";
 
 import { PasswordToggle } from "src/components/PasswordToggle";
+
 import type { StandardFieldSpec } from "src/queries/useConnectionTypeMeta";
 
 import type { ConnectionBody } from "./Connections";
@@ -34,7 +36,7 @@ const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <Stack pb={3} pl={3} pr={3}>
+    <Stack>
       {Object.entries(standardFields).map(([key, fields]) => {
         if (Boolean(fields.hidden)) {
           return undefined;

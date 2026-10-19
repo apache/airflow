@@ -532,6 +532,22 @@ class TestConfigLint:
         assert "Invalid value" not in normalized_output
 
     @pytest.mark.parametrize(
+        ("expose_config", "expect_issue"),
+        [
+            pytest.param("non-sensitive-only", True, id="deprecated-value"),
+            pytest.param("True", False, id="boolean-value"),
+        ],
+    )
+    def test_lint_detects_deprecated_expose_config_value(self, expose_config, expect_issue, stdout_capture):
+        with conf_vars({("api", "expose_config"): expose_config}), stdout_capture as temp_stdout:
+            config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+        normalized_output = re.sub(r"\s+", " ", temp_stdout.getvalue().strip())
+        expected_message = "Invalid value `non-sensitive-only` set for `expose_config` configuration parameter in `api` section."
+
+        assert (expected_message in normalized_output) is expect_issue
+
+    @pytest.mark.parametrize(
         ("remove_if_equals", "config_value", "expect_issue"),
         [
             pytest.param("removed_value", "removed_value", True, id="match"),
@@ -626,6 +642,29 @@ class TestCliConfigUpdate:
 
         current_cfg = cfg_file.read_text()
         assert initial_config in current_cfg, "Dry-run should not modify the config file."
+
+    @conf_vars({("core", "executor"): "SequentialExecutor"})
+    def test_update_config_dry_run_does_not_touch_filesystem(self, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        cfg_file.write_text("[core]\nexecutor = SequentialExecutor\n")
+
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+        monkeypatch.setattr(conf, "write_custom_config", lambda file, **kwargs: file.write("preview_config"))
+
+        def read_only_copy2(src, dst):
+            raise OSError("Read-only file system")
+
+        monkeypatch.setattr(shutil, "copy2", read_only_copy2)
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(["config", "update", "--all-recommendations"])
+
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+        assert "preview_config" in output
+        assert "Backup saved as" not in output
+        assert not (tmp_path / "airflow.cfg.bak").exists()
 
     @conf_vars({("core", "executor"): "SequentialExecutor"})
     def test_update_config_all_options_fix(self, tmp_path, monkeypatch, capsys):

@@ -27,6 +27,45 @@
 Changelog
 ---------
 
+6.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Look up task logs by task try UUID (#74204)``
+* ``Fix Elasticsearch and OpenSearch response wrapper bugs (#73725)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+6.9.1
+.....
+
+Misc
+~~~~
+
+* ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 6.9.0
 .....
 

@@ -20,6 +20,7 @@ import { useParams } from "react-router-dom";
 
 import { useGridServiceGetDagStructure } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 
@@ -65,19 +66,25 @@ export const useGridStructure = ({
     value: triggeringUser,
   });
 
-  const { data: dagStructure, ...rest } = useGridServiceGetDagStructure({
-    dagId,
-    depth,
-    includeDownstream,
-    includeUpstream,
-    limit,
-    orderBy: ["-run_after"],
-    root,
-    ...runIdPatternArg,
-    runType: runType ? [runType] : undefined,
-    state: dagRunState ? [dagRunState] : undefined,
-    ...triggeringUserArg,
-  });
+  const { data: dagStructure, ...rest } = useGridServiceGetDagStructure(
+    {
+      dagId,
+      depth,
+      includeDownstream,
+      includeUpstream,
+      limit,
+      orderBy: ["-run_after"],
+      root,
+      ...runIdPatternArg,
+      runType: runType ? [runType] : undefined,
+      state: dagRunState ? [dagRunState] : undefined,
+      ...triggeringUserArg,
+    },
+    undefined,
+    // The global Task Instances page has no Dag, and asking for the structure of an empty id
+    // is a request that cannot answer anything.
+    { enabled: Boolean(dagId) },
+  );
 
   return { data: dagStructure, ...rest };
 };

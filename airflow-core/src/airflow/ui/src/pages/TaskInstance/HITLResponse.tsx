@@ -23,15 +23,20 @@ import {
   useTaskInstanceServiceGetHitlDetailTryDetail,
   useTaskInstanceServiceGetMappedTaskInstance,
 } from "openapi/queries";
+
+import { ProgressBar } from "src/system-components";
+
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { ProgressBar } from "src/components/ui";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
 
 export const HITLResponse = () => {
   const { dagId, mapIndex, runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
 
   const refetchInterval = useAutoRefresh({ dagId });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,6 +46,7 @@ export const HITLResponse = () => {
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
     {
+      ...coordinates,
       dagId: dagId ?? "",
       dagRunId: runId ?? "",
       mapIndex: parsedMapIndex,
@@ -49,7 +55,7 @@ export const HITLResponse = () => {
     undefined,
     {
       enabled: !isNaN(parsedMapIndex),
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 
@@ -66,6 +72,7 @@ export const HITLResponse = () => {
 
   const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetailTryDetail(
     {
+      ...coordinates,
       dagId: dagId ?? "",
       dagRunId: runId ?? "",
       mapIndex: parsedMapIndex,
@@ -92,7 +99,7 @@ export const HITLResponse = () => {
           taskInstance={taskInstance}
         />
       )}
-      <HITLResponseForm hitlDetail={hitlDetail} />
+      <HITLResponseForm hitlDetail={hitlDetail} key={hitlDetail.created_at} />
     </Box>
   );
 };

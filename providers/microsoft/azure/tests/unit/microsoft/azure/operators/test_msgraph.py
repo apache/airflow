@@ -27,8 +27,14 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, Context
-from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
+from airflow.providers.common.compat.sdk import AirflowException, Context, TaskDeferred, timezone
+from airflow.providers.microsoft.azure.operators.msgraph import (
+    COMPLETED_KEY,
+    CURSOR_KEY,
+    PAGE_KEY_PREFIX,
+    MSGraphAsyncOperator,
+    execute_callable,
+)
 from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
@@ -40,10 +46,35 @@ from unit.microsoft.azure.test_utils import (
     patch_hook_and_request_adapter,
 )
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[no-redef]
+
+class TaskStateStore:
+    """In-memory stand-in for ``context["task_state_store"]``."""
+
+    def __init__(self, **values):
+        self.values = dict(values)
+        self.reads: list[str] = []
+
+    def get(self, key, default=None):
+        self.reads.append(key)
+        return self.values.get(key, default)
+
+    def set(self, key, value, *, retention=None):
+        self.values[key] = value
+
+
+def users_event(name: str) -> dict[str, Any]:
+    users = load_json_from_resources(dirname(__file__), "..", "resources", name)
+    return {"status": "success", "type": "builtins.dict", "response": json.dumps(users)}
+
+
+def users_operator(**kwargs) -> MSGraphAsyncOperator:
+    return MSGraphAsyncOperator(
+        task_id="users_delta",
+        conn_id="msgraph_api",
+        url="users/delta()",
+        result_processor=lambda result, **context: result.get("value"),
+        **kwargs,
+    )
 
 
 class TestMSGraphAsyncOperator:
@@ -342,6 +373,84 @@ class TestMSGraphAsyncOperator:
         assert trigger.data == data
         assert trigger.scopes == scopes
 
+    def test_trigger_next_link_forwards_the_path_parameters(self):
+        path_parameters = {"user_id": "48d31887-5fad-4d73-a9f5-3c356e68a038", "mailFolder_id": "inbox"}
+        operator = MSGraphAsyncOperator(
+            task_id="messages",
+            conn_id="msgraph_api",
+            url="users/{user_id}/mailFolders/{mailFolder_id}/messages",
+            path_parameters=path_parameters,
+            query_parameters={"$top": 12, "$count": True},
+        )
+        context = mock_context(task=operator)
+        messages = load_json_from_resources(dirname(__file__), "..", "resources", "messages.json")
+
+        with mock.patch.object(operator, "defer") as mock_defer:
+            operator.trigger_next_link(messages, method_name="execute_complete", context=context)
+
+        trigger = mock_defer.call_args.kwargs["trigger"]
+        assert trigger.url == "users/{user_id}/mailFolders/{mailFolder_id}/messages"
+        assert trigger.path_parameters == path_parameters
+
+    def test_execute_complete_advances_the_skip_offset_it_was_resumed_with(self):
+        # The operator is rebuilt from the serialized Dag on every page, so its own query parameters
+        # describe the first request; only the resume kwargs know where the completed page came from.
+        operator = MSGraphAsyncOperator(
+            task_id="messages",
+            conn_id="msgraph_api",
+            url="users/messages",
+            query_parameters={"$top": 12, "$count": True},
+        )
+        context = mock_context(task=operator)
+        second_messages = load_json_from_resources(
+            dirname(__file__), "..", "resources", "second_messages.json"
+        )
+        event = {"status": "success", "type": "builtins.dict", "response": json.dumps(second_messages)}
+
+        with mock.patch.object(operator, "defer") as mock_defer:
+            operator.execute_complete(
+                context=context,
+                event=event,
+                query_parameters={"$top": 12, "$count": True, "$skip": 12},
+            )
+
+        assert mock_defer.call_args.kwargs["trigger"].query_parameters == {
+            "$top": 12,
+            "$count": True,
+            "$skip": 24,
+        }
+        assert mock_defer.call_args.kwargs["kwargs"] == {
+            "query_parameters": {"$top": 12, "$count": True, "$skip": 24}
+        }
+
+    def test_skip_pagination_expands_the_url_template_on_every_page(self):
+        messages = load_json_from_resources(dirname(__file__), "..", "resources", "messages.json")
+        second_messages = load_json_from_resources(
+            dirname(__file__), "..", "resources", "second_messages.json"
+        )
+        third_messages = load_json_from_resources(dirname(__file__), "..", "resources", "third_messages.json")
+        response = mock_json_response(200, messages, second_messages, third_messages)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="messages",
+                conn_id="msgraph_api",
+                url="users/{user_id}/mailFolders/{mailFolder_id}/messages",
+                path_parameters={"user_id": "48d31887-5fad-4d73-a9f5-3c356e68a038", "mailFolder_id": "inbox"},
+                query_parameters={"$top": 12, "$count": True},
+                result_processor=lambda result, **context: result.get("value"),
+            )
+
+            execute_operator(operator)
+
+        urls = [call.args[0].url for call in mock_get_http_response.call_args_list]
+
+        assert urls == [
+            "users/48d31887-5fad-4d73-a9f5-3c356e68a038/mailFolders/inbox/messages?%24top=12&%24count=true",
+            "users/48d31887-5fad-4d73-a9f5-3c356e68a038/mailFolders/inbox/messages?%24top=12&%24count=true&%24skip=12",
+            "users/48d31887-5fad-4d73-a9f5-3c356e68a038/mailFolders/inbox/messages?%24top=12&%24count=true&%24skip=24",
+        ]
+
     def test_pagination_issues_every_page_with_the_configured_request(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
@@ -368,6 +477,47 @@ class TestMSGraphAsyncOperator:
         for request in requests:
             assert request.headers.try_get("ConsistencyLevel") == {"eventual"}
             assert request.content == json.dumps(data).encode("utf-8")
+
+    def test_pagination_refuses_cross_host_next_link(self):
+        first_page = {
+            "@odata.nextLink": "https://attacker.example/v1.0/users?$skiptoken=steal",
+            "value": [{"id": "1"}],
+        }
+        second_page = {"value": [{"id": "2"}]}
+        response = mock_json_response(200, first_page, second_page)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users",
+            )
+
+            with pytest.raises(AirflowException, match="attacker.example"):
+                execute_operator(operator)
+
+        # assert_allowed_host rejects the link before the request goes out, so the second page is never
+        # fetched and the bearer token does not reach attacker.example.
+        assert mock_get_http_response.call_count == 1
+
+    def test_relative_pagination_link_is_not_treated_as_cross_host(self):
+        pages = [{"next": "users?$skip=1", "value": [{"id": "1"}]}, {"value": [{"id": "2"}]}]
+        response = mock_json_response(200, *pages)
+
+        with patch_hook_and_request_adapter(response) as (*_, mock_get_http_response):
+            operator = MSGraphAsyncOperator(
+                task_id="users",
+                conn_id="msgraph_api",
+                url="users",
+                pagination_function=lambda operator, response, **context: (response.get("next"), None),
+            )
+
+            results, _ = execute_operator(operator)
+
+        # A pagination function may return a relative url, whose netloc is empty and never matches the
+        # configured endpoint. The startswith("http") check in assert_allowed_host lets it pass.
+        assert mock_get_http_response.call_count == 2
+        assert results == pages
 
     def test_execute_callable(self):
         with pytest.warns(
@@ -396,3 +546,125 @@ class TestMSGraphAsyncOperator:
                 == "response"
             )
             assert len(recorded_warnings) == 0
+
+
+class TestDurableMSGraphAsyncOperator:
+    def test_keeps_the_page_and_the_link_to_the_next_one(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore()
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute_complete(context=context, event=users_event("users.json"))
+
+        users = json.loads(users_event("users.json")["response"])
+        assert task_state_store.values == {
+            f"{PAGE_KEY_PREFIX}0": users["value"],
+            CURSOR_KEY: {"url": users["@odata.nextLink"], "query_parameters": None, "pages": 1},
+        }
+        assert exc.value.trigger.url == users["@odata.nextLink"]
+        context["ti"].xcom_push.assert_not_called()
+
+    def test_intermediate_page_reads_only_the_cursor(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{f"{PAGE_KEY_PREFIX}{page}": [{"id": str(page)}] for page in range(3)},
+            **{CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 3}},
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(TaskDeferred):
+            operator.execute_complete(context=context, event=users_event("users.json"))
+
+        assert task_state_store.reads == [CURSOR_KEY]
+        assert task_state_store.values[CURSOR_KEY]["pages"] == 4
+
+    def test_execute_resumes_at_the_kept_link(self):
+        operator = users_operator(durable=True, query_parameters={"$top": 12})
+        cursor = {
+            "url": "users/delta()?$skiptoken=abc",
+            "query_parameters": {"$top": 12, "$skip": 12},
+            "pages": 1,
+        }
+        context = {"ti": mock.MagicMock(), "task_state_store": TaskStateStore(**{CURSOR_KEY: cursor})}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
+
+        assert exc.value.trigger.url == cursor["url"]
+        assert exc.value.trigger.query_parameters == cursor["query_parameters"]
+        assert exc.value.trigger.pagination_link is True
+        assert exc.value.kwargs == {"query_parameters": cursor["query_parameters"]}
+        assert exc.value.method_name == "execute_complete"
+
+    def test_last_page_returns_the_kept_pages_and_itself(self):
+        operator = users_operator(durable=True)
+        first_page = json.loads(users_event("users.json")["response"])["value"]
+        last_page = json.loads(users_event("next_users.json")["response"])["value"]
+        task_state_store = TaskStateStore(
+            **{
+                f"{PAGE_KEY_PREFIX}0": first_page,
+                CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        results = operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert results == first_page + last_page
+        assert COMPLETED_KEY not in task_state_store.values
+
+    def test_keeps_the_result_of_a_request_that_is_not_a_get(self):
+        operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
+        task_state_store = TaskStateStore()
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        results = operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert task_state_store.values == {COMPLETED_KEY: {"result": results}}
+
+    def test_execute_returns_the_kept_result_without_sending_the_request_again(self):
+        operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
+        context = {
+            "ti": mock.MagicMock(),
+            "task_state_store": TaskStateStore(**{COMPLETED_KEY: {"result": [{"id": "1"}]}}),
+        }
+
+        with mock.patch.object(operator, "defer") as mock_defer:
+            assert operator.execute(context) == [{"id": "1"}]
+
+        mock_defer.assert_not_called()
+
+    def test_not_durable_leaves_the_task_state_store_alone(self):
+        operator = users_operator()
+        task_state_store = TaskStateStore()
+        context = mock_context(task=operator)
+        context["task_state_store"] = task_state_store
+
+        with pytest.raises(TaskDeferred):
+            operator.execute_complete(context=context, event=users_event("users.json"))
+
+        assert task_state_store.values == {}
+
+    @mock.patch.object(MSGraphAsyncOperator, "log", new_callable=mock.PropertyMock)
+    def test_durable_without_task_state_store_keeps_pages_in_xcom(self, mock_log):
+        operator = users_operator(durable=True)
+        context = mock_context(task=operator)
+
+        with pytest.raises(TaskDeferred):
+            operator.execute_complete(context=context, event=users_event("users.json"))
+
+        assert context["ti"].xcom_pull(task_ids=operator.task_id, dag_id=operator.dag_id, key="return_value")
+        mock_log.return_value.warning.assert_not_called()
+
+    @mock.patch.object(MSGraphAsyncOperator, "log", new_callable=mock.PropertyMock)
+    def test_durable_without_task_state_store_warns_in_execute(self, mock_log):
+        operator = users_operator(durable=True)
+        context = mock_context(task=operator)
+
+        with pytest.raises(TaskDeferred):
+            operator.execute(context)
+
+        mock_log.return_value.warning.assert_called_once_with(
+            "task_state_store not available in context, crash recovery is disabled for this run"
+        )

@@ -51,7 +51,7 @@ export const FieldDateTime = ({
         name={`element_${name}`}
         onChange={(event) => handleChange(event.target.value)}
         size="sm"
-        value={(param.value as string) || ""}
+        value={typeof param.value === "string" ? param.value : ""}
       />
     );
   }
@@ -66,7 +66,9 @@ export const FieldDateTime = ({
       size="sm"
       step={isTime ? 1 : undefined}
       type={type}
-      value={((param.value ?? "") as string).slice(0, 16)}
+      // A non-string value (e.g. an object leaking in from a malformed param) must degrade to an
+      // empty input rather than throw and take the whole form down.
+      value={typeof param.value === "string" ? param.value.slice(0, 16) : ""}
     />
   );
 };

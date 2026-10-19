@@ -18,6 +18,7 @@
  */
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+
 import { BasePage } from "tests/e2e/pages/BasePage";
 import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
@@ -80,11 +81,7 @@ export class EventsPage extends BasePage {
   public async getEventLogRows(): Promise<Array<Locator>> {
     const count = await this.tableRows.count();
 
-    if (count === 0) {
-      return [];
-    }
-
-    return this.tableRows.all();
+    return count === 0 ? [] : this.tableRows.all();
   }
 
   public async getEventTypes(): Promise<Array<string>> {

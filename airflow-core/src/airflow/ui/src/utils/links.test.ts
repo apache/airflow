@@ -22,6 +22,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import {
   buildTaskInstanceUrl,
+  getDefaultTaskInstanceTabPath,
   getNextHref,
   getSafeExternalUrl,
   getTaskInstanceAdditionalPath,
@@ -29,6 +30,21 @@ import {
 } from "./links";
 
 describe("getTaskInstanceLink", () => {
+  it("links a regional task DTO by exact region without pinning its try", () => {
+    const task = {
+      dag_id: "dag",
+      dag_run_id: "run",
+      map_index: -1,
+      region_id: "11111111-1111-4111-8111-111111111111",
+      region_index: 3,
+      task_id: "body.work",
+      try_number: 2,
+    } as TaskInstanceResponse;
+
+    expect(getTaskInstanceLink(task, "logs")).toBe(
+      "/dags/dag/runs/run/tasks/body.work/logs?region_id=11111111-1111-4111-8111-111111111111&region_index=3",
+    );
+  });
   const testCases = [
     // Individual parameters tests
     {
@@ -118,6 +134,7 @@ describe("getTaskInstanceAdditionalPath", () => {
 
   it("should handle all known task instance routes", () => {
     const knownRoutes = [
+      "logs",
       "events",
       "xcom",
       "code",
@@ -153,6 +170,19 @@ describe("getTaskInstanceAdditionalPath", () => {
     expect(
       getTaskInstanceAdditionalPath("/dags/my-dag_v2/runs/run_1-test/tasks/task.1/rendered_templates"),
     ).toBe("/rendered_templates");
+  });
+});
+
+describe("getDefaultTaskInstanceTabPath", () => {
+  it.each(["details", "rendered_templates", "code", "events", "asset_events", "xcom"])(
+    "returns the tab path for %s",
+    (tab) => {
+      expect(getDefaultTaskInstanceTabPath(tab)).toBe(tab);
+    },
+  );
+
+  it.each(["logs", "", "unknown_tab", undefined, 42])("falls back to the index route for %s", (value) => {
+    expect(getDefaultTaskInstanceTabPath(value)).toBe("");
   });
 });
 

@@ -19,44 +19,59 @@
 
 # Apache Airflow TypeScript SDK
 
-The Apache Airflow TypeScript SDK provides the public TypeScript interfaces for
-writing Apache Airflow task handlers and the coordinator runtime that executes
-registered TypeScript handlers from an Airflow worker.
+Write Apache Airflow Dags and tasks in TypeScript. Declare a whole Dag in TypeScript, or implement the stub
+tasks of a Python Dag with `TaskHandler`.
 
 > **Note**
-> This package is **alpha**: the API will change, it requires **Node 22+**, and
-> it is **ESM-only**. It is not yet published to a public npm registry — until an
-> official Apache Airflow release is available, build and use it from source.
+> This package is **0.1.0-beta1**: the API may change, it requires **Node 22+**, and
+> it is **ESM-only**.
 
 ## Getting Started
 
-The SDK is currently distributed as source in the `ts-sdk/` directory of the
-Apache Airflow repository. Build it there and add it as a local dependency of
-your task bundle; it is not yet published to a public npm registry.
+Install the beta package from npm, and `esbuild` to build the bundle:
 
-Register a task handler. Handlers receive a `TaskContext` and a `TaskClient`;
-any non-`undefined` return value is pushed to XCom under the `"return_value"`
-key by the active runtime, matching Python `@task` behavior:
-
-```ts
-import { registerTask, type TaskHandlerArgs } from "@apache-airflow/ts-sdk";
-
-export async function sayHello({ ctx, client }: TaskHandlerArgs) {
-  const greeting = await client.getVariable("greeting");
-  return { message: `Hello from ${ctx.taskId}: ${greeting}` };
-}
-
-registerTask({ dagId: "example_dag", taskId: "say_hello" }, sayHello);
+```bash
+npm install apache-airflow-ts-sdk@0.1.0-beta1
+npm install --save-dev esbuild
 ```
 
-## Coordinators
+Declare a Dag with `Dag`, and its tasks with `dag.task`. Calling a task names its inputs, which is how the
+tasks depend on each other:
 
-Airflow runs TypeScript task bundles through the Python-side `NodeCoordinator`
-(`airflow.sdk.coordinators.node.NodeCoordinator`). A Python Dag declares the
-scheduling shape with stub tasks and owns the task dependencies between them,
-and the TypeScript module registers handlers with matching task IDs. See the
-[Non-Python Task SDKs guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/index.html)
-for the conceptual overview of language SDKs.
+```ts
+import { Bundle, Dag } from "apache-airflow-ts-sdk";
+
+const dag = new Dag("ts_etl", { schedule: "@daily", queue: "typescript" });
+
+const extract = dag.task("extract", async (): Promise<number> => 42);
+const load = dag.task("load", async ({ rows }: { rows: number }) => {
+  console.log(`loading ${rows} rows`);
+});
+
+load({ rows: extract() });
+
+await new Bundle(dag).serve();
+```
+
+To implement a stub task of a Python Dag, bind a function to its `dag_id` and `task_id` with `TaskHandler`:
+
+```ts
+import { Bundle, getClient, getContext, TaskHandler } from "apache-airflow-ts-sdk";
+
+export async function sayHello() {
+  const greeting = await getClient().getVariable("greeting");
+  return { message: `Hello from ${getContext().taskId}: ${greeting}` };
+}
+
+await new Bundle(new TaskHandler("example_dag", "say_hello", sayHello)).serve();
+```
+
+In both cases a handler is a plain function. `getContext()` returns the `TaskContext` and `getClient()` the
+`TaskClient` while it runs, and a value it returns becomes the task's `return_value` XCom.
+
+See the
+[TypeScript SDK guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
+for building and deploying a bundle, and for everything a Dag declared in TypeScript can do.
 
 ## API Reference
 

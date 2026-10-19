@@ -278,7 +278,7 @@
     "bulkDelete": {
       "error": "คำขอลบจำนวนมากของ {{resourceName}} ล้มเหลว",
       "success": {
-        "description": "{{count}} {{resourceName}} ถูกลบเรียบร้อยแล้ว คีย์: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} ถูกลบเรียบร้อยแล้ว คีย์: {{keys}}",
         "title": "ส่งคำขอลบจำนวนมากของ {{resourceName}} แล้ว"
       }
     },
@@ -299,7 +299,7 @@
     "import": {
       "error": "คำขอนำเข้า {{resourceName}} ล้มเหลว",
       "success": {
-        "description": "{{count}} {{resourceName}} ถูกนำเข้าเรียบร้อยแล้ว",
+        "description": "{{count, number}} {{resourceName}} ถูกนำเข้าเรียบร้อยแล้ว",
         "title": "ส่งคำขอนำเข้า {{resourceName}} แล้ว"
       }
     },

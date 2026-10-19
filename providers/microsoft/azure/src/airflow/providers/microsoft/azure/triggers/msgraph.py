@@ -95,6 +95,9 @@ class MSGraphTrigger(BaseTrigger):
         or you can pass a string as `v1.0` or `beta`.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
+    :param pagination_link: Whether `url` was taken from a pagination link of a previous response
+        (default is False). When True, its host is verified against the configured Microsoft Graph
+        endpoint before the request is made.
     """
 
     def __init__(
@@ -113,6 +116,7 @@ class MSGraphTrigger(BaseTrigger):
         scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
+        pagination_link: bool = False,
     ):
         super().__init__()
         self.conn_id = conn_id
@@ -129,6 +133,7 @@ class MSGraphTrigger(BaseTrigger):
         self.headers = headers
         self.data = data
         self.serializer: ResponseSerializer = self.resolve_type(serializer, default=ResponseSerializer)()
+        self.pagination_link = pagination_link
 
     @classmethod
     def resolve_type(cls, value: str | type, default) -> type:
@@ -157,6 +162,7 @@ class MSGraphTrigger(BaseTrigger):
                 "headers": self.headers,
                 "data": self.data,
                 "response_type": self.response_type,
+                "pagination_link": self.pagination_link,
             },
         )
 
@@ -182,6 +188,9 @@ class MSGraphTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous HTTP calls via a KiotaRequestAdapterHook."""
         try:
+            if self.pagination_link:
+                await self.hook.assert_allowed_host(self.url)
+
             response = await self.hook.run(
                 url=self.url,
                 response_type=self.response_type,

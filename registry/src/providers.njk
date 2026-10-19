@@ -70,7 +70,8 @@ mainClass: providers-page
           data-downloads="{{ provider.pypi_downloads.monthly }}"
           data-updated="{{ provider.last_updated or '' }}"
           data-categories="{{ cats | join(',') }}"
-          data-integrations="{{ (provider.categories or []) | selectattr('name') | join(',', 'name') | lower }}">
+          data-integrations="{{ (provider.categories or []) | selectattr('name') | join(',', 'name') | lower }}"
+          data-services="{{ provider | externalServices | join(',') | lower }}">
         {% include "provider-card.njk" %}
       </li>
       {% endfor %}

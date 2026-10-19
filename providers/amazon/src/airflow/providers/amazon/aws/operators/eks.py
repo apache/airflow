@@ -359,6 +359,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                 trigger=EksCreateClusterTrigger(
                     cluster_name=self.cluster_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -411,6 +413,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     force_delete_compute=False,
                 ),
@@ -445,6 +449,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                         region_name=self.region_name,
                     ),
                     method_name="execute_complete",
@@ -456,6 +462,8 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                         nodegroup_name=self.nodegroup_name,
                         cluster_name=self.cluster_name,
                         aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
                         region_name=self.region_name,
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
@@ -600,6 +608,8 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -714,6 +724,8 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     fargate_profile_name=self.fargate_profile_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,
@@ -805,6 +817,8 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     force_delete_compute=self.force_delete_compute,
                 ),
@@ -821,7 +835,10 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
 
         if self.wait_for_completion:
             self.log.info("Waiting for cluster to delete.  This will take some time.")
-            self.hook.conn.get_waiter("cluster_deleted").wait(name=self.cluster_name)
+            self.hook.conn.get_waiter("cluster_deleted").wait(
+                name=self.cluster_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
 
     def delete_any_nodegroups(self) -> None:
         """
@@ -840,7 +857,10 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                         self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             # Note this is a custom waiter so we're using hook.get_waiter(), not hook.conn.get_waiter().
             self.log.info("Waiting for all nodegroups to delete.  This will take some time.")
-            self.hook.get_waiter("all_nodegroups_deleted").wait(clusterName=self.cluster_name)
+            self.hook.get_waiter("all_nodegroups_deleted").wait(
+                clusterName=self.cluster_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
         self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
 
     def delete_any_fargate_profiles(self) -> None:
@@ -865,14 +885,18 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
                             clusterName=self.cluster_name, fargateProfileName=profile
                         )
                 self.hook.conn.get_waiter("fargate_profile_deleted").wait(
-                    clusterName=self.cluster_name, fargateProfileName=profile
+                    clusterName=self.cluster_name,
+                    fargateProfileName=profile,
+                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
                 )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
 
-        if validated_event["status"] == "success":
+        # EksDeleteClusterTrigger yields status "deleted" when the cluster is gone.
+        # Also accept "success" so a future transition to the usual event keeps working.
+        if validated_event["status"] in ("deleted", "success"):
             self.log.info("Cluster deleted successfully.")
 
 
@@ -946,6 +970,8 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -958,7 +984,9 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
         elif self.wait_for_completion:
             self.log.info("Waiting for nodegroup to delete.  This will take some time.")
             self.hook.conn.get_waiter("nodegroup_deleted").wait(
-                clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
+                clusterName=self.cluster_name,
+                nodegroupName=self.nodegroup_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
@@ -1038,6 +1066,8 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
                     cluster_name=self.cluster_name,
                     fargate_profile_name=self.fargate_profile_name,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,
@@ -1169,7 +1199,7 @@ class EksPodOperator(KubernetesPodOperator):
                 connection_extras = conn.extra_dejson
                 self.log.info("Successfully resolved connection extras for deferral.")
 
-        trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
+        trigger_start_time = datetime.datetime.now(tz=datetime.UTC)
 
         if self.pod is None or self.pod.metadata is None:
             raise RuntimeError("Pod must be created with metadata before deferring")
@@ -1222,25 +1252,10 @@ class EksPodOperator(KubernetesPodOperator):
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-        session = eks_hook.get_session()
-        credentials_obj = session.get_credentials()
-        if credentials_obj is None:
-            raise AirflowException(
-                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
-                "Please check your AWS connection configuration."
-            )
-        credentials = credentials_obj.get_frozen_credentials()
-        with eks_hook._secure_credential_context(
-            credentials.access_key, credentials.secret_key, credentials.token
-        ) as credentials_file:
-            # Store credentials file path for potential refresh during long-running tasks
-            self._credentials_file_path = credentials_file
-            with eks_hook.generate_config_file(
-                eks_cluster_name=self.cluster_name,
-                pod_namespace=self.namespace,
-                credentials_file=credentials_file,
-            ) as self.config_file:
-                return super().execute(context)
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
+        ) as (self.config_file, self._credentials_file_path):
+            return super().execute(context)
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         eks_hook = EksHook(
@@ -1249,25 +1264,10 @@ class EksPodOperator(KubernetesPodOperator):
         )
         eks_cluster_name = event["eks_cluster_name"]
         pod_namespace = event["namespace"]
-        session = eks_hook.get_session()
-        credentials_obj = session.get_credentials()
-        if credentials_obj is None:
-            raise AirflowException(
-                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
-                "Please check your AWS connection configuration."
-            )
-        credentials = credentials_obj.get_frozen_credentials()
-        with eks_hook._secure_credential_context(
-            credentials.access_key, credentials.secret_key, credentials.token
-        ) as credentials_file:
-            # Store credentials file path for potential refresh during long-running tasks
-            self._credentials_file_path = credentials_file
-            with eks_hook.generate_config_file(
-                eks_cluster_name=eks_cluster_name,
-                pod_namespace=pod_namespace,
-                credentials_file=credentials_file,
-            ) as self.config_file:
-                return super().trigger_reentry(context, event)
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=eks_cluster_name, pod_namespace=pod_namespace
+        ) as (self.config_file, self._credentials_file_path):
+            return super().trigger_reentry(context, event)
 
     def _write_credentials_to_file(
         self, credentials_file_path: str, access_key: str, secret_key: str, session_token: str | None

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import enum
 import gzip
+import importlib.util
 import io
 import warnings
 from collections import namedtuple
@@ -27,7 +28,12 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+    BaseOperator,
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -45,12 +51,12 @@ class FILE_FORMAT(enum.Enum):
     PARQUET = enum.auto()
 
 
-FileOptions = namedtuple("FileOptions", ["mode", "suffix", "function"])
+FileOptions = namedtuple("FileOptions", ["mode", "suffix", "function", "polars_function"])
 
 FILE_OPTIONS_MAP = {
-    FILE_FORMAT.CSV: FileOptions("r+", ".csv", "to_csv"),
-    FILE_FORMAT.JSON: FileOptions("r+", ".json", "to_json"),
-    FILE_FORMAT.PARQUET: FileOptions("rb+", ".parquet", "to_parquet"),
+    FILE_FORMAT.CSV: FileOptions("r+", ".csv", "to_csv", "write_csv"),
+    FILE_FORMAT.JSON: FileOptions("r+", ".json", "to_json", "write_json"),
+    FILE_FORMAT.PARQUET: FileOptions("rb+", ".parquet", "to_parquet", "write_parquet"),
 }
 
 
@@ -87,7 +93,8 @@ class SqlToS3Operator(BaseOperator):
     :param max_rows_per_file: (optional) argument to set destination file number of rows limit, if source data
         is larger than that, it will be dispatched into multiple files.
         Will be ignored if ``groupby_kwargs`` argument is specified.
-    :param df_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
+    :param df_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``,
+        or in ``.write_parquet()``, ``.write_json()`` or ``.write_csv()`` when ``df_type`` is ``'polars'``.
     :param groupby_kwargs: argument to include in DataFrame ``groupby()``.
     """
 
@@ -96,6 +103,7 @@ class SqlToS3Operator(BaseOperator):
         "s3_key",
         "query",
         "sql_conn_id",
+        "aws_conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
@@ -183,8 +191,6 @@ class SqlToS3Operator(BaseOperator):
             import numpy as np
             import pandas as pd
         except ImportError as e:
-            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
             raise AirflowOptionalProviderFeatureException(e)
 
         for col in df:
@@ -219,7 +225,27 @@ class SqlToS3Operator(BaseOperator):
                 return path[: -len(suffix)]
         return path
 
+    def _ensure_parquet_engine(self) -> None:
+        if self.df_type != "pandas":
+            return
+        engines: tuple[str, ...]
+        if ("dtype_backend", "pyarrow") in self.read_kwargs.items():
+            # pandas builds the frame through pyarrow itself here, so fastparquet cannot stand in
+            # for it even when the output format is Parquet.
+            trigger, engines = 'read_kwargs={"dtype_backend": "pyarrow"}', ("pyarrow",)
+        elif self.file_format == FILE_FORMAT.PARQUET:
+            trigger, engines = 'file_format="parquet"', ("pyarrow", "fastparquet")
+        else:
+            return
+        if any(importlib.util.find_spec(engine) for engine in engines):
+            return
+
+        raise AirflowOptionalProviderFeatureException(
+            f"{trigger} needs {' or '.join(engines)}. Install apache-airflow-providers-amazon[parquet]."
+        )
+
     def execute(self, context: Context) -> None:
+        self._ensure_parquet_engine()
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = sql_hook.get_df(
@@ -230,6 +256,7 @@ class SqlToS3Operator(BaseOperator):
         if ("dtype_backend", "pyarrow") not in self.read_kwargs.items() and self.df_type == "pandas":
             self._fix_dtypes(data_df, self.file_format)  # type: ignore[arg-type]
         file_options = FILE_OPTIONS_MAP[self.file_format]
+        write_function = file_options.polars_function if self.df_type == "polars" else file_options.function
 
         for group_name, df in self._partition_dataframe(df=data_df):
             buf = io.BytesIO()
@@ -245,13 +272,13 @@ class SqlToS3Operator(BaseOperator):
                 object_key += ".gz"
                 df_kwargs = {k: v for k, v in self.df_kwargs.items() if k != "compression"}
                 with gzip.GzipFile(fileobj=buf, mode="wb", filename=object_key) as gz:
-                    getattr(df, file_options.function)(gz, **df_kwargs)
+                    getattr(df, write_function)(gz, **df_kwargs)
             else:
                 if self.file_format == FILE_FORMAT.PARQUET:
-                    getattr(df, file_options.function)(buf, **self.df_kwargs)
+                    getattr(df, write_function)(buf, **self.df_kwargs)
                 else:
                     text_buf = io.TextIOWrapper(buf, encoding="utf-8", write_through=True)
-                    getattr(df, file_options.function)(text_buf, **self.df_kwargs)
+                    getattr(df, write_function)(text_buf, **self.df_kwargs)
                     text_buf.flush()
 
             buf.seek(0)

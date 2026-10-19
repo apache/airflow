@@ -1,0 +1,1 @@
+Redact values of camelCase and PascalCase keys (for example ``privateKey``, ``connectionString`` or ``webhookUrl``) that match multi-word sensitive field names such as ``private_key``, ``connection_string`` or ``webhook_url``.

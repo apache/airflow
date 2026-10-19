@@ -26,10 +26,10 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
     RoleResponse,
 )
 from airflow.providers.fab.auth_manager.api_fastapi.parameters import get_effective_limit
+from airflow.providers.fab.auth_manager.api_fastapi.routes.login import _get_flask_app
 from airflow.providers.fab.auth_manager.api_fastapi.routes.router import fab_router
 from airflow.providers.fab.auth_manager.api_fastapi.security import requires_fab_custom_view
 from airflow.providers.fab.auth_manager.api_fastapi.services.roles import FABAuthManagerRoles
-from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 from airflow.providers.fab.www.security import permissions
 
 
@@ -48,7 +48,7 @@ from airflow.providers.fab.www.security import permissions
 )
 def create_role(body: RoleBody) -> RoleResponse:
     """Create a new role (actions can be empty)."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerRoles.create_role(body=body)
 
 
@@ -71,7 +71,7 @@ def get_roles(
     offset: int = Query(0, ge=0, description="Number of items to skip before starting to collect results."),
 ) -> RoleCollectionResponse:
     """List roles with pagination and ordering."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerRoles.get_roles(order_by=order_by, limit=limit, offset=offset)
 
 
@@ -88,7 +88,7 @@ def get_roles(
 )
 def delete_role(name: str = Path(..., min_length=1)) -> None:
     """Delete an existing role."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerRoles.delete_role(name=name)
 
 
@@ -101,7 +101,7 @@ def delete_role(name: str = Path(..., min_length=1)) -> None:
 )
 def get_role(name: str = Path(..., min_length=1)) -> RoleResponse:
     """Get an existing role."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerRoles.get_role(name=name)
 
 
@@ -123,7 +123,7 @@ def patch_role(
     update_mask: str | None = Query(None, description="Comma-separated list of fields to update"),
 ) -> RoleResponse:
     """Update an existing role."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerRoles.patch_role(name=name, body=body, update_mask=update_mask)
 
 
@@ -146,5 +146,5 @@ def get_permissions(
     offset: int = Query(0, ge=0, description="Number of items to skip before starting to collect results."),
 ) -> PermissionCollectionResponse:
     """List all action-resource (permission) pairs."""
-    with get_application_builder():
+    with _get_flask_app().app_context():
         return FABAuthManagerRoles.get_permissions(order_by=order_by, limit=limit, offset=offset)

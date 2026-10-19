@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import re
-import warnings
 from collections.abc import Generator
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -36,12 +35,10 @@ from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJob
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.glue import (
-    _DURABLE_UNSET,
     GlueDataQualityOperator,
     GlueDataQualityRuleRecommendationRunOperator,
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
@@ -183,6 +180,35 @@ class TestGlueJobOperator:
         assert defer.value.trigger.waiter_delay == 60
         assert defer.value.trigger.attempts == 75
         assert defer.value.trigger.aws_conn_id == "aws_default"
+
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable_forwards_hook_config_to_trigger(self, _, mock_initialize_job):
+        """The deferred half must reach AWS with the same hook settings as the synchronous half."""
+        botocore_config = {"read_timeout": 42}
+        glue = GlueJobOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            verify=False,
+            botocore_config=botocore_config,
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            deferrable=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute(mock.MagicMock())
+
+        # assert on the serialized payload: that is what actually reaches the triggerer
+        _, serialized = defer.value.trigger.serialize()
+        assert serialized["region_name"] == "us-west-2"
+        assert serialized["verify"] is False
+        assert serialized["botocore_config"] == botocore_config
 
     @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
     @mock.patch.object(GlueJobHook, "initialize_job")
@@ -897,21 +923,6 @@ class TestGlueJobOperatorOpenLineageInjection:
         call_args = mock_initialize_job.call_args[0][0]
         assert "--conf" in call_args
         assert GlueJobOperator.TASK_UUID_ARG in call_args
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False
 
 
 class TestGlueJobOperatorDeprecation:

@@ -44,7 +44,7 @@ class AzureVirtualMachineStateSensor(BaseSensorOperator):
     :param deferrable: If True, run in deferrable mode.
     """
 
-    template_fields: Sequence[str] = ("resource_group_name", "vm_name", "target_state")
+    template_fields: Sequence[str] = ("resource_group_name", "vm_name", "target_state", "azure_conn_id")
     ui_color = "#0078d4"
     ui_fgcolor = "#ffffff"
 

@@ -20,13 +20,14 @@ import json
 import shutil
 import sys
 import tempfile
+import tomllib
 import uuid
 from pathlib import Path
 
 import click
 import yaml
 
-from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import build_ci_image_if_needed
 from airflow_breeze.commands.common_options import option_dry_run, option_python, option_verbose
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -97,7 +98,7 @@ def extract_data(python: str, provider: str | None, allow_unreleased: bool):
         extra_args=(),
     )
 
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
 
     # Install suspended providers that aren't in the CI image so runtime
     # discovery (issubclass) can find their classes.
@@ -181,11 +182,6 @@ def _find_provider_yaml(provider_id: str) -> Path:
 
 def _read_provider_yaml_info(provider_id: str) -> tuple[str, list[str]]:
     """Read package name from provider.yaml and extras from pyproject.toml."""
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
-
     provider_yaml_path = _find_provider_yaml(provider_id)
     with open(provider_yaml_path) as f:
         data = yaml.safe_load(f)
@@ -313,7 +309,7 @@ def _backfill_docker(
         extra_args=(),
     )
 
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    build_ci_image_if_needed(command_params=shell_params)
 
     # Place isolated providers.json under dev/registry/ so it's visible inside the container
     # at /opt/airflow/dev/registry/

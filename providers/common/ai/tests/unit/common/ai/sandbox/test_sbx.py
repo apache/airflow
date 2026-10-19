@@ -17,13 +17,19 @@
 from __future__ import annotations
 
 import base64
+import io
+import os
 import subprocess
+import textwrap
+import time
 from unittest.mock import patch
 
 import pytest
 
+from airflow.providers.common.ai.sandbox import base, sbx
 from airflow.providers.common.ai.sandbox.base import (
     SandboxError,
+    SandboxFileTooLargeError,
     SandboxSpec,
     SandboxTerminalError,
 )
@@ -82,6 +88,20 @@ class TestSpecEnforcement:
         policy = next(c for c in calls if c[:3] == ["policy", "allow", "network"])
         assert policy[3:5] == ["--sandbox", name]
         assert policy[5:] == ["pypi.org", "files.pythonhosted.org"]
+
+    def test_refuses_an_address_allowlist_it_has_no_rule_for(self):
+        # ``sbx policy allow network`` takes hostnames; there is nothing to map a range onto,
+        # and this holds whatever the host policy says.
+        with pytest.raises(SandboxTerminalError, match="allow_egress_to_cidrs"):
+            SbxSandboxBackend(host_network_policy="deny-all").create(
+                spec=SandboxSpec(allow_egress_to_cidrs=["10.0.0.0/8"])
+            )
+
+    def test_refuses_an_owner_because_nothing_could_attach(self, backend):
+        # A microVM on this worker cannot be reached from another task, so recording
+        # an owner would promise an attach that can never happen.
+        with pytest.raises(SandboxTerminalError, match="owner"):
+            backend.create(spec=SandboxSpec(owner="dag/run"))
 
     def test_refuses_no_egress_when_the_host_policy_is_undeclared(self):
         with pytest.raises(SandboxError, match="host policy has not been declared"):
@@ -311,6 +331,106 @@ class TestWriteFileOverride:
         ):
             with pytest.raises(SandboxError, match="read-only fs"):
                 backend.write_file("box", "/w/a", b"x")
+
+
+class TestExportFileOverride:
+    """
+    sbx overrides export_file to stream one ``exec`` into the destination.
+
+    Driven through a stand-in ``sbx`` binary that runs the guest command on this host,
+    so the real subprocess, the stream and the watchdog are what is under test. It
+    prints a daemon notice first, as the real CLI does when it starts its daemon.
+    """
+
+    @pytest.fixture
+    def local_sbx(self, tmp_path):
+        fake = tmp_path / "sbx"
+        fake.write_text(
+            textwrap.dedent(
+                """\
+                #!/bin/sh
+                [ "$1" = exec ] || exit 2
+                shift 2
+                echo "Starting sandboxd daemon..." >&2
+                [ -n "$FAKE_SBX_STALL" ] && sleep "$FAKE_SBX_STALL"
+                "$@"
+                rc=$?
+                # A later size report stands in for a file that changed mid-copy.
+                [ -n "$FAKE_SBX_SIZE" ] && printf '\\nairflow-export-size:%s\\n' "$FAKE_SBX_SIZE" >&2
+                exit $rc
+                """
+            )
+        )
+        fake.chmod(0o755)
+        return SbxSandboxBackend(sbx_path=str(fake), host_network_policy="deny-all")
+
+    def test_streams_the_file_byte_for_byte(self, local_sbx, tmp_path):
+        blob = os.urandom(3 * 1024 * 1024 + 7)
+        (tmp_path / "model.bin").write_bytes(blob)
+        dest = io.BytesIO()
+
+        written = local_sbx.export_file("box", str(tmp_path / "model.bin"), dest, max_bytes=10 * 1024 * 1024)
+
+        assert written == len(blob)
+        assert dest.getvalue() == blob
+
+    def test_a_missing_file_is_an_error(self, local_sbx, tmp_path):
+        with pytest.raises(SandboxError, match="does not exist"):
+            local_sbx.export_file("box", str(tmp_path / "nope.bin"), io.BytesIO(), max_bytes=100)
+
+    def test_a_file_over_the_budget_reports_its_size_despite_the_notice(self, local_sbx, tmp_path):
+        (tmp_path / "big.bin").write_bytes(b"x" * 500)
+        dest = io.BytesIO()
+
+        with pytest.raises(SandboxFileTooLargeError) as error:
+            local_sbx.export_file("box", str(tmp_path / "big.bin"), dest, max_bytes=100)
+
+        assert error.value.size_bytes == 500
+        assert dest.getvalue() == b""
+
+    def test_a_destination_that_fails_stops_the_copy(self, local_sbx, tmp_path):
+        (tmp_path / "out.bin").write_bytes(os.urandom(1024 * 1024))
+
+        class FullDisk(io.RawIOBase):
+            def writable(self):
+                return True
+
+            def write(self, b):
+                raise OSError("No space left on device")
+
+        with pytest.raises(OSError, match="No space left"):
+            local_sbx.export_file("box", str(tmp_path / "out.bin"), FullDisk(), max_bytes=10 * 1024 * 1024)
+
+    def test_a_file_that_changed_size_while_copied_is_an_error(self, local_sbx, tmp_path, monkeypatch):
+        (tmp_path / "out.bin").write_bytes(b"x" * 10)
+        monkeypatch.setenv("FAKE_SBX_SIZE", "11")
+
+        with pytest.raises(SandboxError, match="changed while it was exported"):
+            local_sbx.export_file("box", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=100)
+
+    def test_a_transfer_that_keeps_trickling_is_ended_by_the_deadline(self, local_sbx, tmp_path, monkeypatch):
+        # The stall clock is far off, so only the whole-copy deadline can end this one.
+        (tmp_path / "out.bin").write_bytes(b"x")
+        monkeypatch.setenv("FAKE_SBX_STALL", "30")
+        monkeypatch.setattr(sbx, "_EXPORT_STALL_TIMEOUT", 3600.0)
+        monkeypatch.setattr(base, "_export_allowance", lambda max_bytes: 0.5)
+        start = time.monotonic()
+
+        with pytest.raises(SandboxError, match="took longer than"):
+            local_sbx.export_file("box", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=100)
+
+        assert time.monotonic() - start < 10
+
+    def test_a_stalled_transfer_is_ended(self, local_sbx, tmp_path, monkeypatch):
+        (tmp_path / "out.bin").write_bytes(b"x")
+        monkeypatch.setenv("FAKE_SBX_STALL", "30")
+        monkeypatch.setattr(sbx, "_EXPORT_STALL_TIMEOUT", 0.5)
+        start = time.monotonic()
+
+        with pytest.raises(SandboxError, match="stalled"):
+            local_sbx.export_file("box", str(tmp_path / "out.bin"), io.BytesIO(), max_bytes=100)
+
+        assert time.monotonic() - start < 10
 
 
 class TestDestroy:

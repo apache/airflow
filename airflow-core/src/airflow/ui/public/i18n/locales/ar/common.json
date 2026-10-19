@@ -110,6 +110,7 @@
   "dagRun_two": "مثيلا تشغيل لDag",
   "dagRun_zero": "لا يوجد أي مثيل تشغيل لDag",
   "dagRunId": "معرف تشغيل الDag",
+  "dagRunState": "حالة تشغيل Dag",
   "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
@@ -223,10 +224,10 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "أحداث الأصول المستلمة"
   },
-  "pendingDagRun_few": "{{count}} تشغيلات Dag مُعلّقة",
-  "pendingDagRun_many": "{{count}} تشغيل Dag مُعلّق",
+  "pendingDagRun_few": "{{count, number}} تشغيلات Dag مُعلّقة",
+  "pendingDagRun_many": "{{count, number}} تشغيل Dag مُعلّق",
   "pendingDagRun_one": "تشغيل Dag مُعلّق واحد",
-  "pendingDagRun_other": "{{count}} تشغيل Dag مُعلّق",
+  "pendingDagRun_other": "{{count, number}} تشغيل Dag مُعلّق",
   "pendingDagRun_two": "تشغيلا Dag مُعلّقان",
   "pendingDagRun_zero": "لا توجد تشغيلات Dag مُعلّقة",
   "presetFilters": {
@@ -277,6 +278,39 @@
   },
   "selectLanguage": "اختيار اللغة",
   "selected": "محدد",
+  "settings": {
+    "clearing": {
+      "preventRunningTask": {
+        "helper": "تخطي المهام الجارية حالياً عند مسح مثيلات المهام.",
+        "label": "منع مسح المهام الجارية"
+      },
+      "runSelection": {
+        "helper": "الخيارات المحددة افتراضياً عند مسح تشغيل Dag.",
+        "label": "التحديد الافتراضي لمسح التشغيل"
+      },
+      "taskSelection": {
+        "helper": "الخيارات المحددة افتراضياً عند مسح مثيلات المهام.",
+        "label": "التحديد الافتراضي لمسح المهام"
+      },
+      "title": "المسح"
+    },
+    "description": "يتم حفظ هذه التفضيلات في هذا المتصفح فقط وتُطبَّق على التطبيق بأكمله.",
+    "graph": {
+      "defaultDirection": {
+        "helper": "اتجاه التخطيط لرسوم Dag والأصول البيانية التي لم تُحدَّد بشكل فردي.",
+        "label": "اتجاه الرسم البياني الافتراضي"
+      },
+      "title": "الرسم البياني"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "الخيارات المحددة افتراضياً عند تمييز حالة مثيل مهمة.",
+        "label": "التحديد الافتراضي عند التمييز"
+      },
+      "title": "التمييز"
+    },
+    "title": "الإعدادات"
+  },
   "shortcuts": {
     "categories": {
       "code": "الكود",
@@ -320,6 +354,13 @@
   },
   "showDetailsPanel": "إظهار لوحة التفاصيل",
   "signedInAs": "تم تسجيل الدخول باسم",
+  "slot": "حصة",
+  "slot_few": "حصص",
+  "slot_many": "حصص",
+  "slot_one": "حصة",
+  "slot_other": "حصص",
+  "slot_two": "حصتان",
+  "slot_zero": "لا يوجد أي حصة",
   "source": {
     "hide": "إخفاء المصدر",
     "hotkey": "s",
@@ -456,21 +497,21 @@
     "bulkClear": {
       "error": "فشل طلب المسح المجمع لـ{{resourceName}}",
       "success": {
-        "description": "تم مسح {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "description": "تم مسح {{count, number}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
         "title": "تم إرسال طلب المسح المجمع لـ{{resourceName}}"
       }
     },
     "bulkDelete": {
       "error": "فشل طلب حذف الرُزمة ل{{resourceName}}",
       "success": {
-        "description": "تم حذف {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "description": "تم حذف {{count, number}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
         "title": "تم إرسال طلب الحذف المجمع ل{{resourceName}}"
       }
     },
     "bulkUpdate": {
       "error": "فشل طلب التحديث المجمع لـ{{resourceName}}",
       "success": {
-        "description": "تم تحديث {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "description": "تم تحديث {{count, number}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
         "title": "تم إرسال طلب التحديث المجمع لـ{{resourceName}}"
       }
     },
@@ -491,7 +532,7 @@
     "import": {
       "error": "فشل طلب استيراد {{resourceName}}",
       "success": {
-        "description": "تم استيراد {{count}} {{resourceName}} بنجاح.",
+        "description": "تم استيراد {{count, number}} {{resourceName}} بنجاح.",
         "title": "تم إرسال طلب الاستيراد {{resourceName}}"
       }
     },

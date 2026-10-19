@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
+from uuid import UUID
 
 from pydantic import (
     AliasPath,
@@ -50,6 +51,7 @@ class DagScheduleAssetReference(StrictBaseModel):
     dag_id: str
     created_at: datetime
     updated_at: datetime
+    team_name: str | None = None
 
 
 class TaskInletAssetReference(StrictBaseModel):
@@ -68,6 +70,7 @@ class TaskOutletAssetReference(StrictBaseModel):
     task_id: str
     created_at: datetime
     updated_at: datetime
+    team_name: str | None = None
 
 
 class LastAssetEventResponse(BaseModel):
@@ -164,7 +167,7 @@ class DagRunAssetReference(StrictBaseModel):
     run_id: str
     dag_id: str
     logical_date: datetime | None
-    start_date: datetime
+    start_date: datetime | None
     end_date: datetime | None
     state: str
     data_interval_start: datetime | None
@@ -192,6 +195,7 @@ class AssetEventResponse(BaseModel):
     source_dag_id: str | None = None
     source_run_id: str | None = None
     source_map_index: int
+    source_task_instance_id: UUID | None = None
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
     partition_key: str | None = None

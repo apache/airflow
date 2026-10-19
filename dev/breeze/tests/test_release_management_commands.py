@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -36,6 +37,7 @@ from airflow_breeze.commands.release_management_commands import (
     is_package_in_dist,
 )
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+from airflow_breeze.utils import shared_options
 
 
 @pytest.mark.parametrize(
@@ -220,7 +222,7 @@ def test_ensure_default_python_for_reproducible_client_passes_on_default(monkeyp
     _ensure_default_python_for_reproducible_client()
 
 
-@pytest.mark.parametrize("wrong_version", ["3.11", "3.13", "3.9"])
+@pytest.mark.parametrize("wrong_version", ["3.12", "3.13", "3.9"])
 def test_ensure_default_python_for_reproducible_client_exits_on_mismatch(monkeypatch, wrong_version):
     assert wrong_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     monkeypatch.setattr(
@@ -296,6 +298,12 @@ def test_get_package_version_possibly_from_stable_txt_for_java_sdk(
     assert get_package_version_possibly_from_stable_txt("java-sdk") == expected_version
 
 
+def test_get_package_version_possibly_from_stable_txt_for_mypy(monkeypatch):
+    monkeypatch.setattr(release_management_commands, "get_airflow_mypy_version", lambda: "0.2.0")
+
+    assert get_package_version_possibly_from_stable_txt("apache-airflow-mypy") == "0.2.0"
+
+
 @pytest.mark.parametrize(
     ("stable_txt_content", "expected_version"),
     [
@@ -311,7 +319,7 @@ def test_get_package_version_possibly_from_stable_txt_for_ts_sdk(
     monkeypatch.setattr(global_constants, "AIRFLOW_ROOT_PATH", tmp_path)
     package_json = tmp_path / "ts-sdk" / "package.json"
     package_json.parent.mkdir(parents=True)
-    package_json.write_text('{"name": "@apache-airflow/ts-sdk", "version": "0.2.0-alpha.1"}\n')
+    package_json.write_text('{"name": "apache-airflow-ts-sdk", "version": "0.2.0-alpha.1"}\n')
     if stable_txt_content is not None:
         stable_txt = tmp_path / "generated" / "_build" / "docs" / "ts-sdk" / "stable.txt"
         stable_txt.parent.mkdir(parents=True)
@@ -333,3 +341,76 @@ def test_get_package_version_possibly_from_stable_txt_for_ts_sdk(
 )
 def test_issue_match_in_body(body: str, expected: list[int]):
     assert [int(m.group(1)) for m in ISSUE_MATCH_IN_BODY.finditer(body)] == expected
+
+
+@pytest.mark.parametrize(
+    ("skip_git_fetch", "expected_fetches"),
+    [
+        pytest.param(False, 1, id="fetch-by-default"),
+        pytest.param(True, 0, id="skipped-when-requested"),
+    ],
+)
+def test_prepare_provider_distributions_skip_git_fetch(
+    monkeypatch, tmp_path, skip_git_fetch, expected_fetches
+):
+    fetches = []
+    monkeypatch.setattr(
+        release_management_commands,
+        "make_sure_remote_apache_exists_and_fetch",
+        lambda **kwargs: fetches.append(kwargs),
+    )
+    for name in (
+        "perform_environment_checks",
+        "check_flit_worktree_compatibility",
+        "fix_ownership_using_docker",
+        "cleanup_python_generated_files",
+        "run_command",
+    ):
+        monkeypatch.setattr(release_management_commands, name, lambda *args, **kwargs: None)
+    monkeypatch.setattr(release_management_commands, "AIRFLOW_ROOT_PATH", tmp_path)
+    monkeypatch.setattr(release_management_commands, "get_packages_list_to_act_on", lambda **kwargs: [])
+
+    with pytest.raises(SystemExit) as exc_info:
+        release_management_commands.prepare_provider_distributions.callback(
+            clean_dist=False,
+            distributions_list="",
+            github_repository="apache/airflow",
+            include_not_ready_providers=False,
+            include_removed_providers=False,
+            distribution_format="wheel",
+            distributions_list_file=None,
+            provider_distributions=(),
+            skip_deleting_generated_files=False,
+            skip_git_fetch=skip_git_fetch,
+            skip_tag_check=False,
+            version_suffix="",
+        )
+
+    assert exc_info.value.code == 0
+    assert len(fetches) == expected_fetches
+
+
+def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path):
+    commands: list[list[str]] = []
+
+    def fake_run_command(cmd, **kwargs):
+        commands.append(cmd)
+        if cmd[:4] == ["git", "remote", "get-url", "--push"]:
+            if shared_options.get_dry_run(kwargs.get("dry_run_override")):
+                return SimpleNamespace(returncode=0, stdout="")
+            if cmd[-1] == "upstream":
+                return SimpleNamespace(returncode=0, stdout="https://github.com/apache/airflow.git\n")
+            raise subprocess.CalledProcessError(2, cmd)
+        return SimpleNamespace(returncode=0, stdout="")
+
+    monkeypatch.setattr(release_management_commands, "run_command", fake_run_command)
+    monkeypatch.setattr(release_management_commands, "AIRFLOW_DIST_PATH", tmp_path)
+    (tmp_path / "apache_airflow_providers_amazon-9.29.0-py3-none-any.whl").touch()
+
+    shared_options.set_dry_run(True)
+    try:
+        release_management_commands.tag_providers.callback(clean_tags=False, release_date="2026-08-06")
+    finally:
+        shared_options.set_dry_run(False)
+
+    assert ["git", "push", "upstream", "providers-amazon/9.29.0"] in commands

@@ -16,27 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, HStack, Skeleton, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { usePluginServiceGetPlugins, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type { ReactAppResponse } from "openapi/requests/types.gen";
+
+import { ReactPlugin } from "src/pages/ReactPlugin";
+
 import { DurationChart } from "src/components/DurationChart";
 import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { ReactPlugin } from "src/pages/ReactPlugin";
+import { useScopedPluginViews } from "src/hooks/useScopedPluginViews";
+import { useLoopGroupNode } from "src/queries/useIsLoopGroup";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { LoopHistoryChart } from "./LoopHistoryChart";
 
 const defaultHour = "24";
 
 export const Overview = () => {
   const { dagId = "", groupId, taskId } = useParams();
   const { t: translate } = useTranslation("dag");
+
+  const [searchParams] = useSearchParams();
+  const limit = Number(searchParams.get(SearchParamsKeys.LIMIT) ?? "10");
 
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
@@ -62,7 +72,7 @@ export const Overview = () => {
     {
       dagId,
       dagRunId: "~",
-      limit: 14,
+      limit,
       orderBy: ["-run_after"],
       taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
@@ -73,11 +83,12 @@ export const Overview = () => {
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
   );
+  const groupNode = useLoopGroupNode(groupId ?? "");
+  const loopNode = groupNode?.is_loop === true ? groupNode : undefined;
+
   const { data: pluginData } = usePluginServiceGetPlugins();
-  const taskOverviewReactPlugins =
-    pluginData?.plugins
-      .flatMap((plugin) => plugin.react_apps)
-      .filter((plugin: ReactAppResponse) => plugin.destination === "task_overview") ?? [];
+  const reactApps = pluginData?.plugins.flatMap((plugin) => plugin.react_apps) ?? [];
+  const taskOverviewReactPlugins = useScopedPluginViews(reactApps, "task_overview");
 
   return (
     <VStack alignItems="stretch" gap={4} m={4}>
@@ -113,11 +124,12 @@ export const Overview = () => {
         />
       </HStack>
       <HStack alignItems="flex-start" flexWrap="wrap" gap={5} my={5} order={4}>
+        {loopNode === undefined ? undefined : <LoopHistoryChart groupId={loopNode.id} />}
         <Box
           borderRadius={4}
           borderStyle="solid"
           borderWidth={1}
-          flex="1 1 520px"
+          flex="1 1 400px"
           maxWidth="900px"
           minWidth="320px"
           p={2}

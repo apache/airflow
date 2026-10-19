@@ -23,22 +23,9 @@ import "github.com/vmihailenco/msgpack/v5"
 // DecodeMsgpack applies AwaitInputTask's schema defaults that msgpack would otherwise skip.
 func (m *AwaitInputTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias AwaitInputTask
-	v := alias{}
-	// Decode once into raw bytes so a nullable default applies only on an absent
-	// wire key, never overwriting an explicit null (both decode to nil).
-	var raw msgpack.RawMessage
-	if err := dec.Decode(&raw); err != nil {
+	v := alias{State: "awaiting_input"}
+	if err := dec.Decode(&v); err != nil {
 		return err
-	}
-	if err := msgpack.Unmarshal(raw, &v); err != nil {
-		return err
-	}
-	var present map[string]msgpack.RawMessage
-	if err := msgpack.Unmarshal(raw, &present); err != nil {
-		return err
-	}
-	if _, ok := present["state"]; !ok {
-		v.State = "awaiting_input"
 	}
 	*m = AwaitInputTask(v)
 	return nil
@@ -119,22 +106,9 @@ func (m *DagRunResult) DecodeMsgpack(dec *msgpack.Decoder) error {
 // DecodeMsgpack applies DeferTask's schema defaults that msgpack would otherwise skip.
 func (m *DeferTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias DeferTask
-	v := alias{}
-	// Decode once into raw bytes so a nullable default applies only on an absent
-	// wire key, never overwriting an explicit null (both decode to nil).
-	var raw msgpack.RawMessage
-	if err := dec.Decode(&raw); err != nil {
+	v := alias{State: "deferred"}
+	if err := dec.Decode(&v); err != nil {
 		return err
-	}
-	if err := msgpack.Unmarshal(raw, &v); err != nil {
-		return err
-	}
-	var present map[string]msgpack.RawMessage
-	if err := msgpack.Unmarshal(raw, &present); err != nil {
-		return err
-	}
-	if _, ok := present["state"]; !ok {
-		v.State = "deferred"
 	}
 	*m = DeferTask(v)
 	return nil
@@ -213,22 +187,9 @@ func (m *PreviousTIResponse) DecodeMsgpack(dec *msgpack.Decoder) error {
 // DecodeMsgpack applies RescheduleTask's schema defaults that msgpack would otherwise skip.
 func (m *RescheduleTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias RescheduleTask
-	v := alias{}
-	// Decode once into raw bytes so a nullable default applies only on an absent
-	// wire key, never overwriting an explicit null (both decode to nil).
-	var raw msgpack.RawMessage
-	if err := dec.Decode(&raw); err != nil {
+	v := alias{State: "up_for_reschedule"}
+	if err := dec.Decode(&v); err != nil {
 		return err
-	}
-	if err := msgpack.Unmarshal(raw, &v); err != nil {
-		return err
-	}
-	var present map[string]msgpack.RawMessage
-	if err := msgpack.Unmarshal(raw, &present); err != nil {
-		return err
-	}
-	if _, ok := present["state"]; !ok {
-		v.State = "up_for_reschedule"
 	}
 	*m = RescheduleTask(v)
 	return nil
@@ -237,22 +198,9 @@ func (m *RescheduleTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 // DecodeMsgpack applies RetryTask's schema defaults that msgpack would otherwise skip.
 func (m *RetryTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias RetryTask
-	v := alias{}
-	// Decode once into raw bytes so a nullable default applies only on an absent
-	// wire key, never overwriting an explicit null (both decode to nil).
-	var raw msgpack.RawMessage
-	if err := dec.Decode(&raw); err != nil {
+	v := alias{State: "up_for_retry"}
+	if err := dec.Decode(&v); err != nil {
 		return err
-	}
-	if err := msgpack.Unmarshal(raw, &v); err != nil {
-		return err
-	}
-	var present map[string]msgpack.RawMessage
-	if err := msgpack.Unmarshal(raw, &present); err != nil {
-		return err
-	}
-	if _, ok := present["state"]; !ok {
-		v.State = "up_for_retry"
 	}
 	*m = RetryTask(v)
 	return nil
@@ -261,22 +209,9 @@ func (m *RetryTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 // DecodeMsgpack applies SucceedTask's schema defaults that msgpack would otherwise skip.
 func (m *SucceedTask) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias SucceedTask
-	v := alias{}
-	// Decode once into raw bytes so a nullable default applies only on an absent
-	// wire key, never overwriting an explicit null (both decode to nil).
-	var raw msgpack.RawMessage
-	if err := dec.Decode(&raw); err != nil {
+	v := alias{State: "success"}
+	if err := dec.Decode(&v); err != nil {
 		return err
-	}
-	if err := msgpack.Unmarshal(raw, &v); err != nil {
-		return err
-	}
-	var present map[string]msgpack.RawMessage
-	if err := msgpack.Unmarshal(raw, &present); err != nil {
-		return err
-	}
-	if _, ok := present["state"]; !ok {
-		v.State = "success"
 	}
 	*m = SucceedTask(v)
 	return nil

@@ -23,11 +23,19 @@ import json
 import logging
 import re
 import ssl
-from typing import Any
+from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowConfigException
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+
+from airflow.exceptions import AirflowConfigException as CoreAirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowConfigException, AirflowException, conf
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from airflow.sdk.configuration import AirflowSDKConfigParser
 
 log = logging.getLogger(__name__)
 
@@ -44,11 +52,87 @@ except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
 
 
+# broker_transport_options accessed as dict
+# e.g. https://github.com/celery/kombu/blob/4281680ef3a275a7d87433a703790251d9805803/kombu/transport/confluentkafka.py#L338
+_BROKER_TRANSPORT_DICT_OPTIONS = [
+    "client-config",
+    "fetch_message_attributes",
+    "kafka_admin_config",
+    "kafka_common_config",
+    "kafka_consumer_config",
+    "kafka_producer_config",
+    "predefined_exchanges",
+    "predefined_queues",
+    "queue_tags",
+    "sentinel_kwargs",
+    "sqs-creation-attributes",
+]
+
+
 def _broker_supports_visibility_timeout(url):
     return url.startswith(("redis://", "rediss://", "sqs://", "sentinel://"))
 
 
-def get_default_celery_config(team_conf) -> dict[str, Any]:
+def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
+    """
+    Parse broker_transport_options including dict options.
+
+    :param broker_url: Celery broker url
+    :param conf: ExecutorConf object
+    :return: broker_transport_options dict
+    """
+    broker_transport_options: dict[str, str | int | float | Any] = (
+        conf.getsection("celery_broker_transport_options") or {}
+    )
+    if "visibility_timeout" not in broker_transport_options:
+        if _broker_supports_visibility_timeout(broker_url):
+            broker_transport_options["visibility_timeout"] = 86400
+            log.warning(
+                "No visibility_timeout configured in [celery_broker_transport_options]. "
+                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
+                "will be redelivered by the broker, which terminates the original task. "
+                "If you have long-running tasks, increase this value in your Airflow configuration: "
+                "[celery_broker_transport_options] visibility_timeout = <seconds>"
+            )
+
+    # Parse dict options
+    for option in _BROKER_TRANSPORT_DICT_OPTIONS:
+        if option in broker_transport_options:
+            try:
+                option_value = broker_transport_options[option]
+                if not isinstance(option_value, str):
+                    raise ValueError(f"broker_transport_option {option} is not string: {option_value}")
+                option_json = json.loads(option_value)
+                if not isinstance(option_json, dict):
+                    raise ValueError(
+                        f"broker_transport_option {option} value is not dictionary: {option_json}"
+                    )
+                broker_transport_options[option] = option_json
+            except Exception as exc:
+                raise ValueError(
+                    f"Broker transport option {option} value should be written in the correct JSON format."
+                ) from exc
+    return broker_transport_options
+
+
+def _get_database_engine_options(result_backend: str, options: dict[str, Any]) -> dict[str, Any]:
+    if not result_backend.startswith("db+"):
+        return options
+    try:
+        driver = make_url(result_backend.removeprefix("db+")).get_driver_name()
+    except (ArgumentError, NoSuchModuleError):
+        # Defer invalid or unavailable dialects to Celery's backend initialization.
+        return options
+    if driver != "psycopg":
+        return options
+    # Celery creates its own engines, so metadata-engine defaults do not protect transaction poolers.
+    return {
+        **options,
+        "connect_args": {"prepare_threshold": None, **options.get("connect_args", {})},
+    }
+
+
+def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
     """
     Build Celery configuration using team-aware config.
 
@@ -65,26 +149,7 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
 
     broker_url = team_conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 
-    broker_transport_options: dict = team_conf.getsection("celery_broker_transport_options") or {}
-    if "visibility_timeout" not in broker_transport_options:
-        if _broker_supports_visibility_timeout(broker_url):
-            broker_transport_options["visibility_timeout"] = 86400
-            log.warning(
-                "No visibility_timeout configured in [celery_broker_transport_options]. "
-                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
-                "will be redelivered by the broker, which terminates the original task. "
-                "If you have long-running tasks, increase this value in your Airflow configuration: "
-                "[celery_broker_transport_options] visibility_timeout = <seconds>"
-            )
-
-    if "sentinel_kwargs" in broker_transport_options:
-        try:
-            sentinel_kwargs = json.loads(broker_transport_options["sentinel_kwargs"])
-            if not isinstance(sentinel_kwargs, dict):
-                raise ValueError
-            broker_transport_options["sentinel_kwargs"] = sentinel_kwargs
-        except Exception:
-            raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
+    broker_transport_options = _broker_transport_options(broker_url, team_conf)
 
     if team_conf.has_option("celery", "RESULT_BACKEND"):
         result_backend = team_conf.get_mandatory_value("celery", "RESULT_BACKEND")
@@ -132,8 +197,12 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
         ),
         "result_backend": result_backend,
         "result_backend_transport_options": result_backend_transport_options,
-        "database_engine_options": team_conf.getjson(
-            "celery", "result_backend_sqlalchemy_engine_options", fallback={}
+        "database_engine_options": _get_database_engine_options(
+            result_backend,
+            cast(
+                "dict[str, Any]",
+                team_conf.getjson("celery", "result_backend_sqlalchemy_engine_options", fallback={}),
+            ),
         ),
         "worker_concurrency": team_conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
         "worker_enable_remote_control": team_conf.getboolean(
@@ -150,7 +219,9 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
     # Handle SSL configuration
     try:
         celery_ssl_active = team_conf.getboolean("celery", "SSL_ACTIVE", fallback=False)
-    except AirflowConfigException:
+    # ``team_conf`` is the Task SDK parser at module scope and core's ``ExecutorConf`` on the
+    # multi-team path. Their ``AirflowConfigException`` classes share a name but are not the same class.
+    except (AirflowConfigException, CoreAirflowConfigException):
         log.warning("Celery Executor will run without SSL")
         celery_ssl_active = False
 
@@ -177,15 +248,17 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
                     "Set SSL_MUTUAL_TLS=True if you intend to use mutual TLS."
                 )
 
+            broker_use_ssl: dict[str, str | int] = {}
+
             if broker_url and re.search(r"amqps?://", broker_url):
-                broker_use_ssl = {"cert_reqs": ssl.CERT_REQUIRED}
+                broker_use_ssl["cert_reqs"] = ssl.CERT_REQUIRED
                 if ssl_cacert:
                     broker_use_ssl["ca_certs"] = ssl_cacert
                 if ssl_mutual_tls:
                     broker_use_ssl["keyfile"] = ssl_key
                     broker_use_ssl["certfile"] = ssl_cert
             elif broker_url and re.search("rediss?://|sentinel://", broker_url):
-                broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+                broker_use_ssl["ssl_cert_reqs"] = ssl.CERT_REQUIRED
                 if ssl_cacert:
                     broker_use_ssl["ssl_ca_certs"] = ssl_cacert
                 if ssl_mutual_tls:

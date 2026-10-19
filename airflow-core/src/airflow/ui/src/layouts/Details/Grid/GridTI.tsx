@@ -20,9 +20,12 @@ import { Badge, Box, Flex } from "@chakra-ui/react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
+
 import { useColorMode } from "src/context/colorMode";
+import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 import { NOTE_GRADIENT, SELECTED_TASK_OUTLINE_COLOR } from "./constants";
@@ -34,6 +37,7 @@ type Props = {
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
+  readonly loopMaxIterations?: number | null;
   readonly onClick?: () => void;
   readonly runId: string;
   readonly taskId: string;
@@ -45,6 +49,7 @@ export const GridTI = ({
   instance,
   isGroup,
   isMapped,
+  loopMaxIterations,
   onClick,
   runId,
   taskId,
@@ -55,20 +60,23 @@ export const GridTI = ({
 
   const [searchParams] = useSearchParams();
 
-  const taskUrl = buildTaskInstanceUrl({
-    currentPathname: location.pathname,
-    dagId,
-    isGroup,
-    isMapped: Boolean(isMapped),
-    runId,
-    taskId,
-  });
+  const hasTaskInstance = instance.dag_version_number !== null && instance.dag_version_number !== undefined;
+  const taskUrl = hasTaskInstance
+    ? buildTaskInstanceUrl({
+        currentPathname: location.pathname,
+        dagId,
+        isGroup,
+        isMapped: Boolean(isMapped),
+        runId,
+        taskId,
+      })
+    : `/dags/${dagId}/tasks/${isGroup ? "group/" : ""}${taskId}`;
 
-  // Remove try_number query param when navigating to reset to the
-  // latest try of the task instance and avoid issues with invalid try numbers:
-  // https://github.com/apache/airflow/issues/56977
-  searchParams.delete("try_number");
-  const redirectionSearch = searchParams.toString();
+  const redirectionSearch = setExecutionCoordinates(
+    stripExecutionParams(searchParams),
+    instance.latest_region_id,
+    instance.latest_region_index,
+  ).toString();
 
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
   const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
@@ -91,6 +99,7 @@ export const GridTI = ({
       transition="background-color 0.2s"
     >
       <TaskInstanceTooltip
+        loopMaxIterations={loopMaxIterations}
         openDelay={500}
         positioning={{ placement: "bottom" }}
         runId={runId}

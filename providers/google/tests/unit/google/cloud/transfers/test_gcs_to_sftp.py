@@ -36,6 +36,7 @@ DESTINATION_SFTP = "destination_path"
 # TODO: After deprecating delimiter and wildcards in source objects,
 #       implement reverted changes from the first commit of PR #31261
 class TestGoogleCloudStorageToSFTPOperator:
+    @pytest.mark.parametrize("destination_path", [DESTINATION_SFTP, "../shared"])
     @pytest.mark.parametrize(
         ("source_object", "target_object", "keep_directory_structure"),
         [
@@ -48,13 +49,19 @@ class TestGoogleCloudStorageToSFTPOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
     def test_execute_copy_single_file(
-        self, sftp_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure
+        self,
+        sftp_hook_mock,
+        gcs_hook_mock,
+        source_object,
+        target_object,
+        keep_directory_structure,
+        destination_path,
     ):
         task = GCSToSFTPOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=source_object,
-            destination_path=DESTINATION_SFTP,
+            destination_path=destination_path,
             keep_directory_structure=keep_directory_structure,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
@@ -73,11 +80,12 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
 
         sftp_hook_mock.return_value.store_file.assert_called_with(
-            os.path.join(DESTINATION_SFTP, target_object), mock.ANY
+            os.path.join(destination_path, target_object), mock.ANY
         )
 
         gcs_hook_mock.return_value.delete.assert_not_called()
 
+    @pytest.mark.parametrize("destination_path", [DESTINATION_SFTP, "../shared"])
     @pytest.mark.parametrize(
         ("source_object", "target_object", "keep_directory_structure"),
         [
@@ -90,13 +98,19 @@ class TestGoogleCloudStorageToSFTPOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")
     def test_execute_move_single_file(
-        self, sftp_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure
+        self,
+        sftp_hook_mock,
+        gcs_hook_mock,
+        source_object,
+        target_object,
+        keep_directory_structure,
+        destination_path,
     ):
         task = GCSToSFTPOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=source_object,
-            destination_path=DESTINATION_SFTP,
+            destination_path=destination_path,
             keep_directory_structure=keep_directory_structure,
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
@@ -115,11 +129,12 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
 
         sftp_hook_mock.return_value.store_file.assert_called_with(
-            os.path.join(DESTINATION_SFTP, target_object), mock.ANY
+            os.path.join(destination_path, target_object), mock.ANY
         )
 
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
 
+    @pytest.mark.parametrize("destination_path", [DESTINATION_SFTP, "../shared"])
     @pytest.mark.parametrize(
         (
             "source_object",
@@ -188,13 +203,14 @@ class TestGoogleCloudStorageToSFTPOperator:
         gcs_files_list,
         target_objects,
         keep_directory_structure,
+        destination_path,
     ):
         gcs_hook_mock.return_value.list.return_value = gcs_files_list
         operator = GCSToSFTPOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=source_object,
-            destination_path=DESTINATION_SFTP,
+            destination_path=destination_path,
             keep_directory_structure=keep_directory_structure,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
@@ -212,13 +228,14 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
         sftp_hook_mock.return_value.store_file.assert_has_calls(
             [
-                mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY)
+                mock.call(os.path.join(destination_path, target_object), mock.ANY)
                 for target_object in target_objects
             ]
         )
 
         gcs_hook_mock.return_value.delete.assert_not_called()
 
+    @pytest.mark.parametrize("destination_path", [DESTINATION_SFTP, "../shared"])
     @pytest.mark.parametrize(
         (
             "source_object",
@@ -287,13 +304,14 @@ class TestGoogleCloudStorageToSFTPOperator:
         gcs_files_list,
         target_objects,
         keep_directory_structure,
+        destination_path,
     ):
         gcs_hook_mock.return_value.list.return_value = gcs_files_list
         operator = GCSToSFTPOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=source_object,
-            destination_path=DESTINATION_SFTP,
+            destination_path=destination_path,
             keep_directory_structure=keep_directory_structure,
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
@@ -311,7 +329,7 @@ class TestGoogleCloudStorageToSFTPOperator:
         )
         sftp_hook_mock.return_value.store_file.assert_has_calls(
             [
-                mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY)
+                mock.call(os.path.join(destination_path, target_object), mock.ANY)
                 for target_object in target_objects
             ]
         )
@@ -468,6 +486,78 @@ class TestGoogleCloudStorageToSFTPOperator:
         sftp_hook_mock.return_value.create_directory.assert_not_called()
 
     @pytest.mark.parametrize(
+        ("move_object", "expected_deleted"),
+        [
+            pytest.param(False, [], id="copy"),
+            pytest.param(True, ["data/empty/", "data/folder/", "data/folder/file.txt"], id="move"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook", autospec=True)
+    def test_folder_markers_are_created_as_directories(
+        self, sftp_hook_mock, gcs_hook_mock, move_object, expected_deleted
+    ):
+        gcs_hook = gcs_hook_mock.return_value
+        sftp_hook = sftp_hook_mock.return_value
+        gcs_hook.list.return_value = ["data/empty/", "data/folder/", "data/folder/file.txt"]
+        operator = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="data/*",
+            destination_path=DESTINATION_SFTP,
+            create_intermediate_dirs=True,
+            move_object=move_object,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        operator.execute(None)
+
+        sftp_hook.create_directory.assert_any_call(os.path.join(DESTINATION_SFTP, "data", "empty"))
+        sftp_hook.store_file.assert_called_once_with(
+            os.path.join(DESTINATION_SFTP, "data", "folder", "file.txt"), mock.ANY
+        )
+        gcs_hook.download.assert_called_once_with(
+            bucket_name=TEST_BUCKET, object_name="data/folder/file.txt", filename=mock.ANY
+        )
+        assert gcs_hook.delete.call_args_list == [mock.call(TEST_BUCKET, obj) for obj in expected_deleted]
+
+    @pytest.mark.parametrize(
+        ("move_object", "expected_deleted"),
+        [
+            pytest.param(False, [], id="copy"),
+            pytest.param(True, ["data/folder/file.txt"], id="move"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook", autospec=True)
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook", autospec=True)
+    def test_folder_markers_are_skipped_without_intermediate_dirs(
+        self, sftp_hook_mock, gcs_hook_mock, move_object, expected_deleted
+    ):
+        gcs_hook = gcs_hook_mock.return_value
+        sftp_hook = sftp_hook_mock.return_value
+        gcs_hook.list.return_value = ["data/empty/", "data/folder/", "data/folder/file.txt"]
+        operator = GCSToSFTPOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="data/*",
+            destination_path=DESTINATION_SFTP,
+            create_intermediate_dirs=False,
+            move_object=move_object,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        operator.execute(None)
+
+        sftp_hook.create_directory.assert_not_called()
+        sftp_hook.store_file.assert_called_once_with(
+            os.path.join(DESTINATION_SFTP, "data", "folder", "file.txt"), mock.ANY
+        )
+        gcs_hook.download.assert_called_once_with(
+            bucket_name=TEST_BUCKET, object_name="data/folder/file.txt", filename=mock.ANY
+        )
+        assert gcs_hook.delete.call_args_list == [mock.call(TEST_BUCKET, obj) for obj in expected_deleted]
+
+    @pytest.mark.parametrize(
         "source_object",
         [
             pytest.param("incoming/../../../../etc/passwd", id="dotdot-segments"),
@@ -516,6 +606,13 @@ class TestGoogleCloudStorageToSFTPOperator:
             pytest.param(".", "file.txt", "file.txt", id="dot-base-benign"),
             pytest.param("", "file.txt", "file.txt", id="empty-base-benign"),
             pytest.param(".", "sub/dir/file.txt", "sub/dir/file.txt", id="dot-base-nested"),
+            pytest.param("..", "file.txt", "../file.txt", id="parent-base"),
+            pytest.param("../shared", "file.txt", "../shared/file.txt", id="parent-shared-base"),
+            pytest.param("../../shared", "sub/file.txt", "../../shared/sub/file.txt", id="two-parents"),
+            pytest.param("./../shared//", "file.txt", "../shared/file.txt", id="normalized-base"),
+            pytest.param("uploads/../../shared", "file.txt", "../shared/file.txt", id="normalized-parents"),
+            pytest.param("../shared", "sub/../file.txt", "../shared/file.txt", id="contained-normalization"),
+            pytest.param("/", "sub/file.txt", "/sub/file.txt", id="root-base"),
         ],
     )
     def test_resolve_destination_path_allows_relative_base(self, destination_path, source_object, expected):
@@ -546,6 +643,11 @@ class TestGoogleCloudStorageToSFTPOperator:
             # against the configured base must still reject them.
             pytest.param("incoming", "../.ssh/authorized_keys", id="dotdot-escape-from-nested-base"),
             pytest.param("uploads/in", "../../etc/passwd", id="dotdot-escape-from-deeper-base"),
+            pytest.param("../shared", "../other/file.txt", id="sibling-of-parent-base"),
+            pytest.param("../shared", "../shared-other/file.txt", id="similar-prefix-sibling"),
+            pytest.param("../shared", "/file.txt", id="absolute-absorbs-parent-base"),
+            pytest.param("..", "../file.txt", id="additional-parent"),
+            pytest.param("../..", "../file.txt", id="additional-parent-from-two-parents"),
         ],
     )
     def test_resolve_destination_path_rejects_escape_from_relative_base(

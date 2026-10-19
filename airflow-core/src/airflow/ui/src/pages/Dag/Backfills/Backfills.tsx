@@ -20,22 +20,50 @@ import { Button, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+
+import { isReprocessBehavior } from "src/constants/reprocessBehaviourParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { type DurationFormat, useDurationFormat } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
+import { BackfillsFilters } from "./BackfillsFilters";
 
-const getColumns = (
-  onSelectBackfill: (backfillId: number) => void,
-  translate: TFunction,
-): Array<ColumnDef<BackfillResponse>> => [
+const {
+  COMPLETED_AT_GTE: COMPLETED_AT_GTE_PARAM,
+  COMPLETED_AT_LTE: COMPLETED_AT_LTE_PARAM,
+  CREATED_AT_GTE: CREATED_AT_GTE_PARAM,
+  CREATED_AT_LTE: CREATED_AT_LTE_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
+  FROM_DATE_GTE: FROM_DATE_GTE_PARAM,
+  FROM_DATE_LTE: FROM_DATE_LTE_PARAM,
+  MAX_ACTIVE_RUNS_GTE: MAX_ACTIVE_RUNS_GTE_PARAM,
+  MAX_ACTIVE_RUNS_LTE: MAX_ACTIVE_RUNS_LTE_PARAM,
+  REPROCESS_BEHAVIOR: REPROCESS_BEHAVIOR_PARAM,
+  TO_DATE_GTE: TO_DATE_GTE_PARAM,
+  TO_DATE_LTE: TO_DATE_LTE_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
+
+type ColumnProps = {
+  readonly onSelectBackfill: (backfillId: number) => void;
+  readonly translate: TFunction;
+} & Pick<DurationFormat, "formatElapsed">;
+
+const getColumns = ({
+  formatElapsed,
+  onSelectBackfill,
+  translate,
+}: ColumnProps): Array<ColumnDef<DataTableFeatures, BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -102,7 +130,7 @@ const getColumns = (
       <Text>
         {row.original.completed_at === null
           ? ""
-          : getDuration(row.original.created_at, row.original.completed_at)}
+          : formatElapsed(row.original.created_at, row.original.completed_at)}
       </Text>
     ),
     enableSorting: false,
@@ -116,7 +144,8 @@ const getColumns = (
 ];
 
 export const Backfills = () => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation(["common", "components"]);
+  const { formatElapsed } = useDurationFormat();
   const { setTableURLState, tableURLState } = useTableURLState();
   const location = useLocation();
   const navigate = useNavigate();
@@ -126,10 +155,43 @@ export const Backfills = () => {
   const { backfillId, dagId = "" } = useParams();
   const selectedBackfillId = Number(backfillId);
   const hasSelectedBackfill = Number.isInteger(selectedBackfillId) && selectedBackfillId > 0;
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
+
+  const [searchParams] = useSearchParams();
+
+  const fromDateGte = searchParams.get(FROM_DATE_GTE_PARAM);
+  const fromDateLte = searchParams.get(FROM_DATE_LTE_PARAM);
+  const toDateGte = searchParams.get(TO_DATE_GTE_PARAM);
+  const toDateLte = searchParams.get(TO_DATE_LTE_PARAM);
+  const createdAtGte = searchParams.get(CREATED_AT_GTE_PARAM);
+  const createdAtLte = searchParams.get(CREATED_AT_LTE_PARAM);
+  const completedAtGte = searchParams.get(COMPLETED_AT_GTE_PARAM);
+  const completedAtLte = searchParams.get(COMPLETED_AT_LTE_PARAM);
+  const maxActiveRunsGte = searchParams.get(MAX_ACTIVE_RUNS_GTE_PARAM);
+  const maxActiveRunsLte = searchParams.get(MAX_ACTIVE_RUNS_LTE_PARAM);
+  const durationGte = searchParams.get(DURATION_GTE_PARAM);
+  const durationLte = searchParams.get(DURATION_LTE_PARAM);
+  const reprocessBehaviorParam = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
+  const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
+
+  const { data, error, isLoading } = useBackfillServiceListBackfillsUi({
+    completedAtGte: completedAtGte ?? undefined,
+    completedAtLte: completedAtLte ?? undefined,
+    createdAtGte: createdAtGte ?? undefined,
+    createdAtLte: createdAtLte ?? undefined,
     dagId,
+    durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+    durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
+    fromDateGte: fromDateGte ?? undefined,
+    fromDateLte: fromDateLte ?? undefined,
     limit: pagination.pageSize,
+    maxActiveRunsGte:
+      maxActiveRunsGte !== null && maxActiveRunsGte !== "" ? Number(maxActiveRunsGte) : undefined,
+    maxActiveRunsLte:
+      maxActiveRunsLte !== null && maxActiveRunsLte !== "" ? Number(maxActiveRunsLte) : undefined,
     offset: pagination.pageIndex * pagination.pageSize,
+    reprocessBehavior,
+    toDateGte: toDateGte ?? undefined,
+    toDateLte: toDateLte ?? undefined,
   });
 
   const onSelectBackfill = (id: number) => {
@@ -151,15 +213,15 @@ export const Backfills = () => {
       ),
     );
   };
-  const columns = getColumns(onSelectBackfill, translate);
+  const columns = getColumns({ formatElapsed, onSelectBackfill, translate });
 
   return (
     <>
+      <BackfillsFilters />
       <ErrorAlert error={error} />
       <DataTable
         columns={columns}
         data={data ? data.backfills : []}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:backfill"
         onStateChange={setTableURLState}

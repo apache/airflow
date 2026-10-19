@@ -394,7 +394,7 @@ def get_data_dependencies(
     asset_id: int, session: Session, readable_dag_ids: set[str] | None = None
 ) -> dict[str, list[dict]]:
     """Get full task dependencies for an asset."""
-    from sqlalchemy import select, union_all
+    from sqlalchemy import select, tuple_, union_all
     from sqlalchemy.orm import selectinload
 
     from airflow.models.asset import (
@@ -417,7 +417,9 @@ def get_data_dependencies(
             select(TaskInletAssetReference.dag_id).where(TaskInletAssetReference.asset_id == asset_id),
             select(DagScheduleAssetReference.dag_id).where(DagScheduleAssetReference.asset_id == asset_id),
         )
-        connected_dag_ids = set(session.scalars(select(connected_dag_ids_query.subquery().c.dag_id)))
+        connected_dag_ids: set[str] = set(
+            session.scalars(select(connected_dag_ids_query.subquery().c.dag_id))
+        )
         if not connected_dag_ids & readable_dag_ids:
             return {"nodes": [], "edges": []}
 
@@ -458,6 +460,8 @@ def get_data_dependencies(
         next_frontier: set[int] = set()
         pending_dag_ids: set[str] = set()
         triggering_asset_node_ids_by_dag: dict[str, set[str]] = defaultdict(set)
+        pending_inlet_keys: set[tuple[str, str]] = set()
+        pending_outlet_keys: set[tuple[str, str]] = set()
 
         for asset in assets:
             asset_node_id = f"asset:{asset.id}"
@@ -491,15 +495,7 @@ def get_data_dependencies(
                 # Find other assets this task consumes (inlets) to trace upstream
                 if task_key not in processed_tasks:
                     processed_tasks.add(task_key)
-                    inlet_refs = session.scalars(
-                        select(TaskInletAssetReference).where(
-                            TaskInletAssetReference.dag_id == ref.dag_id,
-                            TaskInletAssetReference.task_id == ref.task_id,
-                        )
-                    ).all()
-                    for inlet_ref in inlet_refs:
-                        if inlet_ref.asset_id not in processed_assets:
-                            next_frontier.add(inlet_ref.asset_id)
+                    pending_inlet_keys.add(task_key)
 
             # Process consuming tasks (tasks that input this asset)
             for ref in asset.consuming_tasks:
@@ -523,15 +519,7 @@ def get_data_dependencies(
                 # Find other assets this task produces (outlets) to trace downstream
                 if task_key not in processed_tasks:
                     processed_tasks.add(task_key)
-                    outlet_refs = session.scalars(
-                        select(TaskOutletAssetReference).where(
-                            TaskOutletAssetReference.dag_id == ref.dag_id,
-                            TaskOutletAssetReference.task_id == ref.task_id,
-                        )
-                    ).all()
-                    for outlet_ref in outlet_refs:
-                        if outlet_ref.asset_id not in processed_assets:
-                            next_frontier.add(outlet_ref.asset_id)
+                    pending_outlet_keys.add(task_key)
 
             # Process Dags scheduled by this asset at the Dag level (`schedule=...`). These have
             # no task-level inlet reference and would otherwise be a dead end in this graph --
@@ -599,15 +587,31 @@ def get_data_dependencies(
             # Find other assets this entry task produces (outlets) to trace downstream.
             if task_key not in processed_tasks:
                 processed_tasks.add(task_key)
-                outlet_refs = session.scalars(
-                    select(TaskOutletAssetReference).where(
-                        TaskOutletAssetReference.dag_id == dag_id,
-                        TaskOutletAssetReference.task_id == entry_task_id,
+                pending_outlet_keys.add(task_key)
+
+        if pending_inlet_keys:
+            inlet_refs = session.scalars(
+                select(TaskInletAssetReference).where(
+                    tuple_(TaskInletAssetReference.dag_id, TaskInletAssetReference.task_id).in_(
+                        pending_inlet_keys
                     )
-                ).all()
-                for outlet_ref in outlet_refs:
-                    if outlet_ref.asset_id not in processed_assets:
-                        next_frontier.add(outlet_ref.asset_id)
+                )
+            ).all()
+            for inlet_ref in inlet_refs:
+                if inlet_ref.asset_id not in processed_assets:
+                    next_frontier.add(inlet_ref.asset_id)
+
+        if pending_outlet_keys:
+            outlet_refs = session.scalars(
+                select(TaskOutletAssetReference).where(
+                    tuple_(TaskOutletAssetReference.dag_id, TaskOutletAssetReference.task_id).in_(
+                        pending_outlet_keys
+                    )
+                )
+            ).all()
+            for outlet_ref in outlet_refs:
+                if outlet_ref.asset_id not in processed_assets:
+                    next_frontier.add(outlet_ref.asset_id)
 
         frontier = next_frontier
 
@@ -629,6 +633,8 @@ def get_data_dependencies(
             .distinct()
         )
         for event_asset_id, source_dag_id, source_task_id in alias_events:
+            if source_dag_id is None or source_task_id is None:
+                continue
             if readable_dag_ids is not None and source_dag_id not in readable_dag_ids:
                 continue
             asset_node_id = f"asset:{event_asset_id}"

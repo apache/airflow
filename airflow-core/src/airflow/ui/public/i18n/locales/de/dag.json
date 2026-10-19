@@ -6,6 +6,7 @@
     "title": "Abhängigkeiten die die Planung des Task blockieren"
   },
   "calendar": {
+    "backfill": "Auffüllung",
     "daily": "Täglich",
     "hourly": "Stündlich",
     "legend": {
@@ -42,8 +43,9 @@
   },
   "deadlineAlerts": {
     "completionRule": "Muss innerhalb von {{interval}} nach {{reference}} abgeschlossen sein",
-    "count_one": "{{count}} Frist",
-    "count_other": "{{count}} Fristen",
+    "completionRuleDynamic": "Muss innerhalb eines variablen, ab {{reference}} gemessenen Intervalls abgeschlossen werden",
+    "count_one": "{{count, number}} Frist",
+    "count_other": "{{count, number}} Fristen",
     "referenceType": {
       "AverageRuntimeDeadline": "durchschnittlicher Laufzeit",
       "DagRunLogicalDateDeadline": "logischem Datum des Dag-Laufs",
@@ -58,13 +60,13 @@
     "label": "Frist",
     "met": "Erfüllt",
     "missed": "Verpasst",
-    "missedCount_one": "{{count}} verpasste Frist",
-    "missedCount_other": "{{count}} verpasste Fristen",
-    "mixedCount": "{{missedCount}} verpasst, {{upcomingCount}} bevorstehend",
+    "missedCount_one": "{{count, number}} verpasste Frist",
+    "missedCount_other": "{{count, number}} verpasste Fristen",
+    "mixedCount": "{{missedCount, number}} verpasst, {{upcomingCount, number}} bevorstehend",
     "stillRunning": "Noch laufend",
     "upcoming": "Bevorstehend",
-    "upcomingCount_one": "{{count}} bevorstehende Frist",
-    "upcomingCount_other": "{{count}} bevorstehende Fristen"
+    "upcomingCount_one": "{{count, number}} bevorstehende Frist",
+    "upcomingCount_other": "{{count, number}} bevorstehende Fristen"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -91,20 +93,51 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "Vollbild",
-      "tooltip": "Taste {{hotkey}} für Vollbildmodus"
-    },
     "info": "INFO",
     "noTryNumber": "Keine Versuchsnummer",
     "search": {
-      "matchCount": "{{current}} von {{total}}",
+      "matchCount": "{{current, number}} von {{total, number}}",
       "noMatches": "Keine Treffer",
       "placeholder": "Protokolle durchsuchen..."
     },
     "settings": "Protokoll-Ansicht",
+    "tryNotStarted": "Dieser Versuch ist nicht gestartet.",
+    "viewFailedTry": "Logs ansehen für fehlgeschlagenen Versuch {{tryNumber}}",
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
+    "viewPreviousTry": "Logs des vorigen Versuch {{tryNumber}}",
+    "waitingToRetry": "Versuch Nummer {{tryNumber}} wartet zum Start.",
     "warning": "WARNING"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "Begrenzung: {{max}}",
+      "iterationsAxis": "Iterationen",
+      "stats": {
+        "capHits": "Erreicht das Limit",
+        "medianIterations": "Median der Iterationen"
+      },
+      "title": "Iterationen pro Lauf"
+    },
+    "iterationLabel": "Iteration {{index}}",
+    "iterations": "Iterationen",
+    "outcome": "Ergebnis",
+    "reason": {
+      "cap_reached": "Erreichte die Iterationsbegrenzung ({{max}})",
+      "failed": "Fehlgeschlagen bei Interation {{index}}",
+      "iteration_failed": "Iteration {{index}} fehlgeschlagen bei {{taskId}}",
+      "ran_to_cap": "Benutzte alle {{max}} zur Verfügung stehenden Iterationen",
+      "removed": "Entfernt",
+      "running": "Läuft",
+      "skipped": "Übersprungen",
+      "stopped_early": "Früh bei Interation {{index}} angehalten"
+    },
+    "rules": {
+      "behaviour": "Verhalten",
+      "boundedFor": "Führt eine feste Zahl an Iterationen aus",
+      "exitCriteria": "Ausstiegskriterium",
+      "maxIterations": "Maximale Iterationen",
+      "whileUntil": "Wiederholt bis {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Zurück",
@@ -147,13 +180,7 @@
       "label": "Anzahl von Dag Läufen"
     },
     "dependencies": {
-      "label": "Abhängigkeiten",
-      "options": {
-        "allDagDependencies": "Alle Dag Abhängigkeiten",
-        "externalConditions": "Externe Bedingungen",
-        "onlyTasks": "Nur Tasks"
-      },
-      "placeholder": "Abhängigkeiten"
+      "allDagDependencies": "Alle Dag-Abhängigkeiten"
     },
     "graphDirection": {
       "label": "Richtung des Graph"
@@ -219,16 +246,16 @@
     "code": "Programmcode",
     "details": "Details",
     "logs": "Protokolle",
-    "mappedTaskInstances_one": "Task Instanz [{{count}}]",
-    "mappedTaskInstances_other": "Task Instanzen [{{count}}]",
+    "mappedTaskInstances_one": "Task Instanz [{{count, number}}]",
+    "mappedTaskInstances_other": "Task Instanzen [{{count, number}}]",
     "overview": "Übersicht",
     "renderedTemplates": "Ausgefüllte Vorlagen",
     "requiredActions": "Interaktionen",
     "runs": "Läufe",
-    "storage": "Speicher",
     "taskInstances": "Task Instanzen",
     "taskStateStore": "Task Status Zwischenspeicher",
     "tasks": "Tasks",
+    "versions": "Versionen",
     "xcom": "Task Kommunikation (XComs)"
   },
   "taskGroups": {
@@ -246,6 +273,8 @@
     "deleteWarning": "Der Task verliert diesen gespeicherten Zustand. Wenn der Task diesen Schlüssel verwendet, um externe Arbeiten zu verfolgen (z.B. eine externe Job-ID), kann er diese nicht wieder aufnehmen und startet Arbeiten potentiell wieder von vorne.",
     "edit": "Task Status Zwischenspeicher bearbeiten",
     "emptyStore": "Der Task Status Zwischenspeicher speichert Werte, die über Wiederholungen hinweg bestehen bleiben. Worker können den Task Status Zwischenspeicher über das Task SDK schreiben.",
+    "entry_one": "Eintrag",
+    "entry_other": "Einträge",
     "expiresAt": {
       "column": "Ablaufdatum",
       "custom": "Benutzerdefiniert",
@@ -254,5 +283,62 @@
       "never": "Nie"
     },
     "title": "Task Status Zwischenspeicher"
+  },
+  "versions": {
+    "aboutThisComparison": "Über diesen Vergleich",
+    "base": "Vergleichen von",
+    "categories": {
+      "asset": "Datensatz (Asset)",
+      "authorization": "Autorisierung",
+      "callback": "Callback",
+      "deadline": "Termin",
+      "dependency": "Abhängigkeit",
+      "metadata": "Metadaten",
+      "param": "Parameter",
+      "provenance": "Ursprung",
+      "schedule": "Zeitplan",
+      "task": "Aufgabe",
+      "unknown": "Unbekannt"
+    },
+    "codeAccess": "Werte erfordern Zugriff auf Dag-Quellcode",
+    "columns": {
+      "after": "Nach",
+      "before": "Vor",
+      "category": "Kategorie",
+      "impact": "Auswirkung",
+      "occurrences": "Auftritte",
+      "operation": "Einsatz",
+      "path": "Pfad"
+    },
+    "heading": "Version {{base}} → Version {{target}}",
+    "impacts": {
+      "authorization": "Autorisierung",
+      "execution": "Ausführung",
+      "metadata": "Metadaten",
+      "provenance": "Ursprung",
+      "unknown": "Unbekannt"
+    },
+    "maxChanges": "Maximale Änderungen",
+    "maxChangesDefault": "Standard",
+    "noChanges": "Es gibt keinen Unterschied zwischen diesen Versionen.",
+    "observedStateBoundary": "Vergleicht aktuell gespeichterte Dagversionen. Quellcodevergleich ist nicht verfügbar für alte Versionen; Code-Tab nutzen um Quellcode zu vergleichen.",
+    "operations": {
+      "added": "Hinzugefügt",
+      "changed": "Geändert",
+      "removed": "Entfernt"
+    },
+    "record_one": "Datensatz",
+    "record_other": "Datensätze",
+    "schemaChange": "Serialisierte Struktur {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "Zwei Versionen auswählen um Änderungen zwischen diesen zu sehen.",
+    "summary_one": "{{count, number}} Änderung",
+    "summary_other": "{{count, number}} Änderungen",
+    "target": "Vergleichen mit",
+    "unavailable": {
+      "description": "Diese Versionen können nicht verglichen werden. Grund:",
+      "title": "Vergleich nicht verfügbar",
+      "withoutReason": "Diese Versionen können nicht verglichen werden."
+    },
+    "valuesHidden": "Werte verstecken"
   }
 }

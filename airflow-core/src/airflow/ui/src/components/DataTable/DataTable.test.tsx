@@ -18,16 +18,17 @@
  */
 import { Text } from "@chakra-ui/react";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ChakraWrapper } from "src/utils/ChakraWrapper.tsx";
 
 import { DataTable } from "./DataTable.tsx";
+import type { DataTableFeatures } from "./features.ts";
 import type { CardDef } from "./types.ts";
 
-const columns: Array<ColumnDef<{ name: string }>> = [
+const columns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
   {
     accessorKey: "name",
     cell: (info) => info.getValue(),
@@ -36,7 +37,7 @@ const columns: Array<ColumnDef<{ name: string }>> = [
 ];
 
 // The columns menu is only shown by default once a table has many columns
-const wideColumns: Array<ColumnDef<{ name: string }>> = [
+const wideColumns: Array<ColumnDef<DataTableFeatures, { name: string }>> = [
   ...columns,
   ...["Second", "Third", "Fourth", "Fifth", "Sixth"].map((header) => ({
     cell: () => header,
@@ -55,6 +56,12 @@ const onStateChange = vi.fn();
 const cardDef: CardDef<{ name: string }> = {
   card: ({ row }) => <Text>My name is {row.name}.</Text>,
 };
+
+/** Header row buttons in DOM order, named by accessible label, for asserting slot placement. */
+const headerButtonOrder = () =>
+  within(screen.getByTestId("data-table-header"))
+    .getAllByRole("button")
+    .map((button) => button.getAttribute("aria-label") ?? button.textContent);
 
 describe("DataTable", () => {
   it("renders table with data", () => {
@@ -257,14 +264,6 @@ describe("DataTable", () => {
     expect(screen.getByRole("heading")).toHaveTextContent(/^task_other$/u);
   });
 
-  it("keeps the row count heading while refetching", () => {
-    render(<DataTable columns={columns} data={data} isFetching modelName="task" total={2} />, {
-      wrapper: ChakraWrapper,
-    });
-
-    expect(screen.getByRole("heading")).toHaveTextContent("2 task");
-  });
-
   it("renders a capped row count heading when total reaches totalEntriesLimit", () => {
     render(
       <DataTable
@@ -283,12 +282,12 @@ describe("DataTable", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("50,000+ task");
   });
 
-  it("does not render row count heading during the initial load", () => {
+  it("keeps the row count heading during the initial load", () => {
     render(<DataTable columns={columns} data={[]} isLoading modelName="task" total={0} />, {
       wrapper: ChakraWrapper,
     });
 
-    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByRole("heading")).toHaveTextContent(/^task_other$/u);
   });
 
   it("does not render row count heading when hideRowCountHeading is set", () => {
@@ -445,37 +444,98 @@ describe("DataTable", () => {
     expect(screen.getByLabelText(columnsMenuLabel)).toBeInTheDocument();
   });
 
-  it("hides a column when unchecked in the columns menu", async () => {
+  it("hides a column when unchecked in the columns menu and shows it again when rechecked", async () => {
     render(<DataTable columns={wideColumns} data={data} modelName="task" total={2} />, {
       wrapper: ChakraWrapper,
     });
 
-    const trigger = screen.getByLabelText(columnsMenuLabel);
+    const table = screen.getByTestId("table-list");
 
-    fireEvent.pointerDown(trigger);
-    fireEvent.click(trigger);
+    fireEvent.click(screen.getByLabelText(columnsMenuLabel));
 
-    const menuItem = await waitFor(() => screen.getByRole("menuitem", { name: "Second" }));
+    const menuItem = await screen.findByRole("menuitem", { name: "Second" });
 
     fireEvent.click(menuItem);
+    await waitFor(() => expect(within(table).queryByRole("columnheader", { name: "Second" })).toBeNull());
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(wideColumns.length - 1);
 
-    await waitFor(() => expect(within(screen.getByTestId("table-list")).queryByText("Second")).toBeNull());
+    fireEvent.click(menuItem);
+    expect(await within(table).findByRole("columnheader", { name: "Second" })).toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(wideColumns.length);
   });
 
-  it("renders actions independently of rows and heading", () => {
+  // Each slot needs its own entry in the header row condition, or its content vanishes whenever
+  // nothing else occupies the row — as it does on tables that hide the row count heading.
+  const actionSlots = [
+    ["filterActions", { filterActions: <button type="button">slot content</button> }],
+    ["presentationActions", { presentationActions: <button type="button">slot content</button> }],
+    ["primaryActions", { primaryActions: <button type="button">slot content</button> }],
+  ] as const;
+
+  it.each(actionSlots)("renders %s with no rows and no heading", (_name, slot) => {
+    render(
+      <DataTable columns={columns} data={[]} hideRowCountHeading modelName="task" total={0} {...slot} />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByText("slot content")).toBeInTheDocument();
+  });
+
+  it("renders all three action slots together", () => {
     render(
       <DataTable
-        actions={<button type="button">custom action</button>}
         columns={columns}
-        data={[]}
-        hideRowCountHeading
+        data={data}
+        filterActions={<button type="button">filter slot</button>}
         modelName="task"
-        total={0}
+        presentationActions={<button type="button">presentation slot</button>}
+        primaryActions={<button type="button">primary slot</button>}
+        total={2}
       />,
       { wrapper: ChakraWrapper },
     );
 
-    expect(screen.getByText("custom action")).toBeInTheDocument();
+    const header = within(screen.getByTestId("data-table-header"));
+
+    expect(header.getByText("filter slot")).toBeInTheDocument();
+    expect(header.getByText("presentation slot")).toBeInTheDocument();
+    expect(header.getByText("primary slot")).toBeInTheDocument();
+  });
+
+  it("renders presentation actions before the columns menu", () => {
+    render(
+      <DataTable
+        columns={wideColumns}
+        data={data}
+        modelName="task"
+        presentationActions={<button type="button">custom action</button>}
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    const order = headerButtonOrder();
+
+    expect(order.indexOf("custom action")).toBeLessThan(order.indexOf(columnsMenuLabel));
+  });
+
+  it("renders primary actions before presentation actions", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        modelName="task"
+        presentationActions={<button type="button">presentation slot</button>}
+        primaryActions={<button type="button">primary slot</button>}
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    const order = headerButtonOrder();
+
+    expect(order.indexOf("primary slot")).toBeLessThan(order.indexOf("presentation slot"));
   });
 
   it("renders headingExtra next to the row count heading", () => {

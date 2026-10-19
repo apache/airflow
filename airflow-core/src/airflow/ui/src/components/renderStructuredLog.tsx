@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { chakra, Code, Link } from "@chakra-ui/react";
-import type { TFunction } from "i18next";
 import type { JSX, ReactNode } from "react";
 import { Fragment } from "react";
+
+import { chakra, Code, Link } from "@chakra-ui/react";
+import type { TFunction } from "i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+
 import AnsiRenderer from "src/components/AnsiRenderer";
 import Time from "src/components/Time";
+
 import { urlRegex } from "src/constants/urlRegex";
 import { isUserCodeFrame, LogLevel, logLevelColorMapping } from "src/utils/logs";
 
@@ -49,6 +52,7 @@ type RenderStructuredLogProps = {
   logLink: string;
   logMessage: string | StructuredLogMessage;
   renderingMode?: "jsx" | "text";
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
@@ -150,7 +154,8 @@ const extractFromStructuredDatum = (
   const ctx: Record<string, unknown> = {};
 
   for (const field of tiContextFields) {
-    if (Object.hasOwn(line, field) && line[field] !== undefined) {
+    // Callback triggers log these fields as null since they have no task instance.
+    if (Object.hasOwn(line, field) && line[field] !== undefined && line[field] !== null) {
       ctx[field] = line[field];
     }
   }
@@ -178,6 +183,7 @@ const renderStructuredLogImpl = ({
   logLink,
   logMessage,
   renderingMode = "jsx",
+  showLogLevel = true,
   showSource = true,
   showTimestamp = true,
   sourceFilters,
@@ -224,7 +230,7 @@ const renderStructuredLogImpl = ({
     }
   }
 
-  if (typeof level === "string") {
+  if (typeof level === "string" && showLogLevel) {
     const formattedLevel = level.toUpperCase();
 
     if (renderingMode === "text") {

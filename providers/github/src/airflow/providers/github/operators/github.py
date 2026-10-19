@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from github import GithubException
@@ -45,7 +45,10 @@ class GithubOperator(BaseOperator):
     :param result_processor: Function to further process the response from GitHub API
     """
 
-    template_fields = ("github_method_args",)
+    template_fields: Sequence[str] = (
+        "github_method_args",
+        "github_conn_id",
+    )
 
     def __init__(
         self,

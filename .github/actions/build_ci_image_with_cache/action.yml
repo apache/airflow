@@ -48,7 +48,8 @@ runs:
     # cache. The commit it was built from tells the two apart and is stashed on its own, so
     # deciding costs a few bytes rather than the image the decision may make unnecessary.
     - name: "Restore the commit the stashed CI image was built from"
-      uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
       with:
         key: "ci-image-commit-v3-${{ inputs.platform }}-${{ inputs.python }}\
           -${{ inputs.image-stash-ref }}"
@@ -73,7 +74,8 @@ runs:
       if: steps.restore-commit.outputs.stash-hit == 'true'
     # Restored ahead of the caches that feed the build, so a build made unnecessary skips them too.
     - name: "Restore the CI image stashed for this ref"
-      uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
       with:
         key: "ci-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
           -${{ inputs.image-stash-ref }}"
@@ -108,7 +110,8 @@ runs:
     # Scoped to the ref for the same reason the image is: the mount cache holds the dependency set
     # the sources resolve to, and a ref's and the branch tip's are exactly what differ.
     - name: "Restore the mount cache stashed for this ref"
-      uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
+      # yamllint disable-line rule:line-length
+      uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
       with:
         key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
           -${{ inputs.image-stash-ref }}"
@@ -182,7 +185,7 @@ runs:
         git rev-parse HEAD > "${COMMIT_FILE}"
       if: steps.stashed-image.outputs.reusable != 'true'
     - name: "Stash the CI image"
-      uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
+      uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
       with:
         key: "ci-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
           -${{ inputs.image-stash-ref }}"
@@ -194,7 +197,7 @@ runs:
     # Saved last and with the image's retention, so that finding this commit is enough to know the
     # image it describes is there to be restored.
     - name: "Stash the commit the CI image was built from"
-      uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
+      uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
       with:
         key: "ci-image-commit-v3-${{ inputs.platform }}-${{ inputs.python }}\
           -${{ inputs.image-stash-ref }}"
@@ -211,7 +214,7 @@ runs:
         --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
       if: steps.stashed-image.outputs.reusable != 'true'
     - name: "Stash the mount cache"
-      uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
+      uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
       with:
         key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
           -${{ inputs.image-stash-ref }}"

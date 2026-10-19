@@ -20,7 +20,6 @@ from __future__ import annotations
 import asyncio
 import itertools
 import json
-import operator
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -41,7 +40,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_latest_version_of_dag,
     resolve_run_on_latest_version,
 )
-from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
+from airflow.api_fastapi.common.db.task_instances import eager_load_task_instance_for_validation
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionResponse,
@@ -55,18 +54,26 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     ClearPartitionsBody,
     DagRunMutableStates,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse
+from airflow.api_fastapi.core_api.datamodels.task_instances import NewTaskResponse, TaskInstanceResponse
 from airflow.api_fastapi.core_api.services.public.common import BulkService
+from airflow.api_fastapi.core_api.services.public.task_coordinates import task_coordinate_responses
 from airflow.api_fastapi.core_api.services.public.task_instances import _emit_state_listener_hooks
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagrun import DagRun, clear_partition_runs
+from airflow.models.renderedtifields import load_legacy_rendered_fields
+from airflow.models.task_coordinates import (
+    TaskCoordinateResolver,
+    enclosing_loop,
+    public_map_index_expression,
+)
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.session import create_session_async
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Iterator
+    from collections.abc import AsyncGenerator
+    from uuid import UUID
 
     from airflow.serialization.definitions.dag import SerializedDAG
 
@@ -119,7 +126,7 @@ def dry_run_clear_dag_run(
         new_task_ids = sorted(set(latest_dag.task_ids) - existing_task_ids)
         return [NewTaskResponse(task_id=task_id, task_display_name=task_id) for task_id in new_task_ids]
 
-    ti_query = eager_load_TI_and_TIH_for_validation(select(TaskInstance))
+    ti_query = eager_load_task_instance_for_validation(select(TaskInstance))
     ti_query = ti_query.where(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == dag_run_id,
@@ -128,7 +135,10 @@ def dry_run_clear_dag_run(
         ti_query = ti_query.where(
             TaskInstance.state.in_([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])
         )
-    return list(session.scalars(ti_query))
+    task_instances = list(session.scalars(ti_query))
+    load_legacy_rendered_fields(task_instances, session=session)
+    resolver = TaskCoordinateResolver(dag_bag, session)
+    return task_coordinate_responses(TaskInstanceResponse, task_instances, resolver)
 
 
 def perform_clear_dag_run(
@@ -156,7 +166,7 @@ def perform_clear_dag_run(
     if not dag_run_cleared:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after clearing")
     if note is not None:
-        patch_dag_run_note(dag_run=dag_run_cleared, note=note, user=user)
+        patch_dag_run_note(dag_run=dag_run_cleared, note=note, user_id=user.get_id())
     return dag_run_cleared
 
 
@@ -228,15 +238,20 @@ def patch_dag_run_state(
             log.exception("error calling listener")
 
 
-def patch_dag_run_note(*, dag_run: DagRun, note: str | None, user: BaseUser) -> None:
-    """Set, update, or clear a Dag Run's note. An empty note removes it so the run is left without a note."""
+def patch_dag_run_note(*, dag_run: DagRun, note: str | None, user_id: str | None) -> None:
+    """
+    Set, update, or clear a Dag Run's note. An empty note removes it so the run is left without a note.
+
+    ``user_id`` is the author to attribute the note to, or ``None`` for an unattributed note
+    (e.g. a note written from task runtime, which has no acting user).
+    """
     if note == "":
         dag_run.dag_run_note = None
     elif dag_run.dag_run_note is None:
-        dag_run.note = (note, user.get_id())
+        dag_run.note = (note, user_id)
     else:
         dag_run.dag_run_note.content = note
-        dag_run.dag_run_note.user_id = user.get_id()
+        dag_run.dag_run_note.user_id = user_id
 
 
 @attrs.define
@@ -248,41 +263,90 @@ class DagRunWaiter:
     interval: float
     result_task_ids: list[str] | None
 
+    def validate_result_selection(self, dag_run: DagRun, dag_bag: DagBagDep, *, session: Session) -> None:
+        if self.result_task_ids == []:
+            return
+        query = select(TaskInstance.task_id, TaskInstance.dag_version_id).where(
+            TaskInstance.dag_id == self.dag_id, TaskInstance.run_id == self.run_id
+        )
+        if self.result_task_ids is not None:
+            query = query.where(TaskInstance.task_id.in_(self.result_task_ids))
+        versions: dict[UUID | None, set[str]] = {}
+        for task_id, version in session.execute(query.distinct()):
+            versions.setdefault(version or dag_run.created_dag_version_id, set()).add(task_id)
+        current_task_ids = {task_id for task_ids in versions.values() for task_id in task_ids}
+        created_dag = (
+            dag_bag.get_dag(dag_run.created_dag_version_id, session=session)
+            if dag_run.created_dag_version_id is not None
+            else None
+        )
+        if created_dag is not None:
+            requested = (
+                set(self.result_task_ids) if self.result_task_ids is not None else set(created_dag.task_ids)
+            )
+            versions.setdefault(dag_run.created_dag_version_id, set()).update(requested - current_task_ids)
+        for version, task_ids in versions.items():
+            if version is None:
+                continue
+            dag = (
+                created_dag
+                if version == dag_run.created_dag_version_id
+                else dag_bag.get_dag(version, session=session)
+            )
+            if dag is None:
+                continue
+            for task_id in task_ids:
+                if not dag.has_task(task_id):
+                    continue
+                task = dag.get_task(task_id)
+                if self.result_task_ids is None and not task.returns_dag_result:
+                    continue
+                if enclosing_loop(task) is not None:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        f"Cannot collect loop task {task_id!r} as a DagRun result; "
+                        "publish the result through a task outside the loop.",
+                    )
+
     async def _get_dag_run(self) -> DagRun:
         async with create_session_async() as session:
             return await session.scalar(select(DagRun).filter_by(dag_id=self.dag_id, run_id=self.run_id))
 
     async def _serialize_xcoms(self) -> dict[str, Any]:
+        xcom_query = XComModel.get_many(
+            run_id=self.run_id,
+            key=XCOM_RETURN_KEY,
+            dag_ids=self.dag_id,
+            task_ids=self.result_task_ids,
+            region_id=None,
+        )
+        entity = xcom_entity(xcom_query)
         if self.result_task_ids is None:  # Return dag-author-specified results.
-            xcom_query = XComModel.get_many(
-                run_id=self.run_id,
-                key=XCOM_RETURN_KEY,
-                dag_ids=self.dag_id,
-            )
-            xcom_query = xcom_query.where(XComModel.dag_result.is_(True))
-        else:  # Explicitly API user-specified results.
-            xcom_query = XComModel.get_many(
-                run_id=self.run_id,
-                key=XCOM_RETURN_KEY,
-                task_ids=self.result_task_ids,
-                dag_ids=self.dag_id,
-            )
+            xcom_query = xcom_query.where(entity.dag_result.is_(True))
         # XComModel.get_many() orders XCom by timestamp. Reset this to make
         # mapped task results stable since execution order is not guaranteed.
-        xcom_query = xcom_query.order_by(None).order_by(XComModel.task_id, XComModel.map_index)
+        xcom_query = (
+            xcom_query.add_columns(public_map_index_expression(entity))
+            .order_by(None)
+            .order_by(entity.task_id, entity.region_index)
+        )
         async with create_session_async() as session:
-            xcom_results = (await session.scalars(xcom_query)).all()
+            xcom_results = (await session.execute(xcom_query)).all()
 
-        def _group_xcoms(g: Iterator[XComModel | tuple[XComModel]]) -> Any:
-            entries = [row[0] if isinstance(row, tuple) else row for row in g]
-            if len(entries) == 1 and entries[0].map_index < 0:  # Unpack non-mapped task xcom.
-                return entries[0].value
-            return [entry.value for entry in entries]  # Task is mapped; return all xcoms in a list.
-
-        return {
-            task_id: _group_xcoms(g)
-            for task_id, g in itertools.groupby(xcom_results, key=operator.attrgetter("task_id"))
-        }
+        results = {}
+        for task_id, group in itertools.groupby(xcom_results, key=lambda row: row[0].task_id):
+            entries = list(group)
+            if len({entry.region_id for entry, _ in entries}) > 1 or (
+                len(entries) > 1 and any(map_index < 0 for _, map_index in entries)
+            ):
+                raise ValueError(
+                    f"Ambiguous current producers for task {task_id!r} in DAG run {self.run_id!r}"
+                )
+            if len(entries) == 1 and entries[0][1] < 0:
+                results[task_id] = entries[0][0].value
+            else:
+                results[task_id] = [entry.value for entry, _ in entries]
+        return results
 
     async def _serialize_response(self, dag_run: DagRun) -> str:
         resp = {"state": dag_run.state}
@@ -426,7 +490,7 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
                     dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
                     patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
                 if entity.note is not None:
-                    patch_dag_run_note(dag_run=dag_run, note=entity.note, user=self.user)
+                    patch_dag_run_note(dag_run=dag_run, note=entity.note, user_id=self.user.get_id())
                 results.success.append(f"{dag_id}.{run_id}")
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

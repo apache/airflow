@@ -139,6 +139,17 @@ with DAG(
         target_state=FargateProfileStates.ACTIVE,
     )
 
+    # EKS can reject DeleteFargateProfile with ResourceInUseException for over ten minutes after the
+    # profile turns ACTIVE, saying the cluster has an update in progress. DescribeCluster does not expose
+    # that update, so this sensor only catches a visibly UPDATING cluster; riding out the rest is left to
+    # the delete operator's ResourceInUseException retry window.
+    await_cluster_stable_before_profile_delete = EksClusterStateSensor(
+        task_id="await_cluster_stable_before_profile_delete",
+        trigger_rule=TriggerRule.ALL_DONE,
+        cluster_name=cluster_name,
+        target_state=ClusterStates.ACTIVE,
+    )
+
     # [START howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile = EksDeleteFargateProfileOperator(
         task_id="delete_eks_fargate_profile",
@@ -190,6 +201,7 @@ with DAG(
         # TEARDOWN
         describe_pod,
         await_fargate_profile_stable,
+        await_cluster_stable_before_profile_delete,
         delete_fargate_profile,  # part of the test AND teardown
         await_delete_fargate_profile,
         await_cluster_stable,

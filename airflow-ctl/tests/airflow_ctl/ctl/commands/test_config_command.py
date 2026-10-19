@@ -384,6 +384,43 @@ class TestCliConfigCommands:
             in calls[1]
         )
 
+    @pytest.mark.parametrize(
+        ("expose_config", "expect_issue"),
+        [
+            pytest.param("non-sensitive-only", True, id="deprecated-value"),
+            pytest.param("True", False, id="boolean-value"),
+        ],
+    )
+    @patch("rich.print")
+    def test_lint_detects_deprecated_expose_config_value(
+        self, mock_rich_print, expose_config, expect_issue, api_client_maker
+    ):
+        response_config = Config(
+            sections=[
+                ConfigSection(
+                    name="api",
+                    options=[ConfigOption(key="expose_config", value=expose_config)],
+                )
+            ]
+        )
+
+        api_client = api_client_maker(
+            path="/api/v2/config",
+            response_json=response_config.model_dump(),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+
+        config_command.lint(
+            self.parser.parse_args(["config", "lint"]),
+            api_client=api_client,
+        )
+
+        calls = [call[0][0] for call in mock_rich_print.call_args_list]
+        expected_message = "Invalid value `non-sensitive-only` set for `expose_config` configuration parameter in `api` section."
+
+        assert any(expected_message in call for call in calls) is expect_issue
+
     @patch("airflowctl.api.client.Credentials.load")
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_CONFIG"})

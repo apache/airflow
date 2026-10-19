@@ -16,7 +16,7 @@
     under the License.
 
 .. THIS FILE IS AUTO-GENERATED. DO NOT EDIT MANUALLY.
-   Regenerate with:  python scripts/ci/prek/extract_permissions.py
+   Regenerate with:  uv run scripts/ci/prek/extract_permissions.py
    Trigger:          prek run generate-api-permissions-doc --all-files
 
 API Endpoint Permission Reference
@@ -86,10 +86,6 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``Asset``
      - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/queuedEvents``
-     - ``DAG``
-     - ``GET``
    * - ``GET``
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``Asset``
@@ -183,6 +179,18 @@ source code so it stays up to date as endpoints are added or changed.
      - ``Connection``
      - ``PUT``
    * - ``GET``
+     - ``/api/v2/dagBundles``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dagBundles/{bundle_name}``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dagBundles/{bundle_name}/files``
+     - ``DAG``
+     - ``GET``
+   * - ``GET``
      - ``/api/v2/dagSources/{dag_id}``
      - ``DAG.CODE``
      - ``GET``
@@ -206,6 +214,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags``
      - ``DAG``
      - ``PUT``
+   * - ``PATCH``
+     - ``/api/v2/dags/bulk``
+     - ``DAG``
+     - ``multi``
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}``
      - ``DAG``
@@ -225,7 +237,7 @@ source code so it stays up to date as endpoints are added or changed.
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
      - ``DAG``
-     - ``GET``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/assets/queuedEvents``
      - ``Asset``
@@ -241,7 +253,7 @@ source code so it stays up to date as endpoints are added or changed.
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
      - ``DAG``
-     - ``GET``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents``
      - ``Asset``
@@ -456,6 +468,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``GET``
    * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagVersions``
+     - ``DAG.VERSION``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/dags/{dag_id}/dagVersions/diff``
      - ``DAG.VERSION``
      - ``GET``
    * - ``GET``

@@ -96,6 +96,13 @@ Also for this action you can use sensor in the deferrable mode:
     :start-after: [START howto_operator_gcp_pubsub_pull_message_with_async_sensor]
     :end-before: [END howto_operator_gcp_pubsub_pull_message_with_async_sensor]
 
+Unlike the sensor, which pokes until a message shows up, the
+:class:`~airflow.providers.google.cloud.operators.pubsub.PubSubPullOperator` operator does not poke.
+With ``return_immediately=True`` it issues a single pull, and an empty subscription yields an empty
+list. In deferrable mode it hands the wait to
+:class:`~airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger`, which re-pulls every
+``poll_interval`` until a message arrives, with nothing bounding that wait.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/pubsub/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_pull_message_with_operator]

@@ -18,7 +18,7 @@
  */
 import { useTranslation } from "react-i18next";
 
-import { Dialog } from "src/components/ui";
+import { Modal } from "src/system-components";
 
 import TimezoneSelector from "./TimezoneSelector";
 
@@ -28,18 +28,12 @@ type TimezoneModalProps = {
 };
 
 const TimezoneModal = ({ isOpen, onClose }: TimezoneModalProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>
-      <Dialog.Content backdrop>
-        <Dialog.Header>{translate("timezoneModal.title")}</Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <TimezoneSelector />
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+    <Modal lazyMount onOpenChange={onClose} open={isOpen} title={translate("timezoneModal.title")}>
+      <TimezoneSelector />
+    </Modal>
   );
 };
 

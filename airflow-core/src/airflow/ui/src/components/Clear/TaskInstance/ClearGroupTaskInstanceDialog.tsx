@@ -16,23 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { Button, Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDagServiceGetDagDetails,
-  useTaskInstanceServiceGetTaskInstances,
-} from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+
+import { Checkbox, Modal, SegmentedControl } from "src/system-components";
+
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
-import { Checkbox, Dialog } from "src/components/ui";
-import SegmentedControl from "src/components/ui/SegmentedControl";
-import { useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
+
+import { useClearKeepTaskStateDefault, useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -50,13 +49,8 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const { dagId = "", runId = "" } = useParams();
   const groupId = taskInstance.task_id;
 
-  const { isPending, mutate } = useClearTaskInstances({
-    dagId,
-    dagRunId: runId,
-    onSuccessConfirm: onClose,
-  });
-
   const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
@@ -64,25 +58,30 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [note, setNote] = useState<string | null>(null);
+
+  const onCloseDialog = () => {
+    setNote(null);
+    setKeepTaskState(keepTaskStateDefault);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (open) {
+      setNote(null);
+      setKeepTaskState(keepTaskStateDefault);
+    }
+  }, [open, keepTaskStateDefault]);
+
+  const { isPending, mutate } = useClearTaskInstances({
+    dagRunId: runId,
+    onSuccessConfirm: onCloseDialog,
+  });
 
   const { data: dagDetails } = useDagServiceGetDagDetails({
     dagId,
   });
-
-  const { data: groupTaskInstances } = useTaskInstanceServiceGetTaskInstances(
-    {
-      dagId,
-      dagRunId: runId,
-      taskGroupId: groupId,
-    },
-    undefined,
-    {
-      enabled: open,
-    },
-  );
-
-  const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
 
   const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
     enabled: open,
@@ -110,7 +109,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const { data } = useClearTaskInstancesDryRun({
     dagId,
     options: {
-      enabled: open && groupTaskIds.length > 0,
+      enabled: open,
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
           ? refetchInterval
@@ -125,7 +124,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
       include_upstream: upstream,
       only_failed: onlyFailed,
       run_on_latest_version: runOnLatestVersion,
-      task_ids: groupTaskIds,
+      task_group_id: groupId,
     },
   });
 
@@ -135,101 +134,99 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   };
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <VStack align="start" gap={4}>
-            <Heading size="xl">
-              <strong>
-                {translate("dags:runAndTaskActions.clear.title", {
-                  type: translate("taskInstance", { count: affectedTasks.total_entries ?? 0 }),
-                })}
-                :
-              </strong>{" "}
-              {groupId}
-            </Heading>
-          </VStack>
-        </Dialog.Header>
-
-        <Dialog.CloseTrigger />
-
-        <Dialog.Body width="full">
-          <Flex justifyContent="center">
-            <SegmentedControl
-              defaultValues={clearTaskInstanceDefaultOptions}
-              multiple
-              onChange={setSelectedOptions}
-              options={[
-                {
-                  label: translate("dags:runAndTaskActions.options.past"),
-                  value: "past",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.future"),
-                  value: "future",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.upstream"),
-                  value: "upstream",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.downstream"),
-                  value: "downstream",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
-                  value: "onlyFailed",
-                },
-              ]}
-            />
-          </Flex>
-          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex
-            {...(shouldShowRunOnLatestOption ? { alignItems: "center" } : {})}
-            gap={3}
-            justifyContent={shouldShowRunOnLatestOption ? "space-between" : "end"}
-            mt={3}
+    <Modal
+      footerActions={
+        <Button
+          disabled={affectedTasks.total_entries === 0}
+          loading={isPending}
+          onClick={() => {
+            mutate({
+              dagId,
+              requestBody: {
+                dag_run_id: runId,
+                dry_run: false,
+                include_downstream: downstream,
+                include_future: future,
+                include_past: past,
+                include_upstream: upstream,
+                ...(note === null ? {} : { note }),
+                ...(keepTaskState ? { keep_task_state: true } : {}),
+                only_failed: onlyFailed,
+                run_on_latest_version: runOnLatestVersion,
+                task_group_id: groupId,
+              },
+            });
+          }}
+        >
+          <CgRedo /> {translate("modal.confirm")}
+        </Button>
+      }
+      footerOptions={
+        <>
+          <Checkbox
+            checked={keepTaskState}
+            onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
           >
-            {shouldShowRunOnLatestOption ? (
-              <Checkbox
-                checked={runOnLatestVersionForced || runOnLatestVersion}
-                disabled={runOnLatestVersionForced}
-                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-                title={
-                  runOnLatestVersionForced
-                    ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
-                    : undefined
-                }
-              >
-                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
-              </Checkbox>
-            ) : undefined}
-            <Button
-              disabled={affectedTasks.total_entries === 0 || groupTaskIds.length === 0}
-              loading={isPending}
-              onClick={() => {
-                mutate({
-                  dagId,
-                  requestBody: {
-                    dag_run_id: runId,
-                    dry_run: false,
-                    include_downstream: downstream,
-                    include_future: future,
-                    include_past: past,
-                    include_upstream: upstream,
-                    ...(note === null ? {} : { note }),
-                    only_failed: onlyFailed,
-                    run_on_latest_version: runOnLatestVersion,
-                    task_ids: groupTaskIds,
-                  },
-                });
-              }}
+            {translate("dags:runAndTaskActions.options.keepTaskState")}
+          </Checkbox>
+          {shouldShowRunOnLatestOption ? (
+            <Checkbox
+              checked={runOnLatestVersionForced || runOnLatestVersion}
+              disabled={runOnLatestVersionForced}
+              onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+              title={
+                runOnLatestVersionForced
+                  ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                  : undefined
+              }
             >
-              <CgRedo /> {translate("modal.confirm")}
-            </Button>
-          </Flex>
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+            </Checkbox>
+          ) : undefined}
+        </>
+      }
+      lazyMount
+      onOpenChange={onCloseDialog}
+      open={open}
+      title={
+        <>
+          {translate("dags:runAndTaskActions.clear.title", {
+            type: translate("taskInstance", { count: affectedTasks.total_entries ?? 0 }),
+          })}
+          : {groupId}
+        </>
+      }
+    >
+      <Flex justifyContent="center">
+        <SegmentedControl
+          defaultValues={clearTaskInstanceDefaultOptions}
+          multiple
+          onChange={setSelectedOptions}
+          options={[
+            {
+              label: translate("dags:runAndTaskActions.options.past"),
+              value: "past",
+            },
+            {
+              label: translate("dags:runAndTaskActions.options.future"),
+              value: "future",
+            },
+            {
+              label: translate("dags:runAndTaskActions.options.upstream"),
+              value: "upstream",
+            },
+            {
+              label: translate("dags:runAndTaskActions.options.downstream"),
+              value: "downstream",
+            },
+            {
+              label: translate("dags:runAndTaskActions.options.onlyFailed"),
+              value: "onlyFailed",
+            },
+          ]}
+        />
+      </Flex>
+      <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+    </Modal>
   );
 };
