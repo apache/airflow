@@ -33,6 +33,8 @@ const defaultProps = {
   setNote: vi.fn(),
 };
 
+const preventDefault = (event: Event) => event.preventDefault();
+
 const renderNote = (props: Partial<typeof defaultProps> = {}) =>
   render(<NotePreview {...defaultProps} {...props} />, { wrapper: Wrapper });
 
@@ -100,7 +102,11 @@ describe("NotePreview", () => {
 
       renderNote({ note: "see [the docs](https://airflow.apache.org)", onOpen });
 
-      fireEvent.click(screen.getByRole("link", { name: "the docs" }));
+      const link = screen.getByRole("link", { name: "the docs" });
+
+      // Keep happy-dom from following the link to the real site; the row only looks at the target.
+      link.addEventListener("click", preventDefault);
+      fireEvent.click(link);
 
       expect(onOpen).not.toHaveBeenCalled();
       expect(screen.queryByTestId("edit-markdown")).toBeNull();

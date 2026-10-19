@@ -19,8 +19,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
@@ -31,7 +30,7 @@ import {
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
-import { handlers } from "src/mocks/handlers";
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { ClearTaskInstanceButton } from "./ClearTaskInstanceButton";
@@ -118,25 +117,19 @@ vi.mock("src/queries/useClearTaskInstancesDryRun", () => ({
   },
 }));
 
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(
-    ...handlers,
+beforeEach(() => {
+  server.use(
     http.get(`/api/v2/dags/${DAG_ID}/details`, () => HttpResponse.json({})),
     http.get(`/api/v2/dags/${DAG_ID}/dagRuns/${DAG_RUN_ID}`, () => HttpResponse.json({ dag_versions: [] })),
   );
-  server.listen({ onUnhandledFrame: "bypass" });
 });
 afterEach(() => {
   affectedTasks.task_instances = [taskInstance];
   confirmationDryRun.isFetching = false;
   mutateMock.mockClear();
   dryRunsMock.mockClear();
-  server.resetHandlers();
   localStorage.clear();
 });
-afterAll(() => server.close());
 
 describe("ClearTaskInstanceDialog", () => {
   it("seeds the keep-task-state checkbox from the stored default and sends it on confirm", async () => {
