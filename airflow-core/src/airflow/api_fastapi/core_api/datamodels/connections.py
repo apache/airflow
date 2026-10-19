@@ -34,37 +34,25 @@ _MASK = "***"
 
 
 @cache
-def _sensitive_extra_fields() -> dict[str, frozenset[str]]:
+def _sensitive_extra_keys() -> frozenset[str]:
     """
-    Return, per connection type, the ``extra`` field names its provider declares sensitive.
+    Return the ``extra`` keys any provider declares sensitive, as plain and ``extra__<type>__`` names.
 
     Providers mark a connection field as a secret with ``format: password`` in their
     ``conn-fields``. The name-based masking in ``redact`` cannot use that knowledge, because it
     only knows a fixed list of secret names, and ``config`` is not one of them. Read from provider
     metadata, without importing any hook.
-    """
-    from airflow.providers_manager import ProvidersManager
-
-    fields: dict[str, set[str]] = {}
-    for prefixed_name, widget in ProvidersManager()._connection_form_widgets_from_metadata.items():
-        if not widget.is_sensitive:
-            continue
-        conn_type = prefixed_name.removeprefix("extra__").removesuffix(f"__{widget.field_name}")
-        fields.setdefault(conn_type, set()).add(widget.field_name)
-    return {conn_type: frozenset(names) for conn_type, names in fields.items()}
-
-
-def _is_provider_sensitive_extra_key(key: str) -> bool:
-    """
-    Tell whether any provider declares ``key`` sensitive, as a plain or ``extra__<type>__`` name.
 
     Not limited to the connection's current type: after a ``conn_type`` change the stored
     ``extra`` still holds the previous type's secrets, and the new type does not declare them.
     """
-    return any(
-        key.removeprefix(f"extra__{conn_type}__") in names
-        for conn_type, names in _sensitive_extra_fields().items()
-    )
+    from airflow.providers_manager import ProvidersManager
+
+    keys: set[str] = set()
+    for prefixed_name, widget in ProvidersManager()._connection_form_widgets_from_metadata.items():
+        if widget.is_sensitive:
+            keys.update((widget.field_name, prefixed_name))
+    return frozenset(keys)
 
 
 def restore_provider_sensitive_extra(extra: Any, stored_extra: Any) -> Any:
@@ -79,7 +67,7 @@ def restore_provider_sensitive_extra(extra: Any, stored_extra: Any) -> Any:
         return extra
     return {
         key: stored_extra[key]
-        if value == _MASK and key in stored_extra and _is_provider_sensitive_extra_key(key)
+        if value == _MASK and key in stored_extra and key in _sensitive_extra_keys()
         else value
         for key, value in extra.items()
     }
@@ -110,13 +98,13 @@ class ConnectionResponse(BaseModel):
     @model_validator(mode="after")
     def redact_provider_sensitive_extra(self) -> ConnectionResponse:
         """Mask the ``extra`` fields any provider declares sensitive."""
-        if not self.extra or not _sensitive_extra_fields():
+        if not self.extra or not _sensitive_extra_keys():
             return self
         extra = json.loads(self.extra)
         if not isinstance(extra, dict):
             return self
         for key, value in extra.items():
-            if _is_provider_sensitive_extra_key(key) and value not in (None, ""):
+            if key in _sensitive_extra_keys() and value not in (None, ""):
                 extra[key] = _MASK
         self.extra = json.dumps(extra)
         return self

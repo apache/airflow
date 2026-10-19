@@ -1008,9 +1008,9 @@ class TestPatchConnection(TestConnectionEndpoint):
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
 
     @mock.patch(
-        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
         autospec=True,
-        return_value={"apprise": frozenset({"config"})},
+        return_value=frozenset({"config", "extra__apprise__config"}),
     )
     @pytest.mark.parametrize("key", ["config", "extra__apprise__config"])
     def test_patch_keeps_masked_provider_sensitive_extra(self, _, test_client, session, key):
@@ -1040,9 +1040,9 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert json.loads(db_conn.extra) == {key: "secret-config", "tag": "updated"}
 
     @mock.patch(
-        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
         autospec=True,
-        return_value={"apprise": frozenset({"config"})},
+        return_value=frozenset({"config", "extra__apprise__config"}),
     )
     def test_patch_does_not_carry_provider_sensitive_extra_to_another_type(self, _, test_client, session):
         session.add(
@@ -1061,9 +1061,9 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert json.loads(db_conn.extra) == {"config": "***"}
 
     @mock.patch(
-        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
         autospec=True,
-        return_value={"apprise": frozenset({"config"})},
+        return_value=frozenset({"config", "extra__apprise__config"}),
     )
     @pytest.mark.parametrize(
         ("extra", "params"),
@@ -1413,9 +1413,9 @@ class TestConnection(TestConnectionEndpoint):
         assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
 
     @mock.patch(
-        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
         autospec=True,
-        return_value={"fs": frozenset({"path"})},
+        return_value=frozenset({"path", "extra__fs__path"}),
     )
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_reuse_masked_provider_sensitive_extra_of_existing_connection(
@@ -1437,9 +1437,9 @@ class TestConnection(TestConnectionEndpoint):
         assert json.loads(captured_extra["value"]) == {"path": "/secret"}
 
     @mock.patch(
-        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
+        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
         autospec=True,
-        return_value={"fs": frozenset({"path"})},
+        return_value=frozenset({"path", "extra__fs__path"}),
     )
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_not_reuse_provider_sensitive_extra_for_another_type(self, _, test_client, session):

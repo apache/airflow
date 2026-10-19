@@ -71,8 +71,8 @@ class TestRedactProviderSensitiveExtra:
     @pytest.fixture(autouse=True)
     def _sensitive_fields(self, monkeypatch):
         monkeypatch.setattr(
-            "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_fields",
-            lambda: {"apprise": frozenset({"config"})},
+            "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
+            lambda: frozenset({"config", "extra__apprise__config"}),
         )
 
     def _extra(self, conn_type, extra):
@@ -95,7 +95,7 @@ class TestRedactProviderSensitiveExtra:
         assert self._extra("apprise", {"config": ""}) == {"config": ""}
 
 
-def test_sensitive_extra_fields_reads_provider_declarations(monkeypatch):
+def test_sensitive_extra_keys_reads_provider_declarations(monkeypatch):
     from types import SimpleNamespace
 
     from airflow.api_fastapi.core_api.datamodels import connections as module
@@ -109,11 +109,10 @@ def test_sensitive_extra_fields_reads_provider_declarations(monkeypatch):
         "airflow.providers_manager.ProvidersManager",
         lambda: SimpleNamespace(_connection_form_widgets_from_metadata=widgets),
     )
-    module._sensitive_extra_fields.cache_clear()
+    module._sensitive_extra_keys.cache_clear()
     try:
-        assert module._sensitive_extra_fields() == {
-            "apprise": frozenset({"config"}),
-            "my_type": frozenset({"api_secret"}),
-        }
+        assert module._sensitive_extra_keys() == frozenset(
+            {"config", "extra__apprise__config", "api_secret", "extra__my_type__api_secret"}
+        )
     finally:
-        module._sensitive_extra_fields.cache_clear()
+        module._sensitive_extra_keys.cache_clear()
