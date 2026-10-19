@@ -29,28 +29,21 @@ from rich.markup import escape
 from rich.table import Table
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.commands.common_options import option_dry_run, option_verbose
+from airflow_breeze.commands.common_options import option_verbose
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.console import get_console, get_stderr_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.reproduce_ci import SKIP_LOCAL_REPRODUCTION
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.verification_plan import LeanSelectiveChecks, build_local_verification_plan
 
 APACHE_AIRFLOW_URL = re.compile(r"github\.com[:/]apache/airflow(\.git)?/?$")
 
 
 def _run_git(*args: str) -> CompletedProcess:
-    return run_command(
-        ["git", *args],
-        capture_output=True,
-        text=True,
-        check=False,
-        cwd=AIRFLOW_ROOT_PATH,
-        dry_run_override=False,
-    )
+    return run_command(["git", *args], capture_output=True, text=True, check=False, cwd=AIRFLOW_ROOT_PATH)
 
 
 def find_default_base_ref() -> str | None:
@@ -67,20 +60,23 @@ def find_default_base_ref() -> str | None:
     return None
 
 
-def has_target_branch_commits_missing_from(base_ref: str) -> bool:
-    """Whether the branch holds target-branch commits that ``base_ref`` lacks, so they would count as changes.
+def is_base_possibly_stale(base_ref: str) -> bool:
+    """Whether the branch has commits ``base_ref`` lacks that may be target-branch commits, so they count as changes.
 
     A merge brings them in, as after GitHub's "Update branch" when the local copy was not fetched
-    since. A rebase or fast-forward onto the apache/airflow remote does too, when ``base_ref`` is an
-    older copy such as a local branch.
+    since. A rebase or fast-forward onto any remote's copy of the target branch does too, when
+    ``base_ref`` is older. A merge of another unmerged branch looks the same, so this can be a false
+    alarm.
     """
     for line in _run_git("rev-list", "--merges", "--parents", f"{base_ref}..HEAD").stdout.splitlines():
         for merged_parent in line.split()[2:]:
             if _run_git("merge-base", "--is-ancestor", merged_parent, base_ref).returncode != 0:
                 return True
-    apache_ref = find_default_base_ref()
-    if apache_ref and apache_ref != base_ref:
-        fork_point = _run_git("merge-base", apache_ref, "HEAD").stdout.strip()
+    remote_refs = _run_git(
+        "for-each-ref", "--format=%(refname)", f"refs/remotes/*/{AIRFLOW_BRANCH}"
+    ).stdout.split()
+    for remote_ref in remote_refs:
+        fork_point = _run_git("merge-base", remote_ref, "HEAD").stdout.strip()
         if fork_point and _run_git("merge-base", "--is-ancestor", fork_point, base_ref).returncode != 0:
             return True
     return False
@@ -104,19 +100,25 @@ def get_changed_files_against(base_ref: str) -> tuple[str, ...]:
 
 
 def run_verification_commands(commands: list[str]) -> list[int]:
-    """Run each command in a shell from the repository root, carrying on after a failure."""
-    return_codes = []
-    for index, command in enumerate(commands, start=1):
-        get_console().print(f"\n[info]({index}/{len(commands)}) {escape(command)}[/]\n", soft_wrap=True)
-        return_codes.append(
-            run_command(["bash", "-c", command], check=False, cwd=AIRFLOW_ROOT_PATH).returncode
-        )
+    """Run each command in a shell from the repository root, carrying on after a failure.
+
+    Ctrl+C stops the run; the return codes of the commands that finished are returned.
+    """
+    return_codes: list[int] = []
+    try:
+        for index, command in enumerate(commands, start=1):
+            get_console().print(f"\n[info]({index}/{len(commands)}) {escape(command)}[/]\n", soft_wrap=True)
+            return_codes.append(
+                run_command(["bash", "-c", command], check=False, cwd=AIRFLOW_ROOT_PATH).returncode
+            )
+    except KeyboardInterrupt:
+        pass
     return return_codes
 
 
 @main.command(
     name="verify",
-    help="Run the local verification CI would require for the current changes. Pass --dry-run to only list it.",
+    help="List the local verification CI would require for the current changes. Pass --run to run it.",
 )
 @click.option(
     "--base-ref",
@@ -130,18 +132,20 @@ def run_verification_commands(commands: list[str]) -> list[int]:
     help="List everything CI runs for the default matrix cell except static checks, including the full "
     "suite CI adds when a change touches CI tooling or dependency files.",
 )
+@click.option("--json", "as_json", is_flag=True, help="Print machine-readable JSON instead of a table.")
 @click.option(
-    "--json",
-    "as_json",
+    "--run",
     is_flag=True,
-    help="Print the list as machine-readable JSON instead of a table. Nothing is run.",
+    help="Run the listed commands and manual prek hooks one after another from the repository root. "
+    "A failure does not stop the rest; the exit code is non-zero if any failed.",
 )
-@option_dry_run
 @option_verbose
 @click.pass_context
-def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
+def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool, run: bool):
     from airflow_breeze.utils.selective_checks import SelectiveChecks
 
+    if as_json and run:
+        raise click.UsageError("--json only lists the commands and cannot be combined with --run.")
     if as_json:
         ctx.meta[SKIP_LOCAL_REPRODUCTION] = True
     no_apache_remote = False
@@ -170,11 +174,10 @@ def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
             f"No git remote points at apache/airflow, so changes are compared with the local "
             f"{AIRFLOW_BRANCH} branch."
         )
-    base_is_stale = has_target_branch_commits_missing_from(base_ref)
-    if base_is_stale:
+    if is_base_possibly_stale(base_ref):
         warnings.append(
-            f"{base_ref} is older than the target-branch commits your branch already has, so they are "
-            f"listed as your changes. Update {base_ref} (for example with git fetch) and run again."
+            f"{base_ref} may be out of date, so the list can include commits that are not yours. "
+            f"If it looks too long, update {base_ref} and run again."
         )
     if as_json:
         print(json.dumps(result, indent=2))
@@ -220,26 +223,26 @@ def verify(ctx: click.Context, base_ref: str | None, full: bool, as_json: bool):
         f"\n[warning]Covers Python {result['default_python_version']} on sqlite only; other Python versions, "
         "Postgres, MySQL, the provider compatibility matrix and CI-only jobs run in CI.[/]"
     )
-    if get_dry_run():
+    if not run:
         return
-    if base_is_stale:
-        console.print(
-            f"\n[error]Not running the list, because {base_ref} is out of date and the list includes commits "
-            f"that are not yours. Update {base_ref} and run again, or pass --dry-run to only list it.[/]"
-        )
-        sys.exit(1)
     commands = [item["command"] for item in result["items"]] + manual_prek_commands
     if not commands:
         console.print("\n[info]Nothing to run.[/]")
         return
-    failed = [
-        command
-        for command, return_code in zip(commands, run_verification_commands(commands))
-        if return_code != 0
-    ]
+    return_codes = run_verification_commands(commands)
+    failed = [command for command, return_code in zip(commands, return_codes) if return_code != 0]
+    unfinished = commands[len(return_codes) :]
     if failed:
         console.print(f"\n[error]{len(failed)} of {len(commands)} command(s) failed:[/]")
         for command in failed:
             console.print(escape(command), soft_wrap=True)
+    if unfinished:
+        console.print(
+            f"\n[warning]Interrupted. {len(unfinished)} of {len(commands)} command(s) did not finish:[/]"
+        )
+        for command in unfinished:
+            console.print(escape(command), soft_wrap=True)
+        sys.exit(130)
+    if failed:
         sys.exit(1)
     console.print(f"\n[success]All {len(commands)} command(s) passed.[/]")

@@ -19,6 +19,7 @@ from __future__ import annotations
 import inspect
 import json
 import shlex
+import subprocess
 from functools import cached_property
 from unittest.mock import Mock
 
@@ -107,10 +108,21 @@ def test_core_change_splits_db_and_non_db_cells():
         item["command"] for item in result["items"] if item["command"].startswith("breeze testing core-tests")
     ]
     assert unit == [
-        f'breeze testing core-tests --run-in-parallel --run-db-tests-only --parallel-test-types "{core_types}"',
+        "breeze testing core-tests --run-in-parallel --run-db-tests-only "
+        f"--parallel-test-types {shlex.quote(core_types)}",
         "breeze testing core-tests --use-xdist --skip-db-tests --no-db-cleanup --backend none "
-        f'--parallel-test-types "{core_types}"',
+        f"--parallel-test-types {shlex.quote(core_types)}",
     ]
+
+
+def test_unit_test_commands_pass_the_test_types_to_the_shell_verbatim():
+    test_types = "Providers[amazon] $HOME;"
+    for item in build_unit_test_items(
+        "providers", json.dumps([{"description": "x", "test_types": test_types}])
+    ):
+        echo = item.command.replace("breeze testing providers-tests", "printf '%s\\n'", 1)
+        printed = subprocess.run(["bash", "-c", echo], capture_output=True, text=True, check=True).stdout
+        assert printed.splitlines()[-1] == test_types
 
 
 def test_every_selective_checks_run_flag_is_classified():
@@ -243,8 +255,8 @@ def test_full_plan_adds_the_jobs_ci_runs_on_every_pr():
         *(i["command"] for i in lean),
         "cd dev/breeze && uv run --locked pytest",
         "for d in "
-        + " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
-        + "; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
+        + shlex.join(sorted(json.loads(sc.shared_distributions_as_json)))
+        + '; do (cd "shared/$d" && uv run --group dev pytest) || exit 1; done',
     ]
 
 
