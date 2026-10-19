@@ -29,6 +29,7 @@ from airflow_breeze.commands.ci_image_commands import (
     import_mount_cache,
     is_ci_image_built_from_current_sources,
     load,
+    save,
 )
 from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL
 from airflow_breeze.params.build_ci_params import BuildCiParams
@@ -209,6 +210,17 @@ def test_import_mount_cache_does_not_prune_the_imported_cache_mount(
     ]
 
 
+def save_snapshot(snapshot_file, image_file_dir):
+    save.callback(
+        python="3.11",
+        platform="linux/amd64",
+        github_repository="apache/airflow",
+        image_file=None,
+        image_file_dir=image_file_dir,
+        snapshot_file=snapshot_file,
+    )
+
+
 def load_snapshot(snapshot_file, image_file_dir):
     load.callback(
         from_run=None,
@@ -267,3 +279,33 @@ def test_load_exits_when_snapshot_is_not_restored(
 
     assert exit_info.value.code == expected_exit
     mock_mark_image_as_rebuilt.assert_not_called()
+
+
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_save_creates_snapshot_with_the_snapshot_script(
+    mock_perform_environment_checks, mock_run_command, tmp_path
+):
+    mock_run_command.return_value = mock.MagicMock(returncode=0)
+    snapshot_file = tmp_path / "ci-image-snapshot-linux_amd64-3.11.tar.zst"
+
+    save_snapshot(snapshot_file, tmp_path)
+
+    commands = [call.args[0] for call in mock_run_command.call_args_list]
+    assert len(commands) == 1
+    assert commands[0][0].endswith("scripts/ci/docker_data_root_snapshot.sh")
+    assert commands[0][1:] == ["create", str(snapshot_file)]
+    mock_perform_environment_checks.assert_called_once()
+
+
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_save_exits_with_the_snapshot_script_code(
+    mock_perform_environment_checks, mock_run_command, tmp_path
+):
+    mock_run_command.return_value = mock.MagicMock(returncode=3)
+
+    with pytest.raises(SystemExit) as exit_info:
+        save_snapshot(tmp_path / "ci-image-snapshot-linux_amd64-3.11.tar.zst", tmp_path)
+
+    assert exit_info.value.code == 3

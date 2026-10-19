@@ -408,13 +408,15 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         env:
+          PLATFORM: ${{ inputs.platform }}
           # Docker is bind-mounted from /mnt on AMD; write the archive on the root disk.
           SNAPSHOT_FILE: >-
             ${{ runner.temp }}/ci-image-snapshot-${{
             inputs.platform == 'linux/amd64' && 'linux_amd64' || 'linux_arm64'
             }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst
-        run: |
-          ./scripts/ci/docker_data_root_snapshot.sh create "${SNAPSHOT_FILE}"
+        run: >
+          breeze ci-image save --platform "${PLATFORM}" --python "${PYTHON_MAJOR_MINOR_VERSION}"
+          --snapshot-file "${SNAPSHOT_FILE}"
         shell: bash
         if: >
           github.event_name == 'pull_request' && runner.environment == 'github-hosted' &&

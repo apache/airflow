@@ -54,7 +54,8 @@ from airflow_breeze.commands.common_image_options import (
     option_push,
     option_python_image,
     option_skip_image_file_deletion,
-    option_snapshot_file,
+    option_snapshot_file_to_load,
+    option_snapshot_file_to_save,
     option_tag_as,
     option_verify,
     option_wait_for_image,
@@ -521,6 +522,7 @@ def run_verify_in_parallel(
 @option_image_file_dir
 @option_platform_single
 @option_python
+@option_snapshot_file_to_save
 @option_verbose
 @option_dry_run
 def save(
@@ -529,9 +531,13 @@ def save(
     github_repository: str,
     image_file: Path | None,
     image_file_dir: Path,
+    snapshot_file: Path | None,
 ):
     """Save CI image to a file."""
     perform_environment_checks()
+    if snapshot_file:
+        save_ci_image_snapshot(snapshot_file)
+        return
     image_name = BuildCiParams(
         python=python,
         github_repository=github_repository,
@@ -565,7 +571,7 @@ def save(
 @option_platform_single
 @option_python
 @option_skip_image_file_deletion
-@option_snapshot_file
+@option_snapshot_file_to_load
 @option_tag_as
 @option_verbose
 def load(
@@ -637,6 +643,18 @@ def load(
         console_print(f"[info]Deleting image file {image_file_to_load}[/]")
         image_file_to_load.unlink()
     tag_and_mark_loaded_ci_image(build_ci_params, tag_as)
+
+
+def save_ci_image_snapshot(snapshot_file: Path) -> None:
+    """Save a Docker data-root snapshot holding only the CI image, exiting when it cannot be made."""
+    console_print(f"[info]Saving Python CI image snapshot to {snapshot_file}[/]")
+    result = run_command(
+        [os.fspath(SCRIPTS_CI_PATH / "docker_data_root_snapshot.sh"), "create", os.fspath(snapshot_file)],
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print(f"[warning]Snapshot {snapshot_file} not created[/]")
+        sys.exit(result.returncode)
 
 
 def restore_ci_image_snapshot(snapshot_file: Path, image_name: str) -> None:

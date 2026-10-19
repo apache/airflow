@@ -407,6 +407,17 @@ def test_loader_checks_snapshot_before_downloading_it():
     assert "--snapshot-file" in by_id["snapshot"]["run"]
 
 
+def test_snapshot_is_created_and_restored_through_breeze():
+    export = next(
+        step
+        for step in steps(WORKFLOW, "jobs", "build-ci-images", "steps")
+        if step.get("id") == "snapshot-export"
+    )
+    restore = next(step for step in steps(LOADER, "runs", "steps") if step.get("id") == "snapshot")
+    assert "breeze ci-image save" in export["run"] and "--snapshot-file" in export["run"]
+    assert "breeze ci-image load" in restore["run"] and "--snapshot-file" in restore["run"]
+
+
 def test_snapshot_is_limited_to_github_hosted_runners():
     export = next(
         step
