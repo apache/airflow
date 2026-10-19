@@ -30,6 +30,11 @@ from pydantic_core import CoreSchema, PydanticSerializationError
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 
+try:
+    from airflow.sdk.serde import iter_pydantic_models
+except ImportError:  # pragma: no cover - missing ``apache-airflow-task-sdk`` walker
+    iter_pydantic_models = None  # type: ignore[assignment]
+
 log = logging.getLogger(__name__)
 
 _MAX_SHOWN_CHARS = 200
@@ -38,6 +43,21 @@ _MAX_SHOWN_CHARS = 200
 # that indexes its input (``data.get``) when the review text is not the shape it expects. Anything else,
 # such as a validator's network or timeout error, propagates instead of reading as a failed conversion.
 _CONVERSION_ERRORS = (ValidationError, ValueError, TypeError, AttributeError, KeyError, IndexError)
+
+
+def is_model_dump_required(output: Any, output_type: Any, *, serialize_output: bool) -> bool:
+    """
+    Tell whether a ``BaseModel`` output must be pushed to XCom as a dict.
+
+    A downstream task can load a model from XCom only if the worker registered the model's class, and the worker
+    registers the classes ``iter_pydantic_models`` finds in ``output_type``. It finds none in a list of output
+    types, an output marker, an output function, a ``TypeAliasType`` or a ``NewType``, so those shapes are dumped.
+    """
+    if not isinstance(output, BaseModel):
+        return False
+    if serialize_output or iter_pydantic_models is None:
+        return True
+    return type(output) not in iter_pydantic_models(output_type)
 
 
 def dump_output_to_json(output: Any) -> str:
@@ -84,6 +104,7 @@ def rehydrate_pydantic_output(
     """
     if output_type is str:
         return raw
+    declared_type = output_type
     try:
         if isinstance(output_type, (list, tuple)):
             # pydantic-ai treats a list of output types as "any of these".
@@ -110,7 +131,7 @@ def rehydrate_pydantic_output(
                 log.warning("%s Returning the output unchanged.", message)
                 return raw
             raise ReviewedOutputValidationError(message) from json_error
-    if serialize_output and isinstance(rehydrated, BaseModel):
+    if is_model_dump_required(rehydrated, declared_type, serialize_output=serialize_output):
         return rehydrated.model_dump()
     return rehydrated
 
