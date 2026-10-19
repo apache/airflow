@@ -979,6 +979,48 @@ class TestRedactedIO:
         assert stdout == "***\nand ***\n"
         assert PASSWORD not in stdout
 
+    def test_write_bytes_redacts_secret(self, capsys):
+        RedactedIO().write(f"prefix {PASSWORD} suffix".encode())
+        stdout = capsys.readouterr().out
+        assert PASSWORD not in stdout
+        assert "***" in stdout
+
+    def test_write_bytearray_redacts_secret(self, capsys):
+        RedactedIO().write(bytearray(f"prefix {PASSWORD} suffix", encoding="utf-8"))
+        stdout = capsys.readouterr().out
+        assert PASSWORD not in stdout
+        assert "***" in stdout
+
+    def test_write_bytes_invalid_utf8(self, capsys):
+        RedactedIO().write(b"\xff\xfe " + f"{PASSWORD}".encode() + b" \x00")
+        stdout = capsys.readouterr().out
+        assert PASSWORD not in stdout
+        assert "***" in stdout
+
+    def test_write_non_string_types_passthrough(self, capsys):
+        # Preserves the permissive behavior added by #72063 for non-string types.
+        assert RedactedIO().write(42) == 2
+        stdout = capsys.readouterr().out
+        assert stdout == "42"
+
+    def test_writelines_bytes_redacts_secret(self, capsys):
+        RedactedIO().writelines([f"{PASSWORD}\n".encode(), f"and {PASSWORD}\n".encode()])
+        stdout = capsys.readouterr().out
+        assert stdout == "***\nand ***\n"
+        assert PASSWORD not in stdout
+
+    def test_writelines_bytearray_redacts_secret(self, capsys):
+        RedactedIO().writelines([bytearray(f"{PASSWORD}\n".encode())])
+        stdout = capsys.readouterr().out
+        assert stdout == "***\n"
+        assert PASSWORD not in stdout
+
+    def test_writelines_mixed_str_and_bytes(self, capsys):
+        RedactedIO().writelines([f"{PASSWORD}\n", f"and {PASSWORD}\n".encode()])
+        stdout = capsys.readouterr().out
+        assert stdout == "***\nand ***\n"
+        assert PASSWORD not in stdout
+
     def test_input_builtin(self, monkeypatch):
         """
         Test that when redirect is inplace the `input()` builtin works.
