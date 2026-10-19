@@ -1985,7 +1985,6 @@ class TestQueuedEventsDagAxisAuthorization:
     @pytest.mark.parametrize(
         "path",
         [
-            "/assets/{asset_id}/queuedEvents",
             "/dags/{dag_id}/assets/queuedEvents",
             "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
         ],
@@ -2012,6 +2011,24 @@ class TestQueuedEventsDagAxisAuthorization:
         assert matches, f"no GET route registered for {path}"
         for route in matches:
             assert self._dag_axis_methods(route) == ["GET"]
+
+    @pytest.mark.parametrize("method", ["GET", "DELETE"])
+    def test_asset_wide_queued_events_do_not_gate_on_a_request_dag_id(self, routes_by_path, method):
+        """The asset-wide routes have no Dag in the path; they scope rows to permitted Dags instead.
+
+        A Dag check there would be made against whatever ``?dag_id=`` the caller sends, which says
+        nothing about the Dags whose rows the route returns or deletes.
+        """
+        path = "/assets/{asset_id}/queuedEvents"
+        # Exclude the per-Dag routes, whose paths end with the same suffix.
+        matches = [
+            r
+            for (p, methods), r in routes_by_path.items()
+            if p.endswith(path) and "/dags/" not in p and method in methods
+        ]
+        assert matches, f"no {method} route registered for {path}"
+        for route in matches:
+            assert self._dag_axis_methods(route) == []
 
 
 class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -2815,6 +2832,56 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         response = test_client.delete("/assets/1/queuedEvents")
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
+
+    def _create_queued_events_for_dags(self, session, dag_ids: list[str]) -> AssetModel:
+        (asset,) = self.create_assets(session=session, num=1)
+        _ensure_dags(session, *dag_ids)
+        for dag_id in dag_ids:
+            event = AssetEvent(asset_id=asset.id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset.id, asset_event_id=event.id))
+        session.commit()
+        return asset
+
+    @staticmethod
+    def _authorized_dag_ids_by_method(*, readable: set[str], editable: set[str]):
+        def get_authorized_dag_ids(*, user, method="GET", **kwargs):
+            return set(editable) if method == "PUT" else set(readable)
+
+        return get_authorized_dag_ids
+
+    @pytest.mark.parametrize("query_string", ["", "?dag_id=dag_a"], ids=["no-dag-id", "editable-dag-id"])
+    def test_deletes_only_queued_events_of_editable_dags(self, test_client, session, query_string):
+        """A user who may edit dag_a but only read dag_b must leave dag_b's queued events in place."""
+        asset = self._create_queued_events_for_dags(session, ["dag_a", "dag_b"])
+
+        with mock.patch.object(
+            BaseAuthManager,
+            "get_authorized_dag_ids",
+            side_effect=self._authorized_dag_ids_by_method(readable={"dag_a", "dag_b"}, editable={"dag_a"}),
+        ):
+            response = test_client.delete(f"/assets/{asset.id}/queuedEvents{query_string}")
+
+        assert response.status_code == 204
+        session.expire_all()
+        remaining = session.scalars(select(AssetDagRunQueue.target_dag_id)).all()
+        assert remaining == ["dag_b"]
+
+    def test_responds_404_when_only_readable_dags_have_queued_events(self, test_client, session):
+        """Naming an editable Dag in the query string does not widen the delete to readable Dags."""
+        asset = self._create_queued_events_for_dags(session, ["dag_b"])
+
+        with mock.patch.object(
+            BaseAuthManager,
+            "get_authorized_dag_ids",
+            side_effect=self._authorized_dag_ids_by_method(readable={"dag_a", "dag_b"}, editable={"dag_a"}),
+        ):
+            response = test_client.delete(f"/assets/{asset.id}/queuedEvents?dag_id=dag_a")
+
+        assert response.status_code == 404
+        session.expire_all()
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["dag_b"]
 
     def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
         from sqlalchemy import event
