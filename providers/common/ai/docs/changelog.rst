@@ -187,7 +187,7 @@ Features
 * ``Rename 'HookToolset' 'tool_name_prefix' to 'tool_prefix' (#74447)``
 * ``Log capability tool calls in AgentOperator (#72202)``
 * ``Let the HITL review plugin address one loop pass or mapped slot (#74351)``
-* ``Export 'DataFusionToolset', 'AgentSkillsToolset' and 'LoggingToolset' from 'common.ai' toolsets (#74449)``
+* ``Export 'DataFusionToolset' and 'AgentSkillsToolset' from 'common.ai' toolsets (#74449)``
 * ``Expose the resolved LLM model name on a dedicated XCom key (#74272)``
 * ``Add 'max_retries' to 'AgentSkillsToolset' (#74381)``
 * ``Add 'include_traceback' to model-backed retry policies (#74308)``
