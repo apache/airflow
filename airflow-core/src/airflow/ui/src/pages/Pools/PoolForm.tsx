@@ -115,16 +115,11 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           </Field.Root>
         )}
         rules={{
-          validate: (value: number) => {
-            if (!Number.isFinite(value)) {
-              return translate("common:validation.mustBeValidNumber");
-            }
-            if (value < POOL_SLOTS_MIN) {
-              return translate("common:validation.mustBeAtLeast", { min: POOL_SLOTS_MIN });
-            }
-
-            return true;
-          },
+          validate: (value: number) =>
+            Number.isFinite(value)
+              ? value >= POOL_SLOTS_MIN ||
+                translate("common:validation.mustBeAtLeast", { min: POOL_SLOTS_MIN })
+              : translate("common:validation.mustBeValidNumber"),
         }}
       />
 

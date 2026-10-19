@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -273,7 +273,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                     p.metadata.deletion_timestamp is None,
                     p.status.phase == PodPhase.SUCCEEDED,  # If the job succeeded while the worker was down.
                     p.status.phase == PodPhase.PENDING,
-                    p.metadata.creation_timestamp or datetime.min.replace(tzinfo=timezone.utc),
+                    p.metadata.creation_timestamp or datetime.min.replace(tzinfo=UTC),
                     p.metadata.name or "",
                 ),
             )

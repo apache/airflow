@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from tenacity import stop_after_attempt, wait_fixed
 
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
@@ -67,6 +68,25 @@ class TestDbtCloudRunJobTrigger:
             "poll_interval": self.POLL_INTERVAL,
             "hook_params": {"retry_delay": 10},
         }
+
+    def test_serialization_drops_hook_params_that_cannot_be_serialized(self, end_time, caplog):
+        trigger = DbtCloudRunJobTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=end_time,
+            run_id=self.RUN_ID,
+            account_id=self.ACCOUNT_ID,
+            hook_params={
+                "retry_limit": 3,
+                "retry_delay": 2.0,
+                "retry_args": {"stop": stop_after_attempt(3), "wait": wait_fixed(1)},
+            },
+        )
+
+        _, kwargs = trigger.serialize()
+
+        assert kwargs["hook_params"] == {"retry_limit": 3, "retry_delay": 2.0}
+        assert any("hook_params['retry_args']" in message for message in caplog.messages)
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_status")

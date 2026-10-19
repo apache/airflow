@@ -191,6 +191,59 @@ class TestBigQueryToGCSOperator:
             nowait=True,
         )
 
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
+    def test_execute_deferrable_mode_passes_cancel_on_kill_to_trigger(self, mock_hook):
+        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id="real_job_id", error_result=False)
+
+        operator = BigQueryToGCSOperator(
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=["gs://some-bucket/some-file.txt"],
+            project_id=JOB_PROJECT_ID,
+            deferrable=True,
+            cancel_on_kill=False,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context=mock.MagicMock())
+
+        assert exc.value.trigger.cancel_on_kill is False
+
+    @pytest.mark.parametrize("cancel_on_kill", [True, False])
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
+    def test_on_kill(self, mock_hook, cancel_on_kill):
+        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id="real_job_id", error_result=False)
+
+        operator = BigQueryToGCSOperator(
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=["gs://some-bucket/some-file.txt"],
+            project_id=JOB_PROJECT_ID,
+            location="US",
+            cancel_on_kill=cancel_on_kill,
+        )
+        operator.execute(context=mock.MagicMock())
+
+        operator.on_kill()
+
+        if cancel_on_kill:
+            mock_hook.return_value.cancel_job.assert_called_once_with(
+                job_id="real_job_id", project_id=JOB_PROJECT_ID, location="US"
+            )
+        else:
+            mock_hook.return_value.cancel_job.assert_not_called()
+
+    def test_on_kill_before_execute(self):
+        operator = BigQueryToGCSOperator(
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=["gs://some-bucket/some-file.txt"],
+            job_id="given_job_id",
+        )
+
+        operator.on_kill()
+
     def test_execute_complete_reassigns_job_id(self):
         """Assert that we use job_id from event after deferral."""
 

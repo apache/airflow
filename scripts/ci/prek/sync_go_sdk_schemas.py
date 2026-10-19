@@ -26,21 +26,24 @@ contain, and made every change to a Python schema a change that has to carry reg
 Go with it. It now vendors them under ``go-sdk/schema/``, the way ``ts-sdk`` and
 ``java-sdk`` already vendor theirs.
 
-Vendoring splits the one question ("is the Go behind Python?") into two:
+Vendoring splits the one question ("is the Go behind Python?") into two, and both now
+run on every commit that touches either side:
 
 * this hook — is the copy equal to the source? Copying is mechanical, so it copies for
-  you and fails. It is a **manual** hook, the way ``sync-java-sdk-dag-schema`` is:
-  re-vendoring is a go-sdk maintainer's deliberate step, and running it on every commit
-  would fail the PR of whoever changed a Python schema, which is the coupling vendoring
-  is here to remove. Nothing therefore tells you on its own that a copy went stale.
+  you and fails, triggered by either the Python source or the vendored copy changing.
+  A Python-only schema PR used to leave this unrun (it was a go-sdk maintainer's manual
+  step) and the vendored copy going stale was not caught by anything else either — a Go
+  copy did exactly that undetected once. Failing here, on the PR that caused it, is the
+  fix.
 * ``check-go-sdk-generated-drift`` — are the generated files what the copy generates?
-  That one runs on every commit, because a refreshed copy nothing regenerated from is
-  the drift that matters, and a new schema construct may need a generator rule or an
-  authoring exclusion, so what to do about it is a decision, not a copy.
+  Also triggered by the Python source now, so it runs in the same commit as this hook
+  and regenerates from whatever this hook leaves the copy holding; a new schema
+  construct may need a generator rule or an authoring exclusion, so what to do about it
+  is a decision, not a copy, which is why that part stays a second, separate hook.
 
 Run it from the repo root, through prek:
 
-    prek run sync-go-sdk-schemas --hook-stage manual
+    prek run sync-go-sdk-schemas
 
 or directly:
 

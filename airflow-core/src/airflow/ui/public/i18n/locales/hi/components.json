@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 रन ट्रिगर किया जाएगा।",
-    "affected_other": "{{count}} रन्स ट्रिगर किए जाएंगे।",
+    "affected_other": "{{count, number}} रन्स ट्रिगर किए जाएंगे।",
     "affectedNone": "चयनित मापदंड से मेल खाने वाले कोई रन्स नहीं।",
     "allRuns": "सभी रन्स",
     "backwards": "पीछे की ओर चलाएं",
@@ -25,7 +25,6 @@
         "title": "बैकफ़िल जेनरेट किया गया"
       }
     },
-    "unpause": "ट्रिगर पर {{dag_display_name}} को अनपॉज़ करें",
     "validation": {
       "datesRequired": "डेटा अंतराल प्रारंभ तिथि और समाप्ति तिथि दोनों प्रदान की जानी चाहिए।",
       "startBeforeEnd": "डेटा अंतराल प्रारंभ तिथि समाप्ति तिथि से कम या उसके बराबर होनी चाहिए।"
@@ -42,7 +41,6 @@
   },
   "close": "बंद करें",
   "configForm": {
-    "advancedOptions": "उन्नत विकल्प",
     "configJson": "विन्यास JSON",
     "invalidJson": "अमान्य JSON प्रारूप: {{errorMessage}}"
   },
@@ -50,7 +48,7 @@
     "error_one": "1 त्रुटि",
     "errorAndWarning": "1 त्रुटि और {{warningText}}",
     "warning_one": "1 चेतावनी",
-    "warning_other": "{{count}} चेतावनियां"
+    "warning_other": "{{count, number}} चेतावनियां"
   },
   "dateRangeFilter": {
     "validation": {
@@ -62,16 +60,16 @@
   "durationChart": {
     "duration": "अवधि (सेकंड)",
     "lastDagRun_one": "अंतिम डैग रन",
-    "lastDagRun_other": "अंतिम {{count}} डैग रन्स",
+    "lastDagRun_other": "अंतिम {{count, number}} डैग रन्स",
     "lastTaskInstance_one": "अंतिम टास्क इंस्टेंस",
-    "lastTaskInstance_other": "अंतिम {{count}} टास्क इंस्टेंसेज",
+    "lastTaskInstance_other": "अंतिम {{count, number}} टास्क इंस्टेंसेज",
     "queuedDuration": "कतार अवधि",
     "runAfter": "के बाद चलाएं",
     "runDuration": "रन अवधि"
   },
   "fileUpload": {
-    "files_one": "{{count}} फ़ाइल",
-    "files_other": "{{count}} फ़ाइलें"
+    "files_one": "{{count, number}} फ़ाइल",
+    "files_other": "{{count, number}} फ़ाइलें"
   },
   "flexibleForm": {
     "durationPlaceholder": "ISO 8601 प्रारूप में अवधि दर्ज करें",
@@ -94,20 +92,20 @@
     "downloadImageError": "ग्राफ़ इमेज डाउनलोड करने में विफल।",
     "downloadImageErrorTitle": "डाउनलोड विफल",
     "otherDagRuns": "+अन्य डैग रन्स",
-    "taskCount_one": "{{count}} टास्क",
-    "taskCount_other": "{{count}} टास्क्स",
+    "taskCount_one": "{{count, number}} टास्क",
+    "taskCount_other": "{{count, number}} टास्क्स",
     "taskGroup": "टास्क ग्रुप",
     "zoomToTask": "चयनित टास्क पर ज़ूम करें"
   },
-  "limitedList": "+{{count}} और",
-  "limitedList.allItems": "सभी {{count}} आइटम:",
+  "limitedList": "+{{count, number}} और",
+  "limitedList.allItems": "सभी {{count, number}} आइटम:",
   "limitedList.allTags_one": "सभी टैग्स (1)",
-  "limitedList.allTags_other": "सभी टैग्स ({{count}})",
+  "limitedList.allTags_other": "सभी टैग्स ({{count, number}})",
   "limitedList.clickToInteract": "टैग पर क्लिक करके Dags फ़िल्टर करें",
-  "limitedList.clickToOpenFull": "\"+{{count}} और\" पर क्लिक करके पूरी सूची खोलें",
+  "limitedList.clickToOpenFull": "\"+{{count, number}} और\" पर क्लिक करके पूरी सूची खोलें",
   "limitedList.copyPasteText": "आप ऊपर दिए गए पाठ को कॉपी और पेस्ट कर सकते हैं",
   "limitedList.showingItems_one": "1 आइटम दिखा रहा है",
-  "limitedList.showingItems_other": "{{count}} आइटम दिखा रहा है",
+  "limitedList.showingItems_other": "{{count, number}} आइटम दिखा रहा है",
   "logs": {
     "file": "फ़ाइल",
     "location": "{{name}} में लाइन {{line}}"
@@ -151,8 +149,7 @@
         "title": "डैग रन ट्रिगर किया गया"
       }
     },
-    "triggerAgainWithConfig": "इस कॉन्फ़िग के साथ फिर से ट्रिगर करें",
-    "unpause": "ट्रिगर पर {{dagDisplayName}} को अनपॉज़ करें"
+    "triggerAgainWithConfig": "इस कॉन्फ़िग के साथ फिर से ट्रिगर करें"
   },
   "trimText": {
     "details": "विवरण",

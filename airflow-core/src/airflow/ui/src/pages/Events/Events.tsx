@@ -26,6 +26,7 @@ import { useEventLogServiceGetEventLogs } from "openapi/queries";
 import type { EventLogResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
@@ -35,6 +36,7 @@ import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 
@@ -51,7 +53,7 @@ type EventsColumn = {
 const eventsColumn = (
   { dagId, multiTeam, open, runId, taskId }: EventsColumn,
   translate: (key: string) => string,
-): Array<ColumnDef<EventLogResponse>> => [
+): Array<ColumnDef<DataTableFeatures, EventLogResponse>> => [
   {
     accessorKey: "when",
     cell: ({ row: { original } }) => <Time datetime={original.when} />,
@@ -184,6 +186,8 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
+  const regional = taskId !== undefined && coordinates.regionId !== undefined;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
@@ -245,7 +249,7 @@ export const Events = () => {
     value: taskIdFilter,
   });
 
-  const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
+  const { data, error, isLoading } = useEventLogServiceGetEventLogs(
     {
       after: afterDate,
       before: beforeDate,
@@ -255,10 +259,13 @@ export const Events = () => {
       ...dagIdArg,
       ...eventArg,
       limit: pagination.pageSize,
-      mapIndex: mapIndexNumber,
+      // A loop pass shares its public map index with every other pass, so its coordinates select it.
+      mapIndex: regional ? undefined : mapIndexNumber,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       ...ownerArg,
+      regionId: regional ? coordinates.regionId : undefined,
+      regionIndex: regional ? coordinates.regionIndex : undefined,
       runId: runId ?? undefined,
       ...runIdArg,
       taskId: taskId ?? undefined,
@@ -281,7 +288,6 @@ export const Events = () => {
         displayMode="table"
         filterActions={<EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:event"
         onStateChange={setTableURLState}

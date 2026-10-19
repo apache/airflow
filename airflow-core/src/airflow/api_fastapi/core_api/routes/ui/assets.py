@@ -52,6 +52,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.routes.public.assets import OnlyActiveFilter
 from airflow.api_fastapi.core_api.security import (
     ReadableAssetsFilterDep,
+    ReadableDagsFilterDep,
     requires_access_asset,
     requires_access_asset_alias,
     requires_access_dag,
@@ -115,6 +116,7 @@ def get_assets(
         ),
     ],
     readable_assets_filter: ReadableAssetsFilterDep,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets. Like the public endpoint, but also supports sorting by group and last asset event timestamp."""
@@ -141,7 +143,12 @@ def get_assets(
     )
 
     assets = [
-        AssetResponse.from_asset_row(asset, last_asset_event_id, last_asset_event_timestamp)
+        AssetResponse.from_asset_row(
+            asset,
+            last_asset_event_id,
+            last_asset_event_timestamp,
+            readable_dag_ids=readable_dags_filter.value,
+        )
         for asset, last_asset_event_id, last_asset_event_timestamp in session.execute(assets_select)
     ]
 
@@ -228,6 +235,17 @@ def next_run_assets(
         .group_by(AssetModel.id, AssetModel.uri, AssetModel.name, AssetActive.name)
         .order_by(AssetModel.uri)
     )
+    query = readable_assets_filter.to_orm(query)
+
+    # Counted before the readable filter narrows ``query``: the UI derives the
+    # schedule's shape (total, and whether to render the multi-asset popover) from
+    # this, so that shape stays the same for every caller regardless of which
+    # assets they may read.
+    scheduling_asset_count = session.scalar(
+        select(func.count())
+        .select_from(DagScheduleAssetReference)
+        .where(DagScheduleAssetReference.dag_id == dag_id)
+    )
 
     if not is_partitioned:
         query = query.join(
@@ -252,7 +270,11 @@ def next_run_assets(
             )
             for row in raw_rows
         ]
-        model_data: dict[str, Any] = {"asset_expression": asset_expression, "events": events}
+        model_data: dict[str, Any] = {
+            "asset_expression": asset_expression,
+            "events": events,
+            "scheduling_asset_count": scheduling_asset_count,
+        }
         return NextRunAssetsResponse.model_validate(model_data)
 
     # Partitioned Dags: enrich with per-asset received/required counts and rollup flag.
@@ -289,6 +311,7 @@ def next_run_assets(
         model_data = {
             "asset_expression": asset_expression,
             "events": events,
+            "scheduling_asset_count": scheduling_asset_count,
             "pending_partition_count": pending_partition_count,
         }
         return NextRunAssetsResponse.model_validate(model_data)
@@ -363,6 +386,7 @@ def next_run_assets(
     model_data = {
         "asset_expression": asset_expression,
         "events": events,
+        "scheduling_asset_count": scheduling_asset_count,
         "pending_partition_count": pending_partition_count,
     }
     return NextRunAssetsResponse.model_validate(model_data)

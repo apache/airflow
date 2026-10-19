@@ -293,15 +293,14 @@ func runBranch(task Task, client *branchClient, ti, canSkip bool) error {
 	return task.Execute(ctx, slog.New(logging.NewTeeLogger()), nil)
 }
 
-const clearCall = "PushXCom decide skipmixin_key map[skipped:[]]"
-
-func (s *TaskSuite) TestBranchFunctionSkipsTheTasksThatFindSkippedReturns() {
+// The task pushes the value that decide returns, not the result of fn.
+func (s *TaskSuite) TestBranchFunctionPushesTheValueAndSkipsTheTasksThatDecideReturns() {
 	var got any
 	task, err := NewPositionalBranchFunction(
 		func(contexttest.Context) (bool, error) { return true, nil },
-		func(result any) []string {
+		func(result any) (any, []string, error) {
 			got = result
-			return []string{"load", "report"}
+			return "chosen", []string{"load", "report"}, nil
 		},
 	)
 	s.Require().NoError(err)
@@ -311,10 +310,25 @@ func (s *TaskSuite) TestBranchFunctionSkipsTheTasksThatFindSkippedReturns() {
 
 	s.Equal(true, got)
 	s.Equal([]string{
-		clearCall,
-		"PushXCom decide return_value true",
+		"PushXCom decide return_value chosen",
 		"PushXCom decide skipmixin_key map[skipped:[load report]]",
 		"SkipDownstreamTasks [load report]",
+	}, client.calls)
+}
+
+func (s *TaskSuite) TestBranchFunctionPushesNoNilPointer() {
+	task, err := NewPositionalBranchFunction(
+		func(contexttest.Context) (bool, error) { return true, nil },
+		func(any) (any, []string, error) { return (*int)(nil), []string{"load"}, nil },
+	)
+	s.Require().NoError(err)
+
+	client := &branchClient{}
+	s.Require().NoError(runBranch(task, client, true, true))
+
+	s.Equal([]string{
+		"PushXCom decide skipmixin_key map[skipped:[load]]",
+		"SkipDownstreamTasks [load]",
 	}, client.calls)
 }
 
@@ -323,27 +337,20 @@ func (s *TaskSuite) TestBranchFunctionWithNothingToSkip() {
 		s.Run(name, func() {
 			task, err := NewPositionalBranchFunction(
 				func(contexttest.Context) (bool, error) { return true, nil },
-				func(any) []string { return skipped },
+				func(result any) (any, []string, error) { return result, skipped, nil },
 			)
 			s.Require().NoError(err)
 
 			client := &branchClient{}
 			s.Require().NoError(runBranch(task, client, true, true))
 
-			s.Equal([]string{clearCall, "PushXCom decide return_value true"}, client.calls)
-			s.Equal(
-				map[string][]string{"skipped": {}},
-				client.values["skipmixin_key"],
-				"the list must not be nil",
-			)
+			s.Equal([]string{"PushXCom decide return_value true"}, client.calls)
 		})
 	}
 }
 
-// An earlier try of the task may have left a list of skipped tasks in the XCom. A try that fails
-// before it skips anything still replaces that list with an empty list, whether fn returns an
-// error or panics.
-func (s *TaskSuite) TestBranchFunctionClearsTheListOfAnEarlierTry() {
+// A try whose fn fails pushes no XCom and skips nothing, whether fn returns an error or panics.
+func (s *TaskSuite) TestBranchFunctionThatFailsPushesAndSkipsNothing() {
 	cases := map[string]func(contexttest.Context) (bool, error){
 		"error": func(contexttest.Context) (bool, error) { return false, errors.New("no table") },
 		"panic": func(contexttest.Context) (bool, error) { panic("no table") },
@@ -351,31 +358,36 @@ func (s *TaskSuite) TestBranchFunctionClearsTheListOfAnEarlierTry() {
 	for name, fn := range cases {
 		s.Run(name, func() {
 			called := false
-			task, err := NewPositionalBranchFunction(fn, func(any) []string {
+			task, err := NewPositionalBranchFunction(fn, func(result any) (any, []string, error) {
 				called = true
-				return []string{"load"}
+				return result, []string{"load"}, nil
 			})
 			s.Require().NoError(err)
 
-			client := &branchClient{values: map[string]any{
-				"skipmixin_key": map[string][]string{"skipped": {"load"}},
-			}}
+			client := &branchClient{}
 			func() {
 				defer func() { _ = recover() }()
 				s.Error(runBranch(task, client, true, true))
 			}()
 
 			s.False(called)
-			s.Equal(
-				map[string][]string{"skipped": {}},
-				client.values["skipmixin_key"],
-				"a try that skipped nothing must not leave the list of an earlier try",
-			)
-			for _, call := range client.calls {
-				s.NotContains(call, "SkipDownstreamTasks")
-			}
+			s.Empty(client.calls)
 		})
 	}
+}
+
+func (s *TaskSuite) TestBranchFunctionFailsWhenDecideReturnsAnError() {
+	task, err := NewPositionalBranchFunction(
+		func(contexttest.Context) (bool, error) { return true, nil },
+		func(any) (any, []string, error) {
+			return "chosen", []string{"load"}, errors.New("not one of the cases")
+		},
+	)
+	s.Require().NoError(err)
+
+	client := &branchClient{}
+	s.EqualError(runBranch(task, client, true, true), "not one of the cases")
+	s.Empty(client.calls)
 }
 
 func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
@@ -397,13 +409,6 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			canSkip: true,
 			wantErr: "task runtime context is missing",
 		},
-		"clearing the skipmixin_key XCom fails": {
-			client:    &branchClient{failOn: clearCall},
-			withTI:    true,
-			canSkip:   true,
-			wantErr:   "clearing the skipmixin_key XCom: xcom refused",
-			wantCalls: []string{clearCall},
-		},
 		"recording the skipped tasks fails": {
 			client: &branchClient{
 				failOn: "PushXCom decide skipmixin_key map[skipped:[load]]",
@@ -413,7 +418,6 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			wantErr: "recording the skipped tasks in the skipmixin_key XCom: xcom refused",
 			wantRun: true,
 			wantCalls: []string{
-				clearCall,
 				"PushXCom decide return_value false",
 				"PushXCom decide skipmixin_key map[skipped:[load]]",
 			},
@@ -425,7 +429,6 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			wantErr: `skipping the downstream tasks ["load"]: supervisor refused`,
 			wantRun: true,
 			wantCalls: []string{
-				clearCall,
 				"PushXCom decide return_value false",
 				"PushXCom decide skipmixin_key map[skipped:[load]]",
 				"SkipDownstreamTasks [load]",
@@ -440,7 +443,7 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 					ran = true
 					return false, nil
 				},
-				func(any) []string { return []string{"load"} },
+				func(result any) (any, []string, error) { return result, []string{"load"}, nil },
 			)
 			s.Require().NoError(err)
 

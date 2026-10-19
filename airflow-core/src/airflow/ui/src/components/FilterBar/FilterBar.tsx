@@ -113,11 +113,7 @@ export const FilterBar = ({
         synchronizedFilters.length === prevFilters.length &&
         synchronizedFilters.every((filter, index) => filter === prevFilters[index]);
 
-      if (toAdd.length === 0 && filtersUnchanged) {
-        return prevFilters;
-      }
-
-      return [...synchronizedFilters, ...toAdd];
+      return toAdd.length === 0 && filtersUnchanged ? prevFilters : [...synchronizedFilters, ...toAdd];
     });
     // configs is intentionally omitted — it is structurally stable across renders and including
     // it would risk infinite re-render loops. initialValuesKey captures all relevant URL changes.

@@ -23,10 +23,11 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.dagbag import DagBag
 from airflow.models import DagModel, DagRun, TaskInstance
@@ -43,7 +44,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -460,6 +461,73 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
+
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_state"),
+        [
+            pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
+            pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
+        ],
+    )
+    def test_create_backfill_on_paused_dag_with_drain_dag(
+        self, session, dag_maker, test_client, drain_dag, expected_state
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
+            EmptyOperator(task_id="mytask")
+        session.execute(update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post(
+            url="/backfills",
+            json={
+                "dag_id": dag.dag_id,
+                "from_date": to_iso(pendulum.parse("2024-01-01")),
+                "to_date": to_iso(pendulum.parse("2024-01-03")),
+                "drain_dag": drain_dag,
+            },
+        )
+
+        assert response.status_code == 200
+        session.expire_all()
+        assert session.get(DagModel, dag.dag_id).scheduling_state == expected_state
+        assert session.scalar(
+            select(func.count()).select_from(DagRun).where(DagRun.backfill_id == response.json()["id"])
+        )
+
+    @pytest.mark.parametrize(
+        ("request_fields", "expected_status"),
+        [({"drain_dag": True}, 403), ({"drain_dag": False}, 200), ({}, 200)],
+    )
+    def test_create_backfill_with_drain_dag_requires_dag_edit_access(
+        self, session, dag_maker, test_client, deny_dag_edit_access, request_fields, expected_status
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
+            EmptyOperator(task_id="mytask")
+        session.execute(update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post(
+            url="/backfills",
+            json={
+                "dag_id": dag.dag_id,
+                "from_date": to_iso(pendulum.parse("2024-01-01")),
+                "to_date": to_iso(pendulum.parse("2024-01-03")),
+                **request_fields,
+            },
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.PAUSED
+        if expected_status == 403:
+            assert response.json()["detail"] == f"Draining requires permission to edit Dag: {dag.dag_id}"
+            assert session.scalar(select(func.count()).select_from(Backfill)) == 0
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=dag.dag_id), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+        else:
+            assert session.scalar(select(func.count()).select_from(Backfill)) == 1
 
     @mock.patch(
         "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
@@ -1040,6 +1108,33 @@ class TestCreateBackfill(TestBackfillEndpoint):
         }
         response = unauthorized_test_client.post("/backfills", json=data)
         assert response.status_code == 403
+
+    @pytest.mark.parametrize("url", ["/backfills", "/backfills/dry_run"])
+    @pytest.mark.parametrize(
+        ("key", "dag_run_conf"),
+        [
+            ("__classname__", {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}),
+            ("__type", {"nested": {"__type": "datetime", "__var": 0.0}}),
+        ],
+    )
+    def test_create_backfill_rejects_reserved_conf_keys(
+        self, session, dag_maker, test_client, url, key, dag_run_conf
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_CONF_KEYS", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.commit()
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-01-02")),
+            "dag_run_conf": dag_run_conf,
+        }
+        response = test_client.post(url, json=data)
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+        assert session.scalar(select(func.count()).select_from(Backfill)) == 0
 
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):

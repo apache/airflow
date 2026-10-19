@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from http import HTTPStatus
 from unittest.mock import patch
 from uuid import uuid4
@@ -32,6 +33,8 @@ from airflow.providers.edge3.cli.api_client import (
     jobs_fetch,
     jobs_set_state,
     jwt_generator,
+    logs_logfile_path,
+    logs_push,
 )
 from airflow.providers.edge3.worker_api import auth
 from airflow.utils.state import TaskInstanceState
@@ -217,3 +220,52 @@ async def test_job_state_identity_preserves_signed_request_path(uuid_job):
             auth.jwt_validator.cache_clear()
     assert captured["url"] == "https://worker/edge_worker/v1/jobs/state/dag/task/run/1/-1/success"
     assert captured["data"] == (json.dumps({"task_instance_id": str(task_id)}) if task_id else None)
+
+
+@pytest.mark.parametrize("uuid_job", [False, True])
+async def test_log_requests_identify_the_task_instance_without_changing_the_signed_path(uuid_job):
+    task_id = uuid4() if uuid_job else None
+    captured = []
+    key = TaskInstanceKey("dag", "task", "run", 1, -1)
+
+    def send_request(method, *, url, data, headers):
+        captured.append({"url": url, "data": data, "headers": headers})
+        return _MockRequestContext(
+            response=MockAiohttpClientResponse(
+                status=HTTPStatus.OK, method=method, url=url, reason="OK", payload='"log/path"'
+            )
+        )
+
+    with (
+        conf_vars(
+            {
+                ("edge", "api_url"): "https://worker/edge_worker/v1/",
+                ("api_auth", "jwt_secret"): "uuid-test-secret",
+            }
+        ),
+        patch("airflow.providers.edge3.cli.api_client.request", autospec=True, side_effect=send_request),
+    ):
+        jwt_generator.cache_clear()
+        auth.jwt_validator.cache_clear()
+        try:
+            await logs_logfile_path(key, task_instance_id=task_id)
+            await logs_push(key, datetime(2026, 1, 1, tzinfo=UTC), "chunk", task_instance_id=task_id)
+            for sent, path in zip(
+                captured,
+                [
+                    "/edge_worker/v1/logs/logfile_path/dag/task/run/1/-1",
+                    "/edge_worker/v1/logs/push/dag/task/run/1/-1",
+                ],
+            ):
+                request = Request({"type": "http", "path": path, "headers": []})
+                await auth.jwt_token_authorization_rest(request, sent["headers"]["Authorization"])
+        finally:
+            jwt_generator.cache_clear()
+            auth.jwt_validator.cache_clear()
+
+    path_url, push_url = (sent["url"] for sent in captured)
+    assert path_url == "https://worker/edge_worker/v1/logs/logfile_path/dag/task/run/1/-1" + (
+        f"?task_instance_id={task_id}" if task_id else ""
+    )
+    assert push_url == "https://worker/edge_worker/v1/logs/push/dag/task/run/1/-1"
+    assert json.loads(captured[1]["data"]).get("task_instance_id") == (str(task_id) if task_id else None)

@@ -109,3 +109,34 @@ def example_agent_skills_git():
 # [END howto_operator_agent_skills_git]
 
 example_agent_skills_git()
+
+
+# ---------------------------------------------------------------------------
+# 3. Skills the model can read but not run
+# ---------------------------------------------------------------------------
+
+
+# [START howto_operator_agent_skills_restricted]
+@dag(tags=["example"])
+def example_agent_skills_restricted():
+    AgentOperator(
+        task_id="report_writer",
+        prompt="Review this query against our SQL reporting conventions: SELECT * FROM orders",
+        llm_conn_id="pydanticai_default",
+        toolsets=[
+            AgentSkillsToolset(
+                sources=[str(SKILLS_DIR)],
+                # Hide the tool that runs a skill's scripts on the worker.
+                exclude_tools={"run_skill_script"},
+                # Keep matching files out of the resources the model can list and read.
+                exclude_resources=["*.env", "secrets/*"],
+                # Allow up to 3 corrections per skills tool; a successful call resets the count.
+                max_retries=3,
+            )
+        ],
+    )
+
+
+# [END howto_operator_agent_skills_restricted]
+
+example_agent_skills_restricted()

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
@@ -34,12 +34,12 @@ def _make_task_instance(task_id: str = "task_id", dr_conf: dict | None = None):
         task_id=task_id,
         try_number=1,
         map_index=-1,
-        logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        logical_date=datetime(2024, 1, 1, tzinfo=UTC),
     )
     dag_run = mock.MagicMock(
-        logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        logical_date=datetime(2024, 1, 1, tzinfo=UTC),
         clear_number=0,
-        run_after=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        run_after=datetime(2024, 1, 1, tzinfo=UTC),
         conf=dr_conf or {},
     )
     ti.dag_run = dag_run
@@ -193,8 +193,8 @@ def test_emits_fail_event_with_error_message(patched_emit):
 
 def test_uses_explicit_start_and_end_times(patched_emit):
     ti = _make_task_instance()
-    start = datetime(2024, 5, 1, 10, 0, tzinfo=timezone.utc)
-    end = datetime(2024, 5, 1, 10, 5, tzinfo=timezone.utc)
+    start = datetime(2024, 5, 1, 10, 0, tzinfo=UTC)
+    end = datetime(2024, 5, 1, 10, 5, tzinfo=UTC)
     emit_query_lineage(
         query_id="qid",
         query_source_namespace="snowflake://ACCT",

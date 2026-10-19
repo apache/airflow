@@ -33,7 +33,6 @@ import { ConnectionsPage } from "../pages/ConnectionsPage";
 import { DagBundlesPage } from "../pages/DagBundlesPage";
 import { DagCalendarTab } from "../pages/DagCalendarTab";
 import { DagCodePage } from "../pages/DagCodePage";
-import { DagDetailPage } from "../pages/DagDetailPage";
 import { DagRunPage } from "../pages/DagRunPage";
 import { DagRunsPage } from "../pages/DagRunsPage";
 import { DagRunsTabPage } from "../pages/DagRunsTabPage";
@@ -63,7 +62,6 @@ export type PomFixtures = {
   dagBundlesPage: DagBundlesPage;
   dagCalendarTab: DagCalendarTab;
   dagCodePage: DagCodePage;
-  dagDetailPage: DagDetailPage;
   dagRunPage: DagRunPage;
   dagRunsPage: DagRunsPage;
   dagRunsTabPage: DagRunsTabPage;
@@ -118,9 +116,6 @@ export const test = base.extend<PomFixtures, PomWorkerFixtures>({
   },
   dagCodePage: async ({ page }, use) => {
     await use(new DagCodePage(page));
-  },
-  dagDetailPage: async ({ page }, use) => {
-    await use(new DagDetailPage(page));
   },
   dagRunPage: async ({ page }, use) => {
     await use(new DagRunPage(page));

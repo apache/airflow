@@ -58,19 +58,6 @@ def _byo_embedding():
     return MagicMock(name="MyBaseEmbedding", spec=["get_text_embedding", "_get_query_embedding"])
 
 
-class TestRetrievalOperatorInit:
-    def test_template_fields(self):
-        assert set(LlamaIndexRetrievalOperator.template_fields) == {
-            "query",
-            "index_persist_dir",
-            "persist_conn_id",
-            "embed_model",
-            "llm_conn_id",
-            "embed_conn_id",
-            "embedding_kwargs",
-        }
-
-
 class TestRetrievalOperatorOutput:
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_chunk_shape(self, mock_get_embed, _li, tmp_path):

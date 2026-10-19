@@ -22,8 +22,9 @@ import (
 	"slices"
 )
 
-// Node is what an edge between tasks connects. A [TaskRef] is one, so the task that
-// [DagRef.Task] returns is an edge endpoint.
+// Node is what an edge connects: a task or a whole task group. A [TaskRef] and a [TaskGroupRef]
+// are both Nodes, so the task that [DagRef.Task] returns and the group that [DagRef.TaskGroup]
+// returns are both edge endpoints.
 //
 // Before and After declare the order-only edges that Python writes with >> and <<, for tasks
 // that have to run in an order but pass no data. [Inputs] declares the edge that carries a
@@ -38,24 +39,60 @@ import (
 //
 // The second Before above starts from load, not from extract.
 //
-// Node is the Go counterpart of Python's DAGNode, where set_upstream and set_downstream live.
+// Node is the Go counterpart of Python's DAGNode, where set_upstream and set_downstream live. In
+// Python, both an operator and a TaskGroup are DAGNodes.
 // Its node method is unexported, so a type declared outside package airflow can be a Node only by
 // embedding one, and Before and After reject such a type as an argument.
 type Node interface {
-	// Before makes the receiver an upstream task of every node, as Python's >> does.
+	// Before makes the receiver an upstream of every node, as Python's >> does.
 	Before(nodes ...Node) Node
-	// After makes the receiver a downstream task of every node, as Python's << does.
+	// After makes the receiver a downstream of every node, as Python's << does.
 	After(nodes ...Node) Node
 	// node seals the interface. Only a type that package airflow declares is a Node, so
 	// endpoints can read what one stands for.
 	node()
 }
 
-// nodeEndpoint is one task that a Node stands for, with the label that [Label] carries into the
-// edge verb the Node is passed to.
+// nodeEndpoint is one task or one task group that a Node stands for, with the label that [Label]
+// carries into the edge verb the Node is passed to. Exactly one of task and group is set, except
+// for the endpoint of a nil *TaskRef, which has neither.
 type nodeEndpoint struct {
 	task  *TaskRef
+	group *TaskGroupRef
 	label string
+}
+
+// id returns the task_id or the group_id of e. Tasks and task groups share one namespace of IDs,
+// so the ID names one node of the Dag.
+func (e nodeEndpoint) id() string {
+	if e.group != nil {
+		return e.group.groupID
+	}
+	return e.task.taskID
+}
+
+// owner returns the Dag that e belongs to, and nil for an endpoint that no Dag returned.
+func (e nodeEndpoint) owner() *DagRef {
+	if e.group != nil {
+		return e.group.dag
+	}
+	return e.task.dag
+}
+
+// container returns the innermost task group that holds e, and nil when only the Dag does.
+func (e nodeEndpoint) container() *TaskGroupRef {
+	if e.group != nil {
+		return e.group.parent
+	}
+	return e.task.group
+}
+
+// describe names e in a panic message, such as task "load" or task group "transform".
+func (e nodeEndpoint) describe() string {
+	if e.group != nil {
+		return fmt.Sprintf("task group %q", e.group.groupID)
+	}
+	return fmt.Sprintf("task %q", e.task.taskID)
 }
 
 // nodeSet is the argument set that Before and After return as one Node, and the Node that
@@ -66,11 +103,11 @@ type nodeSet []nodeEndpoint
 func (nodeSet) node() {}
 
 // unlabelled returns the set with its labels dropped. A label belongs to the one verb it was
-// passed to, so the Node a verb returns, which stands for the tasks it pointed at, carries none.
+// passed to, so the Node a verb returns, which stands for the nodes it pointed at, carries none.
 func (s nodeSet) unlabelled() nodeSet {
 	plain := make(nodeSet, len(s))
 	for i, endpoint := range s {
-		plain[i] = nodeEndpoint{task: endpoint.task}
+		plain[i] = nodeEndpoint{task: endpoint.task, group: endpoint.group}
 	}
 	return plain
 }
@@ -81,13 +118,19 @@ func (s nodeSet) After(nodes ...Node) Node { return declareEdges(s, nodes, dirAf
 
 func (*TaskRef) node() {}
 
-// endpoints returns the tasks that node stands for. The Node method is unexported, so the types
-// of this package are the only Nodes, and a struct that embeds one is all that reaches the
-// default case. where names the Node in a panic, such as "airflow.Node.Before: nodes[0]".
+// endpoints returns the tasks and task groups that node stands for. The Node method is
+// unexported, so the types of this package are the only Nodes, and a struct that embeds one is all
+// that reaches the default case. where names the Node in a panic, such as
+// "airflow.Node.Before: nodes[0]".
 func endpoints(where string, node Node) []nodeEndpoint {
 	switch node := node.(type) {
 	case *TaskRef:
 		return []nodeEndpoint{{task: node}}
+	case *TaskGroupRef:
+		if node == nil {
+			panic(where + " is a nil *airflow.TaskGroupRef")
+		}
+		return []nodeEndpoint{{group: node}}
 	case nodeSet:
 		return node
 	default:
@@ -111,10 +154,14 @@ func endpoints(where string, node Node) []nodeEndpoint {
 //
 // Declaring an edge that the Dag already has changes nothing, other than to apply a [Label].
 //
+// A node can also be a task group, which [TaskGroupRef.Before] describes.
+//
 // Before panics if:
-//   - a node is nil, or is a task that [DagRef.Task] did not return
+//   - a node is nil, is a task that [DagRef.Task] or [TaskGroupRef.Task] did not return, or is a
+//     task group that [DagRef.TaskGroup] or [TaskGroupRef.TaskGroup] did not return
 //   - a node belongs to another Dag
 //   - the edge would make a task depend on itself
+//   - a node is a task group that holds the task
 //   - the Dag is already registered
 //
 // Every check runs before the call records any edge, so a fan-out that panics leaves the Dag as
@@ -154,6 +201,11 @@ func (t *TaskRef) After(nodes ...Node) Node { return declareEdges(t, nodes, dirA
 //	transformed := dag.Task(transform, Inputs(extracted))
 //	extracted.Before(Label(transformed, "rows"))
 //
+// A label on an edge to or from a task group stays on that edge, as [TaskGroupRef.Before]
+// describes. A label on an edge between two tasks stays on that edge too, even when the tasks are
+// in different task groups. In that case Python can replace the receiver of the verb with a group
+// that holds it, which makes the edge connect other tasks.
+//
 // Label panics if node is nil or text is empty.
 func Label(node Node, text string) Node {
 	if node == nil {
@@ -165,12 +217,13 @@ func Label(node Node, text string) Node {
 	labelling := endpoints("airflow.Label: node", node)
 	labelled := make(nodeSet, len(labelling))
 	for i, endpoint := range labelling {
-		labelled[i] = nodeEndpoint{task: endpoint.task, label: text}
+		labelled[i] = nodeEndpoint{task: endpoint.task, group: endpoint.group, label: text}
 	}
 	return labelled
 }
 
-// edgeKey identifies an edge of a Dag. The task_ids of a Dag are unique, so they name the ends.
+// edgeKey identifies an edge of a Dag. Tasks and task groups share one namespace of IDs, so a
+// task_id or a group_id names each end.
 type edgeKey struct{ upstream, downstream string }
 
 // edgeDir is which way an edge verb points: [TaskRef.Before] from its receiver, and
@@ -191,7 +244,7 @@ func (dir edgeDir) String() string {
 
 // order returns the two ends of the edge between an endpoint of the receiver and one of the nodes
 // the verb was given.
-func (dir edgeDir) order(recv, arg *TaskRef) (upstream, downstream *TaskRef) {
+func (dir edgeDir) order(recv, arg nodeEndpoint) (upstream, downstream nodeEndpoint) {
 	if dir == dirAfter {
 		return arg, recv
 	}
@@ -200,9 +253,14 @@ func (dir edgeDir) order(recv, arg *TaskRef) (upstream, downstream *TaskRef) {
 
 // pendingEdge is an edge that declareEdges has checked and is about to record.
 type pendingEdge struct {
-	upstream, downstream *TaskRef
+	upstream, downstream nodeEndpoint
 	key                  edgeKey
 	label                string
+}
+
+// betweenTasks reports whether both ends of e are tasks rather than task groups.
+func (e pendingEdge) betweenTasks() bool {
+	return e.upstream.group == nil && e.downstream.group == nil
 }
 
 // declareEdges records an edge from every endpoint of receiver to every node it was given, or
@@ -235,12 +293,14 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 	}
 	for _, endpoint := range all {
 		// A zero TaskRef and a copy of a TaskRef get here.
-		if dag.tasksByID[endpoint.task.taskID] != endpoint.task {
+		if endpoint.group == nil && dag.tasksByID[endpoint.task.taskID] != endpoint.task {
 			panic(fmt.Sprintf(
-				"%s: Dag %q got a *airflow.TaskRef that DagRef.Task did not return",
+				"%s: Dag %q got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task "+
+					"did not return",
 				where, dag.dagID,
 			))
 		}
+		dag.checkGroupLocked(where, endpoint.group)
 	}
 	// A verb with no node to point at, which a spread of an empty slice reaches, declares no
 	// edge. So does one on the empty set that such a verb returned.
@@ -253,31 +313,53 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 	at := make(map[edgeKey]int, len(ends)*len(args))
 	for _, end := range ends {
 		for _, arg := range args {
-			upstream, downstream := dir.order(end.task, arg.task)
-			if upstream == downstream {
+			upstream, downstream := dir.order(end, arg)
+			if upstream.task == downstream.task && upstream.group == downstream.group {
 				panic(fmt.Sprintf(
-					"%s: Dag %q: task %q cannot depend on itself",
-					where, dag.dagID, upstream.taskID,
+					"%s: Dag %q: %s cannot depend on itself", where, dag.dagID, upstream.describe(),
 				))
 			}
-			key := edgeKey{upstream: upstream.taskID, downstream: downstream.taskID}
+			checkGroupEdgeEnds(where, dag, upstream, downstream)
+			key := edgeKey{upstream: upstream.id(), downstream: downstream.id()}
 			i, declared := at[key]
 			if !declared {
 				i = len(pending)
 				at[key] = i
-				pending = append(pending, pendingEdge{
-					upstream: upstream, downstream: downstream, key: key,
-					label: dag.edgeLabels[key],
-				})
+				edge := pendingEdge{upstream: upstream, downstream: downstream, key: key}
+				if edge.betweenTasks() {
+					edge.label = dag.edgeLabels[key]
+				} else {
+					edge.label = dag.groupEdgeLabels[key]
+				}
+				pending = append(pending, edge)
 			}
 			// The label belongs to the node the verb was given, in either direction.
 			pending[i].label = mergeLabel(pending[i].label, arg.label)
 		}
 	}
 	for _, edge := range pending {
-		dag.addEdgeLocked(edge.upstream, edge.downstream, edge.label)
+		if edge.betweenTasks() {
+			dag.addEdgeLocked(edge.upstream.task, edge.downstream.task, edge.label)
+		} else {
+			dag.addGroupEdgeLocked(edge.upstream, edge.downstream, edge.label)
+		}
 	}
 	return args.unlabelled()
+}
+
+// checkGroupEdgeEnds panics if one end of an edge is a task group that holds the other end. The
+// edge would order the group against part of itself: in Python, group >> task_in_group makes the
+// last tasks of the group upstreams of a task that may be one of them.
+func checkGroupEdgeEnds(where string, dag *DagRef, upstream, downstream nodeEndpoint) {
+	for _, pair := range [][2]nodeEndpoint{{upstream, downstream}, {downstream, upstream}} {
+		if group := pair[0].group; group != nil && group.holds(pair[1]) {
+			panic(fmt.Sprintf(
+				"%s: Dag %q: %s is inside task group %q, so an edge cannot connect them; "+
+					"an edge connects a group to a task or a group outside it",
+				where, dag.dagID, pair[1].describe(), group.groupID,
+			))
+		}
+	}
 }
 
 // mergeLabel returns the label an edge carries once label is declared on it. A declaration that
@@ -291,29 +373,35 @@ func mergeLabel(declared, label string) string {
 }
 
 // edgeDag returns the Dag that every end of an edge belongs to. It panics unless each end is a
-// task of that one Dag.
+// task or a task group of that one Dag.
 func edgeDag(where string, ends []nodeEndpoint) *DagRef {
-	var first *TaskRef
+	var first nodeEndpoint
+	var dag *DagRef
 	for _, end := range ends {
-		task := end.task
 		switch {
-		case task == nil:
+		case end.task == nil && end.group == nil:
 			panic(fmt.Sprintf("%s: got a nil *airflow.TaskRef", where))
-		case task.dag == nil:
+		case end.group != nil && end.group.dag == nil:
 			panic(fmt.Sprintf(
-				"%s: got a *airflow.TaskRef that DagRef.Task did not return", where,
+				"%s: got a *airflow.TaskGroupRef that DagRef.TaskGroup or "+
+					"TaskGroupRef.TaskGroup did not return", where,
 			))
-		case first == nil:
-			first = task
-		case task.dag != first.dag:
+		case end.group == nil && end.task.dag == nil:
 			panic(fmt.Sprintf(
-				"%s: cannot declare an edge between task %q of Dag %q and task %q of Dag %q; "+
-					"an edge connects tasks of one Dag",
-				where, first.taskID, first.dag.dagID, task.taskID, task.dag.dagID,
+				"%s: got a *airflow.TaskRef that DagRef.Task or TaskGroupRef.Task did not return",
+				where,
+			))
+		case dag == nil:
+			first, dag = end, end.owner()
+		case end.owner() != dag:
+			panic(fmt.Sprintf(
+				"%s: cannot declare an edge between %s of Dag %q and %s of Dag %q; "+
+					"an edge connects the tasks and task groups of one Dag",
+				where, first.describe(), dag.dagID, end.describe(), end.owner().dagID,
 			))
 		}
 	}
-	return first.dag
+	return dag
 }
 
 // addEdgeLocked records one edge of d, which the caller holds d.mu for. An edge d already has is

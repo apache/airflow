@@ -38,6 +38,8 @@ log = logging.getLogger(__name__)
 
 _AIRFLOW_PATH = Path(__file__).parents[3]
 
+_STATIC_URL_PATH = "/static"
+
 # Language codes ("en", "zh-CN") and namespaces ("common") of the UI translation files. Anchored
 # so a path parameter cannot smuggle in path separators or ``..`` and escape the locales directory.
 _I18N_SEGMENT = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -168,7 +170,7 @@ def init_views(app: FastAPI) -> None:
         )
 
     app.mount(
-        "/static",
+        _STATIC_URL_PATH,
         StaticFiles(
             directory=directory,
             html=True,
@@ -282,14 +284,13 @@ def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.app import get_auth_manager
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 
-    app.add_middleware(JWTRefreshMiddleware)
+    app.add_middleware(JWTRefreshMiddleware, skip_path_prefixes=(f"{_STATIC_URL_PATH}/",))
 
     for middleware_cls, middleware_kwargs in get_auth_manager().get_fastapi_middlewares():
         app.add_middleware(middleware_cls, **middleware_kwargs)
 
-    # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture
-    # the full end-to-end duration including compression time. HttpAccessLogMiddleware is
-    # installed by ``init_access_logging`` in ``create_app``, which runs after this
-    # function — do not reorder those calls.
+    # GZipMiddleware must be inside HttpMetricsMiddleware and HttpAccessLogMiddleware so that both
+    # capture the full end-to-end duration including compression time. Both are installed by
+    # ``create_app`` after this function returns — do not reorder those calls.
     # See https://github.com/apache/airflow/issues/60165
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)

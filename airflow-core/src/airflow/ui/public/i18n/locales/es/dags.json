@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} de {{total}} assets actualizados",
+  "assetSchedule": "{{count, number}} de {{total, number}} assets actualizados",
   "dagActions": {
     "delete": {
       "button": "Eliminar Dag",
@@ -33,7 +33,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No se encontraron tareas.",
-      "title": "Tareas Afectadas: {{count}}"
+      "title": "Tareas Afectadas: {{count, number}}"
     },
     "clear": {
       "button": "Limpiar {{type}}",

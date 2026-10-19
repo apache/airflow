@@ -36,6 +36,9 @@ type Manifest struct {
 	AirflowBundleMetadataVersion string         `json:"airflow_bundle_metadata_version" yaml:"airflow_bundle_metadata_version"`
 	SDK                          SDK            `json:"sdk"                             yaml:"sdk"`
 	Dags                         map[string]Dag `json:"dags"                            yaml:"dags"`
+	// DagSourceFiles maps the dag_id of each Dag authored with airflow.Dag to the source file
+	// that declared it, as the binary was built. Only the packer reads it, to embed the files.
+	DagSourceFiles map[string]string `json:"dag_source_files,omitempty"      yaml:"dag_source_files,omitempty"`
 }
 
 // SDK identifies the SDK that produced the bundle.
