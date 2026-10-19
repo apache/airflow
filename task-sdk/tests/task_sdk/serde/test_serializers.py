@@ -117,10 +117,11 @@ class TestSerializers:
         """Test serialization and deserialization of various datetime-related objects."""
         serialized_obj = serialize(input_obj)
         deserialized_obj = deserialize(serialized_obj)
-        if isinstance(input_obj, (datetime.date, datetime.timedelta, Date)):
+        if isinstance(input_obj, datetime.datetime):
             assert input_obj == deserialized_obj
+            assert input_obj.utcoffset() == deserialized_obj.utcoffset()
         else:
-            assert input_obj.timestamp() == deserialized_obj.timestamp()
+            assert input_obj == deserialized_obj
 
     @pytest.mark.parametrize(
         ("tz_input", "expected_tz_name"),
