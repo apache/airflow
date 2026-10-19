@@ -72,8 +72,9 @@ github:
     rebase: false
 
   pull_requests:
-    # allow auto-merge
-    allow_auto_merge: false
+    # Auto-merge waits for the required "CI passed" check enforced by the "Require CI on main" ruleset.
+    # Without a required check it would merge as soon as the PR is approved, before CI finishes.
+    allow_auto_merge: true
     # enable updating head branches of pull requests
     allow_update_branch: true
     # auto-delete head branches after being merged
@@ -105,6 +106,19 @@ github:
       required_signatures: false
 
   rulesets:
+    - name: "Require CI on main"
+      type: branch
+      branches:
+        includes:
+          - "main"
+      # Committers can still merge a PR whose CI is red for an unrelated reason, by bypassing the rule.
+      bypass_teams:
+        - "airflow-committers"
+      required_status_checks:
+        - name: "CI passed"
+          app_slug: "github-actions"
+        - name: "check-newsfragment-pr-number"
+          app_slug: "github-actions"
     - name: "Branch protection"
       type: branch
       branches:
