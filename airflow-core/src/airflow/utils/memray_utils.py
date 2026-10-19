@@ -51,8 +51,10 @@ def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[
     """
 
     def decorator(func: Callable[PS, RT]) -> Callable[PS, RT]:
+        # Keep this ignore[return]: memray's stub types Tracker.__exit__ as -> bool, so mypy assumes
+        # exceptions may be swallowed. It only looks unused when memray isn't installed (CI installs it).
         @wraps(func)
-        def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:
+        def wrapper(*args: PS.args, **kwargs: PS.kwargs) -> RT:  # type: ignore[return]
             _memray_trace_components = conf.getenumlist(
                 "profiling", "memray_trace_components", MemrayTraceComponents
             )
