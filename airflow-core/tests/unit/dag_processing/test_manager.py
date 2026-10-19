@@ -56,6 +56,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
+from airflow.dag_processing.maintenance import cleanup_processor_metadata
 from airflow.dag_processing.manager import (
     BundleState,
     DagBundleDiscoveryResult,
@@ -4823,6 +4824,65 @@ class TestDagFileProcessorManager:
         manager._log.exception.assert_called_once_with(
             "Failed to reassign Dags with unconfigured bundles during startup"
         )
+
+    @conf_vars({("dag_processor", "bundle_refresh_check_interval"): "0"})
+    @pytest.mark.parametrize("bundle_name", ["dags-folder", "custom"])
+    @pytest.mark.parametrize("relocate_bundle", [False, True], ids=["same-directory", "moved-directory"])
+    def test_removed_legacy_dags_are_deactivated_after_bundle_name_backfill(
+        self, session, tmp_path, configure_dag_bundles, bundle_name, relocate_bundle
+    ):
+        """Removed 2.x files become stale after 0082 assigns a non-null bundle name."""
+        old_folder = tmp_path / "old_dags"
+        old_folder.mkdir()
+        bundle_folder = tmp_path / "new_dags" if relocate_bundle else old_folder
+        bundle_folder.mkdir(exist_ok=True)
+        removed_file = old_folder / "removed.py"
+        removed_file.write_text("from airflow.sdk import DAG\n")
+        present_file = bundle_folder / "present.py"
+        present_file.write_text("from airflow.sdk import DAG\n")
+        removed_file.unlink()
+
+        session.add(DagBundleModel(name="dags-folder"))
+        session.flush()
+        # 0082 backfills bundle_name; these rows have never been parsed in 3.x.
+        session.add_all(
+            [
+                DagModel(
+                    dag_id=dag_id,
+                    bundle_name="dags-folder",
+                    fileloc=str(file),
+                    relative_fileloc=None,
+                    last_parsed_time=DEFAULT_DATE,
+                    is_stale=False,
+                )
+                for dag_id, file in [("removed_legacy", removed_file), ("present_legacy", present_file)]
+            ]
+        )
+        session.commit()
+        assert session.scalar(select(DagVersion.id).limit(1)) is None
+
+        with configure_dag_bundles({bundle_name: bundle_folder}):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager.prepare_bundles()
+            session.expire_all()
+            removed = session.get(DagModel, "removed_legacy")
+            assert removed.bundle_name == ("dags-folder" if relocate_bundle else bundle_name)
+            assert removed.relative_fileloc == (None if relocate_bundle else "removed.py")
+            assert not removed.is_stale
+
+            known_files = {}
+            manager._refresh_dag_bundles(known_files)
+            cleanup_processor_metadata()
+
+        session.expire_all()
+        assert {file.rel_path for file in known_files[bundle_name]} == {Path("present.py")}
+        assert session.get(DagModel, "removed_legacy").is_stale
+        present = session.get(DagModel, "present_legacy")
+        assert not present.is_stale
+        assert present.bundle_name == bundle_name
+        assert present.relative_fileloc == "present.py"
+        assert session.get(DagBundleModel, bundle_name).active
+        assert session.scalar(select(DagVersion.id).limit(1)) is None
 
     @pytest.mark.parametrize(
         "apply_patch",
