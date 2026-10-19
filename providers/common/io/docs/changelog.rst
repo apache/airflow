@@ -25,6 +25,30 @@
 Changelog
 ---------
 
+.. note::
+    On Airflow 3.4 and later, ``XComObjectStorageBackend`` implements ``store_value``, which Dags that use
+    task loops require, and writes objects to
+    ``<dag_id>/<run_id>/<task_id>/ti-<task instance id>/<quoted key>.json`` instead of a random file name, or to
+    ``.../write-<uuid>/<quoted key>.json`` for an XCom written for another task. ``dag_id``, ``run_id`` and
+    ``task_id`` are shortened only when the path would exceed 1,024 bytes. The quoted key is replaced by its
+    SHA-256 digest when it is longer than 200 characters, and a compression suffix is appended when
+    compression is configured. A subclass that overrides ``serialize_value`` keeps it, but cannot be used
+    with task loops until it implements ``store_value`` as well.
+
+1.10.1
+......
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+   * ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 1.10.0
 ......
 

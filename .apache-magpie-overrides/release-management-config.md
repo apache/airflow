@@ -98,3 +98,12 @@ step, and report in the "Status of testing Providers that were prepared on
 | `announce_list` | `announce@apache.org` |
 | `announce_cc_lists` | `dev@airflow.apache.org`, `users@airflow.apache.org` |
 | `site_repo` | `apache/airflow-site` |
+
+When a wave contains a provider released for the first time, the
+`site_repo` change must also add that provider to the "Active providers"
+list in `landing-pages/site/content/en/docs/_index.md`. The list is
+maintained by hand. Open that PR before publishing the docs and merge it
+after them: `breeze workflow-run publish-docs --site-env live` fails while a
+published provider is neither in the index nor added by an open PR. See
+[`README_RELEASE_PROVIDERS.md` § Update airflow-site index for new providers](../dev/README_RELEASE_PROVIDERS.md#update-airflow-site-index-for-new-providers)
+for the check command and the entry format.

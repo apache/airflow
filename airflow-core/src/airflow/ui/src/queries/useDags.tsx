@@ -68,9 +68,9 @@ export const useDags = ({
   teams?: Array<string>;
   timetableType?: Array<string>;
 }) => {
-  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
+  const refetchInterval = useAutoRefresh({});
 
-  const { data, error, isFetching, isLoading } = useDagServiceGetDagsUi(
+  const { data, error, isLoading } = useDagServiceGetDagsUi(
     {
       ...(advancedSearch
         ? { dagDisplayNamePattern, dagIdPattern }
@@ -114,7 +114,6 @@ export const useDags = ({
   return {
     data,
     error,
-    isFetching,
     isLoading,
   };
 };

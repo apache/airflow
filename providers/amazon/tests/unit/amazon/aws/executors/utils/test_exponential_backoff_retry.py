@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
@@ -32,7 +32,7 @@ class TestExponentialBackoffRetry:
         time_machine.move_to(datetime(2023, 1, 1, 12, 0, 5))
         mock_callable_function = mock.Mock()
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             attempts_since_last_successful=0,
             callable_function=mock_callable_function,
         )
@@ -117,7 +117,7 @@ class TestExponentialBackoffRetry:
         mock_callable_function.side_effect = Exception()
 
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             attempts_since_last_successful=attempt_number,
             callable_function=mock_callable_function,
         )
@@ -129,7 +129,7 @@ class TestExponentialBackoffRetry:
         mock_callable_function.side_effect = [Exception(), True]
         time_machine.move_to(datetime(2023, 1, 1, 12, 0, 2))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             attempts_since_last_successful=0,
             callable_function=mock_callable_function,
         )
@@ -139,7 +139,7 @@ class TestExponentialBackoffRetry:
 
         time_machine.move_to(datetime(2023, 1, 1, 12, 0, 6))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             attempts_since_last_successful=1,
             callable_function=mock_callable_function,
         )
@@ -151,7 +151,7 @@ class TestExponentialBackoffRetry:
         mock_callable_function.return_value = Exception()
         time_machine.move_to(datetime(2023, 1, 1, 12, 4, 15))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             attempts_since_last_successful=4,
             callable_function=mock_callable_function,
             max_delay=60 * 5,
@@ -159,7 +159,7 @@ class TestExponentialBackoffRetry:
         mock_callable_function.assert_not_called()  # delay is 256 seconds; no calls made
         time_machine.move_to(datetime(2023, 1, 1, 12, 4, 16))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             attempts_since_last_successful=4,
             callable_function=mock_callable_function,
             max_delay=60 * 5,
@@ -168,7 +168,7 @@ class TestExponentialBackoffRetry:
 
         time_machine.move_to(datetime(2023, 1, 1, 12, 5, 0))
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             attempts_since_last_successful=5,
             callable_function=mock_callable_function,
             max_delay=60 * 5,
@@ -183,7 +183,7 @@ class TestExponentialBackoffRetry:
         time_machine.move_to(datetime(2023, 1, 1, 12, 55, 0))
         for i in range(10):
             exponential_backoff_retry(
-                last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
                 attempts_since_last_successful=i,
                 callable_function=mock_callable_function,
                 max_attempts=3,
@@ -270,7 +270,7 @@ class TestExponentialBackoffRetry:
         time_machine.move_to(utcnow_value)
 
         exponential_backoff_retry(
-            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            last_attempt_time=datetime(2023, 1, 1, 12, 0, 0, tzinfo=UTC),
             attempts_since_last_successful=attempt_number,
             callable_function=mock_callable_function,
             exponent_base=3,

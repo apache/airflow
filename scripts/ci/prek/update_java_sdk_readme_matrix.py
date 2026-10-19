@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = ["PyYAML>=6.0", "rich>=13.6.0"]
 # ///
 """Regenerate the Java SDK compatibility table in ``java-sdk/README.md`` and the Dokka module doc.

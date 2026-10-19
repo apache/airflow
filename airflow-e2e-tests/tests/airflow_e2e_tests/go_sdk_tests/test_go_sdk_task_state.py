@@ -23,13 +23,13 @@ proven to have reached the database.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 
 import pytest
 import requests
 
-from airflow_e2e_tests.constants import GO_SDK_STATE_STORE_RETENTION_DAYS
+from airflow_e2e_tests.constants import LANG_SDK_STATE_STORE_RETENTION_DAYS
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
 _GO_TASK_TIMEOUT = 300
@@ -54,7 +54,7 @@ class _CompletedRun:
 @pytest.fixture(scope="module")
 def completed_run() -> _CompletedRun:
     client = AirflowClient()
-    resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(timezone.utc).isoformat()})
+    resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(UTC).isoformat()})
     run_id = resp["dag_run_id"]
     state = client.wait_for_dag_run(dag_id=_DAG_ID, run_id=run_id, timeout=_GO_TASK_TIMEOUT)
     ti_resp = client.get_task_instances(dag_id=_DAG_ID, run_id=run_id)
@@ -106,9 +106,9 @@ def test_default_retention_applied(completed_run: _CompletedRun):
     entry = completed_run.state_store("go_e2e_retained")
     assert entry.get("expires_at") is not None, entry
     gap = _parse_timestamp(entry["expires_at"]) - _parse_timestamp(entry["updated_at"])
-    expected = timedelta(days=GO_SDK_STATE_STORE_RETENTION_DAYS)
+    expected = timedelta(days=LANG_SDK_STATE_STORE_RETENTION_DAYS)
     assert abs(gap - expected) <= timedelta(minutes=5), (
-        f"expected ~{GO_SDK_STATE_STORE_RETENTION_DAYS} days, got {gap / timedelta(days=1):.1f} days; "
+        f"expected ~{LANG_SDK_STATE_STORE_RETENTION_DAYS} days, got {gap / timedelta(days=1):.1f} days; "
         "if ~30, the supervisor fell back to its own config default, so it did not see "
         f"[state_store] default_retention_days. entry: {entry!r}"
     )

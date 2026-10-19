@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 #   "PyYAML>=6.0",
@@ -182,7 +182,8 @@ def generate_mprocs_config() -> str:
     }
 
     # Generate YAML output
-    config_dict = {"procs": procs}
+    # dekit/mprocs 0.10.x: default <q> opens a quit menu (ShowQuit); override to quit immediately.
+    config_dict = {"procs": procs, "keymap_procs": {"<q>": {"c": "quit"}}}
     return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)
 
 

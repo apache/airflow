@@ -114,6 +114,30 @@ moves `vX-Y-test` forward to the current `main` - only the branch-specific commi
 `Update default branches for X.Y`) are kept on top of `main`. Each beta is cut from the branch
 in that state, so everything merged to `main` lands in the next beta.
 
+### Cutting a beta
+
+A beta is cut with `breeze release-management start-beta-process`, not `start-rc-process`. A beta is
+released from `vX-Y-test` only: there is no `vX-Y-stable` branch yet and therefore no sync PR (a sync
+PR exists only to carry changes from `vX-Y-test` into `vX-Y-stable` for an `rc`/final), and there is
+no vote.
+
+1. Push the version-bump and release-notes commits to `vX-Y-test` through normal PRs, so the tip of
+   `vX-Y-test` is exactly what the beta should ship.
+2. Run:
+
+   ```shell script
+   breeze release-management start-beta-process \
+       --version ${VERSION} \
+       --task-sdk-version ${TASK_SDK_VERSION}
+   ```
+
+   It validates that `vX-Y-test` exists, checks out its tip, tags the beta there, builds and signs
+   the artifacts, resolves constraints through the `release-constraints` workflow from `vX-Y-test`
+   (exactly like an `rc`: provider rc waves are allowed and the result lands on its own
+   `constraints-X.Y.0bN` branch and tag, leaving the shared `constraints-X-Y` untouched), uploads to
+   SVN dev and PyPI, and pushes the tags. Everything downstream of the tag is the same as an `rc`;
+   only the branch/sync/vote handling differs.
+
 During this phase, all automation that would add commits directly to `vX-Y-test` must be paused -
 any such commit makes `vX-Y-test` diverge from `main` and breaks the next fast-forward. Upgrades and
 fixes land on `main` only and reach `vX-Y-test` with the next fast-forward. When you add the new
@@ -1339,7 +1363,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>rc<X>/constraints-3.10.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>rc<X>/constraints-3.11.txt"
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -1351,7 +1375,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version 3.1.3rc1 --python 3.10 --backend postgres
+breeze start-airflow --use-airflow-version 3.1.3rc1 --python 3.11 --backend postgres
 ```
 
 You can also choose different executors and extras to install when you are installing airflow this way. For
@@ -1359,7 +1383,7 @@ example in order to run Airflow with CeleryExecutor and install celery, google a
 Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
 
 ```shell script
-breeze start-airflow --use-airflow-version 3.1.3rc1 --python 3.10 --backend postgres \
+breeze start-airflow --use-airflow-version 3.1.3rc1 --python 3.11 --backend postgres \
   --executor CeleryExecutor --airflow-extras "celery,google,amazon"
 ```
 
@@ -1526,7 +1550,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.10 3.11 3.12 3.13 3.14
+for PYTHON in 3.11 3.12 3.13 3.14
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}

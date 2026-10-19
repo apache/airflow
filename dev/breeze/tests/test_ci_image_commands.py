@@ -33,7 +33,7 @@ from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash
 
-CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.10"
+CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.11"
 
 
 def test_calculate_ci_sources_hash_is_stable_across_checkouts(tmp_path, monkeypatch):
@@ -198,7 +198,7 @@ def test_import_mount_cache_does_not_prune_the_imported_cache_mount(
     mock_run_command,
     tmp_path,
 ):
-    cache_file = tmp_path / "ci-cache-mount-save-v3-3.10.tar.gz"
+    cache_file = tmp_path / "ci-cache-mount-save-v3-3.11.tar.gz"
     cache_file.write_bytes(b"")
     import_mount_cache.callback(builder="autodetect", cache_file=cache_file)
     commands = [call.args[0] for call in mock_run_command.call_args_list]

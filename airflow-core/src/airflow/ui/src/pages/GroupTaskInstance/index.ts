@@ -16,5 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 export { GroupTaskInstance } from "./GroupTaskInstance";
+export { GroupTaskInstances } from "./GroupTaskInstances";

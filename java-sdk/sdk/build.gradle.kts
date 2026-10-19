@@ -257,7 +257,7 @@ abstract class SyncDagSchemaTask : DefaultTask() {
 
 // Generate the Dag-authoring DSL surface from the Dag serialization schema:
 //
-//  - org.apache.airflow.sdk.Builder and its nested Dag / Task annotations,
+//  - org.apache.airflow.sdk.Airflow and its nested Dag / Task annotations,
 //    whose configuration attributes mirror the scalar keys of the schema's
 //    "dag" and "operator" definitions (the annotation processor lowers
 //    explicitly-set attributes into DagDef.config / TaskDef.config calls), and
@@ -415,6 +415,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                 "is_setup",
                 "is_teardown",
                 "on_failure_fail_dagrun",
+                "returns_dag_result",
                 // Edges come from before/after, never from configuration.
                 "downstream_task_ids",
             )
@@ -494,9 +495,9 @@ abstract class GenerateDagDslTask : DefaultTask() {
         (excludedTaskKeys - excludedSeen).takeIf { it.isNotEmpty() }?.let {
             throw GradleException("Excluded task keys match no eligible schema property; remove or fix: $it")
         }
-        // "id"/"to" name the annotations' structural attributes, so a schema
-        // key camel-casing to either would silently shadow them.
-        (dagFields + taskFields).firstOrNull { it.attribute == "id" || it.attribute == "to" }?.let {
+        // "id" and "to" name the annotations' structural attributes, so a schema
+        // key camel-casing to one would silently shadow it.
+        (dagFields + taskFields).firstOrNull { it.attribute in setOf("id", "to") }?.let {
             throw GradleException("Schema key '${it.key}' collides with a structural annotation attribute")
         }
 
@@ -507,7 +508,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                 "    /** ${f.doc} */\n    val ${f.attribute}: ${f.attrType} = ${f.attrDefault},"
             }
 
-        outDir.resolve("org/apache/airflow/sdk").apply { mkdirs() }.resolve("Builder.kt").writeText(
+        outDir.resolve("org/apache/airflow/sdk").apply { mkdirs() }.resolve("Airflow.kt").writeText(
             """
             |package org.apache.airflow.sdk
             |
@@ -523,16 +524,16 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * Example:
             | *
             | * ```java
-            | * @Builder.Dag(id = "my_pipeline", schedule = "@daily")
+            | * @Airflow.Dag(id = "my_pipeline", schedule = "@daily")
             | * public class MyPipeline {
             | *
-            | *     @Builder.Task(id = "extract", retries = 2)
+            | *     @Airflow.Task(id = "extract", retries = 2)
             | *     public long extract(Client client) { ... }
             | *
-            | *     @Builder.Task(id = "transform")
+            | *     @Airflow.Task(id = "transform")
             | *     public long transform(Client client, long extracted) { ... }
             | *
-            | *     @Builder.Deps
+            | *     @Airflow.Deps
             | *     static class Wiring implements MyPipelineDeps {
             | *       void depends() { transform(extract()); }
             | *     }
@@ -545,7 +546,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             | * the arguments bound at that call site take their place. Keyword
             | * arguments bind by name instead through a single [TaskInput] parameter.
             | */
-            |class Builder internal constructor() {
+            |class Airflow internal constructor() {
             |  /**
             |   * Annotation to automate a Dag-builder pattern.
             |   *
@@ -581,6 +582,74 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  )
             |
             |  /**
+            |   * Marks a task method whose `boolean` picks one of two tasks; the
+            |   * other is skipped.
+            |   *
+            |   * The method is an ordinary task method that returns `boolean`. Its
+            |   * wiring-view method returns a [ConditionRef] rather than a
+            |   * [TaskRef], so each side is named where the Dag is wired:
+            |   *
+            |   * ```java
+            |   * @Airflow.If(id = "has_rows")
+            |   * public boolean hasRows(long rows) { return rows > 0; }
+            |   *
+            |   * @Airflow.Deps
+            |   * static class Wiring implements EtlDeps {
+            |   *   void depends() { hasRows(extract()).Then(load()).Else(reportEmpty()); }
+            |   * }
+            |   * ```
+            |   *
+            |   * The condition skips only the side not taken, so a task that runs
+            |   * after both sides needs a trigger rule that tolerates one skipped
+            |   * upstream, such as `none_failed_min_one_success`.
+            |   *
+            |   * Configuration attributes are [Task]'s, and apply to the deciding
+            |   * task.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class If(
+            |    /** Task ID. Empty derives it from the annotated function's name. */
+            |    val id: String = "",
+            |${attrLines(taskFields)}
+            |  )
+            |
+            |  /**
+            |   * Marks a task method that chooses one of several tasks to run;
+            |   * every other one is skipped.
+            |   *
+            |   * The method returns the class the Dag's builder generated for the task it
+            |   * chose, as `Class<? extends Task>`. Its wiring-view method returns a
+            |   * [SwitchRef], so the cases are listed where the Dag is wired:
+            |   *
+            |   * ```java
+            |   * @Airflow.Switch(id = "pick_path")
+            |   * public Class<? extends Task> pickPath(long rows) {
+            |   *   return rows > 1000 ? EtlBuilder.HandleLong.class : EtlBuilder.HandleShort.class;
+            |   * }
+            |   *
+            |   * @Airflow.Deps
+            |   * static class Wiring implements EtlDeps {
+            |   *   void depends() { pickPath(extract()).Case(handleLong()).Case(handleShort()); }
+            |   * }
+            |   * ```
+            |   *
+            |   * A switch chooses exactly one case, so a task that runs after
+            |   * several of them needs a trigger rule that tolerates a skipped
+            |   * upstream, such as `none_failed_min_one_success`.
+            |   *
+            |   * Configuration attributes are [Task]'s, and apply to the deciding
+            |   * task.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class Switch(
+            |    /** Task ID. Empty derives it from the annotated function's name. */
+            |    val id: String = "",
+            |${attrLines(taskFields)}
+            |  )
+            |
+            |  /**
             |   * Marks a method as the Java body of a task the Python Dag file
             |   * declares with `@task.stub`.
             |   *
@@ -589,7 +658,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * to rather than an id it owns:
             |   *
             |   * ```java
-            |   * @Builder.TaskHandler(dag = "etl", task = "score")
+            |   * @Airflow.TaskHandler(dag = "etl", task = "score")
             |   * public long score(Client client, long rows) { ... }
             |   * ```
             |   *
@@ -618,7 +687,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * wire an ordering-only one:
             |   *
             |   * ```java
-            |   * @Builder.Deps
+            |   * @Airflow.Deps
             |   * static class Wiring implements EtlPipelineDeps {
             |   *   void depends() {
             |   *     var rows = extract();
@@ -636,6 +705,43 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  @Target(AnnotationTarget.CLASS)
             |  @MustBeDocumented
             |  annotation class Deps
+            |
+            |  /**
+            |   * Marks a nested class that groups the tasks declared inside it, as
+            |   * Python's `TaskGroup` does.
+            |   *
+            |   * Declare it as a `static` nested class of the [Dag] class, or of
+            |   * another [TaskGroup] class to nest one group in another. Everything it
+            |   * declares carries its ID as a prefix, so `stage` in `Staging` is the
+            |   * task `Staging.stage`:
+            |   *
+            |   * ```java
+            |   * @Airflow.TaskGroup
+            |   * static class Staging {
+            |   *   @Airflow.Task
+            |   *   public long stage(long rows) { ... }
+            |   *
+            |   *   @Airflow.TaskGroup(id = "checks")
+            |   *   static class Checks {
+            |   *     @Airflow.Task
+            |   *     public void nulls(long staged) { ... }
+            |   *   }
+            |   * }
+            |   * ```
+            |   *
+            |   * The wiring class reaches them through the generated view, where the
+            |   * group is both a namespace and a point in the flow:
+            |   * `staging().checks().nulls(staged)` and `extract().before(staging())`.
+            |   *
+            |   * @param id Group ID within its enclosing group. Empty derives it from
+            |   *    the annotated class's name. Must contain only ASCII letters,
+            |   *    digits, underscores, or dashes.
+            |   */
+            |  @Target(AnnotationTarget.CLASS)
+            |  @MustBeDocumented
+            |  annotation class TaskGroup(
+            |    val id: String = "",
+            |  )
             |}
             |
             """.trimMargin(),
@@ -664,7 +770,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |/**
             | * Configuration keys accepted by `DagDef.config` and `TaskDef.config`,
             | * keyed by Dag serialization schema property name. Public so that the
-            | * annotation processor can lower `@Builder.Dag` / `@Builder.Task`
+            | * annotation processor can lower `@Airflow.Dag` / `@Airflow.Task`
             | * attributes onto the same tables; not user-facing API.
             | */
             |object SchemaFields {
@@ -716,7 +822,7 @@ val syncDagSchema by tasks.registering(SyncDagSchemaTask::class) {
 
 tasks.register<GenerateDagDslTask>("generateDagDsl") {
     dependsOn(syncDagSchema)
-    description = "Generate the Builder.Dag/Builder.Task annotations and SchemaFields from the Dag serialization schema"
+    description = "Generate the Airflow.Dag/Airflow.Task annotations and SchemaFields from the Dag serialization schema"
     schemaFile = dagSchemaInput
     targetDirectory = dagDslDir
 }
@@ -827,4 +933,13 @@ publishing {
             }
         }
     }
+}
+
+// Prints the classpath that runs the conformance serializer, for
+// java-sdk/scripts/ci/prek/check_serialization_conformance.py.
+tasks.register("printConformanceClasspath") {
+    dependsOn("testClasses")
+    // Capture early to keep compatibility to the Gradle configuration cache.
+    val classpath = sourceSets.test.get().runtimeClasspath
+    doLast { println(classpath.asPath) }
 }

@@ -25,6 +25,7 @@ from urllib.parse import quote, urlsplit
 import fsspec.utils
 
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.io.version_compat import AIRFLOW_V_3_4_PLUS
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -79,16 +80,16 @@ def _sanitise_segment(value: str) -> str:
     return quote(value, safe="")
 
 
+def _build_task_prefix(scope: TaskScope) -> ObjectStoragePath:
+    prefix = _get_base_path() / _sanitise_segment(scope.dag_id) / _sanitise_segment(scope.run_id)
+    if AIRFLOW_V_3_4_PLUS and scope.region_id.int:
+        prefix /= f"region={scope.region_id}"
+    return prefix / _sanitise_segment(scope.task_id)
+
+
 def _build_task_path(scope: TaskScope, key: str) -> ObjectStoragePath:
     suffix = _get_compression_suffix()
-    return (
-        _get_base_path()
-        / _sanitise_segment(scope.dag_id)
-        / _sanitise_segment(scope.run_id)
-        / _sanitise_segment(scope.task_id)
-        / str(scope.map_index)
-        / f"{_sanitise_segment(key)}{suffix}"
-    )
+    return _build_task_prefix(scope) / str(scope.map_index) / f"{_sanitise_segment(key)}{suffix}"
 
 
 def _build_asset_path(scope: AssetScope, key: str) -> ObjectStoragePath:
@@ -163,23 +164,12 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
     ) -> None:
         match scope:
             case TaskScope():
+                prefix = _build_task_prefix(scope)
                 if all_map_indices:
-                    prefix = (
-                        _get_base_path()
-                        / _sanitise_segment(scope.dag_id)
-                        / _sanitise_segment(scope.run_id)
-                        / _sanitise_segment(scope.task_id)
-                    )
                     for p in prefix.glob("*/*"):
                         p.unlink(missing_ok=True)
                 else:
-                    prefix = (
-                        _get_base_path()
-                        / _sanitise_segment(scope.dag_id)
-                        / _sanitise_segment(scope.run_id)
-                        / _sanitise_segment(scope.task_id)
-                        / str(scope.map_index)
-                    )
+                    prefix /= str(scope.map_index)
                     for p in prefix.glob("*"):
                         p.unlink(missing_ok=True)
             case AssetScope():

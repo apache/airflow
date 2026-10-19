@@ -468,13 +468,23 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
     (`PROVIDERS_WITH_PROCESS_GLOBAL_TEST_SIDE_EFFECTS`, currently `cncf.kubernetes`), the side-effect
     provider is added to the same `Providers[...]` test type, because the two share one pytest process on
     canary and the changed tests must pass after it
+* `TS SDK unit tests` (the vitest suite run by `pnpm test` in `ts-sdk/`, exposed as the
+  `run-ts-sdk-tests` output) run when `TS SDK files` change: anything under `ts-sdk/` except `.md`
+  files, `ts-sdk/api-docs/`, and `ts-sdk/docs/` (the docs toolchain's own package).
 * `Java SDK E2E tests` (the `java_sdk` mode of the deployed-stack tests, exposed as the
   `run-java-sdk-e2e-tests` output) run when the Java SDK sources (`java-sdk/`, excluding `.md`), the
-  Java test-fixture bundle (`airflow-e2e-tests/java-test-bundle/`), the Java e2e suite or its Docker
+  Java test-fixture and native-Dag bundles (`airflow-e2e-tests/java-test-bundle/`,
+  `airflow-e2e-tests/java-native-bundle/`), the Java e2e suite or its Docker
   files (`airflow-e2e-tests/tests/airflow_e2e_tests/java_sdk_tests/`,
-  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), or the Java
-  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`) change. Like the
-  other deployed e2e suites, enabling them forces `PROD Image building`.
+  `airflow-e2e-tests/docker/java.yml`, `airflow-e2e-tests/docker/Dockerfile.java`), the Java
+  coordinator (`task-sdk/src/airflow/sdk/coordinators/java/`, `_subprocess.py`), or the native
+  Lang-SDK Dag parsing sources change. Those are the Dag processing files `importer_routing.py` and
+  `lang_sdk_processor.py`, `models/dagcode.py`, `serialization/serialized_objects.py`,
+  the Task SDK importers (`task-sdk/src/airflow/sdk/importers/`), the coordinator registry
+  (`task-sdk/src/airflow/sdk/execution_time/coordinator.py`), and `coordinators/_dag_importer.py`;
+  they trigger the TypeScript SDK E2E tests too. Shared Dag processing files such as `manager.py`
+  are left to `canary` runs. Like the other
+  deployed e2e suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -548,10 +558,17 @@ when some files are not changed. Those are the rules implemented:
     Gradle wrapper, which downloads the Gradle distribution, and the latter additionally
     resolves the whole Java SDK dependency graph from Maven Central, so we avoid those
     downloads on PRs that do not touch `java-sdk/`)
+  * if no `Java SDK conformance files` changed - `check-java-sdk-serialization-conformance`
+    is skipped (it compiles the Java SDK with Gradle and resolves its dependencies from Maven
+    Central). The group is wider than `Java SDK files`: it also covers Airflow's serializer
+    (`serialized_objects.py`), `schema.json` and the shared harness under
+    `scripts/ci/lang_sdk_serialization/`, because the check compares the SDK against those and
+    none of them forces `full_tests_needed`
   * if no `TS SDK files` (`ts-sdk/`) changed - `check-ts-sdk-supervisor-schema` check is
-    skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
-    wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is
-    the ts-sdk follow-up PR's job, not the schema author's)
+    skipped (it regenerates and diffs the generated ts-sdk file from the vendored schema). A
+    change to the supervisor wire schema on the Python side is not deferred to a follow-up PR:
+    `sync-ts-sdk-schemas` is triggered by that source, refreshes the vendored copy, and fails
+    on the PR that caused it, so the drift surfaces there rather than shipping unnoticed
   * `check-provider-yaml-valid` is skipped unless at least one of these changed:
     `All Providers Python files`, `All Providers Distribution Config files`
     (which includes `provider.yaml`, `pyproject.toml`, and `providers/.pre-commit-config.yaml`),
@@ -575,8 +592,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 
 | Output                                                  | Meaning of the output                                                                                   | Example value                            | List |
 |---------------------------------------------------------|---------------------------------------------------------------------------------------------------------|------------------------------------------|------|
-| all-python-versions                                     | List of all python versions there are available in the form of JSON array                               | \['3.10', '3.11'\]                       |      |
-| all-python-versions-list-as-string                      | List of all python versions there are available in the form of space separated string                   | 3.10 3.11                                | *    |
+| all-python-versions                                     | List of all python versions there are available in the form of JSON array                               | \['3.11', '3.12'\]                       |      |
+| all-python-versions-list-as-string                      | List of all python versions there are available in the form of space separated string                   | 3.11 3.12                                | *    |
 | all-versions                                            | If set to true, then all python, k8s, DB versions are used for tests.                                   | false                                    |      |
 | basic-checks-only                                       | Whether to run all static checks ("false") or only basic set of static checks ("true")                  | false                                    |      |
 | ci-image-build                                          | Whether CI image build is needed                                                                        | true                                     |      |
@@ -589,7 +606,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | default-kubernetes-version                              | Which Kubernetes version to use as default                                                              | v1.25.2                                  |      |
 | default-mysql-version                                   | Which MySQL version to use as default                                                                   | 5.7                                      |      |
 | default-postgres-version                                | Which Postgres version to use as default                                                                | 10                                       |      |
-| default-python-version                                  | Which Python version to use as default                                                                  | 3.10                                     |      |
+| default-python-version                                  | Which Python version to use as default                                                                  | 3.11                                     |      |
 | disable-airflow-repo-cache                              | Disables cache of the repo main cache in CI - airflow will be installed without main installation cache | true                                     |      |
 | docker-cache                                            | Which cache should be used for images ("registry", "local" , "disabled")                                | registry                                 |      |
 | docs-build                                              | Whether to build documentation ("true"/"false")                                                         | true                                     |      |
@@ -608,7 +625,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                              | false                                    |      |
 | java-sdk-version                                        | JDK version used to build the lang-SDK Java artifacts natively in CI                                     | 17                                       |      |
 | kind-version                                            | Which Kind version to use for tests                                                                     | v0.24.0                                  |      |
-| kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.10-v1.25.2 3.11-v1.28.13               | *    |
+| kubernetes-combos-list-as-string                        | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.11-v1.25.2 3.12-v1.28.13               | *    |
 | kubernetes-versions                                     | All Kubernetes versions to use for tests as JSON array                                                  | \['v1.25.2'\]                            |      |
 | kubernetes-versions-list-as-string                      | All Kubernetes versions to use for tests as space-separated string                                      | v1.25.2                                  | *    |
 | latest-versions-only                                    | If set, the number of Python, Kubernetes, DB versions will be limited to the latest ones.               | false                                    |      |
@@ -618,11 +635,11 @@ GitHub Actions to pass the list of parameters to a command to execute
 | postgres-exclude                                        | Which versions of Postgres to exclude for tests as JSON array                                           | []                                       |      |
 | postgres-versions                                       | Which versions of Postgres to use for tests as JSON array                                               | \['12'\]                                 |      |
 | prod-image-build                                        | Whether PROD image build is needed                                                                      | true                                     |      |
-| providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers)           | \[{}\]                                   |      |
+| providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers). Excludes unbuilt python versions and the entry whose airflow_version equals the current branch version (unreleased on a vX-Y-test branch until GA) | \[{}\]                                   |      |
 | providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                             | Providers Providers\[-google\]           | *    |
 | pyproject-toml-changed                                  | When pyproject.toml changed in the PR.                                                                  | false                                    |      |
-| python-versions                                         | List of python versions to use for that build                                                           | \['3.10'\]                               |      |
-| python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                      | 3.10                                     | *    |
+| python-versions                                         | List of python versions to use for that build                                                           | \['3.11'\]                               |      |
+| python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                      | 3.11                                     | *    |
 | run-agent-framework-tests                               | Whether the common.ai agent framework adapter tests should be run ("true"/"false")                      | true                                     |      |
 | run-amazon-tests                                        | Whether Amazon tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-api-codegen                                         | Whether "api-codegen" are needed to run ("true"/"false")                                                | true                                     |      |
@@ -633,7 +650,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
 | run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
-| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
+| run-ts-sdk-tests                                        | Whether TypeScript SDK unit tests should be run — on `ts-sdk/` changes except Markdown, `api-docs/`, and `docs/` ("true"/"false") | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |

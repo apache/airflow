@@ -20,7 +20,7 @@ import logging
 import os
 import time
 from collections.abc import Generator, Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -62,7 +62,7 @@ class TaskLogReader:
         yield StructuredLogMessage(timestamp=None, event="::group::Log message source details")
         yield StructuredLogMessage(timestamp=None, event="::endgroup::")
         yield StructuredLogMessage(
-            timestamp=ti.updated_at or datetime.now(timezone.utc),
+            timestamp=ti.updated_at or datetime.now(UTC),
             event=msg,
         )
 

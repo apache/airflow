@@ -1673,7 +1673,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 new_role_ids = {r.id for r in user.roles}
                 new_group_ids = {grp.id for grp in user.groups}
                 if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
-                    user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
+                    user.changed_on = datetime.datetime.now(tz=datetime.UTC)
             merged_user = self.session.merge(user)
             self.session.commit()
             self._reset_user_permissions_cache(merged_user)

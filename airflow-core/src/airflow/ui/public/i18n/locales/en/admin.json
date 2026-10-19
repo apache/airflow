@@ -25,7 +25,7 @@
     "connection_other": "Connections",
     "delete": {
       "deleteConnection_one": "Delete 1 connection",
-      "deleteConnection_other": "Delete {{count}} connections",
+      "deleteConnection_other": "Delete {{count, number}} connections",
       "firstConfirmMessage_one": "You are about to delete the following connection:",
       "firstConfirmMessage_other": "You are about to delete the following connections:",
       "title": "Delete $t(connections.connection_one)"
@@ -153,7 +153,7 @@
     },
     "delete": {
       "deleteVariable_one": "Delete 1 $t(variables.variable_one)",
-      "deleteVariable_other": "Delete {{count}} $t(variables.variable_other)",
+      "deleteVariable_other": "Delete {{count, number}} $t(variables.variable_other)",
       "firstConfirmMessage_one": "You are about to delete the following variable:",
       "firstConfirmMessage_other": "You are about to delete the following variables:",
       "title": "Delete $t(variables.variable_one)",

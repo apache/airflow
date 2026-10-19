@@ -27,7 +27,7 @@ import textwrap
 import warnings
 import zipfile
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -44,15 +44,15 @@ from airflow.dag_processing.dagbag import (
 )
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.processor import DagFileParsingResult
-from airflow.exceptions import UnknownExecutorException
+from airflow.exceptions import AirflowDagDuplicatedIdException, UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.sdk import DAG, BaseOperator
-from airflow.sdk.exceptions import AirflowConfigException
+from airflow.sdk import DAG, BaseOperator, TaskGroup
+from airflow.sdk.exceptions import AirflowConfigException, TaskGroupCycleDeprecationWarning
 from airflow.sdk.importers import (
     AbstractDagImporter,
     DagImportResult,
@@ -100,7 +100,6 @@ def standard_example_dags_folder() -> Path:
     return _standard_example_dags_folder()
 
 
-PY311 = sys.version_info >= (3, 11)
 PY313 = sys.version_info >= (3, 13)
 
 # Include the words "airflow" and "dag" in the file contents,
@@ -893,6 +892,34 @@ class TestDagBag:
         assert len(dagbag.import_errors) == 1
         assert len(dagbag.dags) == 0
 
+    @pytest.mark.parametrize("batch_asset_events", [False, True])
+    @pytest.mark.parametrize("explicit", [False, None])
+    def test_process_file_compound_assets_require_batching(self, tmp_path, batch_asset_events, explicit):
+        dag_file = tmp_path / "compound_assets.py"
+        batching_argument = "" if explicit is None else f", batch_asset_events={explicit!r}"
+        dag_file.write_text(
+            textwrap.dedent(
+                f"""
+                from airflow.sdk import DAG, Asset, PartitionedAssetTimetable
+
+                with DAG("compound_assets", schedule=PartitionedAssetTimetable(
+                    Asset("a") & Asset("b"){batching_argument}
+                )):
+                    pass
+                """
+            )
+        )
+        with conf_vars({("scheduler", "batch_asset_events"): str(batch_asset_events)}):
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path))
+        if explicit is None:
+            assert not dagbag.import_errors
+            assert "compound_assets" in dagbag.dags
+        else:
+            assert not dagbag.dags
+            assert list(dagbag.import_errors.values()) == [
+                "AirflowTimetableInvalid: Asset AND conditions require batch_asset_events=True"
+            ]
+
     def test_process_file_invalid_param_check(self, tmp_path):
         """
         test if an invalid param in the dags can be identified
@@ -1024,7 +1051,7 @@ class TestDagBag:
         fileloc = str(standard_example_dags_folder / "example_bash_operator.py")
 
         mock_dagmodel.return_value = DagModel()
-        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=UTC)
         mock_dagmodel.return_value.fileloc = fileloc
 
         class _TestDagBag(DagBag):
@@ -1057,7 +1084,7 @@ class TestDagBag:
         fileloc = os.path.realpath(os.path.join(test_zip_path, "test_zip.py"))
 
         mock_dagmodel.return_value = DagModel()
-        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
+        mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=UTC)
         mock_dagmodel.return_value.fileloc = fileloc
 
         processed: list[str] = []
@@ -1180,7 +1207,7 @@ with airflow.DAG(
 
     @staticmethod
     def _make_test_traceback(unparseable_filename: str, depth=None) -> str:
-        python_311_marker = "           ^^^^^^^^^^^\n" if PY311 else ""
+        python_311_marker = "           ^^^^^^^^^^^\n"
         python_313_marker = ["    ~~~~~~~~~^^\n"] if PY313 else []
         frames = (
             f'  File "{unparseable_filename}", line 3, in <module>\n    something()\n',
@@ -1402,6 +1429,58 @@ with airflow.DAG(
         assert dagbag.captured_warnings == {
             os.fspath(dag_file): (f"{dag_file}:1: test:deprecated_field: Deprecated field",)
         }
+
+    @staticmethod
+    def _make_task_group_cycle_dag(*, cyclic: bool) -> DAG:
+        with DAG(dag_id="test") as dag:
+            with TaskGroup("group") as group:
+                a = BaseOperator(task_id="a")
+                b = BaseOperator(task_id="b")
+            a >> BaseOperator(task_id="bridge", task_group=None if cyclic else group) >> b
+        return dag
+
+    def test_dag_warnings_task_group_cycle(self):
+        dagbag = DagBag(dag_folder="", collect_dags=False)
+
+        # Python ignores DeprecationWarning outside __main__, as in the Dag processor.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=True))
+
+        (warning,) = dagbag.dag_warnings
+        assert (warning.dag_id, warning.warning_type) == ("test", DagWarningType.TASK_GROUP_CYCLE)
+        assert "group and bridge depend on each other in a cycle." in warning.message
+
+        with pytest.warns(TaskGroupCycleDeprecationWarning):
+            dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=True))
+
+        dagbag.bag_dag(self._make_task_group_cycle_dag(cyclic=False))
+        assert dagbag.dag_warnings == set()
+
+    @pytest.mark.parametrize(
+        ("bagged_cyclic", "duplicate_cyclic"),
+        [
+            pytest.param(False, True, id="cyclic-duplicate-of-acyclic"),
+            pytest.param(True, False, id="acyclic-duplicate-of-cyclic"),
+        ],
+    )
+    def test_dag_warnings_task_group_cycle_ignores_rejected_duplicate(self, bagged_cyclic, duplicate_cyclic):
+        dagbag = DagBag(dag_folder="", collect_dags=False)
+        bagged = self._make_task_group_cycle_dag(cyclic=bagged_cyclic)
+        bagged.fileloc = "/dags/bagged.py"
+        duplicate = self._make_task_group_cycle_dag(cyclic=duplicate_cyclic)
+        duplicate.fileloc = "/dags/duplicate.py"
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dagbag.bag_dag(bagged)
+            with pytest.raises(AirflowDagDuplicatedIdException):
+                dagbag.bag_dag(duplicate)
+
+        assert dagbag.dags["test"] is bagged
+        assert {w.warning_type for w in dagbag.dag_warnings} == (
+            {DagWarningType.TASK_GROUP_CYCLE} if bagged_cyclic else set()
+        )
 
     def test_sigsegv_handling(self, tmp_path, caplog):
         """

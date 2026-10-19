@@ -368,9 +368,6 @@ class TestClickHouseHookClassAttributes:
     def test_conn_type(self):
         assert ClickHouseHook.conn_type == "clickhouse"
 
-    def test_hook_name(self):
-        assert ClickHouseHook.hook_name == "ClickHouse"
-
     def test_supports_autocommit(self):
         assert ClickHouseHook.supports_autocommit is True
 

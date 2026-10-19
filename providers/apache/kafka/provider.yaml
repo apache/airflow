@@ -21,7 +21,7 @@ name: Apache Kafka
 
 state: ready
 lifecycle: production
-source-date-epoch: 1788976455
+source-date-epoch: 1791328844
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 # Note that those versions are maintained by release manager - do not update them manually
@@ -29,6 +29,7 @@ description: |
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.1.0
   - 2.0.0
   - 1.16.0
   - 1.15.1

@@ -21,7 +21,6 @@ requires = [
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
-    "tomli==2.4.1; python_version < '3.11'",
     "tomlkit==0.15.1",
     "trove-classifiers==2026.9.21.13",
 ]
@@ -33,7 +32,7 @@ description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10,!=3.15"
+requires-python = ">=3.11,!=3.15"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -48,7 +47,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -163,7 +161,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
 "apache.tinkerpop" = [
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0"
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\""
 ]
 "apprise" = [
     "apache-airflow-providers-apprise>=1.4.1"
@@ -409,7 +407,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-vertica>=3.9.1"
 ]
 "vespa" = [
-    "apache-airflow-providers-vespa>=0.1.0"
+    "apache-airflow-providers-vespa>=0.1.0; python_version !=\"3.14\""
 ]
 "weaviate" = [
     "apache-airflow-providers-weaviate>=3.0.0"
@@ -447,7 +445,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
     "apache-airflow-providers-apache-spark>=4.11.1",
-    "apache-airflow-providers-apache-tinkerpop>=1.0.0",
+    "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apprise>=1.4.1",
     "apache-airflow-providers-arangodb>=2.7.0",
     "apache-airflow-providers-asana>=2.7.0",
@@ -529,7 +527,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-teradata>=2.6.1",
     "apache-airflow-providers-trino>=5.8.1",
     "apache-airflow-providers-vertica>=3.9.1",
-    "apache-airflow-providers-vespa>=0.1.0",
+    "apache-airflow-providers-vespa>=0.1.0; python_version !=\"3.14\"",
     "apache-airflow-providers-weaviate>=3.0.0",
     "apache-airflow-providers-yandex>=4.0.0",
     "apache-airflow-providers-ydb>=1.4.0",
@@ -602,6 +600,13 @@ LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
+[tool.hatch.build]
+# Prune .gitignore'd directories (node_modules, .venv, ...) during the file walk instead of only
+# filtering their files: an editable build of this root package otherwise descends into
+# ts-sdk/node_modules and crashes with FileNotFoundError when a concurrent `pnpm install`
+# (ts-sdk prek hooks run alongside root ones) swaps the pnpm symlinks under it.
+skip-excluded-dirs = true
 
 [tool.hatch.build.targets.sdist]
 exclude = ["*"]
@@ -746,6 +751,11 @@ ignore = [
     # in flight silently drops the traceback, while leaving `.exception()` where none is
     # only prints a bare `NoneType: None`. Review already caught one bad guess in 13.
     "LOG004", # `.exception()` outside an exception handler; 13 sites
+    # Both became reportable once the baseline moved to Python 3.11. Neither is a mechanical
+    # change: StrEnum alters what ``str()`` and ``format()`` return for serialized enum values,
+    # and ``asyncio.timeout`` means dropping the public ``timeout`` parameter from async APIs.
+    "UP042", # Class inherits from both `str` and `enum.Enum`; 98 sites
+    "ASYNC109", # Async function with a `timeout` parameter; 49 sites
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -1624,24 +1634,12 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
-# Temporary: pydantic-ai-skills 1.2.0 (adds exclude_resources, required by the
-# apache-airflow-providers-common-ai[skills] floor) was published 2026-07-15,
-# inside the "4 days" exclude-newer window. This pins the per-package cutoff just
-# past that release so 1.2.0 resolves while any later release stays quarantined.
-# Remove once the rolling window advances past 2026-07-15.
-pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: google-cloud-aiplatform 1.164.0 is the first release whose "evaluation" extra
 # allows the litellm versions that carry the Python 3.14 security fixes, and it was published
 # 2026-08-12, inside the "4 days" exclude-newer window. This pins the per-package cutoff just
 # past that release so 1.164.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-08-12.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-# Temporary: typesafe-sdk>=0.6.0 (required by the apache-airflow-providers-common-ai[typesafe]
-# extra) first shipped on 2026-09-18, inside the "4 days" exclude-newer window. This pins the
-# per-package cutoff just past that release so it resolves while any later release stays
-# quarantined.
-# Remove once the rolling window advances past 2026-09-18.
-typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
@@ -1825,12 +1823,8 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-# Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
-pydantic-ai-skills = "2026-07-16T00:00:00Z"
 # Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
-# Temporary: see the typesafe-sdk note in `[tool.uv.exclude-newer-package]`.
-typesafe-sdk = "2026-09-19T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,

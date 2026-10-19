@@ -34,12 +34,12 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI. See next chapter for backend selection.
 
-For example, you can choose to run Python 3.10 tests with MySQL as backend and with mysql version 8
+For example, you can choose to run Python 3.11 tests with MySQL as backend and with mysql version 8
 as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --python 3.11 --backend mysql --mysql-version 8.0
 
 .. note:: Note for Windows WSL2 users
 
@@ -57,9 +57,9 @@ with ``--builder``. For example:
 
 .. code-block:: bash
 
-    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --docker-host unix://$HOME/.colima/default/docker.sock --python 3.11 --backend mysql --mysql-version 8.0
     # or:
-    breeze --builder=default --python 3.10 --backend mysql --mysql-version 8.0
+    breeze --builder=default --python 3.11 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -251,18 +251,8 @@ To build documentation in Breeze, use the ``build-docs`` command:
 
 Results of the build can be found in the ``generated/_build`` folder.
 
-The documentation build consists of three steps:
-
-* verifying consistency of indexes
-* building documentation
-* spell checking
-
-You can choose only one stage of the two by providing ``--spellcheck-only`` or ``--docs-only`` after
-extra ``--`` flag.
-
-.. code-block:: bash
-
-    breeze build-docs --spellcheck-only
+Spelling is checked while the documentation is built, so a single build reports both build and
+spelling errors.
 
 This process can take some time, so in order to make it shorter you can filter by package, using package
 short ``provider id`` (might be multiple of them).
@@ -339,7 +329,8 @@ when the remote was not fetched since. With ``--json`` the warnings go to stderr
      breeze verify --base-ref main
 
 Each row says what kind of check it is, whether it runs on the host or needs Docker and the
-CI image (``breeze``), and the exact command. Jobs CI runs on every PR regardless of the change
+CI image (``breeze``), and the exact command. When there is no command to list, a single line
+says so instead of an empty table. Jobs CI runs on every PR regardless of the change
 (breeze's own unit tests, the shared distributions) only show up with ``--full``. The translation
 check is never listed: CI runs it with ``|| true``, so it cannot fail a PR.
 Static checks are not listed either: ``prek`` already picks the hooks to run for the changed files,
@@ -486,7 +477,7 @@ When you are starting Airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend mysql start-airflow
+    breeze --python 3.11 --backend mysql start-airflow
 
 You can also use it to start different executor.
 
@@ -499,7 +490,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.10 --backend mysql --use-airflow-version 2.7.0
+    breeze start-airflow --python 3.11 --backend mysql --use-airflow-version 2.7.0
 
 When you are installing version from PyPI, it's also possible to specify extras that should be used
 when installing Airflow - you can provide several extras separated by coma - for example to install
@@ -527,13 +518,13 @@ To start Airflow with an integration, use the following command:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend postgres --integration <integration_name>
+    breeze --python 3.11 --backend postgres --integration <integration_name>
 
 For example, to run Airflow with Kafka:
 
 .. code-block:: bash
 
-    breeze --python 3.10 --backend postgres --integration kafka
+    breeze --python 3.11 --backend postgres --integration kafka
 
 Check the available integrations by running:
 

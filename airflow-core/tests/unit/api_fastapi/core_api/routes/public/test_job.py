@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
@@ -241,10 +241,10 @@ class TestGetJobs(TestJobEndpoint):
         assert response_json["total_entries"] == 1
         assert response_json["jobs"][0]["team_names"] == [testing_team.name]
 
-    @time_machine.travel(datetime(2024, 1, 1, tzinfo=timezone.utc), tick=False)
+    @time_machine.travel(datetime(2024, 1, 1, tzinfo=UTC), tick=False)
     def test_get_jobs_is_alive_filter_is_consistent_with_pagination(self, test_client, session: Session):
         clear_db_jobs()
-        now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 1, tzinfo=UTC)
         jobs = [
             Job(state=JobState.RUNNING, job_type="SchedulerJob", latest_heartbeat=now),
             Job(state=JobState.RUNNING, job_type="SchedulerJob", latest_heartbeat=now),

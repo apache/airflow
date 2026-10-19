@@ -21,7 +21,7 @@
 
 ## Status
 
-Proposed. Revised after the review on #72047.
+Accepted. Revised after the review on #72047, and again as it was implemented.
 
 ## Decision
 
@@ -135,18 +135,97 @@ data is the wiring object itself — `summarize({ north: extractNorth(), south: 
 does. This matches `Before`/`After` in the Go SDK's native Dag interface, spelled to TypeScript
 convention.
 
+### Conditional branching: `if` and `else`
+
+`dag.if(handler)` is TypeScript's spelling of the construct
+[`airflow-core/adr/lang-sdk/0008`](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md)
+names after the host language's control flow:
+
+```ts
+async function hasRows({ rows }: { rows: number }): Promise<boolean> {
+  return rows > 0;
+}
+
+const gate = dag.if(hasRows, { rows: validated });
+gate.then(loadIfReady).else(loadFallback);
+```
+
+**The condition is a handler, declared and wired in one call.** That ADR writes
+`dag.If(hasRows, airflow.Inputs(validated), airflow.TaskSpec{...})` in Go, and
+`dag.if(hasRows, { rows: validated }, { ... })` reads the same way: inputs, then an optional
+`TaskSpec`. The deciding task takes its id from the function's name unless the spec's `taskId` sets
+it, and the spec carries its other options, such as `queue` and `retries`. The compiler checks that
+the handler returns a `boolean`, and that the inputs match its argument.
+
+**A condition is a node.** What `dag.if` returns carries `before` and `after`, and stands at the
+other end of an edge as the deciding task, so `notified.after(gate)` reads as Go's `.After(gate)`. It
+is also a valid branch of another condition.
+
+**A `then` chain is a thenable, and is guarded rather than avoided.** An object with a callable
+`then` is a *thenable*: were the condition `dag.if` returns to reach an `await`, the runtime would hand
+its `then` a resolve function where a task reference belongs. Two things contain that. `.then(...)`
+returns an object carrying only `.else`, so nothing past the first step is awaitable at all; and
+`.then` rejects a function argument by naming the cause, so an author who does await it reads "this
+builds a branch, drop the await" rather than a type error about references.
+
+**A branch is a real branch to Airflow.** The control edges serialize as ordinary order-only edges
+and carry no branch-candidate field, as that ADR's consequences require. The condition task is
+serialized with `_can_skip_downstream`, and it writes the `skipmixin_key` XCom alongside the skip, so
+clearing a skipped branch re-skips it the way a Python `@task.branch` does rather than running the
+side the condition rejected.
+
+A one-sided `if` is a branch with one candidate — it skips `then` and follows nothing — rather than a
+`ShortCircuitOperator`, which would also skip the whole downstream closure and ignore trigger rules.
+A guarded task takes no argument for the control edge: a condition's boolean is a signal, not data.
+
+### Multi-way branching: `switch` and `case`
+
+`dag.switch(pickPath)` follows
+[`airflow-core/adr/lang-sdk/0008`](../../airflow-core/adr/lang-sdk/0008-control-flow-constructs.md)
+decision 2 without divergence: a case **is** the reference the SDK handed back, not a label kept in
+step with one. The decider is a handler, declared and wired in one call as `dag.if` declares a condition, as
+Go's `dag.Switch(pickPath)` does.
+
+```ts
+async function pickPath({ rows }: { rows: number }): Promise<TaskRef> {
+  return rows > 1000 ? handleLong : handleShort;
+}
+
+dag.switch(pickPath, { rows: extracted }).case(handleLong).case(handleShort);
+```
+
+A case is a task, never a condition or a branch: the decider returns the case from an async handler,
+and a condition carries `then`, so returning one would be awaited as a thenable instead.
+
+An earlier draft selected a case by a string label the author writes, on the grounds that a handler's
+function name does not survive bundling. That concern does not apply: a `TaskRef` carries the task's
+own id, which the SDK fixed when the task was declared and esbuild never touches. Selecting by
+reference keeps the compiler checking that a candidate exists, which a label cannot.
+
+The cases chain, as they do in Go. `case` reads the candidate list when the task runs rather than
+when it is declared, which is what lets the chain follow the `dag.switch` call; and unlike a
+condition's `then`, `case` is not a thenable trap, so nothing has to be guarded here.
+
+**No default case**, per decision 3, and **exactly one case is selected**, the limitation that ADR
+records for every Lang SDK. A branch with no case at all decides nothing, and is rejected when the
+Dag is read.
+
 ## Consequences
 
 - One authoring surface (`dag.task()` plus its factory) covers the graph and each task's arguments,
   and `before`/`after` cover edges that carry nothing.
 - Handlers are unit-testable as plain functions of their data, with no SDK fixture to construct.
-- `DagSpec` and `TaskSpec` are empty placeholders today — `Record<string, never>`
-  (`ts-sdk/src/sdk/dag.ts`), so `new Dag("d", { schedule: "@daily" })` is currently a compile error
-  by design. Native declaration is what fills them, generated from the serialized-Dag JSON schema the
-  way `src/generated/supervisor.ts` is. This ADR does not choose those fields; it fixes where an
-  author writes them.
+- `DagSpec` and `TaskSpec` carry the fields of Airflow's own serialized-Dag JSON schema, generated
+  from it the way `src/generated/supervisor.ts` is, so every field is optional and a misspelled one is
+  a compile error. This ADR does not choose those fields; it fixes where an author writes them. `queue`
+  is the one hand-written Dag field: the schema has no Dag-level queue, but every task of a native Dag
+  runs on the same coordinator, so the queue that routes them there belongs on the Dag.
 - `TaskOptions` carries the task's spec and nothing else: the names on the wire are the keys of the
-  call itself. With wiring moved to the factory call, `inputs` is no longer an option.
+  call itself. With wiring moved to the factory call, `inputs` is no longer an option, so the trailing
+  argument is the spec's own fields.
+- A native Dag's tasks serialize as stub tasks (`is_stub`, with `_arg_bindings`), which is how the API
+  server resolves each argument per task instance and hands it to a foreign runtime. So the wiring an
+  author writes is the same mechanism a `@task.stub` call already uses, rather than a second one.
 - `TaskHandlerArgs` is removed from the public API, `DagRegistry` becomes `Bundle`, and
   `serveDags(registry)` becomes `bundle.serve()`, which breaks
   0.1.0-beta1 authors; see [ADR-0001](0001-mixed-lang-dag-interface.md) for the shipped call sites

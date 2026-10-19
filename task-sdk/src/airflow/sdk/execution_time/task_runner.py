@@ -28,11 +28,12 @@ import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal, NoReturn, cast
 from urllib.parse import quote
+from uuid import UUID
 
 import attrs
 import lazy_object_proxy
@@ -51,6 +52,7 @@ from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
+    LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -58,10 +60,11 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.bases.xcom import BaseXCom, _is_legacy_xcom_backend
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.sdk.definitions._internal.loop import LoopTaskGroup, is_loop_task_read_from_outside
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -70,8 +73,10 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetUriRef,
 )
+from airflow.sdk.definitions.context import render_template_to_string
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
+from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -84,6 +89,7 @@ from airflow.sdk.exceptions import (
     ErrorType,
     TaskAwaitingInput,
     TaskDeferred,
+    TaskNotFound,
 )
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
@@ -112,6 +118,7 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
@@ -148,6 +155,8 @@ from airflow.sdk.execution_time.email_backend import (
     _ErrorEmailNotifier,
     _LegacyEmailBackendNotifier,
 )
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.loop import LoopContextAccessor
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.tracing import detail_span
 from airflow.sdk.execution_time.xcom import XCom
@@ -232,6 +241,9 @@ class RuntimeTaskInstance(TaskInstance):
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
+    _loop_decision: LoopDecisionPayload | None = None
+    """A loop gate's evaluation of ``until``, reported with its terminal state."""
+
     max_tries: int = 0
     """The maximum number of retries for the task."""
 
@@ -248,6 +260,12 @@ class RuntimeTaskInstance(TaskInstance):
     rendered_map_index: str | None = None
 
     sentry_integration: str = ""
+
+    def model_post_init(self, context: Any) -> None:
+        if self.region_id is None:
+            self.region_id = UUID(int=0)
+        if self.region_index is None:
+            self.region_index = self.map_index
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -326,7 +344,8 @@ class RuntimeTaskInstance(TaskInstance):
                         dag_id=self.dag_id,
                         run_id=self.run_id,
                         task_id=self.task_id,
-                        map_index=self.map_index if self.map_index is not None else -1,
+                        map_index=self.region_index if self.region_index is not None else -1,
+                        region_id=self.region_id or UUID(int=0),
                     ),
                 ),
             }
@@ -341,6 +360,8 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
+            if from_server.loop is not None:
+                self._cached_template_context["loop"] = LoopContextAccessor(from_server.loop, self)
             dag_run = from_server.dag_run
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
@@ -484,6 +505,20 @@ class RuntimeTaskInstance(TaskInstance):
             map_indexes_iterable,
         )
 
+    def _get_loop_task_sequence(
+        self, task_id: str, *, key: str, dag_id: str, run_id: str, include_prior_dates: bool
+    ) -> LazyXComSequence | None:
+        """Return every iteration of a loop task as a sequence when this task instance is outside that loop."""
+        if include_prior_dates or (dag_id, run_id) != (self.dag_id, self.run_id):
+            return None
+        try:
+            producer = self.task.dag.get_task(task_id)
+        except TaskNotFound:
+            return None
+        if not is_loop_task_read_from_outside(producer, self.task):
+            return None
+        return LazyXComSequence(xcom_arg=PlainXComArg(producer, key), ti=self)
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -542,6 +577,16 @@ class RuntimeTaskInstance(TaskInstance):
         xcoms: list[Any] = []
 
         if not is_arg_set(map_indexes_iterable):
+            if single_task_requested:
+                sequence = self._get_loop_task_sequence(
+                    task_ids[0],
+                    key=key,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                if sequence is not None:
+                    return sequence
             # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = XCom.get_all(
@@ -591,6 +636,17 @@ class RuntimeTaskInstance(TaskInstance):
         xcoms: list[Any] = []
 
         if not is_arg_set(map_indexes_iterable):
+            if single_task_requested and (
+                self._get_loop_task_sequence(
+                    task_ids[0],
+                    key=key,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    include_prior_dates=include_prior_dates,
+                )
+                is not None
+            ):
+                return await XCom.aget_all(run_id=run_id, key=key, task_id=task_ids[0], dag_id=dag_id) or []
             # map_indexes was not specified — fetch all map indexes for each task
             for t_id in task_ids:
                 values = await XCom.aget_all(
@@ -679,6 +735,11 @@ class RuntimeTaskInstance(TaskInstance):
             # If the task has not been rescheduled, there is no need to ask the supervisor
             return None
 
+        if from_server := self._ti_context_from_server:
+            # Older servers don't send this field, so fall through to asking the supervisor below.
+            if (first_reschedule_date := from_server.first_task_reschedule_start_date) is not None:
+                return first_reschedule_date
+
         max_tries: int = self.max_tries
         retries: int = self.task.retries or 0
         first_try_number = max_tries - retries + 1
@@ -735,6 +796,9 @@ class RuntimeTaskInstance(TaskInstance):
     ) -> PreviousTIResponse | None:
         """
         Return the previous task instance matching the given criteria.
+
+        Inside a loop, this is the task instance at the same iteration in the closest earlier Dag run
+        that reached that iteration, not that run's last iteration.
 
         :param state: Filter by TaskInstance state
         :param logical_date: Filter by logical date (returns TI before this date)
@@ -898,7 +962,7 @@ def _xcom_push(
     *,
     mapped_length: int | None = None,
 ) -> None:
-    """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
+    """Push a XCom for ``ti`` through the configured XCom backend."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
@@ -910,16 +974,7 @@ def _xcom_push(
         _xcom_push_to_db(ti, key, value)
         return
 
-    XCom.set(
-        key=key,
-        value=value,
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        run_id=ti.run_id,
-        map_index=ti.map_index,
-        dag_result=ti.task.returns_dag_result,
-        _mapped_length=mapped_length,
-    )
+    XCom._push(ti, key, value, dag_result=ti.task.returns_dag_result, mapped_length=mapped_length)
 
 
 async def _axcom_push(
@@ -929,20 +984,11 @@ async def _axcom_push(
     *,
     mapped_length: int | None = None,
 ) -> None:
-    """Push a XCom through XCom.aset, which pushes to XCom Backend if configured."""
+    """Push a XCom for ``ti`` through the configured XCom backend."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
-    await XCom.aset(
-        key=key,
-        value=value,
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        run_id=ti.run_id,
-        map_index=ti.map_index,
-        dag_result=ti.task.returns_dag_result,
-        _mapped_length=mapped_length,
-    )
+    await XCom._apush(ti, key, value, dag_result=ti.task.returns_dag_result, mapped_length=mapped_length)
 
 
 def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
@@ -974,7 +1020,7 @@ def _maybe_reschedule_startup_failure(
     reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
     if missing_dag_retries > 0 and reschedule_count < missing_dag_retries:
         raise AirflowRescheduleException(
-            reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=missing_dag_retry_delay)
+            reschedule_date=datetime.now(tz=UTC) + timedelta(seconds=missing_dag_retry_delay)
         )
 
     log.error(
@@ -1041,14 +1087,25 @@ def _fail_lang_sdk_task(what: StartupDetails, coordinator_classpath: str, log: L
         path=what.dag_rel_path,
     )
     try:
-        SUPERVISOR_COMMS.send(
-            TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=timezone.utc))
-        )
+        SUPERVISOR_COMMS.send(TaskState(state=TaskInstanceState.FAILED, end_date=datetime.now(tz=UTC)))
     except Exception:
         log.exception("Failed to report terminal task state to supervisor", state=TaskInstanceState.FAILED)
         sys.exit(1)
     # The supervisor keeps the reported state only when the process exits with 0.
     sys.exit(0)
+
+
+def check_xcom_backend_supports_loops(dag) -> None:
+    if not _is_legacy_xcom_backend(XCom):
+        return
+    if not any(isinstance(group, LoopTaskGroup) for group in dag.task_group.get_task_group_dict().values()):
+        return
+    raise TypeError(
+        f"Dag {dag.dag_id!r} uses a loop, but XCom backend {XCom.__module__}.{XCom.__qualname__} stores "
+        "values through serialize_value rather than store_value, so every iteration of a task could store "
+        "its XCom in the same place. Implement store_value and include ti.id in the storage location; for "
+        "XComObjectStorageBackend, upgrade apache-airflow-providers-common-io."
+    )
 
 
 @detail_span("parse")
@@ -1106,6 +1163,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )
+
+    check_xcom_backend_supports_loops(dag)
 
     # Register operator-declared XCom model classes (e.g. ``output_type``) for
     # the whole DAG so this task can deserialize structured output produced by
@@ -1631,27 +1690,26 @@ def _run_task_and_map_outcome(
             log.info("Skipping task.", reason=e.args[0])
         msg = TaskState(
             state=TaskInstanceState.SKIPPED,
-            end_date=datetime.now(tz=timezone.utc),
+            end_date=datetime.now(tz=UTC),
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.SKIPPED
     except AirflowRescheduleException as reschedule:
         log.info("::group::Post Execute")
         log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
-        msg = RescheduleTask(
-            reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
-        )
+        msg = RescheduleTask(reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=UTC))
         state = TaskInstanceState.UP_FOR_RESCHEDULE
     except (AirflowFailException, AirflowSensorTimeout) as e:
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
+            loop_decision=ti._loop_decision,
         )
         state = TaskInstanceState.FAILED
         error = e
@@ -1667,7 +1725,7 @@ def _run_task_and_map_outcome(
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
         log.info("::group::Post Execute")
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
@@ -1747,8 +1805,10 @@ def run(
                 # not fail-closed: supervisor's final_state would misclassify
                 # them too, but exiting non-zero would map them to FAILED,
                 # which is strictly worse than the default. Those need a
-                # separate fix in supervisor's final_state.
-                if state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+                # separate fix in supervisor's final_state. Whenever the task
+                # raised, though, FAILED beats a silent SUCCESS, including when
+                # a retry policy turned the exception into a reschedule.
+                if error is not None or state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
                     ti._terminal_state_send_failed = True
 
     # Return the message to make unit tests easier too
@@ -1760,7 +1820,7 @@ def _handle_current_task_success(
     context: Context,
     ti: RuntimeTaskInstance,
 ) -> tuple[SucceedTask, TaskInstanceState]:
-    end_date = datetime.now(tz=timezone.utc)
+    end_date = datetime.now(tz=UTC)
     ti.end_date = end_date
 
     # Record operator and task instance success metrics
@@ -1784,6 +1844,7 @@ def _handle_current_task_success(
         task_outlets=task_outlets,
         outlet_events=outlet_events,
         rendered_map_index=ti.rendered_map_index,
+        loop_decision=ti._loop_decision,
     )
     return msg, TaskInstanceState.SUCCESS
 
@@ -1828,7 +1889,7 @@ def _evaluate_retry_policy(
 
 def _handle_handler_failure(
     ti: RuntimeTaskInstance, exception: Exception, log: Logger, context: Context
-) -> tuple[RetryTask | TaskState, TaskInstanceState, Exception]:
+) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState, Exception]:
     """
     Decide the outcome for an exception raised by one of the outcome handlers themselves.
 
@@ -1858,7 +1919,7 @@ def _handle_handler_failure(
 
 def _terminal_failure(ti: RuntimeTaskInstance) -> TaskState:
     """Build a plain FAILED terminal message, bypassing any retry decision."""
-    ti.end_date = datetime.now(tz=timezone.utc)
+    ti.end_date = datetime.now(tz=UTC)
     return TaskState(
         state=TaskInstanceState.FAILED,
         end_date=ti.end_date,
@@ -1870,22 +1931,24 @@ def _handle_current_task_failed(
     ti: RuntimeTaskInstance,
     exception: BaseException,
     log: Logger,
-    context: Context | None = None,
-) -> tuple[RetryTask | TaskState, TaskInstanceState]:
+    context: Context,
+) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState]:
     """
     Handle a failed task: evaluate the retry policy (if any) and decide the next state.
 
     This is the entry point every failure path routes through. When the policy
     returns FAIL the task is marked as failed immediately, bypassing the normal
     retry-count check.  When it returns RETRY with a custom delay, that delay is
-    forwarded in the ``RetryTask`` message.  For DEFAULT (or when no policy is
-    configured), the standard ``_finalize_task_failure`` logic runs.
+    forwarded in the ``RetryTask`` message.  When it returns RESCHEDULE within its
+    bounds, the task goes to ``up_for_reschedule`` without using a retry; past its
+    bounds, the standard logic runs with the reason saying why.  For DEFAULT (or when
+    no policy is configured), the standard ``_finalize_task_failure`` logic runs.
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
     decision = _evaluate_retry_policy(ti, exception, log, context)
     if decision is not None and decision.action == RetryAction.FAIL:
-        ti.end_date = datetime.now(tz=timezone.utc)
+        ti.end_date = datetime.now(tz=UTC)
         return (
             TaskState(
                 state=TaskInstanceState.FAILED,
@@ -1899,7 +1962,52 @@ def _handle_current_task_failed(
         return _finalize_task_failure(
             ti, log, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
         )
+    if decision is not None and decision.action == RetryAction.RESCHEDULE:
+        if (limit := _reschedule_limit_reached(ti, decision, context)) is None:
+            ti.end_date = datetime.now(tz=UTC)
+            delay = decision.retry_delay if decision.retry_delay is not None else ti.task.retry_delay
+            reschedule_date = ti.end_date + delay
+            log.info(
+                "Retry policy rescheduled the task, marking task as UP_FOR_RESCHEDULE",
+                reschedule_date=reschedule_date,
+                reschedule_count=_reschedule_count(ti),
+                max_reschedules=decision.max_reschedules,
+                reschedule_timeout=decision.reschedule_timeout,
+            )
+            return (
+                RescheduleTask(reschedule_date=reschedule_date, end_date=ti.end_date),
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+            )
+        log.info("Reschedule limit reached, applying the standard retry logic", limit=limit)
+        reason = f"Reschedule limit reached ({limit})"
+        if decision.reason:
+            reason = f"{reason}: {decision.reason}"
+        return _finalize_task_failure(ti, log, retry_reason=reason)
     return _finalize_task_failure(ti, log)
+
+
+def _reschedule_count(ti: RuntimeTaskInstance) -> int:
+    """Return how many times this try has been rescheduled so far."""
+    from_server = ti._ti_context_from_server
+    return (from_server.task_reschedule_count or 0) if from_server else 0
+
+
+def _reschedule_limit_reached(
+    ti: RuntimeTaskInstance, decision: RetryDecision, context: Context
+) -> str | None:
+    """
+    Say which bound stops a RESCHEDULE decision, or return None when the task may reschedule.
+
+    Both bounds count every reschedule of this try, whatever caused it (a sensor's pokes and a
+    startup reschedule included), so a retry starts them afresh.
+    """
+    if decision.max_reschedules is not None and _reschedule_count(ti) >= decision.max_reschedules:
+        return f"max_reschedules={decision.max_reschedules}"
+    if decision.reschedule_timeout is not None:
+        first = ti.get_first_reschedule_date(context)
+        if first is not None and datetime.now(tz=UTC) - first >= decision.reschedule_timeout:
+            return f"reschedule_timeout={decision.reschedule_timeout}"
+    return None
 
 
 def _finalize_task_failure(
@@ -1916,7 +2024,7 @@ def _finalize_task_failure(
     ``FAILED`` ``TaskState``. This is the default path; retry-policy overrides
     are decided in :func:`_handle_current_task_failed` before this is called.
     """
-    end_date = datetime.now(tz=timezone.utc)
+    end_date = datetime.now(tz=UTC)
     ti.end_date = end_date
 
     # Record operator and task instance failed metrics. One failure is one increment even
@@ -1983,7 +2091,7 @@ def _handle_trigger_dag_run(
             )
             msg = TaskState(
                 state=TaskInstanceState.SKIPPED,
-                end_date=datetime.now(tz=timezone.utc),
+                end_date=datetime.now(tz=UTC),
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.SKIPPED
@@ -1991,7 +2099,7 @@ def _handle_trigger_dag_run(
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
             msg = TaskState(
                 state=TaskInstanceState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
+                end_date=datetime.now(tz=UTC),
                 rendered_map_index=ti.rendered_map_index,
             )
             state = TaskInstanceState.FAILED
@@ -2213,6 +2321,7 @@ def _run_execute_callable(
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
+            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)
@@ -2277,8 +2386,8 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     if (template := context.get("map_index_template")) is None:
         return None
     log.debug("Rendering map_index_template", template_length=len(template))
-    jinja_env = ti.task.dag.get_template_env()
-    rendered_map_index = jinja_env.from_string(template).render(context)
+    jinja_env = ti.task.dag.get_template_env(force_sandboxed=True)
+    rendered_map_index = render_template_to_string(jinja_env.from_string(template), context)
     log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
 
@@ -2451,7 +2560,7 @@ def main():
                 SUPERVISOR_COMMS.send(
                     msg=RescheduleTask(
                         reschedule_date=reschedule.reschedule_date,
-                        end_date=datetime.now(tz=timezone.utc),
+                        end_date=datetime.now(tz=UTC),
                     )
                 )
                 span.record_exception(reschedule)

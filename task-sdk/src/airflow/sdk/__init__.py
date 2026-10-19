@@ -28,6 +28,7 @@ __all__ = [
     "AssetAny",
     "AssetAndTimeSchedule",
     "AssetOrTimeSchedule",
+    "AssetTriggeredTimetable",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
@@ -62,6 +63,7 @@ __all__ = [
     "HourWindow",
     "IdentityMapper",
     "Label",
+    "LoopDecision",
     "Metadata",
     "MinimumCount",
     "MonthWindow",
@@ -164,6 +166,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
+    from airflow.sdk.definitions.loop import LoopDecision
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import (
@@ -210,6 +213,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.timetables.assets import (
         AssetAndTimeSchedule,
         AssetOrTimeSchedule,
+        AssetTriggeredTimetable,
         PartitionedAssetTimetable,
         PartitionedAtRuntime,
     )
@@ -242,6 +246,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAndTimeSchedule": ".definitions.timetables.assets",
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
+    "AssetTriggeredTimetable": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
     "AsyncCallback": ".definitions.callback",
     "BaseAsyncOperator": ".bases.operator",
@@ -276,6 +281,7 @@ __lazy_imports: dict[str, str] = {
     "HourWindow": ".definitions.partition_mappers.window",
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
+    "LoopDecision": ".definitions.loop",
     "Metadata": ".definitions.asset.metadata",
     "MinimumCount": ".definitions.partition_mappers.wait_policy",
     "MonthWindow": ".definitions.partition_mappers.window",
