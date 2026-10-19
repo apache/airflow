@@ -313,6 +313,57 @@ class TestBaseAuthManager:
         signer.avalidated_claims.assert_called_once_with(token)
         assert result == user
 
+    @patch.object(EmptyAuthManager, "deserialize_user", autospec=True)
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async_preserves_sync_calling_context(
+        self, deserialize_user, auth_manager
+    ):
+        payload = {"sub": "user"}
+        user = BaseAuthManagerUserTest(name="test")
+        calling_thread = threading.get_ident()
+
+        def deserialize(manager, claims):
+            assert threading.get_ident() == calling_thread
+            return user
+
+        deserialize_user.side_effect = deserialize
+
+        assert await auth_manager.deserialize_user_async(payload) is user
+        deserialize_user.assert_called_once_with(auth_manager, payload)
+
+    @patch.object(BaseAuthManager, "_get_token_validator", autospec=True)
+    @patch.object(EmptyAuthManager, "deserialize_user_async", autospec=True)
+    @patch.object(EmptyAuthManager, "deserialize_user", autospec=True)
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_awaits_async_deserialization(
+        self, deserialize_user, deserialize_user_async, get_validator, auth_manager
+    ):
+        payload = {"sub": "user"}
+        user = BaseAuthManagerUserTest(name="test")
+        validator = AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.return_value = payload
+        get_validator.return_value = validator
+        deserialize_user_async.return_value = user
+
+        assert await auth_manager.get_user_from_token("token") is user
+        deserialize_user_async.assert_awaited_once_with(auth_manager, payload)
+        deserialize_user.assert_not_called()
+
+    @pytest.mark.parametrize("error", [ValueError("inactive user"), KeyError("sub")])
+    @patch.object(BaseAuthManager, "_get_token_validator", autospec=True)
+    @patch.object(EmptyAuthManager, "deserialize_user_async", autospec=True)
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_rejects_async_deserialization_errors(
+        self, deserialize_user_async, get_validator, auth_manager, error
+    ):
+        validator = AsyncMock(spec=JWTValidator)
+        validator.avalidated_claims.return_value = {"sub": "user"}
+        get_validator.return_value = validator
+        deserialize_user_async.side_effect = error
+
+        with pytest.raises(InvalidTokenError):
+            await auth_manager.get_user_from_token("token")
+
     @patch(
         "airflow.models.revoked_token.RevokedToken.is_revoked",
         return_value=True,

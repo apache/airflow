@@ -33,6 +33,7 @@ from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
+from starlette.concurrency import run_in_threadpool
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -209,6 +210,7 @@ class FabAuthManager(BaseAuthManager[User]):
     """
 
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
+    _cache_lock = threading.RLock()
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
     _flask_app_lock = threading.Lock()
@@ -307,7 +309,14 @@ class FabAuthManager(BaseAuthManager[User]):
     def session(self):
         return self.appbuilder.session
 
-    @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
+    async def deserialize_user_async(self, token: dict[str, Any]) -> User:
+        return await run_in_threadpool(self.deserialize_user, token)
+
+    @cachedmethod(
+        lambda self: self.cache,
+        key=lambda _, token: int(token["sub"]),
+        lock=lambda self: self._cache_lock,
+    )
     def deserialize_user(self, token: dict[str, Any]) -> User:
         user_id = int(token["sub"])
 
