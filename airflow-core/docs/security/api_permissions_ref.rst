@@ -86,10 +86,6 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``Asset``
      - ``DELETE``
-   * - ``DELETE``
-     - ``/api/v2/assets/{asset_id}/queuedEvents``
-     - ``DAG``
-     - ``PUT``
    * - ``GET``
      - ``/api/v2/assets/{asset_id}/queuedEvents``
      - ``Asset``
