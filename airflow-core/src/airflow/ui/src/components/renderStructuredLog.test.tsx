@@ -98,6 +98,36 @@ describe("renderStructuredLog — traceback frame highlighting", () => {
   });
 });
 
+describe("renderStructuredLog — traceback source lines", () => {
+  const props = {
+    index: 0,
+    logLink: "",
+    logMessage: {
+      error_detail: [
+        {
+          exc_notes: [],
+          exc_type: "ZeroDivisionError",
+          exc_value: "division by zero",
+          frames: [{ filename: "/dags/my_dag.py", line: "return 1 / 0", lineno: 12, name: "divide" }],
+          is_cause: false,
+          syntax_error: null,
+        },
+      ],
+      event: "Task failed with exception",
+    },
+    translate: translate as never,
+  };
+
+  it("shows the source line under its frame", () => {
+    render(<Wrapper>{renderStructuredLog({ ...props, renderingMode: "jsx" })}</Wrapper>);
+
+    expect(screen.getByText("return 1 / 0")).toBeInTheDocument();
+    expect(renderStructuredLog({ ...props, renderingMode: "text" })).toContain(
+      "components:logs.location\n      return 1 / 0\n",
+    );
+  });
+});
+
 describe("renderStructuredLog — log level visibility", () => {
   it("renders the level when showLogLevel is true", () => {
     renderWithLevel(true);
