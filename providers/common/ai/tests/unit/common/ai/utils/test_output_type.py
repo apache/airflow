@@ -35,6 +35,16 @@ from airflow.providers.common.ai.utils.output_type import (
     rehydrate_pydantic_output,
 )
 
+try:
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+except ImportError:
+    _CORE_WALKER = False
+
+requires_walker = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires an ``apache-airflow-task-sdk`` version with the worker-side deserialization-class walk.",
+)
+
 
 class A(BaseModel):
     x: int
@@ -177,6 +187,7 @@ class TestIsModelDumpRequired:
             "not-a-model",
         ],
     )
+    @requires_walker
     def test_is_true_when_the_worker_registers_no_class_for_the_output(
         self, output, output_type, serialize_output, expected
     ):
@@ -185,8 +196,9 @@ class TestIsModelDumpRequired:
         assert result is expected
 
     @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
-    def test_is_true_without_the_sdk_walker(self):
-        assert is_model_dump_required(A(x=1), A, serialize_output=False) is True
+    def test_defers_to_serialize_output_without_the_sdk_walker(self):
+        assert is_model_dump_required(A(x=1), A, serialize_output=False) is False
+        assert is_model_dump_required(A(x=1), A, serialize_output=True) is True
 
 
 class TestRehydratePydanticOutput:
@@ -237,7 +249,7 @@ class TestRehydratePydanticOutput:
             ([str, int], '"x"', "x"),
             ([int, float], "1.5", 1.5),
             ((int, float), "2", 2),
-            ([A, int], '{"x": 7}', {"x": 7}),
+            pytest.param([A, int], '{"x": 7}', {"x": 7}, marks=requires_walker),
         ],
         ids=["str-int-string", "int-float", "tuple", "model-in-a-list-of-types-is-dumped"],
     )
