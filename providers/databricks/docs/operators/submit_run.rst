@@ -78,6 +78,7 @@ Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
     - ``new_cluster``
     - ``existing_cluster_id``
     - ``libraries``
+    - ``environments``
     - ``run_name``
     - ``timeout_seconds``
     - ``performance_target``
@@ -124,6 +125,9 @@ Tasks whose only parameter slot is ``List[str]`` (``spark_jar_task``, ``spark_py
 ``spark_submit_task``) are skipped because there is no canonical mapping from a key/value
 dict to a positional argument list — pass those parameters explicitly via the ``json``
 or ``tasks`` argument.
+
+Params whose value resolves to ``None`` are skipped, since Databricks has no value to
+receive for them.
 
 .. code-block:: python
 

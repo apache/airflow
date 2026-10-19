@@ -56,7 +56,10 @@ class CohereEmbeddingOperator(BaseOperator):
         - additional_body_parameters: typing.Dict[str, typing.Any]. A dictionary containing additional parameters to spread into the request's body parameters dict
     """
 
-    template_fields: Sequence[str] = ("input_text",)
+    template_fields: Sequence[str] = (
+        "input_text",
+        "conn_id",
+    )
 
     def __init__(
         self,

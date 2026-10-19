@@ -141,6 +141,8 @@ class EcsCreateClusterOperator(EcsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
@@ -218,6 +220,8 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
@@ -341,6 +345,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param cluster: the cluster name on Elastic Container Service
     :param overrides: the same parameter that boto3 will receive (templated):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+        Note that ``containerOverrides[].environment`` is merged into the environment defined by
+        the task definition, while the other container override fields replace the task
+        definition's value. See :ref:`howto/operator:EcsRunTaskOperator`.
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
@@ -622,7 +629,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self._aws_logs_enabled():
             # same behavior as non-deferrable mode, return last line of logs of the task.
             logs_client = AwsLogsHook(
-                aws_conn_id=self.aws_conn_id, region_name=self.resolve_awslogs_region()
+                aws_conn_id=self.aws_conn_id,
+                region_name=self.resolve_awslogs_region(),
+                verify=self.verify,
+                config=self.botocore_config,
             ).conn
             one_log = logs_client.get_log_events(
                 logGroupName=self.awslogs_group,

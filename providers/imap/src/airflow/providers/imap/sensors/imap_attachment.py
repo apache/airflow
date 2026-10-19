@@ -43,7 +43,7 @@ class ImapAttachmentSensor(BaseSensorOperator):
     :param imap_conn_id: The :ref:`imap connection id <howto/connection:imap>` to run the sensor against.
     """
 
-    template_fields: Sequence[str] = ("attachment_name", "mail_filter")
+    template_fields: Sequence[str] = ("attachment_name", "mail_filter", "conn_id")
 
     def __init__(
         self,

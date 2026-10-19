@@ -27,8 +27,8 @@ from airflow_breeze.params.shell_params import ShellParams
 
 @pytest.fixture(autouse=True)
 def mock_run_command():
-    """We mock run_command to capture its call args; it returns nothing so mock training is unnecessary."""
-    with patch("airflow_breeze.commands.testing_commands.run_command") as mck:
+    """We mock run_command to capture its call args; tests that depend on its return code set it."""
+    with patch("airflow_breeze.commands.testing_commands.run_command", autospec=True) as mck:
         yield mck
 
 
@@ -152,6 +152,37 @@ def test_none_test_type_with_extra_args_does_not_skip(mock_run_command):
         skip_docker_compose_down=True,
     )
     assert mock_run_command.call_count >= 2  # compose down + compose run
+
+
+@pytest.mark.parametrize(
+    ("run_db_tests_only", "pytest_exit_code", "expected_return_code"),
+    [
+        pytest.param(True, 5, 0, id="db-only-no-tests-collected"),
+        pytest.param(True, 0, 0, id="db-only-passed"),
+        pytest.param(True, 1, 1, id="db-only-test-failed"),
+        pytest.param(True, 2, 2, id="db-only-interrupted"),
+        pytest.param(True, 137, 137, id="db-only-killed"),
+        pytest.param(False, 5, 5, id="no-tests-collected-without-db-only"),
+    ],
+)
+def test_no_tests_collected_is_success_only_for_db_only_runs(
+    mock_run_command, run_db_tests_only, pytest_exit_code, expected_return_code
+):
+    """Pytest's "no tests collected" (5) passes only in DB-only runs; a failing test keeps its code."""
+    mock_run_command.return_value.returncode = pytest_exit_code
+    return_code, _ = _run_test(
+        shell_params=ShellParams(
+            test_group=GroupOfTests.PROVIDERS,
+            test_type="Providers[http]",
+            run_db_tests_only=run_db_tests_only,
+        ),
+        extra_pytest_args=(),
+        python_version="3.10",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+    assert return_code == expected_return_code
 
 
 @pytest.mark.parametrize(

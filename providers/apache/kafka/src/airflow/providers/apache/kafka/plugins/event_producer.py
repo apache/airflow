@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from fnmatch import fnmatch
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
@@ -275,7 +275,7 @@ def _on_delivery(err, _msg) -> None:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # DagRun

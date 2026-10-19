@@ -43,42 +43,7 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_glue_arguments,
     inject_transport_information_into_glue_arguments,
 )
-from airflow.providers.common.compat.sdk import AirflowException, conf
-
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-# ResumableJobMixin only exists on Airflow 3.3+; this provider still targets >=2.11. Drop this
-# fallback once the provider's minimum Airflow version is >=3.3.
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "glue_job_run_id"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
+from airflow.providers.common.compat.sdk import AirflowException, ResumableJobMixin, conf
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -756,6 +721,9 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -904,6 +872,9 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )

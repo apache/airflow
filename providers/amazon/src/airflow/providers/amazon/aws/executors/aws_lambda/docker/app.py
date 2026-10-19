@@ -32,6 +32,13 @@ log = logging.getLogger()
 log.setLevel(logging.INFO)
 
 
+# Lambda gives each execution environment a fresh /tmp, so a home directory below it cannot exist
+# in the image and is created here instead. HOME is set in the Dockerfile used to build the image.
+HOME_DIR = os.environ.get("HOME")
+if HOME_DIR:
+    os.makedirs(HOME_DIR, exist_ok=True)
+
+
 # Get the S3 URI from the environment variable. Set either on the Lambda function or in the
 # docker image used for the lambda invocations.
 S3_URI = os.environ.get("S3_URI", None)

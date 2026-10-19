@@ -8,13 +8,13 @@
                         "timetable": {
                             "expressions": [
                                 "21 13 29 2 4",
-                                "9 27 29 2 4"
+                                "9 17 29 2 4"
                             ],
                             "timezone": "UTC",
                             "interval": 0.0,
                             "run_immediately": false
                         },
-                        "timetable_summary": "21 13 29 2 4, 9 27 29 2 4"
+                        "timetable_summary": "21 13 29 2 4, 9 17 29 2 4"
                     }
                 }
             }
@@ -32,13 +32,13 @@
                         "timetable": {
                             "expressions": [
                                 "21 13 29 2 4",
-                                "9 27 29 2 4"
+                                "9 17 29 2 4"
                             ],
                             "timezone": "UTC",
                             "interval": 0.0,
                             "run_immediately": false
                         },
-                        "timetable_summary": "21 13 29 2 4, 9 27 29 2 4"
+                        "timetable_summary": "21 13 29 2 4, 9 17 29 2 4"
                     }
                 }
             }
@@ -56,13 +56,13 @@
                         "timetable": {
                             "expressions": [
                                 "21 13 29 2 4",
-                                "9 27 29 2 4"
+                                "9 17 29 2 4"
                             ],
                             "timezone": "UTC",
                             "interval": 0.0,
                             "run_immediately": false
                         },
-                        "timetable_summary": "21 13 29 2 4, 9 27 29 2 4"
+                        "timetable_summary": "21 13 29 2 4, 9 17 29 2 4"
                     }
                 }
             }

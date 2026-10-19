@@ -50,4 +50,4 @@ For example, specifying resources for scheduler container:
          memory: 1Gi
        requests:
          cpu: 500m
-         memory: 512Gi
+         memory: 512Mi

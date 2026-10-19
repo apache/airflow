@@ -30,7 +30,7 @@ class MappedTaskIsExpanded(BaseTIDep):
     def _get_dep_statuses(self, ti, dep_context, *, session):
         if dep_context.ignore_unmapped_tasks:
             return
-        if ti.map_index == -1:
+        if ti.region_index == -1:
             yield self._failing_status(reason="The task has yet to be mapped!")
             return
         yield self._passing_status(reason="The task has been mapped")

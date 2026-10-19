@@ -299,8 +299,8 @@ if LLMSQLQueryOperator is not None:
         csv_ready = prepare_csv(download_survey.output)
 
         # ------------------------------------------------------------------
-        # Step 3: Validate the downloaded CSV schema against the reference.
-        # Raises if critical columns are missing or renamed.
+        # Step 3: Compare the downloaded CSV schema against the reference.
+        # Reports what changed; add a @task.branch on ``compatible`` to block on drift.
         # ------------------------------------------------------------------
         check_schema = LLMSchemaCompareOperator(
             task_id="check_schema",

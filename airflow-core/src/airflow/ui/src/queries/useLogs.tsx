@@ -25,10 +25,11 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
-import { useTaskInstanceServiceGetLog } from "openapi/queries";
+import { useDeadlinesServiceGetCallbackLogs, useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
   StructuredLogMessage,
   TaskInstanceResponse,
+  TaskInstanceHistoryResponse,
   TaskInstancesLogResponse,
 } from "openapi/requests/types.gen";
 
@@ -53,6 +54,7 @@ export type ParsedLogEntry = {
 type GetLogLineTextOptions = {
   logLevelFilters?: Array<string>;
   logMessage: string | StructuredLogMessage;
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
@@ -67,6 +69,7 @@ type GetLogLineTextOptions = {
 export const getLogLineText = ({
   logLevelFilters,
   logMessage,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceFilters,
@@ -79,6 +82,7 @@ export const getLogLineText = ({
       logLink: "",
       logMessage,
       renderingMode: "text",
+      showLogLevel,
       showSource,
       showTimestamp,
       sourceFilters,
@@ -89,29 +93,33 @@ export const getLogLineText = ({
 type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
+  historical?: boolean;
   limit?: number;
   logLevelFilters?: Array<string>;
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
-  taskInstance?: TaskInstanceResponse;
+  taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   tryNumber?: number;
 };
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   logLevelFilters?: Array<string>;
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
-  taskInstance?: TaskInstanceResponse;
+  taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   translate: TFunction;
   tryNumber: number;
 };
 
-const parseLogs = ({
+export const parseLogs = ({
   data,
   logLevelFilters,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceFilters,
@@ -123,7 +131,15 @@ const parseLogs = ({
   let parsedLines;
   const sources: Array<string> = [];
 
-  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance, "logs")}?try_number=${tryNumber}` : "";
+  const logSearch = new URLSearchParams({ try_number: String(tryNumber) });
+
+  if (taskInstance?.region_id !== undefined) {
+    logSearch.set("region_id", taskInstance.region_id);
+    logSearch.set("region_index", String(taskInstance.region_index));
+  }
+  const logLink = taskInstance
+    ? `${getTaskInstanceLink({ dagId: taskInstance.dag_id, dagRunId: taskInstance.dag_run_id, mapIndex: taskInstance.map_index, taskId: taskInstance.task_id }, "logs")}?${logSearch}`
+    : "";
 
   try {
     let lineNumber = 0;
@@ -157,6 +173,7 @@ const parseLogs = ({
             logLink,
             logMessage: datum,
             renderingMode: "jsx",
+            showLogLevel,
             showSource,
             showTimestamp,
             sourceFilters,
@@ -186,7 +203,15 @@ const parseLogs = ({
     parsedLines.forEach(({ element, lineNumber, logMessage }) => {
       const text = innerText(element);
       const getPlainText = () =>
-        getLogLineText({ logLevelFilters, logMessage, showSource, showTimestamp, sourceFilters, translate });
+        getLogLineText({
+          logLevelFilters,
+          logMessage,
+          showLogLevel,
+          showSource,
+          showTimestamp,
+          sourceFilters,
+          translate,
+        });
 
       if (text.includes("::group::")) {
         const groupName = text.split("::group::")[1] as string;
@@ -288,12 +313,25 @@ const truncateData = (data: TaskInstancesLogResponse | undefined, limit?: number
   };
 };
 
+// Build a 1:1 searchable text array from parsedLogs so search indices align
+// with the rendered output. Each entry maps to exactly one line.
+const getSearchableText = (parsedLogs: Array<ParsedLogEntry> | undefined): Array<string> =>
+  (parsedLogs ?? []).map((entry) => {
+    if (typeof entry.element === "string") {
+      return entry.element;
+    }
+
+    return entry.element ? innerText(entry.element) : "";
+  });
+
 export const useLogs = (
   {
     accept = "application/x-ndjson",
     dagId,
+    historical = false,
     limit,
     logLevelFilters,
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,
@@ -311,6 +349,8 @@ export const useLogs = (
       dagId,
       dagRunId: taskInstance?.dag_run_id ?? "",
       mapIndex: taskInstance?.map_index ?? -1,
+      regionId: taskInstance?.region_id,
+      regionIndex: taskInstance?.region_index,
       taskId: taskInstance?.task_id ?? "",
       tryNumber,
     },
@@ -318,10 +358,10 @@ export const useLogs = (
     {
       enabled: Boolean(taskInstance),
       refetchInterval: (query) =>
-        isStatePending(taskInstance?.state) ||
-        dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
-          ? refetchInterval
-          : false,
+        !historical &&
+        (isStatePending(taskInstance?.state) ||
+          dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)) &&
+        refetchInterval,
       ...options,
     },
   );
@@ -329,6 +369,7 @@ export const useLogs = (
   const parsedData = parseLogs({
     data: parseStreamingLogContent(truncateData(data, limit)),
     logLevelFilters,
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,
@@ -337,15 +378,33 @@ export const useLogs = (
     tryNumber,
   });
 
-  // Build a 1:1 searchable text array from parsedLogs so search indices align
-  // with the rendered output. Each entry maps to exactly one line.
-  const searchableText: Array<string> = (parsedData.parsedLogs ?? []).map((entry) => {
-    if (typeof entry.element === "string") {
-      return entry.element;
-    }
+  const searchableText = getSearchableText(parsedData.parsedLogs);
 
-    return entry.element ? innerText(entry.element) : "";
+  return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
+};
+
+type CallbackLogsProps = { callbackId: string; dagRunId: string } & Omit<
+  Props,
+  "accept" | "limit" | "taskInstance" | "tryNumber"
+>;
+
+export const useCallbackLogs = ({ callbackId, dagId, dagRunId, ...displayOptions }: CallbackLogsProps) => {
+  const { t: translate } = useTranslation();
+
+  const { data, ...rest } = useDeadlinesServiceGetCallbackLogs({
+    accept: "application/x-ndjson",
+    callbackId,
+    dagId,
+    dagRunId,
   });
+
+  const parsedData = parseLogs({
+    data: parseStreamingLogContent(data),
+    ...displayOptions,
+    translate,
+    tryNumber: 1,
+  });
+  const searchableText = getSearchableText(parsedData.parsedLogs);
 
   return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
 };

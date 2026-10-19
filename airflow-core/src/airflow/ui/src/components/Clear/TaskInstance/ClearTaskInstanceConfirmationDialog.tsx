@@ -30,17 +30,9 @@ import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDr
 import { useDurationFormat } from "src/utils";
 
 type Props = {
-  readonly dagDetails?: {
+  readonly dryRun?: {
     dagId: string;
-    dagRunId: string;
-    downstream?: boolean;
-    future?: boolean;
-    mapIndex?: number;
-    onlyFailed?: boolean;
-    past?: boolean;
-    taskId: string;
-    taskIds?: ClearTaskInstancesBody["task_ids"];
-    upstream?: boolean;
+    requestBody: ClearTaskInstancesBody;
   };
   readonly onClose: () => void;
   readonly onConfirm?: () => void;
@@ -49,7 +41,7 @@ type Props = {
 };
 
 const ClearTaskInstanceConfirmationDialog = ({
-  dagDetails,
+  dryRun,
   onClose,
   onConfirm,
   open,
@@ -57,29 +49,16 @@ const ClearTaskInstanceConfirmationDialog = ({
 }: Props) => {
   const { t: translate } = useTranslation();
   const { formatRelative } = useDurationFormat();
-  const useExplicitTaskIds = dagDetails?.taskIds !== undefined;
   const { data, isFetching } = useClearTaskInstancesDryRun({
-    dagId: dagDetails?.dagId ?? "",
+    dagId: dryRun?.dagId ?? "",
     options: {
-      enabled: open && Boolean(dagDetails),
+      enabled: open && Boolean(dryRun),
       gcTime: 0,
       refetchOnMount: "always",
       refetchOnWindowFocus: false,
       staleTime: 0,
     },
-    requestBody: {
-      dag_run_id: dagDetails?.dagRunId ?? "",
-      include_downstream: useExplicitTaskIds ? false : dagDetails?.downstream,
-      include_future: dagDetails?.future,
-      include_past: dagDetails?.past,
-      include_upstream: useExplicitTaskIds ? false : dagDetails?.upstream,
-      only_failed: dagDetails?.onlyFailed,
-      task_ids: useExplicitTaskIds
-        ? dagDetails.taskIds
-        : dagDetails?.mapIndex === undefined
-          ? [dagDetails?.taskId ?? ""]
-          : [[dagDetails.taskId, dagDetails.mapIndex]],
-    },
+    requestBody: dryRun?.requestBody ?? {},
   });
 
   const [isReady, setIsReady] = useState(false);
@@ -101,8 +80,18 @@ const ClearTaskInstanceConfirmationDialog = ({
     }
   }, [isFetching, data, open, taskCurrentState, preventRunningTask, onConfirm, onClose]);
 
+  // This dialog opens as the clear dialog closes beneath it, and that close would dismiss it
+  // twice over: removing a dialog layer dismisses the layers stacked above it, and the clear
+  // dialog hands focus back to its trigger outside this one. Either drops the clear before
+  // the dry run settles. Outside clicks and Escape still close it.
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
+    <Dialog.Root
+      lazyMount
+      onFocusOutside={(event) => event.preventDefault()}
+      onOpenChange={onClose}
+      onRequestDismiss={(event) => event.preventDefault()}
+      open={open}
+    >
       <Dialog.Content backdrop>
         {isFetching ? (
           <VStack align="center" gap={3} justify="center" py={8}>
@@ -141,9 +130,7 @@ const ClearTaskInstanceConfirmationDialog = ({
               </VStack>
             </Dialog.Header>
             <Dialog.Footer>
-              <Button colorPalette="blue" onClick={onClose}>
-                {translate("common:modal.confirm")}
-              </Button>
+              <Button onClick={onClose}>{translate("common:modal.confirm")}</Button>
             </Dialog.Footer>
           </>
         ) : null}

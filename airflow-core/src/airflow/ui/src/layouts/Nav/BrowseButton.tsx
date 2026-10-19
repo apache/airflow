@@ -27,6 +27,7 @@ import { Menu } from "src/system-components";
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
+import { NavMenu } from "./NavMenu";
 import { PluginMenuItem } from "./PluginMenuItem";
 
 const links = [
@@ -85,20 +86,19 @@ export const BrowseButton = ({
   }
 
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger asChild>
+    <NavMenu
+      trigger={
         <NavButton
           icon={FiGlobe}
           title={translate("nav.browse")}
           to={authorizedLinks.map(({ href }) => href)}
         />
-      </Menu.Trigger>
-      <Menu.Content>
-        {menuItems}
-        {externalViews.map((view) => (
-          <PluginMenuItem {...view} key={view.name} />
-        ))}
-      </Menu.Content>
-    </Menu.Root>
+      }
+    >
+      {menuItems}
+      {externalViews.map((view) => (
+        <PluginMenuItem {...view} key={view.name} />
+      ))}
+    </NavMenu>
   );
 };

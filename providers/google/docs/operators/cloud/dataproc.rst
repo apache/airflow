@@ -188,16 +188,12 @@ You can use deferrable mode for this action in order to run the operator asynchr
 
 Generating Cluster Config
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-You can also generate **CLUSTER_CONFIG** using functional API,
-this could be easily done using **make()** of
-:class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
-You can generate and use config as followed:
 
-.. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_generator.py
-    :language: python
-    :dedent: 0
-    :start-after: [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
-    :end-before: [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
+.. warning::
+    **Deprecated:** The :class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
+    class is deprecated and will be removed after September 1, 2027. Please pass
+    ``cluster_config`` or ``virtual_cluster_config`` dictionaries directly as arguments to the
+    ``DataprocCreateClusterOperator``.
 
 Diagnose a cluster
 ------------------
@@ -515,6 +511,19 @@ The executable example below still imports the compatibility name
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_batch_operator]
     :end-before: [END how_to_cloud_dataproc_create_batch_operator]
+
+When you need a readable ID and retry-safe uniqueness, set ``batch_id_prefix`` instead of ``batch_id``.
+The operator generates a new ``<batch_id_prefix>-<8 hex characters>`` ID for each task attempt, so
+retried attempts submit a new batch instead of attaching to the batch of a previous attempt.
+``batch_id_prefix`` cannot be combined with ``request_id``, because Dataproc returns the original
+operation for a repeated ``request_id``.
+The prefix is used as-is (no normalization), and Dataproc validates the resulting batch ID.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_batch_operator_with_prefix]
+    :end-before: [END how_to_cloud_dataproc_create_batch_operator_with_prefix]
 
 For creating a batch with Persistent History Server first you should create a Managed Spark Cluster
 with specific parameters. Documentation how create cluster you can find

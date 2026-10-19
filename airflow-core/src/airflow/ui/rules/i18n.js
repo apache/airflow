@@ -39,11 +39,9 @@ const getKeys = (obj, prefix = "") => {
     const newPrefix = prefix ? `${prefix}.${key}` : key;
     const value = obj[key];
 
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      return [newPrefix, ...getKeys(value, newPrefix)];
-    }
-
-    return [newPrefix];
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+      ? [newPrefix, ...getKeys(value, newPrefix)]
+      : [newPrefix];
   });
 };
 

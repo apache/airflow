@@ -35,7 +35,7 @@ Role in a Dag: use ``MCPToolset``, not the hook directly
 
 Most Dags should not instantiate ``MCPHook`` directly. The recommended entry
 point is :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` (see
-:doc:`../toolsets`), which resolves the hook lazily from an Airflow connection
+:doc:`../toolsets/mcp`), which resolves the hook lazily from an Airflow connection
 and manages the underlying session lifecycle for you:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_mcp.py
@@ -72,43 +72,16 @@ The result is cached for the lifetime of the hook instance.
 for its configured transport, but does not connect to the server -- doing so
 requires the async context manager that ``MCPToolset`` drives.
 
-Short-lived credentials
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-For HTTP/SSE servers that need a freshly minted bearer token (Snowflake
-managed MCP servers, OAuth/refresh tokens, Workload Identity Federation,
-GitHub App installation tokens), pass ``token_provider`` instead of storing a
-static token in the connection ``password``. For ``stdio`` servers whose
-subprocess needs a credential that lives in a different connection or is
-minted fresh per call, pass ``env_provider`` instead of a static
-``Extra.env`` value. Both are zero-argument callables invoked once, the
-first time the hook establishes a connection, and their return values are
-registered with secret masking. See :ref:`howto/connection:mcp`
-for the full explanation and an ``env_provider`` example.
+``token_provider`` and ``env_provider`` replace a static token or a static
+``Extra.env`` value with a zero-argument callable, invoked once the first time the
+hook establishes a connection; :doc:`../toolsets/mcp` explains both.
 
 Connection fields
 ------------------
 
-``MCPHook`` uses the ``mcp`` connection type. Its custom fields
-(``transport``, ``command``, ``args``) come from the connection's
-``extra`` JSON:
-
-- **host** -- Server URL. Required for the ``http`` and ``sse`` transports.
-- **password** -- Optional auth token, labeled "Auth Token" in the connection
-  form. Sent as a static ``Authorization: Bearer <token>`` header.
-- **Extra.transport** -- ``http`` (default), ``sse``, or ``stdio``.
-- **Extra.command** -- Command to run for the ``stdio`` transport
-  (e.g. ``uvx``, ``python``).
-- **Extra.args** -- JSON array of arguments for the ``stdio`` command
-  (e.g. ``["mcp-run-python"]``).
-- **Extra.env** -- JSON object of environment variables for the ``stdio``
-  subprocess. Ignored for ``http``/``sse``.
-- **Extra.timeout** -- Connection init timeout in seconds for ``stdio``.
-  Default ``10``.
-
-See :ref:`howto/connection:mcp` for the field-by-field walkthrough and
-transport-specific JSON examples (HTTP, SSE, stdio, stdio with a custom
-timeout, stdio with subprocess environment variables).
+``MCPHook`` uses the ``mcp`` connection type. :ref:`howto/connection:mcp` documents
+each field (``host``, ``password`` and the ``transport``, ``command``, ``args``,
+``env`` and ``timeout`` keys in ``extra``) with a JSON example per transport.
 
 Dependencies
 ------------

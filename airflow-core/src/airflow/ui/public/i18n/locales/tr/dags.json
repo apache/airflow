@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{total}} varlıktan {{count}} tanesi güncellendi",
+  "assetSchedule": "{{total, number}} varlıktan {{count, number}} tanesi güncellendi",
   "dagActions": {
     "delete": {
       "button": "Dag'ı Sil",
@@ -26,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Görev bulunamadı.",
-      "title": "Etkilenen Görevler: {{count}}"
+      "title": "Etkilenen Görevler: {{count, number}}"
     },
     "clear": {
       "button": "{{type}} Temizle",

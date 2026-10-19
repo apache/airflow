@@ -389,3 +389,7 @@ To configure Airflow to utilize the ECS Executor and leverage the resources we'v
 .. include:: general.rst
   :start-after: .. BEGIN INIT_DB
   :end-before: .. END INIT_DB
+
+.. include:: general.rst
+  :start-after: .. BEGIN TASK_INSTANCE_IDENTITY
+  :end-before: .. END TASK_INSTANCE_IDENTITY

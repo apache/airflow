@@ -12,9 +12,9 @@
   "requiredAction_one": "Ação Necessária",
   "requiredAction_other": "Ações Necessárias",
   "requiredAction_zero": "Nenhuma ação necessária",
-  "requiredActionCount_many": "Ações Necessárias ({{count}})",
-  "requiredActionCount_one": "Ação Necessária ({{count}})",
-  "requiredActionCount_other": "Ações Necessárias ({{count}})",
+  "requiredActionCount_many": "Ações Necessárias ({{count, number}})",
+  "requiredActionCount_one": "Ação Necessária ({{count, number}})",
+  "requiredActionCount_other": "Ações Necessárias ({{count, number}})",
   "requiredActionCount_zero": "Nenhuma ação necessária",
   "requiredActionState": "Estado da Ação Necessária",
   "response": {

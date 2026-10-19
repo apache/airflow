@@ -69,6 +69,7 @@ class MSGraphNotifier(BaseNotifier):
         "cc",
         "bcc",
         "custom_headers",
+        "conn_id",
     )
 
     def __init__(

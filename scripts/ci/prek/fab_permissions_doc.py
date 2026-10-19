@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# ///
 """
 Generate the FAB auth manager's REST API permission table.
 
@@ -41,6 +44,7 @@ import sys
 from extract_permissions import (
     PUBLIC_ROUTES_DIR,
     PermissionEntry,
+    RouteParseError,
     extract_all_permissions,
 )
 
@@ -230,6 +234,14 @@ def fab_permissions_for(entry: PermissionEntry) -> list[str]:
     auth_method = entry.required_permission
     action = _METHOD_TO_ACTION.get(auth_method, "can_read")
 
+    if entry.resource == "DAG" and auth_method == "multi":
+        # A bulk `requires_access_dag_*` call with no method arg (e.g.
+        # ``requires_access_dag_bulk``) always authorizes a write, same as the base Dag
+        # check below for a ``DAG.<entity>`` bulk call -- ``_METHOD_TO_ACTION`` has no
+        # "multi" entry, so it would otherwise fall back to the generic "can_read".
+        dag_name = display.get("RESOURCE_DAG", "DAGs")
+        return [f"{dag_name}.can_edit"]
+
     if entry.resource.startswith("DAG."):
         entity = entry.resource.split(".", 1)[1]
         consts = dag_map.get(entity, ())
@@ -352,7 +364,7 @@ def render_rst(entries: list[PermissionEntry]) -> str:
         BEGIN_MARKER,
         "",
         ".. THE TABLE BELOW IS AUTO-GENERATED. DO NOT EDIT IT MANUALLY.",
-        "   Regenerate with:  python scripts/ci/prek/fab_permissions_doc.py",
+        "   Regenerate with:  uv run scripts/ci/prek/fab_permissions_doc.py",
         "   Trigger:          prek run generate-fab-permissions-doc --all-files",
         "",
         ".. list-table:: Stable REST API permissions (FAB auth manager)",
@@ -383,7 +395,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--print", dest="print_only", action="store_true", help="Print instead of write.")
     args = parser.parse_args(argv)
 
-    entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    try:
+        entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    except RouteParseError as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        return 1
     table = render_rst(entries)
 
     if args.print_only:
@@ -401,7 +417,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         if current != updated:
             print(
-                f"[FAIL] {OUTPUT_RST} is stale. Run: python {pathlib.Path(__file__).name}",
+                f"[FAIL] {OUTPUT_RST} is stale. Run: uv run scripts/ci/prek/{pathlib.Path(__file__).name}",
                 file=sys.stderr,
             )
             return 1

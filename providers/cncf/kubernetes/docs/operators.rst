@@ -222,14 +222,15 @@ ignored either way. The deprecated ``reattach_on_restart`` parameter (default ``
 only lever there, and it falls back to the same label-search reattach behavior this operator has
 always used -- unchanged from before this feature existed.
 
-The pod identity persisted in task state store isn't deleted automatically, that only happens
-when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
-``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
-pod identity won't be there for the next retry, and the operator falls back to the label-search
-bootstrap path instead of reconnecting directly. This isn't necessarily a duplicate, the label
-search can often still find the same pod, but it loses the unambiguous reconnect and reopens
-exposure to ``FoundMoreThanOnePodFailure`` if a genuine duplicate pod exists by then. Avoid
-running cleanup on a schedule shorter than your longest ``retry_delay``.
+The persisted pod identity is only removed by ``airflow state-store clean`` (retention-based) or,
+when ``[state_store] clear_on_success`` is enabled (``False`` by default), automatically as soon as
+the task instance succeeds -- see the :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
+docs. If a task's ``retry_delay`` is longer than ``[state_store] default_retention_days`` (30 days by
+default) and cleanup runs in between, the pod identity won't be there for the next retry, and the
+operator falls back to the label-search bootstrap path instead of reconnecting directly. This isn't
+necessarily a duplicate, the label search can often still find the same pod, but it loses the
+unambiguous reconnect and reopens exposure to ``FoundMoreThanOnePodFailure`` if a genuine duplicate
+pod exists by then. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
 
 ``durable`` supersedes the deprecated ``reattach_on_restart`` parameter on Airflow 3.3+, where
 passing ``reattach_on_restart`` still works and maps its value onto ``durable``. Below 3.3,

@@ -18,56 +18,22 @@
 from __future__ import annotations
 
 import time
-import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, SupportsAbs, cast
+from typing import TYPE_CHECKING, Any, ClassVar, SupportsAbs, cast
 
 import requests
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import ResumableJobMixin, conf
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
     SQLIntervalCheckOperator,
     SQLValueCheckOperator,
 )
-from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+from airflow.providers.snowflake.hooks.sql_api import SnowflakeSqlApiHook
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
-
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "snowflake_query_ids"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -334,7 +300,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
     The operator supports the following authentication methods via the Snowflake connection:
 
     - **Key pair**: provide ``private_key_file`` or ``private_key_content`` in the connection extras.
-    - **OAuth**: provide ``refresh_token``, ``client_id``, and ``client_secret`` in the connection extras.
+    - **OAuth**: for the ``refresh_token`` or ``client_credentials`` grant, put the OAuth client ID and
+      client secret in the connection ``login`` and ``password``. To get the token from an Azure
+      connection instead, set ``azure_conn_id``. See
+      :ref:`the Snowflake connection docs <howto/connection:snowflake>`.
     - **Programmatic Access Token (PAT)**: set ``authenticator`` to ``programmatic_access_token`` in
       the connection extras and put the PAT value in the connection ``password`` field.
 
@@ -649,3 +618,62 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
             self.log.info("Cancelling the query ids %s", self.query_ids)
             self._hook.cancel_queries(self.query_ids)
             self.log.info("Query ids %s cancelled successfully", self.query_ids)
+
+
+class SnowflakeNotebookOperator(SnowflakeSqlApiOperator):
+    """
+    Execute a Snowflake Notebook via the Snowflake SQL API.
+
+    Builds an ``EXECUTE NOTEBOOK`` statement and delegates execution to
+    :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator`,
+    which handles query submission, polling, deferral, and cancellation.
+
+    .. seealso::
+        `Snowflake EXECUTE NOTEBOOK
+        <https://docs.snowflake.com/en/sql-reference/sql/execute-notebook>`_
+
+    :param notebook: Fully-qualified notebook name
+        (e.g. ``MY_DB.MY_SCHEMA.MY_NOTEBOOK``).
+    :param notebook_parameters: Optional list of string parameters to pass to
+        the notebook.  Values must be strings (the type hint declares
+        ``list[str]``).  Parameters are accessible in the notebook via
+        ``sys.argv``.
+    """
+
+    template_fields: Sequence[str] = tuple(
+        set(SnowflakeSqlApiOperator.template_fields) | {"notebook", "notebook_parameters"}
+    )
+    # The SQL is generated from `notebook`/`notebook_parameters`, never loaded from a
+    # file, so the inherited `.sql`/`.json` extensions would only cause harm: a notebook
+    # parameter that happens to end in one gets replaced by the contents of a file of
+    # that name.
+    template_ext: Sequence[str] = ()
+    # Same reason the parent's `parameters` renderer is dropped: it describes SQL bind
+    # parameters, not notebook arguments.
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
+
+    def __init__(
+        self,
+        *,
+        notebook: str,
+        notebook_parameters: list[str] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.notebook = notebook
+        self.notebook_parameters = notebook_parameters
+        super().__init__(sql=self._build_execute_notebook_query(), statement_count=1, **kwargs)
+
+    def execute(self, context: Context) -> None:
+        """Rebuild SQL from rendered template fields, then execute."""
+        self.sql = self._build_execute_notebook_query()
+        return super().execute(context)
+
+    def _build_execute_notebook_query(self) -> str:
+        """Build the ``EXECUTE NOTEBOOK`` SQL statement."""
+        params_clause = ""
+        if self.notebook_parameters:
+            # Escape backslashes first (Snowflake interprets `\` in string literals),
+            # then single quotes.
+            sanitized = [p.replace("\\", "\\\\").replace("'", "''") for p in self.notebook_parameters]
+            params_clause = ", ".join(f"'{p}'" for p in sanitized)
+        return f"EXECUTE NOTEBOOK {self.notebook}({params_clause})"

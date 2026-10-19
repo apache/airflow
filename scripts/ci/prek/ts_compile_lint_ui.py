@@ -72,7 +72,6 @@ if __name__ == "__main__":
     if cache_valid:
         print("pnpm deps unchanged — skipping install.")
     else:
-        run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=dir)
         run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=dir)
         hash_file.parent.mkdir(parents=True, exist_ok=True)
         tmp_hash_file = hash_file.with_suffix(".tmp")
