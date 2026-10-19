@@ -112,7 +112,7 @@ if Memory is not None and asyncpg is not None:
                             "their next ticket."
                         ),
                         capabilities=[
-                            Memory(
+                            Memory[Customer](
                                 PostgresMemoryStore(pool),
                                 namespace=lambda ctx: ctx.deps.customer_id,
                             )

@@ -174,6 +174,24 @@ def test_full_suite_expansion_is_explained(files: tuple[str, ...], expanded: boo
     assert "breeze testing core-tests" not in " ".join(result.output.split())
 
 
+@pytest.mark.parametrize(
+    ("files", "has_commands"),
+    [
+        (("README.md",), False),
+        (("airflow-core/docs/index.rst",), True),
+    ],
+)
+def test_table_is_shown_only_when_there_are_commands(files: tuple[str, ...], has_commands: bool):
+    with patch(
+        "airflow_breeze.commands.verify_commands.get_changed_files_against", autospec=True, return_value=files
+    ):
+        result = CliRunner().invoke(verify, [], catch_exceptions=False)
+    assert result.exit_code == 0
+    output = " ".join(result.output.split())
+    assert ("What to run for this change" in output) is has_commands
+    assert ("No tests or docs builds to run locally for the changed files." in output) is not has_commands
+
+
 @patch("airflow_breeze.commands.verify_commands.run_command", autospec=True)
 def test_changed_files_list_renames_like_ci_diff_tree(mock_run):
     mock_run.side_effect = [

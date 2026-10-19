@@ -37,7 +37,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG, AssetAlias, task_group
+from airflow.sdk import DAG, Asset, AssetAlias, task_group
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
@@ -417,8 +417,16 @@ class TestGetXComEntry(TestXComEndpoint):
         ("xcom_value", "expected_return"),
         [
             pytest.param(42, 42, id="jsonable"),
+            pytest.param("text", "text", id="str"),
+            pytest.param({"a": [1, 2], "b": None}, {"a": [1, 2], "b": None}, id="dict"),
+            pytest.param([1, "two", 3.0], [1, "two", 3.0], id="list"),
             pytest.param(AssetAlias("x"), "AssetAlias(name='x', group='asset')", id="nonjsonable"),
             pytest.param([42, AssetAlias("x")], [42, "AssetAlias(name='x', group='asset')"], id="nested"),
+            pytest.param(
+                Asset("s3://bucket/key", extra={"a": 1}),
+                repr(Asset("s3://bucket/key", extra={"a": 1})),
+                id="asset",
+            ),
         ],
     )
     def test_stringify_false(self, test_client, xcom_value, expected_return):
@@ -428,6 +436,61 @@ class TestGetXComEntry(TestXComEndpoint):
         response = test_client.get(url, params={"deserialize": True, "stringify": False})
         assert response.status_code == 200
         assert response.json()["value"] == expected_return
+
+    @pytest.mark.parametrize(
+        ("xcom_value", "expected_return"),
+        [
+            pytest.param(42, "42", id="int"),
+            pytest.param({"a": [1, 2]}, "{'a': [1, 2]}", id="dict"),
+            pytest.param(AssetAlias("x"), "AssetAlias(name='x', group='asset')", id="airflow-class"),
+        ],
+    )
+    def test_stringify_true(self, test_client, xcom_value, expected_return):
+        XComModel.set(TEST_XCOM_KEY, xcom_value, dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=run_id)
+
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        response = test_client.get(url, params={"deserialize": True, "stringify": True})
+        assert response.status_code == 200
+        assert response.json()["value"] == expected_return
+
+    @mock.patch("airflow.sdk.serde.serializers.deltalake.deserialize", autospec=True)
+    @mock.patch("airflow.sdk.serde.deserialize", autospec=True)
+    def test_deserialize_renders_stored_payload_without_building_objects(
+        self, serde_deserialize, deltalake_deserialize, test_client
+    ):
+        """A ``deserialize=true`` read renders the stored payload; it never imports or builds the classes it names."""
+        payload = {
+            "__classname__": "airflow.sdk.definitions.asset.AssetAlias",
+            "__version__": 0,
+            "__data__": {
+                "name": "x",
+                "group": {
+                    "__classname__": "deltalake.table.DeltaTable",
+                    "__version__": 1,
+                    "__data__": {"table_uri": "s3://bucket/table", "version": 0},
+                },
+            },
+        }
+        # Stored as-is, the way the Execution API stores values a task pushes.
+        XComModel.set(
+            TEST_XCOM_KEY,
+            json.dumps(payload),
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=run_id,
+            serialize=False,
+        )
+
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        response = test_client.get(url, params={"deserialize": True})
+
+        assert response.status_code == 200
+        assert response.json()["value"] == (
+            "AssetAlias(name='x', group=deltalake.table.DeltaTable@version=1"
+            "(table_uri='s3://bucket/table', version=0))"
+        )
+        serde_deserialize.assert_not_called()
+        deltalake_deserialize.assert_not_called()
 
 
 class TestGetXComEntries(TestXComEndpoint):
@@ -537,6 +600,38 @@ class TestGetXComEntries(TestXComEndpoint):
             (e["dag_id"], e["dag_display_name"], e["task_id"], e["task_display_name"], e["run_id"], e["key"])
             for e in entries
         ] == [(dag_id, dag_id, task_id, task_id, run_id, key) for dag_id, task_id, key in expected]
+
+    @pytest.mark.parametrize(
+        ("exclude_internal_keys", "expected_keys"),
+        [
+            (
+                False,
+                [
+                    f"{TEST_XCOM_KEY}-0",
+                    f"{TEST_XCOM_KEY}-1",
+                    "_airflow_loop_decision_reason",
+                    "xairflowxloopx",
+                ],
+            ),
+            (True, [f"{TEST_XCOM_KEY}-0", f"{TEST_XCOM_KEY}-1", "xairflowxloopx"]),
+        ],
+        ids=["included-by-default", "excluded"],
+    )
+    def test_exclude_internal_keys(self, test_client, exclude_internal_keys, expected_keys):
+        self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
+        for key in ("_airflow_loop_decision_reason", "xairflowxloopx"):
+            XComModel.set(
+                key=key, value="v", run_id=run_id, task_id=TEST_TASK_ID, dag_id=TEST_DAG_ID, map_index=-1
+            )
+
+        response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            params={"exclude_internal_keys": exclude_internal_keys, "order_by": "key"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == len(expected_keys)
+        assert sorted(entry["key"] for entry in response.json()["xcom_entries"]) == sorted(expected_keys)
 
     def test_should_respond_200_with_tilde(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
@@ -961,6 +1056,15 @@ class TestCreateXComEntry(TestXComEndpoint):
                 f"The XCom with key: `{TEST_XCOM_KEY}` with mentioned task instance already exists.",
                 id="xcom-already-exists",
             ),
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key="_airflow_loop_decision_reason", value="converged"),
+                400,
+                "Reserved loop XCom key",
+                id="reserved-loop-key",
+            ),
         ],
     )
     def test_create_xcom_entry(
@@ -1198,6 +1302,13 @@ class TestPatchXComEntry(TestXComEndpoint):
                 404,
                 f"The XCom with key: `{TEST_XCOM_KEY}` with mentioned task instance doesn't exist.",
                 id="xcom-not-found",
+            ),
+            pytest.param(
+                "_airflow_loop_decision_reason",
+                {"value": "converged"},
+                400,
+                "Reserved loop XCom key",
+                id="reserved-loop-key",
             ),
         ],
     )

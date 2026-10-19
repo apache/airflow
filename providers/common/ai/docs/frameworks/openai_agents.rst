@@ -103,24 +103,118 @@ nested run shares the outer run's retry count for each tool.
 Tracing
 -------
 
-The SDK has its own tracing, which is on by default and sends every run's traces to
-OpenAI's Traces backend using ``OPENAI_API_KEY`` from the environment. It does this
-whatever model the agent runs, including a self-hosted one, and the traces hold the
-prompts and model output. Tool results are masked before the model sees them; nothing
-else in a trace is.
+The SDK has a tracing system of its own rather than OpenTelemetry. By default it sends
+every run's traces to OpenAI's Traces backend using ``OPENAI_API_KEY`` from the
+environment, whatever model the agent runs, including a self-hosted one, and the traces
+hold the prompts and model output. Tool results are masked before the model sees them;
+nothing else in those traces is.
 
-The example turns tracing off for its run with ``RunConfig(tracing_disabled=True)``. To
-turn it off for the whole process, call ``agents.set_tracing_disabled(True)`` or set
-``OPENAI_AGENTS_DISABLE_TRACING=1`` in the worker's environment. The SDK does not emit
-OpenTelemetry spans, so
-:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing` does not apply
-to it.
+:class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTraceProcessor` is a trace
+processor for the SDK that records each trace as OpenTelemetry spans under the task's
+span instead. The example replaces the SDK's processors with it, so nothing goes to
+OpenAI, and runs the agent inside
+:func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`, so the spans
+carry the task's identity:
+
+.. code-block:: python
+
+    from agents import Runner, set_trace_processors
+
+    from airflow.providers.common.ai.tools.openai_agents import AirflowTraceProcessor
+    from airflow.providers.common.ai.tools.tracing import agent_framework_tracing
+
+    set_trace_processors([AirflowTraceProcessor()])
+    with agent_framework_tracing():
+        answer = Runner.run_sync(agent, question).final_output
+
+``set_trace_processors`` replaces every processor registered with the SDK. To keep the
+export to OpenAI, or a processor another instrumentation registered, add this one with
+``agents.add_trace_processor`` instead. The spans use the names of the OpenTelemetry GenAI
+conventions (``invoke_agent``, ``chat`` with the model and token counts,
+``execute_tool``), and the SDK's other spans are named ``openai_agents.<kind>``. Prompts, completions, and tool arguments and results are left
+out unless ``[common.ai] otel_export_enabled`` and ``capture_content`` are both on, and pass
+through Airflow's secret masker when they are recorded; see :doc:`../observability`.
+
+Use ``AirflowTraceProcessor`` when span content should follow ``[common.ai] capture_content``
+and Airflow's secret masker.
+
+To turn the SDK's tracing off altogether, call ``agents.set_tracing_disabled(True)`` or set
+``OPENAI_AGENTS_DISABLE_TRACING=1`` in the worker's environment. That stops
+``AirflowTraceProcessor`` from receiving anything too.
+
+.. _howto/frameworks:openai-agents-durable:
+
+Durable execution
+-----------------
+
+When a task that calls ``Runner.run`` fails and Airflow retries it, the agent starts
+again from the prompt: every model call is paid for again, and every tool call happens
+again. On a task with ``retries``, run the agent with
+:func:`~airflow.providers.common.ai.durable.openai_agents.run_durably_sync`, or
+:func:`~airflow.providers.common.ai.durable.openai_agents.run_durably` from async code,
+instead. They take the same arguments as ``Runner.run_sync`` and ``Runner.run``, except
+``previous_response_id``, ``conversation_id`` and ``auto_previous_response_id``, which they
+refuse: with them OpenAI keeps the conversation, and a replayed call never reaches it.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_openai_agents_durable.py
+    :language: python
+    :start-after: [START example_openai_agents_durable]
+    :end-before: [END example_openai_agents_durable]
+
+Each model call and function tool call is recorded in the task instance's durable
+journal as it completes, the journal ``AgentOperator(durable=True)`` uses (see
+:doc:`../durable_execution`). On Airflow 3.3 and later the journal is kept in the task
+state store; on earlier versions, set ``[common.ai] durable_cache_path`` to where it is
+kept. Once the run succeeds, what was recorded is deleted, so clearing the task later
+starts over. Outside a task there is nothing to replay into, and the agent runs as
+``Runner.run`` runs it.
+
+What a retry replays
+^^^^^^^^^^^^^^^^^^^^
+
+On a retry the agent runs again from the start, and each call that asks what the failed
+try asked, in the same order, returns what it returned then: the calls of every model
+given by name or in ``run_config``, the model and function tools of the starting agent
+and of the agents in its ``handoffs`` list, and an agent used through ``as_tool``, as one
+call. Recorded tool results pass through Airflow's secret masker before they are saved,
+and a replayed model call reports no token usage.
+
+From the first call that differs, that call and every call after it run live:
+
+- A retry whose prompt, instructions, model settings or tools differ from the failed
+  try's runs everything live from the first call that sees the difference.
+- When the run failed because of the model's answers (``MaxTurnsExceeded``,
+  ``ModelBehaviorError``, ``ModelRefusalError``, or an output or tool input guardrail),
+  replaying those answers would fail it the same way, so the retry asks the model again
+  from its last request.
+
+What always runs live
+^^^^^^^^^^^^^^^^^^^^^
+
+- A call that was running when the try failed, so tools that change data must still be
+  safe to repeat.
+- A tool call that failed, including one whose exception ``failure_error_function`` turned
+  into text for the model. A ``ModelBehaviorError`` that a tool raises, such as arguments
+  that fail validation with ``failure_error_function=None``, counts as the tool's failure:
+  the tool call runs again, but the answer that asked for it replays.
+- Tools other than function tools: hosted tools such as web search, the tools of
+  ``mcp_servers``, and shell and computer tools.
+- A function tool whose ``needs_approval`` is a function, since the SDK checks the
+  arguments it approved only through its own invoker.
+- The function tools of an agent reached through ``handoff()``, and its model too unless
+  the agent's ``model`` is a model name or not set.
+- A streamed run.
+- Every call, when the run has a ``session``: the SDK adds the failed try's prompt to it
+  before the first model call, so that call no longer asks what it asked then.
+
+A ``SandboxToolset`` without ``attach_to`` is destroyed when the try ends, so the retry
+starts with a new, empty sandbox that the replayed conversation does not describe.
 
 Differences from ``AgentOperator``
 ----------------------------------
 
-- A task retry runs the agent again from the start, so tools that change data must be
-  safe to repeat.
+- A task retry runs the agent again from the start unless it runs through
+  ``run_durably``; see :ref:`howto/frameworks:openai-agents-durable`.
 - There is no human review step like ``AgentOperator(enable_hitl_review=True)``, and the
   SDK's own ``needs_approval`` interruptions are not connected to Airflow's approval UI.
 

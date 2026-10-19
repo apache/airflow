@@ -79,6 +79,13 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 SECRETS_TO_SKIP_MASKING = {"airflow"}
 """Common terms that should be excluded from masking in both production and tests"""
 
+# Word boundaries inside camelCase / PascalCase names: "privateKey" -> "private_Key",
+# "APIKey" -> "API_Key". Applied before lowercasing so multi-word sensitive field names
+# (``private_key``, ``connection_string``...) also match camelCase keys.
+_CAMEL_LOWER_UPPER_RE = re.compile(r"([a-z0-9])([A-Z])")
+_CAMEL_ACRONYM_RE = re.compile(r"([A-Z]+)([A-Z][a-z])")
+_NON_WORD_RE = re.compile(r"\W+")
+
 
 def should_hide_value_for_key(name):
     """
@@ -588,9 +595,13 @@ class SecretsMasker(logging.Filter):
         Name might be a Variable name, or key in conn.extra_dejson, for example.
         """
         if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
-            name = name.strip().lower()
-            normalized = re.sub(r"\W+", "_", name)
-            return any(s in normalized for s in self.sensitive_variables_fields)
+            name = name.strip()
+            normalized = _NON_WORD_RE.sub("_", name.lower())
+            split = _CAMEL_ACRONYM_RE.sub(r"\1_\2", _CAMEL_LOWER_UPPER_RE.sub(r"\1_\2", name))
+            split = _NON_WORD_RE.sub("_", split.lower())
+            # Check both forms so fields configured without separators (e.g. ``mysensitivekey``)
+            # keep matching camelCase keys such as ``mySensitiveKey``.
+            return any(s in normalized or s in split for s in self.sensitive_variables_fields)
         return False
 
     def add_mask(self, secret: JsonValue, name: str | None = None):
@@ -711,4 +722,4 @@ class RedactedIO(TextIO):
         return self.target.write(s)
 
     def writelines(self, lines) -> None:
-        self.target.writelines(lines)
+        self.target.writelines(str(redact(line)) for line in lines)

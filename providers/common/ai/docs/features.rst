@@ -126,7 +126,7 @@ checklist.
        ``apache.iceberg`` extra for Iceberg
    * - :doc:`AgentSkillsToolset <toolsets/skills>`
      - Loads ``SKILL.md`` instruction bundles when the model asks for one.
-     - ``skills``; on Airflow 2, install ``pydantic-ai-skills``
+     - ``skills``; on Airflow 2, install ``pydantic-ai-skills>=1.2.0,<2``
    * - :doc:`SandboxToolset <sandbox/index>`
      - Gives the agent a shell and a filesystem in an isolated sandbox: a hosted
        service, a server you run, or a microVM on your machine for local development.
@@ -135,6 +135,10 @@ checklist.
    * - :doc:`ManagedAgentToolset <toolsets/managed_agent>`
      - Sends a prompt to an agent on Bedrock AgentCore or Vertex AI Agent Engine.
      - The Amazon or Google provider's ``common.ai`` extra
+   * - :doc:`Progressive tool disclosure <toolsets/progressive_disclosure>`
+     - Hides a toolset's tools from the model until it searches for them, with
+       ``.defer_loading()`` on any toolset.
+     - None
 
 Control output and spend
 ------------------------
@@ -268,7 +272,8 @@ toolset except
      - Gives a loop on the Anthropic SDK's ``tool_runner`` the toolsets.
      - ``anthropic``
    * - :doc:`OpenAI Agents SDK <frameworks/openai_agents>`
-     - Gives an OpenAI Agents SDK agent the toolsets.
+     - Gives an OpenAI Agents SDK agent the toolsets. Run through ``run_durably``, a retry
+       replays its completed calls.
      - None; install ``openai-agents``
    * - :doc:`LangChain <hooks/langchain>`
      - Builds LangChain chat and embedding models from a connection, and
@@ -294,7 +299,7 @@ See what ran
      - None
    * - :ref:`AI Model tab <howto/observability:model-tab>`
      - Shows the model on the task instance page of ``@task.llm`` and ``@task.agent``
-       tasks, and for ``@task.agent`` the token counts and an estimated cost.
+       tasks, and their token counts and an estimated cost.
      - None
 
 .. toctree::

@@ -34,7 +34,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+from airflow.providers.snowflake.hooks.sql_api import SnowflakeSqlApiHook
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -173,7 +173,7 @@ HOOK_PARAMS: dict = {
 
 API_URL = "https://test.snowflakecomputing.com/api/v2/statements/test"
 
-MODULE_PATH = "airflow.providers.snowflake.hooks.snowflake_sql_api"
+MODULE_PATH = "airflow.providers.snowflake.hooks.sql_api"
 HOOK_PATH = f"{MODULE_PATH}.SnowflakeSqlApiHook"
 
 

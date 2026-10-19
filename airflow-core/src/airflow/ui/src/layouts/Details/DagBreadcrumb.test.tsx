@@ -208,6 +208,30 @@ describe("DagBreadcrumb", () => {
     );
   });
 
+  it("offers the instance search at the map index level", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped/0`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
+      ),
+    });
+
+    expect(await screen.findByTestId("switch-map-index")).toBeInTheDocument();
+  });
+
+  it("keeps the map index level on the expanded task's summary, so an instance is one click away", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId/mapped",
+      ),
+    });
+
+    // No instance is picked here, so the level stands on "all" rather than dropping off the bar.
+    expect(await screen.findByText("allMapIndexes")).toBeInTheDocument();
+    expect(screen.getByTestId("switch-map-index")).toBeInTheDocument();
+  });
+
   it("renders one level per URL segment, with only the current one unlinked", async () => {
     render(<DagBreadcrumb />, {
       wrapper: createWrapper(
@@ -234,8 +258,9 @@ describe("DagBreadcrumb", () => {
       "href",
       `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped`,
     );
-    // The map index is the page's own level, so it is text rather than a link.
-    expect(screen.queryByRole("link", { name: "0" })).not.toBeInTheDocument();
+    // The map index names itself but is not a link: every destination it could have is this page,
+    // and the trip would drop the region the url carries.
+    expect(screen.queryByRole("link", { name: /mapIndex/u })).not.toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
   });
 

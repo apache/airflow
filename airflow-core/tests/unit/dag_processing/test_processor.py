@@ -67,12 +67,14 @@ from airflow.dag_processing.processor import (
     _parse_file,
     _parse_file_entrypoint,
     _pre_import_airflow_modules,
+    _serialize_dags,
 )
 from airflow.models import DagRun
 from airflow.models.dagwarning import DagWarning
-from airflow.sdk import DAG, BaseOperator
+from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.execution_time import comms, supervisor
 from airflow.sdk.execution_time.comms import (
     GetConnection,
@@ -95,6 +97,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -565,6 +568,24 @@ def disable_capturing():
     sys.stderr = sys.__stderr__
     yield
     sys.stdin, sys.stdout, sys.stderr = old_in, old_out, old_err
+
+
+def test_serialize_dags_reports_loop_dag_with_legacy_xcom_backend_as_import_error(monkeypatch):
+    @task_group
+    def body():
+        BaseOperator(task_id="work")
+
+    with DAG("loop_dag", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+    dag.relative_fileloc = "loop_dag.py"
+    bag = MagicMock(spec=DagBag)
+    bag.dags = {dag.dag_id: dag}
+    monkeypatch.setattr("airflow.sdk.execution_time.task_runner.XCom", SerializeValueOnlyXCom)
+
+    serialized_dags, import_errors = _serialize_dags(bag, structlog.get_logger())
+
+    assert serialized_dags == []
+    assert "uses a loop" in import_errors["loop_dag.py"]
 
 
 @pytest.mark.usefixtures("testing_dag_bundle")

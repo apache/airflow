@@ -25,8 +25,8 @@ masker applied to every result.
 
 Before running:
 
-1. Install this provider's ``anthropic`` extra:
-   ``pip install "apache-airflow-providers-common-ai[anthropic]"``.
+1. Install this provider's ``anthropic`` and ``sql`` extras:
+   ``pip install "apache-airflow-providers-common-ai[anthropic,sql]"``.
 2. Create a connection (``LLM_CONN_ID``, default ``anthropic_default``) whose password is
    an Anthropic API key. Set its host only to route through a gateway.
 3. Create a database connection (``DB_CONN_ID``, default ``sql_default``) whose hook is a
@@ -71,6 +71,9 @@ def example_anthropic_tool_runner():
             max_iterations=10,
         )
         message = tools.run(runner)
+        # A refusal ends the run with no answer, so fail the task rather than return "".
+        if message.stop_reason == "refusal":
+            raise RuntimeError(f"The model refused to answer: {question!r}")
         return "".join(block.text for block in message.content if block.type == "text")
 
     ask_the_warehouse()

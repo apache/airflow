@@ -331,6 +331,7 @@ def get_bagged_dag(
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
         bundle = manager.get_bundle(bundle_name)
+        bundle.initialize()
         with _airflow_parsing_context_manager(dag_id=dag_id):
             dagbag = BundleDagBag(
                 dag_folder=dagfile_path or bundle.path,
@@ -354,8 +355,6 @@ def get_bagged_dag(
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
         if dag := dagbag.dags.get(dag_id):
             return check_dag(dag)
-        if dag:
-            break
     raise AirflowException(
         f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
     )
@@ -386,6 +385,7 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
+        bundle.initialize()
         dagbag = BundleDagBag(dag_folder=bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
         return matched_dags

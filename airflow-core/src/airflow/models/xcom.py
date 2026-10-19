@@ -68,6 +68,9 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
 
+    # TODO: use Select[XComModel] once the minimum SQLAlchemy is 2.1; 2.0 uses Select[tuple[XComModel]].
+    XComModelSelect = Select
+
 
 XCOM_RETURN_KEY = "return_value"
 
@@ -328,7 +331,7 @@ class _XComOperations:
         include_prior_dates: bool = False,
         limit: int | None = None,
         try_number: int | None = None,
-    ) -> Select[tuple[XComModel]]:
+    ) -> XComModelSelect:
         """
         Composes a query to get one or more XCom entries.
 
@@ -596,7 +599,7 @@ def _reject_projection_write(mapper, connection, target):
     raise TypeError("XCom read projection is read-only")
 
 
-def build_xcom_read_query(*, producer_ids: Select, key: str | None = None) -> Select[tuple[XComModel]]:
+def build_xcom_read_query(*, producer_ids: Select, key: str | None = None) -> XComModelSelect:
     model = get_xcom_model()
     entity = aliased(model, _filter_rows(model.__table__, producer_ids=producer_ids, key=key))
     return select(entity).execution_options(populate_existing=True)

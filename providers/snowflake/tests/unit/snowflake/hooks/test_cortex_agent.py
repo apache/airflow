@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from importlib import import_module
 from unittest import mock
 
 import pytest
@@ -23,13 +24,20 @@ import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from airflow.providers.snowflake.hooks.snowflake_cortex_agent import (
+import airflow.utils.deprecation_tools as deprecation_tools
+from airflow.providers.snowflake.hooks.cortex_agent import (
     CreateMode,
     JsonResponse,
     SnowflakeCortexAgentHook,
 )
 
-MODULE_PATH = "airflow.providers.snowflake.hooks.snowflake_cortex_agent"
+deprecated_import_warning: type[Warning] = getattr(
+    deprecation_tools,
+    "DeprecatedImportWarning",
+    DeprecationWarning,
+)
+
+MODULE_PATH = "airflow.providers.snowflake.hooks.cortex_agent"
 HOOK_PATH = f"{MODULE_PATH}.SnowflakeCortexAgentHook"
 
 ACCOUNT = "test-account"
@@ -918,3 +926,18 @@ class TestSnowflakeCortexAgentHook:
 
         with pytest.raises(ValueError, match="Invalid Snowflake account"):
             hook._get_base_url()
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("SnowflakeCortexAgentHook", SnowflakeCortexAgentHook),
+        ("CreateMode", CreateMode),
+        ("JsonResponse", JsonResponse),
+    ],
+)
+def test_deprecated_import(name, expected):
+    old_module = import_module("airflow.providers.snowflake.hooks.snowflake_cortex_agent")
+
+    with pytest.warns(deprecated_import_warning, match=name):
+        assert getattr(old_module, name) is expected

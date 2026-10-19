@@ -73,6 +73,24 @@ class TestFindPathFromDirectory:
         with pytest.raises(RuntimeError, match=error_message):
             list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
 
+    def test_find_path_from_directory_keeps_inherited_rules_on_symlink_switch(self, tmp_path):
+        """Ignore rules inherited by a subdirectory still apply if the Dag folder symlink is switched mid-walk."""
+        for revision in ("rev1", "rev2"):
+            (tmp_path / revision / "tests").mkdir(parents=True)
+            (tmp_path / revision / ".airflowignore").write_text("tests/")
+            (tmp_path / revision / "dag.py").touch()
+            (tmp_path / revision / "tests" / "test_dag.py").touch()
+        dags_folder = tmp_path / "dags"
+        dags_folder.symlink_to(tmp_path / "rev1")
+
+        paths = find_path_from_directory(dags_folder, ".airflowignore", "regexp")
+        found = [next(paths)]
+        (tmp_path / "replacement").symlink_to(tmp_path / "rev2")
+        os.replace(tmp_path / "replacement", dags_folder)
+        found.extend(paths)
+
+        assert found == [os.path.join(dags_folder, "dag.py")]
+
     def test_airflowignore_negation_unignore_subfolder_file_glob(self, tmp_path):
         """Ensure negation rules can unignore a subfolder and a file inside it when using glob syntax.
 
