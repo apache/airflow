@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, Mock, call
 import pytest
 
 import airflow
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.bases.xcom import BaseXCom, XComIterable
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
@@ -222,6 +222,38 @@ def test_getitem_loads_through_load_value(
     monkeypatch.setattr(airflow.sdk.execution_time.xcom, "XCom", LoadValueXCom)
 
     assert lazy_sequence[index] == expected
+
+
+@pytest.mark.asyncio
+async def test_aget_loads_through_load_value(monkeypatch, mock_supervisor_comms, lazy_sequence):
+    mock_supervisor_comms.asend = AsyncMock(return_value=XComSequenceIndexResult(root="ref-4"))
+    monkeypatch.setattr(airflow.sdk.execution_time.xcom, "XCom", LoadValueXCom)
+
+    assert await lazy_sequence.aget(4) == "loaded ref-4"
+
+
+@pytest.mark.parametrize("previous_iteration", [False, True])
+@pytest.mark.parametrize("read", ["index", "slice", "aget"])
+@pytest.mark.asyncio
+async def test_an_iterable_item_read_from_the_previous_iteration_reads_its_items_from_it(
+    read, previous_iteration, mock_supervisor_comms, mock_xcom_arg, mock_ti
+):
+    """A mapped terminal's item can be an iterated result: it reads its items from the iteration it came from."""
+    stored = BaseXCom.serialize_value(XComIterable(task_id="t", dag_id="dag", run_id="run", length=1))
+    sequence = LazyXComSequence(mock_xcom_arg, mock_ti, previous_iteration=previous_iteration)
+
+    if read == "aget":
+        mock_supervisor_comms.asend = AsyncMock(return_value=XComSequenceIndexResult(root=stored))
+        item = await sequence.aget(0)
+    elif read == "slice":
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[stored])
+        (item,) = sequence[0:1]
+    else:
+        mock_supervisor_comms.send.return_value = XComSequenceIndexResult(root=stored)
+        item = sequence[0]
+
+    assert isinstance(item, XComIterable)
+    assert item.previous_iteration is previous_iteration
 
 
 def test_getitem_indexerror(mock_supervisor_comms, lazy_sequence):

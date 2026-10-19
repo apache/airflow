@@ -141,7 +141,7 @@ class LazyXComSequence(Sequence[T]):
             raise IndexError(index)
         if not isinstance(msg, XComSequenceIndexResult):
             raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg!r}")
-        return XCom.deserialize_value(_XComWrapper(msg.root))
+        return XCom._load(_XComWrapper(msg.root), previous_iteration=self._previous_iteration)
 
     def __len__(self) -> int:
         if self._len is None:
@@ -224,7 +224,10 @@ class LazyXComSequence(Sequence[T]):
             )
             if not isinstance(msg, XComSequenceSliceResult):
                 raise TypeError(f"Got unexpected response to GetXComSequenceSlice: {msg!r}")
-            return [XCom._load(_XComWrapper(value)) for value in msg.root]
+            return [
+                XCom._load(_XComWrapper(value), previous_iteration=self._previous_iteration)
+                for value in msg.root
+            ]
 
         if not isinstance(key, int):
             if (index := getattr(key, "__index__", None)) is not None:
@@ -246,7 +249,7 @@ class LazyXComSequence(Sequence[T]):
             raise IndexError(key)
         if not isinstance(msg, XComSequenceIndexResult):
             raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg!r}")
-        return XCom._load(_XComWrapper(msg.root))
+        return XCom._load(_XComWrapper(msg.root), previous_iteration=self._previous_iteration)
 
 
 def _coerce_slice_index(value: Any) -> int | None:

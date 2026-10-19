@@ -143,6 +143,12 @@ _current_trigger_ti: contextvars.ContextVar[_OwnTaskInstance | None] = contextva
     "airflow_current_trigger_ti", default=None
 )
 
+# Whether the XCom value being loaded was read from the iteration before the reader's, so a value that points
+# at other XComs reads them from that iteration too; see ``XComIterable.deserialize``.
+_loading_previous_iteration: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "airflow_loading_previous_iteration", default=False
+)
+
 
 class TIKeyProtocol(Protocol):
     dag_id: str
@@ -527,7 +533,7 @@ class BaseXCom:
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
         if msg.value is not None:
-            return cls._load(msg)
+            return cls._load(msg, previous_iteration=_previous_iteration)
         log.debug(
             "No XCom value found; defaulting to None.",
             key=key,
@@ -591,7 +597,7 @@ class BaseXCom:
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
         if msg.value is not None:
-            return await asyncio.to_thread(cls._load, msg)
+            return await asyncio.to_thread(cls._load, msg, previous_iteration=_previous_iteration)
         log.debug(
             "No XCom value found; defaulting to None.",
             key=key,
@@ -743,7 +749,14 @@ class BaseXCom:
         return [cls._load(_XComValueWrapper(value)) for value in values]
 
     @classmethod
-    def _load(cls, result: Any) -> Any:
+    def _load(cls, result: Any, *, previous_iteration: bool = False) -> Any:
+        if previous_iteration:
+            # The flag cannot travel through deserialize_value, whose signature backends implement.
+            token = _loading_previous_iteration.set(True)
+            try:
+                return cls._load(result)
+            finally:
+                _loading_previous_iteration.reset(token)
         # Legacy backends keep receiving the result object deserialize_value has always been given.
         if _is_preferred_over(cls, "load_value", "deserialize_value"):
             return cls.load_value(result.value)
@@ -828,8 +841,8 @@ class XComIterable(Sequence):
     iterating and slicing: N elements are N requests. Reading several in one request needs an
     Execution API endpoint that takes a list of keys, which does not exist yet.
 
-    Inside a loop, the result an iterated terminal pushed in the previous iteration
-    (``loop.previous``) has ``previous_iteration`` set, so its elements are read from that
+    An iterable read from the previous iteration (``loop.previous`` inside a loop) is built with
+    ``previous_iteration`` set (see :meth:`deserialize`), so its elements are read from that
     iteration too and not from the current one. "Previous" is relative to whoever reads, so
     such an iterable cannot be pushed on: :meth:`serialize` refuses it (see there).
     """
@@ -948,8 +961,13 @@ class XComIterable(Sequence):
 
     @classmethod
     def deserialize(cls, data: dict, version: int):
-        """Ensure the object is JSON deserializable."""
-        return cls(**data)
+        """
+        Ensure the object is JSON deserializable.
+
+        The iterable is a pointer whose item reads resolve to the reader's iteration, so one loaded by a
+        read from the previous iteration reads its items from that iteration as well.
+        """
+        return cls(**data, previous_iteration=_loading_previous_iteration.get())
 
 
 class _AsyncXComIterator:

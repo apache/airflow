@@ -337,6 +337,35 @@ class TestXComIterable:
         with pytest.raises(TypeError, match="read through loop.previous cannot be pushed as is"):
             BaseXCom.serialize_value(iterable)
 
+    @pytest.mark.parametrize("previous_iteration", [False, True])
+    @pytest.mark.parametrize("use_async", [False, True])
+    @pytest.mark.asyncio
+    async def test_an_iterable_read_from_the_previous_iteration_reads_its_items_from_it(
+        self, previous_iteration, use_async, mock_supervisor_comms
+    ):
+        """The XCom read that loads the pointer tells it which iteration it was read from."""
+        response = XComResult(
+            key="return_value", value=BaseXCom.serialize_value(self.make_iterable(length=2))
+        )
+        coordinates = dict(key="return_value", dag_id="dag", task_id="task", run_id="run")
+
+        if use_async:
+            mock_supervisor_comms.asend = AsyncMock(return_value=response)
+            result = await XCom.aget_one(**coordinates, _previous_iteration=previous_iteration)
+        else:
+            mock_supervisor_comms.send.return_value = response
+            result = XCom.get_one(**coordinates, _previous_iteration=previous_iteration)
+
+        assert isinstance(result, XComIterable)
+        assert result.previous_iteration is previous_iteration
+        # The flag lives for the load only: the next read starts from the current iteration again.
+        assert (
+            XComIterable.deserialize(
+                {"task_id": "t", "dag_id": "d", "run_id": "r"}, version=1
+            ).previous_iteration
+            is False
+        )
+
     def test_deserialize_restores_fields(self):
         data = {"task_id": "task", "dag_id": "dag", "run_id": "run", "map_index": 2, "length": 5}
         iterable = XComIterable.deserialize(data, version=1)

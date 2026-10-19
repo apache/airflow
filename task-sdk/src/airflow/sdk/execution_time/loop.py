@@ -23,7 +23,6 @@ import attrs
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.api.datamodels._generated import LoopDecisionPayload
 from airflow.sdk.bases.decorator import determine_kwargs
-from airflow.sdk.bases.xcom import XComIterable
 from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
 from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -69,17 +68,13 @@ class LoopContextAccessor:
             return LazyXComSequence(
                 xcom_arg=PlainXComArg(task), ti=self._ti, previous_iteration=previous_iteration
             )
-        result = XCom.get_one(
+        return XCom.get_one(
             key=XCom.XCOM_RETURN_KEY,
             dag_id=self._ti.dag_id,
             run_id=self._ti.run_id,
             task_id=task.task_id,
             _previous_iteration=previous_iteration,
         )
-        if previous_iteration and isinstance(result, XComIterable):
-            # An iterated terminal pushes a pointer to its items: read them in the same iteration.
-            result.previous_iteration = True
-        return result
 
 
 def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
