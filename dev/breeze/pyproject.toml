@@ -120,6 +120,8 @@ tmp_path_retention_policy = "failed"
 extend = "../../pyproject.toml"
 src = ["src"]
 
+[tool.uv]
+exclude-newer = "4 days"
 
 [tool.mypy]
 ignore_missing_imports = true
