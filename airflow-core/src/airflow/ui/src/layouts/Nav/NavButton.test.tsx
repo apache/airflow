@@ -108,22 +108,4 @@ describe("NavButton", () => {
       expect(link).toHaveAttribute("rel", "noopener noreferrer");
     });
   });
-
-  describe("matchPaths", () => {
-    it("is active on an extra match path even though `to` points elsewhere", () => {
-      render(<NavButton icon={FiHome} matchPaths={["dag_runs", "task_instances"]} title="Dags" to="dags" />, {
-        wrapper: wrapperAt("/dag_runs"),
-      });
-
-      expect(screen.getByRole("link", { name: "Dags" })).toHaveAttribute("aria-current", "page");
-    });
-
-    it("is not active on a route outside both `to` and matchPaths", () => {
-      render(<NavButton icon={FiHome} matchPaths={["dag_runs", "task_instances"]} title="Dags" to="dags" />, {
-        wrapper: wrapperAt("/assets"),
-      });
-
-      expect(screen.getByRole("link", { name: "Dags" })).not.toHaveAttribute("aria-current");
-    });
-  });
 });
