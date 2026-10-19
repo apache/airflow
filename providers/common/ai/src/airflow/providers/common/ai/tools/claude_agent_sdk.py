@@ -234,9 +234,13 @@ class AirflowTools:
         you disconnect it, for example by leaving its ``async with`` block.
 
         :raises RuntimeError: when this instance is already running a query, when
-            ``messages`` ends without a :class:`~claude_agent_sdk.ResultMessage`, or when
-            the result message has ``is_error`` set (for example ``max_turns`` reached or
-            an API failure).
+            ``messages`` ends without a :class:`~claude_agent_sdk.ResultMessage`, or, for
+            ``ClaudeSDKClient.receive_response()``, when the result message has ``is_error``
+            set (for example ``max_turns`` reached or an API failure).
+        :raises ResultError: for ``query()`` when the result message has ``is_error`` set.
+            The CLI exits non-zero right after such a result, so the SDK raises
+            ``claude_agent_sdk.ResultError`` (a ``ProcessError``) from the stream before this
+            method checks the result.
         :raises ToolCallError: when a tool failed in a way the model cannot fix.
         """
         if self._run is not None:

@@ -31,8 +31,8 @@ replay and human review; see :doc:`index`.
 
 .. note::
 
-    ``AirflowTools`` and the framework-neutral tool interface it builds on are
-    experimental. They may change in a minor release of this provider.
+    ``AirflowTools`` is experimental: it may change in a minor release of this provider.
+    The framework-neutral tool interface it builds on is stable.
     See :ref:`howto/stability`.
 
 Run a loop in a task
@@ -133,11 +133,20 @@ that to still fail the task: it raises
 
 A run can also end with a ``ResultMessage`` whose ``is_error`` is set, for example when
 ``max_turns`` is reached or the API call fails. ``run()`` does not return that result as
-a success: it raises ``RuntimeError`` with the result's ``subtype``, ``result``,
-``errors``, ``stop_reason``, ``api_error_status`` and ``terminal_reason`` where they are
-set, with long values shortened. If a tool failure of the kind above was also recorded,
-``ToolCallError`` is raised first. ``RuntimeError`` is also raised when the stream ends
-without any ``ResultMessage``.
+a success. Which exception you get depends on the stream:
+
+* ``query()``: the CLI exits non-zero right after an error result, and the SDK raises
+  ``claude_agent_sdk.ResultError`` (a ``ProcessError``) from the stream on the next
+  iteration, before ``run()`` reaches its own check. ``ResultError`` carries the result's
+  ``subtype``, ``terminal_reason`` and the rest of its payload.
+* ``ClaudeSDKClient.receive_response()``: the stream ends at the ``ResultMessage``, so
+  ``run()`` raises ``RuntimeError`` with the result's ``subtype``, ``result``,
+  ``errors``, ``stop_reason``, ``api_error_status`` and ``terminal_reason`` where they are
+  set, with long values shortened.
+
+If a tool failure of the kind above was also recorded, ``ToolCallError`` is raised first
+on either stream. ``RuntimeError`` is also raised when the stream ends without any
+``ResultMessage``.
 
 .. _max_turns:
 
