@@ -1140,6 +1140,29 @@ class TestLocalExecutorCallbackSupport:
             server=TestLocalExecutorCallbackSupport.TEST_SERVER,
         )
 
+    @mock.patch("airflow.sdk.execution_time.callback_supervisor.supervise_callback", return_value=0)
+    def test_execute_workload_passes_kwargs_encoding_to_supervise_callback(self, mock_supervise_callback):
+        encoded_kwargs = {
+            "interval": {"__classname__": "datetime.timedelta", "__version__": 2, "__data__": 1.0}
+        }
+        callback_data = CallbackDTO(
+            id=self.CALLBACK_UUID,
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.module.my_callback", "kwargs": encoded_kwargs, "kwargs_encoding": "serde"},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path=Path("test.py"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        BaseExecutor.run_workload(callback_workload)
+
+        assert mock_supervise_callback.call_args.kwargs["callback_kwargs"] == encoded_kwargs
+        assert mock_supervise_callback.call_args.kwargs["callback_kwargs_encoding"] == "serde"
+
     @mock.patch(
         "airflow.sdk.execution_time.callback_supervisor.supervise_callback",
         side_effect=RuntimeError("Callback subprocess exited with code 1"),
