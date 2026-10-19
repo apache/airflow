@@ -157,6 +157,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
                 "impersonation_chain": self.impersonation_chain,
                 "logging_interval": self.logging_interval,
                 "last_log_time": self.last_log_time,
+                "trigger_kwargs": self.trigger_kwargs,
             },
         )
 

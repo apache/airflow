@@ -389,7 +389,7 @@ class SerializedMappedOperator(DAGNode):
         from airflow import plugins_manager
 
         operator_extra_links = plugins_manager.get_operator_extra_links()
-        operator_class_type = self.operator_class["task_type"]  # type: ignore
+        operator_class_type = self.operator_class["task_type"]
         for ope in operator_extra_links:
             if ope.operators and any(operator_class_type in cls.__name__ for cls in ope.operators):
                 op_extra_links_from_plugin.update({ope.name: ope})

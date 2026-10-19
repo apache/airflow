@@ -69,7 +69,6 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
-    SCHEDULER_DAG_CACHE_SIZE,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     SchedulerJobRunner,
 )
@@ -527,7 +526,7 @@ class TestSchedulerJob:
 
         assert isinstance(job_runner.scheduler_dag_bag, CachedDBDagBag)
         assert isinstance(job_runner.scheduler_dag_bag._dags, LRUCache)
-        assert job_runner.scheduler_dag_bag._dags.maxsize == SCHEDULER_DAG_CACHE_SIZE
+        assert job_runner.scheduler_dag_bag._dags.maxsize == 512
         # Reported separately from the API server's cache, not folded into it.
         assert job_runner.scheduler_dag_bag._stats_prefix == "scheduler.dag_bag"
 
@@ -11357,6 +11356,65 @@ class TestSchedulerJob:
 
         # Assert that all deadlines which are both expired and unhandled get processed.
         assert mock_handle_miss.call_count == 2
+
+    @pytest.mark.parametrize(
+        "reserved_value",
+        [
+            pytest.param({"__type": "airflow.ConfProbe", "__var": {}}, id="legacy"),
+            pytest.param(
+                {"__classname__": "airflow.ConfProbe", "__version__": 0, "__data__": {}}, id="current"
+            ),
+        ],
+    )
+    def test_expired_deadline_with_reserved_keys_in_conf_does_not_stop_other_deadlines(
+        self, session, dag_maker, reserved_value
+    ):
+        """The scheduler keeps handling other deadlines and does not pick this one up again."""
+        dag_id = "test_deadline_reserved_conf"
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="empty")
+        reserved_run = dag_maker.create_dagrun(run_id="reserved", conf={"probe": reserved_value})
+        other_run = dag_maker.create_dagrun(
+            run_id="other", logical_date=timezone.utcnow() - timedelta(days=1), conf={"probe": "plain"}
+        )
+        past_date = timezone.utcnow() - timedelta(minutes=5)
+        reserved_deadline = Deadline(
+            deadline_time=past_date,
+            callback=AsyncCallback("classpath.notify"),
+            dagrun_id=reserved_run.id,
+            dag_id=dag_id,
+            deadline_alert_id=None,
+        )
+        other_deadline = Deadline(
+            deadline_time=past_date,
+            callback=AsyncCallback("classpath.notify"),
+            dagrun_id=other_run.id,
+            dag_id=dag_id,
+            deadline_alert_id=None,
+        )
+        session.add_all([reserved_deadline, other_deadline])
+        session.commit()
+
+        with mock.patch.object(
+            Deadline, "handle_miss", autospec=True, side_effect=Deadline.handle_miss
+        ) as spy:
+            for _ in range(2):
+                self.job_runner = SchedulerJobRunner(job=Job(), num_runs=1, executors=[MockExecutor()])
+                self.job_runner._execute()
+
+        assert spy.call_count == 2
+        session.expire_all()
+        reserved_deadline = session.get(Deadline, reserved_deadline.id)
+        other_deadline = session.get(Deadline, other_deadline.id)
+        assert reserved_deadline.missed
+        assert reserved_deadline.callback.state == CallbackState.FAILED
+        assert other_deadline.missed
+        assert other_deadline.callback.state == CallbackState.QUEUED
+        assert [t.id for t in session.scalars(select(Trigger))] == [other_deadline.callback.trigger_id]
+
+        # The shared cleanup deletes triggers before callbacks.
+        session.execute(update(Callback).values(trigger_id=None))
+        session.commit()
 
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines_no_deadlines_found(self, mock_handle_miss, session):

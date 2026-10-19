@@ -4969,6 +4969,10 @@
         "0.10.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-09-29T06:59:11Z"
+        },
+        "1.0.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-10-19T11:09:33Z"
         }
     },
     "common.compat": {

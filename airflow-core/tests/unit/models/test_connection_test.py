@@ -55,7 +55,7 @@ class TestConnectionTestKey:
     def test_is_frozen(self):
         key = ConnectionTestKey(id="abc")
         with pytest.raises(dataclasses.FrozenInstanceError):
-            key.id = "xyz"  # type: ignore[misc]
+            key.id = "xyz"
 
     def test_not_a_str_instance(self):
         assert not isinstance(ConnectionTestKey(id="abc"), str)

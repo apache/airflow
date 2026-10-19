@@ -16,6 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { describe, expect, it } from "vitest";
 
-export { default as BackfillBanner } from "./BackfillBanner";
-export { default as DrainingBanner } from "./DrainingBanner";
+import { createColumns } from "./DagsListColumns";
+
+describe("createColumns", () => {
+  it("lets only columns with a header be hidden, so the columns menu has no unnamed entries", () => {
+    const unnamedHideable = createColumns((key) => key, { multiTeam: true, showRecentTasks: true })
+      .filter((column) => column.enableHiding !== false && column.header === "")
+      .map((column) => ("accessorKey" in column ? column.accessorKey : column.id));
+
+    expect(unnamedHideable).toEqual([]);
+  });
+});

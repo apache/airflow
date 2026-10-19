@@ -70,6 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    EditableDagsFilterDep,
     GetUserDep,
     ReadableAssetEventsByAssetFilterDep,
     ReadableAssetEventsFilterDep,
@@ -160,6 +161,7 @@ def get_assets(
         Depends(SortParam(["id", "name", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
     ],
     readable_assets_filter: ReadableAssetsFilterDep,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
@@ -223,30 +225,16 @@ def get_assets(
         )
     )
 
-    assets = []
-
-    for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
-        watchers_data = [
-            {
-                "name": watcher.name,
-                "trigger_id": watcher.trigger_id,
-                "created_date": watcher.trigger.created_date,
-            }
-            for watcher in asset.watchers
-        ]
-
-        asset_response = AssetResponse.model_validate(
-            {
-                **asset.__dict__,
-                "aliases": asset.aliases,
-                "watchers": watchers_data,
-                "last_asset_event": {
-                    "id": last_asset_event_id,
-                    "timestamp": last_asset_event_timestamp,
-                },
-            }
+    # Nested Dag and task references are narrowed to the Dags the caller may read.
+    assets = [
+        AssetResponse.from_asset_row(
+            asset,
+            last_asset_event_id,
+            last_asset_event_timestamp,
+            readable_dag_ids=readable_dags_filter.value,
         )
-        assets.append(asset_response)
+        for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows
+    ]
 
     return AssetCollectionResponse(
         assets=assets,
@@ -592,6 +580,7 @@ def get_asset_queued_events(
 )
 def get_asset(
     asset_id: int,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> AssetResponse:
     """Get an asset."""
@@ -624,25 +613,12 @@ def get_asset(
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
-    watchers_data = [
-        {
-            "name": watcher.name,
-            "trigger_id": watcher.trigger_id,
-            "created_date": watcher.trigger.created_date,
-        }
-        for watcher in asset.watchers
-    ]
-
-    return AssetResponse.model_validate(
-        {
-            **asset.__dict__,
-            "aliases": asset.aliases,
-            "watchers": watchers_data,
-            "last_asset_event": {
-                "id": last_asset_event_id,
-                "timestamp": last_asset_event_timestamp,
-            },
-        }
+    # Nested Dag and task references are narrowed to the Dags the caller may read.
+    return AssetResponse.from_asset_row(
+        asset,
+        last_asset_event_id,
+        last_asset_event_timestamp,
+        readable_dag_ids=readable_dags_filter.value,
     )
 
 
@@ -719,19 +695,20 @@ def get_dag_asset_queued_event(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
-        Depends(requires_access_dag(method="PUT")),
         Depends(action_logging()),
     ],
 )
 def delete_asset_queued_events(
     asset_id: int,
-    readable_dags_filter: ReadableDagsFilterDep,
+    editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ):
     """Delete queued asset events for an asset."""
+    # This route is not tied to a single Dag, so the Dag axis is enforced per row: only the
+    # queued events of Dags the user may edit are deleted, and the others are left in place.
     where_clause = _generate_queued_event_where_clause(
-        asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
+        asset_id=asset_id, before=before, permitted_dag_ids=editable_dags_filter.value
     )
     delete_stmt = delete(AssetDagRunQueue).where(*where_clause)
     result = cast("CursorResult", session.execute(delete_stmt))

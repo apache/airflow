@@ -41,10 +41,13 @@ import {
 } from "../generated/dag-schema-fields.js";
 import type { JsonValue } from "../sdk/client-types.js";
 import {
+  DOWNSTREAM_JOIN_SUFFIX,
+  getDagOrderEdges,
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
   isTaskRef,
+  UPSTREAM_JOIN_SUFFIX,
   type Dag,
   type RecordedInputs,
   type TaskGroupRecord,
@@ -83,6 +86,19 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  * wants to tell language-native tasks apart without parsing `_task_module`.
  */
 const TASK_LANGUAGE = "typescript";
+
+/** Python's `DAG.edge_info`, keying a group end by its join node as Python does. */
+function serializeEdgeInfo(dag: Dag): SerializedValue {
+  const groups = getDagTaskGroups(dag);
+  const info: Record<string, Record<string, SerializedValue>> = {};
+  for (const { upstream, downstream, label } of getDagOrderEdges(dag)) {
+    if (label === undefined) continue;
+    const from = groups.has(upstream) ? upstream + DOWNSTREAM_JOIN_SUFFIX : upstream;
+    const to = groups.has(downstream) ? downstream + UPSTREAM_JOIN_SUFFIX : downstream;
+    (info[from] ??= {})[to] = { label };
+  }
+  return info;
+}
 
 /** The Dags this one's tasks depend on, for the UI dependency graph. */
 function serializeDagDependencies(dag: Dag): SerializedValue {
@@ -170,7 +186,7 @@ export function serializeDag(
     ),
     dag_dependencies: serializeDagDependencies(dag),
     task_group: serializeTaskGroups(dag, graph),
-    edge_info: {},
+    edge_info: serializeEdgeInfo(dag),
     params: [],
     // Always written by Python's serializer, so a Dag without either still
     // round-trips to the same object.

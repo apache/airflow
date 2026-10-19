@@ -144,6 +144,7 @@ class TestGKEStartPodTrigger:
             "last_log_time": None,
             "logging_interval": None,
             "use_dns_endpoint": False,
+            "trigger_kwargs": {},
         }
 
     def test_serialize_round_trip_preserves_on_finish_action(self):

@@ -19,7 +19,7 @@ default_stages: [pre-commit, pre-push]
 default_install_hook_types: [pre-commit, commit-msg]
 minimum_prek_version: '0.4.8'
 default_language_version:
-  python: python3
+  python: ">=3.11"
   node: 22.19.0
   golang: 1.25.0
 default_env:
@@ -1158,6 +1158,12 @@ repos:
       - id: check-example-dag-tags
         name: Check example DAGs carry the "example" tag
         entry: ./scripts/ci/prek/check_example_dag_tags.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
+        pass_filenames: true
+      - id: check-example-dag-shell-commands
+        name: Check example Dags do not build shell commands from runtime values
+        entry: ./scripts/ci/prek/check_example_dag_shell_commands.py
         language: python
         files: ^.*/example_dags/.*\.py$
         pass_filenames: true
