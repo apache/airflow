@@ -46,7 +46,8 @@ def loop_run(dag_maker, session):
         loop >> EmptyOperator(task_id="outside")
     dr = dag_maker.create_dagrun()
     root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
-    for index in range(1, 5):
+    # The run already holds the first iteration; add the rest up to the cap.
+    for index in range(2, 6):
         child = DynamicRegion(
             dag_id=dr.dag_id,
             run_id=dr.run_id,
@@ -108,6 +109,6 @@ def completed_loop(dag_maker, session):
         )
         session.flush()
 
-    for index in range(5):
-        complete_pass(index, "stop" if index == 4 else "continue")
+    for index in range(1, 6):
+        complete_pass(index, "stop" if index == 5 else "continue")
     return dr, loop, complete_pass

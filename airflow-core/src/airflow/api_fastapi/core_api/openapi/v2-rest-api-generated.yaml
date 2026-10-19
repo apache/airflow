@@ -9223,11 +9223,13 @@ paths:
         schema:
           anyOf:
           - type: integer
-            minimum: 0
+            minimum: 1
           - type: 'null'
-          description: Narrow ``loop_id`` to a single pass of that loop.
+          description: Narrow ``loop_id`` to a single pass of that loop. Iterations
+            count from one.
           title: Iteration
-        description: Narrow ``loop_id`` to a single pass of that loop.
+        description: Narrow ``loop_id`` to a single pass of that loop. Iterations
+          count from one.
       - name: cursor
         in: query
         required: false
@@ -16990,7 +16992,9 @@ components:
           title: Loop Id
         iteration:
           type: integer
+          minimum: 1.0
           title: Iteration
+          description: Position in the enclosing loop, counting from one.
       type: object
       required:
       - loop_id

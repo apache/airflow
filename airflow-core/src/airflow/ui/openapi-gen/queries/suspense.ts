@@ -1380,7 +1380,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <TData = Comm
 * @param data.regionId
 * @param data.regionIndex
 * @param data.loopId Task group id of a loop; matches every instance it produced.
-* @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
+* @param data.iteration Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
 * @param data.taskId
 * @param data.runAfterGte

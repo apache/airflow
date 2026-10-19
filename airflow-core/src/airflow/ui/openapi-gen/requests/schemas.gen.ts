@@ -6708,7 +6708,9 @@ export const $LoopIterationResponse = {
         },
         iteration: {
             type: 'integer',
-            title: 'Iteration'
+            minimum: 1,
+            title: 'Iteration',
+            description: 'Position in the enclosing loop, counting from one.'
         }
     },
     type: 'object',

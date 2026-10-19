@@ -742,7 +742,8 @@ def _build_candidate_query(
                 raise ValueError("Caller is not inside the requested loop")
             if context.previous_iteration:
                 position = position[0], position[1] - 1
-                if position[1] < 0:
+                # Iterations count from one, so the first pass has no predecessor to look for.
+                if position[1] < 1:
                     return None
 
     query = _filter_producers(
