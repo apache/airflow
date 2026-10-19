@@ -49,6 +49,7 @@ import {
   Dag,
   getClient,
   getContext,
+  label,
   NEVER_EXPIRE,
   SUPERVISOR_API_VERSION,
   TaskHandler,
@@ -72,6 +73,7 @@ describe("public API", () => {
       taskId: "public_api_downstream",
     });
     expect(dag.taskIds).toEqual(["public_api_task", "public_api_downstream"]);
+    expect(() => upstream.before(label(downstream, "rows"))).not.toThrow();
     // serve() hands the bundle to the runtime, which needs the supervisor's
     // socket addresses that Airflow puts on argv.
     await expect(new Bundle(dag).serve()).rejects.toThrow("Missing --comm");
