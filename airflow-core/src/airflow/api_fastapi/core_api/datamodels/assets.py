@@ -116,13 +116,15 @@ class AssetResponse(BaseModel):
         asset: AssetModel,
         last_asset_event_id: int | None,
         last_asset_event_timestamp: datetime | None,
-        readable_dag_ids: set[str] | None = None,
+        *,
+        readable_dag_ids: set[str] | None,
     ) -> AssetResponse:
         """
         Build a response from an ``AssetModel`` row joined with its last AssetEvent id/timestamp.
 
-        When ``readable_dag_ids`` is given, the scheduled Dag, producing task and consuming task
-        references are narrowed to the Dags in that set.
+        The scheduled Dag, producing task and consuming task references are narrowed to the Dags in
+        ``readable_dag_ids``; ``None`` means the caller may read every Dag. It has no default so that
+        a new caller has to decide, rather than return every reference by omission.
         """
 
         def _readable(refs):
