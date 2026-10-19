@@ -24,6 +24,7 @@ import {
   getDagOrderEdges,
   getDagTaskInputs,
   getDagTaskRecords,
+  label,
   type TaskRef,
 } from "../../src/sdk/dag.js";
 import { serializeDag } from "../../src/coordinator/serde.js";
@@ -193,6 +194,15 @@ describe("dag.switch", () => {
   });
 
   describe("rejects", () => {
+    it("a labelled case", () => {
+      const { long, decider } = branchedDag();
+
+      expect(() => decider.case(label(long, "long") as never)).toThrowError(
+        'A case of "pick_path" of Dag "d" was given a label(); label a branch edge ' +
+          'by redrawing it from "pick_path" with before(label(task, "text"))',
+      );
+    });
+
     it("a task group as a case", () => {
       const { dag, decider } = branchedDag();
       const group = dag.taskGroup("staging");
