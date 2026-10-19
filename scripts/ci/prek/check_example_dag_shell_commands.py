@@ -16,16 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
 # ///
-"""Check that example DAGs do not build shell commands out of runtime values.
+"""Check that example Dags do not build shell commands out of runtime values.
 
-Example DAGs are copied into real deployments, so the pattern they show is the pattern users
+Example Dags are copied into real deployments, so the pattern they show is the pattern users
 ship. A shell command assembled with an f-string, ``str.format`` or ``%`` from a value that is
-only known at run time -- a task's output, a DAG param, ``dag_run.conf`` -- lets that value
+only known at run time -- a task's output, a Dag param, ``dag_run.conf`` -- lets that value
 be interpreted by the shell. The value should reach the command through ``env`` instead, and the
 command text should stay a constant.
 
@@ -165,10 +165,10 @@ EXTERNAL_TEMPLATE_MARKERS = ("params", "conf")
 
 
 def _is_external_argument(node: ast.expr) -> bool:
-    """Return ``True`` when a call argument carries a value the DAG author does not control.
+    """Return ``True`` when a call argument carries a value the Dag author does not control.
 
     That is another task's output (``task.output``, ``result["key"]``, ``some_task()``) or a
-    template reading DAG params or ``dag_run.conf``. Literals, loop variables and context
+    template reading Dag params or ``dag_run.conf``. Literals, loop variables and context
     templates such as ``{{ ds }}`` are not external.
     """
     if isinstance(node, (ast.Subscript, ast.Attribute, ast.Call)):
@@ -216,7 +216,7 @@ def _interpolates_parameter(node: ast.expr, parameters: set[str]) -> str | None:
 
 
 def check_file(file: Path) -> list[str]:
-    """Return the shell-command errors found in a single example DAG file."""
+    """Return the shell-command errors found in a single example Dag file."""
     try:
         tree = ast.parse(file.read_text(), filename=str(file))
     except SyntaxError as exc:
@@ -252,7 +252,7 @@ def main(argv: list[str]) -> int:
         errors.extend(check_file(Path(argument)))
     if not errors:
         return 0
-    console.print("[red]Found example DAGs that build shell commands from runtime values:[/]\n")
+    console.print("[red]Found example Dags that build shell commands from runtime values:[/]\n")
     for error in errors:
         console.print(error)
     console.print(
