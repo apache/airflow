@@ -550,6 +550,9 @@ AIRFLOW_HOME_PATH = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow")
 
 
 PYCACHE_VOLUME_NAME = "airflow-pycache-volume"
+# Key of the `/root/.cache` volume in the compose files. Compose prefixes the real volume name with the
+# project name, so the volume is recognised by the `com.docker.compose.volume` label instead.
+BUILD_CACHE_VOLUME = "airflow-cache-volume"
 
 
 def create_volume_if_missing(volume_name: str):

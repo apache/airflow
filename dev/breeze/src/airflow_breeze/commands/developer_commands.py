@@ -1120,7 +1120,8 @@ def build_docs(
 @click.option(
     "-b",
     "--cleanup-build-cache",
-    help="Additionally cleanup Build (pip/uv) cache.",
+    help="Also remove the build (pip/uv) cache volumes of the projects being brought down "
+    "(this checkout unless --all-worktrees or --project-name is used).",
     is_flag=True,
 )
 @click.option(
@@ -1316,12 +1317,13 @@ def doctor(ctx):
     if not get_dry_run() and given_answer == Answer.YES:
         cleanup_python_generated_files()
 
-    bring_compose_projects_down(all_worktrees=True)
-
-    given_answer = user_confirm(
-        "Are you sure with the removal of mypy cache, build cache volumes and build cache dir?"
+    cleanup_caches = (
+        user_confirm("Are you sure with the removal of mypy cache, build cache volumes and build cache dir?")
+        == Answer.YES
     )
-    if given_answer == Answer.YES:
+    bring_compose_projects_down(all_worktrees=True, cleanup_build_cache=cleanup_caches)
+
+    if cleanup_caches:
         console_print("\n[info]Cleaning mypy cache...\n")
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
         run_command(command_to_execute)
@@ -1329,9 +1331,6 @@ def doctor(ctx):
         if local_mypy_cache.exists():
             console_print(f"\n[info]Removing local mypy cache: {local_mypy_cache}\n")
             shutil.rmtree(local_mypy_cache)
-
-        console_print("\n[info]Cleaning build cache...\n")
-        bring_compose_projects_down(all_worktrees=True, preserve_volumes=True, cleanup_build_cache=True)
 
         console_print("\n[info]Deleting .build cache dir...\n")
         dirpath = Path(".build")
