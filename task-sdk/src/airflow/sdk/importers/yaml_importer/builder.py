@@ -44,6 +44,7 @@ import re
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
+import pendulum
 from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import DAG, BaseOperator, XComArg, literal, task as task_decorators
@@ -353,10 +354,20 @@ def _coerce_temporal(mapping: dict[str, Any], target: type) -> dict[str, Any]:
     """
     Coerce scalars to datetime or time delta types expected by *target*.
 
-    Coercion follows how each argument is typed in the argument list. A value
-    bound to ``datetime`` is promoted to a datetime; a YAML date becomes
-    midnight, an ISO string is parsed. A value bound to ``timedelta`` or
-    ``relativedelta`` is parsed from a duration string.
+    Coercion follows how each argument is typed in the argument list.
+
+    A value bound to ``datetime`` is promoted to a datetime. A YAML date becomes
+    midnight. An ISO string is parsed.
+
+    A value bound to ``date`` becomes a plain date. A YAML date or date-time is
+    returned unchanged.
+
+    A value bound to ``timedelta`` or ``relativedelta`` is parsed from a
+    duration string.
+
+    The concrete type follows the annotation. A ``pendulum.DateTime`` or
+    ``pendulum.Date`` argument gets a Pendulum value. A standard library
+    :class:`~datetime.date` or :class:`~datetime.datetime` gets a stdlib value.
 
     An argument of neither type is left untouched, so a string that merely looks
     like a date or duration keeps its type.
@@ -382,6 +393,8 @@ class _FieldCoercer(dict):
 
     # Datetime arguments, stdlib or pendulum.
     _DATETIME_TYPE_NAMES = frozenset({"datetime", "DateTime"})
+    # Date arguments, stdlib or pendulum.
+    _DATE_TYPE_NAMES = frozenset({"date", "Date"})
     # Time-delta arguments, stdlib timedelta or dateutil relativedelta.
     _DELTA_TYPE_NAMES = frozenset({"timedelta", "relativedelta"})
 
@@ -405,9 +418,11 @@ class _FieldCoercer(dict):
             return coercer
         for name, param in params.items():
             annotation = str(param.annotation)
-            if cls._is_datetime_annotation(annotation):
-                coercer[name] = cls._to_datetime
-            elif allowed := cls._is_delta_annotation(annotation):
+            if allowed := cls._match_datetime_annotation(annotation):
+                coercer[name] = functools.partial(cls._to_datetime, allowed=allowed)
+            elif allowed := cls._match_date_annotation(annotation):
+                coercer[name] = functools.partial(cls._to_date, allowed=allowed)
+            elif allowed := cls._match_delta_annotation(annotation):
                 coercer[name] = functools.partial(cls._to_delta, allowed=allowed)
         return coercer
 
@@ -419,26 +434,53 @@ class _FieldCoercer(dict):
         return self[name](value)
 
     @classmethod
-    def _is_datetime_annotation(cls, annotation: str) -> bool:
-        """Check if *annotation* names a datetime type."""
+    def _match_datetime_annotation(cls, annotation: str) -> frozenset[str]:
+        """Return the datetime type names *annotation* mentions, stdlib or pendulum."""
         names = (ref.rsplit(".", 1)[-1] for ref in cls._TYPE_NAME_RE.findall(annotation))
-        return any(name in cls._DATETIME_TYPE_NAMES for name in names)
+        return frozenset(name for name in names if name in cls._DATETIME_TYPE_NAMES)
 
     @classmethod
-    def _to_datetime(cls, value: Any) -> Any:
-        if isinstance(value, datetime.datetime):
-            return value
-        if isinstance(value, datetime.date):
-            return datetime.datetime.combine(value, datetime.time.min)
+    def _to_datetime(cls, value: Any, allowed: frozenset[str]) -> Any:
         if isinstance(value, str):
             try:
-                return datetime.datetime.fromisoformat(value)
+                result = datetime.datetime.fromisoformat(value)
             except ValueError:
                 return value
-        return value
+        elif isinstance(value, datetime.datetime):
+            result = value
+        elif isinstance(value, datetime.date):
+            result = datetime.datetime.combine(value, datetime.time.min)
+        else:
+            return value
+        if "DateTime" in allowed:
+            return pendulum.instance(result)
+        return result
 
     @classmethod
-    def _is_delta_annotation(cls, annotation: str) -> frozenset[str]:
+    def _match_date_annotation(cls, annotation: str) -> frozenset[str]:
+        """Return the date type names *annotation* mentions, stdlib or pendulum."""
+        names = (ref.rsplit(".", 1)[-1] for ref in cls._TYPE_NAME_RE.findall(annotation))
+        return frozenset(name for name in names if name in cls._DATE_TYPE_NAMES)
+
+    @classmethod
+    def _to_date(cls, value: Any, allowed: frozenset[str]) -> Any:
+        if isinstance(value, str):
+            try:
+                result = datetime.date.fromisoformat(value)
+            except ValueError:
+                return value
+        elif isinstance(value, datetime.date):
+            result = value
+        else:
+            return value
+        # A datetime is a date subtype, so it is left as-is; only a plain date is
+        # wrapped for a ``pendulum.Date`` annotation.
+        if "Date" in allowed and type(result) is datetime.date:
+            return pendulum.instance(result)
+        return result
+
+    @classmethod
+    def _match_delta_annotation(cls, annotation: str) -> frozenset[str]:
         """Check if *annotation* names a duration delta type."""
         names = (ref.rsplit(".", 1)[-1] for ref in cls._TYPE_NAME_RE.findall(annotation))
         return frozenset(name for name in names if name in cls._DELTA_TYPE_NAMES)
