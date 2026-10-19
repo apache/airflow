@@ -18,11 +18,10 @@
 from __future__ import annotations
 
 import re
-import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from datetime import datetime, timedelta
-from threading import Barrier, Event, local
+from threading import Barrier, Event
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -38,7 +37,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
-from sqlalchemy import delete, event, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -51,13 +50,13 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    LoopDecisionPayload,
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIClaims, TIToken
 from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
-from airflow.api_fastapi.execution_api.routes.xcoms import set_xcom
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -66,7 +65,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, Asset
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, DynamicRegion
 from airflow.models.log import Log
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
@@ -103,6 +102,16 @@ pytestmark = pytest.mark.db_test
 DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
 DEFAULT_RENDERED_MAP_INDEX = "test rendered map index"
+
+CONTINUE = {"stop": False}
+
+
+def _stored_loop_decision_reasons(session, ti_id):
+    return session.scalars(
+        select(XComModelV2.value).where(
+            XComModelV2.task_instance_id == ti_id, XComModelV2.key == LOOP_DECISION_REASON_KEY
+        )
+    ).all()
 
 
 def _where_column_keys(statement) -> set[str]:
@@ -534,6 +543,34 @@ def test_previous_ti_for_loop_task_uses_requester_pass(client, two_run_loop_tis,
     assert response.status_code == 200
     assert response.json()["run_id"] == "old"
     assert response.json()["region_index"] == requester_pass
+
+
+def test_parsing_token_reads_latest_loop_pass_without_task_identity(client, session, two_run_loop_tis):
+    requester = two_run_loop_tis["current"][0]
+    token = ExecutionToken.model_validate(
+        {
+            "id": requester.id,
+            "claims": {
+                "scope": "dag_parse",
+                "exp": 2000000000,
+                "dag_bundles": [session.get(DagModel, requester.dag_id).bundle_name],
+                "job_id": 1,
+                "session_id": UUID(int=1),
+                "relative_fileloc": "dag.py",
+            },
+        }
+    )
+    exec_app = client.app.routes[-1].app
+    exec_app.dependency_overrides[require_auth] = lambda: token
+
+    response = client.get(
+        f"/execution/task-instances/previous/{requester.dag_id}/{requester.task_id}",
+        params={"logical_date": "2025-01-02T00:00:00Z"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == "old"
+    assert response.json()["region_index"] == 1
 
 
 def test_previous_ti_for_loop_task_finds_a_pass_beyond_the_scan_limit(client, session, two_run_loop_tis):
@@ -1886,6 +1923,364 @@ class TestTIRunState:
         assert logs[0].owner == ti.task.owner
         assert logs[0].extra == '{"host_name": "random-hostname"}'
 
+    @pytest.mark.parametrize(
+        "scenario",
+        ["first_run", "retry", "deferral_resume"],
+    )
+    def test_ti_run_emits_queued_duration_metric(
+        self, client, session, create_task_instance, time_machine, scenario
+    ):
+        """task.queued_duration is emitted once per queue wait.
+
+        The scheduler refreshes queued_dttm every time it queues a task, so a retry and a
+        resume from deferral each waited for a worker slot of their own and must emit too. A
+        retry still carries the previous attempt's end_date on the row when ti_run is reached,
+        so this also asserts the emit does not depend on end_date being unset.
+        """
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+
+        ti = create_task_instance(
+            task_id=f"test_ti_run_emits_queued_duration_metric_{scenario}",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_at
+        ti.queue = "default"
+        if scenario == "retry":
+            # A retried TI still has the previous attempt's end_date set on the row until
+            # ti_run clears it; the metric must fire regardless.
+            ti.end_date = queued_at.add(seconds=10)
+        elif scenario == "deferral_resume":
+            ti.next_method = "execute_complete"
+        session.commit()
+
+        # The metric has to stay sliceable the same way as its sibling task.scheduled_duration,
+        # which emit_state_change_metric sends as {**ti.stats_tags, "queue": ti.queue}. Deriving
+        # the expectation from that same expression makes the two drift apart only if this fails.
+        expected_tags = {**ti.stats_tags, "queue": ti.queue}
+        assert "run_type" in expected_tags
+
+        time_machine.move_to(run_at, tick=False)
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_called_once_with(
+            "task.queued_duration",
+            run_at - queued_at,
+            tags=expected_tags,
+        )
+
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.task_instances.get_arg_bindings",
+        autospec=True,
+        return_value=[{"name": "country", "kind": "hologram", "value": "uk"}],
+    )
+    def test_ti_run_skips_queued_duration_metric_when_the_response_fails(
+        self, _, client, session, create_task_instance, time_machine
+    ):
+        """The SDK retries a 5xx, and the rollback leaves the TI in QUEUED for that retry to pick
+        up, so a sample sent before the response is settled counts one queue wait twice."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(run_at, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_skips_queued_duration_metric_when_the_response_fails",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_at
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 500
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        mock_stats.timing.assert_not_called()
+
+    def test_ti_run_skips_queued_duration_metric_without_queued_dttm(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """queued_dttm is what the wait is measured from, so a row without one (a run that skips
+        the scheduler's queueing, e.g. dag.test()) has nothing to report."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(run_at, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_skips_queued_duration_metric_without_queued_dttm",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = None
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_not_called()
+
+    def test_ti_run_skips_queued_duration_metric_on_duplicate_start(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """A start request replayed by the same worker after a network glitch returns the same
+        200 without re-running the transition, so it must not double-count the queue wait."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(run_at, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_skips_queued_duration_metric_on_duplicate_start",
+            state=State.RUNNING,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=queued_at,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = queued_at
+        ti.hostname = "random-hostname"
+        ti.unixname = "random-unixname"
+        ti.pid = 100
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_not_called()
+
+    def test_ti_run_queued_duration_metric_is_tagged_with_team_name(
+        self, client, session, dag_maker, time_machine
+    ):
+        """The team tag has to be pinned with multi-team on: with it off both the metric and any
+        expectation derived from stats_tags omit the key, so they would agree for the wrong reason.
+        """
+        from airflow.models.dagbundle import DagBundleModel
+        from airflow.models.team import Team
+
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(queued_at, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=queued_at, state=DagRunState.RUNNING, start_date=queued_at
+        )
+        ti = dr.get_task_instance(task_id="task")
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(state=State.QUEUED, queued_dttm=queued_at, queue="default")
+        )
+
+        bundle_name = f"bundle-{dag_id}"
+        team_name = f"team-{dag_id[:8]}"
+        bundle = DagBundleModel(name=bundle_name)
+        bundle.teams.append(Team(name=team_name))
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+        session.commit()
+
+        time_machine.move_to(run_at, tick=False)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with mock.patch(
+                "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+            ) as mock_stats:
+                response = client.patch(
+                    f"/execution/task-instances/{ti.id}/run",
+                    json={
+                        "state": "running",
+                        "hostname": "random-hostname",
+                        "unixname": "random-unixname",
+                        "pid": 100,
+                        "start_date": run_at.isoformat(),
+                    },
+                )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_called_once()
+        assert mock_stats.timing.call_args.kwargs["tags"]["team_name"] == team_name
+
+    def test_ti_run_queued_duration_metric_carries_dag_tags(self, client, session, dag_maker, time_machine):
+        """With dag_tags_in_metrics on, stats_tags would lazy-load dag_model.tags per task start;
+        the select eager-loads them instead, so the tags have to survive that route."""
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(queued_at, tick=False)
+
+        dag_id = str(uuid4())
+        with dag_maker(dag_id=dag_id, tags=["critical", "env:prod"], session=session):
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun(
+            run_id="test", logical_date=queued_at, state=DagRunState.RUNNING, start_date=queued_at
+        )
+        ti = dr.get_task_instance(task_id="task")
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(state=State.QUEUED, queued_dttm=queued_at, queue="default")
+        )
+        session.commit()
+
+        time_machine.move_to(run_at, tick=False)
+
+        with conf_vars({("metrics", "dag_tags_in_metrics"): "True"}):
+            with mock.patch(
+                "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+            ) as mock_stats:
+                response = client.patch(
+                    f"/execution/task-instances/{ti.id}/run",
+                    json={
+                        "state": "running",
+                        "hostname": "random-hostname",
+                        "unixname": "random-unixname",
+                        "pid": 100,
+                        "start_date": run_at.isoformat(),
+                    },
+                )
+
+        assert response.status_code == 200
+        mock_stats.timing.assert_called_once()
+        tags = mock_stats.timing.call_args.kwargs["tags"]
+        assert (tags["critical"], tags["env"]) == ("", "prod")
+
+    def test_ti_run_emits_queued_duration_for_start_from_trigger(
+        self, client, session, dag_maker, time_machine
+    ):
+        """A start_from_trigger operator is deferred straight from SCHEDULED and only reaches the
+        queue once the trigger fires, so that resume is the one wait it ever has to report.
+        """
+        from airflow.sdk import BaseOperator
+        from airflow.triggers.base import StartTriggerArgs
+
+        class StartFromTriggerOperator(BaseOperator):
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                trigger_kwargs={},
+                next_method="execute_complete",
+                timeout=None,
+            )
+            start_from_trigger = True
+
+            def execute_complete(self):
+                pass
+
+        queued_at = timezone.parse("2024-09-30T12:00:00Z")
+        run_at = queued_at.add(seconds=42)
+        time_machine.move_to(queued_at, tick=False)
+
+        with dag_maker(dag_id=str(uuid4()), session=session):
+            StartFromTriggerOperator(task_id="task")
+        dr = dag_maker.create_dagrun(run_id="test", logical_date=queued_at, state=DagRunState.RUNNING)
+
+        ti = dr.get_task_instance(task_id="task")
+        ti.task = dr.dag.get_task("task")
+        assert dr.schedule_tis((ti,), session=session) == 0
+        session.merge(ti)
+        session.commit()
+
+        # Read the row back rather than the in-memory TI: what ti_run sees is the persisted state,
+        # and the point of this test is that the deferral lands without the TI ever being queued.
+        state, next_method, queued_dttm = session.execute(
+            select(TaskInstance.state, TaskInstance.next_method, TaskInstance.queued_dttm).where(
+                TaskInstance.id == ti.id
+            )
+        ).one()
+        assert (state, next_method, queued_dttm) == (TaskInstanceState.DEFERRED, "execute_complete", None)
+
+        # The trigger fires and the scheduler queues it -- the first and only real queue wait.
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(state=State.QUEUED, queued_dttm=queued_at, queue="default")
+        )
+        session.commit()
+
+        time_machine.move_to(run_at, tick=False)
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": run_at.isoformat(),
+                },
+            )
+
+        assert response.status_code == 200
+        # Assert off the call rather than the in-memory TI, whose queue is stale after the
+        # raw update above.
+        mock_stats.timing.assert_called_once()
+        assert mock_stats.timing.call_args.args == ("task.queued_duration", run_at - queued_at)
+        assert mock_stats.timing.call_args.kwargs["tags"]["queue"] == "default"
+
 
 class TestTIUpdateState:
     def test_loop_continues_while_earlier_body_branch_is_running(self, client, session, dag_maker):
@@ -1924,19 +2319,10 @@ class TestTIUpdateState:
         assert gate in dr.task_instance_scheduling_decisions(session=session).schedulable_tis
         gate.state, gate.start_date = State.RUNNING, DEFAULT_START_DATE
         session.commit()
-        exec_app = client.app.routes[-1].app
-        exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=gate.id, claims=TIClaims())
-        assert (
-            client.post(
-                f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision",
-                json="continue",
-            ).status_code
-            == 201
-        )
 
         response = client.patch(
             f"/execution/task-instances/{gate.id}/state",
-            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat(), "loop_decision": CONTINUE},
         )
 
         assert response.status_code == 204, response.text
@@ -1951,7 +2337,7 @@ class TestTIUpdateState:
         dr = gate.dag_run
         response = client.patch(
             f"/execution/task-instances/{gate.id}/state",
-            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat(), "loop_decision": CONTINUE},
         )
         assert response.status_code == 204
         session.expire_all()
@@ -2163,28 +2549,11 @@ class TestTIUpdateState:
         gate.state = State.RUNNING
         gate.start_date = DEFAULT_START_DATE
         session.commit()
-        if decision and rejected:
-            XComModel.set_for_attempt(
-                task_instance_id=gate.id,
-                key="_airflow_loop_decision",
-                value=decision,
-                serialize=False,
-                session=session,
-            )
-            session.commit()
-        elif decision:
-            exec_app = client.app.routes[-1].app
-            exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=gate.id, claims=TIClaims())
-            response = client.post(
-                f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{gate.task_id}/_airflow_loop_decision",
-                json=decision,
-            )
-            assert response.status_code == 201
+        payload = {"state": state, "end_date": DEFAULT_END_DATE.isoformat()}
+        if decision:
+            payload["loop_decision"] = {"stop": decision == "stop"}
 
-        response = client.patch(
-            f"/execution/task-instances/{gate.id}/state",
-            json={"state": state, "end_date": DEFAULT_END_DATE.isoformat()},
-        )
+        response = client.patch(f"/execution/task-instances/{gate.id}/state", json=payload)
 
         assert response.status_code == 204, response.text
         assert backend.clear.call_count == (state == State.SUCCESS and not rejected)
@@ -2201,13 +2570,8 @@ class TestTIUpdateState:
             assert all(ti.region_id in region_ids for ti in current)
         else:
             assert all(ti.region_id == gate.region_id for ti in current)
-        signal = session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id))
-        assert signal is None
         if not rejected:
-            duplicate = client.patch(
-                f"/execution/task-instances/{gate.id}/state",
-                json={"state": state, "end_date": DEFAULT_END_DATE.isoformat()},
-            )
+            duplicate = client.patch(f"/execution/task-instances/{gate.id}/state", json=payload)
             assert duplicate.status_code == 200
             assert (
                 sorted(
@@ -2241,17 +2605,10 @@ class TestTIUpdateState:
         dr = dag_maker.create_dagrun()
         gate = next(ti for ti in dr.task_instances if ti.task_id == loop.gate_task_id)
         gate.state, gate.start_date = State.RUNNING, DEFAULT_START_DATE
-        XComModel.set_for_attempt(
-            task_instance_id=gate.id,
-            key="_airflow_loop_decision",
-            value="continue",
-            serialize=False,
-            session=session,
-        )
         session.commit()
         return gate
 
-    def test_loop_gate_materialization_error_rolls_back_state_signal_and_successor(
+    def test_loop_gate_materialization_error_rolls_back_state_and_successor(
         self, client, session, running_loop_gate, mocker
     ):
         gate = running_loop_gate
@@ -2275,7 +2632,7 @@ class TestTIUpdateState:
         mocker.patch.object(DagRun, "_create_task_instances", autospec=True, side_effect=fail_after_insert)
         response = client.patch(
             f"/execution/task-instances/{gate.id}/state",
-            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat(), "loop_decision": CONTINUE},
         )
 
         assert response.status_code == 500
@@ -2283,7 +2640,6 @@ class TestTIUpdateState:
         assert observed == [State.RUNNING, [0]]
         assert gate.state == State.RUNNING
         assert len(dr.get_task_instances(session=session)) == 2
-        assert session.scalar(select(XComModel.value).where(XComModel.task_id == gate.task_id)) == "continue"
 
     @pytest.mark.parametrize(
         ("max_tries", "expected_state"),
@@ -2296,7 +2652,6 @@ class TestTIUpdateState:
         dr = gate.dag_run
         gate_id = gate.id
         gate.max_tries = max_tries
-        session.execute(delete(XComModelV2).where(XComModelV2.task_instance_id == gate.id))
         session.commit()
 
         response = client.patch(
@@ -2324,7 +2679,11 @@ class TestTIUpdateState:
                 barrier.wait(timeout=10)
                 result = ti_update_state(
                     task_instance_id=gate_id,
-                    ti_patch_payload=TISuccessStatePayload(state="success", end_date=DEFAULT_END_DATE),
+                    ti_patch_payload=TISuccessStatePayload(
+                        state="success",
+                        end_date=DEFAULT_END_DATE,
+                        loop_decision=LoopDecisionPayload(stop=False),
+                    ),
                     session=request_session,
                     dag_bag=DBDagBag(),
                 )
@@ -2337,88 +2696,6 @@ class TestTIUpdateState:
         assert gate.state == State.SUCCESS
         assert sorted(
             ti.region_index for ti in dr.get_task_instances(session=session) if ti.task_id == gate.task_id
-        ) == [0, 1]
-        assert session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id)) is None
-
-    @pytest.mark.backend("mysql", "postgres")
-    def test_loop_decision_rewrite_and_completion_use_same_lock_order(
-        self, session, running_loop_gate, request
-    ):
-        gate = running_loop_gate
-        gate_id, dag_id, run_id, task_id = gate.id, gate.dag_id, gate.run_id, gate.task_id
-        XComModel.set_for_attempt(
-            task_instance_id=gate_id,
-            key="_airflow_loop_decision",
-            value="stop",
-            serialize=False,
-            session=session,
-        )
-        session.commit()
-        bind = session.get_bind()
-        role = local()
-        writer_locked = Event()
-        completion_at_lock = Event()
-
-        def note_completion_lock(conn, cursor, statement, parameters, context, executemany):
-            if getattr(role, "name", None) == "completion" and "FOR UPDATE" in statement:
-                completion_at_lock.set()
-
-        def pause_writer_after_first_lock(conn, cursor, statement, parameters, context, executemany):
-            if (
-                getattr(role, "name", None) == "writer"
-                and "FOR UPDATE" in statement
-                and not writer_locked.is_set()
-            ):
-                writer_locked.set()
-                assert completion_at_lock.wait(timeout=10)
-                # Give completion time to take its first lock, so a writer that locks in a different
-                # order deadlocks against it.
-                time.sleep(0.5)
-
-        event.listen(bind, "before_cursor_execute", note_completion_lock)
-        event.listen(bind, "after_cursor_execute", pause_writer_after_first_lock)
-        request.addfinalizer(lambda: event.remove(bind, "before_cursor_execute", note_completion_lock))
-        request.addfinalizer(
-            lambda: event.remove(bind, "after_cursor_execute", pause_writer_after_first_lock)
-        )
-
-        def rewrite():
-            role.name = "writer"
-            with Session(bind=bind) as request_session:
-                set_xcom(
-                    dag_id=dag_id,
-                    run_id=run_id,
-                    task_id=task_id,
-                    key="_airflow_loop_decision",
-                    session=request_session,
-                    dag_bag=DBDagBag(),
-                    value="continue",
-                    token=TIToken(id=gate_id, claims=TIClaims()),
-                )
-                request_session.commit()
-
-        def complete():
-            role.name = "completion"
-            assert writer_locked.wait(timeout=10)
-            with Session(bind=bind) as request_session:
-                ti_update_state(
-                    task_instance_id=gate_id,
-                    ti_patch_payload=TISuccessStatePayload(state="success", end_date=DEFAULT_END_DATE),
-                    session=request_session,
-                    dag_bag=DBDagBag(),
-                )
-
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [pool.submit(rewrite), pool.submit(complete)]
-            for future in futures:
-                future.result(timeout=20)
-        session.expire_all()
-        assert gate.state == State.SUCCESS
-        assert session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id)) is None
-        assert sorted(
-            ti.region_index
-            for ti in gate.dag_run.get_task_instances(session=session)
-            if ti.task_id == gate.task_id
         ) == [0, 1]
 
     def test_loop_gate_completion_uses_its_pinned_limit(self, client, session, running_loop_gate, dag_maker):
@@ -2434,7 +2711,7 @@ class TestTIUpdateState:
 
         response = client.patch(
             f"/execution/task-instances/{gate.id}/state",
-            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat(), "loop_decision": CONTINUE},
         )
 
         assert response.status_code == 204, response.text
@@ -2471,25 +2748,7 @@ class TestTIUpdateState:
         assert gate.state == State.FAILED
         assert [ti.region_index for ti in gate.dag_run.get_task_instances(session=session)] == [0, 0]
 
-    def test_late_loop_decision_cannot_recreate_consumed_signal(self, client, session, running_loop_gate):
-        gate = running_loop_gate
-        response = client.patch(
-            f"/execution/task-instances/{gate.id}/state",
-            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
-        )
-        assert response.status_code == 204
-        exec_app = client.app.routes[-1].app
-        exec_app.dependency_overrides[require_auth] = lambda: TIToken(id=gate.id, claims=TIClaims())
-
-        response = client.post(
-            f"/execution/xcoms/{gate.dag_id}/{gate.run_id}/{gate.task_id}/_airflow_loop_decision",
-            json="continue",
-        )
-
-        assert response.status_code == 409
-        assert session.scalar(select(XComModel).where(XComModel.task_id == gate.task_id)) is None
-
-    def test_loop_gate_state_update_error_rolls_back_next_pass_and_keeps_decision(
+    def test_loop_gate_state_update_error_rolls_back_next_pass(
         self, client, session, running_loop_gate, mocker
     ):
         gate = running_loop_gate
@@ -2502,14 +2761,13 @@ class TestTIUpdateState:
 
         response = client.patch(
             f"/execution/task-instances/{gate.id}/state",
-            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat(), "loop_decision": CONTINUE},
         )
 
         assert response.status_code == 500
         session.expire_all()
         assert gate.state == State.RUNNING
         assert len(gate.dag_run.get_task_instances(session=session)) == 2
-        assert session.scalar(select(XComModel.value).where(XComModel.task_id == gate.task_id)) == "continue"
 
     @pytest.mark.parametrize("state", ["success", "failed"])
     def test_non_loop_operator_named_loop_gate_completes_normally(
@@ -2539,7 +2797,7 @@ class TestTIUpdateState:
 
         response = client.patch(
             f"/execution/task-instances/{gate.id}/state",
-            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat(), "loop_decision": CONTINUE},
         )
 
         assert response.status_code == 500
@@ -2547,14 +2805,19 @@ class TestTIUpdateState:
         session.expire_all()
         assert gate.state == State.RUNNING
         assert len(gate.dag_run.get_task_instances(session=session)) == 2
-        assert session.scalar(select(XComModel.value).where(XComModel.task_id == gate.task_id)) == "continue"
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED, State.SKIPPED])
-    def test_rerun_gate_preserves_existing_later_pass(self, client, session, running_loop_gate, state):
+    def test_rerun_gate_preserves_existing_later_pass_and_reason(
+        self, client, session, running_loop_gate, state
+    ):
         gate = running_loop_gate
         response = client.patch(
             f"/execution/task-instances/{gate.id}/state",
-            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "loop_decision": {"stop": False, "reason": "first"},
+            },
         )
         assert response.status_code == 204
         session.refresh(gate)
@@ -2580,7 +2843,11 @@ class TestTIUpdateState:
 
         response = client.patch(
             f"/execution/task-instances/{gate.id}/state",
-            json={"state": state, "end_date": DEFAULT_END_DATE.isoformat()},
+            json={
+                "state": state,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "loop_decision": {"stop": True, "reason": "second"},
+            },
         )
 
         assert response.status_code == 204, response.text
@@ -2589,6 +2856,48 @@ class TestTIUpdateState:
         assert {
             ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1
         } == successor_ids
+        assert _stored_loop_decision_reasons(session, archived_id) == ["first"]
+        assert _stored_loop_decision_reasons(session, gate.id) == []
+
+    @pytest.mark.parametrize(
+        ("payload", "expected"),
+        [
+            ({"state": "success", "loop_decision": {"stop": False, "reason": "score 0.7"}}, ["score 0.7"]),
+            ({"state": "failed", "loop_decision": {"stop": False, "reason": "score 0.8"}}, ["score 0.8"]),
+            ({"state": "success", "loop_decision": {"stop": False}}, []),
+            ({"state": "success", "loop_decision": {"stop": False, "reason": ""}}, []),
+        ],
+        ids=["success", "failed-with-decision", "no-reason", "empty-reason"],
+    )
+    def test_loop_gate_records_the_reason_of_its_decision(
+        self, client, session, running_loop_gate, payload, expected
+    ):
+        gate = running_loop_gate
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={**payload, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204, response.text
+        session.expire_all()
+        assert _stored_loop_decision_reasons(session, gate.id) == expected
+
+    def test_loop_gate_rejects_a_reason_over_the_byte_limit(self, client, session, running_loop_gate):
+        gate = running_loop_gate
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "loop_decision": {"stop": False, "reason": "é" * 257},
+            },
+        )
+
+        assert response.status_code == 422
+        session.expire_all()
+        assert gate.state == State.RUNNING
 
     @pytest.mark.parametrize(
         ("interruption", "expected_state", "expected_status"),
@@ -3358,6 +3667,8 @@ class TestTIUpdateState:
                             try_number=1,
                             max_tries=0,
                             start_date=None,
+                            queue="default",
+                            queued_dttm=timezone.utcnow(),
                             next_method=None,
                             hostname=None,
                             unixname=None,

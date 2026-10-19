@@ -28,6 +28,7 @@ import BulkClearTaskInstancesButton from "src/pages/TaskInstances/BulkClearTaskI
 
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
+  CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
 import { handlers } from "src/mocks/handlers";
@@ -95,6 +96,7 @@ const loopMember: TaskInstanceResponse = {
 
 const mutateMock = vi.fn();
 const dryRunsMock = vi.fn();
+const confirmationDryRun = { isFetching: false };
 
 vi.mock("src/queries/useClearTaskInstances", () => ({
   useClearTaskInstances: () => ({ isPending: false, mutate: mutateMock }),
@@ -104,7 +106,11 @@ vi.mock("src/queries/useClearTaskInstances", () => ({
 // list in the main dialog and the confirmation dialog's running-task gate; a
 // same-tick response for both keeps the gate from blocking on a real fetch.
 vi.mock("src/queries/useClearTaskInstancesDryRun", () => ({
-  useClearTaskInstancesDryRun: () => ({ data: affectedTasks, isFetching: false, isPending: false }),
+  useClearTaskInstancesDryRun: () => ({
+    data: affectedTasks,
+    isFetching: confirmationDryRun.isFetching,
+    isPending: false,
+  }),
   useClearTaskInstancesDryRuns: (args: unknown) => {
     dryRunsMock(args);
 
@@ -124,6 +130,7 @@ beforeAll(() => {
 });
 afterEach(() => {
   affectedTasks.task_instances = [taskInstance];
+  confirmationDryRun.isFetching = false;
   mutateMock.mockClear();
   dryRunsMock.mockClear();
   server.resetHandlers();
@@ -152,6 +159,44 @@ describe("ClearTaskInstanceDialog", () => {
     const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: { keep_task_state?: boolean } }];
 
     expect(requestBody.keep_task_state).toBe(true);
+  });
+
+  it("sends the clear once the running-task check resolves", async () => {
+    const onClose = vi.fn();
+
+    confirmationDryRun.isFetching = true;
+    const { rerender } = render(
+      <ClearTaskInstanceDialog onClose={onClose} open taskInstance={taskInstance} />,
+      {
+        wrapper: Wrapper,
+      },
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    // Let the clear dialog finish closing while the running-task check is still in flight.
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    confirmationDryRun.isFetching = false;
+    rerender(<ClearTaskInstanceDialog onClose={onClose} open taskInstance={taskInstance} />);
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
+    const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: { dry_run?: boolean } }];
+
+    expect(requestBody.dry_run).toBe(false);
+  });
+
+  it("warns instead of clearing a queued task when running tasks are protected", async () => {
+    localStorage.setItem(CLEAR_PREVENT_RUNNING_TASK_KEY, JSON.stringify(true));
+    affectedTasks.task_instances = [{ ...taskInstance, state: "queued" }];
+    render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={taskInstance} />, {
+      wrapper: Wrapper,
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+
+    expect(await screen.findByText(/confirmationDialog\.title/iu)).toBeVisible();
+    expect(mutateMock).not.toHaveBeenCalled();
   });
 
   it("clears the kept loop passes by execution id when another pass is unticked", async () => {

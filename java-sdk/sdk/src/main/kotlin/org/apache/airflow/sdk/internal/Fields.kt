@@ -25,7 +25,7 @@ import java.time.OffsetDateTime
 
 /**
  * Value shape of one Dag serialization schema key. Public so that the
- * annotation processor can lower `@Builder.Dag` / `@Builder.Task` attributes;
+ * annotation processor can lower `@Airflow.Dag` / `@Airflow.Task` attributes;
  * not user-facing API.
  */
 enum class FieldType {
@@ -49,7 +49,7 @@ private val DAG_RUN_STATE_NAMES = listOf("queued", "running", "success", "failed
 
 /**
  * One configuration key from the Dag serialization schema. Public so that the
- * annotation processor can lower `@Builder.Dag` / `@Builder.Task` attributes;
+ * annotation processor can lower `@Airflow.Dag` / `@Airflow.Task` attributes;
  * not user-facing API.
  *
  * @property key Schema property name, e.g. `retry_delay`.

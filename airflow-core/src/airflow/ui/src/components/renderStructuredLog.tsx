@@ -154,7 +154,8 @@ const extractFromStructuredDatum = (
   const ctx: Record<string, unknown> = {};
 
   for (const field of tiContextFields) {
-    if (Object.hasOwn(line, field) && line[field] !== undefined) {
+    // Callback triggers log these fields as null since they have no task instance.
+    if (Object.hasOwn(line, field) && line[field] !== undefined && line[field] !== null) {
       ctx[field] = line[field];
     }
   }

@@ -251,13 +251,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 if parent.exists():
                     self.log.warning("Failed to delete local log dir: %s", parent)
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         messages, logs = self.stream(relative_path, ti)
         str_logs: list[str] = [f"{msg}\n" for group in logs for msg in group]
 
         return messages, str_logs
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
         logs: list[RawLogStream] = []
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
@@ -274,7 +274,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return messages, logs
 
     def get_cloudwatch_logs(
-        self, stream_name: str, task_instance: RuntimeTI
+        self, stream_name: str, task_instance: RuntimeTI | None
     ) -> Generator[CloudWatchLogEvent, None, None]:
         """
         Return all logs from the given log stream.

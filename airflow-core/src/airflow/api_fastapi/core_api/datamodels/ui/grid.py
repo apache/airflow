@@ -18,9 +18,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
+from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
+
+from airflow.api_fastapi.common.region import _drop_null_default
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import TaskInstanceState
 
@@ -37,6 +41,8 @@ class LightGridTaskInstanceSummary(BaseModel):
     dag_version_number: int | None = None
     has_note: bool = False
     loop_iterations_count: int | None = None
+    latest_region_id: UUID | None = None
+    latest_region_index: int | None = None
 
 
 class GridTISummaries(BaseModel):
@@ -51,9 +57,18 @@ class LoopIterationSummary(BaseModel):
     """Execution state for one existing iteration."""
 
     index: int
+    task_count: int = 0
     state: TaskInstanceState | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
+    decision_reason: Annotated[
+        SkipJsonSchema[None] | str,
+        Field(
+            description="Why the loop's gate continued or stopped the loop at this iteration, if its until callable said.",
+            exclude_if=lambda reason: reason is None,
+            json_schema_extra=_drop_null_default,
+        ),
+    ] = None
 
 
 class LoopInvocationResponse(BaseModel):

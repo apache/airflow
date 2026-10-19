@@ -25,7 +25,7 @@ import org.apache.airflow.sdk.internal.Refs
  * Vocabulary for declaring a Dag's task graph in Java, and the base of every
  * generated `<Dag>Deps` wiring view.
  *
- * A [Builder.Deps] class inherits [lit] and [Flow] by simple name, so it needs
+ * An [Airflow.Deps] class inherits [lit] and [Flow] by simple name, so it needs
  * no import and `Flow` does not collide with `java.util.concurrent.Flow`.
  */
 interface Deps {
@@ -99,7 +99,7 @@ interface Deps {
    * One task group of the Dag being wired: a point in the flow, and the
    * namespace of the tasks and groups declared inside it.
    *
-   * The generated wiring view nests one of these per [Builder.TaskGroup]
+   * The generated wiring view nests one of these per [Airflow.TaskGroup]
    * class, so a group is reached by calling it and its contents by calling on
    * through:
    *

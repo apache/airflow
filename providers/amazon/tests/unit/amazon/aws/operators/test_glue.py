@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import re
-import warnings
 from collections.abc import Generator
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -36,12 +35,10 @@ from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJob
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.glue import (
-    _DURABLE_UNSET,
     GlueDataQualityOperator,
     GlueDataQualityRuleRecommendationRunOperator,
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
@@ -926,21 +923,6 @@ class TestGlueJobOperatorOpenLineageInjection:
         call_args = mock_initialize_job.call_args[0][0]
         assert "--conf" in call_args
         assert GlueJobOperator.TASK_UUID_ARG in call_args
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False
 
 
 class TestGlueJobOperatorDeprecation:

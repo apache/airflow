@@ -29,7 +29,7 @@ from airflow.providers.common.compat.sdk import dag
 # [START howto_agent_tool_approval]
 def lookup_order(order_id: int) -> str:
     """Look up an order."""
-    return f"order {order_id}: $42, delivered"
+    return f"order {order_id}: $42, carrier marked it lost"
 
 
 def refund_order(order_id: int) -> str:

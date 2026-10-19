@@ -58,6 +58,17 @@ describe("a HITL task in a Dag", () => {
     expect(dag.taskIds).toEqual(["release.sign_off"]);
   });
 
+  it.each(["if", "switch"] as const)("is rejected by dag.%s, which needs a handler", (decider) => {
+    const dag = new Dag("d");
+    const declare = dag[decider].bind(dag) as (...args: unknown[]) => unknown;
+
+    expect(() =>
+      declare(hitl({ subject: "s", options: ["a"] }), undefined, { taskId: "choose" }),
+    ).toThrowError(
+      `A human-in-the-loop task of Dag "d" was given to dag.${decider}, which needs a handler`,
+    );
+  });
+
   it("serializes as the operator it mirrors, with its argument bindings", () => {
     const dag = new Dag("d");
     const build = dag.task("build", async () => 1);

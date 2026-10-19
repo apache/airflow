@@ -21,8 +21,6 @@ import time
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
-from pydantic import BaseModel
-
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
@@ -32,6 +30,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     SessionStatus,
 )
+from airflow.providers.common.ai.utils.output_type import dump_output_for_display
 
 log = logging.getLogger(__name__)
 
@@ -104,11 +103,11 @@ class HITLReviewMixin:
         Execute the full HITL review loop.
 
         :param context: Airflow task context.
-        :param output: Initial LLM output (str or BaseModel).
+        :param output: Initial LLM output (any pydantic-serializable value).
         :param message_history: Provider-specific conversation state (e.g.
             pydantic-ai ``list[ModelMessage]``).  Passed to
             :meth:`regenerate_with_feedback` on each iteration.
-        :returns: The final approved output as a string.
+        :returns: The approved output as a string (JSON for non-str values pydantic can serialize).
         :raises HITLMaxIterationsError: When max iterations reached without approval.
         :raises HITLRejectException: When the reviewer rejects the output.
         :raises HITLTimeoutError: When hitl_timeout elapses with no response.
@@ -285,8 +284,5 @@ class HITLReviewMixin:
 
     @staticmethod
     def _to_string(output: Any) -> str:
-        if isinstance(output, BaseModel):
-            return output.model_dump_json()
-        if not isinstance(output, str):
-            return str(output)
-        return output
+        """Serialize an output for the reviewer to read as JSON, or ``str()`` when pydantic cannot."""
+        return dump_output_for_display(output)

@@ -326,6 +326,12 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "deadline_alerts.deadline_creation_failed"
+    description: "Number of deadline alerts skipped because their deadline could not be created"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "deadline_alerts.deadline_missed"
     description: "Number of deadline alerts that fired because a Dag run missed its deadline"
     type: "counter"
@@ -422,8 +428,9 @@ metrics:
 
   - name: "common_ai.tool_calls"
     description: "Number of calls to a toolset of the common.ai provider. Metric with toolset
-    (the toolset class), framework (``pydantic_ai``, ``strands``, ``adk``, ``langchain`` or
-    ``none``) and outcome (``executed``, ``failed`` or ``replayed``) tagging."
+    (the toolset class), framework (``pydantic_ai``, ``strands``, ``adk``, ``langchain``,
+    ``anthropic``, ``openai_agents`` or ``none``) and outcome (``executed``, ``failed`` or
+    ``replayed``) tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: ["toolset", "framework", "outcome"]
