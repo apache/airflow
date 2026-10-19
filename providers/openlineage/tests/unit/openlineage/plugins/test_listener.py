@@ -1169,7 +1169,6 @@ class TestOpenLineageListenerAirflow3:
         listener, ti = self._create_listener_and_task_instance(runtime_ti=False)
         listener._executor = mocker.Mock(spec=ProcessPoolExecutor)
         listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
-        self.build_task_run_id.side_effect = OpenLineageAdapter.build_task_instance_run_id
         with DAG("loop_dag") as loop_dag:
 
             @task_group
@@ -1212,7 +1211,6 @@ class TestOpenLineageListenerAirflow3:
             create_loop(body, max_iterations=2)
         ti.task = loop_dag.get_task("body.work")
         listener.adapter.build_dag_run_id.side_effect = OpenLineageAdapter.build_dag_run_id
-        self.build_task_run_id.side_effect = OpenLineageAdapter.build_task_instance_run_id
         ti.region_id = uuid.uuid4()
         ti.region_index = 2
         ti.map_index = map_index
