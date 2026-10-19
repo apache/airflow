@@ -64,7 +64,7 @@ class DagDef(
   /** Edges with a task group at either end, in the order drawn. */
   internal val groupEdges = linkedSetOf<Pair<Endpoint, Endpoint>>()
 
-  /** The labels that [Deps.Flow.label] put on [groupEdges], keyed by the edge. */
+  /** The labels that [Label.on] put on [groupEdges], keyed by the edge. */
   internal val groupEdgeLabels = mutableMapOf<Pair<Endpoint, Endpoint>, EdgeLabel>()
 
   /**
@@ -398,7 +398,7 @@ class DagDef(
 }
 
 /**
- * A label that [Deps.Flow.label] put on an edge.
+ * A label that [Label.on] put on an edge.
  * [order] grows with each label set, so when two labels land on the same edge, the one set later wins, as in Python.
  */
 internal class EdgeLabel(
@@ -498,7 +498,7 @@ class TaskDef(
   internal val inputNames = mutableListOf<String>()
   internal val upstreams = linkedSetOf<TaskDef>()
 
-  /** The labels that [Deps.Flow.label] put on edges from [upstreams], keyed by the upstream task. */
+  /** The labels that [Label.on] put on edges from [upstreams], keyed by the upstream task. */
   internal val upstreamLabels = mutableMapOf<TaskDef, EdgeLabel>()
   internal var owner: DagDef? = null
 

@@ -1380,13 +1380,14 @@ class AirflowProcessorTest {
   }
 
   @Test
-  @DisplayName("let a wiring class label an edge with Flow.label, by simple name")
+  @DisplayName("let a wiring class label an edge with Label.of(...).on(...)")
   fun compileWiringThatLabelsAnEdge() {
     val compilation =
       compile(
         """
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Label;
         @Airflow.Dag
         public class TestExample {
           @Airflow.Task public void extract() {}
@@ -1394,13 +1395,67 @@ class AirflowProcessorTest {
 
           @Airflow.Deps
           static class Wiring implements TestExampleDeps {
-            void depends() { extract().before(Flow.label(load(), "rows")); }
+            void depends() { extract().before(Label.of("rows").on(load())); }
           }
         }
       """,
       )
 
     assertThat(compilation).succeeded()
+  }
+
+  @Test
+  @DisplayName("fail to compile a label passed to before without on")
+  fun failOnLabelWithoutOn() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Label;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task public void extract() {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { extract().before(Label.of("rows")); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "org.apache.airflow.sdk.Label cannot be converted to org.apache.airflow.sdk.Deps.Flow",
+    )
+  }
+
+  @Test
+  @DisplayName("fail to compile Label.on called with no task")
+  fun failOnLabelOnWithoutTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Label;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task public void extract() {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { extract().before(Label.of("rows").on()); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "method on in class org.apache.airflow.sdk.Label cannot be applied to given types",
+    )
   }
 
   @Test

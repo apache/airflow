@@ -113,7 +113,7 @@ public class AnnotationExample {
       var gate = hasRows(transformed).Then(loaded).Else(loadEmpty());
       // Then and Else already declared these edges. This call only adds
       // labels to the edges.
-      gate.before(Flow.label(loaded, "rows found"), Flow.label(loadEmpty(), "no rows"));
+      gate.before(Label.of("rows found").on(loaded), Label.of("no rows").on(loadEmpty()));
       pickReport(transformed).Case(reportLong()).Case(reportShort());
       loaded.before(triggerDownstream());
       // Ordering-only edge: the checks group runs after extract, with no data

@@ -682,9 +682,10 @@ returns the same handle every time, so it names one node wherever it appears; on
 arguments is called once, and the wiring fails if it is called again with arguments, so hold its
 handle in a local and reuse that.
 
-``before``, ``after``, ``Flow.of`` and ``Flow.label`` work here exactly as they do on the interface
+``before``, ``after``, ``Flow.of`` and ``Label`` work here exactly as they do on the interface
 surface.  Inside the wiring class, ``Flow`` is inherited by simple name, so it needs no import and
-never collides with ``java.util.concurrent.Flow``.
+never collides with ``java.util.concurrent.Flow``.  ``Label`` is not inherited, so the wiring class
+has to import it with ``import org.apache.airflow.sdk.Label;``.
 
 Every ``@Airflow.Dag`` class declares a wiring class, because the graph is what the Dag owns.  A
 class that supplies only task bodies, for a Dag a Python file declares, carries
@@ -763,33 +764,48 @@ Edge labels
 ~~~~~~~~~~~
 
 An edge can carry a label.  The Airflow UI shows the label on the edge in the graph, as it does for
-Python's ``Label``.  ``Flow.label`` comes from ``org.apache.airflow.sdk.Deps.Flow``, the same place as
-``Flow.of``.  ``Flow.label`` wraps the task or group at one end of an edge.  Pass the result to
-``before`` or ``after`` like any other point in the flow:
+Python's ``Label``.  ``Label`` is a class in the ``org.apache.airflow.sdk`` package.  ``Label.of`` takes
+the label text, and ``on`` takes the task or group at one end of the edge you want to label.  Pass the
+result to ``before`` or ``after`` like any other point in the flow.  The text then sits between the two
+tasks in the code, as the label sits between them in the graph:
 
 .. code-block:: java
 
-    loaded.before(Flow.label(reportEmpty, "when empty")); // load >> Label("when empty") >> report_empty
-    cleaned.after(Flow.label(loaded, "always"));          // load >> Label("always") >> cleanup
+    loaded.before(Label.of("when empty").on(reportEmpty)); // load >> Label("when empty") >> report_empty
+    cleaned.after(Label.of("always").on(loaded));          // load >> Label("always") >> cleanup
 
-The label wraps one end of the edge, not the whole call, so each edge of a fan-out can carry its own
-label.  When an edge already exists, declaring it again with a label only adds the label.  That is
-how the sides of a condition get their labels:
+A label goes on edges, not on tasks.  It covers only the edges between the receiver of ``before`` or
+``after`` and the tasks and groups passed to the label's ``on``.  So each edge of a fan-out can carry
+its own label.  ``on`` also takes several tasks or groups.  In that case, the label goes on the edge
+to or from each of them:
+
+.. code-block:: java
+
+    checked.before(Label.of("rows found").on(processed), Label.of("no rows").on(reportEmpty));
+    // load >> Label("forks") >> [report_empty, report_suspicious]
+    loaded.before(Label.of("forks").on(reportEmpty, reportSuspicious));
+
+When an edge already exists, declaring it again with a label only adds the label.  That is how the
+sides of a condition get their labels:
 
 .. code-block:: java
 
     var hasRows = dag.If(HasRows.class).Then(load).Else(loadEmpty);
-    hasRows.before(Flow.label(load, "rows found"), Flow.label(loadEmpty, "no rows"));
+    hasRows.before(Label.of("rows found").on(load), Label.of("no rows").on(loadEmpty));
 
-A new label replaces the label the edge had.  Use ``Flow.label`` only in the arguments of ``before``
-and ``after``.  Calling ``before`` or ``after`` on the value that ``Flow.label`` returns fails.  When
+When an edge already has a label, a new label replaces it.  Use the value that ``on`` returns only in
+the arguments of ``before`` and ``after``.  Calling ``before`` or ``after`` on that value fails.  When
 an edge goes to or from a task group, the UI draws it to or from the group's own node and shows the
 label there.
 
 .. note::
 
-    A label never changes which tasks an edge connects.  When the two ends of a labeled edge are not in the same task group, for example when one end is in no group, Python's ``Label`` replaces each end that is in a group with that group.
-    The edge then connects tasks other than the ones that the Dag code names.
+    A label never changes which tasks an edge connects.  Python's ``Label`` can change those tasks.
+    It does so when the end written to the left of the ``Label`` is in a task group and the other end
+    is not in that same group.  Python then replaces the left end with the group that contains it.
+    For example, if ``v`` is in group ``g`` and ``n`` is in no group, ``v >> Label("x") >> n`` draws
+    edges from the leaves of ``g`` instead of from ``v``.  In Java, the end that matches this
+    left end is the receiver of ``before`` or ``after``.
 
 Configuration attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~

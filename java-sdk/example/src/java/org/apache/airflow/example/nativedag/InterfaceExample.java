@@ -128,7 +128,7 @@ public class InterfaceExample {
     // The Airflow UI shows these labels on the edges from hasRows. Then and
     // Else already declared both of those edges. Declaring the edges again
     // here only adds the labels.
-    hasRows.before(Deps.Flow.label(load, "rows found"), Deps.Flow.label(loadEmpty, "no rows"));
+    hasRows.before(Label.of("rows found").on(load), Label.of("no rows").on(loadEmpty));
     load.before(trigger);
     return dag;
   }

@@ -44,26 +44,26 @@ internal class EdgeLabelTest {
   private fun TaskGroupRef.noop(id: String) = task<Unit>(id, NoopTask::class.java)
 
   @Test
-  @DisplayName("Should label the edge that before draws to the flow it wraps")
+  @DisplayName("Should label the edge that before draws to the flow the label is on")
   fun shouldLabelEdgeDrawnByBefore() {
     val dag = DagDef("d")
     val load = dag.noop("load")
     val reportEmpty = dag.noop("report_empty")
 
-    load.before(Flow.label(reportEmpty, "when empty"))
+    load.before(Label.of("when empty").on(reportEmpty))
 
     assertEquals(setOf("load"), upstreamIds(dag, "report_empty"))
     assertEquals(labels(Triple("load", "report_empty", "when empty")), edgeInfo(dag))
   }
 
   @Test
-  @DisplayName("Should label the edge from the flow that after wraps")
+  @DisplayName("Should label the edge that after draws from the flow the label is on")
   fun shouldLabelEdgeDrawnByAfter() {
     val dag = DagDef("d")
     val load = dag.noop("load")
     val cleanup = dag.noop("cleanup")
 
-    cleanup.after(Flow.label(load, "always"))
+    cleanup.after(Label.of("always").on(load))
 
     assertEquals(setOf("load"), upstreamIds(dag, "cleanup"))
     assertEquals(labels(Triple("load", "cleanup", "always")), edgeInfo(dag))
@@ -78,7 +78,7 @@ internal class EdgeLabelTest {
     val reportEmpty = dag.noop("report_empty")
     val audit = dag.noop("audit")
 
-    check.before(Flow.label(process, "rows found"), Flow.label(reportEmpty, "no rows"), audit)
+    check.before(Label.of("rows found").on(process), Label.of("no rows").on(reportEmpty), audit)
 
     assertEquals(setOf("check"), upstreamIds(dag, "audit"))
     assertEquals(
@@ -88,7 +88,7 @@ internal class EdgeLabelTest {
   }
 
   @Test
-  @DisplayName("Should label every edge to a set of flows, with the outer label of a labeled flow winning")
+  @DisplayName("Should label the edge from every flow the label is on, with the outer label of a labeled flow winning")
   fun shouldLabelEveryEdgeToASet() {
     val dag = DagDef("d")
     val left = dag.noop("left")
@@ -97,7 +97,7 @@ internal class EdgeLabelTest {
     staging.noop("stage")
     val join = dag.noop("join")
 
-    join.after(Flow.label(Flow.of(Flow.label(left, "inner"), Flow.label(staging, "inner"), right), "done"))
+    join.after(Label.of("done").on(Label.of("inner").on(left), Label.of("inner").on(staging), right))
 
     assertEquals(
       labels(
@@ -117,7 +117,7 @@ internal class EdgeLabelTest {
     val reportEmpty = dag.noop("report_empty")
     val gate = dag.If(HasRows::class.java).Then(load).Else(reportEmpty)
 
-    gate.before(Flow.label(load, "rows found"), Flow.label(reportEmpty, "no rows"))
+    gate.before(Label.of("rows found").on(load), Label.of("no rows").on(reportEmpty))
 
     assertEquals(listOf(dag.tasks.getValue("hasRows")), load.def.upstreams.toList())
     assertEquals(
@@ -135,8 +135,8 @@ internal class EdgeLabelTest {
     val publish = dag.taskGroup("publish")
     publish.noop("push")
 
-    load.before(Flow.label(cleanup, "always"), Flow.label(publish, "always"))
-    load.before(Flow.label(cleanup, "when empty"), Flow.label(publish, "when empty"))
+    load.before(Label.of("always").on(cleanup, publish))
+    load.before(Label.of("when empty").on(cleanup, publish))
     load.before(cleanup, publish)
     cleanup.after(load)
 
@@ -160,17 +160,17 @@ internal class EdgeLabelTest {
 
     val calls =
       mapOf<String, () -> Unit>(
-        "before" to { Flow.label(load, "always").before(cleanup) },
-        "after" to { Flow.label(load, "always").after(cleanup) },
-        "before on a set" to { Flow.of(audit, Flow.label(load, "always")).before(cleanup) },
+        "before" to { Label.of("always").on(load).before(cleanup) },
+        "after" to { Label.of("always").on(load).after(cleanup) },
+        "before on a set" to { Flow.of(audit, Label.of("always").on(load)).before(cleanup) },
       )
 
     calls.forEach { (call, draw) ->
       val error = assertThrows(IllegalArgumentException::class.java, { draw() }, call)
       assertEquals(
         "Cannot call ${call.substringBefore(' ')} on task 'load' labeled \"always\": a label goes on the " +
-          "edges between the receiver of before or after and the flow it wraps, so pass Flow.label(...) to " +
-          "before or after as an argument instead",
+          "edges between the receiver of before or after and the flows it is put on, so pass " +
+          "Label.of(...).on(...) to before or after as an argument instead",
         error.message,
         call,
       )
@@ -182,10 +182,8 @@ internal class EdgeLabelTest {
   @Test
   @DisplayName("Should reject an empty or blank label")
   fun shouldRejectBlankLabel() {
-    val load = DagDef("d").noop("load")
-
     listOf("", "  ").forEach { text ->
-      val error = assertThrows(IllegalArgumentException::class.java, { Flow.label(load, text) }, "\"$text\"")
+      val error = assertThrows(IllegalArgumentException::class.java, { Label.of(text) }, "\"$text\"")
       assertEquals("An edge label cannot be blank; pass the text to show on the edge", error.message)
     }
   }
@@ -201,9 +199,9 @@ internal class EdgeLabelTest {
     publish.noop("push")
     val notify = dag.noop("notify")
 
-    extract.before(Flow.label(transform, "to transform"))
-    transform.before(Flow.label(publish, "to publish"))
-    publish.before(Flow.label(notify, "to notify"))
+    extract.before(Label.of("to transform").on(transform))
+    transform.before(Label.of("to publish").on(publish))
+    publish.before(Label.of("to notify").on(notify))
 
     // Python also labels the edge from extract to the group's first task, when no group holds extract.
     assertEquals(
@@ -225,7 +223,7 @@ internal class EdgeLabelTest {
     val transform = dag.taskGroup("transform")
     transform.noop("clean")
 
-    transform.after(Flow.label(extract, "rows"))
+    transform.after(Label.of("rows").on(extract))
 
     assertEquals(
       labels(Triple("extract", "transform.clean", "rows"), Triple("extract", "transform.upstream_join_id", "rows")),
@@ -243,7 +241,7 @@ internal class EdgeLabelTest {
     val publish = dag.taskGroup("publish")
     publish.noop("push")
 
-    Flow.of(clean, nulls).before(Flow.label(publish, "rows"))
+    Flow.of(clean, nulls).before(Label.of("rows").on(publish))
 
     assertEquals(setOf("transform.clean", "transform.checks.nulls"), upstreamIds(dag, "publish.push"))
     assertEquals(
@@ -264,8 +262,8 @@ internal class EdgeLabelTest {
     val clean = transform.noop("clean")
     val validate = transform.noop("validate")
 
-    extract.before(Flow.label(clean, "rows"), validate)
-    extract.before(Flow.label(transform, "to transform"))
+    extract.before(Label.of("rows").on(clean), validate)
+    extract.before(Label.of("to transform").on(transform))
 
     // Python's later Label writes over the earlier one, so clean's edge takes the group edge's label.
     assertEquals(
@@ -277,7 +275,7 @@ internal class EdgeLabelTest {
       edgeInfo(dag),
     )
 
-    extract.before(Flow.label(clean, "rows"))
+    extract.before(Label.of("rows").on(clean))
 
     assertEquals(
       labels(
@@ -298,8 +296,8 @@ internal class EdgeLabelTest {
     val inner = outer.taskGroup("inner")
     inner.noop("i")
 
-    extract.before(Flow.label(outer, "a"))
-    extract.before(Flow.label(inner, "b"))
+    extract.before(Label.of("a").on(outer))
+    extract.before(Label.of("b").on(inner))
 
     assertEquals(
       labels(
@@ -311,7 +309,7 @@ internal class EdgeLabelTest {
     )
 
     // Relabeling the outer group edge is the last write, as it is in Python.
-    extract.before(Flow.label(outer, "c"))
+    extract.before(Label.of("c").on(outer))
 
     assertEquals(
       labels(

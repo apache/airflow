@@ -27,6 +27,7 @@ import org.apache.airflow.sdk.internal.Refs
  *
  * An [Airflow.Deps] class inherits [lit] and [Flow] by simple name, so it needs
  * no import and `Flow` does not collide with `java.util.concurrent.Flow`.
+ * [Label] is not inherited, so the class has to import it.
  */
 interface Deps {
   /**
@@ -56,13 +57,13 @@ interface Deps {
      *
      * Variadic, so one call fans out, and it returns its own receiver: a
      * fan-out has no single next task to hand back. Declaring an edge that
-     * already exists changes nothing. The only exception is a label from
-     * [label], which replaces the label the edge had.
+     * already exists changes nothing. The only exception is a label put on
+     * the edge with [Label.on], which replaces the label the edge had.
      *
      * @param next Tasks that run after the ones here.
      * @return This point in the flow.
-     * @throws IllegalArgumentException if [label] returned this point in the
-     *    flow, or returned a point that this one holds.
+     * @throws IllegalArgumentException if [Label.on] returned this point in
+     *    the flow, or returned a point that this one holds.
      */
     fun before(vararg next: Flow): Flow {
       requireUnlabeled(this, "before")
@@ -79,8 +80,8 @@ interface Deps {
      *
      * @param previous Tasks that run before the ones here.
      * @return This point in the flow.
-     * @throws IllegalArgumentException if [label] returned this point in the
-     *    flow, or returned a point that this one holds.
+     * @throws IllegalArgumentException if [Label.on] returned this point in
+     *    the flow, or returned a point that this one holds.
      */
     fun after(vararg previous: Flow): Flow {
       requireUnlabeled(this, "after")
@@ -99,55 +100,6 @@ interface Deps {
        */
       @JvmStatic
       fun of(vararg flows: Flow): Flow = FlowSet(flows.toList())
-
-      /**
-       * Labels each edge that a call to [before] or [after] draws between the
-       * call's receiver and [flow]. The Airflow UI shows the label on the edge
-       * in the graph, as it does for Python's `Label`:
-       *
-       * ```java
-       * loaded.before(Flow.label(reportEmpty, "when empty")); // load >> Label("when empty") >> report_empty
-       * cleaned.after(Flow.label(loaded, "always"));          // load >> Label("always") >> cleanup
-       * ```
-       *
-       * The label wraps one end of the edge, not the whole call. So each edge
-       * of a fan-out can carry its own label:
-       *
-       * ```java
-       * checked.before(Flow.label(processed, "rows found"), Flow.label(reportEmpty, "no rows"));
-       * ```
-       *
-       * Passing a task's handle into another task's arguments declares an
-       * edge. Calling `Then`, `Else` or `Case` also declares an edge. To label
-       * one of those edges, declare it again with a label. Declaring an edge
-       * again only applies the label. A new label replaces the label the edge
-       * had, as Python's `DAG.set_edge_info` does. Declaring the edge again
-       * without a label keeps its label.
-       *
-       * When an edge goes to or from a task group, the UI draws it to or from
-       * the group's own node and shows the label there. A label never changes
-       * which tasks an edge connects. Python's `Label` can change which tasks
-       * an edge connects.
-       * When the two ends of an edge are not in the same task group, for example when one end is in no group, Python's `Label` replaces
-       * each end that is in a group with that group.
-       *
-       * @param flow The task, task group, or set of tasks and groups at one end
-       *    of each edge that gets the label.
-       * @param text Text to show on each of those edges.
-       * @return A point in the flow to pass to [before] or [after]. Calling
-       *    [before] or [after] on this point fails. The label goes on the edges
-       *    between the call's receiver and [flow], so [flow] cannot also be
-       *    the receiver.
-       * @throws IllegalArgumentException if [text] is blank.
-       */
-      @JvmStatic
-      fun label(
-        flow: Flow,
-        text: String,
-      ): Flow {
-        require(text.isNotBlank()) { "An edge label cannot be blank; pass the text to show on the edge" }
-        return LabeledFlow(flow, text)
-      }
     }
   }
 
@@ -199,7 +151,7 @@ internal class FlowSet(
   override fun endpoints(): List<Endpoint> = flows.flatMap { it.endpoints() }
 }
 
-/** A point in the flow whose edges [Deps.Flow.label] labels with [text]. */
+/** A point in the flow whose edges [Label.on] labels with [text]. */
 internal class LabeledFlow(
   internal val flow: Deps.Flow,
   internal val text: String,
@@ -210,9 +162,9 @@ internal class LabeledFlow(
 }
 
 /**
- * Each endpoint of this flow, paired with the label that [Deps.Flow.label]
- * wrapped it in, or with null when no label wraps it. When a labeled flow is
- * labeled again, the outer label replaces the inner label.
+ * Each endpoint of this flow, paired with the label that [Label.on] put on
+ * it, or with null when no label is on it. When a labeled flow is labeled
+ * again, the outer label replaces the inner label.
  */
 private val Deps.Flow.labeledEndpoints: List<Pair<Endpoint, String?>>
   get() =
@@ -223,9 +175,9 @@ private val Deps.Flow.labeledEndpoints: List<Pair<Endpoint, String?>>
     }
 
 /**
- * Rejects a call of [verb] on a flow that [Deps.Flow.label] returned, or on a
- * flow that holds such a flow. A label goes on the edges between the receiver
- * of [verb] and the flow that the label wraps. A label on the receiver would
+ * Rejects a call of [verb] on a flow that [Label.on] returned, or on a flow
+ * that holds such a flow. A label goes on the edges between the receiver of
+ * [verb] and the flows passed to [Label.on]. A label on the receiver would
  * therefore label no edge.
  */
 private fun requireUnlabeled(
@@ -235,8 +187,8 @@ private fun requireUnlabeled(
   val labeled = receiver.labeledEndpoints.filter { (_, text) -> text != null }
   require(labeled.isEmpty()) {
     "Cannot call $verb on ${labeled.joinToString { (end, text) -> "${end.diagnosticName} labeled \"$text\"" }}: " +
-      "a label goes on the edges between the receiver of before or after and the flow it wraps, so pass " +
-      "Flow.label(...) to before or after as an argument instead"
+      "a label goes on the edges between the receiver of before or after and the flows it is put on, so pass " +
+      "Label.of(...).on(...) to before or after as an argument instead"
   }
 }
 
