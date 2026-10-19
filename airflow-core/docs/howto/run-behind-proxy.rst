@@ -94,9 +94,10 @@ ends with ``/``, so the cookie of one instance is not sent to the other.
 
 .. warning::
 
-    Do not serve one instance at the root path (``/``) while other instances on the same host name use
-    sub-paths. The browser sends the root instance's cookie with every request to that host, so the other
-    instances read the root instance's token instead of their own and cannot keep you logged in.
+    The ``base_url`` path of one instance must not be a parent path of another's, such as ``/prod`` and
+    ``/prod/dev``, or ``/`` and any other path. The browser sends the parent instance's cookie with every
+    request under its path, so the other instance reads the parent instance's token instead of its own and
+    cannot keep you logged in.
 
 Alternatively, serve each instance from its own host name, for example ``prod.lab.mycompany.com`` and
 ``dev.lab.mycompany.com``.
