@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from airflow.api_fastapi.core_api.datamodels.connections import ConnectionResponse
+from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody, ConnectionResponse
 
 
 def _payload(**overrides):
@@ -56,3 +56,15 @@ def test_redact_extra_rejects_non_json(extra):
     """
     with pytest.raises(ValidationError):
         ConnectionResponse.model_validate(_payload(extra=extra))
+
+
+@pytest.mark.parametrize("port", [0, 65535, None])
+def test_connection_body_allows_valid_port_boundaries(port):
+    body = ConnectionBody(connection_id="test_conn", conn_type="http", port=port)
+    assert body.port == port
+
+
+@pytest.mark.parametrize("port", [-1, 65536])
+def test_connection_body_rejects_invalid_port_boundaries(port):
+    with pytest.raises(ValidationError):
+        ConnectionBody(connection_id="test_conn", conn_type="http", port=port)
