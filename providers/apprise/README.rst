@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.9.0``
-``apprise``                                 ``>=1.8.0``
+``apprise``                                 ``>=1.9.0``
 ==========================================  ==================
 
 The changelog for the provider package can be found in the
