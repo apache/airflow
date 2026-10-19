@@ -52,11 +52,14 @@ def is_model_dump_required(output: Any, output_type: Any, *, serialize_output: b
     A downstream task can load a model from XCom only if the worker registered the model's class, and the worker
     registers the classes ``iter_pydantic_models`` finds in ``output_type``. It finds none in a list of output
     types, an output marker, an output function, a ``TypeAliasType`` or a ``NewType``, so those shapes are dumped.
+    Without ``iter_pydantic_models`` there is no evidence either way, so the caller's ``serialize_output`` decides.
     """
     if not isinstance(output, BaseModel):
         return False
-    if serialize_output or iter_pydantic_models is None:
+    if serialize_output:
         return True
+    if iter_pydantic_models is None:
+        return False
     return type(output) not in iter_pydantic_models(output_type)
 
 
