@@ -47,15 +47,32 @@ Airflow connection:
     :end-before: [END example_claude_agent_sdk]
 
 The model can call ``list_tables``, ``get_schema`` and ``query``, the tools ``SQLToolset``
-serves. Each call writes a group like this one to the task log. This output is
-illustrative, not captured from a real run; the tool name and timing vary with what the
-model decides to do:
+serves. Each call writes a group to the task log. This is the log of one run against a
+temporary SQLite database, captured as the task logger wrote it, for the question "Inspect
+the columns of each table first with get_schema, then tell me which customer name has the
+highest total order amount and in which city they live." Which tools the model calls, in
+what order, and how long each takes depend on the model and the question:
 
 .. code-block:: text
 
-    [info] ::group::Tool call: list_tables
-    [info] Tool list_tables returned in 0.00s
-    [info] ::endgroup::
+    2026-10-19T07:56:54.324694Z [info     ] ::group::Tool call: list_tables [airflow.providers.common.ai.tools] loc=__init__.py:116
+    2026-10-19T07:56:54.603210Z [info     ] Tool list_tables returned in 0.28s [airflow.providers.common.ai.tools] loc=__init__.py:130
+    2026-10-19T07:56:54.603326Z [info     ] ::endgroup::                   [airflow.providers.common.ai.tools] loc=__init__.py:132
+    2026-10-19T07:56:56.308886Z [info     ] ::group::Tool call: get_schema [airflow.providers.common.ai.tools] loc=__init__.py:116
+    2026-10-19T07:56:56.309896Z [info     ] Tool get_schema returned in 0.00s [airflow.providers.common.ai.tools] loc=__init__.py:130
+    2026-10-19T07:56:56.310010Z [info     ] ::endgroup::                   [airflow.providers.common.ai.tools] loc=__init__.py:132
+    2026-10-19T07:56:56.476896Z [info     ] ::group::Tool call: get_schema [airflow.providers.common.ai.tools] loc=__init__.py:116
+    2026-10-19T07:56:56.478181Z [info     ] Tool get_schema returned in 0.00s [airflow.providers.common.ai.tools] loc=__init__.py:130
+    2026-10-19T07:56:56.478343Z [info     ] ::endgroup::                   [airflow.providers.common.ai.tools] loc=__init__.py:132
+    2026-10-19T07:56:58.700718Z [info     ] ::group::Tool call: query      [airflow.providers.common.ai.tools] loc=__init__.py:116
+    2026-10-19T07:56:58.704926Z [info     ] Running statement: SELECT c.name, c.city, SUM(o.amount) AS total_amount
+    FROM customers c
+    JOIN orders o ON o.customer_id = c.id
+    GROUP BY c.id, c.name, c.city
+    ORDER BY total_amount DESC
+    LIMIT 5, parameters: None [airflow.task.hooks.airflow.providers.sqlite.hooks.sqlite.SqliteHook] loc=sql.py:896
+    2026-10-19T07:56:59.495567Z [info     ] Tool query returned in 0.79s   [airflow.providers.common.ai.tools] loc=__init__.py:130
+    2026-10-19T07:56:59.495691Z [info     ] ::endgroup::                   [airflow.providers.common.ai.tools] loc=__init__.py:132
 
 Only ``AirflowTools`` and ``tools.run(query(...))`` come from Airflow. ``query()``, the
 system prompt, the model and ``max_turns`` are the SDK's own.
@@ -98,16 +115,18 @@ When a tool fails
 
 A failure the model can correct, such as a query naming a table outside
 ``allowed_tables`` or one the database rejects, comes back to it as an MCP tool result
-with ``isError`` set. For a ``query`` call the database rejected, the model would read a
-block shaped like this one (illustrative, not captured from a real run; it shows the
-API-level message the model reads, not the handler's return value or the MCP wire format):
+with ``isError`` set. This is what the model read when it asked a ``SQLToolset`` to run a
+``DELETE`` statement, which the read-only validation rejects. It is the ``tool_result``
+block from the ``UserMessage`` in the SDK stream of a real run (indented here;
+``tool_use_id`` is the value from that run), so it shows the API-level message the model
+reads, not the handler's return value or the MCP wire format:
 
 .. code-block:: json
 
     {
       "type": "tool_result",
-      "tool_use_id": "toolu_example_1",
-      "content": "The query tool failed: <database error>\nUse the list_tables and get_schema ... try again.",
+      "tool_use_id": "toolu_01Sitdzj84kaH1CKYC8LFW2b",
+      "content": "The query tool failed: Statement type 'Delete' is not allowed. Allowed types: Select, Union, Intersect, Except, Describe, Show\nUse the list_tables and get_schema tools to inspect the database, then fix the query and try again.",
       "is_error": true
     }
 
