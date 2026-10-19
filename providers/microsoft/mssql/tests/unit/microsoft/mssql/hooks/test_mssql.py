@@ -395,7 +395,7 @@ def _mssql_hook(extra: str = "{}") -> MsSqlHook:
         extra=extra,
     )
     hook = MsSqlHook()
-    hook.get_connection = mock.Mock(return_value=conn)
+    hook.get_connection = mock.Mock(return_value=conn)  # type: ignore[method-assign]
     return hook
 
 
