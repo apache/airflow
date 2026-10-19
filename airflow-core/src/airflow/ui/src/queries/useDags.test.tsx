@@ -21,23 +21,18 @@ import type { PropsWithChildren } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 import { successDag } from "src/mocks/handlers/dags";
+import { server } from "src/mocks/server";
 
 import { useDagRunStateCounts } from "./useDagRunStateCounts";
 import { useDags } from "./useDags";
 
-const server = setupServer();
-
-beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterEach(() => {
   cleanup();
-  server.resetHandlers();
   vi.useRealTimers();
 });
-afterAll(() => server.close());
 
 it.each(["latest run", "run counts"])("refreshes %s when no runs are pending", async (target) => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
