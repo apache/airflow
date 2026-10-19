@@ -62,6 +62,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -218,7 +219,7 @@ class Backfill(Base):
         return None
 
     @duration.expression  # type: ignore[no-redef]
-    def duration(cls) -> Any:
+    def duration(cls: type[Backfill]) -> ColumnElement[Any]:
         @provide_session
         def _get_dialect(*, session: Session = NEW_SESSION) -> str | None:
             return get_dialect_name(session=session)
