@@ -30,6 +30,10 @@
 # UPGRADE_RANDOM_INDICATOR_STRING - if set with random value determines that dependency upgrade should be done
 #                                   with highest resolution. It is random in order to trigger cache
 #                                   invalidation when building images
+# INSTALL_LOCKED_THIRD_PARTY_ONLY - if "true", only the third-party dependencies locked in uv.lock are installed
+#                                   from sources (--no-install-workspace), so only the pyproject.toml files
+#                                   and uv.lock are needed. There is no fallback to re-resolving and the
+#                                   steps that need the workspace packages installed are skipped.
 #
 # shellcheck shell=bash disable=SC2086
 # shellcheck source=scripts/docker/common.sh
@@ -40,6 +44,9 @@ function install_from_sources() {
     extra_sync_flags=""
     if [[ ${VIRTUAL_ENV=} != "" ]]; then
         extra_sync_flags="--active"
+    fi
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        extra_sync_flags="${extra_sync_flags} --no-install-workspace"
     fi
     if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
         if [[ ${PACKAGING_TOOL_CMD} == "pip" ]]; then
@@ -74,6 +81,12 @@ function install_from_sources() {
             ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python; then
             set +x
+            if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because frozen uv.lock installation failed and locked third-party only installation has no fallback.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
                 echo "${COLOR_RED}Failing because frozen uv.lock installation failed and fallback is disabled.${COLOR_RESET}"
@@ -163,6 +176,10 @@ function install_airflow_when_building_images() {
         install_from_external_spec
     fi
     set +x
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        # Packaging tools and 'pip check' are handled by the installation that adds the workspace packages
+        return
+    fi
     common::install_packaging_tools
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
