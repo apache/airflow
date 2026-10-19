@@ -115,12 +115,12 @@ export const NavButton = ({
 
   if (isExternal) {
     return (
-      <Link asChild href={to} rel="noopener noreferrer" target="_blank">
-        <Button {...commonButtonProps}>
+      <Button {...commonButtonProps} asChild>
+        <a href={to} rel="noopener noreferrer" target="_blank">
           {pluginIcon ?? <Icon as={icon} boxSize={5} />}
           <Box {...commonLabelProps}>{title}</Box>
-        </Button>
-      </Link>
+        </a>
+      </Button>
     );
   }
 

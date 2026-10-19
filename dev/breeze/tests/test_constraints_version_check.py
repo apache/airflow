@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -25,6 +26,7 @@ import pytest
 
 from airflow_breeze.utils.constraints_version_check import (
     explain_package_upgrade,
+    get_release_cutoff,
     get_table_format,
     process_packages,
 )
@@ -33,10 +35,15 @@ MODULE = "airflow_breeze.utils.constraints_version_check"
 
 # Old enough that the default 4-day cooldown never filters these releases out.
 OLD_UPLOAD_TIME = "2020-01-01T00:00:00.000000Z"
+# Far enough ahead to sit inside any cooldown window, whenever the test runs.
+FRESH_UPLOAD_TIME = "2099-01-01T00:00:00.000000Z"
 
 
-def _pypi_payload(latest: str, *versions: str) -> bytes:
-    releases = {v: [{"upload_time_iso_8601": OLD_UPLOAD_TIME, "yanked": False}] for v in versions}
+def _pypi_payload(latest: str, *versions: str, fresh: str | None = None) -> bytes:
+    releases = {
+        v: [{"upload_time_iso_8601": FRESH_UPLOAD_TIME if v == fresh else OLD_UPLOAD_TIME, "yanked": False}]
+        for v in versions
+    }
     return json.dumps({"info": {"version": latest}, "releases": releases}).encode()
 
 
@@ -103,6 +110,68 @@ def test_baseline_is_not_resolved_without_explain_why(mock_baseline, mock_explai
 
     mock_explain.assert_not_called()
     mock_baseline.assert_not_called()
+
+
+@mock.patch(f"{MODULE}.explain_package_upgrade")
+@mock.patch(f"{MODULE}.resolve_baseline_versions")
+@mock.patch(f"{MODULE}.get_latest_version_with_cooldown", return_value="1.0.0")
+def test_pin_newer_than_cooldown_latest_is_up_to_date(mock_cooldown, mock_baseline, mock_explain, pypi):
+    # Constraints already moved to 2.0.0 while the cooldown still reports 1.0.0 as latest.
+    outdated_count, _, explanations, status_counts = _run_process_packages([("pkg-a", "2.0.0")])
+
+    assert outdated_count == 0
+    assert explanations == []
+    assert status_counts["ok"] == 1
+    mock_explain.assert_not_called()
+    mock_baseline.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected_outdated"),
+    [
+        pytest.param({}, 0, id="third-party release inside the cooldown is not latest yet"),
+        pytest.param({"pkg-a": False}, 1, id="exempt distribution counts its fresh release right away"),
+    ],
+)
+@mock.patch(f"{MODULE}.explain_package_upgrade", return_value="explanation")
+@mock.patch(f"{MODULE}.resolve_baseline_versions", return_value=("baseline log", {}))
+def test_cooldown_follows_exclude_newer_package_overrides(
+    mock_baseline, mock_explain, monkeypatch, overrides, expected_outdated
+):
+    def fake_urlopen(_url):
+        response = mock.MagicMock()
+        response.read.return_value = _pypi_payload("2.0.0", "1.0.0", "2.0.0", fresh="2.0.0")
+        return contextlib.nullcontext(response)
+
+    monkeypatch.setattr(f"{MODULE}.urllib.request.urlopen", fake_urlopen)
+    col_widths, format_str, _, _ = get_table_format([("pkg-a", "1.0.0")])
+
+    outdated_count, _, _, _ = process_packages(
+        packages=[("pkg-a", "1.0.0")],
+        constraints_date=None,
+        mode="full",
+        explain_why=True,
+        col_widths=col_widths,
+        format_str=format_str,
+        python_version="3.11",
+        airflow_constraints_mode="constraints",
+        github_repository="apache/airflow",
+        cooldown_overrides=overrides,
+    )
+
+    assert outdated_count == expected_outdated
+    assert mock_explain.call_count == expected_outdated
+
+
+@pytest.mark.parametrize(
+    ("override", "expected"),
+    [
+        pytest.param(False, None, id="false lifts the cooldown"),
+        pytest.param("2026-08-13T00:00:00Z", datetime(2026, 8, 13), id="timestamp fixes the cutoff"),
+    ],
+)
+def test_release_cutoff_honours_override_shapes(override, expected):
+    assert get_release_cutoff("Pkg_A", 4, {"pkg-a": override}) == expected
 
 
 @mock.patch(f"{MODULE}.update_pyproject_dependency")

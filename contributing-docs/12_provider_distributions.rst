@@ -158,8 +158,10 @@ Because the new group is *not* part of ``dev``, a plain ``uv sync`` on a contrib
 will not try to install it. The CI image installs it via ``ci-image``.
 
 **Shape B: the Python package's wheel build needs a proprietary SDK that cannot live in the
-base CI image** (e.g. IBM MQ's ``ibmmq`` needs the IBM MQ Redistributable Client headers and
-``MQ_FILE_PATH`` set at build time). Bundling such SDKs in the base image has licence,
+base CI image** (e.g. ``ibmmq`` releases before 2.1.0 were sdist-only and needed the IBM MQ
+Redistributable Client headers and ``MQ_FILE_PATH`` set at build time). First check whether
+raising the lower bound to a release that ships wheels avoids the build — a download at test
+time makes the job depend on the upstream host being reachable. Bundling such SDKs in the base image has licence,
 maintenance, and image-size costs that the project does not want to pay on every CI run.
 The lowest-direct-dependency provider tests still call ``uv sync --all-extras`` inside the
 provider directory, so simply mocking the package in tests is not enough — the sync itself
@@ -185,7 +187,7 @@ must succeed first. Use the per-provider pre-extras-install manifest:
 
    .. code:: yaml
 
-       # providers/ibm/mq/pre_extras_install.yaml
+       # providers/<id>/pre_extras_install.yaml
        downloads:
          - url: https://public.dhe.ibm.com/.../9.4.0.0-IBM-MQC-Redist-LinuxX64.tar.gz
            sha256: <64 lowercase hex chars>
@@ -206,7 +208,11 @@ must succeed first. Use the per-provider pre-extras-install manifest:
      Each ``downloads`` entry may also include ``fallback_ips`` (optional list of IPv4 or
      IPv6 address strings). The interpreter tries the URL with normal DNS resolution first;
      only on connection or resolution failure does it retry the same URL with each listed
-     IP, in order, by temporarily overriding ``socket.getaddrinfo`` for the hostname. The
+     IP, in order, by temporarily overriding ``socket.getaddrinfo`` for the hostname. Every
+     attempt uses a short socket timeout, and the whole set of routes is retried in rounds
+     (see ``DOWNLOAD_TIMEOUT_SECONDS`` and ``DOWNLOAD_ROUNDS`` in the interpreter), so an
+     unreachable or stalled upstream costs seconds per attempt rather than the kernel's
+     multi-minute TCP connect timeout. A checksum mismatch is never retried. The
      TLS SNI and certificate verification stay bound to the URL hostname, and the
      ``sha256`` check still runs end-to-end on whichever attempt succeeds, so a fallback
      entry only changes *which IP is dialled*, not what is trusted. Use this when the

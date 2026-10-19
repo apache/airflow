@@ -72,10 +72,7 @@ class _LazyLogRecordDict(collections.abc.Mapping):
         if key == "levelname":
             return self.event.get("level", self.method_name).upper()
         if key == "asctime" or key == "created":
-            return (
-                self.event.get("timestamp", None)
-                or datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
-            )
+            return self.event.get("timestamp", None) or datetime.datetime.now(tz=datetime.UTC).isoformat()
         if key == "message":
             return self.event["event"]
 

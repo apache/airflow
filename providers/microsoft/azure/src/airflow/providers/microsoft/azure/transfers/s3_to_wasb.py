@@ -110,6 +110,8 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         "s3_key",
         "blob_prefix",
         "blob_name",
+        "aws_conn_id",
+        "wasb_conn_id",
     )
 
     def __init__(

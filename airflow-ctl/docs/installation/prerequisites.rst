@@ -18,10 +18,7 @@
 Prerequisites
 -------------
 
-airflowctl is tested with:
-
-
-The minimum memory required we recommend airflowctl to run with is 200MB, but the actual requirements depend
+The minimum memory we recommend for airflowctl to run with is 200MB, but the actual requirements depend
 wildly on the deployment options you have.
 The Keyring backend needs to be installed separately into your operating system. This will enhance security. See :doc:`/security` for more information.
 
@@ -68,7 +65,7 @@ use cases. Simply install them to make them available:
 
 Python Version Compatibility
 ----------------------------
-``airflowctl`` is compatible with versions of Python 3.10 through Python 3.14.
+``airflowctl`` is compatible with versions of Python 3.11 through Python 3.14.
 
 .. list-table::
    :widths: 15 85
@@ -76,8 +73,6 @@ Python Version Compatibility
 
    * - Python Version
      - Supported
-   * - 3.10
-     - Yes
    * - 3.11
      - Yes
    * - 3.12

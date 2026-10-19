@@ -120,6 +120,12 @@ The method returns a ``(command, subprocess_schema_version)`` pair:
   subprocess understands, used by the supervisor to negotiate message formats
   across SDK versions. See `Supervisor Schema`_ below.
 
+Call ``self._get_scan_roots()`` to retrieve the artifact directories the base
+class has already resolved: the Dag bundle named by ``task_handler_bundle_name``,
+or the task's own Dag bundle when it is unset, pinned for the whole task.
+Subclasses should scan those directories rather than locating artifacts
+themselves.
+
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
 
@@ -408,6 +414,11 @@ authored in the target language. An SDK declares each one independently.
 ``mixed-lang-stub-target`` (MUST)
     The SDK can execute a task declared in a Python Dag with the ``@task.stub``
     decorator. This is the primary execution path for every Language SDK.
+
+``taskflow-binding`` (MUST)
+    Arguments bound to a ``@task.stub`` target in the Python TaskFlow Dag — literal values
+    and upstream XCom results alike — are delivered to the task function's parameters at
+    runtime.
 
 ``task-logging`` (MUST)
     The SDK forwards the task's log output — stdout / stderr and any structured log

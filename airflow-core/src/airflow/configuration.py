@@ -32,10 +32,8 @@ from importlib.util import find_spec
 from inspect import ismodule
 from io import StringIO
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any, overload
 from urllib.parse import urlsplit
-
-from typing_extensions import overload
 
 from airflow._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
@@ -361,12 +359,13 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
 
     def _upgrade_postgres_metastore_conn(self):
         """
-        Upgrade SQL schemas.
+        Normalize the metadata DB URL scheme.
 
-        As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres`
-        must be replaced with `postgresql+psycopg` if the psycopg (v3) driver
-        is installed, or `postgresql+psycopg2` otherwise. The bare `postgresql`
-        scheme is upgraded the same way to make the driver explicit.
+        SQLAlchemy does not accept the schemes `postgres+psycopg2` and `postgres`;
+        they are replaced with `postgresql+psycopg` if the psycopg (v3) driver
+        is installed, or `postgresql+psycopg2` otherwise, and a warning is emitted.
+        The valid bare `postgresql` scheme is rewritten the same way, without a
+        warning, to make the driver explicit.
         """
         section, key = "database", "sql_alchemy_conn"
         old_value = self.get(section, key, _extra_stacklevel=1)
@@ -378,13 +377,17 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         good_scheme = "postgresql+psycopg" if find_spec("psycopg") is not None else "postgresql+psycopg2"
         parsed = urlsplit(old_value)
         if parsed.scheme in bad_schemes:
-            warnings.warn(
-                f"Bad scheme in Airflow configuration [database] sql_alchemy_conn: `{parsed.scheme}`. "
-                "As of SQLAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
-                f"change to `{good_scheme}` before the next Airflow release.",
-                FutureWarning,
-                stacklevel=1,
-            )
+            # The bare ``postgresql`` scheme is valid in SQLAlchemy; we only make the driver explicit,
+            # so don't warn about it. ``postgres`` and ``postgres+psycopg2`` are really unsupported.
+            if parsed.scheme != "postgresql":
+                warnings.warn(
+                    f"Unsupported scheme `{parsed.scheme}` in Airflow configuration [database] "
+                    "sql_alchemy_conn: SQLAlchemy no longer accepts it. "
+                    f"Airflow is using `{good_scheme}` instead for now; change the scheme to "
+                    f"`postgresql` (Airflow picks the driver) or `{good_scheme}`.",
+                    FutureWarning,
+                    stacklevel=1,
+                )
             self.upgraded_values[(section, key)] = old_value
             new_value = re.sub("^" + re.escape(f"{parsed.scheme}://"), f"{good_scheme}://", old_value)
             self._update_env_var(section=section, name=key, new_value=new_value)

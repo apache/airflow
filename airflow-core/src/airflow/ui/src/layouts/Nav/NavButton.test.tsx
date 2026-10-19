@@ -18,7 +18,7 @@
  */
 import type { PropsWithChildren } from "react";
 
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { FiHome } from "react-icons/fi";
 import { MemoryRouter } from "react-router-dom";
@@ -92,6 +92,20 @@ describe("NavButton", () => {
       });
 
       expect(screen.getByRole("button", { name: "Browse" })).not.toHaveAttribute("aria-current");
+    });
+  });
+
+  describe("isExternal", () => {
+    it("renders as an anchor link with target=_blank", () => {
+      render(<NavButton icon={FiHome} isExternal title="Icon Name" to="https://example.com" />, {
+        wrapper: wrapperAt("/"),
+      });
+
+      const link = screen.getByRole("link", { name: "Icon Name" });
+
+      expect(link).toHaveAttribute("href", "https://example.com");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
     });
   });
 

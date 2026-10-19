@@ -33,20 +33,15 @@ export class DagsPage extends BasePage {
   }
 
   public readonly addFilterButton: Locator;
-  public readonly cardViewButton: Locator;
   public readonly confirmButton: Locator;
   public readonly hitlReviewModal: HITLReviewModal;
-  public readonly lastRunStateFilter: Locator;
-  public readonly lastRunStatePill: Locator;
   public readonly needsReviewBadges: Locator;
   public readonly needsReviewFilter: Locator;
-  public readonly operatorFilter: Locator;
-  public readonly retriesFilter: Locator;
-  public readonly searchBox: Locator;
+  public readonly runStateFilter: Locator;
+  public readonly runStatePill: Locator;
   public readonly searchInput: Locator;
   public readonly tableViewButton: Locator;
   public readonly triggerButton: Locator;
-  public readonly triggerRuleFilter: Locator;
 
   public get taskRows(): Locator {
     return this.page.locator('[data-testid="table-list"] > tbody > tr');
@@ -58,18 +53,13 @@ export class DagsPage extends BasePage {
     // Scoped to the dialog so we never accidentally click the page-level trigger.
     this.confirmButton = page.getByRole("dialog").getByRole("button", { name: "Trigger" });
 
-    this.searchBox = page.getByRole("textbox", { name: /search/i });
     this.searchInput = page.getByPlaceholder("Search Dags");
-    this.operatorFilter = page.getByTestId("operator-filter");
-    this.triggerRuleFilter = page.getByTestId("trigger-rule-filter");
-    this.retriesFilter = page.getByTestId("retries-filter");
-    this.cardViewButton = page.getByRole("button", { name: "Show card view" });
     this.tableViewButton = page.getByRole("button", { name: "Show table view" });
     // Dags filters live in the shared FilterBar: a filter is added from the "Add Filter"
     // menu, then edited in its pill. Test ids are derived from the search-param key.
     this.addFilterButton = page.getByTestId("add-filter-button");
-    this.lastRunStateFilter = page.getByTestId("last_dag_run_state-filter");
-    this.lastRunStatePill = page.getByTestId("last_dag_run_state-pill");
+    this.runStateFilter = page.getByTestId("run_state-filter");
+    this.runStatePill = page.getByTestId("run_state-pill");
     this.hitlReviewModal = new HITLReviewModal(page);
     this.needsReviewBadges = page.getByTestId("needs-review-badge");
     // Uses testId because this menu item's text is driven by an i18n key.
@@ -96,14 +86,6 @@ export class DagsPage extends BasePage {
     // instead of refetching, so the dropped search param is the only signal there is.
     await expect(this.page).not.toHaveURL(/name_pattern=/u);
     await this.waitForDagList();
-  }
-
-  public async filterByOperator(operator: string): Promise<void> {
-    await this.selectDropdownOption(this.operatorFilter, operator);
-  }
-
-  public async filterByRetries(retries: string): Promise<void> {
-    await this.selectDropdownOption(this.retriesFilter, retries);
   }
 
   /**
@@ -140,23 +122,19 @@ export class DagsPage extends BasePage {
       // visibility races that. The URL carries the same fact and never animates.
       if (new URL(this.page.url()).searchParams.has("last_dag_run_state")) {
         // An existing pill already holds a value, so re-opening it leaves the menu shut.
-        await this.lastRunStatePill.click();
-        await this.lastRunStateFilter.click();
+        await this.runStatePill.click();
+        await this.runStateFilter.click();
       } else {
         // A filter added from the menu opens onto its options; clicking the trigger would shut it.
         await this.openAddFilterMenu();
-        await this.page.getByTestId("add-filter-last_dag_run_state").click();
+        await this.page.getByTestId("add-filter-run_state").click();
       }
-      await this.page.getByTestId(`last_dag_run_state-filter-${status}`).click();
+      await this.page.getByTestId(`run_state-filter-${status}`).click();
       // Selecting blurs the pill, which collapses it ~150ms later. Hand back a settled bar
       // instead of one mid-transition.
-      await expect(this.lastRunStatePill).toBeVisible({ timeout: 5000 });
+      await expect(this.runStatePill).toBeVisible({ timeout: 5000 });
     }
     await responsePromise;
-  }
-
-  public async filterByTriggerRule(rule: string): Promise<void> {
-    await this.selectDropdownOption(this.triggerRuleFilter, rule);
   }
 
   /**
@@ -214,14 +192,6 @@ export class DagsPage extends BasePage {
     return texts.map((text) => text.trim()).filter((text) => text !== "");
   }
 
-  public async getDagNeedsReviewBadgeOnCard(dagId: string): Promise<Locator> {
-    const dagCard = this.page.getByTestId("dag-card").filter({ hasText: dagId });
-
-    await expect(dagCard).toBeVisible({ timeout: 60_000 });
-
-    return dagCard.getByTestId("needs-review-badge");
-  }
-
   public async getDagNeedsReviewBadgeOnTable(dagId: string): Promise<Locator> {
     const dagRow = this.page.getByTestId("table-list").getByRole("row").filter({ hasText: dagId });
 
@@ -239,53 +209,9 @@ export class DagsPage extends BasePage {
     const cardList = this.page.locator('[data-testid="card-list"]');
     const isCardView = await cardList.isVisible();
 
-    if (isCardView) {
-      return this.page.locator('[data-testid="dag-id"]').count();
-    }
-
-    return this.page.getByTestId("table-list").locator(DATA_ROWS).count();
-  }
-
-  public async getFilterOptions(filter: Locator): Promise<Array<string>> {
-    const state = await filter.getAttribute("data-state");
-
-    if (state === "open") {
-      await this.page.keyboard.press("Escape");
-      await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
-    }
-
-    await expect(async () => {
-      await filter.click({ timeout: 5000 });
-      await expect(filter).toHaveAttribute("data-state", "open", { timeout: 5000 });
-    }).toPass({ intervals: [1000, 2000], timeout: 15_000 });
-
-    const controlsId = await filter.getAttribute("aria-controls");
-
-    const dropdown =
-      controlsId === null
-        ? this.page.locator('div[role="listbox"][data-state="open"]').first()
-        : this.page.locator(`[id="${controlsId}"]`);
-    const options = dropdown.locator('div[role="option"]');
-
-    await expect(options.first()).toBeVisible();
-
-    const count = await options.count();
-    const dataValues: Array<string> = [];
-
-    for (let i = 0; i < count; i++) {
-      const value = await options.nth(i).getAttribute("data-value");
-
-      if (value !== null && value.trim().length > 0) {
-        dataValues.push(value);
-      }
-    }
-
-    // Click outside to dismiss — Escape is unreliable on WebKit.
-    await this.page.locator("body").click({ position: { x: 0, y: 0 } });
-
-    await expect(dropdown.and(this.page.locator('[data-state="open"]'))).toBeHidden({ timeout: 5000 });
-
-    return dataValues;
+    return isCardView
+      ? this.page.locator('[data-testid="dag-id"]').count()
+      : this.page.getByTestId("table-list").locator(DATA_ROWS).count();
   }
 
   /**
@@ -382,16 +308,6 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Switch to card view
-   */
-  public async switchToCardView(): Promise<void> {
-    await expect(this.cardViewButton).toBeVisible({ timeout: 30_000 });
-    await expect(this.cardViewButton).toBeEnabled();
-    await this.cardViewButton.click();
-    await this.waitForCardView();
-  }
-
-  /**
    * Switch to table view
    */
   public async switchToTableView(): Promise<void> {
@@ -412,13 +328,6 @@ export class DagsPage extends BasePage {
     await this.triggerButton.click();
 
     return this.handleTriggerDialog();
-  }
-
-  /**
-   * Wait for card view to be visible
-   */
-  public async waitForCardView(): Promise<void> {
-    await expect(this.page.locator('[data-testid="card-list"]')).toBeVisible();
   }
 
   /**
@@ -471,31 +380,5 @@ export class DagsPage extends BasePage {
     }
 
     return null;
-  }
-
-  private async selectDropdownOption(filter: Locator, value: string): Promise<void> {
-    await expect(async () => {
-      // Dismiss any open dropdown/overlay before clicking the target filter.
-      const currentState = await filter.getAttribute("data-state");
-
-      if (currentState === "open") {
-        await this.page.keyboard.press("Escape");
-        await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
-      }
-
-      await filter.click({ timeout: 5000 });
-      await expect(filter).toHaveAttribute("data-state", "open", { timeout: 5000 });
-
-      const option = this.page.locator(`div[role="option"][data-value="${value}"]`);
-
-      await expect(option).toBeVisible({ timeout: 5000 });
-      await option.click();
-
-      if ((await filter.getAttribute("aria-expanded")) === "true") {
-        await this.page.keyboard.press("Escape");
-      }
-
-      await expect(filter).toHaveAttribute("data-state", "closed", { timeout: 5000 });
-    }).toPass({ intervals: [1000, 2000], timeout: 30_000 });
   }
 }

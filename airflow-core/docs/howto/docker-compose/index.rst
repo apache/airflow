@@ -247,7 +247,7 @@ You can also run :doc:`CLI commands <../usage-cli>`, but you have to do it in on
 
     docker compose run airflow-worker airflow info
 
-If you have Linux or Mac OS, you can make your work easier and download a optional wrapper scripts that will allow you to run commands with a simpler command.
+If you have Linux or Mac OS, you can make your work easier and download an optional wrapper script that will allow you to run commands with a simpler command.
 
 .. jinja:: quick_start_ctx
 
@@ -472,7 +472,7 @@ runtime user id which is unknown at the time of building the image.
 |                                | it should be set to result of ``id -u`` call.       |                          |
 |                                | When it is changed, a user with the UID is          |                          |
 |                                | created with ``default`` name inside the container  |                          |
-|                                | and home of the use is set to ``/airflow/home/``    |                          |
+|                                | and home of the user is set to ``/airflow/home/``   |                          |
 |                                | in order to share Python libraries installed there. |                          |
 |                                | This is in order to achieve the  OpenShift          |                          |
 |                                | compatibility. See more in the                      |                          |

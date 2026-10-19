@@ -65,6 +65,7 @@ class LazyXComSequence(Sequence[T]):
     _len: int | None = attrs.field(init=False, default=None)
     _xcom_arg: PlainXComArg = attrs.field(alias="xcom_arg")
     _ti: RuntimeTaskInstance = attrs.field(alias="ti")
+    _previous_iteration: bool = attrs.field(default=False, alias="previous_iteration", kw_only=True)
 
     def __repr__(self) -> str:
         if self._len is not None:
@@ -96,6 +97,7 @@ class LazyXComSequence(Sequence[T]):
 
             msg = SUPERVISOR_COMMS.send(
                 GetXComCount(
+                    previous_iteration=self._previous_iteration,
                     key=self._xcom_arg.key,
                     dag_id=task.dag_id,
                     run_id=self._ti.run_id,
@@ -131,6 +133,7 @@ class LazyXComSequence(Sequence[T]):
             source = (xcom_arg := self._xcom_arg).operator
             msg = SUPERVISOR_COMMS.send(
                 GetXComSequenceSlice(
+                    previous_iteration=self._previous_iteration,
                     key=xcom_arg.key,
                     dag_id=source.dag_id,
                     task_id=source.task_id,
@@ -142,7 +145,7 @@ class LazyXComSequence(Sequence[T]):
             )
             if not isinstance(msg, XComSequenceSliceResult):
                 raise TypeError(f"Got unexpected response to GetXComSequenceSlice: {msg!r}")
-            return [XCom.deserialize_value(_XComWrapper(value)) for value in msg.root]
+            return [XCom._load(_XComWrapper(value)) for value in msg.root]
 
         if not isinstance(key, int):
             if (index := getattr(key, "__index__", None)) is not None:
@@ -152,6 +155,7 @@ class LazyXComSequence(Sequence[T]):
         source = (xcom_arg := self._xcom_arg).operator
         msg = SUPERVISOR_COMMS.send(
             GetXComSequenceItem(
+                previous_iteration=self._previous_iteration,
                 key=xcom_arg.key,
                 dag_id=source.dag_id,
                 task_id=source.task_id,
@@ -163,7 +167,7 @@ class LazyXComSequence(Sequence[T]):
             raise IndexError(key)
         if not isinstance(msg, XComSequenceIndexResult):
             raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg!r}")
-        return XCom.deserialize_value(_XComWrapper(msg.root))
+        return XCom._load(_XComWrapper(msg.root))
 
 
 def _coerce_slice_index(value: Any) -> int | None:

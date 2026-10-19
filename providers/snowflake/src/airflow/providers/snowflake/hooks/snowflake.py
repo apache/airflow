@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing, contextmanager
 from datetime import datetime, timedelta
@@ -51,7 +52,7 @@ from airflow.utils.strings import to_boolean
 
 OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
 OAUTH_EXPIRY_BUFFER = 30
-SUPPORTED_GRANT_TYPES = {"refresh_token", "client_credentials"}
+SUPPORTED_GRANT_TYPES = {"refresh_token", "client_credentials", "password"}
 
 T = TypeVar("T")
 
@@ -84,6 +85,25 @@ def _is_retryable_oauth_error(exception: BaseException) -> bool:
             return True
 
     return False
+
+
+_ACCOUNT_COMPONENT_PATTERN = re.compile(r"\A[A-Za-z0-9._-]+\Z")
+
+
+def _validate_account_component(value: Any, field_name: str) -> str:
+    """
+    Check that an account or region value is a bare Snowflake identifier.
+
+    These values are interpolated into the Snowflake REST URLs, so a value carrying
+    characters that are significant in a URL would change which host the request is
+    addressed to. Snowflake account and region identifiers are made up of letters,
+    digits, dots, underscores and hyphens, so anything else is rejected rather than sent.
+    """
+    if not isinstance(value, str) or not _ACCOUNT_COMPONENT_PATTERN.fullmatch(value):
+        raise ValueError(
+            f"Invalid Snowflake {field_name} {value!r}: only letters, digits, '.', '_' and '-' are allowed."
+        )
+    return value
 
 
 class _SnowflakeOAuthManager:
@@ -160,7 +180,11 @@ class _SnowflakeOAuthManager:
         ):
             return self._oauth_token
 
-        url = token_endpoint or f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+        if token_endpoint:
+            url = token_endpoint
+        else:
+            account = _validate_account_component(conn_config["account"], "account")
+            url = f"https://{account}.snowflakecomputing.com/oauth/token-request"
 
         data = {
             "grant_type": grant_type,
@@ -178,6 +202,9 @@ class _SnowflakeOAuthManager:
             data |= {
                 "refresh_token": conn_config["refresh_token"],
             }
+
+        if grant_type == "password":
+            data |= {"username": conn_config["oauth_username"], "password": conn_config["oauth_password"]}
 
         response = self.request_oauth_token(
             url=url,
@@ -298,6 +325,8 @@ class SnowflakeHook(DbApiHook):
                         "token_endpoint": "token endpoint",
                         "refresh_token": "refresh token",
                         "scope": "scope",
+                        "oauth_username": "IdP resource owner user name (password grant type)",
+                        "oauth_password": "IdP resource owner user password (password grant type)",
                         "proxy_host": "proxy.example.com",
                         "proxy_port": "8080",
                         "proxy_user": "proxy_username",
@@ -366,10 +395,12 @@ class SnowflakeHook(DbApiHook):
     def account_identifier(self) -> str:
         """Get snowflake account identifier."""
         conn_config = self._get_conn_params()
-        account_identifier = f"https://{conn_config['account']}"
+        account = _validate_account_component(conn_config["account"], "account")
+        account_identifier = f"https://{account}"
 
         if conn_config["region"]:
-            account_identifier += f".{conn_config['region']}"
+            region = _validate_account_component(conn_config["region"], "region")
+            account_identifier += f".{region}"
 
         return account_identifier
 
@@ -451,6 +482,8 @@ class SnowflakeHook(DbApiHook):
             conn_config.pop("login", None)
             conn_config.pop("user", None)
             conn_config.pop("password", None)
+            conn_config.pop("oauth_username", None)
+            conn_config.pop("oauth_password", None)
         return conn_config
 
     def _build_base_conn_config(
@@ -602,8 +635,42 @@ class SnowflakeHook(DbApiHook):
                 "scope",
             )
 
+            if conn_config.get("grant_type") == "password":
+                conn_config["oauth_username"] = (
+                    self._get_field(
+                        extra_dict,
+                        "oauth_username",
+                    )
+                    or ""
+                )
+
+                if len(conn_config["oauth_username"]) == 0:
+                    raise ValueError("Resource owner user name must be provided for password grant type")
+
+                conn_config["oauth_password"] = (
+                    self._get_field(
+                        extra_dict,
+                        "oauth_password",
+                    )
+                    or ""
+                )
+
+                if len(conn_config["oauth_password"]) == 0:
+                    raise ValueError("Resource owner user password must be provided for password grant type")
+
+                if len(conn_config["token_endpoint"]) == 0:
+                    raise ValueError("Token endpoint must be provided for password grant type")
+
             conn_config["client_id"] = conn.login
             conn_config["client_secret"] = conn.password
+
+    def _add_programmatic_access_token_config(self, conn_config: dict[str, Any]) -> None:
+        # The connector's PAT authenticator reads only ``token``; REST hooks read ``password``, so keep both.
+        if conn_config.get("authenticator") != "programmatic_access_token":
+            return
+
+        if conn_config.get("password"):
+            conn_config["token"] = conn_config["password"]
 
     def _add_network_config(
         self,
@@ -667,6 +734,8 @@ class SnowflakeHook(DbApiHook):
             conn,
             extra_dict,
         )
+
+        self._add_programmatic_access_token_config(conn_config)
 
         self._add_network_config(
             conn_config,
@@ -1083,7 +1152,8 @@ class SnowflakeHook(DbApiHook):
 
         self.log.debug("openlineage: getting connection to get database info")
         connection = self.get_connection(self.get_conn_id())
-        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+        database_info = self.get_openlineage_database_info(connection)
+        namespace = SQLParser.create_namespace(database_info)
 
         self.log.info("Separate OpenLineage events will be emitted for each query_id.")
         emit_openlineage_events_for_snowflake_queries(
@@ -1092,6 +1162,8 @@ class SnowflakeHook(DbApiHook):
             query_ids=self.query_ids,
             query_for_extra_metadata=True,
             query_source_namespace=namespace,
+            default_database=database_info.database,
+            default_schema=self.get_openlineage_default_schema(),
         )
 
         if len(self.query_ids) == 1:

@@ -21,7 +21,7 @@ import json
 import os
 from base64 import b64encode
 from contextlib import nullcontext
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, mock_open
@@ -39,6 +39,7 @@ from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.models.connection import Connection
+from airflow.providers.amazon import __version__ as amazon_provider_version
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
@@ -321,7 +322,7 @@ class TestSessionFactory:
                     "access_key": "mock-AccessKeyId",
                     "secret_key": "mock-SecretAccessKey",
                     "token": "mock-SessionToken",
-                    "expiry_time": datetime.now(timezone.utc).isoformat(),
+                    "expiry_time": datetime.now(UTC).isoformat(),
                 }
 
             mock_refresh.side_effect = side_effect
@@ -345,6 +346,10 @@ class TestSessionFactory:
 
 
 class TestAwsBaseHook:
+    @pytest.mark.filterwarnings("error:ProvidersManager.hooks is deprecated")
+    def test_get_provider_version_without_deprecated_hooks(self):
+        assert AwsBaseHook._get_provider_version() == amazon_provider_version
+
     @mock_aws
     def test_get_client_type_set_in_class_attribute(self):
         client = boto3.client("emr", region_name="us-east-1")
@@ -839,7 +844,7 @@ class TestAwsBaseHook:
         expire_on_calls = []
 
         def mock_refresh_credentials():
-            expiry_datetime = datetime.now(timezone.utc)
+            expiry_datetime = datetime.now(UTC)
             expire_on_call = expire_on_calls.pop()
             if expire_on_call:
                 expiry_datetime -= timedelta(minutes=1000)
@@ -1197,6 +1202,8 @@ def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypat
     for env_key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN"):
         # Delete aws credentials environment variables
         monkeypatch.delenv(env_key, raising=False)
+    # On an EC2 host the credential chain would otherwise reach the instance role via IMDS
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
 
     hook = AwsBaseHook(aws_conn_id=None, client_type="sts")
     with pytest.raises(NoCredentialsError) as credential_error:

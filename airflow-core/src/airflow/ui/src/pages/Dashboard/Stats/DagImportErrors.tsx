@@ -26,6 +26,8 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
 
+import { formatNumber } from "src/utils";
+
 import { DagImportErrorsModal } from "./DagImportErrorsModal";
 
 export const DagImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
@@ -58,7 +60,7 @@ export const DagImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           title={translate("importErrors.dagImportError", { count: importErrorsCount })}
         >
           <LuFileWarning size={8} />
-          {importErrorsCount}
+          {formatNumber(importErrorsCount, i18n.language)}
         </StateBadge>
       ) : (
         <StatsCard

@@ -288,12 +288,12 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "26.2.1"
-AIRFLOW_UV_VERSION = "0.12.13"
+AIRFLOW_UV_VERSION = "0.12.18"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.62"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.5.2"
-HATCH_VERSION = "1.18.0"
+PREK_VERSION = "0.5.3"
+HATCH_VERSION = "1.18.1"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -1534,6 +1534,9 @@ def tag_providers(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
+                # Read-only lookup, so run it even in dry-run mode: a dry run returns empty
+                # stdout for every remote, which would make the search below find nothing.
+                dry_run_override=False,
             )
             if "apache/airflow.git" in result.stdout:
                 found_remote = remote

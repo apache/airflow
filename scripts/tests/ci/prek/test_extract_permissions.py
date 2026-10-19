@@ -50,6 +50,7 @@ if str(PREK_DIR) not in sys.path:
 from extract_permissions import (  # noqa: E402
     _FN_TO_RESOURCE_INFO,
     PermissionEntry,
+    RouteParseError,
     _build_resource_label,
     _extract_method_arg,
     _extract_module_string_constants,
@@ -273,6 +274,9 @@ class TestBuildResourceLabel:
 
     def test_alias_dag_run_bulk_forces_run_entity(self):
         assert _build_resource_label("requires_access_dag_run_bulk", None) == "DAG.RUN"
+
+    def test_dag_bulk_with_no_entity_returns_base(self):
+        assert _build_resource_label("requires_access_dag_bulk", None) == "DAG"
 
     def test_alias_event_log_forces_audit_log(self):
         assert _build_resource_label("requires_access_event_log", None) == "DAG.AUDIT_LOG"
@@ -534,14 +538,16 @@ class TestExtractFromFile:
         assert len(entries) == 1
         assert entries[0].resource == "DAG"
 
-    def test_syntax_error_returns_empty_list(self, tmp_path, capsys):
+    def test_syntax_error_raises_instead_of_dropping_entries(self, tmp_path):
         f = tmp_path / "broken.py"
         f.write_text("def broken(:\n")
-        entries = extract_from_file(f)
-        assert entries == []
-        # Should print a warning, not raise
-        captured = capsys.readouterr()
-        assert "WARN" in captured.err
+        with pytest.raises(RouteParseError) as exc_info:
+            extract_from_file(f)
+        assert str(f) in str(exc_info.value)
+
+    def test_unreadable_file_raises(self, tmp_path):
+        with pytest.raises(RouteParseError):
+            extract_from_file(tmp_path / "does_not_exist.py")
 
     def test_source_file_is_basename(self, tmp_path):
         f = _make_route_file(
@@ -832,3 +838,39 @@ class TestCheckMode:
         monkeypatch.setattr(ep, "OUTPUT_RST", tmp_path / "does_not_exist.rst")
         result = ep.main(["--check"])
         assert result == 1
+
+
+# ===========================================================================
+# Integration test: a route file that cannot be parsed must fail the run
+# ===========================================================================
+
+
+class TestParseFailureIsFatal:
+    @staticmethod
+    def _routes_dir_with_broken_file(tmp_path):
+        routes_dir = tmp_path / "routes"
+        routes_dir.mkdir()
+        (routes_dir / "broken.py").write_text("def broken(:\n")
+        return routes_dir
+
+    def test_main_fails_and_leaves_the_doc_alone(self, tmp_path, monkeypatch, capsys):
+        import extract_permissions as ep
+
+        rst_file = tmp_path / "api_permissions_ref.rst"
+        rst_file.write_text("the full table")
+
+        monkeypatch.setattr(ep, "PUBLIC_ROUTES_DIR", self._routes_dir_with_broken_file(tmp_path))
+        monkeypatch.setattr(ep, "OUTPUT_RST", rst_file)
+
+        assert ep.main([]) == 1
+        assert "[FAIL]" in capsys.readouterr().err
+        assert rst_file.read_text() == "the full table"
+
+    def test_fab_main_fails_too(self, tmp_path, monkeypatch, capsys):
+        """``fab_permissions_doc`` shares the extractor, so it must fail the same way."""
+        import fab_permissions_doc as fab
+
+        monkeypatch.setattr(fab, "PUBLIC_ROUTES_DIR", self._routes_dir_with_broken_file(tmp_path))
+
+        assert fab.main([]) == 1
+        assert "[FAIL]" in capsys.readouterr().err

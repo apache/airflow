@@ -25,6 +25,45 @@
 Changelog
 ---------
 
+3.7.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Teradata compute cluster trigger swallowing task cancellation (#72695)``
+* ``Keep object store credentials out of the task log in Teradata transfers (#72176)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Constrain the Teradata compute-cluster example Dag's user-settable Params (#72714)``
+
 3.6.3
 .....
 

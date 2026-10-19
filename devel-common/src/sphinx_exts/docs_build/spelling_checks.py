@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
-import re
 from functools import total_ordering
 from pathlib import Path
 from typing import NamedTuple
@@ -25,7 +25,7 @@ from typing import NamedTuple
 from rich.console import Console
 
 from airflow.utils.code_utils import prepare_code_snippet
-from sphinx_exts.docs_build.code_utils import CONSOLE_WIDTH
+from sphinx_exts.docs_build.code_utils import AIRFLOW_CONTENT_ROOT_PATH, CONSOLE_WIDTH
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
@@ -91,58 +91,67 @@ class SpellingError(NamedTuple):
         return left < right
 
 
-def parse_spelling_warnings(warning_text: str, docs_dir: Path) -> list[SpellingError]:
-    """
-    Parses warnings from Sphinx.
-
-    :param warning_text: warning to parse
-    :param docs_dir: documentation directory
-    :return: list of SpellingError.
-    """
-    sphinx_spelling_errors = []
-    for sphinx_warning in warning_text.splitlines():
-        if not sphinx_warning:
-            continue
-        warning_parts = None
-        match = re.search(r"(.*):(\w*):\s\((\w*)\)\s?(\w*)\s?(.*)", sphinx_warning)
-        if match:
-            warning_parts = match.groups()
-        if warning_parts and len(warning_parts) == 5:
-            try:
-                sphinx_spelling_errors.append(
-                    SpellingError(
-                        file_path=docs_dir / warning_parts[0],
-                        line_no=int(warning_parts[1]) if warning_parts[1] not in ("None", "") else None,
-                        spelling=warning_parts[2],
-                        suggestion=warning_parts[3] if warning_parts[3] else None,
-                        context_line=warning_parts[4],
-                        message=sphinx_warning,
-                    )
-                )
-            except Exception:
-                # If an exception occurred while parsing the warning message, display the raw warning message.
-                sphinx_spelling_errors.append(
-                    SpellingError(
-                        file_path=None,
-                        line_no=None,
-                        spelling=None,
-                        suggestion=None,
-                        context_line=None,
-                        message=sphinx_warning,
-                    )
-                )
-        else:
-            sphinx_spelling_errors.append(
-                SpellingError(
-                    file_path=None,
-                    line_no=None,
-                    spelling=None,
-                    suggestion=None,
-                    context_line=None,
-                    message=sphinx_warning,
-                )
+def load_spelling_errors(path: Path) -> list[SpellingError]:
+    """Load the misspellings the ``airflow_spelling`` extension wrote during a build."""
+    errors = []
+    for finding in json.loads(path.read_text(encoding="utf-8")):
+        file_path = Path(finding["file"]) if finding["file"] else None
+        location = _relative_to_repo(file_path) if file_path else "<unknown>"
+        errors.append(
+            SpellingError(
+                file_path=file_path,
+                line_no=finding["line"],
+                spelling=finding["word"],
+                suggestion=None,
+                context_line=finding["context"],
+                message=f"{location}:{finding['line']}: ({finding['word']}) {finding['context']}",
             )
-    return sphinx_spelling_errors
+        )
+    return errors
+
+
+def _relative_to_repo(path: Path) -> str:
+    return (
+        path.relative_to(AIRFLOW_CONTENT_ROOT_PATH).as_posix()
+        if path.is_relative_to(AIRFLOW_CONTENT_ROOT_PATH)
+        else path.as_posix()
+    )
+
+
+def _escape_annotation_property(value: str) -> str:
+    return (
+        value.replace("%", "%25")
+        .replace("\r", "%0D")
+        .replace("\n", "%0A")
+        .replace(":", "%3A")
+        .replace(",", "%2C")
+    )
+
+
+def _escape_annotation_message(value: str) -> str:
+    return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def emit_github_annotations(spelling_errors: dict[str, list[SpellingError]]) -> None:
+    """Print a GitHub Actions error annotation per misspelling, so it is shown on the line in the PR diff."""
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    for errors in spelling_errors.values():
+        for error in sorted(errors):
+            if error.file_path is None or error.spelling is None or not error.file_path.is_file():
+                continue
+            # Pages autoapi generates under _api/ are gitignored, so GitHub has no file to show the error on.
+            if "_api" in error.file_path.parts:
+                continue
+            properties = f"file={_escape_annotation_property(_relative_to_repo(error.file_path))}"
+            if error.line_no:
+                properties += f",line={error.line_no}"
+            properties += ",title=Spelling"
+            message = (
+                f"Unknown word '{error.spelling}' in: {error.context_line}. If it is spelled correctly, "
+                "quote code in backticks or add the word to docs/spelling_wordlist.txt."
+            )
+            print(f"::error {properties}::{_escape_annotation_message(message)}", flush=True)
 
 
 def display_spelling_error_summary(spelling_errors: dict[str, list[SpellingError]]) -> None:
