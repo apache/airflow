@@ -15,7 +15,6 @@
   },
   "connections": {
     "add": "Add $t(connections.connection_one)",
-    "duplicate": "Duplicate",
     "columns": {
       "connectionId": "Connection ID",
       "connectionType": "Connection Type",
@@ -31,6 +30,7 @@
       "firstConfirmMessage_other": "You are about to delete the following connections:",
       "title": "Delete $t(connections.connection_one)"
     },
+    "duplicate": "Duplicate",
     "edit": "Edit $t(connections.connection_one)",
     "form": {
       "connectionIdRequired": "Connection ID is required",
