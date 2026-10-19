@@ -18,8 +18,7 @@
 DAG with a plain task and task loops, some of their tasks retrying and one stopped early by `until`
 (requires Airflow 3.4+).
 
-It checks, for a plain task, tasks in a loop, a mapped task and a mapped task group in a loop, and the loop
-gates:
+It checks, for a plain task, tasks, a mapped task and a mapped task group in a loop, and loop gates:
     - taskInstance's `try_number`, `map_index`, `loop_index` and `loop_max_iterations` of every event: the
       iteration is the zero-based `loop_index`, `map_index` the mapped position, and a plain task has no
       `loop_index`

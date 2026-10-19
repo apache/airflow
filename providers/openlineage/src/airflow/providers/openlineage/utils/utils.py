@@ -1852,10 +1852,10 @@ def get_task_instance_run_id(
     position: TaskInstancePosition | None = None,
 ) -> str:
     """
-    Return the OpenLineage runId of a task instance's attempt, which all its events must share.
+    Return the OpenLineage ``runId`` of a task instance's attempt, which all its events must share.
 
-    In a loop the iterations share every coordinate but the attempt UUID, so that is the runId. Otherwise it is
-    built from the coordinates.
+    In a loop the iterations share every coordinate but the attempt UUID, so that is the ``runId``. Otherwise
+    it is built from the coordinates.
     """
     if position is None:
         position = _require_task_instance_position(task_instance)
