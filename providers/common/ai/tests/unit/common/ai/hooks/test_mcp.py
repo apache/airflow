@@ -257,6 +257,47 @@ class TestMCPHookGetConn:
                 hook.get_conn()
 
     @pytest.mark.parametrize(
+        "bad_args",
+        [["--header", "Authorization: Bearer s3cr3t", 1], '["--header", "Bearer s3cr3t", 1]'],
+        ids=["list", "json_string"],
+    )
+    def test_stdio_non_string_arg_error_reports_type_and_index_not_values(self, bad_args):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": bad_args}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match=r"int at index 2") as exc_info:
+                hook.get_conn()
+        assert "s3cr3t" not in str(exc_info.value)
+
+    def test_stdio_non_list_args_error_does_not_echo_value(self):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": {"token": "s3cr3t"}}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="got dict") as exc_info:
+                hook.get_conn()
+        assert "s3cr3t" not in str(exc_info.value)
+
+    def test_stdio_invalid_json_args_error_does_not_echo_value(self):
+        hook = MCPHook(mcp_conn_id="test_conn")
+        conn = Connection(
+            conn_id="test_conn",
+            conn_type="mcp",
+            extra=json.dumps({"transport": "stdio", "command": "uvx", "args": '["Bearer s3cr3t"'}),
+        )
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="looks like a JSON array") as exc_info:
+                hook.get_conn()
+        assert "s3cr3t" not in str(exc_info.value)
+
+    @pytest.mark.parametrize(
         "bad_timeout",
         ["30", -5, -0.5, float("nan"), float("inf"), True, [10]],
         ids=["str", "neg", "neg_float", "nan", "inf", "bool", "list"],

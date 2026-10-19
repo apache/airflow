@@ -241,15 +241,21 @@ class MCPHook(BaseHook):
                     except ValueError as e:
                         raise ValueError(
                             f"'args' in extra for connection {self.mcp_conn_id!r} looks like a JSON array "
-                            f"but is not valid JSON: {args!r}."
+                            "but is not valid JSON."
                         ) from e
                 else:
                     args = [args]
-            if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
+            if not isinstance(args, list):
                 raise ValueError(
                     f"'args' in extra for connection {self.mcp_conn_id!r} must be a string, a JSON "
-                    f"array of strings or a list of strings, got {args!r}."
+                    f"array of strings or a list of strings, got {type(args).__name__}."
                 )
+            for index, arg in enumerate(args):
+                if not isinstance(arg, str):
+                    raise ValueError(
+                        f"'args' in extra for connection {self.mcp_conn_id!r} must contain only strings, "
+                        f"got {type(arg).__name__} at index {index}."
+                    )
             timeout = extra.get("timeout", 10)
             # ``None`` and ``0`` are both valid "no timeout" values, but fastmcp replaces
             # ``init_timeout=None`` with its global ``client_init_timeout`` setting, so ``None``
