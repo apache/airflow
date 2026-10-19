@@ -19,10 +19,10 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
+import { server } from "src/mocks/server";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Tasks } from "./Tasks";
@@ -51,15 +51,11 @@ const tasks = [
   },
 ].map((task) => ({ ...task, task_display_name: task.task_id }));
 
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(
+beforeEach(() => {
+  server.use(
     http.get("/api/v2/dags/:dagId/tasks", () => HttpResponse.json({ tasks, total_entries: tasks.length })),
   );
-  server.listen({ onUnhandledFrame: "bypass" });
 });
-afterAll(() => server.close());
 
 const getTaskNames = () =>
   within(screen.getByTestId("table-list"))

@@ -975,6 +975,14 @@ repos:
         entry: "^\\s*from urllib\\.parse import ((\\|, )(urlparse\\|urlunparse))+$"
         pass_filenames: true
         files: \.py$
+      - id: check-auth-manager-mock-targets
+        name: Patch SimpleAuthManager, not BaseAuthManager, for methods it overrides
+        description: The API test client uses SimpleAuthManager, so patching an overridden BaseAuthManager method has no effect
+        entry: ./scripts/ci/prek/check_auth_manager_mock_targets.py
+        language: python
+        pass_filenames: true
+        files: ^airflow-core/tests/unit/api_fastapi/.*\.py$
+        exclude: ^airflow-core/tests/unit/api_fastapi/auth/managers/simple/
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
@@ -1158,6 +1166,12 @@ repos:
       - id: check-example-dag-tags
         name: Check example DAGs carry the "example" tag
         entry: ./scripts/ci/prek/check_example_dag_tags.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
+        pass_filenames: true
+      - id: check-example-dag-shell-commands
+        name: Check example Dags do not build shell commands from runtime values
+        entry: ./scripts/ci/prek/check_example_dag_shell_commands.py
         language: python
         files: ^.*/example_dags/.*\.py$
         pass_filenames: true
