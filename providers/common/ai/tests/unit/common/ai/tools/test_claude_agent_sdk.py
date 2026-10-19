@@ -81,8 +81,10 @@ def _build_tools(*sources: Any, server_name: str = "airflow") -> tuple[AirflowTo
     return tools, handlers
 
 
-def _assistant_message() -> AssistantMessage:
-    return AssistantMessage(content=[TextBlock(text="")], model="claude-test", stop_reason="tool_use")
+def _assistant_message(message_id: str | None = None) -> AssistantMessage:
+    return AssistantMessage(
+        content=[TextBlock(text="")], model="claude-test", stop_reason="tool_use", message_id=message_id
+    )
 
 
 def _user_message() -> UserMessage:
@@ -107,6 +109,7 @@ async def _fake_cli(
     turns: list[list[tuple[str, dict[str, Any]]]],
     *,
     final: ResultMessage | None = None,
+    message_ids: list[str | None] | None = None,
 ) -> AsyncIterator[Message]:
     """
     Stand in for the CLI driving the tools ``AirflowTools`` served through one or more turns.
@@ -114,10 +117,10 @@ async def _fake_cli(
     For each turn, yields an ``AssistantMessage`` with a ``tool_use`` stop reason, then
     awaits every one of that turn's calls -- as the CLI waits for a turn's tool results
     before sending the next request -- before yielding the ``UserMessage`` carrying them.
-    Ends with a ``ResultMessage``.
+    Ends with a ``ResultMessage``. ``message_ids`` gives each turn's ``AssistantMessage.message_id``.
     """
-    for turn in turns:
-        yield _assistant_message()
+    for index, turn in enumerate(turns):
+        yield _assistant_message(message_ids[index] if message_ids else None)
         for tool_name, args in turn:
             await handlers[tool_name](args)
         yield _user_message()
@@ -520,6 +523,181 @@ class TestRun:
         for _ in range(2):
             result = await tools.run(_fake_cli(handlers, [[("step", {})]]))
             assert isinstance(result, ResultMessage)
+
+    @pytest.mark.asyncio
+    async def test_failures_in_one_model_turn_count_as_one(self):
+        step = _scripted(ModelRetry("no such key"), ModelRetry("no such key"), max_retries=1)
+        tools, handlers = _build_tools(step)
+
+        result = await tools.run(_fake_cli(handlers, [[("step", {}), ("step", {})]], message_ids=["msg_1"]))
+
+        assert isinstance(result, ResultMessage)
+
+    @pytest.mark.asyncio
+    async def test_failures_in_different_model_turns_count_separately(self):
+        step = _scripted(ModelRetry("no such key"), ModelRetry("no such key"), max_retries=1)
+        tools, handlers = _build_tools(step)
+
+        with pytest.raises(ToolCallError, match="kept failing after 1 correction"):
+            await tools.run(
+                _fake_cli(handlers, [[("step", {})], [("step", {})]], message_ids=["msg_1", "msg_2"])
+            )
+
+    @pytest.mark.asyncio
+    async def test_sequential_failures_count_separately_when_the_turn_has_no_message_id(self):
+        step = _scripted(ModelRetry("no such key"), ModelRetry("no such key"), max_retries=1)
+        tools, handlers = _build_tools(step)
+
+        with pytest.raises(ToolCallError, match="kept failing after 1 correction"):
+            await tools.run(_fake_cli(handlers, [[("step", {}), ("step", {})]], message_ids=[None]))
+
+    @pytest.mark.asyncio
+    async def test_simultaneous_failures_count_as_one_when_the_turn_has_no_message_id(self):
+        step = _scripted(ModelRetry("no such key"), ModelRetry("no such key"), max_retries=1)
+        tools, handlers = _build_tools(step)
+
+        async def _two_calls_at_once() -> AsyncIterator[Message]:
+            yield _assistant_message()
+            await asyncio.gather(handlers["step"]({}), handlers["step"]({}))
+            yield _user_message()
+            yield _result_message()
+
+        result = await tools.run(_two_calls_at_once())
+
+        assert isinstance(result, ResultMessage)
+
+    @pytest.mark.asyncio
+    async def test_the_real_server_path_sees_the_turn_the_run_recorded(self):
+        step = _scripted(ModelRetry("no such key"), ModelRetry("no such key"), max_retries=1)
+        tools = AirflowTools(step)
+
+        async def _two_failures_in_one_turn() -> AsyncIterator[Message]:
+            yield _assistant_message("msg_1")
+            await _call_real_server(tools, "step", {})
+            await _call_real_server(tools, "step", {})
+            yield _user_message()
+            yield _result_message()
+
+        result = await tools.run(_two_failures_in_one_turn())
+
+        assert isinstance(result, ResultMessage)
+
+    @pytest.mark.asyncio
+    async def test_the_stream_is_closed_while_the_run_is_still_active(self):
+        ran: list[dict[str, Any]] = []
+        tools, handlers = _build_tools(_tool(PermissionError("role cannot read orders"), ran))
+        closed_during_run: list[bool] = []
+
+        async def _failing_cli() -> AsyncIterator[Message]:
+            try:
+                yield _assistant_message()
+                await handlers["lookup"]({"key": "a"})
+                yield _user_message()
+                yield _result_message()
+            finally:
+                closed_during_run.append(tools._run is not None)
+
+        stream = _failing_cli()
+        with pytest.raises(ToolCallError):
+            await tools.run(stream)
+
+        assert closed_during_run == [True]
+        assert tools._run is None
+
+    @pytest.mark.asyncio
+    async def test_a_stream_without_aclose_is_driven_to_the_end(self):
+        class _PlainStream:
+            def __init__(self, messages: list[Message]) -> None:
+                self._messages = messages
+
+            def __aiter__(self) -> AsyncIterator[Message]:
+                async def _iterate() -> AsyncIterator[Message]:
+                    for message in self._messages:
+                        yield message
+
+                return _iterate()
+
+        final = _result_message(result="done")
+
+        result = await AirflowTools(_tool(ToolResult("ok"))).run(_PlainStream([_assistant_message(), final]))
+
+        assert result is final
+
+    @pytest.mark.asyncio
+    async def test_a_failing_aclose_does_not_hide_the_tools_failure(self):
+        tools, handlers = _build_tools(_tool(PermissionError("role cannot read orders")))
+
+        class _StubbornStream:
+            def __aiter__(self) -> AsyncIterator[Message]:
+                return _fake_cli(handlers, [[("lookup", {"key": "a"})]])
+
+            async def aclose(self) -> None:
+                raise OSError("close failed")
+
+        with pytest.raises(ToolCallError, match="PermissionError: role cannot read orders"):
+            await tools.run(_StubbornStream())
+
+        assert tools._run is None
+
+    @pytest.mark.asyncio
+    async def test_a_failing_aclose_after_a_clean_run_raises(self):
+        tools, _ = _build_tools(_tool(ToolResult("ok")))
+
+        class _StubbornStream:
+            def __aiter__(self) -> AsyncIterator[Message]:
+                return _fake_cli({}, [])
+
+            async def aclose(self) -> None:
+                raise OSError("close failed")
+
+        with pytest.raises(OSError, match="close failed"):
+            await tools.run(_StubbornStream())
+
+        assert tools._run is None
+
+    @pytest.mark.asyncio
+    async def test_a_failing_aclose_is_logged_when_it_does_not_hide_the_tools_failure(self, caplog):
+        tools, handlers = _build_tools(_tool(PermissionError("role cannot read orders")))
+
+        class _StubbornStream:
+            def __aiter__(self) -> AsyncIterator[Message]:
+                return _fake_cli(handlers, [[("lookup", {"key": "a"})]])
+
+            async def aclose(self) -> None:
+                raise OSError("close failed")
+
+        with pytest.raises(ToolCallError):
+            await tools.run(_StubbornStream())
+
+        assert {
+            "event": "Closing the Claude Agent SDK stream failed: close failed",
+            "log_level": "warning",
+        } in caplog
+
+    @pytest.mark.asyncio
+    async def test_a_cancelled_run_closes_the_stream_and_stays_cancelled(self):
+        tools, _ = _build_tools(_tool(ToolResult("ok")))
+        started = asyncio.Event()
+        closed: list[bool] = []
+
+        async def _blocked_cli() -> AsyncIterator[Message]:
+            try:
+                yield _assistant_message()
+                started.set()
+                await asyncio.Event().wait()
+                yield _result_message()
+            finally:
+                closed.append(True)
+
+        task = asyncio.ensure_future(tools.run(_blocked_cli()))
+        await started.wait()
+        task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert closed == [True]
+        assert tools._run is None
 
     @pytest.mark.asyncio
     async def test_concurrent_runs_on_one_instance_are_rejected(self):
