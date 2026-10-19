@@ -22,7 +22,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from .protocols import Timer
+from .protocols import DurationEmittingTimer, Timer
 from .validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
@@ -37,31 +37,6 @@ if TYPE_CHECKING:
     from .validators import ListValidator
 
 log = logging.getLogger(__name__)
-
-
-class _DogStatsdTimer(Timer):
-    """
-    An implementation of stats.Timer() which sends its measured duration to DogStatsd.
-
-    ``DogStatsd.timed()`` reports seconds unless the client sets ``use_ms``, and rounds to whole
-    milliseconds when it does, so the duration measured by ``Timer`` is sent instead.
-    """
-
-    def __init__(
-        self, dogstatsd: DogStatsd, stat: str, tags: list[str], sample_rate: float | None = None
-    ) -> None:
-        super().__init__()
-        self.dogstatsd = dogstatsd
-        self.stat = stat
-        self.tags = tags
-        self.sample_rate = sample_rate
-
-    def stop(self, send: bool = True) -> None:
-        super().stop(send)
-        if send and self.duration is not None:
-            self.dogstatsd.timing(
-                metric=self.stat, value=self.duration, tags=self.tags, sample_rate=self.sample_rate
-            )
 
 
 class SafeDogStatsdLogger:
@@ -164,7 +139,13 @@ class SafeDogStatsdLogger:
         """Timer metric that can be cancelled."""
         tags_list = self._build_tags_list(tags)
         if stat and self.metrics_validator.test(stat):
-            return _DogStatsdTimer(self.dogstatsd, stat, tags_list, sample_rate)
+            # DogStatsd.timed() reports seconds unless the client sets use_ms, and rounds to whole
+            # milliseconds when it does, so the duration measured by Timer is sent instead.
+            return DurationEmittingTimer(
+                lambda duration: self.dogstatsd.timing(
+                    metric=stat, value=duration, tags=tags_list, sample_rate=sample_rate
+                )
+            )
         return Timer()
 
 

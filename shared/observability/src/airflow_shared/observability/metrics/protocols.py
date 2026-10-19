@@ -22,6 +22,8 @@ import time
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .. import Self
 
 DeltaType = int | float | datetime.timedelta
@@ -130,3 +132,16 @@ class Timer(TimerProtocol):
             self.duration = 1000.0 * (time.perf_counter() - self._start_time)  # Convert to milliseconds.
         if send and self.real_timer:
             self.real_timer.stop()
+
+
+class DurationEmittingTimer(Timer):
+    """Timer that passes its measured duration, in milliseconds, to ``emit`` when stopped."""
+
+    def __init__(self, emit: Callable[[float], object]) -> None:
+        super().__init__()
+        self._emit = emit
+
+    def stop(self, send: bool = True) -> None:
+        super().stop(send)
+        if send and self.duration is not None:
+            self._emit(self.duration)
