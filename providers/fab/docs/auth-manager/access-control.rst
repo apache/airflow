@@ -209,7 +209,7 @@ Stable API Permissions
 .. BEGIN GENERATED PERMISSIONS TABLE
 
 .. THE TABLE BELOW IS AUTO-GENERATED. DO NOT EDIT IT MANUALLY.
-   Regenerate with:  python scripts/ci/prek/fab_permissions_doc.py
+   Regenerate with:  uv run scripts/ci/prek/fab_permissions_doc.py
    Trigger:          prek run generate-fab-permissions-doc --all-files
 
 .. list-table:: Stable REST API permissions (FAB auth manager)

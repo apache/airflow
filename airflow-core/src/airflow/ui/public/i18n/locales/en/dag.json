@@ -343,7 +343,6 @@
     "maxChanges": "Max changes",
     "maxChangesDefault": "Default",
     "noChanges": "These versions hold the same state.",
-    "observedState": "Observed state",
     "observedStateBoundary": "Compares currently stored state, not creation-time evidence. Source comparison is unavailable for historical versions; use the Code tab to compare source.",
     "operations": {
       "added": "Added",
@@ -364,7 +363,6 @@
       "title": "Comparison unavailable",
       "withoutReason": "These versions could not be compared."
     },
-    "valuesHidden": "Values hidden",
-    "valuesShown": "Values shown"
+    "valuesHidden": "Values hidden"
   }
 }

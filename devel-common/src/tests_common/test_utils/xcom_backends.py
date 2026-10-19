@@ -15,23 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-These tests ensure compatibility with the deprecation of `sqlalchemy.orm.mapper()` in SQLAlchemy 2.0.0.b1.
-See also: https://docs.sqlalchemy.org/en/21/orm/mapping_styles.html#orm-imperative-mapping
-"""
-
 from __future__ import annotations
 
-import contextlib
-import warnings
-
-from sqlalchemy.exc import InvalidRequestError, SADeprecationWarning
-
-from airflow.utils.orm_event_handlers import setup_event_handlers
+from airflow.sdk.bases.xcom import BaseXCom
 
 
-def test_setup_event_handlers_no_sa_deprecation_warning():
-    warnings.simplefilter("error", category=SADeprecationWarning)
-    with contextlib.suppress(InvalidRequestError):
-        # We are only interested in the warning that may be issued at the beginning of the method.
-        setup_event_handlers(engine=None)
+class SerializeValueOnlyXCom(BaseXCom):
+    """A legacy backend: it stores values through ``serialize_value`` and has no ``store_value``."""
+
+    @staticmethod
+    def serialize_value(value, *, key=None, task_id=None, dag_id=None, run_id=None, map_index=None):
+        return value

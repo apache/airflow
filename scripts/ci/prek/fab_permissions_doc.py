@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.11"
+# ///
 """
 Generate the FAB auth manager's REST API permission table.
 
@@ -41,6 +44,7 @@ import sys
 from extract_permissions import (
     PUBLIC_ROUTES_DIR,
     PermissionEntry,
+    RouteParseError,
     extract_all_permissions,
 )
 
@@ -360,7 +364,7 @@ def render_rst(entries: list[PermissionEntry]) -> str:
         BEGIN_MARKER,
         "",
         ".. THE TABLE BELOW IS AUTO-GENERATED. DO NOT EDIT IT MANUALLY.",
-        "   Regenerate with:  python scripts/ci/prek/fab_permissions_doc.py",
+        "   Regenerate with:  uv run scripts/ci/prek/fab_permissions_doc.py",
         "   Trigger:          prek run generate-fab-permissions-doc --all-files",
         "",
         ".. list-table:: Stable REST API permissions (FAB auth manager)",
@@ -391,7 +395,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--print", dest="print_only", action="store_true", help="Print instead of write.")
     args = parser.parse_args(argv)
 
-    entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    try:
+        entries = extract_all_permissions(PUBLIC_ROUTES_DIR)
+    except RouteParseError as exc:
+        print(f"[FAIL] {exc}", file=sys.stderr)
+        return 1
     table = render_rst(entries)
 
     if args.print_only:
@@ -409,7 +417,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         if current != updated:
             print(
-                f"[FAIL] {OUTPUT_RST} is stale. Run: python {pathlib.Path(__file__).name}",
+                f"[FAIL] {OUTPUT_RST} is stale. Run: uv run scripts/ci/prek/{pathlib.Path(__file__).name}",
                 file=sys.stderr,
             )
             return 1
