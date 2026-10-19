@@ -94,7 +94,7 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
 
 
 class AddExecutionTimeoutToTIRunContext(VersionChange):
-    """Add ``execution_timeout`` for tasks that a language SDK runs, so the supervisor can enforce it."""
+    """Add ``execution_timeout`` so the supervisor can enforce it."""
 
     description = __doc__
     instructions_to_migrate_to_previous_version = (

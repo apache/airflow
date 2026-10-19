@@ -557,12 +557,9 @@ class TIRunContext(BaseModel):
 
     execution_timeout: float | None = None
     """
-    The task's ``execution_timeout`` in seconds, for tasks run by a language SDK.
+    The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
 
-    Covers ``@task.stub`` tasks and the tasks of a Dag defined natively in a language SDK.
-    The supervisor arms its execution timeout deadline from it, as a fallback for runtimes
-    that do not send ``SetExecutionTimeout``. ``None`` for Python tasks, which report their
-    own timeout, and when no timeout is set.
+    The supervisor enforces the timeout with this value. ``None`` when no timeout is set.
     """
 
     multi_team: bool = False
