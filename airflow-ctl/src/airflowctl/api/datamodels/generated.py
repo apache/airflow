@@ -1098,7 +1098,9 @@ class LoopIterationResponse(BaseModel):
     """
 
     loop_id: Annotated[str, Field(title="Loop Id")]
-    iteration: Annotated[int, Field(title="Iteration")]
+    iteration: Annotated[
+        int, Field(description="Position in the enclosing loop, counting from one.", ge=1, title="Iteration")
+    ]
 
 
 class MaterializeAssetBody(BaseModel):

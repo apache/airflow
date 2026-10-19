@@ -54,7 +54,7 @@ class LoopIterationResponse(BaseModel):
     """A task execution's position in an enclosing loop."""
 
     loop_id: str
-    iteration: int
+    iteration: int = Field(ge=1, description="Position in the enclosing loop, counting from one.")
 
 
 class TaskInstanceResponse(OmitsMissingRegion, BaseModel):

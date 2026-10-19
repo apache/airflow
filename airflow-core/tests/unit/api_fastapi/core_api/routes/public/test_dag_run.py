@@ -2356,7 +2356,7 @@ class TestClearDagRun:
             run_id=run.run_id,
             dag_version_id=run.created_dag_version_id,
             region_id=region.id,
-            region_index=1,
+            region_index=2,
         )
         later.state = State.SUCCESS
         session.add(later)
@@ -2368,7 +2368,7 @@ class TestClearDagRun:
 
         assert response.status_code == 200, response.text
         work = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
-        assert {row["region_index"] for row in work} == {0, 1}
+        assert {row["region_index"] for row in work} == {1, 2}
         assert {row["map_index"] for row in work} == {-1}
         assert all(
             row["loop_iteration"] == {"loop_id": loop.group_id, "iteration": row["region_index"]}
