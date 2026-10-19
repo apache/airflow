@@ -15,6 +15,7 @@
   },
   "connections": {
     "add": "Add $t(connections.connection_one)",
+    "duplicate": "Duplicate",
     "columns": {
       "connectionId": "Connection ID",
       "connectionType": "Connection Type",
