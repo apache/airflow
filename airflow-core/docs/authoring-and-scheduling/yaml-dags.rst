@@ -435,3 +435,20 @@ task's output, in the ``{$x: task}`` form, which also wires the dependency.
 cross-language task handler design, the ``run:`` syntax does not support
 a template (``$t``), a ``$x`` referencing a custom XCom key (not the return
 value), or an ``$x`` nested inside a larger value.
+
+Current limitations
+-------------------
+
+Some features are not yet available when a Dag is defined in YAML. These may be
+implemented in a future release.
+
+* **Assets.** A task's ``inlets`` and ``outlets`` are rejected, and a Dag cannot
+  be scheduled on an asset (see `Scheduling`_).
+* **Task groups.** Tasks cannot be nested into groups (see `Reserved
+  arguments`_).
+* **Dynamic task mapping.** There is no equivalent of ``.expand()``.
+* **Arguments that must be a Python object.** This particularly affects
+  callbacks (which need a Python function).
+
+A rejected key is reported as an error rather than silently ignored, as is any
+other argument the target operator does not accept.
