@@ -36,6 +36,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     CTE,
+    Subquery,
     Text,
     and_,
     case,
@@ -4239,7 +4240,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .group_by(AssetModel.id)
         )
 
-        orphan_query = asset_reference_query.having(orphaned).cte()
+        # A subquery, not a CTE: the orphan query feeds a DELETE, and MySQL-compatible backends such as
+        # Vitess reject WITH in DML statements.
+        orphan_query = asset_reference_query.having(orphaned).subquery()
         activate_query = asset_reference_query.having(~orphaned).cte()
 
         self._orphan_unreferenced_assets(orphan_query, session=session)
@@ -4247,7 +4250,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._cleanup_orphaned_asset_state_store(session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets_query: CTE, *, session: Session) -> None:
+    def _orphan_unreferenced_assets(assets_query: Subquery, *, session: Session) -> None:
         deleted_orphaned_assets = session.execute(
             delete(AssetActive).where(
                 exists().where(
