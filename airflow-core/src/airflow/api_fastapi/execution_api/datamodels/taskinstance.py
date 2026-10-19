@@ -457,6 +457,28 @@ class LoopContext(BaseModel):
     terminal_task_id: str
     terminal_is_mapped: bool
 
+    region_id: uuid.UUID
+    """
+    The loop region holding this iteration.
+
+    A mapped task's own ``region_id`` is its expansion's, so this is how its instances are tied to the
+    unmapped tasks of the same pass.
+    """
+
+    trajectory: int = Field(default=1, ge=1)
+    """
+    1 for the loop's original region, and one more for each fork of it.
+
+    Clearing a loop with its later iterations forks the loop region, and the iterations from
+    ``resumes_from_index`` on run again in the fork.
+    """
+
+    forked_from_region_id: uuid.UUID | None = None
+    """The loop region this fork replaces from ``resumes_from_index`` on, ``None`` for an original region."""
+
+    resumes_from_index: int = Field(default=0, ge=0)
+    """The first iteration ``region_id`` holds, 0 for an original region."""
+
 
 class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
@@ -465,6 +487,13 @@ class TIRunContext(BaseModel):
     """DAG run information for the task instance."""
 
     loop: LoopContext | None = None
+
+    expanded_ti_count: int | None = None
+    """
+    Number of live, non-removed instances in the mapped task's expansion this instance belongs to.
+
+    ``None`` for a task that isn't mapped. Inside a loop, it counts the instances of this iteration only.
+    """
 
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""

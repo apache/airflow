@@ -152,9 +152,23 @@ definition.
      - The previous iteration's result, or ``None`` in iteration 1.
    * - ``loop.result``
      - The terminal body task's result (the XCom pushed under the key ``return_value``) for the current iteration, used by the gate.
+   * - ``loop.group_id``
+     - The group id of the loop.
+   * - ``loop.region_id``
+     - The id of the loop execution that holds this iteration. It is the same for every task instance of
+       the iteration, mapped ones included.
+   * - ``loop.trajectory``
+     - 1 for the loop's first execution, and one more each time a rerun replaces later iterations, see
+       :ref:`loops-trajectories`.
+   * - ``loop.forked_from_region_id``
+     - The ``loop.region_id`` of the execution this one replaced, or ``None`` in trajectory 1.
+   * - ``loop.resumes_from_index``
+     - The first iteration this execution holds, 0 in trajectory 1.
 
 Use ``loop.index`` for the loop iteration and ``ti.map_index`` for a mapped
 task instance's position. Each task instance can have several tries, each with its own ``ti.try_number``.
+The task instance also exposes the loop context as ``ti.loop``, and for a mapped task
+``ti.expanded_ti_count`` is the number of instances in its expansion, counted within the iteration.
 
 Pass data between iterations
 ============================
@@ -347,6 +361,12 @@ execution. Downstream tasks then run as they would after any successful gate: th
 gate that was marked successful by hand from one that stopped because ``until`` returned ``True``.
 Any later iterations retained after a selective clear remain unchanged.
 
+The gate's task instance exposes its decision as ``ti.loop_decision``, a ``LoopDecision``, once the gate
+has evaluated it. With ``until``, ``stop`` is ``True`` when ``until`` ended the loop, even at its last
+iteration. When ``stop`` is ``False`` at the last iteration (``loop.index == loop.max_iterations - 1``),
+the loop reached ``max_iterations`` without meeting ``until`` and the gate fails. A gate that fails before
+deciding, for example because ``until`` raised, or that was marked successful by hand, has no decision.
+
 Iterations and execution history
 ================================
 
@@ -414,3 +434,18 @@ which leave them in place. To keep later iterations, clear from the UI or the
 REST endpoint.
 
 Tasks you leave uncleared are not recomputed using the results of the rerun.
+
+.. _loops-trajectories:
+
+Reruns and trajectories
+-----------------------
+
+Clearing later iterations starts a new execution of the loop that replaces the old one from the
+iteration after the rerun gate. Each execution is a trajectory: ``loop.trajectory`` is 1 for the
+first one and grows by one with each rerun. The rerun gate, and whatever you clear in its
+iteration, run again in the trajectory that iteration belongs to, with their next try. The
+replacement iterations run in the new trajectory, from ``loop.resumes_from_index``, and their tries
+count from the start again. In the
+example above, iteration 2 stays in trajectory 1, while replacement iterations 3 and 4 run in
+trajectory 2, with ``loop.resumes_from_index`` 3. Task log paths show the trajectory after the
+iteration, as in ``pass=3.2``.

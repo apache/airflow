@@ -342,6 +342,10 @@ class LoopContext(BaseModel):
     max_iterations: Annotated[int, Field(gt=0, title="Max Iterations")]
     terminal_task_id: Annotated[str, Field(title="Terminal Task Id")]
     terminal_is_mapped: Annotated[bool, Field(title="Terminal Is Mapped")]
+    region_id: Annotated[UUID, Field(title="Region Id")]
+    trajectory: Annotated[int | None, Field(ge=1, title="Trajectory")] = 1
+    forked_from_region_id: Annotated[UUID | None, Field(title="Forked From Region Id")] = None
+    resumes_from_index: Annotated[int | None, Field(ge=0, title="Resumes From Index")] = 0
 
 
 class LoopDecisionPayload(BaseModel):
@@ -999,6 +1003,7 @@ class TIRunContext(BaseModel):
 
     dag_run: DagRun
     loop: LoopContext | None = None
+    expanded_ti_count: Annotated[int | None, Field(title="Expanded Ti Count")] = None
     task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
     first_task_reschedule_start_date: Annotated[
         AwareDatetime | None, Field(title="First Task Reschedule Start Date")

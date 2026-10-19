@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+from uuid import UUID
 
 import pytest
 
@@ -41,6 +42,9 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.loop import LoopMaxIterationsExceeded
 
+LOOP_REGION_ID = UUID("0199a8c0-0000-7000-8000-000000000001")
+FORKED_REGION_ID = UUID("0199a8c0-0000-7000-8000-000000000002")
+
 
 @pytest.fixture
 def loop_ti(create_runtime_ti):
@@ -58,6 +62,7 @@ def loop_ti(create_runtime_ti):
             max_iterations=max_iterations,
             terminal_task_id=group.terminal_task_id,
             terminal_is_mapped=False,
+            region_id=LOOP_REGION_ID,
         )
         return ti
 
@@ -100,9 +105,56 @@ def test_body_callable_receives_loop_context_after_unmapping(create_runtime_ti, 
         max_iterations=4,
         terminal_task_id=group.terminal_task_id,
         terminal_is_mapped=mapped,
+        region_id=LOOP_REGION_ID,
     )
 
     assert operator.execute(ti.get_template_context()) == (5, 2, 0 if mapped else -1)
+
+
+def test_task_instance_exposes_the_loop_iteration_and_its_trajectory(loop_ti):
+    ti = loop_ti(index=2)
+    ti._ti_context_from_server.loop = ti._ti_context_from_server.loop.model_copy(
+        update={"trajectory": 2, "forked_from_region_id": FORKED_REGION_ID, "resumes_from_index": 2}
+    )
+
+    loop = ti.loop
+
+    assert loop is not None
+    assert (loop.group_id, loop.index, loop.max_iterations) == ("body", 2, 3)
+    assert (loop.region_id, loop.trajectory) == (LOOP_REGION_ID, 2)
+    assert (loop.forked_from_region_id, loop.resumes_from_index) == (FORKED_REGION_ID, 2)
+
+
+def test_task_instance_outside_a_loop_has_no_loop(create_runtime_ti):
+    ti = create_runtime_ti(task=BaseOperator(task_id="plain"))
+
+    assert ti.loop is None
+    assert ti.loop_decision is None
+
+
+@pytest.mark.parametrize("expanded_ti_count", [None, 4])
+def test_task_instance_exposes_the_size_of_its_expansion(create_runtime_ti, expanded_ti_count):
+    ti = create_runtime_ti(task=BaseOperator(task_id="mapped"))
+    ti._ti_context_from_server.expanded_ti_count = expanded_ti_count
+
+    assert ti.expanded_ti_count == expanded_ti_count
+
+
+@pytest.mark.parametrize(
+    ("index", "until", "expected"),
+    [
+        (0, lambda: LoopDecision(stop=False, reason="not yet"), LoopDecision(stop=False, reason="not yet")),
+        (2, lambda: True, LoopDecision(stop=True)),
+        (2, lambda: False, LoopDecision(stop=False)),
+    ],
+    ids=["continue", "until_met", "cap_reached"],
+)
+def test_gate_exposes_its_decision(loop_ti, mock_supervisor_comms, index, until, expected):
+    ti = loop_ti(index=index, until=until)
+
+    task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
+
+    assert ti.loop_decision == expected
 
 
 @pytest.mark.parametrize("value", [0, False, [], ""])
