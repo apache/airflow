@@ -3345,15 +3345,15 @@ dag_processor:
         If ``extensions`` is omitted, the extensions declared by the importer class are used.
 
         An entry may also be given as a bare classpath string when it needs no other
-        settings, so ``["my_company.importers.YamlDagImporter"]`` is equivalent to
-        ``[{"classpath": "my_company.importers.YamlDagImporter"}]``.
+        settings, so ``["my_company.importers.TomlDagImporter"]`` is equivalent to
+        ``[{"classpath": "my_company.importers.TomlDagImporter"}]``.
       version_added: 3.4.0
       type: string
       example: >
         [
               {
-                "classpath": "my_company.importers.YamlDagImporter",
-                "extensions": [".yaml", ".yml"],
+                "classpath": "my_company.importers.TomlDagImporter",
+                "extensions": [".toml"],
                 "kwargs": {}
               }
             ]

@@ -23,6 +23,7 @@ import textwrap
 import zipfile
 from types import SimpleNamespace
 
+import pendulum
 import pytest
 from dateutil.relativedelta import relativedelta
 
@@ -82,6 +83,29 @@ class _TemporalOperator(BaseOperator):
 OP_TEMPORAL = f"{__name__}.{_TemporalOperator.__name__}"
 
 
+class _DateOperator(BaseOperator):
+    """An operator with a date-typed argument (``day``)."""
+
+    def __init__(self, *, day: datetime.date | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.day = day
+
+
+OP_DATE = f"{__name__}.{_DateOperator.__name__}"
+
+
+class _PendulumOperator(BaseOperator):
+    """An operator with pendulum-typed temporal arguments."""
+
+    def __init__(self, *, when: pendulum.DateTime | None = None, day: pendulum.Date | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.when = when
+        self.day = day
+
+
+OP_PENDULUM = f"{__name__}.{_PendulumOperator.__name__}"
+
+
 class _PeriodOperator(BaseOperator):
     """An operator with time-period-typed arguments."""
 
@@ -91,12 +115,14 @@ class _PeriodOperator(BaseOperator):
         gap: datetime.timedelta | None = None,
         window: relativedelta | None = None,
         either: datetime.timedelta | relativedelta | None = None,
+        span: pendulum.Duration | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.gap = gap
         self.window = window
         self.either = either
+        self.span = span
 
 
 OP_PERIOD = f"{__name__}.{_PeriodOperator.__name__}"
@@ -300,6 +326,43 @@ def test_import_coerces_temporal_with_arg(mock_bundle):
     assert (cutoff.year, cutoff.month, cutoff.day) == (2024, 1, 1)
 
 
+@pytest.mark.parametrize(
+    ("value", "exp_type"),
+    [
+        ("2024-01-01", datetime.date),  # YAML date -> plain date
+        ("'2024-01-01'", datetime.date),  # ISO date string -> plain date
+        ("2024-01-01T03:30:00", datetime.datetime),  # a datetime is a date subtype, left as-is
+    ],
+)
+def test_import_coerces_date_with_arg(mock_bundle, value, exp_type):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP_DATE}, with: {{day: {value}}}}}"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    day = result.dags[0].get_task("a").day
+    assert type(day) is exp_type
+    assert (day.year, day.month, day.day) == (2024, 1, 1)
+
+
+def test_import_coerces_pendulum_temporal_args(mock_bundle):
+    # a pendulum.DateTime / pendulum.Date annotation yields pendulum values, not stdlib
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP_PENDULUM}, with: {{when: 2024-01-01T03:30:00, day: 2024-01-01}}}}"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    task = result.dags[0].get_task("a")
+    assert type(task.when) is pendulum.DateTime
+    assert (task.when.year, task.when.month, task.when.day, task.when.hour) == (2024, 1, 1, 3)
+    assert type(task.day) is pendulum.Date
+    assert (task.day.year, task.day.month, task.day.day) == (2024, 1, 1)
+
+
 def test_import_coerces_timedelta_with_arg(mock_bundle):
     # a timedelta-typed argument accepts the short form and ISO-8601
     definition = _def(
@@ -323,6 +386,27 @@ def test_import_coerces_relativedelta_with_arg(mock_bundle):
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert result.success, result.errors
     assert result.dags[0].get_task("a").window == relativedelta(years=1, months=2)
+
+
+def test_import_coerces_pendulum_duration_with_arg(mock_bundle):
+    # a pendulum.Duration arg accepts the short form and an ISO duration carrying
+    # years/months (which a timedelta cannot represent)
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(
+            f"- {{id: a, uses: {OP_PERIOD}, with: {{span: 5m}}}}\n"
+            f"- {{id: b, uses: {OP_PERIOD}, with: {{span: P1Y2M}}}}",
+        ),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    span_a = result.dags[0].get_task("a").span
+    span_b = result.dags[0].get_task("b").span
+    assert type(span_a) is pendulum.Duration
+    assert span_a == pendulum.Duration(minutes=5)
+    assert type(span_b) is pendulum.Duration
+    assert (span_b.years, span_b.months) == (1, 2)
 
 
 def test_import_period_union_picks_type_by_components(mock_bundle):
