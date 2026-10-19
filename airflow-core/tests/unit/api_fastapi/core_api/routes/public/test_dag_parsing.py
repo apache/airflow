@@ -17,9 +17,18 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
+from uuid6 import uuid7
 
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    ProcessorWorkAckBody,
+    ProcessorWorkClaimBody,
+)
+from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorClaims, DagProcessorToken
+from airflow.api_fastapi.execution_api.routes.dag_parsing import acknowledge_work, claim_work
+from airflow.jobs.job import Job, JobState
 from airflow.models.dagbag import DagPriorityParsingRequest, DBDagBag
 from airflow.models.errors import ParseImportError
 
@@ -48,6 +57,20 @@ def dag_reader_headers(test_client):
         auth_manager.serialize_user(SimpleAuthManagerUser(username="reader", role="viewer"))
     )
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def processor_job(session):
+    job = Job(job_type="DagProcessorJob", state=JobState.RUNNING)
+    job.session_id = uuid7()
+    job.registration_id = uuid7()
+    job.bundle_names = ["example_dags"]
+    session.add(job)
+    session.commit()
+    yield job
+    session.rollback()
+    session.delete(job)
+    session.commit()
 
 
 class TestDagParsingEndpoint:
@@ -86,6 +109,71 @@ class TestDagParsingEndpoint:
         assert parsing_requests[0].bundle_name == "example_dags"
         assert parsing_requests[0].relative_fileloc == test_dag.relative_fileloc
         _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
+
+    def test_reparse_claimed_request_fences_previous_acknowledgment(
+        self, session, test_client, processor_job
+    ):
+        parse_and_sync_to_db(EXAMPLE_DAG_FILE)
+        file_token = test_client.get(f"/dags/{TEST_DAG_ID}").json()["file_token"]
+        url = f"/parseDagFile/{file_token}"
+        assert test_client.put(url).status_code == 201
+        work = session.scalars(select(DagPriorityParsingRequest)).one()
+        key = work.id
+        previous_claim_id = uuid7()
+        token = DagProcessorToken(
+            id=processor_job.session_id,
+            claims=DagProcessorClaims(
+                exp=1, job_id=processor_job.id, dag_bundles=frozenset(processor_job.bundle_names)
+            ),
+        )
+        previous_claim = ProcessorWorkClaimBody(
+            claim_id=previous_claim_id, claim_sequence=1, bundle_names=["example_dags"]
+        )
+        claimed = claim_work(processor_job.id, "priority", previous_claim, session=session, token=token)
+        assert [item.id for item in claimed] == [key]
+        session.commit()
+
+        assert test_client.put(url).status_code == 201
+
+        session.expire_all()
+        work = session.scalars(select(DagPriorityParsingRequest)).one()
+        assert work.id == key
+        assert work.processor_job_id is None
+        assert work.processor_claim_id is None
+        assert test_client.put(url).status_code == 409
+        previous_ack = ProcessorWorkAckBody(claim_id=previous_claim_id)
+        with pytest.raises(HTTPException) as error:
+            acknowledge_work(processor_job.id, "priority", key, previous_ack, session=session, token=token)
+        assert error.value.status_code == 409
+        session.rollback()
+        assert claim_work(processor_job.id, "priority", previous_claim, session=session, token=token) == []
+
+        next_claim_id = uuid7()
+        claimed = claim_work(
+            processor_job.id,
+            "priority",
+            ProcessorWorkClaimBody(claim_id=next_claim_id, claim_sequence=2, bundle_names=["example_dags"]),
+            session=session,
+            token=token,
+        )
+        assert len(claimed) == 1
+        assert claimed[0].id == key
+        assert claimed[0].claim_id == next_claim_id
+        session.commit()
+        with pytest.raises(HTTPException) as error:
+            acknowledge_work(processor_job.id, "priority", key, previous_ack, session=session, token=token)
+        assert error.value.status_code == 409
+        session.rollback()
+        acknowledge_work(
+            processor_job.id,
+            "priority",
+            key,
+            ProcessorWorkAckBody(claim_id=next_claim_id),
+            session=session,
+            token=token,
+        )
+        session.commit()
+        assert session.get(DagPriorityParsingRequest, key) is None
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.put(

@@ -17,11 +17,13 @@
 
 from __future__ import annotations
 
+import sqlite3
+from contextlib import contextmanager
 from datetime import timedelta
 from unittest import mock
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
@@ -35,6 +37,32 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_jobs
 
 pytestmark = pytest.mark.db_test
+
+
+@contextmanager
+def _set_sqlite_variable_limit(engine, limit):
+    original_limits = {}
+
+    def set_limit(connection, connection_record, connection_proxy):
+        original_limits[connection_record] = (
+            connection,
+            connection.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, limit),
+        )
+
+    def restore_limit(connection, connection_record):
+        original = original_limits.pop(connection_record, None)
+        if original is not None and connection is not None:
+            connection.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, original[1])
+
+    event.listen(engine, "checkout", set_limit)
+    event.listen(engine, "checkin", restore_limit)  # codespell:ignore checkin
+    try:
+        yield
+    finally:
+        event.remove(engine, "checkout", set_limit)
+        event.remove(engine, "checkin", restore_limit)  # codespell:ignore checkin
+        for connection, original_limit in original_limits.values():
+            connection.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, original_limit)
 
 
 @pytest.fixture(autouse=True)
@@ -109,3 +137,48 @@ def test_cleanup_warnings_is_bounded_and_preserves_active_dags(session):
     assert len(session.scalars(select(DagWarning)).all()) == 2
     cleanup_processor_metadata(batch_size=2)
     assert [warning.dag_id for warning in session.scalars(select(DagWarning))] == ["dag_3"]
+
+
+@conf_vars({("dag_processor", "job_heartbeat_timeout"): "120"})
+def test_default_cleanup_respects_sqlite_variable_limit_and_retires_jobs(session, time_machine):
+    engine = session.get_bind()
+    if engine.dialect.name != "sqlite":
+        pytest.skip("Exercises SQLite's host parameter limit")
+    time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
+    session.add(DagBundleModel(name="live"))
+    session.flush()
+    session.add_all(
+        [
+            DagModel(dag_id="stale", bundle_name="live", is_stale=True),
+            DagModel(dag_id="active", bundle_name="live", is_stale=False),
+        ]
+    )
+    expired_job = Job(
+        job_type="DagProcessorJob",
+        state=JobState.RUNNING,
+        session_id=uuid7(),
+        latest_heartbeat=timezone.utcnow() - timedelta(seconds=180),
+    )
+    session.add(expired_job)
+    session.flush()
+    expired_job_id = expired_job.id
+    session.add_all(
+        [DagWarning(dag_id="stale", warning_type=f"python:test_{i}", message="warning") for i in range(500)]
+        + [DagWarning(dag_id="active", warning_type="python:test", message="warning")]
+    )
+    session.commit()
+
+    with _set_sqlite_variable_limit(engine, 999):
+        cleanup_processor_metadata()
+
+        assert session.scalars(select(DagWarning.dag_id).order_by(DagWarning.dag_id)).all() == [
+            "active",
+            "stale",
+        ]
+        retired = session.get(Job, expired_job_id)
+        assert retired.state == JobState.FAILED
+        assert retired.end_date == timezone.utcnow()
+
+        cleanup_processor_metadata()
+
+        assert session.scalars(select(DagWarning.dag_id)).all() == ["active"]

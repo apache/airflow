@@ -4654,7 +4654,7 @@ class TestSchedulerJob:
     @mock.patch.object(EventScheduler, "call_regular_interval", autospec=True)
     def test_dag_processor_maintenance_runs_on_the_parsing_cleanup_interval(self, call_regular_interval):
         scheduler_job = Job()
-        scheduler_job.heartbeat = mock.MagicMock()
+        scheduler_job.heartbeat = mock.create_autospec(scheduler_job.heartbeat)
         self.job_runner = SchedulerJobRunner(
             job=scheduler_job, num_runs=1, executors=[MockExecutor(do_update=False)]
         )

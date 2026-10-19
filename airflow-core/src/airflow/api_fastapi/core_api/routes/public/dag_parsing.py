@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import Depends, Request, status
 from itsdangerous import URLSafeSerializer
+from sqlalchemy import update
+from sqlalchemy.engine import CursorResult
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -38,6 +42,20 @@ dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{
 def reparse_dag_file(file_token: str, session: SessionDep, request: Request) -> None:
     """Request re-parsing a Dag file."""
     payload = URLSafeSerializer(request.app.state.secret_key).loads(file_token)
+    requeued = cast(
+        "CursorResult",
+        session.execute(
+            update(DagPriorityParsingRequest)
+            .where(
+                DagPriorityParsingRequest.bundle_name == payload["bundle_name"],
+                DagPriorityParsingRequest.relative_fileloc == payload["relative_fileloc"],
+                DagPriorityParsingRequest.processor_job_id.is_not(None),
+            )
+            .values(processor_job_id=None, processor_claim_id=None)
+        ),
+    )
+    if requeued.rowcount:
+        return
     parsing_request = DagPriorityParsingRequest(
         bundle_name=payload["bundle_name"], relative_fileloc=payload["relative_fileloc"]
     )
