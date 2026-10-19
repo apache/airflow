@@ -476,4 +476,5 @@ def test_an_interrupted_run_lists_what_failed_and_what_did_not_finish(mock_files
 def test_json_cannot_be_combined_with_run():
     result = CliRunner().invoke(verify, ["--json", "--run"])
     assert result.exit_code == 2
-    assert "--json only lists the commands and cannot be combined with --run." in result.output
+    rendered = " ".join(ANSI.sub("", result.output).replace("│", " ").split())
+    assert "--json only lists the commands and cannot be combined with --run." in rendered
