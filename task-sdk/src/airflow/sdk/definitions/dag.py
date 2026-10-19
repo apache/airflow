@@ -201,8 +201,10 @@ def _convert_str_to_tuple(val: str | Iterable[str] | None) -> Iterable[str] | No
     return val
 
 
-def _convert_tags(tags: Collection[str] | None) -> MutableSet[str]:
-    return set(tags or [])
+def _convert_tags(tags: str | Collection[str] | None) -> MutableSet[str]:
+    if not tags:
+        return set()
+    return {tags} if isinstance(tags, str) else set(tags)
 
 
 def _convert_access_control(access_control):
@@ -227,7 +229,7 @@ def _convert_allowed_run_types(
         return None
     from airflow.sdk.api.datamodels._generated import DagRunType
 
-    if isinstance(val, enum.Enum):
+    if isinstance(val, str | enum.Enum):
         val = [val]
     return frozenset(DagRunType(v) if not isinstance(v, DagRunType) else v for v in val)
 
