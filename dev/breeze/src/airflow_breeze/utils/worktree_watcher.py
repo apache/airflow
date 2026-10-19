@@ -67,13 +67,21 @@ def is_worktree_missing(worktree: Path) -> bool:
     directories of a running container when the worktree is deleted, and a failed
     ``git worktree remove`` leaves a ``.git`` file whose ``gitdir`` no longer exists.
 
+    A ``gitdir`` that is gone only counts when the main repository's ``.git`` is still there: when
+    the main checkout is moved or renamed, every worktree's ``gitdir`` disappears with it, and their
+    resources must stay.
+
     Errors other than a missing file propagate, so that callers keep the resources.
     """
     try:
-        gitdir = (worktree / ".git").read_text().strip().removeprefix("gitdir:").strip()
-        (worktree / gitdir).stat()
+        gitdir = worktree / (worktree / ".git").read_text().strip().removeprefix("gitdir:").strip()
     except FileNotFoundError:
         return True
+    try:
+        gitdir.stat()
+    except FileNotFoundError:
+        # gitdir is <main-repo>/.git/worktrees/<name>, as in path_utils.get_main_git_dir_for_worktree.
+        return gitdir.parent.parent.is_dir()
     return False
 
 

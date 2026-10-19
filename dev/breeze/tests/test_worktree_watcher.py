@@ -47,6 +47,7 @@ def test_lock_allows_a_single_watcher(tmp_path):
         pytest.param("worktree", True, id="worktree-deleted"),
         pytest.param("dot-git", True, id="bind-mount-directories-left-behind"),
         pytest.param("gitdir", True, id="link-to-main-repository-gone"),
+        pytest.param("main-checkout", False, id="main-checkout-moved"),
     ],
 )
 def test_is_worktree_missing_follows_the_link_to_the_main_repository(
@@ -61,6 +62,8 @@ def test_is_worktree_missing_follows_the_link_to_the_main_repository(
         (worktree / ".git").unlink()
     elif damage == "gitdir":
         gitdir.rmdir()
+    elif damage == "main-checkout":
+        (tmp_path / "main-checkout").rename(tmp_path / "main-checkout-moved")
 
     assert worktree_watcher.is_worktree_missing(worktree) is missing
 
