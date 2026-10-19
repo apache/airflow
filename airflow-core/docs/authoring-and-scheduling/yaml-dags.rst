@@ -240,11 +240,11 @@ through structure:
           $t: "{{ ds }}" # rendered
         REGION: us-east-1 # literal
 
-Dates and datetimes
--------------------
+Dates, datetimes, and deltas
+----------------------------
 
-A date or datetime argument accepts an ISO-8601 string or a YAML-native date,
-and they mean the same thing:
+A :class:`~datetime.date` or :class:`~datetime.datetime` argument accepts an
+ISO-8601 string or a YAML-native value, and they mean the same thing:
 
 .. code-block:: yaml
 
@@ -253,11 +253,27 @@ and they mean the same thing:
     end_date: "2024-06-01T12:00:00" # ISO-8601 datetime string
     # end_date: 2024-06-01 12:00:00 # or a YAML-native datetime (same value)
 
-These are converted to a Python ``datetime`` before the Dag or task is built. A
-bare date becomes midnight, and an ISO-8601 string is parsed.
+A bare date on a :class:`~datetime.datetime` argument becomes midnight. An
+ISO-8601 string is parsed.
 
-The conversion is applied only to an argument that expects a datetime. This is
-decided from the operator's or Dag's argument **type annotation**.
+A :class:`~datetime.timedelta` or :class:`~dateutil.relativedelta.relativedelta`
+argument accepts a duration string, written in a short form or as an ISO-8601
+duration:
+
+.. code-block:: yaml
+
+    retry_delay: 5m # short form, 5 minutes
+    execution_timeout: PT1H # ISO-8601 duration, 1 hour
+
+The short form combines ``w``, ``d``, ``h``, ``m`` and ``s`` (for example
+``1h30m``) and builds a ``timedelta``. The `ISO-8601 duration
+<https://en.wikipedia.org/wiki/ISO_8601#Durations>`_ form (``P...``) can build a
+``timedelta`` or ``relativedelta``. Only whole-number components are
+accepted, so a fractional value like ``PT0.5H`` is not recognized; write
+``PT30M`` instead.
+
+Each conversion applies only to an argument whose **type annotation** names the
+matching type; a value bound to any other argument keeps its original type.
 
 Using your own operators
 ------------------------
@@ -321,14 +337,13 @@ in ``__init__`` is generally considered bad practice in the first place. Such
 processing should generally be done in ``execute`` instead, which is always
 called after template rendering has been performed.
 
-Accepting a date argument
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Accepting a date, datetime, or delta argument
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Whether a value is converted to a ``datetime`` depends on how the receiving
-argument is typed. An argument whose type annotation names a datetime type
-receives the conversion described in `Dates and datetimes`_; every other
-argument is left as written. To let your operator take a YAML date, annotate the
-argument:
+Whether a value is converted depends on how the receiving argument is annotated.
+An argument annotated as a date, datetime, or delta type receives the conversion
+described in `Dates, datetimes, and deltas`_; every other argument is left as
+written. To let your operator take these values, annotate the arguments:
 
 .. code-block:: python
 
@@ -338,15 +353,34 @@ argument:
 
 
     class IngestOperator(BaseOperator):
-        def __init__(self, *, cutoff: datetime.datetime | None = None, **kwargs):
+        def __init__(
+            self,
+            *,
+            cutoff: datetime.datetime | None = None,
+            retention: datetime.timedelta | None = None,
+            **kwargs,
+        ):
             super().__init__(**kwargs)
             self.cutoff = cutoff
+            self.retention = retention
 
-With the annotation above, ``cutoff: 2024-01-01`` from YAML arrives as
-``datetime.datetime(2024, 1, 1, 0, 0)``. The annotation is matched by name, so
-``datetime``, ``datetime.datetime``, ``pendulum.DateTime``, and a union such as
-``datetime | None`` are all recognized; a datetime type imported under another
-alias is not.
+With the annotations above, ``cutoff: 2024-01-01`` arrives as
+``datetime.datetime(2024, 1, 1, 0, 0)`` and ``retention: 5d`` as
+``datetime.timedelta(days=5)``. Pendulum types are also coerced automatically.
+
+The annotation is matched by the name, so the following are all recognized
+(plus other similar variants):
+
+* ``datetime.datetime``
+* ``pendulum.DateTime``
+* ``datetime.date``
+* ``pendulum.Date``
+* ``datetime.timedelta``
+* ``dateutil.relativedelta.relativedelta``
+* ``pendulum.Duration``
+
+Unions are also parsed, so things like ``datetime | None`` are recognized too.
+A type imported under another alias is not.
 
 Reserved arguments
 ~~~~~~~~~~~~~~~~~~
