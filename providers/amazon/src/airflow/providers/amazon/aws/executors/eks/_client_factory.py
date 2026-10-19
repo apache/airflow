@@ -116,6 +116,8 @@ def _configure_eks_auth(
     configuration.api_key_prefix[token_key] = "Bearer"
 
     # EKS tokens expire after about 15 minutes, so get a new one shortly before the current one expires.
+    # The first call always fetches a token because token is None. The call at the end of this function
+    # makes that happen now, so the first request already has a token.
     token: str | None = None
     refresh_at = 0.0
 

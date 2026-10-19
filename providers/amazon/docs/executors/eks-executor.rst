@@ -50,6 +50,10 @@ Amazon provider together with that version:
     pip install 'apache-airflow-providers-amazon[cncf.kubernetes]' \
         'apache-airflow-providers-cncf-kubernetes>=10.24.0'
 
+The executor also relies on botocore using the regional STS endpoint by default (botocore 1.40
+and newer), and the Amazon provider already requires ``botocore>=1.42.79``, so no extra install
+step is needed.
+
 The AWS credentials the executor uses must be allowed to call ``eks:DescribeCluster``
 on the cluster, and their IAM principal must also be granted access inside the cluster, as
 described in :ref:`eks_grant_access`. Without that in-cluster grant every Kubernetes API call
