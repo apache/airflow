@@ -58,11 +58,7 @@ const DuplicateConnectionButton = ({ connection, disabled }: Props) => {
 
   return (
     <>
-      <IconButton
-        disabled={disabled}
-        label={translate("connections.duplicate")}
-        onClick={onOpen}
-      >
+      <IconButton disabled={disabled} label={translate("connections.duplicate")} onClick={onOpen}>
         <FiCopy />
       </IconButton>
 
