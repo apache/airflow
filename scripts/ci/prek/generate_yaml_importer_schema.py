@@ -34,6 +34,7 @@ from pathlib import Path
 
 os.environ["_AIRFLOW__AS_LIBRARY"] = "1"
 
+from airflow.sdk.importers.yaml_importer.migrator import schema_from_version
 from airflow.sdk.importers.yaml_importer.models import DagDocument
 from airflow.sdk.importers.yaml_importer.versions import get_bundle
 
@@ -49,6 +50,7 @@ def build_schema() -> str:
     head = get_bundle().versions[0].value  # newest-first
     schema = DagDocument.model_json_schema(by_alias=True)
     schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+    schema["$id"] = schema_from_version(head)
     schema["title"] = f"Airflow YAML Dag ({head})"
     return json.dumps(schema, indent=2) + "\n"
 

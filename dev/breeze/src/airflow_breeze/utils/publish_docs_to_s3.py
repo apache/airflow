@@ -398,6 +398,7 @@ class S3DocsPublish:
 SCHEMA_VERSION_FIELDS: dict[str, str] = {
     "execution-api": "info.version",
     "supervisor-schema": "api_version",
+    "dag": "$id",
 }
 
 
@@ -430,6 +431,10 @@ def _publish_single_schema(
     with schema_path.open() as f:
         payload = json.load(f)
     version = _read_nested_field(payload, SCHEMA_VERSION_FIELDS[schema_type])
+    # A schema may identify its version through its canonical URL (``$id``); take
+    # the bare version from the last path segment in that case.
+    if "/" in version:
+        version = version.rsplit("/", 1)[-1].removesuffix(".json")
 
     destination = f"{destination_location.rstrip('/')}/{schema_type}/{version}.json"
     bucket, key = S3DocsPublish.get_bucket_key(destination)
@@ -479,6 +484,7 @@ def publish_schemas_to_s3(
     destination_location: str,
     execution_api_schema: pathlib.Path | None,
     supervisor_schema: pathlib.Path | None,
+    dag_schema: pathlib.Path | None = None,
     overwrite: bool = False,
     dry_run: bool = False,
 ) -> None:
@@ -494,9 +500,11 @@ def publish_schemas_to_s3(
         to_publish.append(("execution-api", execution_api_schema))
     if supervisor_schema:
         to_publish.append(("supervisor-schema", supervisor_schema))
+    if dag_schema:
+        to_publish.append(("dag", dag_schema))
 
     if not to_publish:
-        console_print("[error]No schema files provided. Pass --execution-api and/or --supervisor.\n")
+        console_print("[error]No schema files provided. Pass --execution-api, --supervisor and/or --dag.\n")
         sys.exit(1)
 
     uploaded_any = False
