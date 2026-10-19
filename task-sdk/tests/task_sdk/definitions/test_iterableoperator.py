@@ -221,6 +221,12 @@ def mock_context(task, run_id: str | None = None) -> Iterator[Context]:
     ):
         context["ti"].xcom_push(key=key, value=value)
 
+    def _push(cls, ti, key, value, **kwargs):
+        context["ti"].xcom_push(key=key, value=value)
+
+    async def _apush(cls, ti, key, value, **kwargs):
+        context["ti"].xcom_push(key=key, value=value)
+
     def _get_one(
         cls,
         *,
@@ -246,6 +252,8 @@ def mock_context(task, run_id: str | None = None) -> Iterator[Context]:
     with (
         patch.object(XCom, "set", classmethod(_set)),
         patch.object(XCom, "aset", classmethod(_aset)),
+        patch.object(XCom, "_push", classmethod(_push)),
+        patch.object(XCom, "_apush", classmethod(_apush)),
         patch.object(XCom, "get_one", classmethod(_get_one)),
         patch.object(XCom, "get_all", classmethod(_get_all)),
         patch.object(RuntimeTaskInstance, "task_state_store", property(lambda self: task_state_store)),
@@ -2510,12 +2518,12 @@ class TestIterableOperator:
                 # The retry: the failing indexed task succeeds now; the finished one must not run again.
                 pushed = []
 
-                async def recording_aset(cls, key, value, **kwargs):
+                async def recording_apush(cls, ti, key, value, **kwargs):
                     pushed.append((key, value))
 
                 iterable_op.expand_input = ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b"}])
                 context["ti"].try_number = 2
-                with patch.object(XCom, "aset", classmethod(recording_aset)):
+                with patch.object(XCom, "_apush", classmethod(recording_apush)):
                     iterable_op.execute(context=context)
 
         assert checkpoint["status"] == "success"
@@ -2591,12 +2599,12 @@ class TestIterableOperator:
 
                 pushed = []
 
-                async def recording_aset(cls, key, value, **kwargs):
+                async def recording_apush(cls, ti, key, value, **kwargs):
                     pushed.append((key, value))
 
                 iterable_op.expand_input = ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b"}])
                 context["ti"].try_number = 2
-                with patch.object(XCom, "aset", classmethod(recording_aset)):
+                with patch.object(XCom, "_apush", classmethod(recording_apush)):
                     iterable_op.execute(context=context)
 
         assert AsyncPushingOperator.executed == ["a", "b", "b"]

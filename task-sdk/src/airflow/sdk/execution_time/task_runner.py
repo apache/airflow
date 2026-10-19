@@ -65,12 +65,12 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.bases.operator import BaseAsyncOperator, BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.bases.xcom import BaseXCom, _is_legacy_xcom_backend
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
-from airflow.sdk.definitions._internal.loop import is_loop_task_read_from_outside
+from airflow.sdk.definitions._internal.loop import LoopTaskGroup, is_loop_task_read_from_outside
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -1624,7 +1624,7 @@ def _xcom_push(
     *,
     mapped_length: int | None = None,
 ) -> None:
-    """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
+    """Push a XCom for ``ti`` through the configured XCom backend."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
@@ -1636,16 +1636,7 @@ def _xcom_push(
         _xcom_push_to_db(ti, key, value)
         return
 
-    XCom.set(
-        key=key,
-        value=value,
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        run_id=ti.run_id,
-        map_index=ti.map_index,
-        dag_result=ti.task.returns_dag_result,
-        _mapped_length=mapped_length,
-    )
+    XCom._push(ti, key, value, dag_result=ti.task.returns_dag_result, mapped_length=mapped_length)
 
 
 async def _axcom_push(
@@ -1655,20 +1646,11 @@ async def _axcom_push(
     *,
     mapped_length: int | None = None,
 ) -> None:
-    """Push a XCom through XCom.aset, which pushes to XCom Backend if configured."""
+    """Push a XCom for ``ti`` through the configured XCom backend."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
-    await XCom.aset(
-        key=key,
-        value=value,
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        run_id=ti.run_id,
-        map_index=ti.map_index,
-        dag_result=ti.task.returns_dag_result,
-        _mapped_length=mapped_length,
-    )
+    await XCom._apush(ti, key, value, dag_result=ti.task.returns_dag_result, mapped_length=mapped_length)
 
 
 def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
@@ -1770,6 +1752,19 @@ def _fail_lang_sdk_task(what: StartupDetails, coordinator_classpath: str, log: L
     sys.exit(0)
 
 
+def check_xcom_backend_supports_loops(dag) -> None:
+    if not _is_legacy_xcom_backend(XCom):
+        return
+    if not any(isinstance(group, LoopTaskGroup) for group in dag.task_group.get_task_group_dict().values()):
+        return
+    raise TypeError(
+        f"Dag {dag.dag_id!r} uses a loop, but XCom backend {XCom.__module__}.{XCom.__qualname__} stores "
+        "values through serialize_value rather than store_value, so every iteration of a task could store "
+        "its XCom in the same place. Implement store_value and include ti.id in the storage location; for "
+        "XComObjectStorageBackend, upgrade apache-airflow-providers-common-io."
+    )
+
+
 @detail_span("parse")
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
@@ -1825,6 +1820,8 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         raise TypeError(
             f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
         )
+
+    check_xcom_backend_supports_loops(dag)
 
     # Register operator-declared XCom model classes (e.g. ``output_type``) for
     # the whole DAG so this task can deserialize structured output produced by
