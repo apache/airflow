@@ -26,6 +26,7 @@ import dayjsDuration from "dayjs/plugin/duration";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
+import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { useGroups } from "src/context/groups";
@@ -45,6 +46,7 @@ import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { useGridScrollRestore } from "./useGridScrollRestore";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
+import { useMultipleSelection } from "./useMultipleSelection";
 
 dayjs.extend(dayjsDuration);
 
@@ -176,6 +178,27 @@ export const Grid = ({
           minW: "200px",
         };
 
+  // Extract run IDs from grid runs
+  const runIds = useMemo(() => gridRuns?.map((dr) => dr.run_id) ?? [], [gridRuns]);
+
+  // Create a lookup function for task instances
+  const getTaskInstance = useCallback(
+    (taskId: string, runId: string): LightGridTaskInstanceSummary | undefined => {
+      return summariesByRunId.get(runId)?.task_instances.find((ti) => ti.task_id === taskId);
+    },
+    [summariesByRunId],
+  );
+
+  // Multiple selection hook
+  const {
+    selectedTaskInstances,
+    hasSelection,
+    isSelected,
+    isColumnSelected,
+    handleClick,
+    clearSelection,
+  } = useMultipleSelection(flatNodes, runIds, getTaskInstance);
+
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
@@ -275,6 +298,10 @@ export const Grid = ({
             onRowClick={handleRowClick}
             tiSummaries={selectedRunId === undefined ? undefined : summariesByRunId.get(selectedRunId)}
             virtualItems={virtualItems}
+            isSelected={isSelected}
+            hasSelection={hasSelection}
+            onCellClick={handleClick}
+            clearSelection={clearSelection}
           />
         </Box>
         <Flex flexDirection="row-reverse" flexShrink={0} style={{ isolation: "isolate" }}>
@@ -288,6 +315,12 @@ export const Grid = ({
               showVersionIndicatorMode={showVersionIndicatorMode}
               tiSummaries={summariesByRunId.get(dr.run_id)}
               virtualItems={virtualItems}
+              isSelected={isSelected}
+              isColumnSelected={isColumnSelected}
+              hasSelection={hasSelection}
+              onCellClick={handleClick}
+              clearSelection={clearSelection}
+              runId={dr.run_id}
             />
           ))}
         </Flex>

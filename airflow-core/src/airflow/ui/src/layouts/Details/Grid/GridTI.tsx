@@ -41,6 +41,7 @@ type Props = {
   readonly onClick?: () => void;
   readonly runId: string;
   readonly taskId: string;
+  readonly isMultiSelected?: boolean;
 };
 
 export const GridTI = ({
@@ -53,6 +54,7 @@ export const GridTI = ({
   onClick,
   runId,
   taskId,
+  isMultiSelected = false,
 }: Props) => {
   const { groupId: selectedGroupId, runId: selectedRunId, taskId: selectedTaskId } = useParams();
   const { colorMode = "light" } = useColorMode();
@@ -82,13 +84,20 @@ export const GridTI = ({
   const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
   const selectedOutlineColor = SELECTED_TASK_OUTLINE_COLOR[colorMode];
 
+  // Multi-selection visual: darker blue background and border
+  const isAnySelected = isSelectedRow || isMultiSelected;
+
   return (
     <Flex
       alignItems="center"
-      bg={isSelectedRow ? "brand.emphasized" : undefined}
+      bg={isAnySelected ? "brand.emphasized" : undefined}
+      borderWidth={isMultiSelected ? "2px" : undefined}
+      borderColor={isMultiSelected ? "brand.500" : undefined}
+      borderRadius={isMultiSelected ? "4px" : undefined}
       data-run-id={runId}
       data-selected={isSelectedRow}
       data-task-id={taskId}
+      data-multi-selected={isMultiSelected || undefined}
       height="20px"
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
@@ -96,7 +105,7 @@ export const GridTI = ({
       position="relative"
       px="2px"
       py={0}
-      transition="background-color 0.2s"
+      transition="background-color 0.2s, border-color 0.2s"
     >
       <TaskInstanceTooltip
         loopMaxIterations={loopMaxIterations}
@@ -120,16 +129,16 @@ export const GridTI = ({
               alignItems="center"
               borderRadius={4}
               colorPalette={instance.state ?? "none"}
-              data-selected={isSelectedTaskInstance || undefined}
+              data-selected={isSelectedTaskInstance || isMultiSelected || undefined}
               data-testid="task-state-badge"
               display="flex"
               height="14px"
               justifyContent="center"
               minH={0}
-              outlineColor={isSelectedTaskInstance ? selectedOutlineColor : undefined}
+              outlineColor={isSelectedTaskInstance || isMultiSelected ? selectedOutlineColor : undefined}
               outlineOffset="1px"
-              outlineStyle={isSelectedTaskInstance ? "solid" : undefined}
-              outlineWidth={isSelectedTaskInstance ? "2px" : undefined}
+              outlineStyle={isSelectedTaskInstance || isMultiSelected ? "solid" : undefined}
+              outlineWidth={isSelectedTaskInstance || isMultiSelected ? "2px" : undefined}
               p={0}
               style={hasNote ? { background: NOTE_GRADIENT } : undefined}
               transition="outline-color 0.2s"

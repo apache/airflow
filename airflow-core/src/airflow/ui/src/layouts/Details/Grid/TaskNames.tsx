@@ -40,11 +40,29 @@ type Props = {
   readonly onRowClick?: () => void;
   readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
+  readonly isSelected?: (taskId: string, runId: string) => boolean;
+  readonly hasSelection?: boolean;
+  readonly onCellClick?: (
+    taskId: string,
+    runId: string,
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>,
+    mapIndex?: number | null,
+  ) => void;
+  readonly clearSelection?: () => void;
 };
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
-export const TaskNames = ({ nodes, onRowClick, tiSummaries, virtualItems }: Props) => {
+export const TaskNames = ({
+  nodes,
+  onRowClick,
+  tiSummaries,
+  virtualItems,
+  isSelected,
+  hasSelection,
+  onCellClick,
+  clearSelection,
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const { toggleGroupId } = useGroups();
   const { dagId = "", groupId, taskId } = useParams();
@@ -102,17 +120,19 @@ export const TaskNames = ({ nodes, onRowClick, tiSummaries, virtualItems }: Prop
           return undefined;
         }
 
-        const isSelected = node.id === taskId || node.id === groupId;
+        const isRowSelected = node.id === taskId || node.id === groupId;
+        // Check if any cell in this row is selected (for multi-selection highlighting)
+        const isMultiSelected = hasSelection && isSelected ? isSelected(node.id, "") : false;
 
         return (
           <Box
-            bg={isSelected ? "brand.emphasized" : undefined}
+            bg={isRowSelected || isMultiSelected ? "brand.emphasized" : undefined}
             borderBottomWidth={1}
             borderColor={node.isGroup ? "border.emphasized" : "border"}
             borderTopWidth={virtualItem.index === 0 ? 1 : 0}
             cursor="pointer"
             data-node-id={node.id}
-            data-selected={isSelected}
+            data-selected={isRowSelected || isMultiSelected}
             data-task-id={node.id}
             data-testid={`task-${node.id.replaceAll(".", "-")}`}
             height={`${ROW_HEIGHT}px`}
@@ -124,6 +144,12 @@ export const TaskNames = ({ nodes, onRowClick, tiSummaries, virtualItems }: Prop
             top={0}
             transform={`translateY(${virtualItem.start}px)`}
             transition="background-color 0.2s"
+            onClick={(e) => {
+              if (!node.isGroup && onCellClick && clearSelection) {
+                // For non-group tasks, allow multi-selection on the row itself
+                onCellClick(node.id, "", e as React.MouseEvent<HTMLDivElement, MouseEvent>, null);
+              }
+            }}
           >
             {node.isGroup ? (
               <Link

@@ -37,6 +37,17 @@ type Props = {
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
   readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
+  readonly isSelected?: (taskId: string, runId: string) => boolean;
+  readonly isColumnSelected?: (runId: string) => boolean;
+  readonly hasSelection?: boolean;
+  readonly onCellClickMulti?: (
+    taskId: string,
+    runId: string,
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>,
+    mapIndex?: number | null,
+  ) => void;
+  readonly clearSelection?: () => void;
+  readonly runId: string;
 };
 
 type CellBorderProps = Pick<BoxProps, "borderBottomWidth" | "borderColor" | "borderTopWidth">;
@@ -57,9 +68,15 @@ export const TaskInstancesColumn = ({
   showVersionIndicatorMode,
   tiSummaries,
   virtualItems,
+  isSelected,
+  isColumnSelected,
+  hasSelection,
+  onCellClickMulti,
+  clearSelection,
+  runId: columnRunId,
 }: Props) => {
   const { dagId = "", runId } = useParams();
-  const isSelected = runId === run.run_id;
+  const isRunSelected = runId === run.run_id;
 
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
@@ -76,13 +93,16 @@ export const TaskInstancesColumn = ({
   );
   const hasMixedVersions = versionNumbers.size > 1;
 
-  const hideRowBorders = isSelected;
+  const hideRowBorders = isRunSelected;
+
+  // Check if this column has any multi-selection
+  const isColumnMultiSelected = hasSelection && isColumnSelected ? isColumnSelected(columnRunId) : false;
 
   return (
     <Box
-      bg={isSelected ? "brand.emphasized" : undefined}
+      bg={isRunSelected || isColumnMultiSelected ? "brand.emphasized" : undefined}
       data-run-id={run.run_id}
-      data-selected={isSelected}
+      data-selected={isRunSelected || isColumnMultiSelected}
       position="relative"
       transition="background-color 0.2s"
       width="18px"
@@ -128,6 +148,9 @@ export const TaskInstancesColumn = ({
           );
         }
 
+        // Check if this specific cell is selected
+        const isCellMultiSelected = hasSelection && isSelected ? isSelected(node.id, columnRunId) : false;
+
         return (
           <Box
             {...taskInstanceCellBorderProps(hideRowBorders, virtualItem.index)}
@@ -137,6 +160,12 @@ export const TaskInstancesColumn = ({
             position="absolute"
             top={0}
             transform={`translateY(${virtualItem.start}px)`}
+            onClick={(e) => {
+              if (onCellClickMulti && clearSelection) {
+                const mapIndex = taskInstance.latest_region_index ?? null;
+                onCellClickMulti(node.id, columnRunId, e as React.MouseEvent<HTMLDivElement, MouseEvent>, mapIndex);
+              }
+            }}
           >
             {hasVersionChangeFlag && (
               <DagVersionIndicator
@@ -155,6 +184,7 @@ export const TaskInstancesColumn = ({
               onClick={onCellClick}
               runId={run.run_id}
               taskId={node.id}
+              isMultiSelected={isCellMultiSelected}
             />
           </Box>
         );
