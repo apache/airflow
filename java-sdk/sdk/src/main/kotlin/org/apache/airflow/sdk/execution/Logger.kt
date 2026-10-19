@@ -27,10 +27,9 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import java.time.Instant
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.reflect.KClass
-import kotlin.time.Clock
-import kotlin.time.Instant
 
 // Adapted from Python logging.
 enum class Level(
@@ -177,7 +176,7 @@ internal data class LogMessage(
   val arguments: Map<String, Any?>,
   val logger: String,
   val level: Level,
-  val timestamp: Instant = Clock.System.now(),
+  val timestamp: Instant = Instant.now(),
 )
 
 /**
@@ -241,6 +240,11 @@ internal object LogSender {
     } else {
       sendTo(channel, message)
     }
+  }
+
+  internal fun reset() {
+    writer = null
+    messages.clear()
   }
 
   private fun sendTo(

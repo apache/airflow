@@ -300,12 +300,14 @@ is a structlog-style event:
   supported: ``critical``, ``error``, ``warning``, ``info``, ``debug``, and
   ``notset``. A line carrying any other level is dropped.
 * ``timestamp`` is an RFC 3339 timestamp with a UTC offset, such as
-  ``2026-06-22T12:00:00Z``. Airflow reads a timestamp without an offset as a
-  time in ``[core] default_timezone``, which is UTC by default. If the worker
-  runs in another time zone, records without an offset then show the wrong time
-  and appear out of order in the task log. Include the seconds even when they
-  are zero. The supervisor fails on a timestamp without seconds, such as
-  ``2026-06-22T12:00``.
+  ``2026-06-22T12:00:00Z``. Airflow assumes that a timestamp without an offset
+  is in the time zone set by ``[core] default_timezone``, which is UTC by
+  default. If the worker's time zone differs from that setting, records without
+  an offset show the wrong time and appear out of order in the task log.
+  Include the seconds even when they are zero. The supervisor cannot parse a
+  timestamp without seconds, such as ``2026-06-22T12:00``. It moves that value
+  to an ``invalid_timestamp`` field and uses the time it received the record
+  instead.
 * Any remaining keys are forwarded as structured fields on the log record.
 
 See Python documentation on logging for details on log levels. Since log level

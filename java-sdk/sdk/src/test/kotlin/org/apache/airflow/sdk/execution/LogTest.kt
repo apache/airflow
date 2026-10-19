@@ -33,11 +33,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import java.time.Instant
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Instant
 
 class LogTest {
   @AfterEach
@@ -108,16 +106,16 @@ class LogTest {
     val defaultZone = TimeZone.getDefault()
     try {
       TimeZone.setDefault(TimeZone.getTimeZone("Asia/Taipei"))
-      val before = Clock.System.now()
+      val before = Instant.now()
       val message = LogMessage("hello", emptyMap(), "test", Level.INFO)
-      val after = Clock.System.now()
+      val after = Instant.now()
 
       val timestamp = sendAndRead(message)["timestamp"]!!.jsonPrimitive.content
       assertTrue(timestamp.endsWith("Z"), "timestamp should be in UTC with a Z suffix: $timestamp")
       // The extra second on each side allows for the wall clock being adjusted during the test. A local
       // time sent as UTC would still be hours off.
       assertTrue(
-        Instant.parse(timestamp) in (before - 1.seconds)..(after + 1.seconds),
+        Instant.parse(timestamp) in before.minusSeconds(1)..after.plusSeconds(1),
         "timestamp should be when the message was created: $timestamp",
       )
     } finally {
@@ -139,15 +137,15 @@ class LogTest {
   private fun sendAndRead(message: LogMessage): JsonObject {
     val channel = ByteChannel(autoFlush = true)
     try {
-      LogSender.messages.clear()
+      LogSender.reset()
       LogSender.configure(channel)
       LogSender.send(message)
       val line = runBlocking { Json.parseToJsonElement(channel.readLine()!!) }.jsonObject
       assertEquals(message.event, line["event"]!!.jsonPrimitive.content, "the first line should be the message just sent")
       return line
     } finally {
-      // Once this channel is closed, LogSender queues messages again. Later tests read the queued messages.
-      channel.cancel(null)
+      // Other test classes read LogSender.messages, which LogSender fills only while it has no channel.
+      LogSender.reset()
     }
   }
 }
