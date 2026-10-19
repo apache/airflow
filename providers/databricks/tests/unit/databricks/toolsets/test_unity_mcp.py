@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import asyncio
 import functools
 import importlib
@@ -31,6 +32,8 @@ import pytest
 pytest.importorskip("fastmcp")
 pytest.importorskip("airflow.providers.common.ai")
 
+import httpx2
+from fastmcp.exceptions import McpError
 from mcp_types import jsonrpc
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.mcp import MCPToolset as PydanticAIMCPToolset
@@ -61,7 +64,9 @@ class _StubGateway(BaseHTTPRequestHandler):
     A Unity Gateway stand-in that serves one MCP Service with a single ``echo`` tool.
 
     A call of ``echo`` whose text is ``"reply <status>"`` gets that HTTP status with an empty body,
-    and ``"reply <status> <error>"`` gets it with the JSON-RPC error named by ``<error>``.
+    and ``"reply <status> <error>"`` gets it with the JSON-RPC error named by ``<error>``. With
+    ``"drop"`` the connection closes without a response, and with ``"drop body"`` it closes
+    partway through the response body.
     """
 
     protocol_version = "HTTP/1.1"
@@ -109,6 +114,15 @@ class _StubGateway(BaseHTTPRequestHandler):
             if "text" not in body["params"]["arguments"]:
                 return self._reply(200, {"jsonrpc": "2.0", "id": body["id"], "error": INVALID_PARAMS})
             text = body["params"]["arguments"]["text"]
+            if text.startswith("drop"):
+                self.close_connection = True
+                if text == "drop body":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", "1000")
+                    self.end_headers()
+                    self.wfile.write(b'{"jsonrpc": "2.0"')
+                return None
             if text.startswith("reply "):
                 status, _, error = text.removeprefix("reply ").partition(" ")
                 return self._reply_error(int(status), body["id"], error or None)
@@ -347,11 +361,31 @@ class TestAuthentication:
 
         assert _run(call_while_another_toolset_holds_the_lock()) == "echo: hi"
 
+    @mock.patch.object(DatabricksHook, "_get_token", autospec=True)
     @mock.patch("airflow.providers.databricks.toolsets.unity_mcp.mask_secret", autospec=True)
-    def test_minted_tokens_are_masked(self, mask_secret, gateway, gateway_conn):
-        _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
+    def test_each_new_token_is_masked_once_under_the_blocking_call_lock(
+        self, mask_secret, get_token, gateway, gateway_conn
+    ):
+        token = "oauth-1"
+        get_token.side_effect = lambda *_, **__: token
+        # Before Airflow 3.2, the supervisor socket mask_secret writes to has no lock of its own.
+        mask_secret.side_effect = lambda _: (
+            toolset_base._blocking_call_lock.locked()
+            or pytest.fail("mask_secret was called without the blocking-call lock")
+        )
 
-        mask_secret.assert_called_with("dapi-token")
+        async def refresh_between_calls():
+            nonlocal token
+            toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
+            async with toolset:
+                tools = await toolset.get_tools(_ctx())
+                await toolset.execute_tool("echo", {"text": "a"}, ctx=_ctx(), tool=tools["echo"])
+                token = "oauth-2"
+                await toolset.execute_tool("echo", {"text": "b"}, ctx=_ctx(), tool=tools["echo"])
+
+        _run(refresh_between_calls())
+
+        assert mask_secret.call_args_list == [mock.call("oauth-1"), mock.call("oauth-2")]
 
     def test_username_and_password_connection_is_rejected(self, create_connection_without_db):
         create_connection_without_db(
@@ -370,6 +404,55 @@ class TestAuthentication:
             _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
 
         assert "token endpoint unreachable" in str(err.value)
+
+    @mock.patch.object(DatabricksHook, "_get_token", autospec=True)
+    def test_token_failure_before_connecting_is_reported(self, get_token, gateway, gateway_conn):
+        # A hung token endpoint must not be mistaken for a slow MCP handshake.
+        get_token.side_effect = TimeoutError("token endpoint timed out")
+
+        with pytest.raises(DatabricksUnityMCPError, match="Could not get a token.*token endpoint timed out"):
+            _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
+
+        assert not _StubGateway.requests
+
+    @mock.patch.object(DatabricksHook, "_get_token", autospec=True)
+    def test_token_failure_during_a_tool_call_is_reported(self, get_token, gateway, gateway_conn):
+        failing = False
+
+        def get_token_unless_failing(*_, **__):
+            if failing:
+                raise OSError("token endpoint unreachable")
+            return "dapi-token"
+
+        get_token.side_effect = get_token_unless_failing
+
+        async def call_after_the_token_endpoint_fails():
+            nonlocal failing
+            toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
+            async with toolset:
+                tools = await toolset.get_tools(_ctx())
+                failing = True
+                await toolset.execute_tool("echo", {"text": "hi"}, ctx=_ctx(), tool=tools["echo"])
+
+        with pytest.raises(
+            DatabricksUnityMCPError, match="Could not get a token.*token endpoint unreachable"
+        ):
+            _run(call_after_the_token_endpoint_fails())
+
+
+class TestIsJsonRpcRequest:
+    @pytest.mark.parametrize(
+        ("method", "body", "expected"),
+        [
+            ("POST", {"jsonrpc": "2.0", "id": 1, "method": "tools/call"}, True),
+            ("POST", {"jsonrpc": "2.0", "method": "notifications/initialized"}, False),
+            ("GET", None, False),
+        ],
+    )
+    def test_only_requests_that_expect_an_answer_count(self, method, body, expected):
+        request = httpx2.Request(method, "https://h/mcp", json=body)
+
+        assert unity_mcp._is_jsonrpc_request(request) is expected
 
 
 class TestErrors:
@@ -455,6 +538,11 @@ class TestErrors:
             assert isinstance(invalid, ModelRetry)
             assert type(failed) is DatabricksUnityMCPError
 
+            # The status is lost, but the gateway's JSON-RPC code still marks the denial.
+            denied, succeeded = _run(_call_concurrently("reply 403 not_authorized", "hi"))
+            assert type(denied) is DatabricksUnityMCPAccessDeniedError
+            assert succeeded == "echo: hi"
+
     def test_tool_errors_after_a_tolerated_gateway_error_are_left_to_the_agent(self, gateway, gateway_conn):
         # The MCP client carries on when the gateway rejects a notification; a later tool error the
         # model can fix must still reach pydantic-ai as a retry, not as that earlier gateway error.
@@ -468,6 +556,13 @@ class TestErrors:
 
         with pytest.raises(ModelRetry, match="'text' is required"):
             _run(call_with_missing_argument())
+
+    @pytest.mark.parametrize("text", ["drop", "drop body"])
+    def test_connection_lost_during_a_tool_call_is_a_transport_error(self, gateway, gateway_conn, text):
+        with pytest.raises(DatabricksUnityMCPTransportError, match="may or may not have run"):
+            _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID), text))
+
+        assert [m for _, _, m in _StubGateway.requests].count("tools/call") == 1
 
     def test_unreachable_gateway_is_a_transport_error(self, create_connection_without_db):
         create_connection_without_db(
@@ -524,6 +619,38 @@ class TestClientErrorMessages:
     def test_every_matched_error_is_checked(self):
         expected = {(getattr(jsonrpc, code), message) for _, code, message in self.MADE_UP_ERRORS}
         assert expected == unity_mcp._CLIENT_ERRORS
+
+    @staticmethod
+    def _find_made_up_errors() -> list[tuple[int, str]]:
+        """Return the code and message, or message prefix, of each error the HTTP client makes up."""
+        module = importlib.import_module("mcp.client.streamable_http")
+        found = []
+        for node in ast.walk(ast.parse(inspect.getsource(module))):
+            if not isinstance(node, ast.Call):
+                continue
+            keywords = {k.arg: k.value for k in node.keywords}
+            func = node.func
+            if isinstance(func, ast.Name) and func.id == "ErrorData":
+                code, message = keywords.get("code"), keywords.get("message")
+            elif isinstance(func, ast.Attribute) and func.attr == "_resolve_abandoned_request":
+                code, message = keywords.get("code"), node.args[2]
+            else:
+                continue
+            if isinstance(message, ast.JoinedStr):
+                message = message.values[0]
+            # Messages built elsewhere, such as the redirect one, are checked by the prefix test.
+            if not isinstance(message, ast.Constant) or not isinstance(message.value, str):
+                continue
+            code_name = code.id if isinstance(code, ast.Name) else "CONNECTION_CLOSED"
+            found.append((getattr(jsonrpc, code_name), message.value))
+        return found
+
+    def test_every_error_the_client_makes_up_is_recognized(self):
+        made_up = self._find_made_up_errors()
+
+        assert len(made_up) >= 8
+        for code, message in made_up:
+            assert unity_mcp._is_client_error(McpError(code, message)), message
 
     @pytest.mark.parametrize("prefix", unity_mcp._CLIENT_ERROR_PREFIXES)
     def test_message_prefix_is_still_made_up_by_the_client(self, prefix):

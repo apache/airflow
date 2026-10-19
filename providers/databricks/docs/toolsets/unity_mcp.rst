@@ -99,13 +99,13 @@ which are also raised for failures while connecting and listing tools:
         identity lacks ``EXECUTE`` on the service or ``USE CATALOG`` / ``USE SCHEMA`` on its parents,
         or the credentials are invalid. A missing service is reported like a missing privilege.
     * - ``DatabricksUnityMCPThrottledError``
-      - HTTP 429. Its ``retry_after`` attribute holds the ``Retry-After`` delay in seconds, when given.
+      - HTTP 429. Its ``retry_after`` attribute holds the ``Retry-After`` delay when the gateway gives
+        it as a number of seconds.
     * - ``DatabricksUnityMCPTransportError``
       - The gateway could not be reached, the connection dropped, a request got no answer in time,
         or the MCP handshake did not finish within ``init_timeout``.
     * - ``DatabricksUnityMCPError``
-      - Any other gateway error, or a failure to get a token from the connection after the toolset
-        connected.
+      - Any other gateway error, or a failure to get a token from the connection.
 
 A connection that cannot be used at all, such as one without a host or without token-based
 authentication, raises ``ValueError`` when the toolset connects.
@@ -116,5 +116,6 @@ waits ``init_timeout`` seconds (30 by default) for the handshake; raise it for s
 
 The exceptions carry the HTTP status in ``http_status_code`` when it is known. When the agent runs
 several tool calls of the toolset at once, the status of a failed call cannot be told apart from the
-others', so the error is reported as ``DatabricksUnityMCPError`` without it. Use task retries for
-calls that are safe to repeat.
+others', so a call that fails with HTTP 401, 403 or 429 is reported as ``DatabricksUnityMCPError``
+without it. Transport errors, timeouts and a denial the gateway reports in its JSON-RPC answer keep
+their class. Use task retries for calls that are safe to repeat.

@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, mask_secret
 from airflow.providers.databricks.exceptions import (
     DatabricksUnityMCPAccessDeniedError,
     DatabricksUnityMCPError,
@@ -53,21 +53,12 @@ except ImportError as e:
     ) from e
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator, Iterator, Sequence
+    from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterator, Sequence
 
     from pydantic_ai._run_context import RunContext
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
     from airflow.providers.common.ai.tools import AirflowTool
-    from airflow.sdk.execution_time.secrets_masker import mask_secret
-else:
-    try:
-        from airflow.sdk.log import mask_secret
-    except ImportError:
-        try:
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
-        except ImportError:
-            from airflow.utils.log.secrets_masker import mask_secret
 
 log = logging.getLogger(__name__)
 
@@ -102,7 +93,7 @@ _CLIENT_ERROR_PREFIXES = (
     "Unexpected content type:",
     "Failed to parse JSON response:",
     "Failed to parse SSE message:",
-    "SSE stream ended without a response",
+    "SSE stream ended",
     "server answered a request with 202 Accepted",
     "Redirect to ",
 )
@@ -157,6 +148,10 @@ def _walk_exceptions(exc: BaseException) -> Iterator[BaseException]:
         pending.extend(e for e in (current.__cause__, current.__context__) if e is not None)
 
 
+def _describe(error: BaseException) -> str:
+    return str(error) or type(error).__name__
+
+
 def _find(exc: BaseException, types: type[BaseException] | tuple[type[BaseException], ...]) -> Any:
     """Return the first exception of ``types`` in ``exc``, its causes and any exception groups."""
     return next((e for e in _walk_exceptions(exc) if isinstance(e, types)), None)
@@ -192,12 +187,15 @@ class _Operation:
     """
     One toolset operation (connecting, listing tools or calling a tool) and the gateway errors seen while it ran.
 
-    The MCP client does not say which HTTP response made a call fail, so the errors are only
-    attributed to the operation when no other operation of the toolset ran at the same time.
+    The MCP client does not say which HTTP response made a call fail, so the error statuses are
+    only attributed to the operation when no other operation of the toolset ran at the same time.
+    A request that got no response at all ends the MCP session, which fails every operation
+    running then, so those failures are kept whatever the overlap.
     """
 
     overlapped: bool = False
     errors: list[tuple[int, float | None]] = field(default_factory=list)
+    failures: list[Exception] = field(default_factory=list)
 
     @property
     def http_error(self) -> tuple[int, float | None] | None:
@@ -213,12 +211,12 @@ class _DatabricksTokenAuth(httpx2.Auth):
     agent run and on reconnection; the hook caches tokens until they are about to expire.
     """
 
-    def __init__(self, hook: DatabricksHook, operations: set[_Operation]) -> None:
+    def __init__(self, hook: DatabricksHook) -> None:
         self._hook = hook
-        self._operations = operations
         self._token_lock = threading.Lock()
+        self._masked_token: str | None = None
 
-    def get_token(self) -> str:
+    def fetch_token(self) -> str:
         with self._token_lock:
             token = self._hook._get_token(raise_error=False)
         if not token:
@@ -228,28 +226,88 @@ class _DatabricksTokenAuth(httpx2.Auth):
                 "service principal OAuth, Azure AD, or workload identity federation. Username and "
                 "password authentication is not supported."
             )
+        return token
+
+    def fetch_and_mask_token(self) -> None:
+        """Fetch a token and mask it; only call it through ``AirflowToolset.run_blocking``."""
+        self._mask(self.fetch_token())
+
+    def _mask(self, token: str) -> None:
         # A personal access token is masked when the connection is fetched; mask minted
         # OAuth tokens too, so they never reach task logs.
         mask_secret(token)
-        return token
+        self._masked_token = token
 
     async def async_auth_flow(
         self, request: httpx2.Request
     ) -> AsyncGenerator[httpx2.Request, httpx2.Response]:
         try:
             # Not AirflowToolset.run_blocking: its lock is shared by every toolset, so a long SQL
-            # query in another toolset would hold up each request here. The connection is already
-            # resolved when the toolset connects, so fetching a token only calls the token
-            # endpoint, and the hook is this toolset's own, so a lock of its own is enough.
-            token = await asyncio.to_thread(self.get_token)
+            # query in another toolset would hold up each request here. The connection is
+            # resolved when the toolset connects, so this only calls the token endpoint, and the
+            # hook is this toolset's own, so a lock of its own is enough.
+            token = await asyncio.to_thread(self.fetch_token)
         except Exception as e:
             raise _TokenUnavailableError(str(e)) from e
+        if token != self._masked_token:
+            # mask_secret messages the supervisor, which before Airflow 3.2 does not guard its
+            # socket against concurrent calls; run_blocking's lock serializes them.
+            await AirflowToolset.run_blocking(self._mask, token)
         request.headers["Authorization"] = f"Bearer {token}"
-        response = yield request
-        if response.status_code >= 400 and _is_jsonrpc_request(request):
+        yield request
+
+
+class _RecordingStream(httpx2.AsyncByteStream):
+    """A response body that records a transport error raised while it is read."""
+
+    def __init__(self, stream: httpx2.AsyncByteStream, record: Callable[[Exception], None]) -> None:
+        self._stream = stream
+        self._record = record
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        try:
+            async for chunk in self._stream:
+                yield chunk
+        except httpx2.TransportError as e:
+            self._record(e)
+            raise
+
+    async def aclose(self) -> None:
+        await self._stream.aclose()
+
+
+class _GatewayClient(httpx2.AsyncClient):
+    """
+    Record, on the toolset's running operations, why each JSON-RPC request to the gateway failed.
+
+    Once the MCP session is open, requests are sent from the MCP client's own tasks, and a call
+    waiting for an answer only learns that the connection closed. These records say why.
+    """
+
+    def __init__(self, *args: Any, operations: set[_Operation], **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._operations = operations
+
+    async def send(self, request: httpx2.Request, **kwargs: Any) -> httpx2.Response:
+        if not _is_jsonrpc_request(request):
+            return await super().send(request, **kwargs)
+
+        def record(failure: Exception) -> None:
+            for operation in self._operations:
+                operation.failures.append(failure)
+
+        try:
+            response = await super().send(request, **kwargs)
+        except (httpx2.TransportError, _TokenUnavailableError) as e:
+            record(e)
+            raise
+        if response.status_code >= 400:
             retry_after = _parse_retry_after(response.headers.get("Retry-After"))
             for operation in self._operations:
                 operation.errors.append((response.status_code, retry_after))
+        if isinstance(response.stream, httpx2.AsyncByteStream):
+            response.stream = _RecordingStream(response.stream, record)
+        return response
 
 
 def _is_jsonrpc_request(request: httpx2.Request) -> bool:
@@ -359,16 +417,21 @@ class DatabricksUnityMCPToolset(AirflowToolset):
     def _get_server(self) -> Any:
         hook = DatabricksHook(self._databricks_conn_id, caller=type(self).__name__)
         url = self.get_service_url(hook)
-        auth = _DatabricksTokenAuth(hook, self._operations)
+        auth = _DatabricksTokenAuth(hook)
         # Fail here, with a clear message, rather than inside the MCP client, which reports
         # any failure as a generic connection error.
-        auth.get_token()
+        try:
+            auth.fetch_and_mask_token()
+        except ValueError:
+            raise
+        except Exception as e:
+            raise _TokenUnavailableError(str(e)) from e
         proxy = (hook.proxies or {}).get(urlsplit(url).scheme)
         transport = StreamableHttpTransport(
             url,
             headers=hook.user_agent_header,
             auth=auth,
-            httpx_client_factory=_build_proxied_client_factory(proxy) if proxy else None,
+            httpx_client_factory=_build_client_factory(self._operations, proxy),
         )
         toolset = PydanticAIMCPToolset(transport, init_timeout=self._init_timeout)
         return toolset.prefixed(self._tool_prefix) if self._tool_prefix else toolset
@@ -384,12 +447,19 @@ class DatabricksUnityMCPToolset(AirflowToolset):
     ) -> Exception | None:
         """Return the provider exception for a gateway failure, or ``None`` to re-raise ``error`` as is."""
         service = self._service_name
-        if (token_error := _find(error, _TokenUnavailableError)) is not None:
+        mcp_error = _find(error, McpError)
+        # When a request fails once the session is open, the call only sees an error the MCP
+        # client makes up; what the request ran into is in the operation's failures.
+        saw_no_answer = mcp_error is not None and _is_client_error(mcp_error)
+        failure = operation.failures[0] if saw_no_answer and operation.failures else None
+        token_error = _find(error, _TokenUnavailableError)
+        if token_error is None and isinstance(failure, _TokenUnavailableError):
+            token_error = failure
+        if token_error is not None:
             return DatabricksUnityMCPError(
                 f"Could not get a token from connection {self._databricks_conn_id!r} to call MCP Service "
                 f"{service!r}: {token_error}"
             )
-        mcp_error = _find(error, McpError)
         status, retry_after = operation.http_error or (None, None)
         if (mcp_error is not None and mcp_error.error.code == _NOT_AUTHORIZED_CODE) or status in (401, 403):
             return DatabricksUnityMCPAccessDeniedError(
@@ -409,13 +479,21 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         ambiguous = (
             " The tool call may or may not have run, so it was not retried." if during_tool_call else ""
         )
-        if (transport_error := _find(error, httpx2.TransportError)) is not None:
-            return DatabricksUnityMCPTransportError(
-                f"Could not reach Unity Gateway for MCP Service {service!r}: {transport_error}.{ambiguous}"
-            )
         # The MCP client reports its own timeouts as MCP errors, so they are told apart from the
         # server's answers before those are.
-        if _is_request_timeout(mcp_error) or (during_tool_call and _is_handshake_timeout(error)):
+        if _is_request_timeout(mcp_error):
+            return DatabricksUnityMCPTransportError(
+                f"Timed out waiting for Unity Gateway to answer MCP Service {service!r}.{ambiguous}"
+            )
+        transport_error = _find(error, httpx2.TransportError)
+        if transport_error is None and isinstance(failure, httpx2.TransportError):
+            transport_error = failure
+        if transport_error is not None:
+            return DatabricksUnityMCPTransportError(
+                f"Could not reach Unity Gateway for MCP Service {service!r}: "
+                f"{_describe(transport_error)}.{ambiguous}"
+            )
+        if during_tool_call and _is_handshake_timeout(error):
             return DatabricksUnityMCPTransportError(
                 f"Timed out waiting for Unity Gateway to answer MCP Service {service!r}.{ambiguous}"
             )
@@ -505,8 +583,8 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         )
 
 
-def _build_proxied_client_factory(proxy: str) -> Any:
-    """Return an MCP HTTP client factory whose clients send requests through ``proxy``."""
+def _build_client_factory(operations: set[_Operation], proxy: str | None) -> Any:
+    """Return an MCP HTTP client factory for gateway requests, sent through ``proxy`` if one is set."""
 
     def factory(
         headers: dict[str, str] | None = None,
@@ -516,6 +594,8 @@ def _build_proxied_client_factory(proxy: str) -> Any:
     ) -> httpx2.AsyncClient:
         # The MCP client's defaults: a response stream may stay open, so reads wait longer.
         timeout = timeout or httpx2.Timeout(30.0, read=300.0)
-        return httpx2.AsyncClient(headers=headers, timeout=timeout, auth=auth, proxy=proxy, **kwargs)
+        if proxy:
+            kwargs["proxy"] = proxy
+        return _GatewayClient(headers=headers, timeout=timeout, auth=auth, operations=operations, **kwargs)
 
     return factory
