@@ -330,7 +330,7 @@ def test_dagrun_dep(mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun
 
     assert actual_dep_met == expected_dep_met
     if past_depends_met_xcom_sent:
-        ti.xcom_push.assert_called_with(key="past_depends_met", value=True)
+        ti.xcom_push.assert_called_with(key="past_depends_met", value=True, session=ANY)
     else:
         ti.xcom_push.assert_not_called()
 
@@ -346,4 +346,4 @@ def test_past_depends_met_xcom_sent_when_the_task_asks_to_wait():
     ti = Mock(task=task, task_id=task.task_id, **{"xcom_push.return_value": None})
 
     assert PrevDagrunDep().is_met(ti=ti, dep_context=DepContext(ignore_depends_on_past=True))
-    ti.xcom_push.assert_called_once_with(key="past_depends_met", value=True)
+    ti.xcom_push.assert_called_once_with(key="past_depends_met", value=True, session=ANY)
