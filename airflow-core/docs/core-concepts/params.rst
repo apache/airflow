@@ -455,7 +455,7 @@ Finally the fourth section shows advanced form elements.
 Offer Param Presets in the Trigger UI Form
 ------------------------------------------
 
-.. versionadded:: 3.4.0
+.. versionadded:: 3.5.0
 
 When one Dag serves several well-known configurations, declare them as ``param_presets`` so people
 triggering the Dag can load a whole set of values at once instead of retyping them. Each preset maps

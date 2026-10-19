@@ -502,4 +502,48 @@ describe("TriggerDAGForm", () => {
       expect(configJson.value).toContain('"Nightly message"');
     });
   });
+
+  it("clears a required-field error once a preset restores a valid value", async () => {
+    useDagParamsMock.mockReturnValue({
+      paramPresets: { Nightly: { message: "Nightly message" } },
+      paramsDict: dagParams.paramsDict,
+    });
+
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toBeInTheDocument(),
+    );
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[name="element_message"]') as Element, {
+      target: { value: "" },
+    });
+
+    await waitFor(() => expect(screen.getByText("flexibleForm.validationErrorRequired")).toBeInTheDocument());
+    expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
+
+    fireEvent.keyDown(within(screen.getByTestId("param-preset-select")).getByRole("combobox"), {
+      key: "ArrowDown",
+    });
+    fireEvent.click(await screen.findByText("Nightly"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toHaveValue(
+        "Nightly message",
+      ),
+    );
+    expect(screen.queryByText("flexibleForm.validationErrorRequired")).not.toBeInTheDocument();
+    expect(screen.getByTestId("trigger-dag-submit")).toBeEnabled();
+  });
 });
