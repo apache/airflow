@@ -20,10 +20,12 @@ import { useEffect, type PropsWithChildren } from "react";
 
 import { Box, LocaleProvider } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigation } from "react-router-dom";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse } from "openapi/requests/types.gen";
+
+import { ProgressBar } from "src/system-components";
 
 import { ReactPlugin } from "src/pages/ReactPlugin";
 
@@ -35,7 +37,8 @@ import { DocumentTitleProvider } from "src/utils";
 import { Nav } from "./Nav";
 
 export const BaseLayout = ({ children }: PropsWithChildren) => {
-  const { i18n } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
+  const navigation = useNavigation();
   const { data: pluginData } = usePluginServiceGetPlugins();
   const theme = useConfig("theme") as unknown as { icon?: string; icon_dark_mode?: string } | undefined;
 
@@ -109,6 +112,17 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
     <LocaleProvider locale={i18n.language || "en"}>
       <DocumentTitleProvider>
         <Box display="flex" flexDirection="column" h="100vh">
+          <ProgressBar
+            aria-label={translate("loading")}
+            insetInlineEnd={0}
+            insetInlineStart={16}
+            pointerEvents="none"
+            position="fixed"
+            size="xs"
+            top={0}
+            visibility={navigation.state === "idle" ? "hidden" : "visible"}
+            zIndex="toast"
+          />
           <KeyboardShortcutsModal />
           <Nav />
           <Box
