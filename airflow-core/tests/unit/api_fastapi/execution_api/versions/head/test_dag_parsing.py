@@ -46,6 +46,7 @@ from airflow.models.asset import DagScheduleAssetReference
 from airflow.models.callback import DagProcessorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_work_claim import DagProcessorWorkClaim
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
@@ -1146,13 +1147,16 @@ def test_requested_work_claim_survives_response_loss_and_ack_replay(client, sess
     session.add(work)
     session.commit()
     base = f"/execution/jobs/{job.id}/requested-work/{kind}"
-    claim = {"claim_id": str(uuid7()), "bundle_names": ["bundle"], "limit": 1}
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
     first = client.post(f"{base}/claim", json=claim)
     assert first.status_code == 200, first.json()
     assert len(first.json()) == 1
     assert client.post(f"{base}/claim", json=claim).json() == first.json()
-    assert client.post(f"{base}/claim", json={**claim, "claim_id": str(uuid7())}).json() == []
-    ack = {"claim_id": claim["claim_id"], "state": "success"}
+    assert (
+        client.post(f"{base}/claim", json={**claim, "claim_id": str(uuid7()), "claim_sequence": 2}).json()
+        == []
+    )
+    ack = {"claim_id": claim["claim_id"]}
     key = work.id
     url = f"{base}/{key}/ack"
     assert client.post(url, json={**ack, "claim_id": str(uuid7())}).status_code == 409
@@ -1179,6 +1183,7 @@ def test_priority_claim_preserves_live_owner_and_recovers_retired_owner(client, 
         f"/execution/jobs/{job.id}/requested-work/priority/claim",
         json={
             "claim_id": str(uuid7()),
+            "claim_sequence": 1,
             "bundle_names": ["bundle"],
             "limit": 1,
         },
@@ -1224,7 +1229,7 @@ def test_competing_jobs_claim_requested_work_once(client, exec_app, session, job
         ready.wait(timeout=10)
         return client.post(
             f"/execution/jobs/{job_id}/requested-work/{kind}/claim",
-            json={"claim_id": str(uuid7()), "bundle_names": ["bundle"]},
+            json={"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]},
         )
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -1282,3 +1287,128 @@ def test_direct_priority_claim_skips_request_locked_by_api(session, job, tmp_pat
 
     session.expire_all()
     assert session.get(DagPriorityParsingRequest, key).processor_job_id == job_id
+
+
+@pytest.fixture
+def create_requested_work(session):
+    def create(kind, *, filename="a.py", priority=1):
+        if kind == "callbacks":
+            work = DagProcessorCallback(
+                priority_weight=priority,
+                callback=DagCallbackRequest(
+                    filepath=filename,
+                    bundle_name="bundle",
+                    bundle_version=None,
+                    dag_id="dag",
+                    run_id="run",
+                ),
+            )
+        else:
+            work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc=filename)
+        session.add(work)
+        session.commit()
+        return work
+
+    return create
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+@pytest.mark.parametrize("initially_empty", [False, True])
+@pytest.mark.parametrize("superseded", [False, True])
+def test_completed_claim_replay_cannot_take_new_work(
+    client, session, job, create_requested_work, kind, initially_empty, superseded
+):
+    base = f"/execution/jobs/{job.id}/requested-work/{kind}"
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+    if not initially_empty:
+        create_requested_work(kind)
+    first = client.post(f"{base}/claim", json=claim)
+    assert first.status_code == 200, first.json()
+    for item in first.json():
+        response = client.post(f"{base}/{item['id']}/ack", json={"claim_id": claim["claim_id"]})
+        assert response.status_code == 204, response.text
+    if superseded:
+        response = client.post(f"{base}/claim", json={**claim, "claim_id": str(uuid7()), "claim_sequence": 2})
+        assert response.status_code == 200, response.json()
+        assert response.json() == []
+
+    later = create_requested_work(kind)
+    delayed = client.post(f"{base}/claim", json=claim)
+    assert delayed.status_code == 200, delayed.json()
+    assert delayed.json() == []
+    fresh = client.post(f"{base}/claim", json={**claim, "claim_id": str(uuid7()), "claim_sequence": 3})
+    assert fresh.status_code == 200, fresh.json()
+    assert [item["id"] for item in fresh.json()] == [str(later.id)]
+    receipts = session.scalars(
+        select(DagProcessorWorkClaim).where(DagProcessorWorkClaim.job_id == job.id)
+    ).all()
+    assert len(receipts) == 1
+    assert receipts[0].claim_sequence == 3
+
+
+@pytest.mark.parametrize("changed_field", ["claim_id", "bundle_names", "limit"])
+def test_claim_replay_rejects_different_payload(client, job, changed_field):
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
+    url = f"/execution/jobs/{job.id}/requested-work/priority/claim"
+    assert client.post(url, json=claim).status_code == 200
+    replacement = {"claim_id": str(uuid7()), "bundle_names": ["bundle", "bundle"], "limit": 2}[changed_field]
+    response = client.post(url, json={**claim, changed_field: replacement})
+    assert response.status_code == 409
+    assert response.json()["detail"]["reason"] == "claim_conflict"
+
+
+def test_callback_claim_replay_preserves_priority_order(client, session, job, create_requested_work):
+    low = create_requested_work("callbacks", priority=1)
+    high = create_requested_work("callbacks", priority=100)
+    low.id, high.id = UUID(int=1), UUID(int=2)
+    session.commit()
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
+    first = client.post(url, json=claim)
+    replay = client.post(url, json=claim)
+    assert first.status_code == replay.status_code == 200
+    assert [item["id"] for item in first.json()] == [str(high.id), str(low.id)]
+    assert replay.json() == first.json()
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+@pytest.mark.parametrize("replay", [False, True])
+def test_claim_rejects_ungranted_bundle(client, session, job, create_requested_work, kind, replay):
+    work = create_requested_work(kind)
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+    url = f"/execution/jobs/{job.id}/requested-work/{kind}/claim"
+    if replay:
+        assert client.post(url, json=claim).status_code == 200
+        work.bundle_name = "other"
+        session.commit()
+    else:
+        claim["bundle_names"] = ["other"]
+    response = client.post(url, json=claim)
+    assert response.status_code == 403
+    assert response.json()["detail"]["reason"] == "bundle_not_granted"
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_acknowledgment_rejects_ungranted_bundle(client, session, job, create_requested_work, kind):
+    work = create_requested_work(kind)
+    work.bundle_name = "other"
+    work.processor_job_id = job.id
+    work.processor_claim_id = uuid7()
+    session.commit()
+    response = client.post(
+        f"/execution/jobs/{job.id}/requested-work/{kind}/{work.id}/ack",
+        json={"claim_id": str(work.processor_claim_id)},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["reason"] == "bundle_not_granted"
+    session.expire_all()
+    assert session.get(type(work), work.id) is not None
+
+
+def test_acknowledgment_rejects_invalid_callback_uuid(client, job):
+    response = client.post(
+        f"/execution/jobs/{job.id}/requested-work/callbacks/not-a-uuid/ack",
+        json={"claim_id": str(uuid7())},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid callback ID"

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -146,9 +146,14 @@ class DagBundleInventoryResponse(DagParseResultResponse):
 
 
 class ProcessorWorkClaimBody(StrictBaseModel):
-    """A retryable bounded claim for requested work in ready bundles."""
+    """
+    A bounded claim whose sequence increases per Job and work kind.
+
+    Retry the same payload until its response arrives before sending a newer sequence for that kind.
+    """
 
     claim_id: UUID
+    claim_sequence: int = Field(ge=1, le=2**53 - 1)
     bundle_names: list[str] = Field(min_length=1, max_length=1000)
     limit: int = Field(default=20, ge=1, le=100)
 
@@ -167,4 +172,3 @@ class ProcessorWorkAckBody(StrictBaseModel):
     """Acknowledge delivery, retaining the claim identity across retries."""
 
     claim_id: UUID
-    state: Literal["success", "failed"]

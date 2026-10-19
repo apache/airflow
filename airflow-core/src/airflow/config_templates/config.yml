@@ -2776,7 +2776,7 @@ scheduler:
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
         the expected files) which should be deactivated, as well as assets that are no longer
         referenced and should be marked as orphaned. The same cleanup marks the Dags of inactive
-        or unassigned bundles stale, removes stale Dag warnings, and ends Dag processor Jobs that
+        bundles stale, removes stale Dag warnings, and ends Dag processor Jobs that
         exceeded ``[dag_processor] job_heartbeat_timeout``.
       version_added: 2.5.0
       type: integer
@@ -3485,6 +3485,8 @@ dag_processor:
         Seconds a Dag processor using the Execution API may go without a recorded Job heartbeat.
         After this, the scheduler's next cleanup (every ``[scheduler] parsing_cleanup_interval``)
         ends the Job and releases the callbacks and parse requests it claimed.
+        A callback that ran before its acknowledgment was recorded can run again after the Job
+        times out, repeating its side effects. Callbacks should tolerate repeated execution.
       version_added: 3.5.0
       type: integer
       example: ~

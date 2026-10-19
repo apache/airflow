@@ -46,6 +46,7 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
 )
 from airflow.api_fastapi.execution_api.security import CurrentExecutionToken, ExecutionAPIRoute, require_auth
 from airflow.configuration import conf
+from airflow.dag_processing.claims import get_available_work_filter
 from airflow.dag_processing.collection import (
     DagBundleOwnershipError,
     DagPublicationValidationError,
@@ -60,6 +61,7 @@ from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.callback import DagProcessorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_parse_checkpoint import DagParseCheckpoint
+from airflow.models.dag_processor_work_claim import DagProcessorWorkClaim
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
@@ -423,7 +425,9 @@ def publish_inventory(
 
 @router.post(
     "/{job_id}/requested-work/{kind}/claim",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
 )
 def claim_work(
@@ -434,43 +438,49 @@ def claim_work(
     session: SessionDep,
     token=CurrentExecutionToken,
 ) -> list[ProcessorWorkItem]:
-    """Retain requests until acknowledged, and replay a lost claim response."""
+    """Replay outstanding work without letting an old or empty claim take new requests."""
     if not set(body.bundle_names) <= token.claims.dag_bundles:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
     _validate_job(job_id, token, session=session)
     model = DagProcessorCallback if kind == "callbacks" else DagPriorityParsingRequest
-    replay = list(
-        cast(
-            "list[DagProcessorCallback | DagPriorityParsingRequest]",
-            session.scalars(
-                select(model)
-                .where(model.processor_job_id == job_id, model.processor_claim_id == body.claim_id)
-                .order_by(model.id)
-            ).all(),
+    receipt = session.get(DagProcessorWorkClaim, (job_id, kind))
+    payload_hash = _compute_payload_hash(body)
+    replaying = receipt is not None and body.claim_sequence <= receipt.claim_sequence
+    if receipt is not None and replaying:
+        if body.claim_sequence < receipt.claim_sequence:
+            return []
+        if receipt.claim_id != body.claim_id or receipt.payload_hash != payload_hash:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "claim_conflict"})
+        query = select(model).where(
+            model.processor_job_id == job_id, model.processor_claim_id == body.claim_id
         )
-    )
-    if not replay:
+    else:
+        if receipt is None:
+            receipt = DagProcessorWorkClaim(job_id=job_id, kind=kind)
+            session.add(receipt)
+        receipt.claim_id = body.claim_id
+        receipt.claim_sequence = body.claim_sequence
+        receipt.payload_hash = payload_hash
         ready = select(DagBundleModel.name).where(DagBundleModel.active.is_(True))
-        retired = select(Job.id).where(Job.end_date.is_not(None))
         query = select(model).where(
             model.bundle_name.in_(body.bundle_names),
             model.bundle_name.in_(ready),
-            or_(model.processor_job_id.is_(None), model.processor_job_id.in_(retired)),
+            get_available_work_filter(model.processor_job_id),
         )
         if kind == "callbacks":
             query = query.where(
                 or_(DagProcessorCallback.state.is_(None), DagProcessorCallback.state == CallbackState.QUEUED)
-            ).order_by(DagProcessorCallback.priority_weight.desc(), DagProcessorCallback.id)
-        else:
-            query = query.order_by(DagPriorityParsingRequest.id)
-        replay = list(
-            cast(
-                "list[DagProcessorCallback | DagPriorityParsingRequest]",
-                session.scalars(
-                    with_row_locks(query.limit(body.limit), session=session, skip_locked=True)
-                ).all(),
             )
-        )
+    if kind == "callbacks":
+        query = query.order_by(DagProcessorCallback.priority_weight.desc(), DagProcessorCallback.id)
+    else:
+        query = query.order_by(DagPriorityParsingRequest.id)
+    if not replaying:
+        query = with_row_locks(query.limit(body.limit), session=session, skip_locked=True)
+    replay = list(
+        cast("list[DagProcessorCallback | DagPriorityParsingRequest]", session.scalars(query).all())
+    )
+    if not replaying:
         for work in replay:
             work.processor_job_id = job_id
             work.processor_claim_id = body.claim_id
@@ -500,7 +510,14 @@ def claim_work(
 
 @router.post(
     "/{job_id}/requested-work/{kind}/{work_id}/ack",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+        ]
+    ),
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
 )
@@ -530,6 +547,6 @@ def acknowledge_work(
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
     if (work.processor_job_id, work.processor_claim_id) != (job_id, body.claim_id):
         raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "claim_replaced"})
-    # Callback runners log individual failures without failing the child process. This
-    # acknowledges delivery, preserving the existing consume-after-processing semantics.
+    # Callback runners log individual failures without failing the child process;
+    # an acknowledgment confirms delivery, not successful execution of user code.
     session.delete(work)

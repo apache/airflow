@@ -500,11 +500,6 @@ class PreviousTIResponse(BaseModel):
     duration: Annotated[float | None, Field(title="Duration")] = None
 
 
-class State(str, Enum):
-    SUCCESS = "success"
-    FAILED = "failed"
-
-
 class ProcessorWorkAckBody(BaseModel):
     """
     Acknowledge delivery, retaining the claim identity across retries.
@@ -514,18 +509,20 @@ class ProcessorWorkAckBody(BaseModel):
         extra="forbid",
     )
     claim_id: Annotated[UUID, Field(title="Claim Id")]
-    state: Annotated[State, Field(title="State")]
 
 
 class ProcessorWorkClaimBody(BaseModel):
     """
-    A retryable bounded claim for requested work in ready bundles.
+    A bounded claim whose sequence increases per Job and work kind.
+
+    Retry the same payload until its response arrives before sending a newer sequence for that kind.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
     claim_id: Annotated[UUID, Field(title="Claim Id")]
+    claim_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Claim Sequence")]
     bundle_names: Annotated[list[str], Field(max_length=1000, min_length=1, title="Bundle Names")]
     limit: Annotated[int | None, Field(ge=1, le=100, title="Limit")] = 20
 

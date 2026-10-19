@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from sqlalchemy import delete, or_, select, tuple_
+from sqlalchemy import delete, select, tuple_
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
@@ -44,14 +44,14 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
             select(DagModel)
             .where(
                 DagModel.is_stale.is_(False),
-                or_(DagModel.bundle_name.is_(None), DagModel.bundle_name.in_(inactive)),
+                DagModel.bundle_name.in_(inactive),
             )
             .order_by(DagModel.dag_id)
             .limit(batch_size)
         )
         for dag in session.scalars(with_row_locks(query, session=session, skip_locked=True)):
             log.info(
-                "Deactivating Dag %s. Its bundle %s is no longer active or is NULL.",
+                "Deactivating Dag %s. Its bundle %s is no longer active.",
                 dag.dag_id,
                 dag.bundle_name,
             )
@@ -64,7 +64,8 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
                 DagModel.is_stale.is_(True),
             )
             .order_by(DagWarning.dag_id, DagWarning.warning_type)
-            .limit(batch_size)
+            # Each key needs two bind parameters; older SQLite versions allow only 999.
+            .limit(min(batch_size, 499))
         )
         keys = session.execute(
             with_row_locks(warning_query, of=DagWarning, session=session, skip_locked=True)
@@ -79,6 +80,8 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
             select(Job)
             .where(
                 Job.job_type == "DagProcessorJob",
+                # API Jobs end with a terminal state; use its heartbeat index to skip completed history.
+                Job.state == JobState.RUNNING,
                 Job.session_id.is_not(None),
                 Job.end_date.is_(None),
                 Job.latest_heartbeat < cutoff,
