@@ -846,7 +846,7 @@ class PydanticAIVertexHook(PydanticAIHook):
 
     1. ``service_account_info`` (JSON object) in ``extra``
        — loaded into a ``google.auth.credentials.Credentials``
-       object and passed as ``credentials`` to ``GoogleProvider``.
+       object and passed as ``credentials`` to ``GoogleCloudProvider``.
     2. ``api_key`` in ``extra`` — for Generative Language API (non-Vertex) or
        Vertex API-key auth.
     3. Application Default Credentials (``GOOGLE_APPLICATION_CREDENTIALS``,
@@ -920,7 +920,7 @@ class PydanticAIVertexHook(PydanticAIHook):
         sa_info = extra.get("service_account_info")
         kwargs: dict[str, Any] = {}
 
-        # Direct GoogleProvider scalar kwargs.
+        # Scalar kwargs: GoogleCloudProvider takes all four; GoogleProvider only api_key/base_url.
         for _key in ("api_key", "project", "location", "base_url"):
             if extra.get(_key):
                 kwargs[_key] = extra[_key]
