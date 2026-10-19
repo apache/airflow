@@ -1674,7 +1674,14 @@ def _add_runtime_loop_iteration(
     # context: it re-validates the params on every call, which can raise from inside a user's template.
     if not position.in_loop or position.loop_index is not None or isinstance(task_instance, TaskInstance):
         return position
-    if (loop := task_instance.get_template_context().get("loop")) is None:
+    try:
+        loop = task_instance.get_template_context().get("loop")
+    except Exception:
+        # The iteration only describes the run, so failing to read it must not cost the event its run id
+        log.warning("OpenLineage failed to read the loop iteration of task instance %s", task_instance.id)
+        log.debug("Exception details:", exc_info=True)
+        return position
+    if loop is None:
         return position
     return attrs.evolve(position, loop_index=loop.index, loop_max_iterations=loop.max_iterations)
 
@@ -1755,10 +1762,9 @@ def get_orm_task_instance_positions(
     return positions
 
 
-def get_regional_task_instance_run_id(task_instance: TaskInstance | RuntimeTaskInstance) -> str | None:
-    if _require_task_instance_position(task_instance).in_loop:
-        return str(task_instance.id)
-    return None
+def is_task_instance_in_loop(task_instance: TaskInstance | RuntimeTaskInstance) -> bool:
+    """Tell whether a task instance runs in a loop, where only its attempt UUID identifies the run."""
+    return _require_task_instance_position(task_instance).in_loop
 
 
 def build_task_instance_ol_run_id(
