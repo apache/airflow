@@ -2605,6 +2605,21 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.json()["partition_key"] == "2026-03-23"
         assert response.json()["run_type"] == "asset_materialization"
 
+    @pytest.mark.parametrize(
+        ("key", "conf"),
+        [
+            ("__classname__", {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}),
+            ("__type", {"nested": {"__type": "datetime", "__var": 0.0}}),
+        ],
+    )
+    def test_should_respond_422_for_reserved_conf_keys(self, test_client, session, key, conf):
+        response = test_client.post("/assets/1/materialize", json={"conf": conf})
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_trigger_fields_without_dag_run_id(self, test_client):
         payload = {

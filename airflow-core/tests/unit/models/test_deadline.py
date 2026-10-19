@@ -30,8 +30,9 @@ from sqlalchemy import select
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import timezone
+from airflow.sdk import serde, timezone
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.deadline import (
     AverageRuntimeDeadline,
@@ -43,7 +44,7 @@ from airflow.sdk.definitions.deadline import (
     deadline_reference,
 )
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
-from airflow.utils.state import DagRunState
+from airflow.utils.state import CallbackState, DagRunState
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
@@ -296,6 +297,58 @@ class TestDeadline:
 
         callback.trigger = None
         session.commit()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("reserved_value", "keys"),
+        [
+            pytest.param({"__type": "airflow.ConfProbe", "__var": {}}, "__type, __var", id="legacy"),
+            pytest.param(
+                {"__classname__": "airflow.ConfProbe", "__version__": 0, "__data__": {}},
+                "__classname__, __data__, __version__",
+                id="current",
+            ),
+        ],
+    )
+    @mock.patch("airflow.models.deadline.stats")
+    def test_handle_miss_fails_triggerer_callback_with_reserved_keys_in_context(
+        self, mock_stats, dagrun, session, reserved_value, keys
+    ):
+        dagrun.conf = {"nested": {"probe": reserved_value}}
+        session.flush()
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        probe = mock.MagicMock()
+        real_import_string = serde.import_string
+
+        def import_string(path):
+            return probe if path == "airflow.ConfProbe" else real_import_string(path)
+
+        with mock.patch.object(serde, "import_string", side_effect=import_string):
+            deadline_orm.handle_miss(session)
+            session.flush()
+            for trigger in session.scalars(select(Trigger)):
+                Trigger._decrypt_kwargs(trigger.encrypted_kwargs)
+
+        probe.assert_not_called()
+        probe.deserialize.assert_not_called()
+        assert session.scalars(select(Trigger)).all() == []
+        callback = deadline_orm.callback
+        assert callback.trigger is None
+        assert callback.state == CallbackState.FAILED
+        assert callback.output == f"Not queued: the callback context holds reserved serialization keys {keys}"
+        assert "context" not in callback.data["kwargs"]
+        assert deadline_orm.missed
+        assert session.scalars(select(Deadline).where(~Deadline.missed)).all() == []
+        mock_stats.incr.assert_any_call(stat="deadline_alerts.callback_failed", tags=mock.ANY)
 
     @pytest.mark.db_test
     def test_handle_miss_persists_executor_callback_routing_data(self, dagrun, session):
