@@ -154,12 +154,16 @@ class Trigger(Base):
     @staticmethod
     def encrypt_kwargs(kwargs: dict[str, Any]) -> str:
         """Encrypt the kwargs of the trigger."""
+        from airflow.sdk.serde import serialize
+
+        return Trigger._encrypt_serialized_kwargs(serialize(stringify_encoding_keys(kwargs)))
+
+    @staticmethod
+    def _encrypt_serialized_kwargs(serialized_kwargs: dict[str, Any]) -> str:
         import json
 
         from airflow.models.crypto import get_fernet
-        from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -202,6 +206,20 @@ class Trigger(Base):
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
         return cls(classpath=classpath, kwargs=kwargs, queue=trigger.queue)
+
+    @classmethod
+    def from_serialized_kwargs(
+        cls, classpath: str, serialized_kwargs: dict[str, Any], queue: str | None = None
+    ) -> Trigger:
+        """
+        Create a trigger row from kwargs that are already in their serde-encoded form.
+
+        The kwargs are stored exactly as given and decoded by the triggerer when it creates
+        the trigger, the same as kwargs stored by :meth:`from_object`.
+        """
+        trigger = cls(classpath=classpath, kwargs={}, queue=queue)
+        trigger.encrypted_kwargs = cls._encrypt_serialized_kwargs(serialized_kwargs)
+        return trigger
 
     @classmethod
     @provide_session

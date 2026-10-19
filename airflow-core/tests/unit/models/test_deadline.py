@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -63,6 +64,47 @@ async def callback_for_deadline():
 
 
 TEST_CALLBACK_PATH = f"{__name__}.{callback_for_deadline.__name__}"
+
+
+class _ContextValue:
+    """A class named by a value in the Dag run conf, to tell whether that value is rebuilt."""
+
+    instantiated = False
+
+    def __init__(self):
+        type(self).instantiated = True
+
+    def serialize(self):
+        return {}
+
+    @staticmethod
+    def deserialize(data, version):
+        return _ContextValue()
+
+
+_CONTEXT_VALUE_NAME = f"{_ContextValue.__module__}.{_ContextValue.__qualname__}"
+_CLASSNAME_SHAPED_CONF = {"value": {"__classname__": _CONTEXT_VALUE_NAME, "__version__": 0, "__data__": {}}}
+
+received_sync_kwargs: dict = {}
+
+
+def recording_sync_callback(**kwargs):
+    """Sync callable which records the kwargs it was called with."""
+    received_sync_kwargs.clear()
+    received_sync_kwargs.update(kwargs)
+
+
+@pytest.fixture
+def classname_shaped_conf(dagrun, session):
+    from airflow.sdk import serde
+
+    _ContextValue.instantiated = False
+    dagrun.conf = _CLASSNAME_SHAPED_CONF
+    session.flush()
+    with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {_CONTEXT_VALUE_NAME}):
+        yield
+
+
 TEST_CALLBACK_KWARGS = {"arg1": "value1"}
 TEST_ASYNC_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
 TEST_SYNC_CALLBACK = SyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
@@ -376,6 +418,74 @@ class TestDeadline:
         assert callback.data["dag_run_id"] == str(dagrun_id)
         assert callback.data["dag_id"] == dag_id
         assert callback.data["deadline_id"] == str(deadline_id)
+
+    @pytest.mark.db_test
+    @pytest.mark.usefixtures("classname_shaped_conf")
+    def test_handle_miss_never_rebuilds_runtime_context_for_triggerer(self, dagrun, session):
+        """A conf value shaped like an encoded object never reaches the triggerer to be rebuilt."""
+        from airflow.models.trigger import Trigger
+
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        # Strict serialization refuses the context, either by raising here or by failing the
+        # callback without queueing it; both keep the value away from the triggerer.
+        with contextlib.suppress(AttributeError):
+            deadline_orm.handle_miss(session)
+
+        assert deadline_orm.callback.trigger is None
+        assert session.scalars(select(Trigger)).all() == []
+        assert _ContextValue.instantiated is False
+
+    @pytest.mark.db_test
+    @pytest.mark.usefixtures("classname_shaped_conf")
+    def test_handle_miss_passes_runtime_context_as_is_to_executor_callback(self, dagrun, session):
+        from pathlib import Path
+
+        import structlog
+
+        from airflow.executors.workloads.callback import CALLBACK_KWARGS_ENCODING_KEY, CallbackDTO
+        from airflow.sdk.execution_time.callback_supervisor import execute_callback
+
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=SyncCallback(f"{__name__}.recording_sync_callback", TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+        deadline_id = deadline_orm.id
+
+        deadline_orm.handle_miss(session)
+        session.commit()
+        session.expunge_all()
+        callback = session.scalar(select(Deadline).where(Deadline.id == deadline_id)).callback
+        workload_callback = CallbackDTO.model_validate_json(
+            CallbackDTO.model_validate(callback, from_attributes=True).model_dump_json()
+        )
+
+        success, error = execute_callback(
+            callback_path=workload_callback.data["path"],
+            callback_kwargs=workload_callback.data["kwargs"],
+            dag_rel_path=Path("test.py"),
+            bundle_path=None,
+            log=structlog.get_logger(),
+            callback_kwargs_encoding=workload_callback.data[CALLBACK_KWARGS_ENCODING_KEY],
+        )
+
+        assert (success, error) == (True, None)
+        assert _ContextValue.instantiated is False
+        assert received_sync_kwargs["context"]["dag_run"]["conf"] == _CLASSNAME_SHAPED_CONF
+        assert received_sync_kwargs["arg1"] == "value1"
 
 
 @pytest.mark.db_test
