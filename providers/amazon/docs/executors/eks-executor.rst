@@ -130,10 +130,8 @@ Set :ref:`[kubernetes_executor] pod_template_file
 <apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__pod_template_file>`
 to a YAML file describing the worker pod, since most setups need one. Without one, the worker
 pod is built from ``worker_container_repository`` and ``worker_container_tag`` alone, which
-only works if that image already has everything the task needs. A task whose pod would end up
-with no image at all, from a template, a ``pod_override``, or the repository and tag, fails
-right away with a clear error. The template's first container must be named ``base`` and run
-your Airflow worker image. The
+only works if that image already has everything the task needs. The template's first container
+must be named ``base`` and run your Airflow worker image. The
 :ref:`apache-airflow-providers-cncf-kubernetes:concepts:pod_template_file` section of the
 Kubernetes executor docs covers the full requirements, and its example templates work here
 unchanged.
