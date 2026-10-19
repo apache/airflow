@@ -948,25 +948,61 @@ def test_inventory_removes_asset_references_of_removed_dags(client, session, job
     assert session.scalar(select(DagScheduleAssetReference)) is None
 
 
-def test_inventory_deactivates_dags_never_parsed_since_upgrade(client, session, job):
-    session.add(
-        DagModel(
-            dag_id="legacy", bundle_name="bundle", relative_fileloc=None, fileloc="/old/a.py", is_stale=False
-        )
+def test_inventory_deactivates_removed_file_after_2x_upgrade(client, exec_app, session, job, tmp_path):
+    removed_file = tmp_path / "removed.py"
+    surviving_file = tmp_path / "surviving.py"
+    for path in (removed_file, surviving_file):
+        path.write_text("from airflow.sdk import DAG\ndag = DAG('test')\n")
+    session.add(DagBundleModel(name="dags-folder"))
+    session.flush()
+    job.bundle_names = ["dags-folder"]
+    session.add_all(
+        [
+            # Migration 0082 assigns this bundle without backfilling relative_fileloc.
+            DagModel(
+                dag_id="legacy",
+                bundle_name="dags-folder",
+                relative_fileloc=None,
+                fileloc=str(removed_file),
+                is_stale=False,
+            ),
+            DagModel(
+                dag_id="surviving",
+                bundle_name="dags-folder",
+                relative_fileloc=surviving_file.name,
+                fileloc=str(surviving_file),
+                is_stale=False,
+            ),
+        ]
     )
     session.commit()
+    removed_file.unlink()
+
+    async def authenticate(request: Request):
+        return DagProcessorToken(
+            id=SESSION_ID,
+            claims=DagProcessorClaims(exp=1, job_id=job.id, dag_bundles=frozenset({"dags-folder"})),
+        )
+
+    exec_app.dependency_overrides[require_auth] = authenticate
+    manager = DagFileProcessorManager(max_runs=1)
+    found_files = manager._find_files_in_bundle(LocalDagBundle(name="dags-folder", path=str(tmp_path)))
+    observed_files = sorted(manager._get_observed_filelocs(found_files))
+    assert observed_files == [surviving_file.name]
     inventory = {
         "attempt_id": str(uuid7()),
         "dispatch_sequence": 1,
         "expected_revision": None,
-        "files": ["a.py"],
+        "files": observed_files,
     }
 
-    response = client.post(f"/execution/jobs/{job.id}/bundles/bundle/inventory", json=inventory)
+    response = client.post(f"/execution/jobs/{job.id}/bundles/dags-folder/inventory", json=inventory)
 
     assert response.status_code == 200, response.json()
     session.expire_all()
     assert session.get(DagModel, "legacy").is_stale
+    assert not session.get(DagModel, "surviving").is_stale
+    assert session.get(DagBundleModel, "dags-folder").active
 
 
 @pytest.mark.parametrize("recovery", ["member_present", "member_removed", "archive_removed"])
