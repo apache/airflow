@@ -159,14 +159,7 @@ def test_doctor_removes_build_cache_volumes_after_confirmation(runner, tmp_path,
     ):
         result = runner.invoke(doctor, catch_exceptions=False)
     assert result.exit_code == 0
-    assert teardown.call_args_list == [
-        call(all_worktrees=True),
-        *(
-            [call(all_worktrees=True, preserve_volumes=True, cleanup_build_cache=True)]
-            if cache_removal_confirmed
-            else []
-        ),
-    ]
+    assert teardown.call_args_list == [call(all_worktrees=True, cleanup_build_cache=cache_removal_confirmed)]
 
 
 @pytest.fixture

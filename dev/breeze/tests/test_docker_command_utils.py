@@ -47,6 +47,7 @@ from airflow_breeze.utils.docker_command_utils import (
     pull_images_with_retries,
 )
 from airflow_breeze.utils.path_utils import (
+    BUILD_CACHE_VOLUME,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
 )
@@ -757,10 +758,8 @@ def test_down_finds_volumes_without_containers(docker_resources, tmp_path, prese
 )
 def test_build_cache_volume_is_the_one_the_compose_files_mount(compose_file):
     compose = yaml.safe_load(compose_file.read_text())
-    assert docker_command_utils.BUILD_CACHE_VOLUME in compose["volumes"]
-    assert (
-        f"{docker_command_utils.BUILD_CACHE_VOLUME}:/root/.cache" in compose["services"]["airflow"]["volumes"]
-    )
+    assert BUILD_CACHE_VOLUME in compose["volumes"]
+    assert f"{BUILD_CACHE_VOLUME}:/root/.cache" in compose["services"]["airflow"]["volumes"]
 
 
 @pytest.mark.parametrize(
