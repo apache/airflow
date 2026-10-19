@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DagFolderResponse } from "openapi/requests/types.gen";
@@ -320,4 +320,24 @@ describe("DagFolderTree (multiple bundles)", () => {
     expect(node("analytics")).toHaveAttribute("aria-selected", "true");
     expect(node("ml")).toHaveAttribute("aria-selected", "false");
   });
+});
+
+it("selects the correct bundle when names and folder paths contain colons", async () => {
+  const onSelectFolder = vi.fn();
+
+  render(
+    <DagFolderTree
+      folders={[
+        { bundle_name: "a", folder: "b:c" },
+        { bundle_name: "a:b", folder: "c" },
+      ]}
+      onSelectFolder={onSelectFolder}
+      selectedBundle="a:b"
+      selectedFolder={undefined}
+    />,
+    { wrapper: BaseWrapper },
+  );
+
+  fireEvent.click(screen.getByTitle("c"), { button: 0 });
+  await waitFor(() => expect(onSelectFolder).toHaveBeenCalledWith({ bundleName: "a:b", folder: "c" }));
 });
