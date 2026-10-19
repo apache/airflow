@@ -1,0 +1,1 @@
+Reduce the initial UI JavaScript payload by lazily loading page routes.
