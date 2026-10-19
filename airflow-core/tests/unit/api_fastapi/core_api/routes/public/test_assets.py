@@ -42,6 +42,7 @@ from airflow.models.asset import (
     AssetModel,
     AssetWatcherModel,
     DagScheduleAssetReference,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.base import ID_LEN
@@ -166,6 +167,35 @@ def _create_assets_with_team_references(session, num: int = 2, refs_per_asset: i
             )
     session.commit()
     return assets
+
+
+def _create_asset_referenced_by_two_dags(session) -> AssetModel:
+    """Create one asset that is scheduling, produced by and consumed by both ``dag_a`` and ``dag_b``."""
+    _ensure_dags(session, "dag_a", "dag_b")
+    asset = AssetModel(id=1, name="shared", uri="s3://bucket/shared", group="asset")
+    session.add(asset)
+    session.add(AssetActive.for_asset(asset))
+    session.flush()
+    for dag_id in ("dag_a", "dag_b"):
+        session.add_all(
+            [
+                DagScheduleAssetReference(dag_id=dag_id, asset=asset),
+                TaskOutletAssetReference(dag_id=dag_id, task_id=f"{dag_id}_producer", asset=asset),
+                TaskInletAssetReference(dag_id=dag_id, task_id=f"{dag_id}_consumer", asset=asset),
+            ]
+        )
+    session.commit()
+    return asset
+
+
+def _assert_references_scoped_to_dag_a(asset: dict) -> None:
+    assert [ref["dag_id"] for ref in asset["scheduled_dags"]] == ["dag_a"]
+    assert [(ref["dag_id"], ref["task_id"]) for ref in asset["producing_tasks"]] == [
+        ("dag_a", "dag_a_producer")
+    ]
+    assert [(ref["dag_id"], ref["task_id"]) for ref in asset["consuming_tasks"]] == [
+        ("dag_a", "dag_a_consumer")
+    ]
 
 
 def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
@@ -374,9 +404,10 @@ class TestGetAssets(TestAssets):
         assert len(session.scalars(select(AssetModel)).all()) == 3
         assert len(session.scalars(select(AssetActive)).all()) == 2
 
-        # 8 rather than 7: resolving the caller's readable assets, so the list can be scoped
-        # to them, costs one additional query.
-        with assert_queries_count(8):
+        # 9 rather than 7: resolving the caller's readable assets, so the list can be scoped
+        # to them, and the caller's readable Dags, so the nested Dag and task references can
+        # be scoped to them, each cost one additional query.
+        with assert_queries_count(9):
             response = test_client.get("/assets")
 
         assert response.status_code == 200
@@ -436,6 +467,31 @@ class TestGetAssets(TestAssets):
         assert [asset["id"] for asset in body["assets"]] == [1, 3]
         # The count must be scoped too, so the existence of hidden assets does not leak.
         assert body["total_entries"] == 2
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_return_only_references_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session
+    ):
+        _create_asset_referenced_by_two_dags(session)
+        mock_get_authorized_dag_ids.return_value = {"dag_a"}
+
+        response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        _assert_references_scoped_to_dag_a(body["assets"][0])
+
+    def test_should_return_all_references_when_all_dags_are_readable(self, test_client, session):
+        _create_asset_referenced_by_two_dags(session)
+
+        response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        asset = response.json()["assets"][0]
+        assert {ref["dag_id"] for ref in asset["scheduled_dags"]} == {"dag_a", "dag_b"}
+        assert {ref["dag_id"] for ref in asset["producing_tasks"]} == {"dag_a", "dag_b"}
+        assert {ref["dag_id"] for ref in asset["consuming_tasks"]} == {"dag_a", "dag_b"}
 
     def test_should_respond_200_with_watchers(self, test_client, session):
         """Test that assets with watchers return the watcher information in the API response."""
@@ -612,7 +668,7 @@ class TestGetAssets(TestAssets):
         """
         _create_assets_with_team_references(session, num=5)
 
-        with assert_queries_count(10):
+        with assert_queries_count(11):
             response = test_client.get("/assets")
 
         assert response.status_code == 200
@@ -1785,6 +1841,33 @@ class TestGetAssetEndpoint(TestAssets):
             user=mock.ANY,
         )
 
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_return_only_references_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session
+    ):
+        asset = _create_asset_referenced_by_two_dags(session)
+        mock_get_authorized_dag_ids.return_value = {"dag_a"}
+
+        response = test_client.get(f"/assets/{asset.id}")
+
+        assert response.status_code == 200
+        _assert_references_scoped_to_dag_a(response.json())
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_return_no_references_without_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session
+    ):
+        asset = _create_asset_referenced_by_two_dags(session)
+        mock_get_authorized_dag_ids.return_value = set()
+
+        response = test_client.get(f"/assets/{asset.id}")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["scheduled_dags"] == []
+        assert body["producing_tasks"] == []
+        assert body["consuming_tasks"] == []
+
     @provide_session
     def test_should_respond_200_with_watchers(self, test_client, *, session):
         """Test that single asset endpoint returns watcher information."""
@@ -1828,7 +1911,7 @@ class TestGetAssetEndpoint(TestAssets):
         """
         asset = _create_assets_with_team_references(session, num=1, refs_per_asset=5)[0]
 
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             response = test_client.get(f"/assets/{asset.id}")
 
         assert response.status_code == 200
