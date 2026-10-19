@@ -491,6 +491,21 @@ class TestLLMOperator:
         assert result == {"names": ["A", "B"]}
         assert not isinstance(result, Entities)
 
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_dumps_a_model_the_worker_cannot_register_from_a_list_of_types(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        """The worker registers no class from a list of types, so the model goes to XCom as a dict."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(Entities(names=["A", "B"]))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=[Entities, int])
+        result = op.execute(context=MagicMock())
+
+        assert result == {"names": ["A", "B"]}
+
 
 def _make_context(ti_id=None):
     ti_id = ti_id or uuid4()
@@ -1585,8 +1600,9 @@ class TestLLMOperatorApproval:
             (int, "5", 5),
             (list[str], '["a","b"]', ["a", "b"]),
             pytest.param(Summary, '{"text":"hello"}', Summary(text="hello"), marks=requires_typed_xcom),
+            pytest.param([Summary, int], '{"text":"hello"}', {"text": "hello"}, marks=requires_typed_xcom),
         ],
-        ids=["int", "list", "basemodel"],
+        ids=["int", "list", "basemodel", "basemodel-in-a-list-of-types"],
     )
     def test_execute_complete_restores_non_str_output_type(self, output_type, generated_output, expected):
         op = LLMOperator(

@@ -77,7 +77,8 @@ Structured Output
 
 Set ``output_type`` to a Pydantic ``BaseModel`` when you want a typed response
 back from the LLM instead of a plain string. The model instance is pushed to
-XCom unchanged so downstream tasks can type-hint the class directly. The
+XCom unchanged so downstream tasks can type-hint the class directly. Inside a
+list of types (``[MyModel, int]``) the model is pushed as a ``dict`` instead. The
 declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for deserialization by the
 worker when it loads the Dag. Define the class at **module scope** and bind it to

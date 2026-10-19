@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, Literal, NamedTuple
+from unittest import mock
 
 import pytest
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
@@ -30,12 +31,17 @@ from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.utils.output_type import (
     _is_container_mismatch,
     dump_output_to_json,
+    is_model_dump_required,
     rehydrate_pydantic_output,
 )
 
 
 class A(BaseModel):
     x: int
+
+
+class SubA(A):
+    pass
 
 
 class B(BaseModel):
@@ -145,6 +151,44 @@ class Point(NamedTuple):
     y: str
 
 
+class TestIsModelDumpRequired:
+    @pytest.mark.parametrize(
+        ("output", "output_type", "serialize_output", "expected"),
+        [
+            (A(x=1), [A, int], False, True),
+            (A(x=1), (A, int), False, True),
+            (A(x=1), ToolOutput(A), False, True),
+            (A(x=1), A, False, False),
+            (A(x=1), A | int, False, False),
+            (A(x=1), list[A], False, False),
+            (A(x=1), A, True, True),
+            (SubA(x=1), A, False, True),
+            (5, [A, int], False, False),
+        ],
+        ids=[
+            "list-of-types",
+            "tuple-of-types",
+            "output-marker",
+            "single-model",
+            "union",
+            "generic-list",
+            "serialize-output",
+            "subclass-instance",
+            "not-a-model",
+        ],
+    )
+    def test_is_true_when_the_worker_registers_no_class_for_the_output(
+        self, output, output_type, serialize_output, expected
+    ):
+        result = is_model_dump_required(output, output_type, serialize_output=serialize_output)
+
+        assert result is expected
+
+    @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
+    def test_is_true_without_the_sdk_walker(self):
+        assert is_model_dump_required(A(x=1), A, serialize_output=False) is True
+
+
 class TestRehydratePydanticOutput:
     def test_returns_model_instance(self):
         result = rehydrate_pydantic_output(A, '{"x": 7}', serialize_output=False)
@@ -193,9 +237,9 @@ class TestRehydratePydanticOutput:
             ([str, int], '"x"', "x"),
             ([int, float], "1.5", 1.5),
             ((int, float), "2", 2),
-            ([A, int], '{"x": 7}', A(x=7)),
+            ([A, int], '{"x": 7}', {"x": 7}),
         ],
-        ids=["str-int-string", "int-float", "tuple", "model-int"],
+        ids=["str-int-string", "int-float", "tuple", "model-in-a-list-of-types-is-dumped"],
     )
     def test_validates_list_output_type_as_union(self, output_type, raw, expected):
         assert rehydrate_pydantic_output(output_type, raw, serialize_output=False) == expected

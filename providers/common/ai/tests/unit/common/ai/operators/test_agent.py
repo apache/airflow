@@ -1051,6 +1051,22 @@ class TestAgentOperatorExecute:
         assert result.text == "Great"
         assert result.score == 0.95
 
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_dumps_a_model_the_worker_cannot_register_from_a_list_of_types(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            Summary(text="Great", score=0.95), make_mock_run_result
+        )
+
+        op = AgentOperator(
+            task_id="test", prompt="Analyze this", llm_conn_id="my_llm", output_type=[Summary, int]
+        )
+        result = op.execute(context=MagicMock())
+
+        assert result == {"text": "Great", "score": 0.95}
+
     def test_declares_output_type_for_deserialization(self):
         """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization."""
         assert "output_type" in AgentOperator.deserialization_allowed_class_fields
