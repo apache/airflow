@@ -16,8 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from os.path import dirname
 from unittest import mock
 
 import pytest
@@ -30,6 +29,8 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshStatus,
     PowerBIHook,
 )
+
+from tests_common.test_utils.file_loading import load_json_from_resources
 
 FORMATTED_RESPONSE = [
     # Completed refresh
@@ -64,8 +65,8 @@ class TestPowerBIHook:
     @pytest.mark.asyncio
     @mock.patch.object(KiotaRequestAdapterHook, "run", autospec=True)
     async def test_completed_enhanced_refresh_observation(self, mock_run, powerbi_hook):
-        fixture = json.loads(
-            (Path(__file__).parents[1] / "resources" / "powerbi_completed_refresh.json").read_text()
+        fixture = load_json_from_resources(
+            dirname(__file__), "..", "resources", "powerbi_completed_refresh.json"
         )
         history = fixture["history"]
         execution = fixture["execution"]
