@@ -43,7 +43,6 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
-from airflow.providers.common.ai.utils.query_results import DEFAULT_MAX_RESULT_BYTES
 from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
@@ -59,6 +58,23 @@ __all__ = ["AirflowTools"]
 
 _MAX_ERROR_DETAIL_CHARS = 500
 _MAX_ERROR_ENTRIES = 5
+# The bundled CLI clamps ``maxResultSizeChars`` to 500_000 (observed on CLI 2.1.286; other
+# versions may differ), so a larger value is a no-op. With ``tools=[]`` the model has no Read
+# tool, so a result over the ceiling that the CLI spills to a ``<persisted-output>`` file is lost.
+_MAX_INLINE_RESULT_CHARS = 500_000
+
+
+def _truncate_result_text(text: str) -> str:
+    if len(text) <= _MAX_INLINE_RESULT_CHARS:
+        return text
+    notice = (
+        f"\n\n[Truncated: this result had {len(text)} characters and only the beginning is shown. "
+        "Narrow the request, for example by adding filters, selecting fewer columns or lowering "
+        "the LIMIT, to get a smaller result.]"
+    )
+    # The notice counts toward the ceiling: text kept up to the ceiling plus the notice would
+    # still be spilled by the CLI.
+    return text[: _MAX_INLINE_RESULT_CHARS - len(notice)] + notice
 
 
 def _bound_detail(text: str) -> str:
@@ -141,10 +157,7 @@ class AirflowTools:
         airflow_tools = collect_tools(sources)
         self.allowed_tools: list[str] = [f"mcp__{server_name}__{t.name}" for t in airflow_tools]
         self._run: _Run | None = None
-        # With ``tools=[]`` the model has no Read tool, so a result the SDK spills to a file is lost to
-        # it. ``maxResultSizeChars`` counts characters, so using SQLToolset's byte cap as the limit
-        # raises the inline ceiling to at least the size of any result it caps.
-        annotations = ToolAnnotations(maxResultSizeChars=DEFAULT_MAX_RESULT_BYTES)
+        annotations = ToolAnnotations(maxResultSizeChars=_MAX_INLINE_RESULT_CHARS)
         sdk_tools = [
             tool(t.name, t.description, self._build_tool_schema(t), annotations=annotations)(
                 self._build_handler(t)
@@ -162,9 +175,21 @@ class AirflowTools:
         built-in tools on, including a worker-host ``Bash``. This method instead
         defaults ``tools`` to ``[]`` (no built-in tools), ``setting_sources`` to ``[]``
         (no settings files) and ``strict_mcp_config`` to ``True`` (only the MCP servers
-        passed here), and adds :attr:`server` and :attr:`allowed_tools` to whatever
-        ``mcp_servers`` and ``allowed_tools`` the caller passes. A keyword this method
-        does not default, such as ``model`` or ``env``, is passed through unchanged.
+        passed here), and ``verbatim_prompts`` to ``True``. It adds :attr:`server` and
+        :attr:`allowed_tools` to whatever ``mcp_servers`` and ``allowed_tools`` the caller
+        passes. A keyword this method does not default, such as ``model`` or ``env``, is
+        passed through unchanged.
+
+        ``verbatim_prompts`` stops the CLI from expanding ``@path`` file mentions in a prompt;
+        otherwise anyone who controls the prompt could send a file the worker user can read to
+        the model, without passing the secret masker. It also turns off slash command dispatch
+        and the CLI's turn-start attachment pass.
+
+        When ``can_use_tool`` is passed, the Airflow tools are not added to ``allowed_tools``,
+        because an allowed tool never reaches the callback, and ``permission_mode`` defaults to
+        ``"default"``. The callback then decides on every Airflow tool call; the names are still
+        in :attr:`allowed_tools` if you want to allow some by hand.
+
         Everything it builds can also be assembled by hand; see :attr:`server` and
         :attr:`allowed_tools`.
 
@@ -178,10 +203,15 @@ class AirflowTools:
                 "server_name to AirflowTools, or drop it from mcp_servers."
             )
         mcp_servers[self.server_name] = self.server
-        allowed_tools = [*kwargs.pop("allowed_tools", []), *self.allowed_tools]
+        allowed_tools = list(kwargs.pop("allowed_tools", []))
+        if kwargs.get("can_use_tool") is None:
+            allowed_tools.extend(self.allowed_tools)
+        else:
+            kwargs.setdefault("permission_mode", "default")
         kwargs.setdefault("tools", [])
         kwargs.setdefault("setting_sources", [])
         kwargs.setdefault("strict_mcp_config", True)
+        kwargs.setdefault("verbatim_prompts", True)
         return ClaudeAgentOptions(mcp_servers=mcp_servers, allowed_tools=allowed_tools, **kwargs)
 
     async def run(self, messages: AsyncIterable[Message]) -> ResultMessage:
@@ -257,7 +287,9 @@ class AirflowTools:
                         state.failures.append(e)
                     return {"content": [{"type": "text", "text": str(e)}], "is_error": True}
             payload: dict[str, Any] = {
-                "content": [{"type": "text", "text": serialize_for_llm(result.content)}]
+                "content": [
+                    {"type": "text", "text": _truncate_result_text(serialize_for_llm(result.content))}
+                ]
             }
             if result.is_error:
                 payload["is_error"] = True

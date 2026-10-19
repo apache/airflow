@@ -35,7 +35,6 @@ from pydantic_ai.exceptions import ModelRetry
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult, collect_tools
 from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
-from airflow.providers.common.ai.utils.query_results import DEFAULT_MAX_RESULT_BYTES
 
 from unit.common.ai.tools.test__from_toolset import _scripted
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
@@ -219,7 +218,7 @@ class TestTools:
 
         assert [t.name for t in captured["sdk_tools"]] == [t.name for t in collect_tools(sources)]
         for sdk_tool in captured["sdk_tools"]:
-            assert sdk_tool.annotations.maxResultSizeChars == DEFAULT_MAX_RESULT_BYTES
+            assert sdk_tool.annotations.maxResultSizeChars == 500_000
 
     @pytest.mark.asyncio
     async def test_a_schema_without_properties_takes_no_arguments(self):
@@ -580,6 +579,62 @@ class TestRealMcpServer:
         assert "boom" in result["content"][0]["text"]
 
 
+class TestResultTruncation:
+    @pytest.mark.asyncio
+    async def test_a_result_over_the_ceiling_is_cut_to_fit_with_a_notice(self):
+        _, handlers = _build_tools(_tool(ToolResult("x" * 1_200_000)))
+
+        payload = await handlers["lookup"]({"key": "a"})
+
+        text = payload["content"][0]["text"]
+        # Booleans keep a failing assertion from rendering a 500k-character diff.
+        assert len(text) <= 500_000
+        assert ("Truncated: this result had 1200000 characters" in text) is True
+        assert text.startswith("x" * 1000) is True
+        assert "is_error" not in payload
+
+    @pytest.mark.asyncio
+    async def test_a_result_at_the_ceiling_is_returned_as_is(self):
+        _, handlers = _build_tools(_tool(ToolResult("x" * 500_000)))
+
+        payload = await handlers["lookup"]({"key": "a"})
+
+        text = payload["content"][0]["text"]
+        assert len(text) == 500_000
+        assert ("Truncated" in text) is False
+
+    @pytest.mark.asyncio
+    async def test_a_result_one_over_the_ceiling_is_cut(self):
+        _, handlers = _build_tools(_tool(ToolResult("x" * 500_001)))
+
+        payload = await handlers["lookup"]({"key": "a"})
+
+        text = payload["content"][0]["text"]
+        assert len(text) <= 500_000
+        assert ("Truncated" in text) is True
+
+    @pytest.mark.asyncio
+    async def test_a_small_result_is_returned_as_is(self):
+        _, handlers = _build_tools(_tool(ToolResult("short")))
+
+        payload = await handlers["lookup"]({"key": "a"})
+
+        assert payload == {"content": [{"type": "text", "text": "short"}]}
+
+    @pytest.mark.asyncio
+    async def test_a_truncated_error_result_stays_an_error(self):
+        _, handlers = _build_tools(_tool(ToolResult("x" * 600_000, is_error=True)))
+
+        payload = await handlers["lookup"]({"key": "a"})
+
+        assert len(payload["content"][0]["text"]) <= 500_000
+        assert payload["is_error"] is True
+
+
+async def _decide_tool_use(tool_name: str, input_data: dict[str, Any], context: Any) -> Any:
+    """Shape of a ``can_use_tool`` callback, for ``create_autospec``."""
+
+
 class TestOptions:
     def test_safe_defaults(self):
         tools, _ = _build_tools(_tool(ToolResult("ok")))
@@ -591,12 +646,17 @@ class TestOptions:
         assert options.strict_mcp_config is True
         assert options.mcp_servers == {"airflow": tools.server}
         assert options.allowed_tools == tools.allowed_tools
+        assert options.verbatim_prompts is True
+        assert options.permission_mode is None
 
     def test_explicit_kwargs_override_the_defaults(self):
         tools, _ = _build_tools(_tool(ToolResult("ok")))
 
-        options = tools.build_options(tools=["Bash"], setting_sources=["project"], strict_mcp_config=False)
+        options = tools.build_options(
+            tools=["Bash"], setting_sources=["project"], strict_mcp_config=False, verbatim_prompts=False
+        )
 
+        assert options.verbatim_prompts is False
         assert options.tools == ["Bash"]
         assert options.setting_sources == ["project"]
         assert options.strict_mcp_config is False
@@ -617,6 +677,34 @@ class TestOptions:
 
         assert options.mcp_servers == {"other": other_server, "airflow": tools.server}
         assert options.allowed_tools == ["other_tool", *tools.allowed_tools]
+
+    def test_a_can_use_tool_callback_keeps_the_airflow_tools_out_of_allowed_tools(self):
+        tools, _ = _build_tools(_tool(ToolResult("ok")))
+        can_use_tool = mock.create_autospec(_decide_tool_use)
+
+        options = tools.build_options(can_use_tool=can_use_tool, allowed_tools=["other_tool"])
+
+        assert options.allowed_tools == ["other_tool"]
+        assert options.can_use_tool is can_use_tool
+        assert options.permission_mode == "default"
+        assert tools.allowed_tools == ["mcp__airflow__lookup"]
+
+    def test_a_can_use_tool_callback_does_not_override_an_explicit_permission_mode(self):
+        tools, _ = _build_tools(_tool(ToolResult("ok")))
+
+        options = tools.build_options(
+            can_use_tool=mock.create_autospec(_decide_tool_use), permission_mode="acceptEdits"
+        )
+
+        assert options.permission_mode == "acceptEdits"
+
+    def test_a_none_can_use_tool_is_the_same_as_not_passing_one(self):
+        tools, _ = _build_tools(_tool(ToolResult("ok")))
+
+        options = tools.build_options(can_use_tool=None)
+
+        assert options.allowed_tools == tools.allowed_tools
+        assert options.permission_mode is None
 
     def test_a_colliding_server_name_raises(self):
         tools, _ = _build_tools(_tool(ToolResult("ok")))

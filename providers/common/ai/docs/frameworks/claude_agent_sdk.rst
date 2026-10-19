@@ -81,8 +81,12 @@ exception; give the SDK the MCP server directly instead. Each tool:
   ``allowed_tables``, ``allowed_methods`` and result limits behave as they do in
   :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`. Because the
   built-in tools are off, the model cannot open a result the SDK writes to a file, so each
-  tool is marked with ``SQLToolset``'s 64 KiB result limit as the size the SDK should
-  keep inline.
+  tool is marked with 500,000 characters as the size the SDK should keep inline. The bundled
+  CLI caps that value at 500,000 (observed on CLI 2.1.286). A single result longer than that
+  is truncated to fit and ends with a notice asking the model to narrow the request; the
+  model still reads it as a normal result, not an error. Without the truncation the CLI would
+  spill the result to a file the model cannot read, and a result of about 1 million characters
+  or more makes the SDK stream fail.
 - Passes its result through Airflow's secret masker before the model sees it. A
   connection password that turns up in a query result reaches the model as ``***``.
 - Writes a ``Tool call: <name>`` group to the task log. Calls to a toolset are also
@@ -172,8 +176,25 @@ tools on, including a worker-host ``Bash`` -- the bundled CLI runs as a subproce
 same worker that runs the task, with its environment variables. ``build_options()`` closes all
 of that by default: no built-in tools, no settings sources, and ``strict_mcp_config=True``
 so only the MCP servers passed in the options are used: the one ``AirflowTools`` builds
-plus any ``mcp_servers`` you pass to ``build_options()``. If you build ``ClaudeAgentOptions``
-yourself instead, set those fields the same way.
+plus any ``mcp_servers`` you pass to ``build_options()``. It also sets
+``verbatim_prompts=True``, so the CLI does not expand ``@path`` file mentions in a prompt.
+Otherwise anyone who controls the prompt could send any file the worker user can read to the
+model, and that content would not pass through the secret masker.
+
+``verbatim_prompts=True`` has side effects:
+
+- Slash commands in the prompt are not dispatched.
+- The CLI's turn-start attachment pass is off.
+- The SDK expects CLI 2.1.248 or later; an older CLI only logs a warning.
+
+When you pass ``can_use_tool`` to ``build_options()``:
+
+- The Airflow tools are not added to ``allowed_tools``, because an allowed tool never reaches
+  the callback. Your callback decides on every Airflow tool call.
+- ``permission_mode`` defaults to ``"default"``; a value you pass wins.
+- ``AirflowTools.allowed_tools`` still lists the tool names if you want to allow some by hand.
+
+If you build ``ClaudeAgentOptions`` yourself instead, set those fields the same way.
 
 Tracing
 ---------
