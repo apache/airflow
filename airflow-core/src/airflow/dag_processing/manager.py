@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
 
 import attrs
 import structlog
-from sqlalchemy import or_, select, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
@@ -57,6 +57,7 @@ from airflow.dag_processing.bundles.base import (
     unpack_bundle_version,
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.claims import get_available_work_filter
 from airflow.dag_processing.collection import is_source_discovery_failed, update_dag_parsing_results_in_db
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -66,7 +67,6 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     DagParseSource,
 )
-from airflow.jobs.job import Job
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -496,7 +496,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         stuck_legacy_rows = 0
         for dag in dags_parsed:
-            if dag.bundle_name is None or dag.bundle_name in inactive_bundles:
+            if dag.bundle_name in inactive_bundles:
                 continue
             # A Dag upgraded from Airflow 2.x can still have a NULL relative_fileloc:
             # the 0082 migration adds the column as nullable, and the startup repair
@@ -695,12 +695,7 @@ class DagFileProcessorManager(LoggingMixin):
         bundles = {b.name: b for b in self._dag_bundles}
         query = select(DagPriorityParsingRequest).where(
             DagPriorityParsingRequest.bundle_name.in_(bundles.keys()),
-            or_(
-                DagPriorityParsingRequest.processor_job_id.is_(None),
-                DagPriorityParsingRequest.processor_job_id.in_(
-                    select(Job.id).where(Job.end_date.is_not(None))
-                ),
-            ),
+            get_available_work_filter(DagPriorityParsingRequest.processor_job_id),
         )
         requests = session.scalars(with_row_locks(query, session=session, skip_locked=True))
         for request in requests:
@@ -749,12 +744,7 @@ class DagFileProcessorManager(LoggingMixin):
                 select(DbCallbackRequest)
                 .where(
                     DbCallbackRequest.bundle_name.in_(bundle_names),
-                    or_(
-                        DbCallbackRequest.processor_job_id.is_(None),
-                        DbCallbackRequest.processor_job_id.in_(
-                            select(Job.id).where(Job.end_date.is_not(None))
-                        ),
-                    ),
+                    get_available_work_filter(DbCallbackRequest.processor_job_id),
                 )
                 .order_by(DbCallbackRequest.priority_weight.desc())
                 .limit(self.max_callbacks_per_loop),

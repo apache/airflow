@@ -40,6 +40,18 @@ airflow_version = "3.5.0"
 def upgrade():
     """Retain callback and priority requests until their processor acknowledges delivery."""
     with disable_sqlite_fkeys(op):
+        op.create_table(
+            "dag_processor_work_claim",
+            sa.Column("job_id", sa.Integer(), nullable=False),
+            sa.Column("kind", sa.String(length=10), nullable=False),
+            sa.Column("claim_id", sa.Uuid(), nullable=False),
+            sa.Column("claim_sequence", sa.BigInteger(), nullable=False),
+            sa.Column("payload_hash", sa.String(length=64), nullable=False),
+            sa.ForeignKeyConstraint(
+                ["job_id"], ["job.id"], name=op.f("dag_processor_work_claim_job_id_fkey"), ondelete="CASCADE"
+            ),
+            sa.PrimaryKeyConstraint("job_id", "kind", name=op.f("dag_processor_work_claim_pkey")),
+        )
         for table in ("callback", "dag_priority_parsing_request"):
             with op.batch_alter_table(table) as batch:
                 batch.add_column(sa.Column("processor_job_id", sa.Integer(), nullable=True))
@@ -53,6 +65,7 @@ def upgrade():
 def downgrade():
     """Remove processor ownership from callback and priority requests."""
     with disable_sqlite_fkeys(op):
+        op.drop_table("dag_processor_work_claim")
         for table in ("dag_priority_parsing_request", "callback"):
             with op.batch_alter_table(table) as batch:
                 batch.drop_constraint(f"{table}_processor_job_id_fkey", type_="foreignkey")
