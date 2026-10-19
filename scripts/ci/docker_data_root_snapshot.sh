@@ -86,14 +86,15 @@ function start_daemon() {
 }
 
 # Identifies the image by its ID and by the file tree its layers combine into: a restore that loses
-# a whiteout or an opaque-directory marker changes the tree while the ID stays the same.
+# a whiteout or an opaque-directory marker changes the tree while the ID stays the same. The listing
+# is sorted on the host, since sorting it in the container would add sort's temporary files to it.
 function image_fingerprint() {
     local image=$1
     local image_id tree
     image_id="$(docker image inspect --format '{{.Id}}' "${image}")" || return 1
     tree="$(timeout "${DAEMON_TIMEOUT_SECONDS}" docker run --rm --pull never --network none \
-        --entrypoint /bin/bash "${image}" \
-        -c 'find / -xdev -printf "%p %y %m\n" | LC_ALL=C sort | sha256sum')" || return 1
+        --entrypoint find "${image}" / -xdev -printf '%p %y %m\n' | LC_ALL=C sort | sha256sum)" \
+        || return 1
     echo "${image_id} ${tree%% *}"
 }
 

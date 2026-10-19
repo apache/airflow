@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import os
 import shlex
 import subprocess
@@ -32,6 +33,7 @@ FINGERPRINT = "28.5.2 overlay2 x86_64 /var/lib/docker"
 STOP = ["sudo", "timeout", "60", "systemctl", "stop", "docker.socket", "docker"]
 START = ["sudo", "timeout", "60", "systemctl", "start", "docker"]
 REMOVE_STORE = ["sudo", "rm", "-rf", "/var/lib/docker/image", "/var/lib/docker/overlay2"]
+TREE = hashlib.sha256(b"/ d 755\n/tmp d 1777\n").hexdigest()
 
 
 @pytest.fixture
@@ -76,7 +78,7 @@ if [[ "${name}" == "docker" ]]; then
             if [[ "${RUN_EXIT:-0}" != 0 ]]; then
                 exit "${RUN_EXIT}"
             fi
-            echo "${TREE_HASH:-tree1}  -"
+            printf '%b' "${TREE_LISTING:-/tmp d 1777\\n/ d 755\\n}"
             ;;
     esac
 fi
@@ -96,7 +98,7 @@ fi
 def snapshot(tmp_path):
     snapshot_file = tmp_path / "ci-image-snapshot-linux_amd64-3.10.tar.zst"
     snapshot_file.write_bytes(b"")
-    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} sha256:abc123 revision1 tree1\n")
+    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} sha256:abc123 revision1 {TREE}\n")
     return snapshot_file
 
 
@@ -144,8 +146,18 @@ def test_restore_unpacks_snapshot_into_stopped_daemon(fake_tools, snapshot):
     inspect = commands.index(["docker", "image", "inspect", "--format", "{{.Id}}", "sha256:abc123"])
     run = next(i for i, c in enumerate(commands) if c[:2] == ["docker", "run"])
     assert stop < remove < extract < start < inspect < run
-    assert commands[run][:7] == ["docker", "run", "--rm", "--pull", "never", "--network", "none"]
-    assert "sha256:abc123" in commands[run]
+    assert commands[run][:9] == [
+        "docker",
+        "run",
+        "--rm",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--entrypoint",
+        "find",
+    ]
+    assert commands[run][9:12] == ["sha256:abc123", "/", "-xdev"]
     assert commands[extract][:3] == ["sudo", "timeout", "300"]
     assert "--xattrs-include=*" in commands[extract]
     assert not snapshot.exists()
@@ -178,7 +190,7 @@ def test_restore_leaves_daemon_alone_when_snapshot_does_not_fit(
 
 @pytest.mark.parametrize(
     "env",
-    [{"RUN_EXIT": "1"}, {"TREE_HASH": "tree2"}, {"IMAGE_DIGEST": "sha256:other"}],
+    [{"RUN_EXIT": "1"}, {"TREE_LISTING": "/ d 755\\n/data d 755\\n"}, {"IMAGE_DIGEST": "sha256:other"}],
     ids=["does-not-run", "other-file-tree", "other-image"],
 )
 def test_restore_empties_store_again_when_image_does_not_match(fake_tools, snapshot, env):
@@ -203,7 +215,7 @@ def test_create_keeps_only_the_ci_image(fake_tools, tmp_path):
     assert ["docker", "rmi", "--force", "other1"] in commands
     assert not [c for c in commands if c[:2] == ["docker", "rmi"] and "abc123" in c]
     assert ["docker", "builder", "prune", "--all", "--force"] in commands
-    assert Path(f"{snapshot_file}.meta").read_text() == f"{FINGERPRINT} sha256:abc123 revision1 tree1\n"
+    assert Path(f"{snapshot_file}.meta").read_text() == f"{FINGERPRINT} sha256:abc123 revision1 {TREE}\n"
     fingerprint = next(i for i, c in enumerate(commands) if c[:2] == ["docker", "run"])
     assert fingerprint < commands.index(STOP)
     archive = next(c for c in commands if is_tar(c, "--create"))
@@ -253,7 +265,7 @@ def test_create_restarts_daemon_after_archive_failure(fake_tools, tmp_path, fail
 def test_failed_create_retires_earlier_snapshot(fake_tools, tmp_path):
     snapshot_file = tmp_path / "snapshot.tar.zst"
     snapshot_file.write_bytes(b"earlier attempt")
-    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} sha256:abc123 revision1 tree1\n")
+    Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} sha256:abc123 revision1 {TREE}\n")
 
     result = run_script({**fake_tools, "CI_IMAGES": ""}, "create", str(snapshot_file))
 
