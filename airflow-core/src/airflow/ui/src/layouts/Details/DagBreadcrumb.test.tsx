@@ -106,6 +106,10 @@ describe("DagBreadcrumb", () => {
   });
 
   it("keeps the state badge's room while the state is still loading", async () => {
+    vi.spyOn(DagRunService, "getDagRun").mockReturnValue(
+      new Promise(() => undefined) as ReturnType<typeof DagRunService.getDagRun>,
+    );
+
     render(<DagBreadcrumb />, {
       wrapper: createWrapper(`/dags/${DAG_ID}/runs/run_1`, "/dags/:dagId/runs/:runId"),
     });

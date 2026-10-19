@@ -19,28 +19,18 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { DagSchedulingState } from "openapi/requests/types.gen";
 
 import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_RECENT_TASKS_KEY } from "src/constants/localStorage";
-import { handlers } from "src/mocks/handlers";
 import { failedDag, pausedDag, successDag } from "src/mocks/handlers/dags";
+import { server } from "src/mocks/server";
 import { AppWrapper } from "src/utils/AppWrapper";
 
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledFrame: "bypass" });
-});
-
 afterEach(() => {
-  server.resetHandlers();
   localStorage.clear();
 });
-afterAll(() => server.close());
 
 describe("Dag Filters", () => {
   it("passes the draining scheduling state from the URL to the API", async () => {
