@@ -69,6 +69,7 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
+    MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     SchedulerJobRunner,
 )
@@ -3597,6 +3598,32 @@ class TestSchedulerJob:
 
         assert [ti.task_id for ti in queued_tis] == ["runnable_0", "runnable_1"]
         mock_stats.incr.assert_any_call("scheduler.critical_section_refill_limit_reached")
+
+    def test_select_task_instances_to_queue_does_not_cap_queries_before_first_selection(
+        self, dag_maker, session
+    ):
+        """More blocked candidates than the refill cap must not hide a lower-priority runnable TI."""
+        self.job_runner = SchedulerJobRunner(job=Job())
+        with dag_maker(dag_id="blocked_tis_exceed_refill_cap", session=session):
+            blocked_tasks = [
+                EmptyOperator(task_id=f"blocked_{index}", priority_weight=10, max_active_tis_per_dag=1)
+                for index in range(MAX_TI_REFILL_QUERIES_PER_LOOP + 2)
+            ]
+            runnable_task = EmptyOperator(task_id="runnable", priority_weight=1)
+        first_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        second_run = dag_maker.create_dagrun_after(first_run, run_type=DagRunType.SCHEDULED)
+        for blocked_task in blocked_tasks:
+            first_run.get_task_instance(blocked_task.task_id, session=session).state = State.RUNNING
+            second_run.get_task_instance(blocked_task.task_id, session=session).state = State.SCHEDULED
+        runnable_ti = second_run.get_task_instance(runnable_task.task_id, session=session)
+        runnable_ti.state = State.SCHEDULED
+        session.flush()
+
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            1, make_pool_stats(), set(), session=session
+        )
+
+        assert [ti.key for ti in queued_tis] == [runnable_ti.key]
 
     def test_select_task_instances_to_queue_finds_runnable_hidden_by_max_active_tasks_window(
         self, dag_maker, session
