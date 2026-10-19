@@ -343,24 +343,26 @@ def test_clean_unused_rejects_non_positive_batch_size_before_transaction(session
     assert commit_count == 0
 
 
-@conf_vars({("triggerer", "unreferenced_triggers_cleanup_batch_size"): "2"})
-def test_clean_unused_retries_failed_batch_in_fresh_transactions(session):
-    session.add_all(
-        [
-            Trigger(classpath=f"airflow.triggers.testing.SuccessTrigger{index}", kwargs={})
-            for index in range(5)
-        ]
-    )
+def test_clean_unused_runs_in_the_caller_transaction(session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
     session.commit()
 
-    Trigger.clean_unused()
-    session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 3
+    Trigger.clean_unused(session=session)
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+    session.rollback()
+
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 1
+
+
+def test_clean_unused_raises_database_errors_to_the_caller_without_retrying(session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+    # The caller's own pending write must survive the cleanup failing.
+    job = Job()
+    session.add(job)
+    session.flush()
 
     delete_attempt_count = 0
-    cleanup_sessions = []
-    commit_count = 0
-    rollback_count = 0
 
     def fail_delete(connection, cursor, statement, parameters, context, executemany):
         nonlocal delete_attempt_count
@@ -369,42 +371,15 @@ def test_clean_unused_retries_failed_batch_in_fresh_transactions(session):
             delete_attempt_count += 1
             raise OperationalError(statement, parameters, RuntimeError("injected cleanup failure"))
 
-    def capture_session(cleanup_session, transaction, connection):
-        cleanup_sessions.append(cleanup_session)
-
-    def count_commit(committed_session):
-        nonlocal commit_count
-        commit_count += 1
-
-    def count_rollback(rolled_back_session):
-        nonlocal rollback_count
-        rollback_count += 1
-
     event.listen(session.bind, "before_cursor_execute", fail_delete)
-    event.listen(session.__class__, "after_begin", capture_session)
-    event.listen(session.__class__, "after_commit", count_commit)
-    event.listen(session.__class__, "after_rollback", count_rollback)
     try:
         with pytest.raises(OperationalError, match="injected cleanup failure"):
-            Trigger.clean_unused()
+            Trigger.clean_unused(session=session)
     finally:
         event.remove(session.bind, "before_cursor_execute", fail_delete)
-        event.remove(session.__class__, "after_begin", capture_session)
-        event.remove(session.__class__, "after_commit", count_commit)
-        event.remove(session.__class__, "after_rollback", count_rollback)
 
-    assert len({id(cleanup_session) for cleanup_session in cleanup_sessions}) == 3
-    assert (delete_attempt_count, commit_count, rollback_count) == (3, 0, 3)
-    session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 3
-
-    Trigger.clean_unused()
-    session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 1
-
-    Trigger.clean_unused()
-    session.expire_all()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+    assert delete_attempt_count == 1
+    assert job in session
 
 
 @patch.object(TriggererCallback, "handle_event")
