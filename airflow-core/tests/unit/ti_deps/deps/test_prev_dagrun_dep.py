@@ -333,3 +333,17 @@ def test_dagrun_dep(mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun
         ti.xcom_push.assert_called_with(key="past_depends_met", value=True)
     else:
         ti.xcom_push.assert_not_called()
+
+
+def test_past_depends_met_xcom_sent_when_the_task_asks_to_wait():
+    """The task's own wait_for_past_depends_before_skipping sends the mark like the context flag does."""
+    task = BaseOperator(
+        task_id="test_task",
+        dag=DAG("test_dag", schedule=timedelta(days=1), start_date=datetime(2016, 1, 1)),
+        start_date=datetime(2016, 1, 1),
+        wait_for_past_depends_before_skipping=True,
+    )
+    ti = Mock(task=task, task_id=task.task_id, **{"xcom_push.return_value": None})
+
+    assert PrevDagrunDep().is_met(ti=ti, dep_context=DepContext(ignore_depends_on_past=True))
+    ti.xcom_push.assert_called_once_with(key="past_depends_met", value=True)
