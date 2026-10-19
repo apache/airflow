@@ -2181,7 +2181,7 @@ class TestGetDagRunAssetTriggerEvents:
         autospec=True,
     )
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_returns_only_events_of_assets_the_caller_may_read(
