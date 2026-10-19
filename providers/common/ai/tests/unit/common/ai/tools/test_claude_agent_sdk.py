@@ -35,6 +35,7 @@ from pydantic_ai.exceptions import ModelRetry
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult, collect_tools
 from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 from unit.common.ai.tools.test__from_toolset import _scripted
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
@@ -58,6 +59,10 @@ def _tool(outcome: ToolResult | Exception, ran: list[dict[str, Any]] | None = No
         parameters={"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]},
         function=function,
     )
+
+
+async def _pong(arguments: dict[str, Any]) -> ToolResult:
+    return ToolResult("pong")
 
 
 def _build_tools(*sources: Any, server_name: str = "airflow") -> tuple[AirflowTools, dict[str, Any]]:
@@ -229,7 +234,7 @@ class TestTools:
             name="ping",
             description="Ping.",
             parameters={"type": "object"},
-            function=mock.AsyncMock(return_value=ToolResult("pong")),
+            function=mock.create_autospec(_pong, return_value=ToolResult("pong")),
         )
         tools = AirflowTools(source)
 
@@ -238,6 +243,29 @@ class TestTools:
         assert listed["tools"][0]["inputSchema"].get("required", []) == []
         assert "type" not in listed["tools"][0]["inputSchema"]["properties"]
         assert source.parameters == {"type": "object"}
+
+    @pytest.mark.asyncio
+    async def test_the_cli_lists_each_tool_with_its_description_schema_and_result_limit(self):
+        schema = {
+            "type": "object",
+            "properties": {"key": {"type": "string", "description": "The key."}},
+            "required": ["key"],
+        }
+        source = AirflowTool(
+            name="lookup",
+            description="Look a value up.",
+            parameters=schema,
+            function=mock.create_autospec(_pong, return_value=ToolResult("pong")),
+        )
+        tools = AirflowTools(source)
+
+        listed = await _request_real_server(tools, "tools/list", {})
+
+        (listed_tool,) = listed["tools"]
+        assert listed_tool["name"] == "lookup"
+        assert listed_tool["description"] == "Look a value up."
+        assert listed_tool["inputSchema"] == schema
+        assert listed_tool["_meta"] == {"anthropic/maxResultSizeChars": 500_000}
 
 
 class TestHandler:
@@ -892,8 +920,6 @@ class TestOptions:
 
 
 def test_missing_sdk_raises_optional_feature_exception() -> None:
-    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
     with mock.patch.dict(sys.modules, {"claude_agent_sdk": None}):
         sys.modules.pop(MODULE, None)
         try:
