@@ -598,10 +598,14 @@ class TestKubernetesPodTrigger:
         ("log_events_on_startup", "expected_calls"),
         [(True, 1), (False, 0)],
     )
-    @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state")
-    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.await_pod_start")
-    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.watch_pod_events")
-    @mock.patch(f"{TRIGGER_PATH}._get_pod")
+    @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state", autospec=True)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.await_pod_start", autospec=True
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.watch_pod_events", autospec=True
+    )
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", autospec=True)
     async def test_wait_for_pod_start_watches_events_only_when_enabled(
         self,
         mock_get_pod,
@@ -612,8 +616,14 @@ class TestKubernetesPodTrigger:
         log_events_on_startup,
         expected_calls,
     ):
-        mock_get_pod.return_value = mock.MagicMock()
+        mock_get_pod.return_value = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=POD_NAME, namespace=NAMESPACE))
         mock_state.return_value = ContainerState.RUNNING
+
+        async def _await_pod_start(*_, **__):
+            # An autospecced coroutine records its call only once it runs, so let the watcher task start.
+            await asyncio.sleep(0)
+
+        mock_await_start.side_effect = _await_pod_start
         trigger.log_events_on_startup = log_events_on_startup
 
         await trigger._wait_for_pod_start()

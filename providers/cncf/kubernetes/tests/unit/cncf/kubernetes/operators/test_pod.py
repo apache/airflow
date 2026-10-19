@@ -259,9 +259,9 @@ class TestKubernetesPodOperator:
 
         assert self.watch_pod_events_mock.call_count == expected_calls
 
-    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
-    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
-    @patch(f"{TRIGGER_CLASS}.define_pod_container_state", return_value=ContainerState.RUNNING)
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"), autospec=True)
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection", autospec=True)
+    @patch(f"{TRIGGER_CLASS}.define_pod_container_state", autospec=True, return_value=ContainerState.RUNNING)
     def test_invoke_defer_method_passes_log_events_on_startup_to_trigger(
         self, mock_container_state, mocked_get_connection, mocked_convert_config
     ):
@@ -275,12 +275,10 @@ class TestKubernetesPodOperator:
             deferrable=True,
             log_events_on_startup=False,
         )
-        k.pod = MagicMock()
-        k.pod.metadata.name = TEST_NAME
-        k.pod.metadata.namespace = TEST_NAMESPACE
+        k.pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
 
         with pytest.raises(TaskDeferred) as exc:
-            k.invoke_defer_method(context={"ti": MagicMock()})
+            k.invoke_defer_method()
 
         assert exc.value.trigger.serialize()[1]["log_events_on_startup"] is False
 

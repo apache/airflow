@@ -447,7 +447,8 @@ class PodManager(LoggingMixin):
         """
         Read pod events and write into log.
 
-        Best-effort: an API failure logs one warning and stops the watch.
+        Best-effort: any error logs one warning and stops the watch, so a struggling API server
+        is not polled again for this pod.
         """
         resource_version = None
         seen_events: set[str] = set()
@@ -460,7 +461,7 @@ class PodManager(LoggingMixin):
                     log_pod_event(self, event, seen_events)
                     resource_version = event.metadata.resource_version
             except Exception as e:
-                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e)
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
                 return
             await asyncio.sleep(check_interval)
 
@@ -1203,7 +1204,8 @@ class AsyncPodManager(LoggingMixin):
         """
         Watch pod events and write to log.
 
-        Best-effort: an API failure logs one warning and stops the watch.
+        Best-effort: any error logs one warning and stops the watch, so a struggling API server
+        is not polled again for this pod.
         """
         seen_events: set[str] = set()
         resource_version = None
@@ -1219,7 +1221,7 @@ class AsyncPodManager(LoggingMixin):
                         log_pod_event(self, event, seen_events)
                         resource_version = event.metadata.resource_version
             except Exception as e:
-                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e)
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
                 return
 
     async def await_pod_start(

@@ -26,11 +26,12 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 import time_machine
-from kubernetes.client import V1Pod
+from kubernetes.client import CoreV1Event, CoreV1EventList, V1ObjectMeta, V1ObjectReference, V1Pod
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     PodCommandException,
@@ -49,6 +50,16 @@ from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallbac
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+
+POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
+
+
+def _build_event_list() -> CoreV1EventList:
+    event = CoreV1Event(
+        involved_object=V1ObjectReference(),
+        metadata=V1ObjectMeta(uid="event-uid", resource_version="1"),
+    )
+    return CoreV1EventList(items=[event])
 
 
 @pytest.fixture
@@ -469,18 +480,29 @@ class TestPodManager:
         )
 
     @pytest.mark.asyncio
-    @mock.patch.object(PodManager, "read_pod_events", autospec=True, side_effect=ApiException(status=504))
-    async def test_watch_pod_events_stops_when_reading_events_fails(self, mock_read, caplog):
-        mock_pod = mock.Mock(spec=V1Pod)
-        mock_pod.metadata.name = "test-pod"
+    @pytest.mark.parametrize(
+        ("read_result", "error"),
+        [
+            pytest.param(ApiException(status=504), str(ApiException(status=504)), id="reading-events"),
+            pytest.param(_build_event_list(), "bad event", id="logging-an-event"),
+        ],
+    )
+    @mock.patch(f"{POD_MANAGER_MODULE}.log_pod_event", autospec=True, side_effect=ValueError("bad event"))
+    @mock.patch.object(PodManager, "read_pod_events", autospec=True)
+    async def test_watch_pod_events_stops_on_error(
+        self, mock_read, mock_log_event, read_result, error, caplog
+    ):
+        mock_read.side_effect = [read_result]
 
-        await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
+        await self.pod_manager.watch_pod_events(
+            V1Pod(metadata=V1ObjectMeta(name="test-pod")), check_interval=1
+        )
 
         mock_read.assert_called_once()
         assert (
             mock.ANY,
             logging.WARNING,
-            f"Stopped watching events of pod test-pod: {ApiException(status=504)}",
+            f"Stopped watching events of pod test-pod: {error}",
         ) in caplog.record_tuples
 
     @pytest.mark.asyncio
@@ -1547,24 +1569,34 @@ class TestAsyncPodManager:
         self.mock_async_hook.watch_pod_events.assert_called()
 
     @pytest.mark.asyncio
-    async def test_watch_pod_events_stops_when_hook_watch_fails(self, caplog):
-        mock_pod = mock.Mock(spec=V1Pod)
-        mock_pod.metadata.namespace = "test-namespace"
-        mock_pod.metadata.name = "test-pod"
+    @pytest.mark.parametrize(
+        ("watched", "error"),
+        [
+            pytest.param(ApiException(status=504), str(ApiException(status=504)), id="watching-events"),
+            pytest.param(_build_event_list().items[0], "bad event", id="logging-an-event"),
+        ],
+    )
+    @mock.patch(f"{POD_MANAGER_MODULE}.log_pod_event", autospec=True, side_effect=ValueError("bad event"))
+    async def test_watch_pod_events_stops_on_error(self, mock_log_event, watched, error, caplog):
+        async def event_stream(*_, **__):
+            if isinstance(watched, Exception):
+                raise watched
+            yield watched
 
-        async def failing_generator(*_, **__):
-            raise ApiException(status=504)
-            yield
+        hook = mock.create_autospec(AsyncKubernetesHook, instance=True)
+        hook.watch_pod_events.side_effect = event_stream
+        self.async_pod_manager._hook = hook
 
-        self.mock_async_hook.watch_pod_events = mock.Mock(side_effect=failing_generator)
+        await self.async_pod_manager.watch_pod_events(
+            V1Pod(metadata=V1ObjectMeta(name="test-pod", namespace="test-namespace")),
+            startup_check_interval=30,
+        )
 
-        await self.async_pod_manager.watch_pod_events(mock_pod, startup_check_interval=30)
-
-        self.mock_async_hook.watch_pod_events.assert_called_once()
+        hook.watch_pod_events.assert_called_once()
         assert (
             mock.ANY,
             logging.WARNING,
-            f"Stopped watching events of pod test-pod: {ApiException(status=504)}",
+            f"Stopped watching events of pod test-pod: {error}",
         ) in caplog.record_tuples
 
     @pytest.mark.asyncio
