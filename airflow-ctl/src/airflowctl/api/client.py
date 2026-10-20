@@ -35,7 +35,7 @@ import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
 from tenacity import (
-    before_log,
+    before_sleep_log,
     retry,
     retry_if_exception,
     stop_after_attempt,
@@ -398,7 +398,7 @@ class Client(httpx.Client):
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
         wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=before_log(log, logging.WARNING),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     def request(self, *args, **kwargs):
