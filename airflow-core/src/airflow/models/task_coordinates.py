@@ -74,12 +74,13 @@ class _ProducerRequest:
 @attrs.frozen(kw_only=True)
 class LoopPosition:
     """
-    The pass of the innermost loop a task instance runs in.
+    The iteration of the innermost loop a task instance runs in.
 
-    ``region_id`` is the loop region that holds the pass, also for a mapped task, whose own ``region_id`` is
-    its expansion's. A clear that reruns later passes forks the loop region: ``trajectory`` is 1 for the
-    original region and grows by one with each fork, ``forked_from_region_id`` is the region the fork
-    replaced and ``resumes_from_index`` the first pass the fork owns (0 for an original region).
+    ``region_id`` is the loop region that holds the iteration, also for a mapped task, whose own ``region_id``
+    is its expansion's, and identifies the trajectory. A clear that reruns later iterations forks the newest
+    loop region: ``trajectory`` numbers the regions of that chain from 1, ``forked_from_region_id`` is the
+    previous region of the chain and ``resumes_from_index`` the first iteration the fork holds. Both are
+    ``None`` for the original region.
     """
 
     group: SerializedLoopTaskGroup
@@ -87,22 +88,7 @@ class LoopPosition:
     region_id: UUID
     trajectory: int
     forked_from_region_id: UUID | None
-    resumes_from_index: int
-
-
-@attrs.frozen(kw_only=True)
-class TaskInstanceExecutionPosition:
-    """
-    Where a task instance runs, as the worker gets it when the task starts.
-
-    ``map_index`` is the map index users see, -1 for a task that isn't mapped. ``expanded_ti_count`` is the
-    number of live instances of a mapped task in its own expansion, and ``None`` for a task that isn't mapped.
-    ``loop`` is ``None`` outside a loop.
-    """
-
-    map_index: int
-    expanded_ti_count: int | None
-    loop: LoopPosition | None
+    resumes_from_index: int | None
 
 
 class TaskCoordinate(Protocol):
@@ -274,7 +260,12 @@ class TaskCoordinateResolver:
     def get_loop_position(
         self, ti: TaskCoordinate, *, task: SerializedOperator | None = None
     ) -> LoopPosition | None:
-        """Return the pass of the innermost loop ``ti`` runs in, or None outside any loop."""
+        """
+        Return the iteration of the innermost loop ``ti`` runs in, or None outside any loop.
+
+        This is what a worker gets as ``TIRunContext.loop``. Server-side consumers such as listeners get the
+        same from a resolver built with :meth:`for_dag` for the Dag they hold.
+        """
         if ti.region_id == SENTINEL_REGION_ID:
             return None
         if task is None:
@@ -287,26 +278,31 @@ class TaskCoordinateResolver:
             regions.update(
                 load_region_ancestry([ti.region_id], dag_id=ti.dag_id, run_id=ti.run_id, session=self.session)
             )
-        position = loop_position(regions, ti.region_id, ti.region_index, group.node_id)
         coordinate = DynamicRegion.find_physical_coordinate(
             ti.region_id, ti.region_index, group.node_id, regions
         )
-        if position is None or coordinate is None:
+        if coordinate is None:
             raise ValueError("Task coordinates do not belong to the pinned loop")
-        region = regions[coordinate[0]]
+        region_id, index = coordinate
+        region = regions[region_id]
+        is_fork = region.forked_from_region_id is not None
         return LoopPosition(
             group=group,
-            index=position[1],
-            region_id=region.id,
+            index=index,
+            region_id=region_id,
             trajectory=get_trajectory(region, regions),
             forked_from_region_id=region.forked_from_region_id,
-            resumes_from_index=region.resumes_from_index,
+            resumes_from_index=region.resumes_from_index if is_fork else None,
         )
 
     def get_expanded_ti_count(
         self, ti: TaskCoordinate, *, task: SerializedOperator | None = None
     ) -> int | None:
-        """Count the live instances of a mapped task in the expansion ``ti`` belongs to, None if not mapped."""
+        """
+        Count the live instances of a mapped task in the expansion ``ti`` belongs to, None if not mapped.
+
+        This is what a worker gets as ``TIRunContext.expanded_ti_count``.
+        """
         if ti.region_id == SENTINEL_REGION_ID:
             return None
         if task is None:
@@ -322,17 +318,6 @@ class TaskCoordinateResolver:
                 TaskInstance.region_id == ti.region_id,
                 or_(TaskInstance.state.is_(None), TaskInstance.state != TaskInstanceState.REMOVED),
             )
-        )
-
-    def get_execution_position(self, ti: TaskCoordinate) -> TaskInstanceExecutionPosition:
-        """Place ``ti`` in its mapped expansion and loop pass from its pinned task definition."""
-        if ti.region_id == SENTINEL_REGION_ID:
-            return TaskInstanceExecutionPosition(map_index=ti.region_index, expanded_ti_count=None, loop=None)
-        task = self.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
-        return TaskInstanceExecutionPosition(
-            map_index=ti.region_index if task.get_needs_expansion() else -1,
-            expanded_ti_count=self.get_expanded_ti_count(ti, task=task),
-            loop=self.get_loop_position(ti, task=task),
         )
 
     def get_task(
@@ -926,18 +911,3 @@ class TaskCoordinateResolver:
             region_index=request.region_index,
             session=self.session,
         )
-
-
-def get_task_instance_execution_position(
-    task_instance: TaskInstance, *, session: Session
-) -> TaskInstanceExecutionPosition:
-    """
-    Place a stored task instance in its mapped expansion and loop pass.
-
-    This is what the Execution API sends a worker when the task starts (``TIRunContext.loop`` and
-    ``TIRunContext.expanded_ti_count``), so server-side consumers such as listeners reporting a manual state
-    change describe the task instance as the worker would, without reading region rows themselves.
-    """
-    return TaskCoordinateResolver(DBDagBag(load_op_links=False), session).get_execution_position(
-        task_instance
-    )

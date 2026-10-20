@@ -371,25 +371,28 @@ def ti_run(
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
             multi_team=conf.getboolean("core", "multi_team"),
         )
-        resolver = TaskCoordinateResolver(dag_bag, session)
-        position = resolver.get_execution_position(ti)
-        if position.expanded_ti_count is not None:
-            context.expanded_ti_count = position.expanded_ti_count
-        if (loop := position.loop) is not None:
-            terminal = resolver.get_task(
-                ti.dag_id, ti.run_id, loop.group.terminal_task_id, dag_version_id=ti.dag_version_id
-            )
-            context.loop = LoopContext(
-                node_id=loop.group.node_id,
-                index=loop.index,
-                max_iterations=loop.group.max_iterations,
-                terminal_task_id=loop.group.terminal_task_id,
-                terminal_is_mapped=terminal.get_needs_expansion(),
-                region_id=loop.region_id,
-                trajectory=loop.trajectory,
-                forked_from_region_id=loop.forked_from_region_id,
-                resumes_from_index=loop.resumes_from_index,
-            )
+        if ti.region_id != SENTINEL_REGION_ID:
+            resolver = TaskCoordinateResolver(dag_bag, session)
+            task = resolver.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            if (expanded_ti_count := resolver.get_expanded_ti_count(ti, task=task)) is not None:
+                context.expanded_ti_count = expanded_ti_count
+            if (loop := resolver.get_loop_position(ti, task=task)) is not None:
+                terminal = resolver.get_task(
+                    ti.dag_id, ti.run_id, loop.group.terminal_task_id, dag_version_id=ti.dag_version_id
+                )
+                context.loop = LoopContext(
+                    node_id=loop.group.node_id,
+                    index=loop.index,
+                    max_iterations=loop.group.max_iterations,
+                    terminal_task_id=loop.group.terminal_task_id,
+                    terminal_is_mapped=terminal.get_needs_expansion(),
+                    region_id=loop.region_id,
+                    trajectory=loop.trajectory,
+                )
+                # Set only for a fork, as the route leaves out unset fields
+                if loop.forked_from_region_id is not None:
+                    context.loop.forked_from_region_id = loop.forked_from_region_id
+                    context.loop.resumes_from_index = loop.resumes_from_index
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 

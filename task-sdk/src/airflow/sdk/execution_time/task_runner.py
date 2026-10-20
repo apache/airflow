@@ -284,7 +284,7 @@ class RuntimeTaskInstance(TaskInstance):
 
     @property
     def expanded_ti_count(self) -> int | None:
-        """Number of instances in this mapped task's expansion, ``None`` for a task that isn't mapped."""
+        """Number of instances in this mapped task's expansion in its loop iteration, None if not mapped."""
         if self._ti_context_from_server is None:
             return None
         return self._ti_context_from_server.expanded_ti_count
@@ -382,8 +382,8 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
-            if from_server.loop is not None:
-                self._cached_template_context["loop"] = LoopContextAccessor(from_server.loop, self)
+            if (loop := self.loop) is not None:
+                self._cached_template_context["loop"] = loop
             dag_run = from_server.dag_run
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime

@@ -343,9 +343,9 @@ class LoopContext(BaseModel):
     terminal_task_id: Annotated[str, Field(title="Terminal Task Id")]
     terminal_is_mapped: Annotated[bool, Field(title="Terminal Is Mapped")]
     region_id: Annotated[UUID, Field(title="Region Id")]
-    trajectory: Annotated[int | None, Field(ge=1, title="Trajectory")] = 1
+    trajectory: Annotated[int, Field(ge=1, title="Trajectory")]
     forked_from_region_id: Annotated[UUID | None, Field(title="Forked From Region Id")] = None
-    resumes_from_index: Annotated[int | None, Field(ge=0, title="Resumes From Index")] = 0
+    resumes_from_index: Annotated[int | None, Field(title="Resumes From Index")] = None
 
 
 class LoopDecisionPayload(BaseModel):

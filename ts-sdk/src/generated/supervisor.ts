@@ -239,7 +239,7 @@ export type TerminalIsMapped = boolean;
 export type RegionId1 = string;
 export type Trajectory = number;
 export type ForkedFromRegionId = string | null;
-export type ResumesFromIndex = number;
+export type ResumesFromIndex = number | null;
 export type ExpandedTiCount = number | null;
 export type TaskRescheduleCount = number;
 export type FirstTaskRescheduleStartDate = string | null;
@@ -1083,7 +1083,7 @@ export interface LoopContext {
   terminal_task_id: TerminalTaskId;
   terminal_is_mapped: TerminalIsMapped;
   region_id: RegionId1;
-  trajectory?: Trajectory;
+  trajectory: Trajectory;
   forked_from_region_id?: ForkedFromRegionId;
   resumes_from_index?: ResumesFromIndex;
 }

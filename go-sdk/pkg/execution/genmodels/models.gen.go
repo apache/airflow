@@ -1337,7 +1337,7 @@ type LoopContext struct {
 	RegionID string `msgpack:"region_id"`
 
 	// ResumesFromIndex corresponds to the JSON schema field "resumes_from_index".
-	ResumesFromIndex int `msgpack:"resumes_from_index,omitempty"`
+	ResumesFromIndex interface{} `msgpack:"resumes_from_index,omitempty"`
 
 	// TerminalIsMapped corresponds to the JSON schema field "terminal_is_mapped".
 	TerminalIsMapped bool `msgpack:"terminal_is_mapped"`
@@ -1346,7 +1346,7 @@ type LoopContext struct {
 	TerminalTaskID string `msgpack:"terminal_task_id"`
 
 	// Trajectory corresponds to the JSON schema field "trajectory".
-	Trajectory *int `msgpack:"trajectory,omitempty"`
+	Trajectory int `msgpack:"trajectory"`
 }
 
 // A loop gate's evaluation of its “until“ callable.
@@ -1844,21 +1844,6 @@ const TaskInstanceStateFailed TaskInstanceState = "failed"
 const TaskInstanceStateQueued TaskInstanceState = "queued"
 const TaskInstanceStateRemoved TaskInstanceState = "removed"
 
-type VersionData map[string]interface{}
-
-const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
-const TaskInstanceStateRunning TaskInstanceState = "running"
-const TaskInstanceStateSuccess TaskInstanceState = "success"
-const TaskInstanceStateRestarting TaskInstanceState = "restarting"
-const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
-
-const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
-
-const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
-const TaskInstanceStateSkipped TaskInstanceState = "skipped"
-
-type TaskOutlets []AssetProfile
-
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
 	// Key corresponds to the JSON schema field "key".
@@ -1867,6 +1852,21 @@ type VariableResponse struct {
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value"`
 }
+
+const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
+const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateSuccess TaskInstanceState = "success"
+const TaskInstanceStateRestarting TaskInstanceState = "restarting"
+
+type VersionData map[string]interface{}
+
+const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
+const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
+
+type TaskOutlets []AssetProfile
+
+const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
+const TaskInstanceStateSkipped TaskInstanceState = "skipped"
 
 type TriggerKwargs map[string]interface{}
 

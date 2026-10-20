@@ -63,6 +63,7 @@ def loop_ti(create_runtime_ti):
             terminal_task_id=group.terminal_task_id,
             terminal_is_mapped=False,
             region_id=LOOP_REGION_ID,
+            trajectory=1,
         )
         return ti
 
@@ -106,6 +107,7 @@ def test_body_callable_receives_loop_context_after_unmapping(create_runtime_ti, 
         terminal_task_id=group.terminal_task_id,
         terminal_is_mapped=mapped,
         region_id=LOOP_REGION_ID,
+        trajectory=1,
     )
 
     assert operator.execute(ti.get_template_context()) == (5, 2, 0 if mapped else -1)
@@ -120,7 +122,7 @@ def test_task_instance_exposes_the_loop_iteration_and_its_trajectory(loop_ti):
     loop = ti.loop
 
     assert loop is not None
-    assert (loop.group_id, loop.index, loop.max_iterations) == ("body", 2, 3)
+    assert (loop.index, loop.max_iterations) == (2, 3)
     assert (loop.region_id, loop.trajectory) == (LOOP_REGION_ID, 2)
     assert (loop.forked_from_region_id, loop.resumes_from_index) == (FORKED_REGION_ID, 2)
 

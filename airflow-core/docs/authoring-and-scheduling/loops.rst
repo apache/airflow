@@ -152,18 +152,16 @@ definition.
      - The previous iteration's result, or ``None`` in iteration 1.
    * - ``loop.result``
      - The terminal body task's result (the XCom pushed under the key ``return_value``) for the current iteration, used by the gate.
-   * - ``loop.group_id``
-     - The group id of the loop.
    * - ``loop.region_id``
-     - The id of the loop execution that holds this iteration. It is the same for every task instance of
-       the iteration, mapped ones included.
+     - The id of the loop execution (trajectory) that holds this iteration. It is the same for every task
+       instance of the iteration, mapped ones included.
    * - ``loop.trajectory``
-     - 1 for the loop's first execution, and one more each time a rerun replaces later iterations, see
-       :ref:`loops-trajectories`.
+     - The number of that trajectory: 1 for the loop's first execution, and one more each time a rerun
+       replaces later iterations, see :ref:`loops-trajectories`.
    * - ``loop.forked_from_region_id``
-     - The ``loop.region_id`` of the execution this one replaced, or ``None`` in trajectory 1.
+     - The ``loop.region_id`` of the previous trajectory, or ``None`` in trajectory 1.
    * - ``loop.resumes_from_index``
-     - The first iteration this execution holds, 0 in trajectory 1.
+     - The first iteration this trajectory holds, or ``None`` in trajectory 1, which holds them from 0.
 
 Use ``loop.index`` for the loop iteration and ``ti.map_index`` for a mapped
 task instance's position. Each task instance can have several tries, each with its own ``ti.try_number``.
@@ -440,9 +438,9 @@ Tasks you leave uncleared are not recomputed using the results of the rerun.
 Reruns and trajectories
 -----------------------
 
-Clearing later iterations starts a new execution of the loop that replaces the old one from the
-iteration after the rerun gate. Each execution is a trajectory: ``loop.trajectory`` is 1 for the
-first one and grows by one with each rerun. The rerun gate, and whatever you clear in its
+Clearing later iterations starts a new execution of the loop that replaces the previous ones from the
+iteration after the rerun gate. Each execution is a trajectory, identified by ``loop.region_id`` and
+numbered by ``loop.trajectory``: 1 for the first one, growing by one with each rerun. The rerun gate, and whatever you clear in its
 iteration, run again in the trajectory that iteration belongs to, with their next try. The
 replacement iterations run in the new trajectory, from ``loop.resumes_from_index``, and their tries
 count from the start again. In the

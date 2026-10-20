@@ -459,25 +459,30 @@ class LoopContext(BaseModel):
 
     region_id: uuid.UUID
     """
-    The loop region holding this iteration.
+    The loop region holding this iteration, which identifies the trajectory it runs in.
 
     A mapped task's own ``region_id`` is its expansion's, so this is how its instances are tied to the
-    unmapped tasks of the same pass.
+    unmapped tasks of the same iteration.
     """
 
-    trajectory: int = Field(default=1, ge=1)
+    trajectory: int = Field(ge=1)
     """
-    1 for the loop's original region, and one more for each fork of it.
+    The number of ``region_id`` in the loop's chain of regions: 1 for the original, n + 1 for its n-th fork.
 
-    Clearing a loop with its later iterations forks the loop region, and the iterations from
+    Clearing a loop gate with the later iterations forks the newest loop region, and the iterations from
     ``resumes_from_index`` on run again in the fork.
     """
 
     forked_from_region_id: uuid.UUID | None = None
-    """The loop region this fork replaces from ``resumes_from_index`` on, ``None`` for an original region."""
+    """
+    The region ``region_id`` was forked from, the previous one in the chain. Absent for the original region.
 
-    resumes_from_index: int = Field(default=0, ge=0)
-    """The first iteration ``region_id`` holds, 0 for an original region."""
+    The fork replaces the iterations from ``resumes_from_index`` on, which can be held by earlier regions of
+    the chain too.
+    """
+
+    resumes_from_index: int | None = None
+    """The first iteration ``region_id`` holds. Absent for the original region, which holds them from 0."""
 
 
 class TIRunContext(BaseModel):

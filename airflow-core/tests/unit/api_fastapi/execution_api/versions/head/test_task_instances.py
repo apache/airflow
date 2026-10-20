@@ -667,8 +667,6 @@ class TestTIRunState:
             "terminal_is_mapped": mapped,
             "region_id": str(parent.id),
             "trajectory": 1,
-            "forked_from_region_id": None,
-            "resumes_from_index": 0,
         }
         assert response.json().get("expanded_ti_count") == (1 if mapped else None)
 

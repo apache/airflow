@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import struct
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -52,9 +51,6 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.db import clear_db_runs
-
-if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
 
 pytestmark = pytest.mark.db_test
 
@@ -1119,13 +1115,11 @@ def test_loop_sequence_of_mapped_task_skips_passes_a_fork_replaced(loop_run, ses
 
 @pytest.mark.parametrize("forks", [0, 1, 2])
 def test_trajectory_counts_the_forks_a_region_descends_from(forks):
-    regions = {}
-    region = DynamicRegion(id=uuid4(), dag_id="dag", run_id="run", node_id="loop")
-    regions[region.id] = region
+    dag_run = DagRun(dag_id="dag", run_id="run")
+    region = make_region(dag_run, id=uuid4())
+    regions = {region.id: region}
     for _ in range(forks):
-        region = DynamicRegion(
-            id=uuid4(), dag_id="dag", run_id="run", node_id="loop", forked_from_region_id=region.id
-        )
+        region = make_region(dag_run, id=uuid4(), forked_from_region_id=region.id)
         regions[region.id] = region
 
     assert get_trajectory(region, regions) == forks + 1

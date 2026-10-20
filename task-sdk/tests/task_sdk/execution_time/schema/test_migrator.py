@@ -527,6 +527,7 @@ class TestRealBundleArgBindingsDowngrade:
             terminal_task_id="body.terminal",
             terminal_is_mapped=True,
             region_id=UUID("0199a8c0-0000-7000-8000-000000000001"),
+            trajectory=1,
         )
         startup_details.ti_context.expanded_ti_count = 2
         context = real_migrator.downgrade(startup_details, version).model_dump()["ti_context"]

@@ -57,24 +57,20 @@ class LoopContextAccessor:
         return self._descriptor.max_iterations
 
     @property
-    def group_id(self) -> str:
-        return self._descriptor.node_id
-
-    @property
     def region_id(self) -> UUID:
         return self._descriptor.region_id
 
     @property
     def trajectory(self) -> int:
-        return cast("int", self._descriptor.trajectory)
+        return self._descriptor.trajectory
 
     @property
     def forked_from_region_id(self) -> UUID | None:
         return self._descriptor.forked_from_region_id
 
     @property
-    def resumes_from_index(self) -> int:
-        return cast("int", self._descriptor.resumes_from_index)
+    def resumes_from_index(self) -> int | None:
+        return self._descriptor.resumes_from_index
 
     @property
     def previous(self) -> Any:

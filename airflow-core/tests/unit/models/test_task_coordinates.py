@@ -33,7 +33,6 @@ from airflow.models.task_coordinates import (
     TaskCoordinateResolver,
     build_coordinate_filters,
     get_public_map_index,
-    get_task_instance_execution_position,
     is_plain_expansion,
 )
 from airflow.models.taskinstance import TaskInstance
@@ -183,7 +182,7 @@ def test_loop_position_describes_the_region_holding_the_iteration(forked_loop_co
         1,
         None,
     )
-    assert original.resumes_from_index == 0
+    assert original.resumes_from_index is None
     assert (fork.region_id, fork.trajectory, fork.forked_from_region_id) == (
         consumer.region_id,
         2,
@@ -193,27 +192,20 @@ def test_loop_position_describes_the_region_holding_the_iteration(forked_loop_co
     assert resolver.get_loop_position(outside) is None
 
 
-def test_execution_position_of_a_stored_task_instance(loop_coordinates, dag_maker, session):
-    with dag_maker("mapped-execution-position", serialized=True):
+def test_expanded_ti_count_counts_live_instances_of_the_expansion(loop_coordinates, dag_maker, session):
+    with dag_maker("mapped-expansion", serialized=True):
         PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]])
     mapped = sorted(dag_maker.create_dagrun().task_instances, key=lambda ti: ti.map_index)
     mapped[2].state = TaskInstanceState.REMOVED
     _, _, consumer, _, outside = loop_coordinates
     session.flush()
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    resolver.get_expanded_ti_count(mapped[0])
 
-    in_loop = get_task_instance_execution_position(consumer, session=session)
-    plain = get_task_instance_execution_position(outside, session=session)
-    expanded = get_task_instance_execution_position(mapped[1], session=session)
-
-    assert (in_loop.map_index, in_loop.expanded_ti_count) == (-1, None)
-    assert in_loop.loop is not None
-    assert (in_loop.loop.group.group_id, in_loop.loop.index, in_loop.loop.region_id) == (
-        "body",
-        2,
-        consumer.region_id,
-    )
-    assert (plain.map_index, plain.expanded_ti_count, plain.loop) == (-1, None, None)
-    assert (expanded.map_index, expanded.expanded_ti_count, expanded.loop) == (1, 2, None)
+    with assert_queries_count(1):
+        assert resolver.get_expanded_ti_count(mapped[1]) == 2
+    assert resolver.get_expanded_ti_count(consumer) is None
+    assert resolver.get_expanded_ti_count(outside) is None
 
 
 def test_removed_task_coordinates_degrade_to_stored_region_data(dag_maker, session):
