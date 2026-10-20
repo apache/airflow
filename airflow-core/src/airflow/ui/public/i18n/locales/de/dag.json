@@ -337,7 +337,7 @@
     },
     "limitReached": {
       "description": "Es gibt mehr Änderungen als die Begrenzung zulässt. Entferne die Begrenzung, um die restlichen zu sehen.",
-      "descriptionDefault": "Es gibt mehr Änderungen als die Begrenzung erlaubt. Erhöhe das Maximum, um mehr zu sehen.",
+      "descriptionDefault": "Es gibt mehr Änderungen als die Begrenzung erlaubt. Setze das Maimum herauf, um mehr zu sehen.",
       "title": "Zeige nur die ersten {{limit, number}} Änderungen"
     },
     "maxChanges": "Maximale Änderungen",
