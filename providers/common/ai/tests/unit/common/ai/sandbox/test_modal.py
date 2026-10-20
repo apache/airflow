@@ -144,10 +144,8 @@ class TestVendorContract:
     def test_the_calls_behind_the_tools_still_exist(self, real_modal):
         import inspect
 
-        try:
-            from modal.sandbox._filesystem import _SandboxFilesystem
-        except ImportError:  # modal < 1.6 keeps it in a flat module
-            from modal.sandbox import _SandboxFilesystem
+        # Not imported: the private module path changed in modal 1.6.2.
+        _SandboxFilesystem = inspect.signature(real_modal.Sandbox.filesystem.fget).return_annotation
 
         assert list(inspect.signature(_SandboxFilesystem.write_bytes).parameters)[1:3] == [
             "data",
