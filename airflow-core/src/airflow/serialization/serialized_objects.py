@@ -924,15 +924,17 @@ class _DependencyDetector:
             and issubclass(task.operator_class, TriggerDagRunOperator)
             and "trigger_dag_id" in task.partial_kwargs
         ):
-            deps.append(
-                DagDependency(
-                    source=task.dag_id,
-                    target=task.partial_kwargs["trigger_dag_id"],
-                    label=task.task_display_name,
-                    dependency_type="trigger",
-                    dependency_id=task.task_id,
+            trigger_dag_id = task.partial_kwargs["trigger_dag_id"]
+            if isinstance(trigger_dag_id, str):
+                deps.append(
+                    DagDependency(
+                        source=task.dag_id,
+                        target=trigger_dag_id,
+                        label=task.task_display_name,
+                        dependency_type="trigger",
+                        dependency_id=task.task_id,
+                    )
                 )
-            )
         elif isinstance(task, ExternalTaskSensor):
             deps.append(
                 DagDependency(
