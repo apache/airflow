@@ -133,8 +133,11 @@ invocation UUID as a one-shot session ID, including for toolset calls. A hook ca
 vendor options cannot override the app URL or connection.
 
 ``ManagedAgentResponse.raw`` preserves the full invocation response. String outputs
-become ``text``; an object with a string ``output`` field uses that field as text;
-other outputs become JSON text. Non-string outputs are also available in
+become ``text``; an object with a string ``output`` field uses that field as text.
+For CLI template outputs containing a list of messages, ``text`` uses the last
+assistant message's content when it is a string or a list of text blocks.
+Both OpenAI ``role="assistant"`` and LangGraph ``type="ai"`` messages are recognized.
+Unrecognized outputs become JSON text. Non-string outputs are also available in
 ``structured``. The invocation ID is returned as ``trace_ref``.
 
 The managed-agent interface requires a ``completed`` invocation whose output is

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from unittest import mock
@@ -343,6 +344,71 @@ class TestManagedAgent:
         assert first.text == text
         assert first.structured == structured
         assert first.raw == call.return_value
+
+    @mock.patch.object(DatabricksAgentHook, "_do_agent_api_call", autospec=True)
+    @pytest.mark.parametrize("identity", [{"role": "assistant"}, {"type": "ai"}], ids=["openai", "langgraph"])
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            ("Final answer", "Final answer"),
+            ("", ""),
+            ([{"type": "text", "text": "Final "}, {"type": "text", "text": "answer"}], "Final answer"),
+            (["Final ", {"type": "text", "text": "answer"}], "Final answer"),
+        ],
+    )
+    def test_template_response_uses_last_assistant_message(self, call, identity, content, expected):
+        output = {
+            "status": "completed",
+            "output": [
+                {**identity, "content": "Let me check."},
+                {**identity, "content": "", "tool_calls": [{"name": "lookup", "args": {}}]},
+                {"role": "tool", "content": "Tool result"},
+                {**identity, "content": content},
+                {"role": "tool", "content": "Trailing tool result"},
+            ],
+        }
+        call.return_value = {"status": "completed", "output": output}
+        result = DatabricksAgentHook().agent(APP_URL).invoke(ManagedAgentRequest(prompt="hello"))
+
+        assert result.text == expected
+        assert result.raw == call.return_value
+        assert result.structured == output
+
+    @mock.patch.object(DatabricksAgentHook, "_do_agent_api_call", autospec=True)
+    @pytest.mark.parametrize(
+        "messages",
+        [
+            [],
+            [{"role": "tool", "content": "result"}],
+            [None],
+            [{"role": "assistant", "content": []}],
+            [{"type": "ai", "content": [{"type": "image", "url": "image.png"}]}],
+            [{"role": "assistant", "content": "Earlier"}, {"role": "assistant", "content": None}],
+        ],
+    )
+    def test_unrecognized_template_response_preserves_json(self, call, messages):
+        output = {"status": "completed", "output": messages}
+        call.return_value = {"status": "completed", "output": output}
+        result = DatabricksAgentHook().agent(APP_URL).invoke(ManagedAgentRequest(prompt="hello"))
+
+        assert result.text == json.dumps(output)
+
+    @mock.patch.object(DatabricksAgentHook, "_do_agent_api_call", autospec=True)
+    @pytest.mark.parametrize("identity", [{"role": "assistant"}, {"type": "ai"}], ids=["openai", "langgraph"])
+    def test_toolset_returns_template_answer(self, call, identity):
+        call.return_value = {
+            "status": "completed",
+            "output": {
+                "status": "completed",
+                "output": [
+                    {"role": "tool", "content": "Internal tool result"},
+                    {**identity, "content": "Final answer"},
+                ],
+            },
+        }
+        toolset = ManagedAgentToolset(DatabricksAgentHook().agent(APP_URL), tool_name="ask_agent")
+
+        assert toolset.invoke_sync("hello") == "Final answer"
 
     @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
     @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)

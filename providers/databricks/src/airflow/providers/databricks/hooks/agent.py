@@ -242,6 +242,32 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
         text = output if isinstance(output, str) else "" if output is None else json.dumps(output)
         if isinstance(output, dict) and isinstance(output.get("output"), str):
             text = output["output"]
+        elif isinstance(output, dict) and isinstance(output.get("output"), list):
+            for message in reversed(output["output"]):
+                if not isinstance(message, dict):
+                    continue
+                # OpenAI templates use role; LangGraph templates serialize AIMessage.type.
+                if message.get("role") != "assistant" and message.get("type") != "ai":
+                    continue
+                content = message.get("content")
+                if isinstance(content, str):
+                    text = content
+                elif isinstance(content, list) and content:
+                    parts = []
+                    for block in content:
+                        if isinstance(block, str):
+                            parts.append(block)
+                        elif (
+                            isinstance(block, dict)
+                            and block.get("type") == "text"
+                            and isinstance(block.get("text"), str)
+                        ):
+                            parts.append(block["text"])
+                        else:
+                            break
+                    else:
+                        text = "".join(parts)
+                break
         return ManagedAgentResponse(
             text=text,
             raw=raw,
