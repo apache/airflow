@@ -4086,6 +4086,33 @@ REQUEST_TEST_CASES = [
 
 
 class TestHandleRequest:
+    def test_send_large_integers_in_error_preserves_other_types(self, watched_subprocess):
+        process, reader = watched_subprocess
+        message = ErrorResponse(
+            detail={
+                "large": 2**64,
+                "tuple": (-(2**63) - 1,),
+                "integer_key": {1: 2**64},
+                "model": MaskSecret(value=2**64),
+                "date": timezone.datetime(2024, 1, 1),
+                "bytes": b"unchanged",
+                "extension": msgspec.msgpack.Ext(1, b"unchanged"),
+            }
+        )
+        expected = message.model_dump()
+        expected["error"] = message.error.value
+        expected["detail"]["tuple"] = [-(2**63) - 1]
+
+        process.send_msg(None, request_id=42, error=message)
+        received = CommsDecoder(socket=reader)._read_frame()
+
+        assert received.id == 42
+        assert received.body is None
+        assert received.error == expected
+        assert type(received.error["detail"]["large"]) is int
+        assert isinstance(message.detail["tuple"], tuple)
+        assert isinstance(message.detail["model"], MaskSecret)
+
     @pytest.mark.parametrize("schema_version", [None, "2026-06-16"])
     def test_send_large_integer_to_python_only(self, watched_subprocess, schema_version):
         process, reader = watched_subprocess
@@ -6523,13 +6550,20 @@ class TestLengthPrefixedFrameReader:
                 received.append((yield))
 
         reader, writer = socket_pair
-        frame = _RequestFrame(id=42, body={"nested": [value, {"value": value}]})
+        message = MaskSecret(value={"nested": [value, {"value": value}]})
+        frame = CommsDecoder(socket=writer)._make_frame(message)
+        frame = msgspec.structs.replace(
+            frame,
+            ti_id=uuid7(),
+            context_carrier={"traceparent": "00-" + "a" * 32 + "-" + "b" * 16 + "-01"},
+        )
         writer.sendall(frame.as_bytes())
         callback, _ = supervisor.length_prefixed_frame_reader(collect_frames(), on_close=lambda _: None)
         callback(reader)
 
         assert received == [frame]
-        assert type(received[0].body["nested"][0]) is int
+        assert type(received[0].body["value"]["nested"][0]) is int
+        assert frame.body == message.model_dump()
 
     def test_recovers_from_short_read_on_header(self):
         received: list[_RequestFrame] = []

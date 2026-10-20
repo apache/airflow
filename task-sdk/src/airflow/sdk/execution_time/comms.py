@@ -60,7 +60,7 @@ from datetime import datetime
 from functools import cached_property
 from pathlib import Path
 from socket import socket
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Generic, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Generic, Literal, TypeVar, cast, overload
 from uuid import UUID
 
 import attrs
@@ -189,12 +189,6 @@ def _encode_large_ints(value: Any) -> Any:
         return {key: _encode_large_ints(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [_encode_large_ints(item) for item in value]
-    if isinstance(value, msgspec.Struct):
-        return msgspec.structs.replace(
-            value, **{name: _encode_large_ints(getattr(value, name)) for name in value.__struct_fields__}
-        )
-    if isinstance(value, BaseModel):
-        return _encode_large_ints(value.model_dump(exclude_unset=True))
     return value
 
 
@@ -217,7 +211,11 @@ class _FrameMixin:
             if not allow_large_ints:
                 raise
             # Keep the usual path free of a Python traversal of every message.
-            self._encoder.encode_into(_encode_large_ints(self), buffer, 4)
+            frame = cast("_RequestFrame | _ResponseFrame", self)
+            fields = {"body": _encode_large_ints(frame.body)}
+            if isinstance(frame, _ResponseFrame):
+                fields["error"] = _encode_large_ints(frame.error)
+            self._encoder.encode_into(msgspec.structs.replace(frame, **fields), buffer, 4)
 
         n = len(buffer) - 4
         if n >= 2**32:
