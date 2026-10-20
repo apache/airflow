@@ -29,6 +29,16 @@ Changelog
 ......
 
 .. note::
+
+    The Keycloak provisioning commands ``create-all``, ``create-permissions``,
+    and ``create-team`` now explicitly configure the resource-server decision
+    strategy as ``AFFIRMATIVE`` and report strategy changes. This client-wide
+    setting also affects existing custom permissions. A permitting permission
+    can authorize access despite another permission's denial. Review custom
+    authorization rules that depend on ``UNANIMOUS`` before provisioning an
+    existing client. ``--dry-run`` reports the proposed change without applying it.
+
+.. note::
     In multi-team mode, the views covering records that are not tied to a Dag or a team -- audit log
     entries not tied to a Dag, import errors for files with no registered Dag and reparsing such
     files -- are now checked against a new ``AdminView`` Keycloak resource instead of ``View``.

@@ -249,8 +249,14 @@ def test_ensure_resource_server_decision_strategy(
     assert settings["decisionStrategy"] == strategy
 
     output = capsys.readouterr().out
-    if dry_run and strategy != "AFFIRMATIVE":
-        assert "Would set resource-server decision strategy to AFFIRMATIVE." in output
+    if strategy != "AFFIRMATIVE":
+        action = "Would set" if dry_run else "Set"
+        assert output == (
+            f"{action} resource-server decision strategy to AFFIRMATIVE. "
+            "This client-wide setting affects all permissions, including custom permissions. "
+            "A permitting permission can override another permission's denial; "
+            "review existing custom authorization rules.\n"
+        )
     else:
         assert output == ""
 

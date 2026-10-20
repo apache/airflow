@@ -308,8 +308,13 @@ def _ensure_resource_server_decision_strategy(
     if settings.get("decisionStrategy") == "AFFIRMATIVE":
         return
 
+    strategy_notice = (
+        "This client-wide setting affects all permissions, including custom permissions. "
+        "A permitting permission can override another permission's denial; "
+        "review existing custom authorization rules."
+    )
     if _dry_run:
-        print("Would set resource-server decision strategy to AFFIRMATIVE.")
+        print(f"Would set resource-server decision strategy to AFFIRMATIVE. {strategy_notice}")
         return
 
     payload = {**settings, "decisionStrategy": "AFFIRMATIVE"}
@@ -319,6 +324,7 @@ def _ensure_resource_server_decision_strategy(
         KeycloakPutError,
         expected_codes=[204],
     )
+    print(f"Set resource-server decision strategy to AFFIRMATIVE. {strategy_notice}")
 
 
 def _ensure_default_role_policies(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False) -> None:
