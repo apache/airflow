@@ -21,7 +21,7 @@
 
 Write Apache Airflow Dags and tasks in Go.
 
-**Status:** beta · API may change · Go 1.25+
+Requires Go 1.25 or later.
 
 ## Installation
 

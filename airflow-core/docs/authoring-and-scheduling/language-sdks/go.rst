@@ -20,8 +20,6 @@
 Go SDK
 ======
 
-|experimental|
-
 The Go SDK lets you write Airflow Dags and tasks in Go. There are two ways to use it:
 
 * **Dag definition.** The schedule, the tasks, their options and the dependencies between them are all written
@@ -34,7 +32,7 @@ Both use the same task API and the same build tool, and one bundle can serve bot
 Go is compiled, so your Dags and tasks are built into a single self-contained executable, the **bundle**, with
 the :ref:`airflow-go-pack <go-sdk/build>` tool. The bundle is the only file you deploy.
 
-The SDK is the ``github.com/apache/airflow/go-sdk`` Go module. It is in **beta**, and its API may change.
+The SDK is the ``github.com/apache/airflow/go-sdk`` Go module.
 
 .. seealso::
 
@@ -806,5 +804,4 @@ Limitations
   Dag processor reads them.
 * **Some CLI commands do not take a Dag declared in Go.** ``airflow dags test``, ``tasks test`` and
   ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
-* **Beta.** The API may change in incompatible ways between releases.
 * **One process per task instance.** Tasks cannot share in-process state; use XComs or an external store.
