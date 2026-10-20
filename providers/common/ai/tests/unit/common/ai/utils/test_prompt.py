@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import pytest
 from pydantic_ai.messages import (
+    AudioUrl,
     BinaryContent,
     CachePoint,
     DocumentUrl,
     ImageUrl,
     TextContent,
     UploadedFile,
+    VideoUrl,
 )
 
 from airflow.providers.common.ai.utils.prompt import describe_prompt
@@ -39,7 +41,29 @@ from airflow.providers.common.ai.utils.prompt import describe_prompt
             [BinaryContent(data=b"\x89PNG", media_type="image/png")], "[image/png, 4 bytes]", id="binary"
         ),
         pytest.param(
-            [ImageUrl(url="https://example.com/a.png")], "[image-url: https://example.com/a.png]", id="url"
+            [ImageUrl(url="https://example.com/a.png")],
+            "[image-url: https://example.com/a.png]",
+            id="image-url",
+        ),
+        pytest.param(
+            [AudioUrl(url="https://example.com/a.mp3")],
+            "[audio-url: https://example.com/a.mp3]",
+            id="audio-url",
+        ),
+        pytest.param(
+            [DocumentUrl(url="https://example.com/a.pdf")],
+            "[document-url: https://example.com/a.pdf]",
+            id="document-url",
+        ),
+        pytest.param(
+            [VideoUrl(url="https://example.com/a.mp4")],
+            "[video-url: https://example.com/a.mp4]",
+            id="video-url",
+        ),
+        pytest.param(
+            [VideoUrl(url="https://www.youtube.com/watch?v=abc123&t=42")],
+            "[video-url: https://www.youtube.com/watch?v=abc123]",
+            id="youtube-url",
         ),
         pytest.param(
             [ImageUrl(url="https://user:pass@bucket.s3.amazonaws.com/a.png?X-Amz-Signature=abc#frag")],
