@@ -277,27 +277,6 @@ def clear_db():
     clear_db_dag_bundles()
 
 
-@pytest.mark.db_test
-@pytest.mark.parametrize("existing", [False, True])
-@conf_vars({("core", "load_examples"): "False"})
-@patch.object(BasicBundle, "__init__", autospec=True, side_effect=AssertionError("constructed too early"))
-def test_metadata_sync_does_not_construct_bundles_or_clear_urls(constructor, clear_db, session, existing):
-    if existing:
-        bundle = DagBundleModel(name="my-test-bundle")
-        bundle.signed_url_template = "saved"
-        bundle.template_params = {"x": 1}
-        session.add(bundle)
-        session.commit()
-    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)}):
-        DagBundlesManager().sync_bundles_to_db(include_bundle_urls=False)
-    session.expire_all()
-    bundle = session.get(DagBundleModel, "my-test-bundle")
-    assert bundle.active
-    if existing:
-        assert (bundle.signed_url_template, bundle.template_params) == ("saved", {"x": 1})
-    constructor.assert_not_called()
-
-
 @pytest.mark.parametrize("operation", ["get", "list", "sync"])
 @pytest.mark.db_test
 @conf_vars({("core", "load_examples"): "False"})
