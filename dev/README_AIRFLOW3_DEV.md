@@ -190,6 +190,12 @@ committer can cancel it with **Disable auto-merge**. A push by the PR author (or
 write access) disables auto-merge, so the author cannot change the PR after you approved it; review the
 new commits and enable it again. Pushes by committers keep it enabled.
 
+Auto-merge is enabled for the whole repository, so every branch that PRs target requires CI. The
+"Require CI on release branches" ruleset requires **CI passed** on the release, providers, chart and
+`airflow-ctl` branches. A release branch gets the **CI passed** job only once it is backported there; until
+then, its PRs never report the check, and a committer merges them by bypassing the rule. Backport the job to
+the active release branches when this lands.
+
 The `main` ruleset requires two checks. **CI passed** is a job in the `Tests (AMD)` workflow that always
 runs and fails when any other CI job failed or was cancelled; jobs that selective checks skip count as
 passed, so PRs that run only part of the tests still get a result. The `check-ci-gate-needs` prek hook

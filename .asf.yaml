@@ -72,8 +72,10 @@ github:
     rebase: false
 
   pull_requests:
-    # Auto-merge waits for the required "CI passed" check enforced by the "Require CI on main" ruleset.
-    # Without a required check it would merge as soon as the PR is approved, before CI finishes.
+    # Auto-merge waits for the required "CI passed" check enforced by the "Require CI on main" and
+    # "Require CI on release branches" rulesets. Without a required check it would merge as soon as
+    # the PR is approved, before CI finishes. The setting is repository-wide, so every branch that
+    # PRs target needs one of those rulesets.
     allow_auto_merge: true
     # enable updating head branches of pull requests
     allow_update_branch: true
@@ -118,6 +120,25 @@ github:
         - name: "CI passed"
           app_slug: "github-actions"
         - name: "check-newsfragment-pr-number"
+          app_slug: "github-actions"
+    # The branches `ci-amd.yml` runs pull request CI for, apart from `main`. The newsfragment check
+    # runs only on `main`, so these require "CI passed" alone. A release branch gets the "CI passed"
+    # job only when it is backported there; until then its PRs need a committer to bypass the rule.
+    - name: "Require CI on release branches"
+      type: branch
+      branches:
+        includes:
+          - "v*-test"
+          - "v*-stable"
+          - "providers-*/v*"
+          - "chart/v*-test"
+          - "chart/v*-stable"
+          - "airflow-ctl/v*-test"
+          - "airflow-ctl/v*-stable"
+      bypass_teams:
+        - "airflow-committers"
+      required_status_checks:
+        - name: "CI passed"
           app_slug: "github-actions"
     - name: "Branch protection"
       type: branch
