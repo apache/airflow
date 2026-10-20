@@ -816,9 +816,30 @@ class TestGetPendingPartitionedDagRun:
         resp = test_client.get("/pending_partitioned_dag_run/redacted_detail_dag?partition_key=2024-07-01")
 
         assert resp.status_code == 200
-        # The sibling `assets` array still carries every name and uri; scoping that is a separate
-        # change with its own UI consumers.
-        assert resp.json()["asset_expression"] == {
+        body = resp.json()
+        # Rows come back ordered by the asset's uri, so "secret" precedes "visible".
+        assert [
+            {k: a[k] for k in ("asset_id", "asset_name", "asset_uri", "hidden", "required_count")}
+            for a in body["assets"]
+        ] == [
+            {
+                "asset_id": None,
+                "asset_name": None,
+                "asset_uri": None,
+                "hidden": True,
+                "required_count": 1,
+            },
+            {
+                "asset_id": visible_id,
+                "asset_name": "visible",
+                "asset_uri": "s3://bucket/visible",
+                "hidden": False,
+                "required_count": 1,
+            },
+        ]
+        # Progress stays readable: a blanked asset still counts toward the run's totals.
+        assert body["total_required"] == 2
+        assert body["asset_expression"] == {
             "all": [
                 {
                     "asset": {

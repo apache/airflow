@@ -445,8 +445,13 @@ def get_pending_partitioned_dag_run(
     has_rollup_mappers = dag_model is not None and dag_model.has_rollup_mappers
     rollup_timetable = load_partitioned_timetable(dag_id, session) if has_rollup_mappers else None
 
+    readable_asset_ids = readable_assets_filter.value or set()
+
     assets = []
     for asset_row in asset_rows:
+        # The row itself is still needed in full below: the rollup mapper is keyed by the asset's
+        # real name and uri, and the received-key lookup by its real id. Only the response is blanked.
+        is_hidden = asset_row.id not in readable_asset_ids
         received_keys = sorted(received_keys_by_asset.get(asset_row.id, set()))
         required_keys: list[str] = [partition_key]
         is_rollup = (
@@ -488,9 +493,10 @@ def get_pending_partitioned_dag_run(
             received_count = 1 if received_keys else 0
         assets.append(
             PartitionedDagRunAssetResponse(
-                asset_id=asset_row.id,
-                asset_name=asset_row.name,
-                asset_uri=asset_row.uri,
+                asset_id=None if is_hidden else asset_row.id,
+                asset_name=None if is_hidden else asset_row.name,
+                asset_uri=None if is_hidden else asset_row.uri,
+                hidden=is_hidden,
                 received=received_count >= required_count and required_count > 0,
                 received_count=received_count,
                 required_count=required_count,
@@ -505,9 +511,7 @@ def get_pending_partitioned_dag_run(
     total_received = sum(a.received_count for a in assets)
     total_required = sum(a.required_count for a in assets)
     asset_expression = (
-        redact_asset_expression(
-            dag_model.asset_expression, readable_asset_ids=readable_assets_filter.value or set()
-        )
+        redact_asset_expression(dag_model.asset_expression, readable_asset_ids=readable_asset_ids)
         if dag_model is not None
         else None
     )
