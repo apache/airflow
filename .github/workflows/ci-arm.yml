@@ -1328,7 +1328,12 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   ci-passed:
-    name: "CI passed"
+    # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
+    # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
+    # "CI passed" then would let it merge on no CI, so the job reports under another name and
+    # the fork CI reconciler posts "CI passed" from the fork run instead.
+    name: >-
+      ${{ needs.build-info.result == 'skipped' && 'CI passed (project CI not run)' || 'CI passed' }}
     # The one check main's ruleset requires, so auto-merge waits for CI to finish. GitHub treats a
     # skipped required check as passed, so this job always runs and fails itself when any job it
     # needs failed or was cancelled. Jobs skipped by selective checks count as passed.
