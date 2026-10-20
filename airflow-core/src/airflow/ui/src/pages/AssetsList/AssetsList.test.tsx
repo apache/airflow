@@ -19,21 +19,10 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { handlers } from "src/mocks/handlers";
+import { server } from "src/mocks/server";
 import { AppWrapper } from "src/utils/AppWrapper";
-
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledFrame: "bypass" });
-});
-
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 // The assets mock handler (see src/mocks/handlers/assets.ts) returns a single asset
 // with one consuming task, one alias and one watcher.

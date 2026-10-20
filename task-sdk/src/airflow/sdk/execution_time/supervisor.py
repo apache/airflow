@@ -2917,7 +2917,15 @@ def process_log_messages_from_subprocess(
         if ts := event.get("timestamp"):
             # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
             # datetime.strptime cn
-            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
+            try:
+                event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
+            except msgspec.DecodeError:
+                # The subprocess sends the timestamp field, and msgspec cannot always parse its value. For
+                # example, user code can call self.log.info("...", timestamp=1697190085).
+                # An uncaught DecodeError would stop the task supervisor before it reports the
+                # task state, or stop the whole Dag processor during Dag parsing. Moving the value to
+                # invalid_timestamp lets MaybeTimeStamper add the time the supervisor received the line.
+                event["invalid_timestamp"] = event.pop("timestamp")
 
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace

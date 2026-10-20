@@ -503,7 +503,7 @@ class TestGetDependencies:
         assert response.status_code == 404
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
         return_value=set(),
     )
@@ -523,7 +523,7 @@ class TestGetDependencies:
         assert f"asset:{asset1_id}" not in edge_endpoints
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_scheduling_dependencies_hides_unreadable_gate_leaf(
@@ -554,7 +554,7 @@ class TestGetDependencies:
         assert (f"asset:{asset_b_id}", gate_node["id"]) not in edge_tuples
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
         return_value=set(),
     )
@@ -595,7 +595,7 @@ class TestGetDependencies:
         assert {"gate_asset_a", "gate_asset_b"}.isdisjoint(node["label"] for node in result["nodes"])
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
         return_value=set(),
     )
@@ -609,7 +609,7 @@ class TestGetDependencies:
         assert response.status_code == 404
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_data_dependencies_hides_unreadable_sibling_asset(
@@ -642,7 +642,7 @@ class TestGetDependencies:
         assert not any(node_id.startswith("task:gate_upstream_b") for node_id in node_ids)
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_data_dependencies_hides_gate_leaf_without_id(
