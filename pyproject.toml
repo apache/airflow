@@ -1465,7 +1465,7 @@ ci-image = [
 # with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
 # breeze/prek uv version checks read this value dynamically and tolerate a stale
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
-required-version = ">=0.11.8"
+required-version = ">=0.13.1"
 no-build-isolation-package = ["sphinx-redoc"]
 # pydantic-ai-slim[openai]>=2.33 declares openai>=3 (>=3.8 from 2.39), while
 # llama-index-llms-openai (<=0.8.1) and litellm (<=1.102.0, pulled in by the Google provider's
