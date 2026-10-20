@@ -71,6 +71,7 @@ def test_accepts(base, new):
             id="switched-on-with-past-enabled-since",
         ),
         pytest.param(BASE, "enabled = 1\n", "enabled must be", id="invalid-config"),
+        pytest.param("not = [valid", BASE, "'old-user'", id="past-pilot-with-unparsable-base"),
     ],
 )
 def test_rejects(base, new, message):

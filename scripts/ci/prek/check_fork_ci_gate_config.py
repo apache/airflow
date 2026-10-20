@@ -82,10 +82,12 @@ def find_violations(base_text: str | None, new_text: str, *, now: datetime) -> l
     # A base branch without the file, such as a release branch the file is backported to, has no
     # gate yet, so no pull request against it was ever gated and every entry takes effect only
     # when the file arrives there.
-    if base is None:
+    # An unparsable base still checks every entry, as all of them count as new.
+    if base_text is None:
         return violations
+    base_pilot = base.pilot if base is not None else {}
     for login, joined_at in new.pilot.items():
-        if base.pilot.get(login) != joined_at and joined_at <= now:
+        if base_pilot.get(login) != joined_at and joined_at <= now:
             violations.append(
                 f"[pilot] entry {login!r} has join instant {joined_at.isoformat()}, which is not in the "
                 "future. Use an instant after the expected merge, such as the next day at 00:00 UTC."

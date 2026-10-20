@@ -167,12 +167,52 @@ jobs:
       - name: "Checkout gate configuration from the base branch"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: ${{ github.base_ref || github.ref }}
+          # A push in apache/airflow has no base branch. Its decision depends only on the pushed
+          # ref, so it takes the gate from the default branch: a pushed branch without the gate
+          # files would otherwise look like `base_without_gate` and run project CI on a push that
+          # never triggered it. A push in a fork keeps the pushed commit's gate, by SHA: the fork's
+          # default branch, or a later tip of the pushed branch picked up by a re-run, is the
+          # contributor's to change outside the commit whose result the reconciler trusts, while
+          # a gate change in the pushed commit shows in the pull request's files.
+          ref: >-
+            ${{ github.base_ref ||
+            (github.event_name == 'push' && github.repository == 'apache/airflow' &&
+            github.event.repository.default_branch) ||
+            (github.event_name == 'push' && github.sha) ||
+            github.ref }}
           fetch-depth: 1
           persist-credentials: false
           sparse-checkout: |
             .github/fork-ci-gate.toml
             dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+            scripts/ci/prek/check_no_conventional_commit_message.py
+          sparse-checkout-cone-mode: false
+      # Until the gate is on the default branch, a push in apache/airflow would find no gate there
+      # and run the full project CI as `base_without_gate`, for every branch pushed. Only
+      # committers can push to apache/airflow, so the pushed commit's own gate decides then.
+      - name: "Check whether the default branch has the gate"
+        id: default-branch-gate
+        if: github.event_name == 'push' && github.repository == 'apache/airflow'
+        env:
+          GATE_CONFIG: .github/fork-ci-gate.toml
+          GATE_SCRIPT: dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+        run: |
+          if [[ -e "${GATE_CONFIG}" || -e "${GATE_SCRIPT}" ]]; then
+            echo "present=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "present=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: "Checkout gate configuration from the pushed commit"
+        if: steps.default-branch-gate.outputs.present == 'false'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/fork-ci-gate.toml
+            dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+            scripts/ci/prek/check_no_conventional_commit_message.py
           sparse-checkout-cone-mode: false
       - name: "Decide whether project CI runs"
         id: gate
@@ -198,6 +238,15 @@ jobs:
             exit 0
           fi
           python3 "${GATE_SCRIPT}"
+      # A gated pull request skips ci-image-checks.yml, which checks the title on project CI, and
+      # its fork run is a `push` event without a title.
+      - name: "Check PR title is not Conventional Commits"
+        if: github.event_name == 'pull_request' && steps.gate.outputs.project-ci == 'false'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$PR_TITLE" \
+            | python3 scripts/ci/prek/check_no_conventional_commit_message.py --from-stdin
 
   build-info:
     name: "Build info"
