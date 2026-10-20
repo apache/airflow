@@ -265,9 +265,14 @@ for them, and the triage skill must treat those pull requests as out of scope fo
 Everything else the skill does (quality criteria, pings, suspicious-change flags) applies as
 usual. The `Fork CI / Tests (AMD)` commit status shows the fork CI state and links to the run in
 the fork. To move a single pull request back to project CI, add `use project ci`; the reconciler
-releases it on its next run. Pull requests that change CI-defining files stay in draft even when
-the fork run is green, and are reported to `internal-airflow-ci-cd` for a maintainer to review and
-run project CI with `use project ci`. See
+releases it on its next run; removing `fork ci required` by hand is not enough, the next run
+labels a gated pull request again. Adding the label does not start project CI by itself: re-run
+the pull request's latest `Tests (AMD)` run (`gh run rerun <run-id> -R apache/airflow`, or
+**Re-run all jobs** on the run's page), or ask the author to push. Pull requests that change CI-defining files stay in draft even
+when the fork run is green and are labelled `needs project ci`, for a maintainer to review and run
+project CI with `use project ci`. When the fork run is green and trusted, the reconciler also posts
+the `CI passed` status the merge ruleset requires, so these pull requests can be merged or
+auto-merged without project CI. See
 [Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).
 
 ## For contributors

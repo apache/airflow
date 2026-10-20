@@ -43,8 +43,8 @@ In general, your contribution includes the following stages:
 2. Create a `local virtualenv <07_local_virtualenv.rst>`_,
    initialize the `Breeze environment <../dev/breeze/doc/README.rst>`__, and
    install `prek tool <08_static_code_checks.rst#prek-hooks>`__.
-   Set up the ``upstream`` and ``origin`` remotes, enable CI in your fork and check the result
-   with ``breeze ci audit``, as described in `CI in your fork`_.
+   Set up the ``upstream`` and ``origin`` remotes and check them with ``breeze ci audit``; if
+   fork CI applies to you (see `CI in your fork`_), enable CI in your fork as described there.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
    and set up a `Slack account <https://s.apache.org/airflow-slack>`__.
@@ -144,9 +144,11 @@ Set up your checkout and fork once:
 1. Name your remotes as described in `Git remote naming conventions <10_working_with_git.rst>`__:
    ``upstream`` for ``apache/airflow`` and ``origin`` for your fork.
 
-2. Unless you are a committer, a collaborator or a member of an exempted organisation, enable the
-   ``Tests (AMD)`` workflow in your fork. GitHub disables workflows in new forks. Committers and
-   collaborators keep it disabled, so their pushes do not run CI twice, unless they joined the pilot:
+2. If fork CI applies to you, enable the ``Tests (AMD)`` workflow in your fork: today that means
+   you joined the pilot or a maintainer labelled your pull request ``use fork ci``; once fork CI is
+   switched on for everyone, it means you are not a committer, a collaborator or a member of an
+   exempted organisation. GitHub disables workflows in new forks. Otherwise keep it disabled, so
+   your pushes do not run CI twice:
 
    .. code-block:: bash
 
