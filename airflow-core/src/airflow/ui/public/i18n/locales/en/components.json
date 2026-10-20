@@ -170,6 +170,8 @@
     "intervalStart": "Start",
     "loading": "Loading Dag information...",
     "loadingFailed": "Failed to load Dag information. Please try again.",
+    "logicalDateAfterEndDate": "This logical date is after the Dag's end date ({{endDate}}), so no task will run.",
+    "logicalDateBeforeStartDate": "This logical date is before the Dag's start date ({{startDate}}), so no task will run.",
     "manualRunDenied": "Manual runs are not allowed for this Dag",
     "partitionKeyHelp": "Optional - only applies to partitioned Dags",
     "recentConfig": "Recent configurations",

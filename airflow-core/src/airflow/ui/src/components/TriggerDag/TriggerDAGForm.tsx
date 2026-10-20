@@ -24,12 +24,19 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
-import { RadioCardItem, RadioCardRoot } from "src/system-components";
+import { useDagServiceGetDagDetails } from "openapi/queries";
 
+import { Alert, RadioCardItem, RadioCardRoot } from "src/system-components";
+
+import { useTimezone } from "src/context/timezone";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
-import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
+import {
+  DEFAULT_DATETIME_FORMAT,
+  DEFAULT_DATETIME_FORMAT_WITH_TZ,
+  formatDate,
+} from "src/utils/datetimeUtils";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -81,6 +88,8 @@ const TriggerDAGForm = ({
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
+  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId }, undefined, { enabled: open });
+  const { selectedTimezone } = useTimezone();
   const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [pausedDagAction, setPausedDagAction] = useState<PausedDagAction>("unpause");
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
@@ -165,6 +174,23 @@ const TriggerDAGForm = ({
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
 
+  // Every task's start and end dates are bounded by the Dag's, so a run outside them creates no
+  // task instances and is marked successful without running anything.
+  const logicalDate = watch("logicalDate");
+  const startDate = dagDetails?.start_date;
+  const endDate = dagDetails?.end_date;
+  let outsideDagDatesWarning: string | undefined;
+
+  if (Boolean(logicalDate) && typeof startDate === "string" && dayjs(logicalDate).isBefore(startDate)) {
+    outsideDagDatesWarning = translate("components:triggerDag.logicalDateBeforeStartDate", {
+      startDate: formatDate(startDate, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+    });
+  } else if (Boolean(logicalDate) && typeof endDate === "string" && dayjs(logicalDate).isAfter(endDate)) {
+    outsideDagDatesWarning = translate("components:triggerDag.logicalDateAfterEndDate", {
+      endDate: formatDate(endDate, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+    });
+  }
+
   const dataIntervalMode = watch("dataIntervalMode");
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
@@ -204,6 +230,9 @@ const TriggerDAGForm = ({
                 </Field.Root>
               )}
             />
+            {outsideDagDatesWarning === undefined ? undefined : (
+              <Alert status="warning">{outsideDagDatesWarning}</Alert>
+            )}
             <Spacer />
             {hasSchedule ? (
               <Box>
