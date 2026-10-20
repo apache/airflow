@@ -33,6 +33,7 @@ import structlog
 from pydantic import Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
+from airflow.sdk.api.datamodels._generated import CallbackTerminalState
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
@@ -465,7 +466,13 @@ def supervise_callback(
             logger = structlog.get_logger(logger_name="callback").bind()
 
         # Swap the single-use callback token for an execution token before any context read.
+        # A failure here leaves the row QUEUED; the scheduler's executor-event fallback in
+        # _process_executor_events is what marks it failed, so finish() is deliberately not
+        # reached on this path.
         client.callbacks.run(UUID(id))
+
+        terminal_state = CallbackTerminalState.FAILED
+        terminal_output: str | None = None
 
         try:
             process = CallbackSubprocess.start(
@@ -489,9 +496,23 @@ def supervise_callback(
                 exit_code=exit_code,
                 duration=end - start,
             )
-            if exit_code != 0:
-                raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
-            return exit_code
+            if exit_code == 0:
+                terminal_state = CallbackTerminalState.SUCCESS
+            else:
+                terminal_output = f"Callback subprocess exited with code {exit_code}"
+        except Exception as e:
+            terminal_output = f"Callback supervisor error: {type(e).__name__}: {e}"
+            log.exception("Callback supervisor error", workload_id=id)
+            raise
         finally:
+            try:
+                client.callbacks.finish(UUID(id), state=terminal_state, output=terminal_output)
+            except Exception:
+                log.exception("Failed to report final callback state", workload_id=id)
+
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
+
+    if exit_code != 0:
+        raise RuntimeError(f"Callback subprocess exited with code {exit_code}")
+    return exit_code

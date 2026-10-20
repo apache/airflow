@@ -31,6 +31,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk.api.datamodels._generated import CallbackTerminalState
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
     Path,
@@ -706,6 +707,9 @@ class TestSuperviseCallbackExchangesTokenFirst:
             self._supervise(client)
 
         mock_start.assert_not_called()
+        # The row is still QUEUED, which the state endpoint rejects; the scheduler's
+        # executor-event fallback is what fails it.
+        client.callbacks.finish.assert_not_called()
 
     @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
@@ -725,3 +729,72 @@ class TestSuperviseCallbackExchangesTokenFirst:
         )
 
         assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding
+
+
+class TestSuperviseCallbackReportsTerminalState:
+    """Every path that starts the subprocess must report a terminal state to the API."""
+
+    CALLBACK_ID = "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be47"
+
+    def _supervise(self, client):
+        return supervise_callback(
+            id=self.CALLBACK_ID,
+            callback_path="does.not.matter",
+            callback_kwargs={},
+            dag_rel_path=Path("dag.py"),
+            client=client,
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_clean_exit_reports_success(self, mock_start, _nondumpable):
+        client = Mock()
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        assert self._supervise(client) == 0
+
+        client.callbacks.finish.assert_called_once_with(
+            uuid.UUID(self.CALLBACK_ID),
+            state=CallbackTerminalState.SUCCESS,
+            output=None,
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_nonzero_exit_reports_failed_before_raising(self, mock_start, _nondumpable):
+        client = Mock()
+        mock_start.return_value = Mock(wait=Mock(return_value=3))
+
+        with pytest.raises(RuntimeError, match="exited with code 3"):
+            self._supervise(client)
+
+        client.callbacks.finish.assert_called_once_with(
+            uuid.UUID(self.CALLBACK_ID),
+            state=CallbackTerminalState.FAILED,
+            output="Callback subprocess exited with code 3",
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_supervisor_error_reports_failed_with_the_cause(self, mock_start, _nondumpable):
+        client = Mock()
+        mock_start.side_effect = ValueError("boom")
+
+        with pytest.raises(ValueError, match="boom"):
+            self._supervise(client)
+
+        client.callbacks.finish.assert_called_once_with(
+            uuid.UUID(self.CALLBACK_ID),
+            state=CallbackTerminalState.FAILED,
+            output="Callback supervisor error: ValueError: boom",
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_a_failure_to_report_does_not_mask_the_outcome(self, mock_start, _nondumpable):
+        """The scheduler fallback still has the executor event, so a reporting blip is not fatal."""
+        client = Mock()
+        client.callbacks.finish.side_effect = RuntimeError("API unreachable")
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        assert self._supervise(client) == 0

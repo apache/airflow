@@ -84,7 +84,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
-from airflow.models.callback import Callback, ExecutorCallback
+from airflow.models.callback import Callback, CallbackKey, ExecutorCallback
 from airflow.models.connection_test import (
     ConnectionTestKey,
     ConnectionTestRequest,
@@ -216,6 +216,9 @@ EXAMPLE_STANDARD_DAGS_FOLDER = (
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
+
+# Output already on a callback row before an executor event arrives for it.
+PRIOR_OUTPUT = "reported by the supervisor"
 
 
 def get_callback_ti(ti):
@@ -1184,6 +1187,87 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
         assert session.get(ExecutorCallback, queued_callback.id).state == CallbackState.QUEUED
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
+
+    @pytest.mark.parametrize(
+        ("db_state", "event_state", "event_info", "expected_state", "expected_output"),
+        [
+            pytest.param(
+                CallbackState.RUNNING,
+                CallbackState.SUCCESS,
+                None,
+                CallbackState.SUCCESS,
+                PRIOR_OUTPUT,
+                id="running-advances-on-success",
+            ),
+            pytest.param(
+                CallbackState.QUEUED,
+                CallbackState.FAILED,
+                "worker died",
+                CallbackState.FAILED,
+                "worker died",
+                id="queued-advances-when-the-supervisor-never-reported",
+            ),
+            pytest.param(
+                CallbackState.SUCCESS,
+                CallbackState.FAILED,
+                "worker died",
+                CallbackState.SUCCESS,
+                PRIOR_OUTPUT,
+                id="terminal-row-keeps-its-state-and-output",
+            ),
+            pytest.param(
+                CallbackState.SCHEDULED,
+                CallbackState.FAILED,
+                "worker died",
+                CallbackState.SCHEDULED,
+                PRIOR_OUTPUT,
+                id="never-enqueued-row-is-left-alone",
+            ),
+        ],
+    )
+    def test_process_executor_events_only_advances_callbacks_still_in_flight(
+        self, dag_maker, session, db_state, event_state, event_info, expected_state, expected_output
+    ):
+        """
+        The executor event is a fallback behind PATCH /callbacks/{id}/state.
+
+        Both write terminal callback state, so the first writer wins: once a row is terminal, a
+        later executor event must not replace the outcome the supervisor reported, nor its output.
+        """
+
+        def test_callback():
+            pass
+
+        with dag_maker(dag_id="test_callback_forward_only"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        callback = Deadline(
+            deadline_time=timezone.utcnow(),
+            callback=SyncCallback(test_callback),
+            dagrun_id=dag_run.id,
+            deadline_alert_id=None,
+        ).callback
+        callback.state = db_state
+        callback.output = PRIOR_OUTPUT
+        callback.data["dag_run_id"] = dag_run.id
+        callback.data["dag_id"] = dag_run.dag_id
+        session.add(callback)
+        session.flush()
+
+        executor = MockExecutor(do_update=False)
+        self.job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.event_buffer[CallbackKey(str(callback.id))] = event_state, event_info
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        # Flush before expiring: the scheduler must not commit, so an unflushed change would be
+        # discarded by expire_all() and every case would read as "not advanced".
+        session.flush()
+        session.expire_all()
+        stored = session.get(ExecutorCallback, callback.id)
+        assert stored.state == expected_state
+        assert stored.output == expected_output
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")

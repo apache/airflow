@@ -1538,6 +1538,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            # The supervisor reports the outcome through PATCH /callbacks/{id}/state, this is
+            # in case a supervisor dies before reporting.
+            if callback.state not in (CallbackState.QUEUED, CallbackState.RUNNING):
+                cls.logger().debug(
+                    "Callback %s is already %s; ignoring executor event with state %s",
+                    callback_id,
+                    callback.state,
+                    state,
+                )
+                continue
+
             if state == CallbackState.SUCCESS:
                 callback.state = CallbackState.SUCCESS
                 cls.logger().info("Callback %s completed successfully", callback_id)

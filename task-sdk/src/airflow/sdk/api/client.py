@@ -50,6 +50,8 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     AssetStateStorePutBody,
     AssetStateStoreResponse,
+    CallbackTerminalState,
+    CallbackTerminalStatePayload,
     ConnectionResponse,
     ConnectionTestConnectionResponse,
     ConnectionTestResultBody,
@@ -1180,6 +1182,11 @@ class CallbackOperations:
     def run(self, callback_id: uuid.UUID) -> None:
         """Exchange the single-use callback token for an execution token."""
         self.client.patch(f"callbacks/{callback_id}/run")
+
+    def finish(self, callback_id: uuid.UUID, state: CallbackTerminalState, output: str | None = None) -> None:
+        """Report the terminal state of a callback to the API server."""
+        body = CallbackTerminalStatePayload(state=state, output=output)
+        self.client.patch(f"callbacks/{callback_id}/state", content=body.model_dump_json())
 
 
 class BearerAuth(httpx2.Auth):
