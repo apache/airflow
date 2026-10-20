@@ -122,7 +122,7 @@ if TYPE_CHECKING:
     from pydantic import NonNegativeInt
     from sqlalchemy.engine import ScalarResult
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.elements import Case, ColumnElement
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.sql.selectable import Select
 
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
@@ -585,7 +585,7 @@ class DagRun(Base, LoggingMixin):
 
     @duration.expression  # type: ignore[no-redef]
     @provide_session
-    def duration(cls, *, session: Session = NEW_SESSION) -> Case:
+    def duration(cls: type[DagRun], *, session: Session = NEW_SESSION) -> ColumnElement[Any]:
         dialect_name = get_dialect_name(session)
         if dialect_name == "mysql":
             return func.timestampdiff(text("SECOND"), cls.start_date, cls.end_date)

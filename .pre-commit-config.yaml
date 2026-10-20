@@ -721,7 +721,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 2c1fb3ad1373b1eb5148176bb6dcd4773f2a564d  # frozen: nightly
+    rev: 54f8bf47ffbd35973b8eb016ccbc67221c75ba5f  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -821,7 +821,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.16.8']
+        additional_dependencies: ['ruff==0.17.0']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -975,6 +975,14 @@ repos:
         entry: "^\\s*from urllib\\.parse import ((\\|, )(urlparse\\|urlunparse))+$"
         pass_filenames: true
         files: \.py$
+      - id: check-auth-manager-mock-targets
+        name: Patch SimpleAuthManager, not BaseAuthManager, for methods it overrides
+        description: The API test client uses SimpleAuthManager, so patching an overridden BaseAuthManager method has no effect
+        entry: ./scripts/ci/prek/check_auth_manager_mock_targets.py
+        language: python
+        pass_filenames: true
+        files: ^airflow-core/tests/unit/api_fastapi/.*\.py$
+        exclude: ^airflow-core/tests/unit/api_fastapi/auth/managers/simple/
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community

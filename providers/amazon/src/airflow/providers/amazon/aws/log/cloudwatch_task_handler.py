@@ -182,7 +182,15 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         # The handler MUST be initted here, before the processor is actually used to log anything.
         # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
         _ = self.handler
-        from airflow.sdk.log import relative_path_from_logger
+        from airflow.sdk.log import relative_path_from_logger as _relative_path_from_logger
+
+        def relative_path_from_logger(logger) -> Path | None:
+            try:
+                return _relative_path_from_logger(logger)
+            except ValueError:
+                # Skip log files outside ``base_log_folder``, such as a Dag processor log directory
+                # configured elsewhere, as ``upload_to_remote`` does.
+                return None
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
