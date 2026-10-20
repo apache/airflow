@@ -418,7 +418,9 @@ class TestCollectTableReferences:
     def test_flags_inline_comment_as_unverifiable(self, sql, dialect):
         """Comments hide parser-vs-engine differentials (MySQL executable comments), so reject them."""
         scan = collect_table_references(parse_sql(sql, dialect=dialect))
-        assert scan.unverifiable_sources
+        # Newer sqlglot tokenizes MySQL's `--+1` as arithmetic, as MySQL does (a comment needs
+        # whitespace after `--`); with no differential left, `secret` is then a scanned table.
+        assert scan.unverifiable_sources or ("", "", "secret") in scan.tables
 
     @pytest.mark.parametrize(
         "sql",
