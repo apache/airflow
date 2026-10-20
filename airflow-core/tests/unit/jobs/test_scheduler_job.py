@@ -1194,14 +1194,14 @@ class TestSchedulerJob:
         assert session.get(ExecutorCallback, running_callback.id).state == CallbackState.RUNNING
 
     @pytest.mark.parametrize(
-        ("dagrun_id", "expected_event"),
+        ("dagrun_id", "expected_event", "expected_log_level"),
         [
-            (None, "Executor callback is missing dagrun_id."),
-            (123, "Could not find DagRun for executor callback. DagRun may have been deleted."),
+            (None, "Executor callback is missing dagrun_id.", "error"),
+            (123, "Could not find DagRun for executor callback. DagRun may have been deleted.", "warning"),
         ],
     )
     def test_enqueue_executor_callbacks_logs_missing_dagrun_reference(
-        self, dagrun_id, expected_event, caplog
+        self, dagrun_id, expected_event, expected_log_level, caplog
     ):
         def test_callback():
             pass
@@ -1226,7 +1226,11 @@ class TestSchedulerJob:
 
         self.job_runner._enqueue_executor_callbacks(session)
 
-        assert {"event": expected_event, "callback_id": callback.id} in caplog
+        assert {
+            "event": expected_event,
+            "callback_id": callback.id,
+            "log_level": expected_log_level,
+        } in caplog
         executor.queue_workload.assert_not_called()
         assert callback.state == CallbackState.PENDING
 
