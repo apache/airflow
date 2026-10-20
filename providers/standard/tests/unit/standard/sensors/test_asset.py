@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import call
 
@@ -47,7 +47,7 @@ ALIAS_NAME = "my_alias"
 
 
 def _get_timestamp(day: int) -> datetime:
-    return datetime(2024, 1, day, tzinfo=timezone.utc)
+    return datetime(2024, 1, day, tzinfo=UTC)
 
 
 def _get_context(sensor: AssetEventSensor) -> dict[str, Any]:
