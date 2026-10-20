@@ -30,7 +30,7 @@ from uuid import uuid4
 
 from jinja2 import TemplateError
 from pydantic import BaseModel, ConfigDict, Field, computed_field
-from pydantic_ai.messages import BinaryContent
+from pydantic_ai.messages import BinaryContent, UserContent
 
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
@@ -67,7 +67,7 @@ class FakeOperator(LLMApprovalMixin):
     def __init__(
         self,
         *,
-        prompt: str = "Summarize this",
+        prompt: str | Sequence[UserContent] = "Summarize this",
         task_id: str = "test_task",
         approval_timeout: timedelta | None = None,
         on_approval_timeout: str = "fail",
@@ -325,7 +325,7 @@ class TestDeferForApproval:
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
     def test_body_renders_a_sequence_prompt(self, mock_upsert, mock_trigger_cls, context):
-        op = FakeOperator(prompt=["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")])  # type: ignore[arg-type]
+        op = FakeOperator(prompt=["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")])
 
         op.defer_for_approval(context, "output")
 
@@ -333,6 +333,14 @@ class TestDeferForApproval:
             mock_upsert.call_args[1]["body"]
             == "```\nPrompt: Describe this:\n[image/png, 4 bytes]\n\noutput\n```"
         )
+
+    def test_calls_validate_approval_prompt_override(self, context):
+        class StrictOperator(FakeOperator):
+            def validate_approval_prompt(self):
+                raise TypeError("custom prompt check")
+
+        with pytest.raises(TypeError, match="custom prompt check"):
+            StrictOperator().defer_for_approval(context, "output")
 
     @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic_ai.messages import (
     AudioUrl,
@@ -51,12 +51,15 @@ def _describe_part(part: UserContent) -> str:
     if isinstance(part, BinaryContent):
         return f"[{part.media_type}, {len(part.data)} bytes]"
     if isinstance(part, (ImageUrl, AudioUrl, DocumentUrl, VideoUrl)):
-        return f"[{part.kind}: {_strip_url_secrets(part.url)}]"
+        return f"[{part.kind}: {_strip_url_secrets(part)}]"
     if isinstance(part, UploadedFile):
         return f"[{part.kind}: {part.file_id}]"
     return f"[{type(part).__name__}]"
 
 
-def _strip_url_secrets(url: str) -> str:
-    parts = urlsplit(url)
-    return urlunsplit((parts.scheme, parts.netloc.rpartition("@")[2], parts.path, "", ""))
+def _strip_url_secrets(part: FileUrl) -> str:
+    parts = urlsplit(part.url)
+    query = ""
+    if isinstance(part, VideoUrl) and part.is_youtube:
+        query = urlencode([(key, value) for key, value in parse_qsl(parts.query) if key == "v"])
+    return urlunsplit((parts.scheme, parts.netloc.rpartition("@")[2], parts.path, query, ""))

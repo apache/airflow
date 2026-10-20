@@ -121,6 +121,8 @@ class DeferForApprovalProtocol(Protocol):
     task_id: str
     defer: Any
 
+    def validate_approval_prompt(self) -> None: ...
+
 
 class LLMApprovalMixin:
     """
@@ -175,6 +177,9 @@ class LLMApprovalMixin:
     REJECT = "Reject"
     TIMEOUT_DEFAULTS: ClassVar[dict[str, list[str]]] = {"approve": [APPROVE], "reject": [REJECT]}
 
+    def validate_approval_prompt(self: DeferForApprovalProtocol) -> None:
+        """Check the prompt before the review opens; the default accepts every prompt."""
+
     def defer_for_approval(
         self: DeferForApprovalProtocol,
         context: Context,
@@ -215,6 +220,8 @@ class LLMApprovalMixin:
         from airflow.providers.standard.triggers.hitl import HITLTrigger
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
         from airflow.sdk.timezone import utcnow
+
+        self.validate_approval_prompt()
 
         raw_output = output
         # JSON round-trip: execute_complete validates the string back into output_type.
