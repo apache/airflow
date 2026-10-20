@@ -87,6 +87,20 @@ _CAMEL_ACRONYM_RE = re.compile(r"([A-Z]+)([A-Z][a-z])")
 _NON_WORD_RE = re.compile(r"\W+")
 
 
+# Called for every key of every log line. Keyed by the field contents, so reassigning or mutating
+# ``sensitive_variables_fields`` can never return a stale answer; bounded because variable and
+# connection-extra key names come from user data.
+@functools.lru_cache(maxsize=4096)
+def _is_sensitive_key(name: str, sensitive_fields: tuple[str, ...]) -> bool:
+    name = name.strip()
+    normalized = _NON_WORD_RE.sub("_", name.lower())
+    split = _CAMEL_ACRONYM_RE.sub(r"\1_\2", _CAMEL_LOWER_UPPER_RE.sub(r"\1_\2", name))
+    split = _NON_WORD_RE.sub("_", split.lower())
+    # Check both forms so fields configured without separators (e.g. ``mysensitivekey``)
+    # keep matching camelCase keys such as ``mySensitiveKey``.
+    return any(s in normalized or s in split for s in sensitive_fields)
+
+
 def should_hide_value_for_key(name):
     """
     Return if the value for this given name should be hidden.
@@ -592,13 +606,7 @@ class SecretsMasker(logging.Filter):
         Name might be a Variable name, or key in conn.extra_dejson, for example.
         """
         if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
-            name = name.strip()
-            normalized = _NON_WORD_RE.sub("_", name.lower())
-            split = _CAMEL_ACRONYM_RE.sub(r"\1_\2", _CAMEL_LOWER_UPPER_RE.sub(r"\1_\2", name))
-            split = _NON_WORD_RE.sub("_", split.lower())
-            # Check both forms so fields configured without separators (e.g. ``mysensitivekey``)
-            # keep matching camelCase keys such as ``mySensitiveKey``.
-            return any(s in normalized or s in split for s in self.sensitive_variables_fields)
+            return _is_sensitive_key(name, tuple(self.sensitive_variables_fields))
         return False
 
     def add_mask(self, secret: JsonValue, name: str | None = None):
