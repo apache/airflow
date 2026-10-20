@@ -37,7 +37,7 @@
     Configuration <configurations-ref>
     Connection types <connections/smtp>
     SMTP Notifications <notifications/smtp_notifier_howto_guide>
-    Email backend <utils/emailer>
+    Email backend <email-backend>
     Python API <_api/airflow/providers/smtp/index>
 
 .. toctree::
