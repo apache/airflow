@@ -90,6 +90,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "publish-schemas-to-s3",
         "verify-rc-by-pmc",
         "check-release-files",
+        "mirror-base-images",
     ],
 }
 
@@ -101,6 +102,14 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution-format",
                 "--version-suffix",
                 "--use-local-hatch",
+            ],
+        }
+    ],
+    "breeze release-management mirror-base-images": [
+        {
+            "name": "Mirror flags",
+            "options": [
+                "--python",
             ],
         }
     ],

@@ -1778,6 +1778,129 @@ class AirflowProcessorTest {
   }
 
   @Test
+  @DisplayName("reject a task in a task group that takes the id of one of the group's join nodes")
+  fun rejectTaskTakingJoinNodeIdOfItsGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.TaskGroup
+          static class Transform {
+            @Airflow.Task(id = "upstream_join_id") public void clean() {}
+          }
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task 'Transform.upstream_join_id' has the ID of a join node of task group 'Transform'; rename the task",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a top-level task that takes the id of a task group's join node")
+  fun rejectTopLevelTaskTakingJoinNodeId() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task(id = "Transform.downstream_join_id") public void publish() {}
+
+          @Airflow.TaskGroup
+          static class Transform {
+            @Airflow.Task public void clean() {}
+          }
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task 'Transform.downstream_join_id' has the ID of a join node of task group 'Transform'; rename the task",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a task in a nested task group that takes the id of one of that group's join nodes")
+  fun rejectTaskTakingJoinNodeIdOfNestedGroup() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.TaskGroup
+          static class Transform {
+            @Airflow.TaskGroup
+            static class Checks {
+              @Airflow.Task(id = "downstream_join_id") public void nulls() {}
+            }
+          }
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {}
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "Task 'Transform.Checks.downstream_join_id' has the ID of a join node of task group 'Transform.Checks'; " +
+        "rename the task",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a nested task group that takes the id of a join node of the group holding it")
+  fun rejectNestedTaskGroupTakingJoinNodeId() {
+    listOf("upstream_join_id", "downstream_join_id").forEach { id ->
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          @Airflow.Dag
+          public class TestExample {
+            @Airflow.TaskGroup
+            static class Transform {
+              @Airflow.TaskGroup(id = "$id")
+              static class Inner {
+                @Airflow.Task public void clean() {}
+              }
+            }
+
+            @Airflow.Deps
+            static class Wiring implements TestExampleDeps {
+              void depends() {}
+            }
+          }
+        """,
+        )
+      assertThat(compilation).failed()
+      assertThat(compilation).hadErrorContaining(
+        "Task group 'Transform.$id' has the ID of a join node of task group 'Transform'; rename the nested group",
+      )
+    }
+  }
+
+  @Test
   @DisplayName("reject two task methods whose generated classes would collide")
   fun rejectCollidingGeneratedTaskClasses() {
     val compilation =

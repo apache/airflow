@@ -80,6 +80,104 @@ internal class TaskGroupTest {
   }
 
   @Test
+  @DisplayName("Should reject a task in a group that takes the ID of one of the group's join nodes")
+  fun shouldRejectTaskIdTakenByJoinNode() {
+    listOf("upstream_join_id", "downstream_join_id").forEach { localId ->
+      val transform = DagDef("d").taskGroup("transform")
+      val checks = transform.taskGroup("checks")
+
+      listOf(transform, checks).forEach { group ->
+        val error =
+          assertThrows(IllegalArgumentException::class.java) { group.task<Unit>(localId, NoopTask::class.java) }
+
+        assertEquals(
+          "Dag 'd' already has a join node of task group '${group.id}' with ID: ${group.id}.$localId",
+          error.message,
+        )
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Should reject a top-level task that takes the ID of a join node of an earlier group")
+  fun shouldRejectRootTaskIdTakenByJoinNode() {
+    listOf("upstream_join_id", "downstream_join_id").forEach { suffix ->
+      val dag = DagDef("d")
+      dag.taskGroup("transform")
+
+      val error =
+        assertThrows(IllegalArgumentException::class.java) {
+          dag.task<Unit>("transform.$suffix", NoopTask::class.java)
+        }
+
+      assertEquals(
+        "Dag 'd' already has a join node of task group 'transform' with ID: transform.$suffix",
+        error.message,
+      )
+    }
+  }
+
+  @Test
+  @DisplayName("Should reject a group when a task already has the ID of one of its join nodes")
+  fun shouldRejectGroupWhoseJoinNodeIdIsTaken() {
+    listOf("upstream_join_id", "downstream_join_id").forEach { suffix ->
+      val dag = DagDef("d")
+      dag.task<Unit>("transform.$suffix", NoopTask::class.java)
+      val staging = dag.taskGroup("staging")
+      staging.task<Unit>("checks.$suffix", NoopTask::class.java)
+
+      val error = assertThrows(IllegalArgumentException::class.java) { dag.taskGroup("transform") }
+      val nestedError = assertThrows(IllegalArgumentException::class.java) { staging.taskGroup("checks") }
+
+      assertEquals(
+        "Dag 'd' already has a task with ID: transform.$suffix, " +
+          "which is the ID of a join node of task group 'transform'",
+        error.message,
+      )
+      assertEquals(
+        "Dag 'd' already has a task with ID: staging.checks.$suffix, " +
+          "which is the ID of a join node of task group 'staging.checks'",
+        nestedError.message,
+      )
+      assertEquals(listOf("staging"), dag.groups.keys.toList())
+    }
+  }
+
+  @Test
+  @DisplayName("Should reject a nested group that takes the ID of a join node of the group holding it")
+  fun shouldRejectNestedGroupIdTakenByJoinNode() {
+    listOf("upstream_join_id", "downstream_join_id").forEach { localId ->
+      val transform = DagDef("d").taskGroup("transform")
+
+      val error = assertThrows(IllegalArgumentException::class.java) { transform.taskGroup(localId) }
+
+      assertEquals(
+        "Dag 'd' already has a join node of task group 'transform' with ID: transform.$localId",
+        error.message,
+      )
+    }
+  }
+
+  @Test
+  @DisplayName("Should tell a group's join node IDs apart from top-level IDs named upstream_join_id or downstream_join_id")
+  fun shouldTellJoinNodeIdsFromIdsNamedLikeThem() {
+    val dag = DagDef("d")
+    dag.task<Unit>("downstream_join_id", NoopTask::class.java)
+    val group = dag.taskGroup("upstream_join_id")
+
+    val error =
+      assertThrows(IllegalArgumentException::class.java) {
+        group.task<Unit>("downstream_join_id", NoopTask::class.java)
+      }
+
+    assertEquals(
+      "Dag 'd' already has a join node of task group 'upstream_join_id' with ID: upstream_join_id.downstream_join_id",
+      error.message,
+    )
+    assertEquals(listOf("downstream_join_id"), dag.tasks.keys.toList())
+  }
+
+  @Test
   @DisplayName("Should wire a group upstream from its leaves and downstream to its roots on registration")
   fun shouldExpandGroupEdgesOntoRootsAndLeaves() {
     val dag = DagDef("d")
