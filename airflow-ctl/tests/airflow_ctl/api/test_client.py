@@ -27,6 +27,8 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+import structlog.testing
+import tenacity
 import time_machine
 from httpx import URL
 
@@ -454,6 +456,35 @@ class TestSaveKeyringPatching:
             response = client.get("http://error")
             assert response.status_code == 200
             assert len(responses) == 1
+
+    @patch("airflowctl.api.client.Client.request.retry.wait", tenacity.wait_fixed(2))
+    @patch("airflowctl.api.client.Client.request.retry.sleep", autospec=True)
+    def test_retry_logs_error_and_wait_before_sleep(self, mock_sleep):
+        outcomes: list[httpx.Response | httpx.ConnectError] = [
+            httpx.ConnectError("Connection refused"),
+            httpx.Response(200, json={"detail": "Recovered from error"}),
+        ]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            outcome = outcomes.pop(0)
+            if isinstance(outcome, httpx.ConnectError):
+                raise outcome
+            return outcome
+
+        client = Client(base_url="", token="", transport=httpx.MockTransport(handle_request))
+
+        with structlog.testing.capture_logs() as captured_logs:
+            response = client.get("http://error")
+
+        assert response.status_code == 200
+        mock_sleep.assert_called_once_with(2)
+        assert [(entry["log_level"], entry["event"]) for entry in captured_logs] == [
+            (
+                "warning",
+                "Retrying airflowctl.api.client.Client.request in 2 seconds "
+                "as it raised ConnectError: Connection refused.",
+            )
+        ]
 
     def test_retry_handling_non_retry_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
