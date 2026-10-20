@@ -60,18 +60,28 @@ spec:
   triggers:
     {{- if eq .Values.data.metadataConnection.protocol "mysql" }}
     - type: "mysql"
+      {{- with .Values.workers.celery.keda.authenticationRef }}
+      authenticationRef: {{- toYaml . | nindent 8 }}
+      {{- end }}
       metadata:
         queryValue: "1"
+        {{- if not .Values.workers.celery.keda.authenticationRef }}
         connectionStringFromEnv: KEDA_DB_CONN
+        {{- end }}
         query: {{ tpl .Values.workers.celery.keda.query . | quote }}
     {{- else }}
     - type: "postgresql"
+      {{- with .Values.workers.celery.keda.authenticationRef }}
+      authenticationRef: {{- toYaml . | nindent 8 }}
+      {{- end }}
       metadata:
         targetQueryValue: "1"
+        {{- if not .Values.workers.celery.keda.authenticationRef }}
         {{- if and .Values.pgbouncer.enabled (not .Values.workers.celery.keda.usePgbouncer) }}
         connectionFromEnv: KEDA_DB_CONN
         {{- else }}
         connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
+        {{- end }}
         {{- end }}
         query: {{ tpl .Values.workers.celery.keda.query . | quote }}
     {{- end }}
