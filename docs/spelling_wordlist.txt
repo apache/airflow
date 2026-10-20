@@ -337,6 +337,7 @@ cosmosdb
 cp
 cpu
 cpus
+CPython
 CRD
 crd
 CreateQueryOperator
@@ -1595,6 +1596,7 @@ Sharepoint
 shm
 shouldn
 sie
+sigstore
 SIGTERM
 sku
 sla
@@ -1836,6 +1838,7 @@ triaging
 triggerer
 triggerers
 trino
+trixie
 trojan
 truthy
 tsql
