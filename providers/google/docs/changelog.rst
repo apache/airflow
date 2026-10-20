@@ -33,8 +33,9 @@ Changelog
 .. note::
 
     On Airflow 3.3 and later, killing a deferred Dataflow template, flex-template or YAML task
-    now cancels its job by default. Set ``cancel_on_kill=False`` to leave it running, or use
-    ``drain_pipeline=True`` to drain a streaming job.
+    now cancels its job by default. Set ``cancel_on_kill=False`` to leave it running.
+    For flex-template and YAML operators, use ``drain_pipeline=True`` to drain a streaming
+    job instead of cancelling it.
 
     ``BigQueryToGCSOperator`` now also cancels synchronous extract jobs when its task is killed.
     Set ``cancel_on_kill=False`` to leave the job running. A cancelled job cannot be reattached

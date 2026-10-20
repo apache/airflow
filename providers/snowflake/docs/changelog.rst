@@ -37,6 +37,13 @@ Changelog
     ``airflow.providers.snowflake``. Previously released imports continue to work with
     deprecation warnings. SQLAlchemy must be below 2.1 for compatibility with snowflake-sqlalchemy.
 
+    Query lineage now uses the OpenLineage public API. The ``jobType.integration`` job facet
+    value changes from ``SNOWFLAKE`` to ``AIRFLOW``, and query errors use the
+    ``errorMessage`` run facet instead of ``error``. Update lineage consumers that filter on
+    the previous integration value or read the previous error facet. OpenLineage supplies
+    the ``jobType`` facet, which can no longer be overridden through ``additional_job_facets``.
+    Per-query job names remain ``<dag_id>.<task_id>.query.<counter>``.
+
 Features
 ~~~~~~~~
 
@@ -47,7 +54,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Prevent Snowflake SQLAlchemy import failures by requiring SQLAlchemy below 2.1 (#73822)``
-* ``Prevent shared mutable state between Snowflake OpenLineage query events (#73655)``
+* ``Emit Snowflake query lineage through the OpenLineage public API (#73655)``
 
 Misc
 ~~~~

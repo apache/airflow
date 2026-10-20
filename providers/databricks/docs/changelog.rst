@@ -29,10 +29,19 @@ Changelog
 7.22.1
 ......
 
+.. note::
+
+    Query lineage now uses the OpenLineage public API. The ``jobType.integration`` job facet
+    value changes from ``DATABRICKS`` to ``AIRFLOW``, and query errors use the
+    ``errorMessage`` run facet instead of ``error``. Update lineage consumers that filter on
+    the previous integration value or read the previous error facet. OpenLineage supplies
+    the ``jobType`` facet, which can no longer be overridden through ``additional_job_facets``.
+    Per-query job names remain ``<dag_id>.<task_id>.query.<counter>``.
+
 Bug Fixes
 ~~~~~~~~~
 
-* ``Prevent shared mutable state between Databricks OpenLineage query events (#73655)``
+* ``Emit Databricks query lineage through the OpenLineage public API (#73655)``
 
 Misc
 ~~~~
