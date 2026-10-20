@@ -712,7 +712,13 @@ class AirflowProcessor : AbstractProcessor() {
     value: AnnotationValue,
   ): CodeBlock =
     when (field.type) {
-      FieldType.STRING -> CodeBlock.of($$"$S", value.value)
+      FieldType.STRING -> {
+        val text = value.value as String
+        require(field !== SchemaFields.DAG["queue"] || text.isNotBlank()) {
+          "Annotation attribute 'queue' of @Airflow.Dag must not be blank"
+        }
+        CodeBlock.of($$"$S", text)
+      }
       FieldType.BOOLEAN, FieldType.INTEGER, FieldType.NUMBER -> CodeBlock.of($$"$L", value.value)
       FieldType.STRING_ARRAY -> {
         @Suppress("UNCHECKED_CAST")

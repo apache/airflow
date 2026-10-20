@@ -2076,6 +2076,29 @@ class AirflowProcessorTest {
   }
 
   @Test
+  @DisplayName("reject a blank Dag-level queue")
+  fun rejectBlankDagQueue() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag(queue = " ")
+        public class TestExample {
+          @Airflow.Task public void t() {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { t(); }
+          }
+        }
+      """,
+      )
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("Annotation attribute 'queue' of @Airflow.Dag must not be blank")
+  }
+
+  @Test
   @DisplayName("escape quotes and backslashes in a string-array attribute")
   fun generateBuilderEscapesStringArrayValues() {
     val compilation =
