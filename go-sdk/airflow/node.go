@@ -20,6 +20,7 @@ package airflow
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // Node is what an edge connects: a task or a whole task group. A [TaskRef] and a [TaskGroupRef]
@@ -53,9 +54,9 @@ type Node interface {
 	node()
 }
 
-// nodeEndpoint is one task or one task group that a Node stands for, with the label that [Label]
-// carries into the edge verb the Node is passed to. Exactly one of task and group is set, except
-// for the endpoint of a nil *TaskRef, which has neither.
+// nodeEndpoint is one task or one task group that a Node stands for, with the label that
+// [LabelRef.On] carries into the edge verb the Node is passed to. Exactly one of task and group is
+// set, except for the endpoint of a nil *TaskRef, which has neither.
 type nodeEndpoint struct {
 	task  *TaskRef
 	group *TaskGroupRef
@@ -96,8 +97,8 @@ func (e nodeEndpoint) describe() string {
 }
 
 // nodeSet is the argument set that Before and After return as one Node, and the Node that
-// [Label] returns. A label belongs to the edge of the verb the Node is passed to, so a nodeSet
-// carries its labels no further once it is the receiver of the next verb.
+// [LabelRef.On] returns. The labels of a nodeSet go on the edges of the verb that the nodeSet is
+// passed to, so a nodeSet with labels cannot be the receiver of a verb.
 type nodeSet []nodeEndpoint
 
 func (nodeSet) node() {}
@@ -150,7 +151,7 @@ func endpoints(where string, node Node) []nodeEndpoint {
 //
 // Before returns the nodes it was given as one Node, not the receiver, so a chain fans out from
 // them: loaded.Before(notified, cleaned).Before(done) is loaded >> [notify, cleanup] >> done.
-// Wrap a node in [Label] to label the edge that reaches it.
+// To label the edge that reaches a node, pass Label(text).On(node) in place of the node.
 //
 // Declaring an edge that the Dag already has changes nothing, other than to apply a [Label].
 //
@@ -178,20 +179,51 @@ func (t *TaskRef) Before(nodes ...Node) Node { return declareEdges(t, nodes, dir
 // cleanup << extract << start.
 func (t *TaskRef) After(nodes ...Node) Node { return declareEdges(t, nodes, dirAfter) }
 
-// Label puts text on the edge that an edge verb declares to node, as Python's
-// loaded >> Label("when empty") >> notify_empty does:
+// LabelRef is an edge label made by [Label]. [LabelRef.On] returns a Node. To label edges, pass
+// that Node to Before or After.
+type LabelRef struct {
+	text string
+}
+
+// Label returns a label with the given text. The Python code
+// loaded >> Label("when empty") >> notify_empty becomes:
 //
-//	loaded.Before(Label(emptyNotice, "when empty"))
+//	loaded.Before(Label("when empty").On(emptyNotice))
 //
-// The label wraps the endpoint rather than the call, so each edge of a fan-out can carry a label
-// of its own:
+// The text comes before the node passed to On, so it sits between the two tasks in the code. The
+// Airflow UI draws the label between the same two tasks in the graph.
 //
-//	checked.Before(Label(processed, "rows found"), Label(emptyNotice, "no rows"))
+// Label panics if text is empty or holds only white space.
+func Label(text string) *LabelRef {
+	if strings.TrimSpace(text) == "" {
+		panic("airflow.Label: got a blank label; pass the text to put on the edge")
+	}
+	return &LabelRef{text: text}
+}
+
+// On returns node, and each node in more, as one Node. Pass that Node to an edge verb, and the verb
+// puts the label on each edge between its receiver and one of those nodes. With After, those edges
+// point at the receiver:
 //
-// A label is the Node's only in the verb it is passed to. The Node that Label returns stands for
-// node itself, and the Node a verb returns carries no label on either side of the next verb. So a
-// label on the receiver of a verb has no edge to land on and is dropped, the way Python's
-// Label("x") >> b alone sets no label.
+//	cleaned.After(Label("always").On(loaded))  // loaded >> Label("always") >> cleanup
+//
+// Each Node passed to Before or After can carry its own label, so the edges that one call declares
+// can have different labels:
+//
+//	checked.Before(Label("rows found").On(processed), Label("no rows").On(emptyNotice))
+//
+// When On is given more than one node, the edge to or from each of those nodes gets the same
+// label. Python's loaded >> Label("forks") >> [notify_empty, notify_suspicious] becomes:
+//
+//	loaded.Before(Label("forks").On(emptyNotice, suspiciousNotice))
+//
+// A label is the Node's only in the verb it is passed to. The Node that On returns stands for the
+// nodes themselves. The Node that a verb returns carries no label into the next verb, either as
+// its receiver or as an argument. Before and After panic when their receiver carries a label,
+// because that label has no edge to go on. Pass the Node that On returns only as an argument.
+// Python's Label("x") >> b drops the label without an error instead. When labels nest, the outer
+// label is used: loaded.Before(Label("outer").On(Label("inner").On(cleaned))) labels the edge
+// "outer".
 //
 // A label declared on an edge that already carries one replaces it, as Python's DAG.set_edge_info
 // does.
@@ -199,25 +231,38 @@ func (t *TaskRef) After(nodes ...Node) Node { return declareEdges(t, nodes, dirA
 // An [Inputs] edge is labelled by declaring it again, which is idempotent:
 //
 //	transformed := dag.Task(transform, Inputs(extracted))
-//	extracted.Before(Label(transformed, "rows"))
+//	extracted.Before(Label("rows").On(transformed))
 //
 // A label on an edge to or from a task group stays on that edge, as [TaskGroupRef.Before]
 // describes. A label on an edge between two tasks stays on that edge too, even when the tasks are
 // in different task groups. In that case Python can replace the receiver of the verb with a group
 // that holds it, which makes the edge connect other tasks.
 //
-// Label panics if node is nil or text is empty.
-func Label(node Node, text string) Node {
-	if node == nil {
-		panic("airflow.Label: got a nil airflow.Node")
+// On panics if:
+//   - l is nil or points to a zero LabelRef
+//   - node or a node in more is nil, is a nil *TaskGroupRef, or is a struct that embeds a Node
+//
+// On does not panic on a nil *TaskRef. The edge verb that takes the Node panics on it instead.
+func (l *LabelRef) On(node Node, more ...Node) Node {
+	const where = "airflow.LabelRef.On"
+	if l == nil || l.text == "" {
+		panic(where + ": airflow.Label did not return the *airflow.LabelRef")
 	}
-	if text == "" {
-		panic("airflow.Label: got an empty label; pass the text to put on the edge")
-	}
-	labelling := endpoints("airflow.Label: node", node)
-	labelled := make(nodeSet, len(labelling))
-	for i, endpoint := range labelling {
-		labelled[i] = nodeEndpoint{task: endpoint.task, group: endpoint.group, label: text}
+	nodes := append([]Node{node}, more...)
+	labelled := make(nodeSet, 0, len(nodes))
+	for i, labelling := range nodes {
+		name := "node"
+		if i > 0 {
+			name = fmt.Sprintf("more[%d]", i-1)
+		}
+		if labelling == nil {
+			panic(fmt.Sprintf("%s: %s is a nil airflow.Node", where, name))
+		}
+		for _, endpoint := range endpoints(where+": "+name, labelling) {
+			labelled = append(
+				labelled, nodeEndpoint{task: endpoint.task, group: endpoint.group, label: l.text},
+			)
+		}
 	}
 	return labelled
 }
@@ -281,6 +326,7 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 	}
 
 	dag := edgeDag(where, all)
+	checkReceiverUnlabelled(where, dag, dir, ends)
 
 	dag.mu.Lock()
 	defer dag.mu.Unlock()
@@ -345,6 +391,25 @@ func declareEdges(receiver Node, nodes []Node, dir edgeDir) Node {
 		}
 	}
 	return args.unlabelled()
+}
+
+// checkReceiverUnlabelled panics if the receiver of an edge verb carries a label. Only the Node
+// that [LabelRef.On] returns carries labels. A label goes on the edges between the receiver and
+// the nodes that the verb is given, so a label on the receiver has no edge to go on.
+func checkReceiverUnlabelled(where string, dag *DagRef, dir edgeDir, ends []nodeEndpoint) {
+	var labelled []string
+	for _, end := range ends {
+		if end.label != "" {
+			labelled = append(labelled, fmt.Sprintf("%s labelled %q", end.describe(), end.label))
+		}
+	}
+	if len(labelled) > 0 {
+		panic(fmt.Sprintf(
+			"%s: Dag %q: cannot call %s on %s; "+
+				"pass airflow.Label(...).On(...) to Before or After as an argument instead",
+			where, dag.dagID, dir, strings.Join(labelled, ", "),
+		))
+	}
 }
 
 // checkGroupEdgeEnds panics if one end of an edge is a task group that holds the other end. The

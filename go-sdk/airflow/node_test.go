@@ -172,7 +172,7 @@ func TestLabelLabelsTheEdgeToTheNodeItWraps(t *testing.T) {
 	loaded := orderedTask(t, dag, "load")
 	emptyNotice := orderedTask(t, dag, "notify_empty")
 
-	loaded.Before(Label(emptyNotice, "when empty"))
+	loaded.Before(Label("when empty").On(emptyNotice))
 
 	assertTasks(t, loaded.downstreams, emptyNotice)
 	assertEdgeLabel(t, dag, "load", "notify_empty", "when empty")
@@ -184,10 +184,28 @@ func TestLabelLabelsEachEdgeOfAFanOut(t *testing.T) {
 	processed := orderedTask(t, dag, "process")
 	emptyNotice := orderedTask(t, dag, "notify_empty")
 
-	checked.Before(Label(processed, "rows found"), Label(emptyNotice, "no rows"))
+	checked.Before(Label("rows found").On(processed), Label("no rows").On(emptyNotice))
 
 	assertEdgeLabel(t, dag, "check", "process", "rows found")
 	assertEdgeLabel(t, dag, "check", "notify_empty", "no rows")
+}
+
+// TestLabelOnLabelsTheEdgeToEachNodeItIsGiven checks the Go form of Python's
+// loaded >> Label("forks") >> [notify_empty, staging, notify_suspicious].
+func TestLabelOnLabelsTheEdgeToEachNodeItIsGiven(t *testing.T) {
+	dag := Dag("etl")
+	loaded := orderedTask(t, dag, "load")
+	emptyNotice := orderedTask(t, dag, "notify_empty")
+	staging := dag.TaskGroup("staging")
+	groupTask(t, staging, "stage")
+	suspiciousNotice := orderedTask(t, dag, "notify_suspicious")
+
+	loaded.Before(Label("forks").On(emptyNotice, staging, suspiciousNotice))
+
+	assertTasks(t, loaded.downstreams, emptyNotice, suspiciousNotice)
+	assertEdgeLabel(t, dag, "load", "notify_empty", "forks")
+	assertGroupEdgeLabel(t, dag, "load", "staging", "forks")
+	assertEdgeLabel(t, dag, "load", "notify_suspicious", "forks")
 }
 
 func TestAfterLabelsTheEdgeToTheNodeItWasGiven(t *testing.T) {
@@ -195,7 +213,7 @@ func TestAfterLabelsTheEdgeToTheNodeItWasGiven(t *testing.T) {
 	extracted := orderedTask(t, dag, "extract")
 	cleaned := orderedTask(t, dag, "cleanup")
 
-	cleaned.After(Label(extracted, "always"))
+	cleaned.After(Label("always").On(extracted))
 
 	assertEdgeLabel(t, dag, "extract", "cleanup", "always")
 }
@@ -207,7 +225,7 @@ func TestRedeclaringAnInputsEdgeLabelsIt(t *testing.T) {
 	read := dag.Task(readRows)
 	counted := dag.Task(countRows, Inputs(read))
 
-	read.Before(Label(counted, "rows"))
+	read.Before(Label("rows").On(counted))
 
 	assertTasks(t, read.downstreams, counted)
 	assertTasks(t, counted.upstreams, read)
@@ -219,9 +237,9 @@ func TestRedeclaringALabelledEdgeKeepsTheLabel(t *testing.T) {
 	loaded := orderedTask(t, dag, "load")
 	cleaned := orderedTask(t, dag, "cleanup")
 
-	loaded.Before(Label(cleaned, "always"))
+	loaded.Before(Label("always").On(cleaned))
 	loaded.Before(cleaned)
-	cleaned.After(Label(loaded, "always"))
+	cleaned.After(Label("always").On(loaded))
 
 	assertEdgeLabel(t, dag, "load", "cleanup", "always")
 }
@@ -233,8 +251,8 @@ func TestASecondLabelOnAnEdgeReplacesTheFirst(t *testing.T) {
 	loaded := orderedTask(t, dag, "load")
 	cleaned := orderedTask(t, dag, "cleanup")
 
-	loaded.Before(Label(cleaned, "always"))
-	loaded.Before(Label(cleaned, "when empty"))
+	loaded.Before(Label("always").On(cleaned))
+	loaded.Before(Label("when empty").On(cleaned))
 
 	assertEdgeLabel(t, dag, "load", "cleanup", "when empty")
 	assertTasks(t, loaded.downstreams, cleaned)
@@ -247,24 +265,66 @@ func TestTheLastLabelOfOneCallWins(t *testing.T) {
 	loaded := orderedTask(t, dag, "load")
 	cleaned := orderedTask(t, dag, "cleanup")
 
-	loaded.Before(Label(cleaned, "always"), Label(cleaned, "when empty"))
+	loaded.Before(Label("always").On(cleaned), Label("when empty").On(cleaned))
 
 	assertEdgeLabel(t, dag, "load", "cleanup", "when empty")
 	assertTasks(t, loaded.downstreams, cleaned)
 }
 
-// TestALabelOnTheReceiverOfAVerbIsDropped pins the silence Python has too: Label marks the edge
-// that reaches a node, so a label on the node an edge leaves from has no edge to land on.
-// Python's Label("x") >> b, with nothing upstream of the label, sets no label either.
-func TestALabelOnTheReceiverOfAVerbIsDropped(t *testing.T) {
+// TestEdgeVerbsRejectALabelledReceiver covers a verb whose receiver carries a label. That label has
+// no edge to go on. The verb panics before it declares any edge. The Java SDK throws in the same
+// case. Python's Label("x") >> b drops the label without an error instead. When the label is on a
+// nil *TaskRef, the verb's panic reports the nil task.
+func TestEdgeVerbsRejectALabelledReceiver(t *testing.T) {
 	dag := Dag("etl")
 	loaded := orderedTask(t, dag, "load")
 	cleaned := orderedTask(t, dag, "cleanup")
+	audited := orderedTask(t, dag, "audit")
+	staging := dag.TaskGroup("staging")
+	groupTask(t, staging, "stage")
 
-	Label(loaded, "always").Before(cleaned)
-
-	assertTasks(t, loaded.downstreams, cleaned)
-	assertEdgeLabel(t, dag, "load", "cleanup", "")
+	const fix = "pass airflow.Label(...).On(...) to Before or After as an argument instead"
+	for _, tc := range []struct {
+		name string
+		call func()
+		want string
+	}{
+		{
+			name: "Before",
+			call: func() { Label("always").On(loaded).Before(cleaned) },
+			want: `airflow.Node.Before: Dag "etl": cannot call Before on task "load" ` +
+				`labelled "always"; ` + fix,
+		},
+		{
+			name: "After",
+			call: func() { Label("always").On(loaded).After(cleaned) },
+			want: `airflow.Node.After: Dag "etl": cannot call After on task "load" ` +
+				`labelled "always"; ` + fix,
+		},
+		{
+			name: "a verb with no node",
+			call: func() { Label("always").On(loaded).Before() },
+			want: `airflow.Node.Before: Dag "etl": cannot call Before on task "load" ` +
+				`labelled "always"; ` + fix,
+		},
+		{
+			name: "a label on several nodes",
+			call: func() { Label("always").On(loaded, staging).Before(audited) },
+			want: `airflow.Node.Before: Dag "etl": cannot call Before on task "load" ` +
+				`labelled "always", task group "staging" labelled "always"; ` + fix,
+		},
+		{
+			name: "a label on a nil task",
+			call: func() { Label("always").On((*TaskRef)(nil)).Before(cleaned) },
+			want: "airflow.Node.Before: got a nil *airflow.TaskRef",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.PanicsWithValue(t, tc.want, tc.call)
+		})
+	}
+	assert.Empty(t, dag.edgeLabels)
+	assert.Empty(t, dag.groupEdges)
 }
 
 // TestTheOuterLabelOfANestedLabelWins pins what nesting means: the outer Label relabels the
@@ -274,7 +334,7 @@ func TestTheOuterLabelOfANestedLabelWins(t *testing.T) {
 	loaded := orderedTask(t, dag, "load")
 	cleaned := orderedTask(t, dag, "cleanup")
 
-	loaded.Before(Label(Label(cleaned, "inner"), "outer"))
+	loaded.Before(Label("outer").On(Label("inner").On(cleaned)))
 
 	assertEdgeLabel(t, dag, "load", "cleanup", "outer")
 }
@@ -289,7 +349,7 @@ func TestLabelBelongsToTheVerbItIsPassedTo(t *testing.T) {
 	done := orderedTask(t, dag, "done")
 	extracted := orderedTask(t, dag, "extract")
 
-	labelled := loaded.Before(Label(cleaned, "always"))
+	labelled := loaded.Before(Label("always").On(cleaned))
 	labelled.Before(done)
 	extracted.Before(labelled)
 
@@ -306,27 +366,57 @@ func TestLabelPassesThroughNoVerbTwice(t *testing.T) {
 	cleaned := orderedTask(t, dag, "cleanup")
 	notified := orderedTask(t, dag, "notify")
 
-	notified.After(cleaned.After(Label(loaded, "always")))
+	notified.After(cleaned.After(Label("always").On(loaded)))
 
 	assertEdgeLabel(t, dag, "load", "cleanup", "always")
 	assertEdgeLabel(t, dag, "load", "notify", "")
 }
 
-func TestLabelPanicsOnANilNode(t *testing.T) {
-	assert.PanicsWithValue(t,
-		"airflow.Label: got a nil airflow.Node",
-		func() { Label(nil, "when empty") },
-	)
-}
-
-func TestLabelPanicsOnAnEmptyLabel(t *testing.T) {
+func TestLabelOnPanicsOnANilNode(t *testing.T) {
 	dag := Dag("etl")
 	loaded := orderedTask(t, dag, "load")
 
 	assert.PanicsWithValue(t,
-		"airflow.Label: got an empty label; pass the text to put on the edge",
-		func() { Label(loaded, "") },
+		"airflow.LabelRef.On: node is a nil airflow.Node",
+		func() { Label("when empty").On(nil) },
 	)
+	assert.PanicsWithValue(t,
+		"airflow.LabelRef.On: more[1] is a nil airflow.Node",
+		func() { Label("when empty").On(loaded, loaded, nil) },
+	)
+}
+
+func TestLabelPanicsOnABlankLabel(t *testing.T) {
+	for _, text := range []string{"", "   ", "\t\n", " ", "　"} {
+		assert.PanicsWithValue(t,
+			"airflow.Label: got a blank label; pass the text to put on the edge",
+			func() { Label(text) },
+			"%q", text,
+		)
+	}
+}
+
+// TestLabelOnPanicsOnALabelThatLabelDidNotReturn covers a nil LabelRef and a zero LabelRef. A zero
+// LabelRef has empty text, and an edge verb reads empty text as no label. Without the panic in On,
+// the verb would silently ignore that LabelRef.
+func TestLabelOnPanicsOnALabelThatLabelDidNotReturn(t *testing.T) {
+	dag := Dag("etl")
+	loaded := orderedTask(t, dag, "load")
+
+	for _, tc := range []struct {
+		name  string
+		label *LabelRef
+	}{
+		{name: "a nil label", label: nil},
+		{name: "a zero label", label: &LabelRef{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.PanicsWithValue(t,
+				"airflow.LabelRef.On: airflow.Label did not return the *airflow.LabelRef",
+				func() { tc.label.On(loaded) },
+			)
+		})
+	}
 }
 
 func TestEdgeVerbsRejectANilNode(t *testing.T) {
@@ -442,6 +532,22 @@ func TestEdgeVerbsWithNoNodeDeclareNoEdge(t *testing.T) {
 	assert.Empty(t, dag.edgeLabels)
 }
 
+// TestAVerbThatDeclaresNoEdgeReturnsNoLabel covers a verb whose receiver stands for no task. The
+// verb declares no edge. The Node that the verb returns carries none of the labels on the verb's
+// arguments, so a chain can go on from that Node.
+func TestAVerbThatDeclaresNoEdgeReturnsNoLabel(t *testing.T) {
+	dag := Dag("etl")
+	loaded := orderedTask(t, dag, "load")
+	cleaned := orderedTask(t, dag, "cleanup")
+	done := orderedTask(t, dag, "done")
+
+	var none []Node
+	loaded.Before(none...).Before(Label("always").On(cleaned)).Before(done)
+
+	assert.Empty(t, cleaned.upstreams)
+	assertEdgeLabel(t, dag, "cleanup", "done", "")
+}
+
 // TestEdgeVerbsCheckTheTasksEvenWithNoNode pins that a verb with no node to point at still checks
 // the tasks it was called on. It declares no edge, but a Dag that can no longer take one, or a
 // task the Dag never returned, is a mistake either way.
@@ -506,9 +612,14 @@ func TestEdgeVerbsRejectANodeTheyDoNotDefine(t *testing.T) {
 		func() { loaded.Before(wrappedNode{cleaned}) },
 	)
 	assert.PanicsWithValue(t,
-		"airflow.Label: node has type airflow.wrappedNode, "+
+		"airflow.LabelRef.On: node has type airflow.wrappedNode, "+
 			"which is not a node that package airflow defines",
-		func() { Label(wrappedNode{cleaned}, "when empty") },
+		func() { Label("when empty").On(wrappedNode{cleaned}) },
+	)
+	assert.PanicsWithValue(t,
+		"airflow.LabelRef.On: more[0] has type airflow.wrappedNode, "+
+			"which is not a node that package airflow defines",
+		func() { Label("when empty").On(cleaned, wrappedNode{cleaned}) },
 	)
 	assert.Empty(t, loaded.downstreams)
 }

@@ -242,7 +242,7 @@ func buildConformanceDag(t *testing.T, dagCase conformanceDag) *airflow.DagRef {
 	for _, edge := range dagCase.OrderEdges {
 		downstream := node(edge[1])
 		if len(edge) == 3 {
-			downstream = airflow.Label(downstream, edge[2])
+			downstream = airflow.Label(edge[2]).On(downstream)
 		}
 		node(edge[0]).Before(downstream)
 	}
