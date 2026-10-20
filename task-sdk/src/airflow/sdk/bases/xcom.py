@@ -28,6 +28,7 @@ from uuid import UUID, uuid4
 import attrs
 import structlog
 
+from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
@@ -44,6 +45,9 @@ if TYPE_CHECKING:
 
 # Lightweight wrapper for XCom values
 _XComValueWrapper = collections.namedtuple("_XComValueWrapper", "value")
+
+# The default ``xcom_key`` of ``BaseOperatorLink`` starts with this prefix.
+_EXTRA_LINK_XCOM_KEY_PREFIX = "_link_"
 
 log = structlog.get_logger(logger_name="task")
 
@@ -228,7 +232,7 @@ class BaseXCom:
         mapped_length: int | None = None,
     ) -> None:
         msg = cls._build_set_message(
-            _own_coordinate(ti),
+            build_own_coordinate(ti),
             _public_map_index(ti),
             key,
             value,
@@ -248,7 +252,7 @@ class BaseXCom:
         mapped_length: int | None = None,
     ) -> None:
         msg = await cls._abuild_set_message(
-            _own_coordinate(ti),
+            build_own_coordinate(ti),
             _public_map_index(ti),
             key,
             value,
@@ -814,7 +818,7 @@ def _is_preferred_over(xcom: type[BaseXCom], new_hook: str, old_hook: str) -> bo
     )
 
 
-def _is_legacy_xcom_backend(xcom: type[BaseXCom]) -> bool:
+def is_legacy_xcom_backend(xcom: type[BaseXCom]) -> bool:
     """
     Whether the XCom backend stores task XComs through ``serialize_value`` rather than ``store_value``.
 
@@ -824,11 +828,21 @@ def _is_legacy_xcom_backend(xcom: type[BaseXCom]) -> bool:
     return not _is_preferred_over(xcom, "store_value", "serialize_value")
 
 
+def build_loop_error(xcom: type[BaseXCom], subject: str) -> TypeError:
+    """Return the error for ``subject``, a Dag or task that uses a loop, when ``xcom`` cannot tell iterations apart."""
+    return TypeError(
+        f"{subject} uses a loop, but XCom backend {xcom.__module__}.{xcom.__qualname__} stores values through "
+        "serialize_value rather than store_value, so every iteration of a task could store its XCom in the "
+        "same place. Implement store_value and include ti.id in the storage location; for "
+        "XComObjectStorageBackend, upgrade apache-airflow-providers-common-io."
+    )
+
+
 def _public_map_index(ti: _OwnTaskInstance) -> int:
     return ti.map_index if ti.map_index is not None else -1
 
 
-def _own_coordinate(ti: _OwnTaskInstance) -> XComCoordinate:
+def build_own_coordinate(ti: _OwnTaskInstance) -> XComCoordinate:
     # The top-level region and a missing one both mean the task instance is outside any region.
     in_region = ti.region_id not in (None, UUID(int=0))
     return XComCoordinate(
@@ -838,6 +852,16 @@ def _own_coordinate(ti: _OwnTaskInstance) -> XComCoordinate:
         ti.id,
         ti.region_id if in_region else None,
         ti.region_index if in_region else None,
+    )
+
+
+def is_own_xcom(owner: _OwnTaskInstance, dag_id: str, run_id: str, task_id: str, map_index: int) -> bool:
+    """Whether the XCom at these coordinates belongs to ``owner``."""
+    return (owner.dag_id, owner.run_id, owner.task_id, _public_map_index(owner)) == (
+        dag_id,
+        run_id,
+        task_id,
+        map_index,
     )
 
 
@@ -853,11 +877,20 @@ def _find_own_coordinate(dag_id: str, run_id: str, task_id: str, map_index: int)
         owner = running
     else:
         return None
-    if (owner.dag_id, owner.run_id, owner.task_id, _public_map_index(owner)) == (
-        dag_id,
-        run_id,
-        task_id,
-        map_index,
-    ):
-        return _own_coordinate(owner)
+    if is_own_xcom(owner, dag_id, run_id, task_id, map_index):
+        return build_own_coordinate(owner)
     return None
+
+
+def is_stored_through_backend(key: str) -> bool:
+    """
+    Whether an XCom with ``key`` is stored through the XCom backend.
+
+    The branch/skip decision is control-plane data the scheduler reads (via NotPreviouslySkippedDep) to
+    skip mapped or cleared downstream tasks. It must bypass any custom XCom backend, which could
+    externalize it into a pointer the scheduler cannot interpret, silently leaving those tasks
+    unskipped (#50491).
+
+    Operator extra links bypass it too, because the UI reads them from the XCom row as it is.
+    """
+    return key != XCOM_SKIPMIXIN_KEY and not key.startswith(_EXTRA_LINK_XCOM_KEY_PREFIX)

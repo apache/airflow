@@ -343,11 +343,9 @@ def ti_run(
             )
 
         # Send the keys to the worker, which deletes those XComs. The server cannot delete them itself,
-        # because for a Python task the task runner also purges them from a custom XCom backend, and only
-        # workers can reach that backend. For a language SDK task (Java, Go, TypeScript), the supervisor
-        # deletes these XComs before the runtime starts the task and does not purge them, because those
-        # runtimes push their XComs straight to the API server, so the XCom values never pass through the
-        # backend.
+        # because the worker also purges them from a custom XCom backend, and only workers can reach that
+        # backend. For a language SDK task (Java, Go, TypeScript), the supervisor deletes and purges them
+        # before the runtime starts the task.
 
         # However, do not clear it for deferral
         xcom_keys: list[str] = []
