@@ -4525,7 +4525,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.24.1"
+version = "10.25.0"
 source = { editable = "providers/cncf/kubernetes" }
 dependencies = [
     { name = "aiofiles" },
@@ -8186,7 +8186,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-smtp"
-version = "3.1.1"
+version = "3.2.0"
 source = { editable = "providers/smtp" }
 dependencies = [
     { name = "aiosmtplib" },

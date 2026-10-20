@@ -46,6 +46,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Honor ECS task skip and failure handling when the CloudWatch log stream is missing (#74730)``
 * ``Prevent Dag processor crashes with CloudWatch logging when logs are outside 'base_log_folder' (#74929)``
 * ``Bound Glue retry task UUID lookups to 10 pages of 200 runs and surface unexpected lookup errors (#71546)``
 * ``Report missing Parquet engines before 'SqlToS3Operator' queries and name the required extra (#74817)``
@@ -62,6 +63,8 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop the EKS executor concurrency test from starving its own builders (#75197)``
+   * ``Exclude minimal and ECS Amazon Linux AMIs in get_latest_ami_id (#75171)``
 
 9.38.0
 ......

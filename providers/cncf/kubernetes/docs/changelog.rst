@@ -27,8 +27,13 @@
 Changelog
 ---------
 
-10.24.1
+10.25.0
 .......
+
+Features
+~~~~~~~~
+
+* ``Add log_events_on_startup and keep KubernetesPodOperator running when event logging fails (#75016)``
 
 Bug Fixes
 ~~~~~~~~~

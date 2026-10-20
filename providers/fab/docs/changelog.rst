@@ -26,6 +26,7 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
+* ``Distinguish invalid Dag access control from FAB permission backend failures (#74788)``
 * ``Check all names before airflow roles import writes anything (#74711)``
 * ``Keep the /auth mount path when ProxyFix applies X-Forwarded-Prefix (#74603)``
 * ``Sync Dag permissions for CustomAuthManager (#74022)``

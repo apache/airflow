@@ -55,6 +55,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up unused mypy suppressions in standard provider tests (#75210)``
    * ``Pass runtime values to example Dag shell commands through env (#73787)``
 
 1.20.1

@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SMTP email utilities and an opt-in email backend using the [smtp] configuration section (#74623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.1
 .....
 

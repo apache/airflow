@@ -31,6 +31,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Add emit_message_history to record an AgentOperator transcript without seeding the conversation (#74811)``
 * ``Expose LLMOperator token usage, cost, and run identity through XCom (#74355)``
 
 Bug Fixes
@@ -40,6 +41,7 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Modal contract test importing a private class from its old location (#75188)``
 
 1.0.0
 .....
