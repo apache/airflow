@@ -55,6 +55,7 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
+from airflow.sdk.execution_time.comms import SetTaskStateStore
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
@@ -936,6 +937,49 @@ class TestPopenActivitySubprocessStart:
                 subprocess_logs_to_stdout=False,
             )
         assert mock_register.mock_calls == [call(ANY, ANY, ANY, ANY, data=ANY)]
+
+
+class TestPopenActivitySubprocessSetTaskStateStore:
+    @pytest.mark.parametrize(
+        ("limit", "value", "warns"),
+        [
+            # json.dumps gives '{"a": "\\u00e9"}', 15 bytes; Go's encoding/json gives 11.
+            pytest.param("14", {"a": "é"}, True, id="over-limit"),
+            pytest.param("15", {"a": "é"}, False, id="at-limit"),
+            pytest.param("0", {"a": "é"}, False, id="limit-disabled"),
+        ],
+    )
+    def test_warns_when_value_exceeds_max_value_storage_bytes(self, limit, value, warns):
+        client = MagicMock(spec=Client)
+        proc = _PopenActivitySubprocess(
+            process_log=MagicMock(),
+            id=uuid7(),
+            pid=12345,
+            stdin=MagicMock(),
+            process=MagicMock(),
+            client=client,
+            comm_server=MagicMock(spec=socket.socket),
+            logs_server=MagicMock(spec=socket.socket),
+        )
+        msg = SetTaskStateStore(ti_id=proc.id, key="k", value=value, expires_at=None)
+        log = MagicMock()
+
+        with (
+            conf_vars({("state_store", "max_value_storage_bytes"): limit}),
+            patch.object(_PopenActivitySubprocess, "send_msg", autospec=True),
+        ):
+            proc._handle_request(msg, log=log, req_id=1)
+
+        client.task_state_store.set.assert_called_once_with(proc.id, "k", value, expires_at=None)
+        if warns:
+            log.warning.assert_called_once_with(
+                "Task store value exceeds configured max_value_storage_bytes",
+                key="k",
+                size=15,
+                max_value_storage_bytes=14,
+            )
+        else:
+            log.warning.assert_not_called()
 
 
 # This script connects back to the supervisor the way a language SDK runtime does, then waits for
