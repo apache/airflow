@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { MouseEvent } from "react";
+
 import { Box, type BoxProps } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { useParams } from "react-router-dom";
@@ -28,12 +30,14 @@ import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptio
 import { GridTI } from "./GridTI";
 import { DagVersionIndicator } from "./VersionIndicator";
 import { ROW_HEIGHT } from "./constants";
+import { getCellKey, type GridCell, type GridSelection } from "./useGridSelection";
 import type { GridTask } from "./utils";
 
 type Props = {
   readonly nodes: Array<GridTask>;
-  readonly onCellClick?: () => void;
+  readonly onCellClick?: (event: MouseEvent<HTMLAnchorElement>, cell: GridCell) => void;
   readonly run: GridRunsResponse;
+  readonly selection?: GridSelection;
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
   readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
@@ -54,6 +58,7 @@ export const TaskInstancesColumn = ({
   nodes,
   onCellClick,
   run,
+  selection,
   showVersionIndicatorMode,
   tiSummaries,
   virtualItems,
@@ -150,9 +155,14 @@ export const TaskInstancesColumn = ({
               instance={taskInstance}
               isGroup={node.isGroup}
               isMapped={node.is_mapped}
+              isMultiSelected={
+                selection === undefined || selection.size === 0
+                  ? undefined
+                  : selection.has(getCellKey(run.run_id, node.id))
+              }
               label={node.label}
               loopMaxIterations={node.loop_max_iterations}
-              onClick={onCellClick}
+              onClick={(event) => onCellClick?.(event, { runId: run.run_id, taskId: node.id })}
               runId={run.run_id}
               taskId={node.id}
             />
