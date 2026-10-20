@@ -1093,7 +1093,7 @@ all = [
     { name = "apache-airflow-providers-teradata" },
     { name = "apache-airflow-providers-trino" },
     { name = "apache-airflow-providers-vertica" },
-    { name = "apache-airflow-providers-vespa", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-vespa" },
     { name = "apache-airflow-providers-weaviate" },
     { name = "apache-airflow-providers-yandex" },
     { name = "apache-airflow-providers-ydb" },
@@ -1474,7 +1474,7 @@ vertica = [
     { name = "apache-airflow-providers-vertica" },
 ]
 vespa = [
-    { name = "apache-airflow-providers-vespa", marker = "python_full_version != '3.14.*'" },
+    { name = "apache-airflow-providers-vespa" },
 ]
 weaviate = [
     { name = "apache-airflow-providers-weaviate" },
@@ -1786,8 +1786,8 @@ requires-dist = [
     { name = "apache-airflow-providers-trino", marker = "extra == 'trino'", editable = "providers/trino" },
     { name = "apache-airflow-providers-vertica", marker = "extra == 'all'", editable = "providers/vertica" },
     { name = "apache-airflow-providers-vertica", marker = "extra == 'vertica'", editable = "providers/vertica" },
-    { name = "apache-airflow-providers-vespa", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/vespa" },
-    { name = "apache-airflow-providers-vespa", marker = "python_full_version != '3.14.*' and extra == 'vespa'", editable = "providers/vespa" },
+    { name = "apache-airflow-providers-vespa", marker = "extra == 'all'", editable = "providers/vespa" },
+    { name = "apache-airflow-providers-vespa", marker = "extra == 'vespa'", editable = "providers/vespa" },
     { name = "apache-airflow-providers-weaviate", marker = "extra == 'all'", editable = "providers/weaviate" },
     { name = "apache-airflow-providers-weaviate", marker = "extra == 'weaviate'", editable = "providers/weaviate" },
     { name = "apache-airflow-providers-yandex", marker = "extra == 'all'", editable = "providers/yandex" },
@@ -8608,7 +8608,8 @@ source = { editable = "providers/vespa" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "pyvespa" },
+    { name = "pyvespa", version = "1.2.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
+    { name = "pyvespa", version = "1.2.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
 ]
 
 [package.dev-dependencies]
@@ -8626,7 +8627,8 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "pyvespa", specifier = ">=1.1.2" },
+    { name = "pyvespa", marker = "python_full_version < '3.14'", specifier = ">=1.1.2" },
+    { name = "pyvespa", marker = "python_full_version >= '3.14'", specifier = ">=1.2.9" },
 ]
 
 [package.metadata.requires-dev]
@@ -21292,6 +21294,20 @@ wheels = [
 name = "pyvespa"
 version = "1.2.7"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version == '3.13.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version == '3.13.*' and sys_platform == 'win32'",
+    "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
+    "(python_full_version == '3.13.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version == '3.12.*' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version == '3.12.*' and sys_platform == 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
+    "(python_full_version == '3.12.*' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "python_full_version < '3.12' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.12' and sys_platform == 'win32'",
+    "python_full_version < '3.12' and sys_platform == 'emscripten'",
+    "(python_full_version < '3.12' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+]
 dependencies = [
     { name = "certifi" },
     { name = "cryptography" },
@@ -21310,6 +21326,38 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b0/bb/b97094137d5d1698e26c32ea50ec01d17a45e08ebf21dc0717a0723c4908/pyvespa-1.2.7.tar.gz", hash = "sha256:cc41bfb302023aee7a38bb0dcf64d621e2e1d214079c4015383ef17038eeabfd", size = 173129, upload-time = "2026-09-23T09:35:44.614Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cc/f3/319e6c128b3690ba7a369c5fec01ca802c6436a29049e7349e806cae8b4a/pyvespa-1.2.7-py3-none-any.whl", hash = "sha256:4b77fc09662d68785dc3f86a43b046c474234451b9b7a6802aef39dbc9f8c660", size = 183890, upload-time = "2026-09-23T09:35:43.103Z" },
+]
+
+[[package]]
+name = "pyvespa"
+version = "1.2.9"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.15' and sys_platform == 'win32'",
+    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
+    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.14.*' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
+    "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+]
+dependencies = [
+    { name = "certifi" },
+    { name = "cryptography" },
+    { name = "docker" },
+    { name = "fastcore" },
+    { name = "httpr" },
+    { name = "httpx", extra = ["http2"] },
+    { name = "jinja2" },
+    { name = "lxml" },
+    { name = "python-dateutil" },
+    { name = "requests" },
+    { name = "requests-toolbelt" },
+    { name = "tenacity" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c6/73/32a3ea95a4ae8ee3d0d6ec28c43fc88012a1ff96a15c22b2fe529bbf7747/pyvespa-1.2.9.tar.gz", hash = "sha256:3be6a5de5c318ec38e3bba7160bb93d880264ff91e4062f78a37a5f63468d4d5", size = 178133, upload-time = "2026-10-13T11:20:54.677Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/37/cc75201fc8b312ed25310bdd1e8fd08fd1d601b89ffbb5f0d8193c1d08ec/pyvespa-1.2.9-py3-none-any.whl", hash = "sha256:0fdfde89e0bd8770b4edddadd223b4656f8492d5f3635419fd230bdea4662a57", size = 189437, upload-time = "2026-10-13T11:20:52.863Z" },
 ]
 
 [[package]]
