@@ -121,6 +121,21 @@ Both ``DatabricksSqlSensor`` and ``DatabricksPartitionSensor`` support ``query_t
 
 Set ``include_airflow_query_tags=False`` to suppress the automatic Airflow context tags.
 
+Deferrable Mode
+^^^^^^^^^^^^^^^
+
+``DatabricksSqlSensor`` supports deferrable execution via ``deferrable=True``. When deferrable mode is enabled, the sensor checks data readiness on the worker first. If the data is not yet ready, the sensor defers execution to the Airflow Triggerer, freeing worker resources and avoiding repeated worker pod startups under KubernetesExecutor. The triggerer polls the SQL readiness query through ``DatabricksSqlHook`` asynchronously without blocking its event loop until the query returns a truthy result or times out.
+
+.. code-block:: python
+
+    sensor = DatabricksSqlSensor(
+        task_id="deferrable_sql_sensor",
+        sql_warehouse_name="my_warehouse",
+        sql="SELECT 1 FROM my_table WHERE status = 'ready'",
+        deferrable=True,
+        poke_interval=60,
+    )
+
 Examples
 --------
 Configuring Databricks connection to be used with the Sensor.
