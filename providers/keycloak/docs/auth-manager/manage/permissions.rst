@@ -103,12 +103,48 @@ Finally, with the command below, we create the permissions using the previously 
 
   airflow keycloak-auth-manager create-permissions --teams team-a,team-b
 
-This will create
+Without ``--teams``, the CLI creates resource-specific permissions for non-team installations.
+It generates a ``<Resource>Read`` permission with ``GET`` and ``LIST`` scopes and a
+``<Resource>Write`` permission with ``POST``, ``PUT``, and ``DELETE`` scopes for each resource
+except the generic ``Menu`` resource. The current model has 24 read/write permissions for
+12 resources, plus ``DefaultMenuAccess`` for individual menu resources with the ``MENU`` scope.
 
-* read-only permissions (per-team when ``--teams`` is provided)
-* admin permissions (global)
-* user permissions (per-team when ``--teams`` is provided)
-* operations permissions (per-team when ``--teams`` is provided)
+The generated non-team grants are:
+
+.. list-table:: Non-team role grants
+    :header-rows: 1
+    :widths: 40 30 30
+
+    * - Resources
+      - Read roles
+      - Write roles
+    * - ``Dag``, ``Asset``
+      - Viewer, User, Op, Admin, SuperAdmin
+      - User, Op, Admin, SuperAdmin
+    * - ``Backfill``, ``Connection``, ``Pool``, ``Variable``
+      - Viewer, User, Op, Admin, SuperAdmin
+      - Op, Admin, SuperAdmin
+    * - ``AdminView``, ``AssetAlias``, ``Configuration``, ``Custom``, ``Team``, ``View``
+      - Viewer, User, Op, Admin, SuperAdmin
+      - Admin, SuperAdmin
+
+Higher roles are explicitly attached to the appropriate permissions; composite roles are not
+required. ``DefaultMenuAccess`` grants all individual menu resources to all five default roles.
+These are Keycloak scope grants. Airflow endpoint checks and configuration exposure settings
+can impose additional restrictions, and not every resource has an endpoint for every scope.
+
+With ``--teams``, the CLI instead creates team-specific ``ReadOnly-<team>``, ``User-<team>``,
+``Op-<team>``, and ``Admin-<team>`` permissions, together with global list, view, and menu
+permissions. Use ``create-team`` as described below to configure each team's group and policy
+attachments.
+
+.. note::
+
+    Provisioning preserves legacy permissions and extra policy attachments in non-team mode.
+    Re-running the commands creates the new resource-specific permissions but does not remove
+    the old ``ReadOnly``, ``User``, ``Op``, or ``Admin`` permissions. Existing legacy or custom
+    grants can therefore affect effective access; upgrading the provider alone does not migrate
+    the client's authorization configuration.
 
 Managing teams with Keycloak
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -138,6 +174,17 @@ Views over records that are not tied to a Dag or a team -- audit log entries not
 import errors for files with no registered Dag and reparsing such files -- are checked against the
 ``AdminView`` resource, which the CLI grants to ``SuperAdmin`` only. The other views are checked against
 the ``View`` resource, which every team role can read.
+
+When transitioning a previously provisioned non-team client to team mode, ``create-team``,
+``create-all --teams``, and ``create-permissions --teams`` restrict the existing generated
+non-team read/write permissions and ``DefaultMenuAccess`` to ``Allow-SuperAdmin``. Their
+resource and scope definitions are reset to the generated defaults, and their policy attachments
+are replaced, including any custom policies attached to those generated permission names.
+Permissions with other names are not changed by this restriction helper. Review any separate
+legacy or custom grants that might independently allow access in team mode.
+
+Team members receive access through team-specific permissions instead of the previous plain-role
+non-team grants. ``create-team`` also retains the legacy ``ReadOnly`` and ``Admin`` repair steps.
 
 More resources about permissions can be found in the official documentation of Keycloak:
 
