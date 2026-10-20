@@ -96,6 +96,7 @@ jobs:
       airflow-version: ${{ steps.parameters.outputs.airflow-version }}
       publish-execution-api-schema: ${{ steps.parameters.outputs.publish-execution-api-schema }}
       publish-supervisor-schema: ${{ steps.parameters.outputs.publish-supervisor-schema }}
+      publish-dag-schema: ${{ steps.parameters.outputs.publish-dag-schema }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
       # Docs and the registry each build the image they need rather than sharing one. Sharing
@@ -244,15 +245,19 @@ jobs:
           fi
           PUBLISH_EXEC="false"
           PUBLISH_SUP="false"
+          PUBLISH_DAG="false"
           if [[ "${INCLUDE_DOCS}" == "all" || "${INCLUDE_DOCS}" == "" ]]; then
              PUBLISH_EXEC="true"
              PUBLISH_SUP="true"
+             PUBLISH_DAG="true"
           else
              [[ " ${INCLUDE_DOCS} " == *" apache-airflow "* ]] && PUBLISH_EXEC="true"
              [[ " ${INCLUDE_DOCS} " == *" task-sdk "* ]] && PUBLISH_SUP="true"
+             [[ " ${INCLUDE_DOCS} " == *" task-sdk "* ]] && PUBLISH_DAG="true"
           fi
           echo "publish-execution-api-schema=${PUBLISH_EXEC}" >> ${GITHUB_OUTPUT}
           echo "publish-supervisor-schema=${PUBLISH_SUP}" >> ${GITHUB_OUTPUT}
+          echo "publish-dag-schema=${PUBLISH_DAG}" >> ${GITHUB_OUTPUT}
 
   build-docs:
     needs: [build-info]
@@ -409,8 +414,13 @@ jobs:
           breeze shell --quiet --backend=none \
             "python scripts/ci/prek/dump_supervisor_schemas.py > /files/supervisor-schema.json"
           cp files/supervisor-schema.json schemas/supervisor-schema.json
+      - name: "Copy YAML Dag schema artifact"
+        if: needs.build-info.outputs.publish-dag-schema == 'true'
+        run: |
+          mkdir -p schemas
+          cp task-sdk/src/airflow/sdk/importers/yaml_importer/schema.json schemas/dag.json
       - name: "Upload schema artifacts"
-        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true'
+        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true' || needs.build-info.outputs.publish-dag-schema == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: airflow-schemas
@@ -696,17 +706,18 @@ jobs:
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
           --exclude-docs "${EXCLUDE_DOCS}" --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
       - name: "Download schema artifacts"
-        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true'
+        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true' || needs.build-info.outputs.publish-dag-schema == 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: airflow-schemas
           path: schemas
       - name: "Publish schemas to S3"
-        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true'
+        if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true' || needs.build-info.outputs.publish-dag-schema == 'true'
         env:
           DESTINATION_LOCATION: "${{ needs.build-info.outputs.destination-location }}"
           PUBLISH_EXEC: "${{ needs.build-info.outputs.publish-execution-api-schema }}"
           PUBLISH_SUP: "${{ needs.build-info.outputs.publish-supervisor-schema }}"
+          PUBLISH_DAG: "${{ needs.build-info.outputs.publish-dag-schema }}"
         run: |
           # Reuse the docs bucket but publish under the schemas/ prefix.
           SCHEMAS_DESTINATION="${DESTINATION_LOCATION%docs/}schemas/"
@@ -716,6 +727,9 @@ jobs:
           fi
           if [[ "${PUBLISH_SUP}" == "true" ]]; then
              args+=(--supervisor schemas/supervisor-schema.json)
+          fi
+          if [[ "${PUBLISH_DAG}" == "true" ]]; then
+             args+=(--dag schemas/dag.json)
           fi
           breeze release-management publish-schemas-to-s3 \
             --destination-location "${SCHEMAS_DESTINATION}" "${args[@]}"

@@ -4911,7 +4911,7 @@ def publish_docs_to_s3(
 
 @release_management_group.command(
     name="publish-schemas-to-s3",
-    help="Publishes generated JSON schema artifacts (Execution API, Supervisor) to S3.",
+    help="Publishes generated JSON schema artifacts (Execution API, Supervisor, YAML Dag) to S3.",
 )
 @click.option(
     "--execution-api",
@@ -4921,6 +4921,11 @@ def publish_docs_to_s3(
 @click.option(
     "--supervisor",
     help="Path to the generated Supervisor schema JSON file.",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "--dag",
+    help="Path to the generated YAML Dag schema JSON file.",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
 )
 @click.option(
@@ -4944,14 +4949,15 @@ def publish_docs_to_s3(
 def publish_schemas_to_s3(
     execution_api: Path | None,
     supervisor: Path | None,
+    dag: Path | None,
     destination_location: str,
     overwrite: bool,
     dry_run: bool,
 ):
     from airflow_breeze.utils.publish_docs_to_s3 import publish_schemas_to_s3 as _publish_schemas_to_s3
 
-    if not execution_api and not supervisor:
-        console_print("[error]Provide at least one of --execution-api or --supervisor[/]")
+    if not execution_api and not supervisor and not dag:
+        console_print("[error]Provide at least one of --execution-api, --supervisor or --dag[/]")
         sys.exit(1)
 
     console_print("[info]Publishing schemas to S3[/]")
@@ -4960,11 +4966,14 @@ def publish_schemas_to_s3(
         console_print(f"[info]Execution API schema: {execution_api}[/]")
     if supervisor:
         console_print(f"[info]Supervisor schema: {supervisor}[/]")
+    if dag:
+        console_print(f"[info]YAML Dag schema: {dag}[/]")
 
     _publish_schemas_to_s3(
         destination_location=destination_location.rstrip("/"),
         execution_api_schema=execution_api,
         supervisor_schema=supervisor,
+        dag_schema=dag,
         overwrite=overwrite,
         dry_run=dry_run,
     )
