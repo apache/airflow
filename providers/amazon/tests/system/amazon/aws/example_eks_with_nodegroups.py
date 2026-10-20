@@ -92,17 +92,10 @@ def delete_launch_template(template_name: str):
 @contextmanager
 def get_eks_kubernetes_client(cluster_name: str) -> Generator[CoreV1Api, None, None]:
     eks_hook = EksHook()
-    credentials = eks_hook.get_session().get_credentials()
-    if credentials is None:
-        raise RuntimeError("Unable to retrieve AWS credentials for the EKS system test.")
-    frozen_credentials = credentials.get_frozen_credentials()
-    with eks_hook._secure_credential_context(
-        frozen_credentials.access_key,
-        frozen_credentials.secret_key,
-        frozen_credentials.token,
-    ) as credentials_file:
-        with eks_hook.generate_config_file(cluster_name, "default", credentials_file) as config_file:
-            yield KubernetesHook(kubernetes_conn_id=None, config_file=config_file).core_v1_client
+    with eks_hook.generate_config_file_with_credentials(
+        eks_cluster_name=cluster_name, pod_namespace="default"
+    ) as (config_file, _):
+        yield KubernetesHook(kubernetes_conn_id=None, config_file=config_file).core_v1_client
 
 
 @task

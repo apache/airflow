@@ -1455,27 +1455,13 @@ class EksPodExecOperator(KubernetesPodExecOperator):
             verify=self.verify,
             config=self.botocore_config,
         )
-        credentials = eks_hook.get_session().get_credentials()
-        if credentials is None:
-            raise RuntimeError(
-                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
-                "Please check your AWS connection configuration."
-            )
-        frozen_credentials = credentials.get_frozen_credentials()
-        with eks_hook._secure_credential_context(
-            frozen_credentials.access_key,
-            frozen_credentials.secret_key,
-            frozen_credentials.token,
-        ) as credentials_file:
-            with eks_hook.generate_config_file(
-                eks_cluster_name=self.cluster_name,
-                pod_namespace=self.namespace,
-                credentials_file=credentials_file,
-            ) as config_file:
-                self.config_file = config_file
-                try:
-                    return super().execute(context)
-                finally:
-                    self.config_file = None
-                    self.__dict__.pop("client", None)
-                    self.__dict__.pop("hook", None)
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
+        ) as (config_file, _):
+            self.config_file = config_file
+            try:
+                return super().execute(context)
+            finally:
+                self.config_file = None
+                self.__dict__.pop("client", None)
+                self.__dict__.pop("hook", None)
