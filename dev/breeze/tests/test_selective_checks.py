@@ -2965,7 +2965,12 @@ def test_selective_tests_on_push(selective_tests_on_push: bool, expected_outputs
         pytest.param(
             ("airflow-core/docs/index.rst",),
             True,
-            {"full-tests-needed": "true", "all-versions": "true", "is-committer-build": "false"},
+            {
+                "full-tests-needed": "true",
+                "all-versions": "true",
+                "is-committer-build": "false",
+                "run-ui-e2e-tests": "true",
+            },
             id="Fork push with a truncated change set runs everything",
         ),
     ],
@@ -4197,6 +4202,39 @@ def test_provider_dependency_bump_check_fails_on_a_fork_push(mock_run_command):
             default_branch="main",
             fork_push=True,
         ).provider_dependency_bump
+
+
+@patch("airflow_breeze.utils.selective_checks.get_upstream_file", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_on_a_fork_push_compares_with_the_merge_base(
+    mock_run_command, mock_upstream_file
+):
+    """
+    After the contributor merges upstream main, the pushed commit's parent is their own old tip,
+    so a release manager's bump from main would look like theirs.
+    """
+    bumped = '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.1.0"]\n'
+    mock_run_command.side_effect = lambda *args, **kwargs: Mock(
+        returncode=0,
+        stdout=(
+            '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.0.0"]\n'
+            if "^:" in args[0][2]
+            else bumped
+        ),
+    )
+    mock_upstream_file.return_value = bumped
+
+    assert not SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+        fork_push=True,
+        fork_merge_base="base-sha",
+    ).provider_dependency_bump
+
+    mock_upstream_file.assert_called_once_with(path="providers/amazon/pyproject.toml", ref="base-sha")
 
 
 @patch("airflow_breeze.utils.selective_checks.run_command")

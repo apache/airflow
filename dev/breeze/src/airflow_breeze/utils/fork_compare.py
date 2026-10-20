@@ -34,6 +34,7 @@ COMPARE_FILE_CAP = 300
 class ForkChanges:
     files: tuple[str, ...]
     truncated: bool
+    merge_base: str | None = None
 
 
 def is_fork_push(github_event: GithubEvents, github_repository: str) -> bool:
@@ -50,6 +51,10 @@ def get_fork_changes(*, fork_owner: str, sha: str, base: str) -> ForkChanges:
     branch name cannot be trusted to tell. A renamed file counts under both paths, as in
     ``git diff``. When the compare fails the change set is reported as truncated, so the run
     covers everything instead of failing.
+
+    ``merge_base`` is the upstream commit the changes are measured from. Checks that compare a
+    file with its previous version use it instead of the pushed commit's parent, which after a
+    merge of upstream ``main`` into the branch is the contributor's own previous tip.
     """
     result = run_gh_command(
         [
@@ -57,7 +62,8 @@ def get_fork_changes(*, fork_owner: str, sha: str, base: str) -> ForkChanges:
             "api",
             f"repos/{APACHE_AIRFLOW_GITHUB_REPOSITORY}/compare/{base}...{fork_owner}:{sha}",
             "--jq",
-            "[.files[] | [.filename, (.previous_filename // empty)]]",
+            "{files: [.files[] | [.filename, (.previous_filename // empty)]], "
+            "merge_base: .merge_base_commit.sha}",
         ],
         capture_output=True,
         text=True,
@@ -68,6 +74,74 @@ def get_fork_changes(*, fork_owner: str, sha: str, base: str) -> ForkChanges:
             f"so everything runs: {result.stderr.strip()}[/]"
         )
         return ForkChanges(files=(), truncated=True)
-    entries = json.loads(result.stdout or "[]")
+    compare = json.loads(result.stdout or "{}")
+    entries = compare.get("files", [])
     files = tuple(path for entry in entries for path in entry)
-    return ForkChanges(files=files, truncated=len(entries) >= COMPARE_FILE_CAP)
+    return ForkChanges(
+        files=files, truncated=len(entries) >= COMPARE_FILE_CAP, merge_base=compare.get("merge_base")
+    )
+
+
+def get_fork_pull_request_labels(*, fork_owner: str, branch: str) -> tuple[str, ...]:
+    """
+    Labels of the open apache/airflow pull request from ``fork_owner:branch``.
+
+    A fork push carries no pull request, so labels such as ``full tests needed`` or
+    ``allow provider dependency bump`` are read here. A label added later takes effect on the
+    next fork run. No pull request, or a failed call, means no labels.
+    """
+    result = run_gh_command(
+        [
+            "gh",
+            "api",
+            "--method",
+            "GET",
+            f"repos/{APACHE_AIRFLOW_GITHUB_REPOSITORY}/pulls",
+            "-f",
+            f"head={fork_owner}:{branch}",
+            "-f",
+            "state=open",
+            "--jq",
+            "[.[0].labels[]?.name]",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        console_print(
+            f"[warning]Could not read the labels of the pull request from {fork_owner}:{branch}: "
+            f"{result.stderr.strip()}[/]"
+        )
+        return ()
+    return tuple(json.loads(result.stdout or "[]"))
+
+
+class UpstreamFileError(RuntimeError):
+    """A file of apache/airflow could not be read for a reason other than its absence."""
+
+
+def get_upstream_file(*, path: str, ref: str) -> str | None:
+    """
+    Content of ``path`` at ``ref`` in apache/airflow, or None when the file does not exist there.
+
+    Any other failure raises: the checks that compare a file with its previous version would
+    otherwise pass silently for a change they never saw.
+    """
+    result = run_gh_command(
+        [
+            "gh",
+            "api",
+            "-H",
+            "Accept: application/vnd.github.raw",
+            f"repos/{APACHE_AIRFLOW_GITHUB_REPOSITORY}/contents/{path}?ref={ref}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return result.stdout
+    if "404" in result.stderr or "Not Found" in result.stderr:
+        return None
+    raise UpstreamFileError(
+        f"Could not read {path} at {ref} in {APACHE_AIRFLOW_GITHUB_REPOSITORY}: {result.stderr.strip()}"
+    )

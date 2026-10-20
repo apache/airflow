@@ -43,10 +43,12 @@ def _invoke(repository: str, event: str = "push"):
     )
 
 
+@mock.patch("airflow_breeze.commands.ci_commands.get_fork_pull_request_labels", autospec=True)
 @mock.patch("airflow_breeze.commands.ci_commands.get_changed_files", autospec=True)
 @mock.patch("airflow_breeze.commands.ci_commands.get_fork_changes", autospec=True)
-def test_fork_push_takes_changed_files_from_compare(mock_fork_changes, mock_changed_files):
-    mock_fork_changes.return_value = ForkChanges(files=("README.md",), truncated=True)
+def test_fork_push_takes_changed_files_from_compare(mock_fork_changes, mock_changed_files, mock_labels):
+    mock_fork_changes.return_value = ForkChanges(files=("README.md",), truncated=True, merge_base="base-sha")
+    mock_labels.return_value = ("full tests needed",)
 
     with mock.patch("airflow_breeze.utils.selective_checks.SelectiveChecks", autospec=True) as mock_sc:
         result = _invoke("someone/airflow")
@@ -58,11 +60,15 @@ def test_fork_push_takes_changed_files_from_compare(mock_fork_changes, mock_chan
     assert kwargs["files"] == ("README.md",)
     assert kwargs["fork_push"] is True
     assert kwargs["fork_changes_truncated"] is True
+    assert kwargs["fork_merge_base"] == "base-sha"
+    mock_labels.assert_called_once_with(fork_owner="someone", branch="backport-abc-v3-1-test")
+    assert kwargs["pr_labels"] == ("full tests needed",)
 
 
 @mock.patch("airflow_breeze.commands.ci_commands.get_changed_files", autospec=True)
 @mock.patch("airflow_breeze.commands.ci_commands.get_fork_changes", autospec=True)
-def test_upstream_push_uses_git_diff(mock_fork_changes, mock_changed_files):
+@mock.patch("airflow_breeze.commands.ci_commands.get_fork_pull_request_labels", autospec=True)
+def test_upstream_push_uses_git_diff(mock_labels, mock_fork_changes, mock_changed_files):
     mock_changed_files.return_value = ("README.md",)
 
     with mock.patch("airflow_breeze.utils.selective_checks.SelectiveChecks", autospec=True) as mock_sc:
@@ -70,4 +76,5 @@ def test_upstream_push_uses_git_diff(mock_fork_changes, mock_changed_files):
 
     assert result.exit_code == 0, result.output
     mock_fork_changes.assert_not_called()
+    mock_labels.assert_not_called()
     assert mock_sc.call_args.kwargs["fork_push"] is False
