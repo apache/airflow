@@ -26,7 +26,10 @@ from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.fork_compare import (
     COMPARE_FILE_CAP,
     ForkChanges,
+    UpstreamFileError,
     get_fork_changes,
+    get_fork_pull_request_labels,
+    get_upstream_file,
     is_fork_push,
 )
 
@@ -62,7 +65,9 @@ def test_is_fork_push(event, repository, expected):
     ],
 )
 def test_get_fork_changes(mock_gh, files, expected):
-    mock_gh.return_value = subprocess.CompletedProcess([], 0, stdout=json.dumps(files), stderr="")
+    mock_gh.return_value = subprocess.CompletedProcess(
+        [], 0, stdout=json.dumps({"files": files, "merge_base": None}), stderr=""
+    )
 
     assert get_fork_changes(fork_owner="someone", sha="abc", base="main") == expected
 
@@ -76,3 +81,53 @@ def test_get_fork_changes_runs_everything_when_the_compare_fails(mock_gh):
     assert get_fork_changes(fork_owner="someone", sha="abc", base="main") == ForkChanges(
         files=(), truncated=True
     )
+
+
+@mock.patch("airflow_breeze.utils.fork_compare.run_gh_command", autospec=True)
+def test_get_fork_changes_returns_the_merge_base(mock_gh):
+    mock_gh.return_value = subprocess.CompletedProcess(
+        [], 0, stdout=json.dumps({"files": [["a.py"]], "merge_base": "base-sha"}), stderr=""
+    )
+
+    assert get_fork_changes(fork_owner="someone", sha="abc", base="main").merge_base == "base-sha"
+
+
+@mock.patch("airflow_breeze.utils.fork_compare.run_gh_command", autospec=True)
+@pytest.mark.parametrize(
+    ("returncode", "stdout", "expected"),
+    [
+        pytest.param(0, '["full tests needed"]', ("full tests needed",), id="pull-request"),
+        pytest.param(0, "[]", (), id="no-pull-request"),
+        pytest.param(1, "", (), id="call-fails"),
+    ],
+)
+def test_get_fork_pull_request_labels(mock_gh, returncode, stdout, expected):
+    mock_gh.return_value = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")
+
+    assert get_fork_pull_request_labels(fork_owner="someone", branch="fix") == expected
+
+    assert "head=someone:fix" in mock_gh.call_args.args[0]
+
+
+@mock.patch("airflow_breeze.utils.fork_compare.run_gh_command", autospec=True)
+@pytest.mark.parametrize(
+    ("returncode", "stderr", "expected"),
+    [
+        pytest.param(0, "", "content", id="found"),
+        pytest.param(1, "gh: Not Found (HTTP 404)", None, id="missing"),
+    ],
+)
+def test_get_upstream_file(mock_gh, returncode, stderr, expected):
+    mock_gh.return_value = subprocess.CompletedProcess([], returncode, stdout="content", stderr=stderr)
+
+    assert get_upstream_file(path="pyproject.toml", ref="base-sha") == expected
+
+    assert mock_gh.call_args.args[0][-1] == "repos/apache/airflow/contents/pyproject.toml?ref=base-sha"
+
+
+@mock.patch("airflow_breeze.utils.fork_compare.run_gh_command", autospec=True)
+def test_get_upstream_file_fails_on_errors_other_than_absence(mock_gh):
+    mock_gh.return_value = subprocess.CompletedProcess([], 1, stdout="", stderr="HTTP 502: Bad Gateway")
+
+    with pytest.raises(UpstreamFileError, match="502"):
+        get_upstream_file(path="pyproject.toml", ref="base-sha")

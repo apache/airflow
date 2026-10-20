@@ -71,6 +71,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
+from airflow_breeze.utils.fork_compare import get_upstream_file
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
@@ -901,6 +902,7 @@ class SelectiveChecks:
         "_github_event",
         "_fork_push",
         "_fork_changes_truncated",
+        "_fork_merge_base",
     }
 
     def __init__(
@@ -918,11 +920,14 @@ class SelectiveChecks:
         selective_tests_on_push: bool = False,
         fork_push: bool = False,
         fork_changes_truncated: bool = False,
+        fork_merge_base: str | None = None,
     ):
         """
         :param fork_push: the push happened in a contributor fork (AIP-120); ``files`` are the
             changes against apache/airflow and the run is selected like a pull request.
         :param fork_changes_truncated: the compare API capped the changed files of a fork push.
+        :param fork_merge_base: the apache/airflow commit a fork push is compared with; previous
+            versions of changed files are read there instead of from the pushed commit's parent.
         """
         self._files = files
         # A changed test helper selects the tests that import it, as if those test files had changed;
@@ -952,6 +957,7 @@ class SelectiveChecks:
         self._selective_tests_on_push = selective_tests_on_push
         self._fork_push = fork_push
         self._fork_changes_truncated = fork_changes_truncated
+        self._fork_merge_base = fork_merge_base
         self._new_toml: dict[str, Any] = {}
         self._old_toml: dict[str, Any] = {}
 
@@ -1011,6 +1017,18 @@ class SelectiveChecks:
         if self._selective_tests_on_push:
             return [GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
         return [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
+
+    def _get_previous_file_content(self, path: str) -> str | None:
+        if self._fork_merge_base:
+            return get_upstream_file(path=path, ref=self._fork_merge_base)
+        result = run_command(
+            ["git", "show", f"{self._commit_ref}^:{path}"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT_PATH,
+            check=False,
+        )
+        return result.stdout if result.returncode == 0 else None
 
     def _is_pull_request_like(self) -> bool:
         return self._github_event == GithubEvents.PULL_REQUEST or self._fork_push
@@ -1287,6 +1305,13 @@ class SelectiveChecks:
             console_print(
                 f"[warning]{FileGroupForCi.UI_FILES} e2e enabled because "
                 f"'{FULL_TESTS_NEEDED_LABEL}' label is set[/]"
+            )
+            return True
+        # The UI files of a truncated fork change set may be among the files the compare API
+        # did not list, so the file match below cannot rule them out.
+        if self._fork_changes_truncated:
+            console_print(
+                f"[warning]{FileGroupForCi.UI_FILES} e2e enabled because the fork change set is truncated[/]"
             )
             return True
         matched_files = self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
@@ -1871,21 +1896,14 @@ class SelectiveChecks:
                 f"Could not get pyproject.toml from {self._commit_ref}[/]"
             )
             return False
-        old_result = run_command(
-            ["git", "show", f"{self._commit_ref}^:pyproject.toml"],
-            capture_output=True,
-            text=True,
-            cwd=AIRFLOW_ROOT_PATH,
-            check=False,
-        )
-        if old_result.returncode != 0:
+        old_content = self._get_previous_file_content("pyproject.toml")
+        if old_content is None:
             console_print(
-                f"[warning]Cannot determine pyproject.toml changes. "
-                f"Could not get pyproject.toml from {self._commit_ref}^[/]"
+                "[warning]Cannot determine pyproject.toml changes. Could not get its previous version[/]"
             )
             return False
         self._new_toml = tomllib.loads(new_result.stdout)
-        self._old_toml = tomllib.loads(old_result.stdout)
+        self._old_toml = tomllib.loads(old_content)
         return True
 
     @cached_property
@@ -2357,20 +2375,13 @@ class SelectiveChecks:
             if new_result.returncode != 0:
                 continue
 
-            # Get the old version of the file
-            old_result = run_command(
-                ["git", "show", f"{self._commit_ref}^:{pyproject_file}"],
-                capture_output=True,
-                text=True,
-                cwd=AIRFLOW_ROOT_PATH,
-                check=False,
-            )
-            if old_result.returncode != 0:
+            old_content = self._get_previous_file_content(pyproject_file)
+            if old_content is None:
                 continue
 
             try:
                 new_toml = tomllib.loads(new_result.stdout)
-                old_toml = tomllib.loads(old_result.stdout)
+                old_toml = tomllib.loads(old_content)
             except Exception:
                 continue
 
