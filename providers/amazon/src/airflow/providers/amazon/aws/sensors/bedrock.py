@@ -491,8 +491,8 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
                 "Success states for BedrockBatchInferenceSensor must be set using a BedrockBatchInferenceSensor.SuccessState"
             )
 
-        BedrockBatchInferenceSensor.INTERMEDIATE_STATES = intermediate_states or base_intermediate_states
-        BedrockBatchInferenceSensor.SUCCESS_STATES = success_states or base_success_states
+        self.INTERMEDIATE_STATES = intermediate_states
+        self.SUCCESS_STATES = success_states
 
     def get_state(self) -> str:
         return self.hook.conn.get_model_invocation_job(jobIdentifier=self.job_arn)["status"]

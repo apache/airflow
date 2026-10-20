@@ -349,3 +349,15 @@ class TestBedrockBatchInferenceSensor:
             else:
                 with pytest.raises(TaskDeferred):
                     op.execute({})
+
+    @mock.patch.object(BedrockHook, "conn")
+    def test_success_state_not_shared_between_instances(self, mock_conn):
+        op = self.SENSOR(
+            **self.default_op_kwargs, success_state=BedrockBatchInferenceSensor.SuccessState.COMPLETED
+        )
+        self.SENSOR(
+            **self.default_op_kwargs, success_state=BedrockBatchInferenceSensor.SuccessState.SCHEDULED
+        )
+        mock_conn.get_model_invocation_job.return_value = {"status": "Scheduled"}
+
+        assert op.poke({}) is False
