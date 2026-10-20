@@ -178,8 +178,12 @@ export function triggerDagRun(spec: TriggerDagRunSpec): TriggerDagRunTask {
   const task: TriggerDagRunTask = {
     dagId: options["dagId"],
     runId: (options["runId"] as string | undefined) || undefined,
-    logicalDate: options["logicalDate"] as Date | null | undefined,
-    runAfter: options["runAfter"] as Date | undefined,
+    logicalDate:
+      options["logicalDate"] instanceof Date
+        ? new Date(options["logicalDate"].getTime())
+        : (options["logicalDate"] as null | undefined),
+    runAfter:
+      options["runAfter"] instanceof Date ? new Date(options["runAfter"].getTime()) : undefined,
     conf: conf as TriggerDagRunTask["conf"],
     resetDagRun: options["resetDagRun"] === true,
     waitForCompletion: options["waitForCompletion"] === true,
