@@ -41,7 +41,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Support loop-safe XCom object storage through store_value (#74858)``
+* ``Let XCom backends tell loop iterations apart through store_value (#74858)``
 * ``Separate object storage task state by dynamic region on Airflow 3.4 (#74275)``
 
 Doc-only

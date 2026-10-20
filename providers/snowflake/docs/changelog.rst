@@ -37,6 +37,11 @@ Changelog
     ``airflow.providers.snowflake``. Previously released imports continue to work with
     deprecation warnings. SQLAlchemy must be below 2.1 for compatibility with snowflake-sqlalchemy.
 
+    The ``openlineage`` extra now requires ``apache-airflow-providers-openlineage>=2.16.0``
+    instead of ``>=2.3.0``. Query lineage emission requires OpenLineage provider 2.16.0
+    or later; with an older version it is skipped and only a log message is written.
+    Users on OpenLineage provider 2.5.0 through 2.15.x must upgrade to retain query lineage.
+
     Query lineage now uses the OpenLineage public API. The ``jobType.integration`` job facet
     value changes from ``SNOWFLAKE`` to ``AIRFLOW``, and query errors use the
     ``errorMessage`` run facet instead of ``error``. Update lineage consumers that filter on
@@ -54,7 +59,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Prevent Snowflake SQLAlchemy import failures by requiring SQLAlchemy below 2.1 (#73822)``
-* ``Emit Snowflake query lineage through the OpenLineage public API (#73655)``
+* ``Snowflake, Databricks: emit query lineage via OpenLineage public API (#73655)``
 
 Misc
 ~~~~

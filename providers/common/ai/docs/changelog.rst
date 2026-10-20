@@ -31,13 +31,13 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add emit_message_history to record an AgentOperator transcript without seeding the conversation (#74811)``
-* ``Expose LLMOperator token usage, cost, and run identity through XCom (#74355)``
+* ``Add emit_message_history to record an agent transcript without seeding it (#74811)``
+* ``Push LLMOperator's token usage and cost to XCom (#74355)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Preserve SQL table allowlist validation with newer sqlglot and update model-vendor metadata (#73822)``
+* ``Preserve SQL table allowlist validation with newer sqlglot and add OpenAI Decisions and System One to the connection vendor list (#73822)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

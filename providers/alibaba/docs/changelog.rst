@@ -32,7 +32,7 @@ Changelog
 Misc
 ~~~~
 
-* ``Allow reading remote logs without a task instance (#73580)``
+* ``Allow optional task instances in remote log reader type annotations (#73580)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

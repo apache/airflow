@@ -28,8 +28,8 @@ Features
 
 * ``Add async aget_conn and acreate_embeddings to OpenAIHook (#74149)``
 
-Bug Fixes
-~~~~~~~~~
+Misc
+~~~~
 
 * ``Require common.compat 1.21.0 for asynchronous OpenAI hook helpers (#74933)``
 

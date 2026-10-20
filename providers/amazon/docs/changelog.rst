@@ -38,21 +38,21 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add 'AwsEksExecutor' to run tasks on Amazon EKS with automatically refreshed credentials (#74399)``
-* ``Add 'EmrServerlessStopSessionOperator' with synchronous and deferrable waiting (#74870)``
-* ``Add 'EksHook.generate_config_file_with_credentials' for shared kubeconfig and credential setup (#74775)``
-* ``Add 'AthenaSparkSensor' to monitor existing Athena Spark calculations (#72229)``
+* ``Add AwsEksExecutor to the Amazon provider (#74399)``
+* ``Add EmrServerlessStopSessionOperator to Amazon provider (#74870)``
+* ``Centralize EKS kubeconfig and credential setup in EksHook (#74775)``
+* ``Add AthenaSparkSensor (#72229)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Honor ECS task skip and failure handling when the CloudWatch log stream is missing (#74730)``
-* ``Prevent Dag processor crashes with CloudWatch logging when logs are outside 'base_log_folder' (#74929)``
-* ``Bound Glue retry task UUID lookups to 10 pages of 200 runs and surface unexpected lookup errors (#71546)``
-* ``Report missing Parquet engines before 'SqlToS3Operator' queries and name the required extra (#74817)``
-* ``Fix CSV, JSON and Parquet uploads in 'SqlToS3Operator' with 'df_type="polars"' (#74692)``
-* ``Declare a 'parquet' extra with pyarrow for 'SqlToS3Operator' (#74691)``
-* ``Fix the DMS 'replication_task_modified' waiter failing on running and stopping states (#74522)``
+* ``Skip or fail ECS tasks correctly when their CloudWatch log stream is missing (#74730)``
+* ``Prevent Dag processor crashes with AWS CloudWatch when its log directory is outside 'base_log_folder' (#74929)``
+* ``Limit Glue retry task UUID scan (#71546)``
+* ``Raise a clear error when SqlToS3Operator has no Parquet engine (#74817)``
+* ``Fix SqlToS3Operator failing for every format when df_type is polars (#74692)``
+* ``Declare pyarrow for Parquet output of SqlToS3Operator (#74691)``
+* ``Update the DMS replication_task_modified waiter states (#74522)``
 
 Misc
 ~~~~

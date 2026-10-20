@@ -32,12 +32,12 @@ Features
 ~~~~~~~~
 
 * ``Export 'ResumableJobMixin' with a fallback for Airflow versions below 3.3 (#74673)``
-* ``Preserve reschedule limits and decision metadata when composing retry policies (#74719)``
+* ``Let retry policies reschedule a task without using a retry (#74719)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Prevent async connection deadlocks on Airflow versions before 3.3.2 while preserving hook overrides (#74766)``
+* ``Resolve async connections off the event loop before Airflow 3.3.2 (#74766)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

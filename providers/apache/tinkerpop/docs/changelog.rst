@@ -21,6 +21,12 @@
 1.2.2
 .....
 
+.. note::
+
+    This release excludes Python 3.14 because ``gremlinpython`` does not support it.
+    Version 1.2.1 incorrectly declared Python 3.14 support; on Python 3.14, pip may
+    retain that older provider version instead of installing 1.2.2. Use Python 3.11-3.13.
+
 Bug Fixes
 ~~~~~~~~~
 

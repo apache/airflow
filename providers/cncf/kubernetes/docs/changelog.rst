@@ -33,7 +33,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add log_events_on_startup and keep KubernetesPodOperator running when event logging fails (#75016)``
+* ``Make KubernetesPodOperator event logging best-effort and optional (#75016)``
 
 Bug Fixes
 ~~~~~~~~~

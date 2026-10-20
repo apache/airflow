@@ -33,7 +33,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add SMTP email utilities and an opt-in email backend using the [smtp] configuration section (#74623)``
+* ``Add emailer utilities to the SMTP provider (#74623)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

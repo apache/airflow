@@ -41,7 +41,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Support templated target_time with start_from_trigger in DateTimeSensorAsync (#73928)``
+* ``DateTimeSensorAsync support start_from_trigger and templated target_time (#73928)``
 
 Bug Fixes
 ~~~~~~~~~
