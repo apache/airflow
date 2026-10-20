@@ -250,9 +250,15 @@ Conditional branching
 ``If`` takes inputs and task options as ``Task`` does. ``Then`` is required, and ``Else`` is optional: without it,
 the ``Then`` task is skipped when the condition is false.
 
-The side not taken is skipped, and stays skipped if it is cleared later. Only the tasks named here are skipped,
-so a task that both sides lead to still runs. This differs from Python's ``@task.branch``, which skips every
-direct downstream task it did not choose.
+The side not taken is skipped, and stays skipped if it is cleared later. Only that task is skipped. A task after both
+sides follows its own trigger rule, and the default ``all_success`` skips it as well. To run such a task when at least
+one side succeeds and none fails, give it ``airflow.TriggerRuleNoneFailedMinOneSuccess``:
+
+.. code-block:: go
+
+    dag.Task(finish, airflow.TaskSpec{
+        TriggerRule: airflow.TriggerRuleNoneFailedMinOneSuccess,
+    }).After(loaded, reportedEmpty)
 
 Multi-way branching
 ~~~~~~~~~~~~~~~~~~~
