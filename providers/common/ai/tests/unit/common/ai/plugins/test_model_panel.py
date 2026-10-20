@@ -29,8 +29,16 @@ if not AIRFLOW_V_3_1_PLUS:
 from airflow import plugins_manager
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.decorators.llm import _LLMDecoratedOperator
+from airflow.providers.common.ai.decorators.llm_branch import _LLMBranchDecoratedOperator
+from airflow.providers.common.ai.decorators.llm_file_analysis import _LLMFileAnalysisDecoratedOperator
+from airflow.providers.common.ai.decorators.llm_schema_compare import _LLMSchemaCompareDecoratedOperator
+from airflow.providers.common.ai.decorators.llm_sql import _LLMSQLDecoratedOperator
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
+from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
+from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
+from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.plugins.model_panel import ModelPanelPlugin
 
 requires_3_4 = pytest.mark.skipif(
@@ -70,8 +78,16 @@ class TestModelPanelPlugin:
         operator_names = app["applies_to"]["operator_name"]
         assert set(operator_names) == {
             LLMOperator.__name__,
+            LLMBranchOperator.__name__,
+            LLMSQLQueryOperator.__name__,
+            LLMSchemaCompareOperator.__name__,
+            LLMFileAnalysisOperator.__name__,
             AgentOperator.__name__,
             _LLMDecoratedOperator.custom_operator_name,
+            _LLMBranchDecoratedOperator.custom_operator_name,
+            _LLMSQLDecoratedOperator.custom_operator_name,
+            _LLMSchemaCompareDecoratedOperator.custom_operator_name,
+            _LLMFileAnalysisDecoratedOperator.custom_operator_name,
             _AgentDecoratedOperator.custom_operator_name,
         }
 
