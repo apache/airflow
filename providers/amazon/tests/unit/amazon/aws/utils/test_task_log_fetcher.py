@@ -174,6 +174,32 @@ class TestAwsTaskLogFetcher:
     def test_get_last_log_messages_with_no_log_events(self, mock_conn):
         assert self.log_fetcher.get_last_log_messages(2) == []
 
+    @mock.patch.object(AwsLogsHook, "conn", new_callable=PropertyMock)
+    def test_get_last_log_messages_with_missing_stream(self, log_conn_mock):
+        log_conn_mock.return_value.get_log_events.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Log stream not found"}},
+            "GetLogEvents",
+        )
+
+        assert self.log_fetcher.get_last_log_messages(2) == []
+        self.logger_mock.warning.assert_called_once_with(
+            "Cannot retrieve final Cloudwatch logs because the log stream was not found: "
+            "group: %s\tstream: %s",
+            "test_log_group",
+            "test_log_stream_name",
+        )
+
+    @mock.patch.object(AwsLogsHook, "conn", new_callable=PropertyMock)
+    def test_get_last_log_messages_preserves_other_cloudwatch_errors(self, log_conn_mock):
+        log_conn_mock.return_value.get_log_events.side_effect = ClientError(
+            {"Error": {"Code": "AccessDeniedException", "Message": "Denied"}},
+            "GetLogEvents",
+        )
+
+        with pytest.raises(ClientError, match="AccessDeniedException"):
+            self.log_fetcher.get_last_log_messages(2)
+        self.logger_mock.warning.assert_not_called()
+
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(
