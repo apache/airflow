@@ -158,11 +158,13 @@ Parameters
 - ``usage_limits``: Optional pydantic-ai ``UsageLimits`` (or a templated ``dict`` of
   the same fields) enforced on the run; the task fails when a budget is exceeded.
   Default ``None``. See :ref:`Usage Limits <howto/operator:llm_usage_limits>`.
-- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
-  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
-  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
-  downstream consumer needs the dict shape.
+- ``serialize_output``: If ``True``, a Pydantic ``BaseModel`` output, or a
+  list, tuple, set or dict holding models, is dumped to JSON-compatible values
+  with ``pydantic_core.to_jsonable_python`` before being pushed to XCom.
+  A model the worker cannot register from ``output_type`` (for example one in a
+  list of output types) is dumped even when this is ``False``. Default ``False``
+  -- a registered Pydantic instance flows through XCom unchanged. Set to
+  ``True`` when a downstream consumer needs the dict shape.
 
 ``decision_policy`` is not supported here: the operator runs its own ``execute``
 without the confidence gate and rejects a policy with a bar at construction.

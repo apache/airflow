@@ -21,12 +21,13 @@ from __future__ import annotations
 import inspect
 import logging
 import operator
+from collections.abc import Iterator
 from functools import reduce
 from typing import Any, get_origin
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.errors import PydanticUserError
-from pydantic_core import CoreSchema, PydanticSerializationError
+from pydantic_core import CoreSchema, PydanticSerializationError, to_jsonable_python
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 
@@ -47,20 +48,52 @@ _CONVERSION_ERRORS = (ValidationError, ValueError, TypeError, AttributeError, Ke
 
 def is_model_dump_required(output: Any, output_type: Any, *, serialize_output: bool) -> bool:
     """
-    Tell whether a ``BaseModel`` output must be pushed to XCom as a dict.
+    Tell whether an output holding ``BaseModel`` instances must be pushed to XCom dumped.
 
-    A downstream task can load a model from XCom only if the worker registered the model's class, and the worker
-    registers the classes ``iter_pydantic_models`` finds in ``output_type``. It finds none in a list of output
-    types, an output marker, an output function, a ``TypeAliasType`` or a ``NewType``, so those shapes are dumped.
+    The instances are looked up in the output itself, including the elements of a list, tuple, set or
+    frozenset and the values of a dict. A downstream task can load a model from XCom only if the worker
+    registered the model's class, and the worker registers the classes ``iter_pydantic_models`` finds in
+    ``output_type``. It finds none in a list of output types, an output marker, an output function, a
+    ``TypeAliasType`` or a ``NewType``, so an instance of a class it did not find is dumped.
     Without ``iter_pydantic_models`` there is no evidence either way, so the caller's ``serialize_output`` decides.
     """
-    if not isinstance(output, BaseModel):
+    if not (found := list(_iter_models_in_output(output))):
         return False
     if serialize_output:
         return True
     if iter_pydantic_models is None:
         return False
-    return type(output) not in iter_pydantic_models(output_type)
+    registered = set(iter_pydantic_models(output_type))
+    return any(type(model) not in registered for model in found)
+
+
+def dump_output_for_xcom(output: Any, output_type: Any, *, serialize_output: bool) -> Any:
+    """
+    Return the output as it is pushed to XCom: dumped when ``is_model_dump_required``, else unchanged.
+
+    The dump is JSON-compatible, as the serde ``BaseModel`` serializer's is, so a ``HttpUrl``, ``Path`` or
+    ``Enum`` field is a string that XCom accepts. Field names, not aliases, match ``dump_output_to_json``.
+    """
+    if is_model_dump_required(output, output_type, serialize_output=serialize_output):
+        return to_jsonable_python(output, by_alias=False)
+    return output
+
+
+def _iter_models_in_output(output: Any) -> Iterator[BaseModel]:
+    """
+    Yield the ``BaseModel`` instances in an output, looking inside list, tuple, set, frozenset and dict.
+
+    A dict is read by value only. Dict keys, dataclass and NamedTuple contents and model fields are not walked.
+    """
+    stack = [output]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, BaseModel):
+            yield item
+        elif isinstance(item, (list, tuple, set, frozenset)):
+            stack.extend(item)
+        elif isinstance(item, dict):
+            stack.extend(item.values())
 
 
 def dump_output_to_json(output: Any) -> str:
@@ -134,9 +167,7 @@ def rehydrate_pydantic_output(
                 log.warning("%s Returning the output unchanged.", message)
                 return raw
             raise ReviewedOutputValidationError(message) from json_error
-    if is_model_dump_required(rehydrated, declared_type, serialize_output=serialize_output):
-        return rehydrated.model_dump()
-    return rehydrated
+    return dump_output_for_xcom(rehydrated, declared_type, serialize_output=serialize_output)
 
 
 def _validate_bare_text(adapter: TypeAdapter[Any], raw: str) -> Any:
