@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from configparser import ConfigParser
 from pathlib import Path
 from subprocess import CalledProcessError
@@ -540,6 +541,103 @@ class TestDagProcessor:
         }
         assert policy["egress"][1]["to"][0]["podSelector"]["matchLabels"] == {"k8s-app": "kube-dns"}
         assert {port["port"] for port in policy["egress"][1]["ports"]} == {53}
+
+    def test_kubernetes_token_provisioner_example(self):
+        examples = Path(__file__).resolve().parents[4] / "airflow-core/docs/security/dag-processor-api"
+        docs = list(yaml.safe_load_all((examples / "kubernetes-token-provisioner.yaml").read_text()))
+        resources = {doc["kind"]: doc for doc in docs}
+        assert len(resources) == len(docs) == 6
+        secret = resources["Secret"]
+        target_namespace = secret["metadata"]["namespace"]
+        secret_name = secret["metadata"]["name"]
+        assert resources["Namespace"]["metadata"]["name"] == target_namespace
+        assert "data" not in secret
+        assert "stringData" not in secret
+        assert not secret.get("immutable")
+
+        role = resources["Role"]
+        assert role["metadata"]["namespace"] == target_namespace
+        assert role["rules"] == [
+            {
+                "apiGroups": [""],
+                "resources": ["secrets"],
+                "resourceNames": [secret_name],
+                "verbs": ["get", "patch"],
+            }
+        ]
+        account = resources["ServiceAccount"]
+        trusted_namespace = account["metadata"]["namespace"]
+        assert trusted_namespace != target_namespace
+        assert account["automountServiceAccountToken"] is True
+        binding = resources["RoleBinding"]
+        assert binding["metadata"]["namespace"] == target_namespace
+        assert binding["roleRef"] == {
+            "apiGroup": "rbac.authorization.k8s.io",
+            "kind": "Role",
+            "name": role["metadata"]["name"],
+        }
+        assert binding["subjects"] == [
+            {
+                "kind": "ServiceAccount",
+                "name": account["metadata"]["name"],
+                "namespace": trusted_namespace,
+            }
+        ]
+
+        deployment = resources["Deployment"]
+        assert deployment["metadata"]["namespace"] == trusted_namespace
+        assert deployment["spec"]["replicas"] == 1
+        assert deployment["spec"]["strategy"] == {"type": "Recreate"}
+        pod = deployment["spec"]["template"]["spec"]
+        assert pod["serviceAccountName"] == account["metadata"]["name"]
+        assert pod["automountServiceAccountToken"] is True
+        assert pod["securityContext"]["runAsNonRoot"] is True
+        assert pod["securityContext"]["runAsUser"] != 0
+        assert pod["volumes"] == [{"name": "tmp", "emptyDir": {}}]
+        assert not pod.get("initContainers")
+        assert len(pod["containers"]) == 1
+        provisioner = pod["containers"][0]
+        assert provisioner["args"] == [
+            "airflow",
+            "dag-processor-token",
+            "--kubernetes-secret",
+            secret_name,
+            "--kubernetes-namespace",
+            target_namespace,
+            "--bundle-name",
+            "dags-folder",
+            "--valid-for",
+            "600",
+            "--rotate",
+        ]
+        assert provisioner["securityContext"] == {
+            "allowPrivilegeEscalation": False,
+            "readOnlyRootFilesystem": True,
+            "capabilities": {"drop": ["ALL"]},
+        }
+        assert provisioner["resources"]["requests"]
+        assert provisioner["resources"]["limits"]
+        assert provisioner["volumeMounts"] == [{"name": "tmp", "mountPath": "/tmp"}]
+        assert not provisioner.get("envFrom")
+        env = {entry["name"]: entry for entry in provisioner["env"]}
+        signing_secret = env.pop("AIRFLOW__API_AUTH__JWT_SECRET")["valueFrom"]["secretKeyRef"]
+        assert signing_secret == {"name": "airflow-jwt-secret", "key": "jwt-secret"}
+        bundles = json.loads(env.pop("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST")["value"])
+        assert {bundle["name"] for bundle in bundles} == {"dags-folder"}
+        assert {name: entry["value"] for name, entry in env.items()} == {
+            "AIRFLOW_HOME": "/tmp/airflow",
+            "AIRFLOW_CONFIG": "/dev/null",
+            "AIRFLOW__CORE__LOAD_EXAMPLES": "False",
+            "CONNECTION_CHECK_MAX_COUNT": "0",
+        }
+
+        values = yaml.safe_load((examples / "helm-values.yaml").read_text())
+        token_volume = next(
+            volume for volume in values["dagProcessor"]["extraVolumes"] if volume["name"] == "processor-token"
+        )
+        assert token_volume["secret"]["secretName"] == secret_name
+        assert token_volume["secret"]["secretName"] != signing_secret["name"]
+        assert provisioner["image"] == f"apache/airflow:{values['defaultAirflowTag']}"
 
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),
