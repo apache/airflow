@@ -414,5 +414,5 @@
   "title": "Airflow YAML Dag (2026-10-30)",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://airflow.apache.org/schemas/dag/2026-10-30.json"
+  "version": "2026-10-30"
 }

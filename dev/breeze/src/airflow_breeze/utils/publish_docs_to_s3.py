@@ -398,7 +398,7 @@ class S3DocsPublish:
 SCHEMA_VERSION_FIELDS: dict[str, str] = {
     "execution-api": "info.version",
     "supervisor-schema": "api_version",
-    "dag": "$id",
+    "dag": "version",
 }
 
 
@@ -431,10 +431,6 @@ def _publish_single_schema(
     with schema_path.open() as f:
         payload = json.load(f)
     version = _read_nested_field(payload, SCHEMA_VERSION_FIELDS[schema_type])
-    # A schema may identify its version through its canonical URL (``$id``); take
-    # the bare version from the last path segment in that case.
-    if "/" in version:
-        version = version.rsplit("/", 1)[-1].removesuffix(".json")
 
     destination = f"{destination_location.rstrip('/')}/{schema_type}/{version}.json"
     bucket, key = S3DocsPublish.get_bucket_key(destination)
