@@ -547,6 +547,18 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG2_ID, DAG1_ID]
 
+    @pytest.mark.parametrize("order_by", ["state", "start_date", "-state"])
+    def test_rejects_sort_by_dag_run_column_names(self, test_client, order_by):
+        # #44345 moved these two behind `last_run_state` and `last_run_start_date` in `to_replace`
+        # but left the DagRun column names in the allowed list, so the spec advertised them and
+        # sorting by either raised AttributeError on DagModel.
+        response = test_client.get("/dags", params={"order_by": order_by})
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            f"Ordering with '{order_by.lstrip('-')}' is disallowed or "
+            f"the attribute does not exist on the model"
+        )
+
     def test_get_dags_no_n_plus_one_queries(self, session, test_client):
         """Test that fetching DAGs with tags doesn't trigger n+1 queries."""
         num_dags = 5
