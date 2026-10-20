@@ -37,8 +37,7 @@ from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
-from airflow.utils.retries import run_with_db_retries
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
@@ -249,30 +248,30 @@ class Trigger(Base):
         return set(session.scalars(query))
 
     @classmethod
-    def clean_unused(cls) -> None:
+    @provide_session
+    def clean_unused(cls, *, session: Session = NEW_SESSION) -> None:
         """
         Delete up to one batch of triggers that have no dependent tasks, assets, or callbacks.
 
         Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
         Afterward we can drop unreferenced triggers; later triggerer loops drain any remaining batches.
+
+        Database errors are not retried; to retry, run the call again in a new transaction.
         """
         batch_size = conf.getint("triggerer", "unreferenced_triggers_cleanup_batch_size", fallback=500)
         if batch_size <= 0:
             raise ValueError("[triggerer] unreferenced_triggers_cleanup_batch_size must be at least 1")
 
-        for attempt in run_with_db_retries():
-            with attempt:
-                with create_session(scoped=False) as session:
-                    # Update all task instances with trigger IDs that are not DEFERRED to remove them
-                    session.execute(
-                        update(TaskInstance)
-                        .where(
-                            TaskInstance.state != TaskInstanceState.DEFERRED,
-                            TaskInstance.trigger_id.is_not(None),
-                        )
-                        .values(trigger_id=None)
-                    )
-                    cls._delete_unused_batch(batch_size, session=session)
+        # Update all task instances with trigger IDs that are not DEFERRED to remove them
+        session.execute(
+            update(TaskInstance)
+            .where(
+                TaskInstance.state != TaskInstanceState.DEFERRED,
+                TaskInstance.trigger_id.is_not(None),
+            )
+            .values(trigger_id=None)
+        )
+        cls._delete_unused_batch(batch_size, session=session)
 
     @classmethod
     def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> None:
