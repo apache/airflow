@@ -80,8 +80,10 @@ mark missing bundles inactive globally because their configuration may be partia
 that sees the complete list is needed for global deactivation.
 
 Keep the command or secrets backend available to all components that resolve bundles, including
-workers and fresh parser processes. Each process caches its last accepted list; there is no shared
-configuration snapshot. A worker looking up an unknown bundle attempts one fresh read, even before
+workers. The Dag processor passes accepted importer settings and team ownership to its parsing
+processes, so they do not read the bundle configuration source again. Other components cache their
+own last accepted list; there is no shared configuration snapshot. A worker looking up an unknown
+bundle attempts one fresh read, even before
 the normal refresh interval expires. Names and team lookups do not require bundle classes to be
 installed locally. Finish existing runs before removing a bundle when
 those runs must complete: tasks and callbacks can still need its definition, and stale Dags do

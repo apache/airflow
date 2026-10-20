@@ -546,6 +546,72 @@ class TestLangSDKDagFileProcessorProcess:
         assert fds["0"] == "/dev/null"
 
 
+@pytest.mark.parametrize("use_exec", [False, True], ids=["fork", "fresh_interpreter"])
+def test_native_parser_uses_accepted_importers_when_source_is_unavailable(
+    use_exec, tmp_path, monkeypatch, mocker
+):
+    config = {
+        "importers": [
+            {
+                "classpath": f"{FakeCoordinatorDagImporter.__module__}.FakeCoordinatorDagImporter",
+                "kwargs": {"bundle_name": "testing"},
+            }
+        ]
+    }
+    registry = DagImporterRegistry.from_config("testing", bundle_importers=config["importers"])
+    registry.warm_importers()
+    mocker.patch.object(
+        DagImporterRegistry,
+        "from_config",
+        autospec=True,
+        side_effect=AssertionError("forked parser must reuse the warmed registry"),
+    )
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: use_exec)
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(sys.path))
+    monkeypatch.setenv("AIRFLOW__SDK__COORDINATORS", conf.get("sdk", "coordinators"))
+    monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", "invalid JSON")
+    runtime = (
+        "import os, socket, sys\n"
+        "os.environ['_AIRFLOW__AS_LIBRARY'] = '1'\n"
+        "from pydantic import TypeAdapter\n"
+        "from airflow.dag_processing.processor import DagFileParsingResult, ToDagProcessor, ToManager\n"
+        "from airflow.sdk.execution_time.comms import CommsDecoder\n"
+        "args = dict(arg[2:].split('=', 1) for arg in sys.argv[1:])\n"
+        "host, port = args['comm'].rsplit(':', 1)\n"
+        "comm = socket.create_connection((host, int(port)))\n"
+        "host, port = args['logs'].rsplit(':', 1)\n"
+        "logs = socket.create_connection((host, int(port)))\n"
+        "decoder = CommsDecoder[ToDagProcessor, ToManager](socket=comm, body_decoder=TypeAdapter(ToDagProcessor))\n"
+        "request = decoder._get_response()\n"
+        "decoder.send(DagFileParsingResult(fileloc=request.file, serialized_dags=[]))\n"
+    )
+    path = write_native_file(tmp_path / "dag.native", argv=[sys.executable, "-c", runtime])
+    with selectors.DefaultSelector() as selector:
+        proc = LangSDKDagFileProcessorProcess.start(
+            id=uuid.uuid4(),
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name="testing",
+            dag_file_rel_path=path.name,
+            bundle_config=config,
+            importer_registry=registry,
+            selector=selector,
+            logger=structlog.get_logger(),
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=MagicMock(spec=Client),
+        )
+        try:
+            deadline = time.monotonic() + 60
+            while not proc.is_ready:
+                assert time.monotonic() < deadline, "native parser did not finish"
+                proc._service_subprocess(max_wait_time=0.1)
+            assert proc.parsing_result is not None
+            assert proc.parsing_result.import_errors is None
+            assert proc.parsing_result.fileloc == str(path)
+        finally:
+            proc.close()
+
+
 class TestRun:
     @staticmethod
     def _run(tmp_path, **spec) -> DagFileParsingResult:

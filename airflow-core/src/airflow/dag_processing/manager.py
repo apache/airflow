@@ -86,10 +86,7 @@ from airflow.utils.file import find_enclosing_file
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.process_utils import (
-    kill_child_processes_by_pids,
-    patch_environ,
-)
+from airflow.utils.process_utils import kill_child_processes_by_pids
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -392,11 +389,10 @@ class DagFileProcessorManager(LoggingMixin):
     def _get_importer_registry(self, bundle_name: str) -> DagImporterRegistry:
         if bundle_name in self._bundle_importer_registries:
             return self._bundle_importer_registries[bundle_name]
-        config_env = self._dag_bundle_manager.get_bundle_config_env()
-        if not config_env:
+        if not is_bundle_config_reload_enabled():
             return get_importer_registry(bundle_name)
-        with patch_environ(config_env):
-            registry = DagImporterRegistry.from_config(bundle_name=bundle_name)
+        config = self._dag_bundle_manager.get_bundle_config(bundle_name)
+        registry = DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=config.importers)
         self._bundle_importer_registries[bundle_name] = registry
         return registry
 
@@ -1578,26 +1574,33 @@ class DagFileProcessorManager(LoggingMixin):
             kwargs: dict[str, Any] = {
                 "importer_registry": self._bundle_importer_registries.get(dag_file.bundle_name)
             }
-            if is_bundle_config_reload_enabled():
-                kwargs["team_name"] = self._get_team_name(dag_file.bundle_name)
         else:
             processor_class = DagFileProcessorProcess
             kwargs = {"callbacks": callback_to_execute_for_file}
 
-        with patch_environ(self._dag_bundle_manager.get_bundle_config_env()):
-            return processor_class.start(
-                id=id,
-                path=dag_file.absolute_path,
-                bundle_path=cast("Path", dag_file.bundle_path),
-                bundle_name=dag_file.bundle_name,
-                dag_file_rel_path=str(dag_file.rel_path),
-                selector=self.selector,
-                logger=logger,
-                logger_filehandle=logger_filehandle,
-                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-                client=self.client,
-                **kwargs,
-            )
+        if is_bundle_config_reload_enabled():
+            config = self._dag_bundle_manager.get_bundle_config(dag_file.bundle_name)
+            kwargs["bundle_config"] = {
+                "importers": config.importers,
+                "team_name": self._get_team_name(dag_file.bundle_name),
+            }
+            kwargs["importer_registry"] = self._bundle_importer_registries.get(dag_file.bundle_name)
+            if native is not None:
+                kwargs["team_name"] = kwargs["bundle_config"]["team_name"]
+
+        return processor_class.start(
+            id=id,
+            path=dag_file.absolute_path,
+            bundle_path=cast("Path", dag_file.bundle_path),
+            bundle_name=dag_file.bundle_name,
+            dag_file_rel_path=str(dag_file.rel_path),
+            selector=self.selector,
+            logger=logger,
+            logger_filehandle=logger_filehandle,
+            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+            client=self.client,
+            **kwargs,
+        )
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
