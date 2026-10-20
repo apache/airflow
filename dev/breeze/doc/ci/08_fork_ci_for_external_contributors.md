@@ -172,14 +172,30 @@ concurrency cap. A manual `workflow_dispatch` in a fork still runs.
 | Event is `push` to `apache/airflow` and the branch matches the pre-existing push patterns (`v*-test`, `providers-*/v*`, `chart/v*x-test`, `airflow-ctl/v*-test`) | run | `canonical_branch` |
 | Event is `push` to `apache/airflow`, any other branch | skip | `adhoc_branch` |
 | Pull request carries `use project ci` | run | `label_project_ci` |
+| Pull request head repository is `apache/airflow` | run | `head_is_upstream` |
 | Pull request carries `use fork ci` | skip | `label_fork_ci` |
 | Author login is in `[pilot]` and the pull request was created at or after that login's join instant | skip | `pilot` |
 | `enabled` is false | run | `gate_disabled` |
-| Pull request head repository is `apache/airflow` | run | `head_is_upstream` |
 | Pull request created before `enabled_since` | run | `before_enabled_since` |
-| Author association is `MEMBER`, `OWNER` or `COLLABORATOR` | run | `trusted_author` |
+| Author association is `MEMBER`, `OWNER` or `COLLABORATOR` (see below for private membership) | run | `trusted_author` |
 | Author login is in `[allowlist]` | run | `allowlisted` |
 | Anything else | skip | `external` |
+
+The table applies once the base branch carries the gate. When the base branch has neither
+`.github/fork-ci-gate.toml` nor `fork_ci_gate.py` (the pull request that introduces the gate,
+or a release branch cut before it), the job runs project CI with reason `base_without_gate`,
+as it did before the gate existed. A base branch with only one of the two files fails the job.
+
+`head_is_upstream` comes before the label and pilot rules because a branch of `apache/airflow`
+has no fork to run CI in, and its pushes are `adhoc_branch` skips: `use fork ci` on such a pull
+request would otherwise leave it with no CI at all.
+
+GitHub reports an author whose membership of the `apache` organisation is private as
+`CONTRIBUTOR`, so a committer with private membership looks external and is gated. Neither the
+gate nor the reconciler can look up the author's permission instead: that endpoint needs push
+access, which the read-only token of a fork `pull_request` run and the monitor's token do not
+have. A committer who is gated this way makes their `apache` membership public
+(<https://github.com/orgs/apache/people>) or is added to `[allowlist]`.
 
 "Gated" throughout this document means a pull request whose decision reason is `external`,
 `pilot` or `label_fork_ci`. The reconciler labels exactly those; an `adhoc_branch` skip is
@@ -239,8 +255,13 @@ are labelled on the next reconciler run, and one of them that changes `.github/w
 would be closed for gate tampering. The `check-fork-ci-gate-config` prek hook rejects a newly
 added `[pilot]` instant, an `enabled_since` moved later, or `enabled` switched on while
 `enabled_since` is still in the past; contributors use the next day at 00:00 UTC. Moving
-`enabled_since` earlier is the backlog reset and is allowed. In CI the hook fetches the pull
-request's base branch to compare with, because the shallow checkout has none. A merge after that instant still leaves the window open; the
+`enabled_since` earlier is the backlog reset and is allowed. A base branch without the file,
+such as a release branch the file is backported to, has no gate yet, so its entries are not
+checked against it. In CI the hook fetches the pull
+request's base branch to compare with, because the shallow checkout has none; a push in a
+contributor's fork has no base branch, so it fetches `apache/airflow`'s `main`. Without any
+base to compare with, the hook fails rather than comparing the change with itself. A merge
+after that instant still leaves the window open; the
 closure is reported to Slack as an attention item, and the maintainer reopens the pull
 request with `use project ci`.
 
@@ -271,7 +292,20 @@ directly with the runner's `python3` without installing breeze. The reconciler i
 
 1. Sparse checkout of `.github/fork-ci-gate.toml` and
    `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py` from the base branch
-   (`github.base_ref` for pull requests, `github.ref` otherwise), `fetch-depth: 1`.
+   (`github.base_ref` for pull requests, the default branch for pushes in `apache/airflow`,
+   `github.ref` otherwise), `fetch-depth: 1`. A push in `apache/airflow` has no base branch and
+   its decision depends only on the pushed ref, so it takes the gate from the default branch:
+   taking it from the pushed branch would make a push to a branch without the gate files, such as
+   a release branch cut before it, look like `base_without_gate` and run project CI where it never
+   ran before. A push in a fork keeps the pushed commit's gate, checked out by `github.sha`. The
+   fork's default branch is the contributor's to change outside the pull request, and so is the
+   pushed branch's later tip, which a re-run of an earlier push would check out by `github.ref`; a
+   gate there that skips every job would produce a green run for a commit nothing in the pull
+   request shows. A gate change in the pushed commit is in the pull request's files and makes the
+   green run `green_unverified`. While the default branch has no gate yet, which is the case
+   until the gate merges, a push in `apache/airflow` takes the gate from the pushed commit
+   instead. Only committers can push there, and otherwise every pushed branch would run the
+   full project CI as `base_without_gate`.
 2. For pull requests, one read-only API call for the current labels
    (`gh api repos/apache/airflow/pulls/<n> --jq '.labels[].name'`), so override labels added
    after the event are seen on a re-run. If that call fails, the gate uses the labels of the
@@ -279,14 +313,22 @@ directly with the runner's `python3` without installing breeze. The reconciler i
    the shared token quota would otherwise switch the gate off for every pull request.
 3. `python3 dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py` with the event payload
    fields and the labels passed as environment variables. It writes `project-ci=true|false`
-   and `reason=...` to `GITHUB_OUTPUT`.
+   and `reason=...` to `GITHUB_OUTPUT`. A base branch with neither file skips the script and
+   writes `project-ci=true` with `reason=base_without_gate`.
+4. For a gated pull request, the PR title check of `ci-image-checks.yml`
+   (`scripts/ci/prek/check_no_conventional_commit_message.py`, from the same sparse checkout).
+   Project CI is skipped and the fork run is a `push` event without a title, so this is the
+   only place the title is checked.
 
 `build-info` gains `needs: [gate]` and `if: needs.gate.outputs.project-ci == 'true'`. Every
 other job already depends on `build-info`, so a gated pull request produces a run in which the
 gate job succeeds in seconds and everything else is skipped. No red status is attached to the
 pull request; the reconciler's comment explains what to do.
 
-`ci-arm.yml` is not changed. It has no `pull_request` trigger and never runs in forks.
+`ci-arm.yml` keeps its triggers: it has no `pull_request` trigger and never runs in forks. Its
+`push.branches` list is the source of `CANONICAL_PUSH_BRANCH_FILTERS` in `fork_ci_gate.py`
+(compiled with GitHub's filter semantics, where `*` is any characters except `/`), and its
+`notify-slack` condition matches `ci-amd.yml`'s.
 The `check-ci-workflows-in-sync` prek hook allowlist is extended to permit the `gate` job and
 the `build-info` dependency to exist only in the AMD workflow.
 
@@ -313,9 +355,22 @@ upstream yields no changed files, so such a run performs basic checks only.
 - **Changed files** come from the cross-repository compare API,
   `GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>`, three-dot semantics, so
   the set equals what a pull request against upstream would show. The fork's `main` is never
-  used as a base, so a stale fork does not inflate the change set. `<base>` is `main` unless
-  the pushed branch name starts with a canonical release branch prefix. The API caps the file
-  list at 300; at the cap the run falls back to "run everything".
+  used as a base, so a stale fork does not inflate the change set. `<base>` is the branch line
+  of the pushed code, breeze's default branch at that commit (`main`, or the release branch it
+  was cut from), because a branch name such as `backport-<sha>-v3-1-test` cannot be trusted to
+  tell. A renamed file counts under both paths. The API caps the file list at 300; at the cap,
+  and when the compare fails, the run falls back to "run everything", UI E2E tests included,
+  rather than failing.
+- **Previous versions** of changed files, for the `pyproject.toml` and provider dependency
+  bump checks, are read at the compare's merge base in `apache/airflow`
+  (`GET /repos/apache/airflow/contents/<path>?ref=<merge-base>`). The pushed commit's parent
+  would be the contributor's own previous tip after they merge upstream `main`, so a release
+  manager's bump from `main` would count as theirs. A file missing at the merge base is new; any
+  other read failure fails the run rather than letting the check pass unseen.
+- **Labels** come from the open `apache/airflow` pull request whose head is
+  `<fork-owner>:<branch>`, since a push event carries none. `full tests needed`,
+  `allow provider dependency bump`, `skip common compat check` and the other labels work as on
+  a pull request; a label added later takes effect on the next fork run.
 - `_should_run_all_tests_and_versions` treats a fork push like a pull request. Today any
   `push` runs the full matrix, which would cost a contributor ~220 minutes per push.
 - `is_committer_build` is always false. Forks have no self-hosted runners; a committer pushing
@@ -344,7 +399,11 @@ Each run performs two passes.
 the last 24 hours without the `fork ci required` label, plus any open pull request carrying
 `use fork ci` without `fork ci required`, fetching `authorAssociation`, `author.login`,
 `createdAt`, `headRepository`, `baseRefName` and `labels`. Each is classified with
-`fork_ci_gate.decide`; those with a gated reason get the label. The
+`fork_ci_gate.decide` against the gate configuration of its base branch, the one its gate job
+reads too: the default branch's comes from the reconciler's checkout, any other base branch's
+from the contents API once per run. Those with a gated reason get the label. A base branch with
+neither gate file is never gated, as its gate job runs project CI (`base_without_gate`), and
+one with only one of the two files is reported as unknown. The
 24-hour window overlaps many 15-minute cadences, so a lost scheduled run changes nothing. A
 pull request whose author later becomes a committer keeps the label until a maintainer
 removes it or adds `use project ci`; the reconciler does not un-gate on its own.
@@ -394,8 +453,9 @@ pull requests in that state, not by the total.
 | **running**: run in progress | draft | remove | `pending` (yellow), link to the run | update state and run link |
 | **failed**: conclusion is failure, cancelled or timed out | draft | remove | `failure` (red), link to the run | update with the run link |
 | **green**: conclusion success and the pull request does not change CI-defining files | undraft\* | add | `success` (green), link to the run | update: ready for review, run link |
-| **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | draft | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; reported to Slack once per commit |
+| **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | draft | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; labelled `needs project ci` |
 | setup_required or awaiting_push for `close_after_days` | unchanged | unchanged | unchanged | close with a new comment; reopening restarts the clock |
+| **ungated**: the base branch has no gate, for example after retargeting to an older release branch | undraft\* | unchanged | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
 | **gate_bypassed**: a recorded project CI run of the pull request's branch bypassed the gate (see "Gate tampering") | draft | remove | `error` (red), link to the project CI run that should not have happened | post a **new** comment explaining why, then close; takes precedence over every row above |
 
 \* only if the last convert-to-draft event on the pull request was by `github-actions[bot]`;
@@ -418,28 +478,47 @@ Rules that sit under the table:
   drafted stays a draft until the author marks it ready, and is then treated like any other
   on the next run. This is derived from GitHub's own record, not from the reconciler's
   memory, so it survives missed runs.
-- **The label is the escape hatch.** Only pull requests carrying `fork ci required` are
-  touched. A maintainer removing that label, or adding `use project ci`, takes the pull
-  request out of the state machine on the next run (see "Override labels").
+- **`use project ci` is the escape hatch.** Only pull requests carrying `fork ci required`
+  are touched, and adding `use project ci` takes a pull request out of the state machine on the
+  next run (see "Override labels"). Removing `fork ci required` by hand is not enough: it updates
+  the pull request, so discovery finds it again and labels it back while it is still gated.
 - **Deleted head repository** is reported as unknown (see below) and otherwise left alone.
 - **The close clock** starts at the `since` timestamp recorded for the current state and
   resets on any state change. Closing for inactivity records `closed` in the marker, so the
   first run after a reopen sees a state change from `closed` and starts a fresh clock rather
-  than closing the pull request again at once.
+  than closing the pull request again at once. Only a reopen recorded in the timeline after
+  the marker counts: an open pull request with a `closed` marker and no such reopen is one whose
+  closing comment or close failed, and the next run finishes the closure. The same holds for a
+  `gate_bypassed` marker, where only a reopen by someone other than the author counts, so the
+  closure is finished even after the offending run has left the tampering check's window.
+- **`fork ci required` goes last.** When a run removes the label (on release, or for an
+  ungated base branch), it does so after every other change, so a failure on the way leaves
+  the label in place and the next run retries the rest.
 
 ### Trusting a green fork run
 
 The fork run executes the workflow files, the breeze sources and the CI scripts of the pushed
 commit. A pull request that changes them decides what its own fork CI checks, and could make it
 pass trivially. When a new head commit turns green, the reconciler lists the pull request's
-changed files once (`GET /repos/apache/airflow/pulls/<n>/files`). If any is under `.github/`,
+changed files once (`GET /repos/apache/airflow/pulls/<n>/files`) and then reads the head commit
+again: the files endpoint lists the current head, so when the head moved meanwhile nothing is
+decided or recorded for the old commit, and the next run decides for the new one. If any file is under `.github/`,
 `dev/breeze/`, `scripts/ci/`, `scripts/docker/` or `scripts/in_container/`, is a
 `Dockerfile*` or a `.pre-commit-config.yaml`, or the list reaches GitHub's 3000-file cap so the
 rest cannot be seen, the state is `green_unverified` instead of `green`. The pull request stays
-a draft, the status is pending, and a maintainer is told on Slack to review the change and add
-`use project ci`. The decision is read back from the `Fork CI / Tests (AMD)` commit status on the
-head commit, which only `apache/airflow`'s own tokens can write, so it is made once per commit
-and cannot be forged through a comment.
+a draft, the status is pending, and it is labelled `needs project ci` so maintainers can list
+these pull requests, review the change and add `use project ci`. It is not posted to Slack:
+the label already lists these pull requests, and a post for every new green commit would bury
+the CI breakages that channel is for.
+The reconciler removes `needs project ci` as soon as the state is anything else. A renamed file
+counts with both its old and its new path, so moving a workflow out of `.github/` is a change
+to `.github/` too.
+
+The decision is read back from the `Fork CI / Tests (AMD)` commit status on the head commit,
+which only `apache/airflow`'s own tokens can write, so it is made once per commit and cannot be
+forged through a comment. The changed files depend on the base branch as well, so a decision
+recorded before the pull request was last retargeted (a `BaseRefChangedEvent` in the timeline
+newer than the status) is made again, and the status is written again to date it.
 
 This is a guard against the cheapest way to fake a green run, not a guarantee. Any change can
 weaken the tests it ships with (a `conftest.py` that skips tests, for example), exactly as it
@@ -481,15 +560,20 @@ bypass when both signals hold:
 1. **The run did project CI work.** Either the default branch's version of the run's workflow
    is not triggered by the run's event, which covers an injected workflow and a trigger the
    pull request added to an existing one (for example `pull_request` on `ci-arm.yml`, which
-   has no gate), or it is a `ci-amd.yml` run that lasted more than 5 minutes and whose jobs
-   (`GET .../actions/runs/<id>/jobs`) show more than the gate: a job other than `Fork CI gate`
-   that was not skipped, a missing or duplicated gate job, or a gate job that ran for more
-   than 5 minutes. The last case catches project CI work done in a job renamed to the gate's
-   name. A gate-only run finishes in about a minute, so jobs are listed only for the rare long
-   runs. The triggers are read from the monitor's own checkout of `main`, so no API call is
-   needed; a pull request into a release branch is judged by `main`'s workflows.
+   has no gate), or it is a `ci-amd.yml` run that has run for more than 5 minutes, finished or
+   still running, and whose jobs (`GET .../actions/runs/<id>/jobs`) show more than the gate: a
+   started job other than `Fork CI gate` that was not skipped, a missing or duplicated gate job,
+   or a gate job that ran for more than 5 minutes. The last case catches project CI work done in
+   a job renamed to the gate's name. Runs and jobs that have not started do not count, because a
+   queued job reports its creation as `started_at`: a gate job waiting more than 5 minutes for a
+   runner would otherwise look like project CI work. A running run is judged as it goes, so one
+   tampered to outlast the 6-hour window is still caught. A gate-only run finishes in about a
+   minute, so jobs are listed only for the rare long runs. The triggers are read from the
+   monitor's own checkout of `main`, so no API call is needed; a pull request into a release
+   branch is judged by `main`'s workflows.
 2. **The run's own commit changes workflow files.** The compare of the base branch with that
-   commit (`GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>`) must show a path
+   commit (`GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>`, first page only:
+   the API returns `files` on the first page and lists commits on the others) must show a path
    under `.github/workflows/`. It is the run's commit, not the pull request's current head,
    so a later push that reverts the workflow change does not clear the signal. A change set
    at the compare API's 300-file cap counts as changing workflows, so padding a tampered
@@ -571,6 +655,37 @@ close-after-inactivity decision; the skill must treat `fork ci required` pull re
 out of scope for those three actions. Everything else the skill does (quality gates, pings,
 suspicious-change flags) is unaffected.
 
+### The `CI passed` check
+
+The "Require CI on main" ruleset requires a `CI passed` check from GitHub Actions before a pull
+request can merge or auto-merge. Project CI's `CI passed` job reports it, but a gated pull
+request never runs project CI, so the reconciler reports it instead: when the state of the head
+commit is `green`, it posts a `CI passed` commit status with state `success`, linking the fork
+run. A commit status written with the monitor's `GITHUB_TOKEN` comes from GitHub Actions, which
+is the source the ruleset accepts.
+
+- Only `success` is posted. Without the status a gated pull request cannot merge, which is what a
+  pending or failing one would say, and it never competes with project CI's own check.
+- `green_unverified` gets no `CI passed`: the fork run used CI files the pull request changed, so
+  it is not evidence. Once a maintainer adds `use project ci`, project CI reports the check.
+- When the head commit leaves `green`, for example a re-run in the fork that fails, a `success`
+  posted earlier is overwritten with `pending` so the pull request cannot merge on it.
+- A pull request released with `use project ci` keeps any `success` the reconciler posted for
+  its current head commit. A maintainer who wants the project CI result before merging waits
+  for project CI before enabling auto-merge, or pushes a new commit.
+- In a gated run of `ci-amd.yml` every job after the gate is skipped, so project CI's `CI passed`
+  job must not report success there; it reports under another name when `build-info` is
+  skipped, and the reconciler's status is the only `CI passed` the pull request has.
+
+### Far behind the base branch
+
+A fork run tests the pushed commit as it is, while project CI tests it merged with the base
+branch. When a head commit turns green, the reconciler counts the commits it is behind its base
+branch (`behind_by` of `GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>`, once per
+head commit, stored in the marker). From 200 commits behind, about four days of `main`, the
+state comment says so and asks the contributor to rebase, since the merged result can still
+fail. The count is advisory and does not change the state.
+
 ### Unknown failures and attention items go to Slack
 
 The reconciler is defensive per pull request: an exception while processing one pull request
@@ -578,7 +693,10 @@ is caught, recorded and the loop continues. At the end of the run every recorded
 reconciler could not classify, plus every attention item, is turned into one Slack message
 written to `slack-message.json` with `channel: internal-airflow-ci-cd`, and the workflow
 posts it with `slackapi/slack-github-action` exactly as `ci-duration-monitor.yml` does. The
-output `has-alerts=true` gates the posting step.
+output `has-alerts=true` gates the posting step. Slack rejects a whole message with a section
+over 3000 characters or more than 50 blocks, so items are split across sections, each item is
+shortened to 500 characters, and sections past the 50th are replaced by a pointer to the run
+log, which always lists every item in full.
 
 Attention items are expected outcomes that a maintainer should still see: a pull request
 closed for gate tampering, and a pull request carrying both override labels. They are listed
@@ -614,14 +732,20 @@ budget stays observable.
 `.github/workflows/fork-ci-monitor.yml`:
 
 - `on: schedule: cron '*/15 * * * *'` and `workflow_dispatch` with a `dry-run` input.
-- `permissions: contents: read, pull-requests: write, statuses: write` with a justification
-  comment. Comments and labels on pull requests are covered by `pull-requests: write`; the
-  commit status needs `statuses: write`.
-- `runs-on: ubuntu-slim`, `timeout-minutes: 20`, `concurrency: fork-ci-monitor` with
-  `cancel-in-progress: false` so runs never overlap.
+- `permissions: actions: read, contents: read, pull-requests: write, statuses: write` with a
+  justification comment. Comments and labels on pull requests are covered by
+  `pull-requests: write`; the commit status needs `statuses: write`; the gate tampering check
+  lists runs and their jobs, which needs `actions: read` because every scope a `permissions`
+  block leaves out is `none`.
+- `runs-on: ubuntu-latest` (the breeze setup action frees disk space with `sudo` and `docker`,
+  which `ubuntu-slim` does not provide), `timeout-minutes: 20`, `concurrency: fork-ci-monitor`
+  with `cancel-in-progress: false` so runs never overlap.
 - Steps: checkout `main` with `persist-credentials: false`, `./.github/actions/breeze`,
   `breeze ci fork-ci-reconcile` with `GH_TOKEN`, then the Slack post step guarded by
-  `has-alerts`.
+  `has-alerts` and skipped on a dry run, whose alerts describe changes it did not make, and a
+  second Slack step that reports a run failing before it could write its message.
+- Every `gh` call times out after 120 seconds, and a rate limit is retried with backoff up to
+  four attempts, without waiting after the last one.
 
 The workflow does not exit early when `enabled` is false, because both pilots rely on it.
 With `enabled = false`, an empty `[pilot]` and no `use fork ci` labels, every pull request
@@ -637,19 +761,36 @@ prints one row: status, finding, and the command that fixes it.
 |---|---|---|---|
 | 1 | `gh` present and authenticated | `gh auth status` succeeds, version at least `MIN_GH_VERSION` | install / `gh auth login` |
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
-| 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin` |
-| 4 | Who you are | classifies the user: committer (`GET /user/memberships/orgs/apache` active), collaborator (`.asf.yaml`), exempted (`[allowlist]`), pilot participant (`[pilot]`), external | informational |
-| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: state is not `active` | `gh workflow enable ci-amd.yml -R <fork>` or `gh workflow disable ...` |
+| 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds it |
+| 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (`GET /user/memberships/orgs/apache` active), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external | informational |
+| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: informational, with a hint when it is `active` | `gh workflow enable ci-amd.yml -R <fork>`, or `gh workflow disable ...` shown but not run by `--fix` |
 | 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than the configured threshold | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
 
-Committers and collaborators are told to keep fork workflows disabled because their pull
-requests run on project CI; an enabled fork would run every push twice and attach a second,
-confusing status. Forks of a public repository cannot be made private on GitHub, so that is
-the only recommendation available.
+The role is determined before checks 2 and 3, though printed as check 4. For a committer,
+collaborator or exempted contributor, whose pull requests run project CI, checks 2 and 3 are
+informational: working from an `apache/airflow` clone without a fork is fine for them, and
+`--fix` only runs the fixes of failed checks. The same goes for check 5: an enabled fork
+workflow runs every push twice and attaches a second status, so they are told they can disable
+it, but it is not a failure, because a committer trying fork CI with the `use fork ci` label
+needs it enabled. Forks of a public repository cannot be made private on GitHub, so disabling
+the workflow is the only recommendation available.
+
+A failed API call is reported as "could not check" rather than as a finding: a failed fork
+lookup is not "not a fork of apache/airflow", and a failed workflow lookup is not "missing".
+A 404 is a finding: the fork does not exist, or the workflow is missing. An `upstream` remote
+that points somewhere else gets `git remote set-url upstream`, since `git remote add` would
+fail on the existing name.
 
 The remote-parsing block currently inside `breeze ci upgrade` is factored into
-`utils/git_remotes.py` and reused, so both commands agree on what a correct setup is.
+`utils/git_remotes.py` and reused, so both commands agree on what a correct setup is. A remote
+is recognised as a GitHub repository in every form git accepts (`http` or `https` with optional
+credentials, `www.` or a port, scp-like ssh, `ssh://` with an optional port, any case of the
+host, and an ssh host alias from `~/.ssh/config` such as `git@github-personal:apache/airflow.git`,
+counted when the alias names `github` and has no dot, since a dotted host such as a GitHub
+Enterprise server is a different GitHub), and only when the repository is the whole path, so `apache/airflow-site` is never taken
+for `apache/airflow`. A command the audit runs that is not installed, `gh` included, is reported
+as a failed check rather than a crash.
 
 ## Documentation changes
 
@@ -663,7 +804,6 @@ The remote-parsing block currently inside `breeze ci upgrade` is factored into
 - `contributing-docs/10_working_with_git.rst`: cross-link from the naming conventions.
 - `contributing-docs/25_maintainer_pr_triage.md`: the ownership split with the reconciler.
 - `dev/breeze/doc/ci/05_workflows.md`: add the fork push run type.
-- `dev/breeze/doc/ci/03_github_variables.md`: the new gate job outputs.
 - `dev/breeze/doc/08_ci_tasks.rst`: `breeze ci audit` and `breeze ci fork-ci-reconcile`.
 - `dev/breeze/doc/ci/README.md`: index this document.
 
