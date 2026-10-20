@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import warnings
 from contextlib import nullcontext
 from pathlib import Path
@@ -232,7 +233,10 @@ class TestCloudLoggingRemoteLogIO:
         assert logs == ["MSG1\nMSG2"]
         # The reader normalises the path the way the writer's pathlib path does.
         log_filter = mock_client.return_value.list_log_entries.call_args.kwargs["request"].filter
-        assert 'labels.log_path="dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1.log"' in log_filter
+        assert (
+            r'labels.log_path=~"^dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1\.log'
+            r'(\.trigger\.[0-9]+\.log)?$"'
+        ) in log_filter
 
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
@@ -357,7 +361,7 @@ class TestCloudLoggingRemoteLogIO:
         # Mock relative_path_from_logger to return something truthy
         with mock.patch(
             "airflow.sdk.log.relative_path_from_logger",
-            return_value="some/path.py",
+            return_value=Path("some/path.py"),
         ):
             proc = io.processors[0]
             event = {
@@ -451,14 +455,16 @@ class TestCloudLoggingRemoteLogIO:
             pytest.param(
                 False,
                 '((labels.task_id="test_task" AND labels.try_number="1") '
-                'OR (labels.log_path="dag_id=d/attempt=1.log" AND NOT labels.task_id:*))',
+                r'OR (labels.log_path=~"^dag_id=d/attempt=1\.log(\.trigger\.[0-9]+\.log)?$" '
+                "AND NOT labels.task_id:*))",
                 id="before-3.4",
             ),
             pytest.param(
                 True,
                 '((labels.ti_id="abc" OR (labels.task_id="test_task" AND labels.try_number="1" '
                 "AND NOT labels.ti_id:*)) "
-                'OR (labels.log_path="dag_id=d/attempt=1.log" AND NOT labels.task_id:* AND NOT labels.ti_id:*))',
+                r'OR (labels.log_path=~"^dag_id=d/attempt=1\.log(\.trigger\.[0-9]+\.log)?$" '
+                "AND NOT labels.task_id:* AND NOT labels.ti_id:*))",
                 id="3.4-or-later",
             ),
         ],
@@ -478,6 +484,40 @@ class TestCloudLoggingRemoteLogIO:
             )
 
         assert log_filter.splitlines()[2:] == [expected_condition]
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    def test_prepare_log_filter_escapes_log_path_regex(self, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"task_id": "t"}, log_path='run_id=a"b+c/attempt=1.log')
+
+        assert r'labels.log_path=~"^run_id=a\"b\+c/attempt=1\.log(\.trigger\.[0-9]+\.log)?$"' in log_filter
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    @pytest.mark.parametrize(
+        ("label_value", "matches"),
+        [
+            ("dag_id=d/attempt=1.log", True),
+            ("dag_id=d/attempt=1.log.trigger.12.log", True),
+            ("dag_id=d/attempt=11.log", False),
+            ("dag_id=d/attempt=1.log.trigger.x.log", False),
+            ("dag_id=d/attempt=1xlog", False),
+            ("prefix/dag_id=d/attempt=1.log", False),
+        ],
+    )
+    def test_prepare_log_filter_log_path_regex_matches_task_and_trigger_files(
+        self, mock_get_creds_and_project_id, label_value, matches
+    ):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"task_id": "t"}, log_path="dag_id=d/attempt=1.log")
+
+        path_regex = re.search(r'labels\.log_path=~"((?:[^"\\]|\\.)*)"', log_filter).group(1)
+        assert bool(re.search(path_regex.replace('\\"', '"'), label_value)) is matches
 
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"

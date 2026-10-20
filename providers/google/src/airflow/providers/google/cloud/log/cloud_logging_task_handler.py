@@ -23,6 +23,7 @@ import copy
 import inspect
 import logging
 import os
+import re
 import shutil
 import sys
 import warnings
@@ -301,8 +302,11 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
         if log_path:
             # Workers before 3.4 ship a task's stdout and the supervisor's own lines without task context.
             # The path is matched only for such lines, so other tries that wrote to the same path stay out.
+            # Before 3.2.2 the triggerer binds no task context and writes to ``<task path>.trigger.<job id>.log``.
+            # Cloud Logging passes a regex string's backslashes to RE2 unchanged, so only quotes are escaped.
+            path_regex = f"^{re.escape(log_path)}(\\.trigger\\.[0-9]+\\.log)?$".replace('"', '\\"')
             path_conditions = [
-                f"labels.{LABEL_LOG_PATH}={escape_label_value(log_path)}",
+                f'labels.{LABEL_LOG_PATH}=~"{path_regex}"',
                 f"NOT labels.{LABEL_TASK_ID}:*",
             ]
             if match_ti_id:
