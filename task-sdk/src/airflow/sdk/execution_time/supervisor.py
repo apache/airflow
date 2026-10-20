@@ -1664,6 +1664,7 @@ class ActivitySubprocess(WatchedSubprocess):
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
+    _run_context_execution_timeout: float | None = attrs.field(default=None, init=False)
     _execution_timeout_seconds: float | None = attrs.field(default=None, init=False)
     _execution_timeout_enforce_at: float | None = attrs.field(default=None, init=False)
     """Monotonic time at which the supervisor stops a task that has not reported a terminal state."""
@@ -1726,7 +1727,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=UTC))
             self._should_retry = ti_context.should_retry
-            self._execution_timeout_seconds = ti_context.execution_timeout
+            self._run_context_execution_timeout = ti_context.execution_timeout
             self._last_successful_heartbeat = time.monotonic()
         except Exception as e:
             # On any error kill that subprocess!
@@ -2153,8 +2154,8 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_start_execution_timeout(
         self, msg: StartExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
-        if self._execution_timeout_seconds is not None:
-            self._arm_execution_timeout(self._execution_timeout_seconds)
+        if self._run_context_execution_timeout is not None:
+            self._arm_execution_timeout(self._run_context_execution_timeout)
         return None, {}
 
     def _arm_execution_timeout(self, timeout_seconds: float) -> None:
