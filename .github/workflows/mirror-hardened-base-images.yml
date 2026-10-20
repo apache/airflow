@@ -42,8 +42,10 @@ jobs:
   mirror:
     name: "Mirror hardened base images"
     runs-on: ["ubuntu-22.04"]
-    # Never runs on forks - they have neither the credentials nor the package to push to.
-    if: github.repository == 'apache/airflow'
+    # Never runs on forks - they have neither the credentials nor the package to push to. Only main
+    # may push: the mirror is the default BASE_IMAGE of every build, so a manual dispatch from
+    # another branch must not be able to replace it.
+    if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
