@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-20T03:46:50.992978
+# This constraints file was automatically generated on 2026-10-20T13:54:59.750668
 # via `uv pip install --resolution highest` for the "v3-4-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -309,6 +309,7 @@ email-validator==2.3.0
 entrypoints==0.4.2
 et_xmlfile==2.0.0
 eventlet==0.41.2
+exasol-telemetry-client==0.2.1
 executing==2.3.0
 facebook_business==26.0.2
 fastapi-cli==0.0.32
@@ -588,15 +589,15 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.11
 pycryptodome==4.0.0
-pydantic-ai-slim==2.56.0
+pydantic-ai-slim==2.57.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.56.0
+pydantic-graph==2.57.0
 pydantic-settings==2.16.0
 pydantic==2.14.1
 pydantic_core==2.50.1
 pydata-google-auth==1.9.1
 pydruid==0.6.9
-pyexasol==2.4.1
+pyexasol==3.0.0
 pygtrie==2.6.2
 pyiceberg==0.12.0
 pykerberos==1.2.4
@@ -612,7 +613,7 @@ pyspnego==0.12.4
 python-arango==8.3.6
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-discovery==1.6.2
+python-discovery==1.6.3
 python-dotenv==1.2.4
 python-http-client==3.3.7
 python-jenkins==1.8.3
@@ -629,7 +630,7 @@ pywinrm==0.5.0
 pyzmq==27.2.0
 qdrant-client==1.19.1
 ray==2.59.0
-reactivex==5.1.0
+reactivex==6.0.0
 redis==6.4.0
 redshift_connector==2.2.0
 referencing==0.37.0
@@ -700,7 +701,7 @@ tiktoken==0.14.0
 tinycss2==1.5.1
 tokenizers==0.23.3
 toml==0.10.2
-tomlkit==0.15.1
+tomlkit==0.15.2
 tornado==6.5.10
 tqdm==4.70.1
 traitlets==5.16.1
