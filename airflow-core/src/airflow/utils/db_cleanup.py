@@ -346,6 +346,13 @@ config_list: list[_TableConfig] = [
         ],
     ),
     _TableConfig(table_name="inbound_delivery", recency_column_name="retain_until"),
+    # Aged on deadline rather than created_at, so a long wait is kept until its deadline whatever its age.
+    _TableConfig(
+        table_name="inbound_wait",
+        recency_column_name="deadline",
+        extra_columns=["ti_id"],
+        dag_id_scope=_IndirectDagScope(fk_column="ti_id", referenced_table="task_instance"),
+    ),
 ]
 
 # We need to have `fallback="database"` because this is executed at top level code and provider configuration
@@ -401,6 +408,7 @@ _ATTEMPT_UUID_CHILDREN = {
     "task_instance_note": "ti_id",
     "task_reschedule": "ti_id",
     "hitl_detail": "ti_id",
+    "inbound_wait": "ti_id",
 }
 _ATTEMPT_ARCHIVE_TABLES = {*_ATTEMPT_UUID_CHILDREN, "xcom_v1", "rtif_v1", "task_instance", "dynamic_region"}
 

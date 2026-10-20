@@ -88,4 +88,6 @@ class InboundDelivery(Base):
         Index("idx_inbound_delivery_received_at", received_at),
         Index("idx_inbound_delivery_retain_until", retain_until),
         Index("idx_inbound_delivery_correlation_key", correlation_key),
+        # Finds a webhook's live early deliveries when a wait is registered.
+        Index("idx_inbound_delivery_webhook_outcome_received_at", webhook, outcome, received_at),
     )

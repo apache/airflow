@@ -113,8 +113,9 @@ from airflow.models.dynamic_region import (
     public_region_filter,
 )
 
-# Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
+# Import HITLDetail and InboundWait at runtime so SQLAlchemy can resolve the relationships
 from airflow.models.hitl import HITLDetail  # noqa: F401
+from airflow.models.inbound_wait import InboundWait  # noqa: F401
 from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
@@ -1255,6 +1256,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         uselist=False,
     )
     hitl_detail = relationship("HITLDetail", lazy="raise", uselist=False, passive_deletes=True)
+    inbound_waits = relationship("InboundWait", lazy="raise", passive_deletes=True)
 
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")

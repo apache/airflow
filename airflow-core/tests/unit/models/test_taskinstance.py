@@ -3782,7 +3782,7 @@ def test_defer_task_skips_trigger_team_name_when_multi_team_disabled(
 class TestTaskInstanceRelationships:
     @pytest.mark.parametrize(
         "attr",
-        ["rendered_task_instance_fields", "hitl_detail"],
+        ["rendered_task_instance_fields", "hitl_detail", "inbound_waits"],
     )
     def test_noload_relationships_raise_without_joinedload(self, dag_maker, session, attr):
         """Accessing lazy='raise' relationships without joinedload should raise."""
