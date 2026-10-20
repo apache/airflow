@@ -135,7 +135,7 @@ name = "Misc"
 showcontent = true
 
 [tool.uv]
-required-version = ">=0.11.8"
+required-version = ">=0.13.1"
 
 [tool.uv.sources]
 apache-airflow-core = { path = "../../airflow-core", editable = true }
