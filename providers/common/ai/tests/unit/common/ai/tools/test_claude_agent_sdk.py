@@ -684,7 +684,8 @@ class TestRun:
         assert tools._run is None
 
     @pytest.mark.asyncio
-    async def test_a_failing_aclose_is_logged_when_it_does_not_hide_the_tools_failure(self, caplog):
+    @mock.patch(f"{MODULE}.log", autospec=True)
+    async def test_a_failing_aclose_is_logged_when_it_does_not_hide_the_tools_failure(self, mock_log):
         tools, handlers = _build_tools(_tool(PermissionError("role cannot read orders")))
 
         class _StubbornStream:
@@ -697,34 +698,37 @@ class TestRun:
         with pytest.raises(ToolCallError):
             await tools.run(_StubbornStream())
 
-        assert {
-            "event": "Closing the Claude Agent SDK stream failed: close failed",
-            "log_level": "warning",
-        } in caplog
+        mock_log.warning.assert_called_once()
+        assert "Closing the Claude Agent SDK stream failed" in mock_log.warning.call_args.args[0]
+        assert str(mock_log.warning.call_args.args[1]) == "close failed"
 
     @pytest.mark.asyncio
     async def test_a_cancelled_run_closes_the_stream_and_stays_cancelled(self):
         tools, _ = _build_tools(_tool(ToolResult("ok")))
         started = asyncio.Event()
-        closed: list[bool] = []
+        aclose_calls: list[bool] = []
 
-        async def _blocked_cli() -> AsyncIterator[Message]:
-            try:
+        class _BlockedStream:
+            def __aiter__(self) -> AsyncIterator[Message]:
+                return self._iterate()
+
+            async def _iterate(self) -> AsyncIterator[Message]:
                 yield _assistant_message()
                 started.set()
                 await asyncio.Event().wait()
                 yield _result_message()
-            finally:
-                closed.append(True)
 
-        task = asyncio.ensure_future(tools.run(_blocked_cli()))
+            async def aclose(self) -> None:
+                aclose_calls.append(True)
+
+        task = asyncio.ensure_future(tools.run(_BlockedStream()))
         await started.wait()
         task.cancel()
 
         with pytest.raises(asyncio.CancelledError):
             await task
 
-        assert closed == [True]
+        assert aclose_calls == [True]
         assert tools._run is None
 
     @pytest.mark.asyncio
