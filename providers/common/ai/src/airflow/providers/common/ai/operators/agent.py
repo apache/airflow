@@ -246,18 +246,17 @@ def _dump_unregistered_models(value: Any, registered: set[type]) -> Any:
     if isinstance(value, BaseModel):
         if type(value) in registered:
             return value
-        # A python-mode dump leaves values such as Enum members, HttpUrl and Path in the dict, and
-        # airflow.sdk.serde raises TypeError for those values. When a model instance itself is pushed,
-        # serde dumps it with mode="json", so this dict has the same values as a pushed instance.
+        # A python-mode model_dump() leaves values such as plain Enum members, HttpUrl and Path in the
+        # dict, and the default XCom serializer raises TypeError for those values.
         return value.model_dump(mode="json")
-    # Compare exact types instead of using isinstance. pydantic builds exactly list, tuple and dict for
-    # list[...], tuple[...] and dict[...] annotations, and rebuilding a subclass such as a NamedTuple from
-    # its items could fail.
-    if type(value) is list:
+    # The default XCom serializer already pushes a subclass of list, tuple or dict, such as a NamedTuple
+    # or an OrderedDict, as the plain type. Building the plain type here does not change what a
+    # downstream task receives.
+    if isinstance(value, list):
         return [_dump_unregistered_models(item, registered) for item in value]
-    if type(value) is tuple:
+    if isinstance(value, tuple):
         return tuple(_dump_unregistered_models(item, registered) for item in value)
-    if type(value) is dict:
+    if isinstance(value, dict):
         return {key: _dump_unregistered_models(item, registered) for key, item in value.items()}
     return value
 
@@ -1148,9 +1147,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             return output.model_dump()
         if not _CORE_WALKER:
             # iter_pydantic_models could not be imported, so the worker registers no class.
-            # _serialize_model_output is always True when that import fails, so a model at the top level
-            # was already dumped above. Any other output is pushed unchanged.
-            return output
+            # _serialize_model_output is always True when that import fails, so a model at the top level was
+            # already dumped above. The class of a model inside a list, tuple or dict is not registered
+            # either, so this call passes an empty set of registered classes to dump that model too.
+            return _dump_unregistered_models(output, set())
         # A downstream task can load a model from XCom only if the worker registered the model's class.
         # The worker registers the classes that iter_pydantic_models finds in output_type.
         # iter_pydantic_models finds no class in a list of output types, an output marker, an output

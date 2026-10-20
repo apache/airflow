@@ -21,12 +21,13 @@ import dataclasses
 import json
 import logging
 import sys
+from collections import OrderedDict
 from contextlib import nullcontext
 from datetime import timedelta
 from decimal import Decimal
 from enum import Enum
 from types import ModuleType, SimpleNamespace
-from typing import Any, NewType
+from typing import Any, NamedTuple, NewType
 from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 from uuid import UUID
 
@@ -141,6 +142,19 @@ class SummaryKind(Enum):
 class LinkedSummary(BaseModel):
     kind: SummaryKind
     url: HttpUrl
+
+
+class DetailedSummary(Summary):
+    detail: str = "more"
+
+
+class SummaryPair(NamedTuple):
+    summary: Summary
+    total: int
+
+
+class SummaryList(list):
+    pass
 
 
 def _make_mock_agent(output, make_mock_run_result, *, cost=None):
@@ -1106,6 +1120,41 @@ class TestAgentOperatorExecute:
                 id="dict-in-output-marker",
             ),
             pytest.param(
+                ToolOutput(list[tuple[dict[str, list[Summary]], int]]),
+                [({"a": [Summary(text="ok")]}, 1)],
+                [({"a": [{"text": "ok", "score": 0.0}]}, 1)],
+                False,
+                id="nested-containers-in-output-marker",
+            ),
+            pytest.param(
+                ToolOutput(SummaryPair),
+                SummaryPair(Summary(text="ok"), 1),
+                ({"text": "ok", "score": 0.0}, 1),
+                False,
+                id="named-tuple-in-output-marker",
+            ),
+            pytest.param(
+                ToolOutput(list[Summary]),
+                SummaryList([Summary(text="ok")]),
+                [{"text": "ok", "score": 0.0}],
+                False,
+                id="list-subclass-in-output-marker",
+            ),
+            pytest.param(
+                ToolOutput(OrderedDict[str, Summary]),
+                OrderedDict(a=Summary(text="ok")),
+                {"a": {"text": "ok", "score": 0.0}},
+                False,
+                id="ordered-dict-in-output-marker",
+            ),
+            pytest.param(
+                list[Summary],
+                [DetailedSummary(text="ok")],
+                [{"text": "ok", "score": 0.0, "detail": "more"}],
+                False,
+                id="subclass-of-a-registered-model",
+            ),
+            pytest.param(
                 ToolOutput(list[Summary]),
                 [Summary(text="ok")],
                 [{"text": "ok", "score": 0.0}],
@@ -1140,6 +1189,54 @@ class TestAgentOperatorExecute:
 
         assert result == expected
         assert deserialize(serialize(result)) == expected
+
+    @requires_typed_xcom
+    @pytest.mark.parametrize(
+        ("output_type", "output", "key"),
+        [
+            pytest.param(list[Summary], [Summary(text="ok")], 0, id="list"),
+            pytest.param(tuple[Summary, int], (Summary(text="ok"), 1), 0, id="tuple"),
+            pytest.param(dict[str, Summary], {"a": Summary(text="ok")}, "a", id="dict"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_keeps_each_model_the_worker_registers(
+        self, mock_hook_cls, make_mock_run_result, output_type, output, key
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            output, make_mock_run_result
+        )
+        op = AgentOperator(
+            task_id="test", prompt="Analyze this", llm_conn_id="my_llm", output_type=output_type
+        )
+
+        result = op.execute(context=MagicMock())
+
+        assert result == output
+        assert type(result[key]) is Summary
+
+    @pytest.mark.parametrize(
+        "output_type",
+        [
+            pytest.param(ToolOutput(list[Summary]), id="list-in-output-marker"),
+            pytest.param(list[Summary], id="list"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent._CORE_WALKER", False)
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_dumps_nested_models_without_the_worker_walk(
+        self, mock_hook_cls, make_mock_run_result, output_type
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            [Summary(text="ok")], make_mock_run_result
+        )
+        op = AgentOperator(
+            task_id="test", prompt="Analyze this", llm_conn_id="my_llm", output_type=output_type
+        )
+
+        result = op.execute(context=MagicMock())
+
+        assert result == [{"text": "ok", "score": 0.0}]
 
     def test_declares_output_type_for_deserialization(self):
         """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization."""
@@ -1310,6 +1407,19 @@ class TestAgentOperatorExecute:
             pytest.param(_summarize, Summary(text="ok"), {"text": "ok", "score": 0.0}, id="output-function"),
             pytest.param(SummaryAlias, Summary(text="ok"), {"text": "ok", "score": 0.0}, id="type-alias"),
             pytest.param(SummaryNewType, Summary(text="ok"), {"text": "ok", "score": 0.0}, id="new-type"),
+            pytest.param(
+                ToolOutput(list[Summary]),
+                [Summary(text="ok")],
+                [{"text": "ok", "score": 0.0}],
+                id="list-in-output-marker",
+            ),
+            pytest.param(
+                ToolOutput(LinkedSummary),
+                LinkedSummary(kind=SummaryKind.SHORT, url=HttpUrl("https://example.com/a")),
+                {"kind": "short", "url": "https://example.com/a"},
+                id="enum-and-url-fields",
+                marks=requires_typed_xcom,
+            ),
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
@@ -2141,6 +2251,27 @@ class TestAgentOperatorDurable:
             patch.object(AgentOperator, "_build_durable_storage", autospec=True, return_value=storage),
             patch.object(op, "_emit_message_history", autospec=True, side_effect=RuntimeError("xcom down")),
             pytest.raises(RuntimeError, match="xcom down"),
+        ):
+            op.execute(context=_make_context())
+
+        assert [step["name"] for step in storage.steps()] == ["t__model.request"]
+
+    def test_cleanup_skipped_when_output_conversion_fails(self):
+        """The journal must survive a failed conversion of the output for XCom, so the Airflow retry
+        can still replay the recorded steps."""
+        storage = MemoryStorage()
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True)
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("ok")])), **kw
+        )
+
+        with (
+            patch.object(AgentOperator, "_build_durable_storage", autospec=True, return_value=storage),
+            patch.object(
+                op, "_convert_output_for_xcom", autospec=True, side_effect=RuntimeError("cannot dump")
+            ),
+            pytest.raises(RuntimeError, match="cannot dump"),
         ):
             op.execute(context=_make_context())
 

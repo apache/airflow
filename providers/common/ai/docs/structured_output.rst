@@ -56,8 +56,27 @@ types such as ``[Summary, int]``, an output marker such as
 ``NewType``. For these output types, ``AgentOperator`` and ``@task.agent`` push
 each model in the output as a JSON-compatible dict, including models inside a
 list, tuple or dict. A model is pushed as a dict even if its class is listed in
-``[core] allowed_deserialization_classes``. A downstream task therefore reads
-``result["text"]``, not ``result.text``.
+``[core] allowed_deserialization_classes``, or if another task in the same Dag
+declares the class as its ``output_type``. A downstream task therefore reads
+``result["field"]``, not ``result.field``.
+
+In a JSON-compatible dict, values such as ``datetime``, ``date``, ``UUID`` and
+``Decimal`` arrive as strings, tuples and sets arrive as lists, and ``Enum``
+members arrive as their values. In HITL review, the released common.ai 1.0.0
+dumped a top-level model of these output types with plain ``model_dump()``
+after the reviewer approved the model. On Airflow 3.3 and later without
+``serialize_output=True``, the ``datetime`` fields of such a model therefore
+arrive as strings after an upgrade, not as ``datetime`` objects.
+
+A model at the top level is still dumped with plain ``model_dump()`` when
+``serialize_output=True`` is set or on Airflow versions before 3.3. Either
+condition is enough. A plain ``Enum`` member (one that does not also subclass
+``str`` or ``int``), an ``HttpUrl`` or a ``Path`` in that model then stays a
+Python object. The default XCom backend cannot serialize these objects, so the
+XCom push fails with ``TypeError``. Before Airflow 3.3 the worker registers no
+model class. ``AgentOperator`` and ``@task.agent`` therefore push a model
+inside a list, tuple or dict as a JSON-compatible dict for every
+``output_type``, not only for the output types listed above.
 
 The Airflow UI's XCom viewer renders Pydantic instances via the
 ``stringify`` path, which produces a representation like
