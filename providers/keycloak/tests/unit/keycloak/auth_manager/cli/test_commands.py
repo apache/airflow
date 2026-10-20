@@ -32,6 +32,8 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     _attach_policy_to_resource_permission,
     _attach_policy_to_scope_permission,
     _attach_superadmin_permissions,
+    _attach_team_menu_permissions,
+    _attach_team_permissions,
     _create_permissions,
     _ensure_resource_server_decision_strategy,
     _get_default_permission_configs,
@@ -407,7 +409,8 @@ def test_exported_permission_names_reject_invalid_values(value):
 
 @pytest.mark.parametrize("permission_type", ["scope", "resource"])
 @pytest.mark.parametrize("exists", [False, True])
-def test_attachment_dry_run_uses_export_without_writes(permission_type, exists, capsys):
+@pytest.mark.parametrize("provided_snapshot", [False, True])
+def test_attachment_dry_run_uses_export_without_writes(permission_type, exists, provided_snapshot, capsys):
     client = Mock(spec=["get_client_authz_settings"])
     scope_names = ["GET", "LIST"] if permission_type == "scope" else []
     permission = {
@@ -421,7 +424,8 @@ def test_attachment_dry_run_uses_export_without_writes(permission_type, exists, 
             "scopes": json.dumps(scope_names),
         },
     }
-    client.get_client_authz_settings.return_value = {"policies": [permission] if exists else []}
+    settings = {"policies": [permission] if exists else []}
+    client.get_client_authz_settings.return_value = settings
     kwargs = {
         "permission_name": "TestPermission",
         "policy_name": "Allow-Viewer",
@@ -429,6 +433,8 @@ def test_attachment_dry_run_uses_export_without_writes(permission_type, exists, 
         "decision_strategy": "AFFIRMATIVE",
         "_dry_run": True,
     }
+    if provided_snapshot:
+        kwargs["authz_settings"] = settings
 
     if permission_type == "scope":
         _attach_policy_to_scope_permission(client, "test-id", scope_names=scope_names, **kwargs)
@@ -441,7 +447,29 @@ def test_attachment_dry_run_uses_export_without_writes(permission_type, exists, 
     else:
         assert f"type={permission_type}" in output
         assert "Would attach policy 'Allow-Viewer' to permission 'TestPermission'." in output
-    assert client.mock_calls == [call.get_client_authz_settings(client_id="test-id")]
+    assert client.mock_calls == (
+        [] if provided_snapshot else [call.get_client_authz_settings(client_id="test-id")]
+    )
+
+
+@pytest.mark.parametrize(
+    "attach_permissions",
+    [_attach_team_permissions, _attach_team_menu_permissions, _attach_superadmin_permissions],
+)
+@pytest.mark.parametrize("provided_snapshot", [False, True])
+def test_team_attachment_dry_run_shares_snapshot(attach_permissions, provided_snapshot):
+    client = Mock(spec=["get_client_authz_settings"])
+    settings = {"policies": []}
+    client.get_client_authz_settings.return_value = settings
+
+    if provided_snapshot:
+        attach_permissions(client, "test-id", "team-a", _dry_run=True, authz_settings=settings)
+        assert client.mock_calls == []
+    else:
+        attach_permissions(client, "test-id", "team-a", _dry_run=True)
+        assert client.mock_calls == [call.get_client_authz_settings(client_id="test-id")]
+        attach_permissions(client, "test-id", "team-a", _dry_run=True)
+        assert client.mock_calls == [call.get_client_authz_settings(client_id="test-id")] * 2
 
 
 @pytest.mark.parametrize("missing_policy", [None, "Allow-Viewer"])
@@ -644,7 +672,8 @@ def test_attach_superadmin_permissions_ensures_admin_before_attachment(
     client.create_client_authz_scope_permission.side_effect = record_creation
     mock_attach_policy.side_effect = check_permission_exists
 
-    _attach_superadmin_permissions(client, "client-id", "team-a", _dry_run=dry_run)
+    settings = {"policies": []}
+    _attach_superadmin_permissions(client, "client-id", "team-a", _dry_run=dry_run, authz_settings=settings)
 
     if not admin_exists and not dry_run:
         client.create_client_authz_scope_permission.assert_called_once_with(
@@ -669,6 +698,7 @@ def test_attach_superadmin_permissions_ensures_admin_before_attachment(
         resource_names=resource_names,
         decision_strategy="AFFIRMATIVE",
         _dry_run=dry_run,
+        **({"authz_settings": settings} if dry_run else {}),
     )
 
 
@@ -725,7 +755,15 @@ class TestCommands:
         _ensure_resource_server_decision_strategy=DEFAULT,
     )
     def test_team_provisioning_restricts_non_team_permissions(self, command_name, teams, dry_run, **mocked):
-        client = Mock(spec=["get_clients", "get_client_authz_scopes", "get_client_authz_resources"])
+        client = Mock(
+            spec=[
+                "get_clients",
+                "get_client_authz_scopes",
+                "get_client_authz_resources",
+                "get_client_authz_settings",
+            ]
+        )
+        client.get_client_authz_settings.return_value = {"policies": []}
         mocked["_get_client"].return_value = client
         client.get_clients.return_value = [{"id": "test-id", "clientId": "test_client_id"}]
         client.get_client_authz_scopes.return_value = [
@@ -757,6 +795,23 @@ class TestCommands:
             }
         ):
             commands[command_name](self.arg_parser.parse_args(params))
+
+        if command_name == "create-team" and dry_run:
+            client.get_client_authz_settings.assert_called_once_with(client_id="test-id")
+            for name in [
+                "_attach_team_permissions",
+                "_attach_team_menu_permissions",
+                "_attach_superadmin_permissions",
+            ]:
+                mocked[name].assert_called_once_with(
+                    client,
+                    "test-id",
+                    "team-a",
+                    _dry_run=True,
+                    authz_settings=client.get_client_authz_settings.return_value,
+                )
+        else:
+            client.get_client_authz_settings.assert_not_called()
 
         if teams:
             mocked["_restrict_non_team_permissions_for_team_mode"].assert_called_once_with(

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 from enum import Enum
+from functools import partial
 from typing import get_args
 
 from keycloak import KeycloakAdmin, KeycloakError
@@ -143,7 +144,7 @@ def create_permissions_command(args):
 
     teams = _parse_teams(args.teams)
     _ensure_multi_team_enabled(teams=teams, command_name="create-permissions")
-    _get_permissions_to_create(client, client_uuid, teams=teams)
+    _validate_permission_prerequisites(client, client_uuid, teams=teams)
 
     if teams:
         # Role policies are only needed for team-scoped (group+role) authorization.
@@ -182,9 +183,7 @@ def create_all_command(args):
         )
     else:
         _create_resources(client, client_uuid, teams=teams, _dry_run=False)
-
-    if not args.dry_run:
-        _get_permissions_to_create(client, client_uuid, teams=teams)
+        _validate_permission_prerequisites(client, client_uuid, teams=teams)
 
     _create_group_membership_mapper(client, client_uuid, _dry_run=args.dry_run)
     if teams:
@@ -763,6 +762,24 @@ def _get_permission_configs(
     return perm_configs
 
 
+def _validate_permission_prerequisites(
+    client: KeycloakAdmin,
+    client_uuid: str,
+    *,
+    teams: list[str],
+) -> None:
+    """Check live scopes and resources before policy writes."""
+    permission_configs = _get_permission_configs(teams)
+    scopes = client.get_client_authz_scopes(client_uuid)
+    resources = client.get_client_authz_resources(client_uuid)
+    _validate_required_authz_objects(
+        permission_configs,
+        scopes=scopes,
+        resources=resources,
+        teams=teams,
+    )
+
+
 def _get_permissions_to_create(
     client: KeycloakAdmin,
     client_uuid: str,
@@ -1076,9 +1093,14 @@ def create_team_command(args):
     _create_permissions(client, client_uuid, teams=[team], include_global_admin=False, _dry_run=args.dry_run)
     _ensure_group(client, team, _dry_run=args.dry_run)
     _ensure_team_policies(client, client_uuid, team, _dry_run=args.dry_run)
-    _attach_team_permissions(client, client_uuid, team, _dry_run=args.dry_run)
-    _attach_team_menu_permissions(client, client_uuid, team, _dry_run=args.dry_run)
-    _attach_superadmin_permissions(client, client_uuid, team, _dry_run=args.dry_run)
+    authz_settings = client.get_client_authz_settings(client_id=client_uuid) if args.dry_run else None
+    _attach_team_permissions(client, client_uuid, team, _dry_run=args.dry_run, authz_settings=authz_settings)
+    _attach_team_menu_permissions(
+        client, client_uuid, team, _dry_run=args.dry_run, authz_settings=authz_settings
+    )
+    _attach_superadmin_permissions(
+        client, client_uuid, team, _dry_run=args.dry_run, authz_settings=authz_settings
+    )
     _update_read_only_permission_resources(client, client_uuid, _dry_run=args.dry_run)
     _update_admin_permission_resources(client, client_uuid, _dry_run=args.dry_run)
     _restrict_non_team_permissions_for_team_mode(client, client_uuid, _dry_run=args.dry_run)
@@ -1123,8 +1145,25 @@ def _ensure_team_policies(
 
 
 def _attach_team_permissions(
-    client: KeycloakAdmin, client_uuid: str, team: str, *, _dry_run: bool = False
+    client: KeycloakAdmin,
+    client_uuid: str,
+    team: str,
+    *,
+    _dry_run: bool = False,
+    authz_settings: dict | None = None,
 ) -> None:
+    if _dry_run and authz_settings is None:
+        authz_settings = client.get_client_authz_settings(client_id=client_uuid)
+    attach_scope = (
+        partial(_attach_policy_to_scope_permission, authz_settings=authz_settings)
+        if _dry_run
+        else _attach_policy_to_scope_permission
+    )
+    attach_resource = (
+        partial(_attach_policy_to_resource_permission, authz_settings=authz_settings)
+        if _dry_run
+        else _attach_policy_to_resource_permission
+    )
     team_dag_resources = [
         f"{KeycloakResource.DAG.value}:{team}",
     ]
@@ -1134,7 +1173,7 @@ def _attach_team_permissions(
     ]
     team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
 
-    _attach_policy_to_scope_permission(
+    attach_scope(
         client,
         client_uuid,
         permission_name=f"ReadOnly-{team}",
@@ -1145,7 +1184,7 @@ def _attach_team_permissions(
         _dry_run=_dry_run,
     )
     for role_name in ("User", "Op", "Admin"):
-        _attach_policy_to_scope_permission(
+        attach_scope(
             client,
             client_uuid,
             permission_name=f"ReadOnly-{team}",
@@ -1155,7 +1194,7 @@ def _attach_team_permissions(
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
-    _attach_policy_to_scope_permission(
+    attach_scope(
         client,
         client_uuid,
         permission_name=f"Admin-{team}",
@@ -1164,7 +1203,7 @@ def _attach_team_permissions(
         resource_names=team_scoped_resources,
         _dry_run=_dry_run,
     )
-    _attach_policy_to_resource_permission(
+    attach_resource(
         client,
         client_uuid,
         permission_name=f"User-{team}",
@@ -1172,7 +1211,7 @@ def _attach_team_permissions(
         resource_names=team_dag_resources,
         _dry_run=_dry_run,
     )
-    _attach_policy_to_resource_permission(
+    attach_resource(
         client,
         client_uuid,
         permission_name=f"Op-{team}",
@@ -1189,7 +1228,7 @@ def _attach_team_permissions(
     # to a team (e.g. audit log rows not tied to a Dag) live on ``AdminView``, which team roles do not
     # get -- see ``_attach_superadmin_permissions``.
     for role_name in TEAM_ROLE_NAMES:
-        _attach_policy_to_scope_permission(
+        attach_scope(
             client,
             client_uuid,
             permission_name="ViewAccess",
@@ -1200,15 +1239,22 @@ def _attach_team_permissions(
             _dry_run=_dry_run,
         )
 
-    _attach_global_list_permissions(client, client_uuid, _dry_run=_dry_run)
+    _attach_global_list_permissions(client, client_uuid, _dry_run=_dry_run, authz_settings=authz_settings)
 
 
 def _attach_global_list_permissions(
-    client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
+    client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False, authz_settings: dict | None = None
 ) -> None:
+    if _dry_run and authz_settings is None:
+        authz_settings = client.get_client_authz_settings(client_id=client_uuid)
+    attach_scope = (
+        partial(_attach_policy_to_scope_permission, authz_settings=authz_settings)
+        if _dry_run
+        else _attach_policy_to_scope_permission
+    )
     resource_names = list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES)
     for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
-        _attach_policy_to_scope_permission(
+        attach_scope(
             client,
             client_uuid,
             permission_name="GlobalList",
@@ -1221,8 +1267,20 @@ def _attach_global_list_permissions(
 
 
 def _attach_team_menu_permissions(
-    client: KeycloakAdmin, client_uuid: str, team: str, *, _dry_run: bool = False
+    client: KeycloakAdmin,
+    client_uuid: str,
+    team: str,
+    *,
+    _dry_run: bool = False,
+    authz_settings: dict | None = None,
 ) -> None:
+    if _dry_run and authz_settings is None:
+        authz_settings = client.get_client_authz_settings(client_id=client_uuid)
+    attach_scope = (
+        partial(_attach_policy_to_scope_permission, authz_settings=authz_settings)
+        if _dry_run
+        else _attach_policy_to_scope_permission
+    )
     menu_permission_name = f"MenuAccess-{team}"
     menu_admin_permission_name = f"MenuAccess-Admin-{team}"
     team_menu_resources = [item.value for item in sorted(TEAM_MENU_ITEMS, key=lambda item: item.value)]
@@ -1248,7 +1306,7 @@ def _attach_team_menu_permissions(
         _dry_run=_dry_run,
     )
     for role_name in TEAM_ROLE_NAMES:
-        _attach_policy_to_scope_permission(
+        attach_scope(
             client,
             client_uuid,
             permission_name=menu_permission_name,
@@ -1258,7 +1316,7 @@ def _attach_team_menu_permissions(
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
-    _attach_policy_to_scope_permission(
+    attach_scope(
         client,
         client_uuid,
         permission_name=menu_admin_permission_name,
@@ -1271,8 +1329,20 @@ def _attach_team_menu_permissions(
 
 
 def _attach_superadmin_permissions(
-    client: KeycloakAdmin, client_uuid: str, team: str, *, _dry_run: bool = False
+    client: KeycloakAdmin,
+    client_uuid: str,
+    team: str,
+    *,
+    _dry_run: bool = False,
+    authz_settings: dict | None = None,
 ) -> None:
+    if _dry_run and authz_settings is None:
+        authz_settings = client.get_client_authz_settings(client_id=client_uuid)
+    attach_scope = (
+        partial(_attach_policy_to_scope_permission, authz_settings=authz_settings)
+        if _dry_run
+        else _attach_policy_to_scope_permission
+    )
     team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
     _ensure_scope_permission(
         client,
@@ -1283,7 +1353,7 @@ def _attach_superadmin_permissions(
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
-    _attach_policy_to_scope_permission(
+    attach_scope(
         client,
         client_uuid,
         permission_name="Admin",
@@ -1293,7 +1363,7 @@ def _attach_superadmin_permissions(
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
-    _attach_policy_to_scope_permission(
+    attach_scope(
         client,
         client_uuid,
         permission_name="ViewAccess",
@@ -1303,7 +1373,7 @@ def _attach_superadmin_permissions(
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
-    _attach_policy_to_scope_permission(
+    attach_scope(
         client,
         client_uuid,
         permission_name="AdminViewAccess",
@@ -1313,7 +1383,7 @@ def _attach_superadmin_permissions(
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
-    _attach_policy_to_scope_permission(
+    attach_scope(
         client,
         client_uuid,
         permission_name="MenuAccess",
@@ -1557,10 +1627,13 @@ def _attach_policy_to_scope_permission(
     resource_names: list[str],
     decision_strategy: str = "UNANIMOUS",
     _dry_run: bool = False,
+    authz_settings: dict | None = None,
 ) -> None:
     if _dry_run:
+        if authz_settings is None:
+            authz_settings = client.get_client_authz_settings(client_id=client_uuid)
         _preview_permission_update(
-            client.get_client_authz_settings(client_id=client_uuid),
+            authz_settings,
             permission_name=permission_name,
             permission_type="scope",
             policy_names=[policy_name],
@@ -1623,10 +1696,13 @@ def _attach_policy_to_resource_permission(
     resource_names: list[str],
     decision_strategy: str = "UNANIMOUS",
     _dry_run: bool = False,
+    authz_settings: dict | None = None,
 ) -> None:
     if _dry_run:
+        if authz_settings is None:
+            authz_settings = client.get_client_authz_settings(client_id=client_uuid)
         _preview_permission_update(
-            client.get_client_authz_settings(client_id=client_uuid),
+            authz_settings,
             permission_name=permission_name,
             permission_type="resource",
             policy_names=[policy_name],
