@@ -108,6 +108,11 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](..
    API correctness, and AI-generated code signals. Fix any violations before pushing.
 3. Confirm the code follows the project's coding standards and architecture boundaries
    described in root [`AGENTS.md`](../../../AGENTS.md).
+   New core runtime code must use core or shared modules rather than import from `airflow.sdk`.
+   Put code needed by both distributions in `shared/`; preserve existing callers' behavior when
+   relocating it. The [SDK-import check](../../../scripts/ci/prek/check_sdk_imports_in_core.py)
+   ratchets existing imports. Do not bypass this boundary with `# noqa: SDK001`, an increased
+   allowlist, or a deprecated alias that still imports the SDK.
 4. Run regular (fast) static checks (`prek run --from-ref <target_branch> --stage pre-commit`)
    and fix any failures. This includes mypy checks for non-provider projects (airflow-core, task-sdk, airflow-ctl, dev, scripts, devel-common).
 5. Run manual (slower) checks
