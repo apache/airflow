@@ -630,7 +630,7 @@ def clear_task_instances(
                     dr.dag = dr_dag
                     dr.verify_integrity(session=session, dag_version_id=dag_version.id)
                     dr.bundle_version = (
-                        None if dr_dag.disable_bundle_version else dr.dag_model.bundle_version
+                        None if dr_dag.disable_bundle_versioning else dr.dag_model.bundle_version
                     )
                     bundle_version_changed = previous_bundle_version != dr.bundle_version
                     if was_finished and bundle_version_changed:
