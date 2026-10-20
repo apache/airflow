@@ -24,6 +24,7 @@ import functools
 import inspect
 import re
 import types
+import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
@@ -32,6 +33,7 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.utils.tool_definition import (
     build_args_validator,
     return_schema_kwargs,
@@ -122,6 +124,10 @@ class HookToolset(AirflowToolset):
         auto-discovery is intentionally not supported for safety.
     :param tool_prefix: Optional prefix joined to each tool name with an underscore
         (e.g. ``"s3"`` → ``"s3_list_keys"``). Must be a valid Python identifier.
+    :param tool_name_prefix: Deprecated. Concatenated to each tool name as given
+        (``"s3_"`` → ``"s3_list_keys"``, ``"s3"`` → ``"s3list_keys"``) and not validated.
+        Passing it with ``tool_prefix`` raises ``ValueError`` unless it equals
+        ``"<tool_prefix>_"``.
     :param pinned_arguments: Arguments the Dag author fixes, such as the bucket a
         storage hook may use: ``{"bucket_name": "reports"}``. Each is left out of the
         arguments the model sees, refused if the model supplies it anyway, and passed to
@@ -146,6 +152,7 @@ class HookToolset(AirflowToolset):
         *,
         allowed_methods: list[str],
         tool_prefix: str = "",
+        tool_name_prefix: str | None = None,
         pinned_arguments: dict[str, Any] | None = None,
         max_retries: int | None = None,
     ) -> None:
@@ -153,7 +160,23 @@ class HookToolset(AirflowToolset):
             # The prefixed names are rendered as Python function signatures under
             # code mode, so a name that is not an identifier breaks there.
             raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
-        name_prefix = f"{tool_prefix}_" if tool_prefix else ""
+        if tool_name_prefix is not None:
+            if tool_prefix and f"{tool_prefix}_" != tool_name_prefix:
+                raise ValueError(
+                    f"tool_prefix={tool_prefix!r} and tool_name_prefix={tool_name_prefix!r} conflict. "
+                    f"Pass only tool_prefix; tool_name_prefix is its deprecated alias and must equal "
+                    f"{tool_prefix + '_'!r} when both are given."
+                )
+            warnings.warn(
+                f"Parameter `tool_name_prefix` is deprecated. Use "
+                f"`tool_prefix={tool_name_prefix.removesuffix('_')!r}` instead; "
+                f"HookToolset adds the '_' itself.",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            name_prefix = tool_name_prefix
+        else:
+            name_prefix = f"{tool_prefix}_" if tool_prefix else ""
         self._max_retries = validate_max_retries(max_retries)
         if not allowed_methods:
             raise ValueError("allowed_methods must be a non-empty list.")
