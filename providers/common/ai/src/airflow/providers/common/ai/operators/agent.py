@@ -60,7 +60,7 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_summary,
     log_run_usage,
 )
-from airflow.providers.common.ai.utils.output_type import is_model_dump_required
+from airflow.providers.common.ai.utils.output_type import dump_output_for_xcom
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import ensure_masked
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
@@ -473,11 +473,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
     :param tool_approval_assigned_users: Users allowed to decide. ``None`` (default)
         leaves it to anyone who can act on the task's Required Actions.
 
-    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
-        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-        ``model_dump()`` before being pushed to XCom. Default ``False`` --
-        the Pydantic instance flows through XCom unchanged. Set to ``True``
-        when a downstream consumer needs the dict shape.
+    :param serialize_output: If ``True``, a Pydantic ``BaseModel`` output, or a
+        list, tuple, set or dict holding models, is dumped to JSON-compatible
+        values with ``pydantic_core.to_jsonable_python`` before being pushed to
+        XCom. A model the worker cannot register from ``output_type`` (for example
+        one in a list of output types) is dumped even when this is ``False``.
+        Default ``False`` -- a registered Pydantic instance flows through XCom
+        unchanged. Set to ``True`` when a downstream consumer needs the dict shape.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
@@ -1112,15 +1114,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # So the approved answer is the last answer the agent returned, and there is no need to parse
             # it back from that text.
             output = self._output_under_review
-            if is_model_dump_required(
+            output = dump_output_for_xcom(
                 output, self.output_type, serialize_output=self._serialize_model_output
-            ):
-                output = output.model_dump()
+            )
             self._clear_usage_budget(context)
             return output
 
-        if is_model_dump_required(output, self.output_type, serialize_output=self._serialize_model_output):
-            output = output.model_dump()
+        output = dump_output_for_xcom(output, self.output_type, serialize_output=self._serialize_model_output)
 
         # Clean up the durable journal only after the run and every post-run step
         # that can still fail (the run-metadata and message-history XCom pushes

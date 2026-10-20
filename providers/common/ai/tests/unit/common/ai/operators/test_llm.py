@@ -24,7 +24,7 @@ from unittest.mock import ANY, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
@@ -58,6 +58,7 @@ from airflow.providers.common.compat.sdk import (
     TaskDeferred,
 )
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
+from airflow.sdk.serde import deserialize, serialize
 
 if AIRFLOW_V_3_3_PLUS:
     # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer
@@ -80,6 +81,10 @@ requires_typed_xcom = pytest.mark.skipif(
 
 class Entities(BaseModel):
     names: list[str]
+
+
+class Link(BaseModel):
+    url: HttpUrl
 
 
 class Summary(BaseModel):
@@ -505,6 +510,36 @@ class TestLLMOperator:
         result = op.execute(context=MagicMock())
 
         assert result == {"names": ["A", "B"]}
+
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_dumps_models_inside_a_list_output_under_a_list_of_types(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        """A list output of ``[list[Entities], str]`` is no model, yet its models need dumping for the worker."""
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result([Entities(names=["A"])])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=[list[Entities], str])
+        result = op.execute(context=MagicMock())
+
+        assert result == [{"names": ["A"]}]
+        assert deserialize(serialize(result)) == [{"names": ["A"]}]
+
+    @requires_typed_xcom
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_dumps_http_url_fields_so_xcom_can_serialize_them(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(Link(url="https://example.com/a"))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=[Link, str])
+        result = op.execute(context=MagicMock())
+
+        assert deserialize(serialize(result)) == {"url": "https://example.com/a"}
 
 
 def _make_context(ti_id=None):

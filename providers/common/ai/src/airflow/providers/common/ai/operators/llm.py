@@ -56,8 +56,8 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_usage,
 )
 from airflow.providers.common.ai.utils.output_type import (
+    dump_output_for_xcom,
     dump_output_to_json,
-    is_model_dump_required,
     rehydrate_pydantic_output,
 )
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
@@ -221,12 +221,14 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         connection does not silently switch off a control the author set. Independent of
         ``require_approval``, which always asks. ``on_uncertain="review"`` needs Airflow 3.1+,
         like ``require_approval``. Default ``None``: no gate, behaviour unchanged.
-    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
-        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-        ``model_dump()`` before being pushed to XCom. Default ``False`` --
-        the Pydantic instance flows through XCom unchanged. Set to ``True``
-        when a downstream consumer needs the dict shape (e.g. sending to an
-        external system that expects JSON-style payloads).
+    :param serialize_output: If ``True``, a Pydantic ``BaseModel`` output, or a
+        list, tuple, set or dict holding models, is dumped to JSON-compatible
+        values with ``pydantic_core.to_jsonable_python`` before being pushed to
+        XCom. A model the worker cannot register from ``output_type`` (for example
+        one in a list of output types) is dumped even when this is ``False``.
+        Default ``False`` -- a registered Pydantic instance flows through XCom
+        unchanged. Set to ``True`` when a downstream consumer needs the dict shape
+        (e.g. sending to an external system that expects JSON-style payloads).
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
@@ -450,11 +452,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
                 )
             self.defer_for_approval(context, output, body=body, decision=record)  # type: ignore[misc]
 
-        if is_model_dump_required(output, self.output_type, serialize_output=self._serialize_model_output):
-            # ``serialize_output=True``, an ``apache-airflow-task-sdk`` version without the worker-side
-            # deserialization-class walk, or an ``output_type`` shape the walk finds no class in: dump to a
-            # dict so XCom carries a plain JSON payload that deserializes without an allow-list entry.
-            output = output.model_dump()
+        output = dump_output_for_xcom(output, self.output_type, serialize_output=self._serialize_model_output)
 
         self._clear_usage_budget(context)
         return output
