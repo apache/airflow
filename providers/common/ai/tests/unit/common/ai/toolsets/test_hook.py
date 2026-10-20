@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import json
 import re
 import threading
@@ -33,6 +34,7 @@ from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolC
 from pydantic_ai.models.function import FunctionModel
 from pydantic_core import ValidationError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.toolsets.hook import (
     _BASE64_PARAM_NOTE,
     _DATETIME_PARAM_NOTE,
@@ -210,9 +212,40 @@ class TestHookToolsetGetTools:
         with pytest.raises(ValueError, match="tool_prefix must be a valid Python identifier"):
             HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix=tool_prefix)
 
-    def test_tool_name_prefix_is_no_longer_accepted(self):
-        with pytest.raises(TypeError, match="tool_name_prefix"):
-            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_name_prefix="s3_")  # type: ignore[call-arg]
+    @pytest.mark.parametrize(
+        ("tool_name_prefix", "expected"),
+        [("s3_", "s3_list_keys"), ("s3", "s3list_keys")],
+    )
+    def test_tool_name_prefix_is_a_deprecated_alias_concatenated_as_given(self, tool_name_prefix, expected):
+        hook = _FakeHook()
+        with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
+            ts = HookToolset(hook, allowed_methods=["list_keys"], tool_name_prefix=tool_name_prefix)
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert expected in tools
+
+    def test_tool_name_prefix_warning_suggests_migrated_value(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match=r"Use `tool_prefix='s3'` instead; HookToolset adds the '_' itself",
+        ):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_name_prefix="s3_")
+
+    def test_tool_prefix_and_tool_name_prefix_that_agree_still_warn(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="tool_name_prefix"):
+            HookToolset(_FakeHook(), allowed_methods=["list_keys"], tool_prefix="s3", tool_name_prefix="s3_")
+
+    @pytest.mark.parametrize(
+        ("tool_prefix", "tool_name_prefix"),
+        [("a", "b_"), ("s3", "s3")],
+    )
+    def test_conflicting_prefixes_raise(self, tool_prefix, tool_name_prefix):
+        with pytest.raises(ValueError, match="tool_prefix.*tool_name_prefix"):
+            HookToolset(
+                _FakeHook(),
+                allowed_methods=["list_keys"],
+                tool_prefix=tool_prefix,
+                tool_name_prefix=tool_name_prefix,
+            )
 
     def test_description_from_docstring(self):
         hook = _FakeHook()
@@ -329,9 +362,17 @@ class TestHookToolsetCallTool:
         )
         assert "data/file1.txt" in result
 
-    def test_dispatches_with_prefix(self):
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_warning"),
+        [
+            ({"tool_prefix": "storage"}, None),
+            ({"tool_name_prefix": "storage_"}, AirflowProviderDeprecationWarning),
+        ],
+    )
+    def test_dispatches_with_prefix(self, kwargs, expected_warning):
         hook = _FakeHook()
-        ts = HookToolset(hook, allowed_methods=["read_file"], tool_prefix="storage")
+        with pytest.warns(expected_warning) if expected_warning else contextlib.nullcontext():
+            ts = HookToolset(hook, allowed_methods=["read_file"], **kwargs)
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
 
         result = asyncio.run(
