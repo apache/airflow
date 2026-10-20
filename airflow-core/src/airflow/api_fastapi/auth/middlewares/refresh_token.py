@@ -50,7 +50,8 @@ class JWTRefreshMiddleware:
     1. Extracts JWT token from cookies and build the user from the token
     2. Calls ``refresh_user`` method from auth manager with the user
     3. If ``refresh_user`` returns a user, generate a JWT token based upon this user and send it in the
-       response as cookie
+       response as cookie, unless the response already sets that cookie itself (e.g. a login or logout
+       route)
 
     Requests to ``UNAUTHENTICATED_PATHS`` or under ``skip_path_prefixes`` (paths relative to the
     root path) are passed through untouched.
@@ -89,7 +90,9 @@ class JWTRefreshMiddleware:
             # token used by the auth manager is expired
             new_token = ""
 
-        cookie_headers = self._build_cookie_headers(request, new_token) if new_token is not None else []
+        token_cookie, cleanup_cookies = (
+            self._build_cookie_headers(request, new_token) if new_token is not None else (None, [])
+        )
         response_started = False
 
         async def send_with_cookies(message: Message) -> None:
@@ -97,7 +100,13 @@ class JWTRefreshMiddleware:
             if message["type"] == "http.response.start":
                 response_started = True
                 headers = MutableHeaders(scope=message)
-                for value in cookie_headers:
+                cookie_values = cleanup_cookies
+                # The token set by the route itself wins: appending ours after it would override it.
+                if token_cookie and not any(
+                    value.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") for value in headers.getlist("set-cookie")
+                ):
+                    cookie_values = [token_cookie, *cleanup_cookies]
+                for value in cookie_values:
                     headers.append("set-cookie", value)
             await send(message)
 
@@ -115,7 +124,8 @@ class JWTRefreshMiddleware:
         return path in UNAUTHENTICATED_PATHS or path.startswith(self.skip_path_prefixes)
 
     @staticmethod
-    def _build_cookie_headers(request: Request, new_token: str) -> list[str]:
+    def _build_cookie_headers(request: Request, new_token: str) -> tuple[str, list[str]]:
+        """Return the ``Set-Cookie`` value of the token and those clearing stale token cookies."""
         cookie_path = get_cookie_path()
         secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
         # Only used to render the Set-Cookie header values
@@ -141,7 +151,10 @@ class JWTRefreshMiddleware:
                 secure=secure,
                 samesite="lax",
             )
-        return [value.decode("latin-1") for key, value in response.raw_headers if key == b"set-cookie"]
+        token_cookie, *cleanup_cookies = (
+            value.decode("latin-1") for key, value in response.raw_headers if key == b"set-cookie"
+        )
+        return token_cookie, cleanup_cookies
 
     @staticmethod
     async def _refresh_user(current_token: str) -> tuple[BaseUser | None, BaseUser | None]:
