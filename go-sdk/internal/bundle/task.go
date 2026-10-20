@@ -195,14 +195,18 @@ func (f *taskFunction) call(
 		}
 		rv := reflect.ValueOf(value)
 		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
-			f.sendXcom(ctx, value, sdkClient, logger)
+			if err := f.sendXcom(ctx, value, sdkClient); err != nil {
+				return err
+			}
 		}
 		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
 	}
 	// If there are two results, convert the first only if it's not a nil pointer
 	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
 		res := retValues[0].Interface()
-		f.sendXcom(ctx, res, sdkClient, logger)
+		if pushErr := f.sendXcom(ctx, res, sdkClient); pushErr != nil {
+			return errors.Join(err, pushErr)
+		}
 	}
 	return err
 }
@@ -268,16 +272,10 @@ func (b *branchRun) skipDownstream(
 	return nil
 }
 
-func (f *taskFunction) sendXcom(
-	ctx context.Context,
-	value any,
-	c sdk.XComClient,
-	logger *slog.Logger,
-) {
+func (f *taskFunction) sendXcom(ctx context.Context, value any, c sdk.XComClient) error {
 	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
 	if !ok {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", "task runtime context is missing")
-		return
+		return errors.New("task runtime context is missing")
 	}
 	ti := runtimeContext.TaskInstance()
 	err := c.PushXCom(ctx, sdk.TaskInstance{
@@ -287,8 +285,9 @@ func (f *taskFunction) sendXcom(
 		MapIndex: ti.MapIndex,
 	}, sdk.XComReturnValueKey, value)
 	if err != nil {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", err)
+		return fmt.Errorf("pushing the %s XCom: %w", sdk.XComReturnValueKey, err)
 	}
+	return nil
 }
 
 func (f *taskFunction) validateFn(
