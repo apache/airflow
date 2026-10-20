@@ -285,6 +285,28 @@ connection-types:
             - 'null'
         description: >-
           hmac_json and token_header, optional: header carrying that ID. Set this or Delivery ID field.
+      attribute_paths:
+        label: Attribute paths
+        schema:
+          type:
+            - object
+            - 'null'
+        description: >-
+          hmac_json and token_header, optional: a JSON object mapping attribute names to dotted paths in
+          the body, e.g. {"job_id": "data.job.id"}. A field holding a non-empty string or an integer in
+          the signed 64-bit range becomes that attribute; the delivery has no such attribute otherwise.
+          Names are up to 64 lowercase letters, digits and underscores, starting with a letter; event and
+          path are set by the source type. Any other shape leaves the webhook misconfigured.
+      correlation_key_field:
+        label: Correlation key field
+        schema:
+          type:
+            - string
+            - 'null'
+        description: >-
+          hmac_json and token_header, optional: dotted path to what the delivery is about, such as a job
+          run ID. A non-empty string, or an integer, of at most 255 characters as text becomes the
+          delivery's correlation key; the delivery has none otherwise.
       store_payload:
         label: Stored payload
         schema:
@@ -296,10 +318,13 @@ connection-types:
             - summary
             - none
         description: >-
-          What asset events and the delivery record keep of each delivery: full, the payload as parsed
-          from the body; summary, the parts the source type keeps, or the whole payload if it keeps no
-          summary; or none. Defaults to the source type's default, or else to the [webhooks] store_payload
-          option, which is what hmac_json and token_header use.
+          What asset events and the delivery record keep of each delivery's payload: full, the payload as
+          parsed from the body; summary, the parts the source type keeps, or the whole payload if it keeps
+          no summary; or none. Defaults to the source type's default, or else to the [webhooks]
+          store_payload option, which is what hmac_json and token_header use. Whatever this says, the
+          delivery record keeps the attributes, including those from Attribute paths, the correlation key,
+          which the extra of its events also carries, and the partition keys that Asset routes read, which
+          their events and Dag runs also carry, so do not map personal data into any of them.
       max_body_bytes:
         label: Maximum body size
         schema:
@@ -310,6 +335,24 @@ connection-types:
         description: >-
           Optional: larger deliveries are refused, in bytes. Replaces the [webhooks] max_body_bytes
           option, higher or lower; the option applies when this is empty.
+      asset_routes:
+        label: Asset routes
+        schema:
+          type:
+            - array
+            - 'null'
+          items:
+            type: object
+        description: >-
+          Optional, read by Airflow rather than by the source type: a JSON list of routes, each
+          {"topic": ..., "asset": ..., "partition_key_field": ...} with no other keys and non-empty
+          strings as values, partition_key_field being optional; any other shape leaves the webhook
+          misconfigured. A delivery offered the topic name also records an event on the active asset with
+          that URI, or else that name, when a Dag scheduled on it can run for it. The partition key is
+          the value at the dotted path partition_key_field: a non-blank string of at most 250 characters
+          with no U+0000 and no character outside the Basic Multilingual Plane, such as an emoji, or the
+          route is skipped and the reason recorded on the delivery. An event with a partition key starts
+          only Dags with a partitioned timetable, and one without only Dags without.
 
 webhook-sources:
   - source-type: hmac_json
