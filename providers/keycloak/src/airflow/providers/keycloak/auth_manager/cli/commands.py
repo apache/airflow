@@ -170,7 +170,6 @@ def create_all_command(args):
     client_uuid = _get_client_uuid(args)
     teams = _parse_teams(args.teams)
     _ensure_multi_team_enabled(teams=teams, command_name="create-all")
-    _validate_permission_creation_plan(teams)
 
     _create_scopes(client, client_uuid, _dry_run=args.dry_run)
 

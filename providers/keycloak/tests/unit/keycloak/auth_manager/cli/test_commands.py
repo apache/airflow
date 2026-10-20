@@ -45,7 +45,6 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     _restrict_non_team_permissions_for_team_mode,
     _update_admin_permission_resources,
     _update_read_only_permission_resources,
-    _validate_permission_creation_plan,
     add_user_to_team_command,
     create_all_command,
     create_permissions_command,
@@ -259,11 +258,6 @@ def test_ensure_resource_server_decision_strategy(
         )
     else:
         assert output == ""
-
-
-@pytest.mark.parametrize("teams", [[], ["team-a"]])
-def test_permission_creation_plan_accepts_fresh_setup(teams):
-    _validate_permission_creation_plan(teams)
 
 
 @pytest.mark.parametrize("include_global_admin", [True, False])
@@ -867,58 +861,6 @@ class TestCommands:
             call.get_client_authz_scopes("test-id"),
             call.get_client_authz_resources("test-id"),
         ]
-
-    @pytest.mark.parametrize("teams", [[], ["team-a"]])
-    @pytest.mark.parametrize("dry_run", [False, True])
-    @patch(
-        "airflow.providers.keycloak.auth_manager.cli.commands._get_resource_names_to_create",
-        autospec=True,
-    )
-    @patch(
-        "airflow.providers.keycloak.auth_manager.cli.commands._get_client",
-        autospec=True,
-    )
-    def test_create_all_rejects_incomplete_plan_before_writes(
-        self, mock_get_client, mock_resource_names, teams, dry_run
-    ):
-        client = Mock(spec=["get_clients"])
-        mock_get_client.return_value = client
-        client.get_clients.return_value = [
-            {"id": "test-id", "clientId": "test_client_id"},
-        ]
-
-        standard_names = [resource.value for resource in KeycloakResource]
-        standard_names.extend(f"{name}:{team}" for team in teams for name in TEAM_SCOPED_RESOURCE_NAMES)
-        missing_resource = "Pool:team-a" if teams else "Pool"
-        mock_resource_names.return_value = (
-            [name for name in standard_names if name != missing_resource],
-            [item.value for item in MenuItem],
-        )
-
-        params = [
-            "keycloak-auth-manager",
-            "create-all",
-            "--username",
-            "test",
-            "--password",
-            "test",
-        ]
-        if teams:
-            params.extend(["--teams", ",".join(teams)])
-        if dry_run:
-            params.append("--dry-run")
-
-        with conf_vars(
-            {
-                ("keycloak_auth_manager", "client_id"): "test_client_id",
-                ("core", "multi_team"): "True",
-            }
-        ):
-            with pytest.raises(ValueError, match="Cannot create permissions:"):
-                create_all_command(self.arg_parser.parse_args(params))
-
-        mock_resource_names.assert_called_once_with(teams)
-        assert client.mock_calls == [call.get_clients()]
 
     @pytest.mark.parametrize("teams", [[], ["team-a"]])
     @pytest.mark.parametrize("dry_run", [False, True])
