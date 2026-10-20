@@ -154,9 +154,7 @@ def create_permissions_command(args):
     else:
         _ensure_default_role_policies(client, client_uuid, _dry_run=args.dry_run)
     _create_permissions(client, client_uuid, teams=teams, _dry_run=args.dry_run)
-    if teams:
-        _restrict_non_team_permissions_for_team_mode(client, client_uuid, _dry_run=args.dry_run)
-    else:
+    if not teams:
         _attach_default_role_permissions(client, client_uuid, _dry_run=args.dry_run)
 
     _ensure_resource_server_decision_strategy(client, client_uuid, _dry_run=args.dry_run)
@@ -194,9 +192,7 @@ def create_all_command(args):
     else:
         _ensure_default_role_policies(client, client_uuid, _dry_run=args.dry_run)
     _create_permissions(client, client_uuid, teams=teams, _dry_run=args.dry_run)
-    if teams:
-        _restrict_non_team_permissions_for_team_mode(client, client_uuid, _dry_run=args.dry_run)
-    else:
+    if not teams:
         _attach_default_role_permissions(client, client_uuid, _dry_run=args.dry_run)
     _ensure_resource_server_decision_strategy(client, client_uuid, _dry_run=args.dry_run)
 
@@ -978,54 +974,6 @@ def _ensure_scope_permission(
     )
 
 
-def _restrict_non_team_permissions_for_team_mode(
-    client: KeycloakAdmin,
-    client_uuid: str,
-    *,
-    _dry_run: bool = False,
-) -> None:
-    permission_configs = {permission["name"]: permission for permission in _get_default_permission_configs()}
-    permissions = [
-        permission
-        for permission in client.get_client_authz_permissions(client_uuid)
-        if permission.get("name") in permission_configs
-    ]
-    if not permissions:
-        return
-
-    if _dry_run:
-        for permission in permissions:
-            print(f"Would restrict non-team permission '{permission['name']}' to SuperAdmin.")
-        return
-
-    super_admin_policy_id = _get_policy_id(client, client_uuid, _role_policy_name(SUPER_ADMIN_ROLE_NAME))
-    if not super_admin_policy_id:
-        raise ValueError("SuperAdmin role policy not found.")
-
-    scopes = client.get_client_authz_scopes(client_uuid)
-    resources = client.get_client_authz_resources(client_uuid)
-
-    for permission in permissions:
-        config = permission_configs[permission["name"]]
-        payload = {
-            "id": permission["id"],
-            "name": permission["name"],
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "scopes": [scope["id"] for scope in scopes if scope["name"] in config["scope_names"]],
-            "resources": [
-                resource["_id"] for resource in resources if resource["name"] in config["resources"]
-            ],
-            "policies": [super_admin_policy_id],
-        }
-        client.update_client_authz_scope_permission(
-            payload=payload,
-            client_id=client_uuid,
-            scope_id=permission["id"],
-        )
-
-
 def _update_admin_permission_resources(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
 ) -> None:
@@ -1103,7 +1051,6 @@ def create_team_command(args):
     )
     _update_read_only_permission_resources(client, client_uuid, _dry_run=args.dry_run)
     _update_admin_permission_resources(client, client_uuid, _dry_run=args.dry_run)
-    _restrict_non_team_permissions_for_team_mode(client, client_uuid, _dry_run=args.dry_run)
     _ensure_resource_server_decision_strategy(client, client_uuid, _dry_run=args.dry_run)
 
 
@@ -1344,15 +1291,6 @@ def _attach_superadmin_permissions(
         else _attach_policy_to_scope_permission
     )
     team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
-    _ensure_scope_permission(
-        client,
-        client_uuid,
-        name="Admin",
-        scope_names=_get_extended_resource_methods() + ["LIST"],
-        resource_names=team_scoped_resources,
-        decision_strategy="AFFIRMATIVE",
-        _dry_run=_dry_run,
-    )
     attach_scope(
         client,
         client_uuid,

@@ -35,7 +35,9 @@ Changelog
     permission definitions. Re-run ``airflow keycloak-auth-manager create-all`` to provision
     the required scopes, resources, and permissions. Legacy permissions and extra policy
     attachments are not automatically removed in non-team mode and can still affect access.
-    See :doc:`auth-manager/manage/permissions` for the current grants and team-transition behavior.
+    Non-team to multi-team client migration is not supported by the provisioning commands.
+    Provision a separate client for multi-team configuration. See
+    :doc:`auth-manager/manage/permissions` for the current grants and provisioning guidance.
 
 .. note::
 
@@ -138,7 +140,7 @@ Bug Fixes
     ``AFFIRMATIVE`` strategy after the update. These instructions describe the 0.9.0 permission
     model. Current non-team provisioning creates resource-specific permissions instead of
     updating these four broad permission definitions; consult
-    :doc:`auth-manager/manage/permissions` for the current provisioning and transition guidance.
+    :doc:`auth-manager/manage/permissions` for the current provisioning guidance.
 
 .. note::
     For Airflow v3.3.0+ Keycloak's access and refresh tokens are now stored in dedicated

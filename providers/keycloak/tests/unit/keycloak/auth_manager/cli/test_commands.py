@@ -44,7 +44,6 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     _get_scopes_to_create,
     _preview_permission_update,
     _preview_resources,
-    _restrict_non_team_permissions_for_team_mode,
     _update_admin_permission_resources,
     _update_read_only_permission_resources,
     add_user_to_team_command,
@@ -529,179 +528,6 @@ def test_default_attachment_rejects_missing_objects_before_updates(mock_get_poli
         mock_get_policy_id.assert_called_once_with(client, "test-id", "Allow-Viewer")
 
 
-@pytest.mark.parametrize(
-    ("permission_name", "resource_names", "scope_names"),
-    [
-        ("AdminViewRead", ["AdminView"], ["GET", "LIST"]),
-        ("ConnectionWrite", ["Connection"], ["POST", "PUT", "DELETE"]),
-        ("PoolWrite", ["Pool"], ["POST", "PUT", "DELETE"]),
-        ("VariableWrite", ["Variable"], ["POST", "PUT", "DELETE"]),
-        ("DefaultMenuAccess", [item.value for item in MenuItem], ["MENU"]),
-    ],
-)
-@patch(
-    "airflow.providers.keycloak.auth_manager.cli.commands._get_policy_id",
-    autospec=True,
-)
-def test_restrict_non_team_permission_to_superadmin(
-    mock_get_policy_id, permission_name, resource_names, scope_names
-):
-    client = Mock(
-        spec=[
-            "get_client_authz_permissions",
-            "get_client_authz_scopes",
-            "get_client_authz_resources",
-            "update_client_authz_scope_permission",
-        ]
-    )
-    client.get_client_authz_permissions.return_value = [
-        {"id": "generated-id", "name": permission_name},
-        {"id": "custom-id", "name": "CustomPermission"},
-        {"id": "team-id", "name": "Op-team-a"},
-    ]
-    client.get_client_authz_scopes.return_value = [
-        {"id": name.lower(), "name": name} for name in ["GET", "LIST", "POST", "PUT", "DELETE", "MENU"]
-    ]
-    client.get_client_authz_resources.return_value = [
-        {"_id": f"resource-{name}", "name": name} for name in [*resource_names, "Pool:team-a"]
-    ]
-    mock_get_policy_id.return_value = "superadmin-policy"
-
-    _restrict_non_team_permissions_for_team_mode(client, "client-id")
-
-    mock_get_policy_id.assert_called_once_with(client, "client-id", "Allow-SuperAdmin")
-    client.update_client_authz_scope_permission.assert_called_once_with(
-        payload={
-            "id": "generated-id",
-            "name": permission_name,
-            "type": "scope",
-            "logic": "POSITIVE",
-            "decisionStrategy": "AFFIRMATIVE",
-            "scopes": [name.lower() for name in scope_names],
-            "resources": [f"resource-{name}" for name in resource_names],
-            "policies": ["superadmin-policy"],
-        },
-        client_id="client-id",
-        scope_id="generated-id",
-    )
-
-    first_update = client.update_client_authz_scope_permission.call_args
-    _restrict_non_team_permissions_for_team_mode(client, "client-id")
-    assert client.update_client_authz_scope_permission.call_args_list == [first_update, first_update]
-
-
-@pytest.mark.parametrize(
-    "permissions",
-    [
-        [],
-        [{"id": "custom-id", "name": "CustomPermission"}],
-    ],
-)
-def test_restrict_non_team_permissions_without_matching_permissions(permissions):
-    client = Mock(spec=["get_client_authz_permissions"])
-    client.get_client_authz_permissions.return_value = permissions
-
-    _restrict_non_team_permissions_for_team_mode(client, "client-id")
-
-    assert client.mock_calls == [call.get_client_authz_permissions("client-id")]
-
-
-def test_restrict_non_team_permissions_dry_run(capsys):
-    client = Mock(spec=["get_client_authz_permissions"])
-    client.get_client_authz_permissions.return_value = [
-        {"id": "generated-id", "name": "PoolWrite"},
-        {"id": "custom-id", "name": "CustomPermission"},
-    ]
-
-    _restrict_non_team_permissions_for_team_mode(client, "client-id", _dry_run=True)
-
-    assert capsys.readouterr().out == ("Would restrict non-team permission 'PoolWrite' to SuperAdmin.\n")
-    assert client.mock_calls == [call.get_client_authz_permissions("client-id")]
-
-
-@patch(
-    "airflow.providers.keycloak.auth_manager.cli.commands._get_policy_id",
-    autospec=True,
-)
-def test_restrict_non_team_permissions_requires_superadmin_policy(
-    mock_get_policy_id,
-):
-    client = Mock(spec=["get_client_authz_permissions"])
-    client.get_client_authz_permissions.return_value = [{"id": "generated-id", "name": "PoolWrite"}]
-    mock_get_policy_id.return_value = None
-
-    with pytest.raises(ValueError, match="SuperAdmin role policy not found"):
-        _restrict_non_team_permissions_for_team_mode(client, "client-id")
-
-    assert client.mock_calls == [call.get_client_authz_permissions("client-id")]
-
-
-@pytest.mark.parametrize("admin_exists", [False, True])
-@pytest.mark.parametrize("dry_run", [False, True])
-@patch(
-    "airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_scope_permission",
-    autospec=True,
-)
-def test_attach_superadmin_permissions_ensures_admin_before_attachment(
-    mock_attach_policy, admin_exists, dry_run
-):
-    permissions = [{"id": "admin-id", "name": "Admin"}] if admin_exists else []
-    client = Mock(
-        spec=[
-            "get_client_authz_permissions",
-            "get_client_authz_scopes",
-            "get_client_authz_resources",
-            "create_client_authz_scope_permission",
-        ]
-    )
-    client.get_client_authz_permissions.return_value = permissions
-    scope_names = _get_extended_resource_methods() + ["LIST"]
-    client.get_client_authz_scopes.return_value = [{"id": name.lower(), "name": name} for name in scope_names]
-    resource_names = [f"{name}:team-a" for name in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
-    client.get_client_authz_resources.return_value = [
-        {"_id": f"resource-{name}", "name": name} for name in resource_names
-    ]
-
-    def record_creation(*, client_id, payload):
-        permissions.append({"id": "admin-id", "name": payload["name"]})
-
-    def check_permission_exists(*args, **kwargs):
-        if kwargs["permission_name"] == "Admin" and not dry_run:
-            assert any(permission["name"] == "Admin" for permission in permissions)
-
-    client.create_client_authz_scope_permission.side_effect = record_creation
-    mock_attach_policy.side_effect = check_permission_exists
-
-    settings = {"policies": []}
-    _attach_superadmin_permissions(client, "client-id", "team-a", _dry_run=dry_run, authz_settings=settings)
-
-    if not admin_exists and not dry_run:
-        client.create_client_authz_scope_permission.assert_called_once_with(
-            client_id="client-id",
-            payload={
-                "name": "Admin",
-                "type": "scope",
-                "logic": "POSITIVE",
-                "decisionStrategy": "AFFIRMATIVE",
-                "scopes": [name.lower() for name in scope_names],
-                "resources": [f"resource-{name}" for name in resource_names],
-            },
-        )
-    else:
-        client.create_client_authz_scope_permission.assert_not_called()
-    mock_attach_policy.assert_any_call(
-        client,
-        "client-id",
-        permission_name="Admin",
-        policy_name="Allow-SuperAdmin",
-        scope_names=scope_names,
-        resource_names=resource_names,
-        decision_strategy="AFFIRMATIVE",
-        _dry_run=dry_run,
-        **({"authz_settings": settings} if dry_run else {}),
-    )
-
-
 @pytest.mark.db_test
 class TestCommands:
     @pytest.fixture(autouse=True)
@@ -721,29 +547,13 @@ class TestCommands:
                 importlib.reload(cli_parser)
                 self.arg_parser = cli_parser.get_parser()
 
-    @pytest.mark.parametrize("dry_run", [False, True])
-    @pytest.mark.parametrize(
-        ("command_name", "teams"),
-        [
-            ("create-all", []),
-            ("create-all", ["team-a"]),
-            ("create-permissions", []),
-            ("create-permissions", ["team-a"]),
-            ("create-team", ["team-a"]),
-        ],
-    )
     @patch.multiple(
         "airflow.providers.keycloak.auth_manager.cli.commands",
         autospec=True,
         _get_client=DEFAULT,
-        _create_scopes=DEFAULT,
         _create_resources=DEFAULT,
-        _preview_resources=DEFAULT,
         _create_group_membership_mapper=DEFAULT,
         _create_permissions=DEFAULT,
-        _ensure_role_policy=DEFAULT,
-        _ensure_default_role_policies=DEFAULT,
-        _attach_default_role_permissions=DEFAULT,
         _ensure_group=DEFAULT,
         _ensure_team_policies=DEFAULT,
         _attach_team_permissions=DEFAULT,
@@ -751,77 +561,44 @@ class TestCommands:
         _attach_superadmin_permissions=DEFAULT,
         _update_read_only_permission_resources=DEFAULT,
         _update_admin_permission_resources=DEFAULT,
-        _restrict_non_team_permissions_for_team_mode=DEFAULT,
         _ensure_resource_server_decision_strategy=DEFAULT,
     )
-    def test_team_provisioning_restricts_non_team_permissions(self, command_name, teams, dry_run, **mocked):
-        client = Mock(
-            spec=[
-                "get_clients",
-                "get_client_authz_scopes",
-                "get_client_authz_resources",
-                "get_client_authz_settings",
-            ]
-        )
-        client.get_client_authz_settings.return_value = {"policies": []}
-        mocked["_get_client"].return_value = client
+    def test_create_team_dry_run_shares_authorization_snapshot(self, **mocked):
+        client = Mock(spec=["get_clients", "get_client_authz_scopes", "get_client_authz_settings"])
         client.get_clients.return_value = [{"id": "test-id", "clientId": "test_client_id"}]
         client.get_client_authz_scopes.return_value = [
             {"id": name.lower(), "name": name} for name in ["GET", "LIST", "POST", "PUT", "DELETE", "MENU"]
         ]
-        resource_names = [resource.value for resource in KeycloakResource] + [item.value for item in MenuItem]
-        resource_names.extend(f"{name}:{team}" for team in teams for name in TEAM_SCOPED_RESOURCE_NAMES)
-        client.get_client_authz_resources.return_value = [
-            {"_id": f"resource-{name}", "name": name} for name in resource_names
+        settings = {"policies": []}
+        client.get_client_authz_settings.return_value = settings
+        mocked["_get_client"].return_value = client
+        params = [
+            "keycloak-auth-manager",
+            "create-team",
+            "team-a",
+            "--username",
+            "test",
+            "--password",
+            "test",
+            "--dry-run",
         ]
-        params = ["keycloak-auth-manager", command_name]
-        if command_name == "create-team":
-            params.append(teams[0])
-        elif teams:
-            params.extend(["--teams", ",".join(teams)])
-        params.extend(["--username", "test", "--password", "test"])
-        if dry_run:
-            params.append("--dry-run")
-        commands = {
-            "create-all": create_all_command,
-            "create-permissions": create_permissions_command,
-            "create-team": create_team_command,
-        }
 
         with conf_vars(
             {
                 ("keycloak_auth_manager", "client_id"): "test_client_id",
-                ("core", "multi_team"): "True" if teams else "False",
+                ("core", "multi_team"): "True",
             }
         ):
-            commands[command_name](self.arg_parser.parse_args(params))
+            create_team_command(self.arg_parser.parse_args(params))
 
-        if command_name == "create-team" and dry_run:
-            client.get_client_authz_settings.assert_called_once_with(client_id="test-id")
-            for name in [
-                "_attach_team_permissions",
-                "_attach_team_menu_permissions",
-                "_attach_superadmin_permissions",
-            ]:
-                mocked[name].assert_called_once_with(
-                    client,
-                    "test-id",
-                    "team-a",
-                    _dry_run=True,
-                    authz_settings=client.get_client_authz_settings.return_value,
-                )
-        else:
-            client.get_client_authz_settings.assert_not_called()
-
-        if teams:
-            mocked["_restrict_non_team_permissions_for_team_mode"].assert_called_once_with(
-                client, "test-id", _dry_run=dry_run
-            )
-            mocked["_attach_default_role_permissions"].assert_not_called()
-        else:
-            mocked["_restrict_non_team_permissions_for_team_mode"].assert_not_called()
-            mocked["_attach_default_role_permissions"].assert_called_once_with(
-                client, "test-id", _dry_run=dry_run
+        client.get_client_authz_settings.assert_called_once_with(client_id="test-id")
+        for name in [
+            "_attach_team_permissions",
+            "_attach_team_menu_permissions",
+            "_attach_superadmin_permissions",
+        ]:
+            mocked[name].assert_called_once_with(
+                client, "test-id", "team-a", _dry_run=True, authz_settings=settings
             )
 
     @pytest.mark.parametrize("missing_scope", ["POST", "MENU"])
@@ -1264,13 +1041,7 @@ class TestCommands:
         "airflow.providers.keycloak.auth_manager.cli.commands._ensure_resource_server_decision_strategy",
         autospec=True,
     )
-    @patch(
-        "airflow.providers.keycloak.auth_manager.cli.commands._restrict_non_team_permissions_for_team_mode",
-        autospec=True,
-    )
-    def test_create_permissions_with_teams(
-        self, mock_restrict_non_team, mock_ensure_strategy, mock_get_client
-    ):
+    def test_create_permissions_with_teams(self, mock_ensure_strategy, mock_get_client):
         client = Mock()
         mock_get_client.return_value = client
         scopes = [
@@ -1407,8 +1178,6 @@ class TestCommands:
             skip_exists=True,
         )
         mock_ensure_strategy.assert_called_once_with(client, "test-id", _dry_run=False)
-
-        mock_restrict_non_team.assert_called_once_with(client, "test-id", _dry_run=False)
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_permission_policy_ids")
     def test_update_read_only_permission_resources_excludes_team_resources(
@@ -1626,13 +1395,8 @@ class TestCommands:
         "airflow.providers.keycloak.auth_manager.cli.commands._ensure_resource_server_decision_strategy",
         autospec=True,
     )
-    @patch(
-        "airflow.providers.keycloak.auth_manager.cli.commands._restrict_non_team_permissions_for_team_mode",
-        autospec=True,
-    )
     def test_create_team_command(
         self,
-        mock_restrict_non_team,
         mock_ensure_strategy,
         mock_get_client,
         mock_ensure_group,
@@ -1827,8 +1591,6 @@ class TestCommands:
         )
         mock_ensure_strategy.assert_called_once_with(client, "test-id", _dry_run=False)
         client.get_client_authz_scopes.assert_called_once_with("test-id")
-
-        mock_restrict_non_team.assert_called_once_with(client, "test-id", _dry_run=False)
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._add_user_to_group")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._ensure_group")

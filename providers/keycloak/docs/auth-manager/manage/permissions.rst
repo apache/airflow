@@ -175,16 +175,11 @@ import errors for files with no registered Dag and reparsing such files -- are c
 ``AdminView`` resource, which the CLI grants to ``SuperAdmin`` only. The other views are checked against
 the ``View`` resource, which every team role can read.
 
-When transitioning a previously provisioned non-team client to team mode, ``create-team``,
-``create-all --teams``, and ``create-permissions --teams`` restrict the existing generated
-non-team read/write permissions and ``DefaultMenuAccess`` to ``Allow-SuperAdmin``. Their
-resource and scope definitions are reset to the generated defaults, and their policy attachments
-are replaced, including any custom policies attached to those generated permission names.
-Permissions with other names are not changed by this restriction helper. Review any separate
-legacy or custom grants that might independently allow access in team mode.
+.. note::
 
-Team members receive access through team-specific permissions instead of the previous plain-role
-non-team grants. ``create-team`` also retains the legacy ``ReadOnly`` and ``Admin`` repair steps.
+    These commands do not migrate an existing non-team Keycloak client to multi-team mode.
+    Provision a separate client for multi-team configuration. Reusing a non-team client can
+    leave its existing grants active alongside the team-specific permissions.
 
 More resources about permissions can be found in the official documentation of Keycloak:
 
