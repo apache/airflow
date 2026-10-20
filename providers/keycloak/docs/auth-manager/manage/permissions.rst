@@ -48,6 +48,21 @@ They also take the following optional parameters:
 
 Please check the `Keycloak auth manager CLI </cli-ref.html>`_ documentation for more information about accepted parameters.
 
+.. warning::
+
+    ``create-all``, ``create-permissions``, and ``create-team`` configure the
+    Keycloak client's resource-server decision strategy as ``AFFIRMATIVE``,
+    in both non-team and multi-team mode. This allows an applicable permission
+    that permits access to authorize a request even when another applicable
+    permission denies it.
+
+    This setting applies to the entire client, including existing custom
+    permissions. Authorization rules that rely on the ``UNANIMOUS`` strategy
+    to combine a permit with a restrictive denial can therefore behave
+    differently. Review existing custom permissions before running these
+    commands against an existing client. Use ``--dry-run`` to preview the
+    strategy change without applying it.
+
 One-go creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
