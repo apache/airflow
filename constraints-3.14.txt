@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-20T13:50:19.803614
+# This constraints file was automatically generated on 2026-10-20T17:06:43.012028
 # via `uv pip install --resolution highest` for the "v3-4-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -289,7 +289,7 @@ decorator==5.3.1
 defusedxml==0.7.1
 deprecation==2.1.0
 dill==0.4.1
-distlib==0.4.3
+distlib==0.4.4
 distro==1.9.0
 dnspython==2.9.0
 docker==7.2.0
@@ -320,7 +320,7 @@ flower==2.2.0
 frozenlist==1.8.0
 fsspec==2026.9.0
 future==1.0.0
-gcloud-aio-auth==5.5.1
+gcloud-aio-auth==5.5.2
 gcloud-aio-bigquery==7.3.0
 gcloud-aio-storage==9.6.5
 gcsfs==2026.10.1
@@ -724,6 +724,7 @@ weaviate-client==4.16.2
 webencodings==0.6.1
 websocket-client==1.9.0
 websockets==16.1.1
+wheel==0.48.0
 wirerope==1.0.0
 wrapt==2.5.1
 xmltodict==1.0.4
