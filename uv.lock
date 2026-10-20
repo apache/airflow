@@ -8692,7 +8692,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-vespa"
-version = "0.2.0"
+version = "0.1.3"
 source = { editable = "providers/vespa" }
 dependencies = [
     { name = "apache-airflow" },
