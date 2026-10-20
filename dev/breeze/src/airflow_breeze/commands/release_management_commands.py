@@ -4925,7 +4925,6 @@ def publish_docs_to_s3(
 )
 @click.option(
     "--dag",
-    "dag",
     help="Path to the generated YAML Dag schema JSON file.",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
 )
