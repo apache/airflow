@@ -20,10 +20,14 @@
 Amazon Executors
 ================
 
+You can run more than one Amazon executor side by side, see
+:ref:`apache-airflow:using-multiple-executors-concurrently`.
+
 
 .. toctree::
     :maxdepth: 1
 
     ECS Executor <ecs-executor>
     Batch Executor <batch-executor>
+    EKS Executor <eks-executor>
     Lambda Executor (experimental) <lambda-executor>
