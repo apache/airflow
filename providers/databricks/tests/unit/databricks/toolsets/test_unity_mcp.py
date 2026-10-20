@@ -348,6 +348,7 @@ class TestAuthentication:
         # One token is fetched up front to fail fast, then one per request.
         assert sent == [f"Bearer oauth-{i}" for i in range(1, len(sent) + 1)]
 
+    @mock.patch.object(unity_mcp, "AIRFLOW_V_3_2_PLUS", True)
     def test_requests_do_not_wait_for_other_toolsets_blocking_calls(self, gateway, gateway_conn):
         async def call_while_another_toolset_holds_the_lock():
             toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
@@ -360,6 +361,20 @@ class TestAuthentication:
                     )
 
         assert _run(call_while_another_toolset_holds_the_lock()) == "echo: hi"
+
+    @mock.patch.object(unity_mcp, "AIRFLOW_V_3_2_PLUS", False)
+    @mock.patch.object(DatabricksHook, "_get_token", autospec=True)
+    def test_before_airflow_3_2_tokens_are_fetched_under_the_blocking_call_lock(
+        self, get_token, gateway, gateway_conn
+    ):
+        # Reading the connection's extras messages the supervisor, whose socket has no lock of its own.
+        held = []
+        get_token.side_effect = lambda *_, **__: held.append(toolset_base._blocking_call_lock.locked()) or "t"
+
+        _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
+
+        assert len(held) > 1
+        assert all(held)
 
     @mock.patch.object(DatabricksHook, "_get_token", autospec=True)
     @mock.patch("airflow.providers.databricks.toolsets.unity_mcp.mask_secret", autospec=True)
@@ -644,6 +659,10 @@ class TestClientErrorMessages:
             code_name = code.id if isinstance(code, ast.Name) else "CONNECTION_CLOSED"
             found.append((getattr(jsonrpc, code_name), message.value))
         return found
+
+    # mcp 2.3.0 adds this one, for an SSE error while reading the answer to a request.
+    def test_failed_sse_stream_is_recognized(self):
+        assert unity_mcp._is_client_error(McpError(jsonrpc.CONNECTION_CLOSED, "SSE stream failed: boom"))
 
     def test_every_error_the_client_makes_up_is_recognized(self):
         made_up = self._find_made_up_errors()

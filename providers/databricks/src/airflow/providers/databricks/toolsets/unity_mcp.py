@@ -37,6 +37,7 @@ from airflow.providers.databricks.exceptions import (
     DatabricksUnityMCPTransportError,
 )
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_2_PLUS
 
 try:
     # httpx2 and fastmcp come with pydantic-ai's mcp extra, which the common.ai extra installs.
@@ -93,7 +94,7 @@ _CLIENT_ERROR_PREFIXES = (
     "Unexpected content type:",
     "Failed to parse JSON response:",
     "Failed to parse SSE message:",
-    "SSE stream ended",
+    "SSE stream ",
     "server answered a request with 202 Accepted",
     "Redirect to ",
 )
@@ -189,8 +190,10 @@ class _Operation:
 
     The MCP client does not say which HTTP response made a call fail, so the error statuses are
     only attributed to the operation when no other operation of the toolset ran at the same time.
-    A request that got no response at all ends the MCP session, which fails every operation
-    running then, so those failures are kept whatever the overlap.
+    Request failures are recorded on every operation running then and kept whatever the overlap:
+    they only explain a call that saw no answer, and a request that got no response usually ends
+    the session for all of them. An overlapping call that fails for its own reason may still get
+    another call's failure, which changes its class and message but not that it fails.
     """
 
     overlapped: bool = False
@@ -242,16 +245,19 @@ class _DatabricksTokenAuth(httpx2.Auth):
         self, request: httpx2.Request
     ) -> AsyncGenerator[httpx2.Request, httpx2.Response]:
         try:
-            # Not AirflowToolset.run_blocking: its lock is shared by every toolset, so a long SQL
-            # query in another toolset would hold up each request here. The connection is
-            # resolved when the toolset connects, so this only calls the token endpoint, and the
-            # hook is this toolset's own, so a lock of its own is enough.
-            token = await asyncio.to_thread(self.fetch_token)
+            if AIRFLOW_V_3_2_PLUS:
+                # Not AirflowToolset.run_blocking: its lock is shared by every toolset, so a long
+                # SQL query in another toolset would hold up each request here. The hook is this
+                # toolset's own, so a lock of its own is enough.
+                token = await asyncio.to_thread(self.fetch_token)
+            else:
+                # Reading the connection's extras masks them, which messages the supervisor over
+                # a socket that has no lock of its own before Airflow 3.2.
+                token = await AirflowToolset.run_blocking(self.fetch_token)
         except Exception as e:
             raise _TokenUnavailableError(str(e)) from e
         if token != self._masked_token:
-            # mask_secret messages the supervisor, which before Airflow 3.2 does not guard its
-            # socket against concurrent calls; run_blocking's lock serializes them.
+            # mask_secret messages the supervisor too.
             await AirflowToolset.run_blocking(self._mask, token)
         request.headers["Authorization"] = f"Bearer {token}"
         yield request
