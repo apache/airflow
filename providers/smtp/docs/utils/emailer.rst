@@ -18,8 +18,7 @@
 Email backend
 =============
 
-:mod:`airflow.providers.smtp.utils.emailer` provides the email utilities previously
-available in core as ``airflow.utils.email``, with the same behavior. SMTP server
+:mod:`airflow.providers.smtp.utils.emailer` sends email over SMTP. SMTP server
 settings are read from the ``[smtp]`` configuration section, and the login and
 password from the Airflow Connection given by ``conn_id`` (``smtp_default`` by
 default). If that Connection does not exist, the email is sent without authentication.
@@ -32,5 +31,5 @@ To send Airflow's email notifications through this module, set:
     email_backend = airflow.providers.smtp.utils.emailer.send_email_smtp
 
 Unlike :class:`~airflow.providers.smtp.hooks.smtp.SmtpHook`, which takes all of its
-settings from the SMTP Connection, this module keeps the ``[smtp]`` configuration
-used by existing core email setups.
+settings from the SMTP Connection, this module reads the server settings from the
+``[smtp]`` configuration section.
