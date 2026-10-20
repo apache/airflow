@@ -96,10 +96,11 @@ How it works
   push it; like ``run_id`` and ``usage``, with ``enable_hitl_review`` it is the initial
   run's model, not a human-feedback regeneration's, since ``regenerate_with_feedback``
   doesn't re-push it.
-* **Scope.** The ``run_id`` / ``usage`` XComs, the model name, and the ``airflow.*``
-  identity attributes come from ``AgentOperator`` and ``LLMOperator`` and its subclasses
-  (and their decorator forms), apart from a Strands, ADK or OpenAI Agents SDK agent run inside
-  ``agent_framework_tracing`` (see below).
+* **Scope.** The ``run_id`` / ``usage`` XComs and the model name come from
+  ``AgentOperator`` and ``LLMOperator`` and its subclasses (and their decorator forms).
+  Those operators also stamp the ``airflow.*`` identity attributes on their spans, and so
+  does a Strands, ADK or OpenAI Agents SDK agent run inside ``agent_framework_tracing``
+  (see below).
 * .. _howto/observability:model-tab:
 
   **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
