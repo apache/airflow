@@ -101,9 +101,9 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                       | Stable version (3.3.2)             | Deprecate version (2.11.2)   |
+|            | Main version (dev)                       | Stable version (3.4.0)             | Deprecate version (2.11.2)   |
 |------------|------------------------------------------|------------------------------------|------------------------------|
-| Python     | 3.11, 3.12, 3.13, 3.14                   | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12             |
+| Python     | 3.11, 3.12, 3.13, 3.14                   | 3.11, 3.12, 3.13, 3.14             | 3.10, 3.11, 3.12             |
 | Platform   | AMD64/ARM64                              | AMD64/ARM64                        | AMD64/ARM64(\*)              |
 | Kubernetes | 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37 | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 | 1.26, 1.27, 1.28, 1.29, 1.30 |
 | PostgreSQL | 14, 15, 16, 17, 18                       | 14, 15, 16, 17, 18                 | 12, 13, 14, 15, 16           |
@@ -174,15 +174,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==3.3.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.10.txt"
+pip install 'apache-airflow==3.4.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.4.0/constraints-3.11.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==3.3.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.10.txt"
+pip install 'apache-airflow[postgres,google]==3.4.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.4.0/constraints-3.11.txt"
 ```
 
 For information on installing provider distributions, check
@@ -296,7 +296,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State       | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|-------------|-----------------|-----------------------|------------------|
-| 3         | 3.3.2                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
+| 3         | 3.4.0                 | Maintenance | Apr 22, 2025    | TBD                   | TBD              |
 | 2         | 2.11.2                | EOL         | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL         | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL         | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
