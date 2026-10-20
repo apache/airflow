@@ -693,7 +693,9 @@ The task waits in ``awaiting_input`` without holding a worker slot, and resumes 
 * ``responseTimeout`` is in seconds. When it passes, ``defaults`` is applied, or the task fails without one.
   ``executionTimeout`` is rejected on a HITL task.
 * ``params`` adds form fields, each with a ``value`` that pre-fills it, and an optional ``description`` and
-  JSON Schema. Answers arrive as ``paramsInput``.
+  JSON Schema. Answers arrive as ``paramsInput``. An answer that fills in some params but not exactly the declared ones
+  fails the task, as ``HITLOperator`` does. The values are not yet checked against their schema when the task resumes,
+  so an answer given through the REST API can fall outside it.
 * ``assignedUsers`` limits who can respond.
 * The task returns ``{ chosenOptions, paramsInput, respondedAt, respondedByUser, timedout }``.
 
