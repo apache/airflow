@@ -43,6 +43,7 @@ from airflow.providers.amazon.aws.utils.eks_get_token import (
 )
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 CLUSTER_NAME = "test-eks-cluster"
 CLUSTER_ENDPOINT = "https://ABCDEF0123456789.gr7.us-east-1.eks.amazonaws.com"
@@ -193,6 +194,34 @@ class TestGetEksKubeClient:
             match=r"\[aws_eks_executor\] cluster_name is required.*AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME",
         ):
             _get_eks_kube_client()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+    def test_team_without_cluster_name_raises(self, mock_aws):
+        """The global cluster_name set by mock_aws is not a fallback for the team."""
+        with pytest.raises(
+            ValueError,
+            match=r"cluster_name is required.*AIRFLOW__TEAM_A___AWS_EKS_EXECUTOR__CLUSTER_NAME",
+        ):
+            _get_eks_kube_client(team_name="team_a")
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Multi-team requires Airflow 3.2+")
+@pytest.mark.parametrize("factory", [_get_eks_kube_client, _get_eks_async_kube_client], ids=["sync", "async"])
+@pytest.mark.asyncio
+# kubernetes_asyncio loads the CA eagerly and the fake PEM is not loadable.
+@mock.patch.object(_client_factory, "_write_cluster_ca_file", return_value=None)
+async def test_builds_client_for_the_teams_cluster(_, mock_aws, monkeypatch, factory):
+    monkeypatch.setenv("AIRFLOW__TEAM_A___AWS_EKS_EXECUTOR__CLUSTER_NAME", "team-a-cluster")
+    monkeypatch.setenv("AIRFLOW__TEAM_A___AWS_EKS_EXECUTOR__REGION_NAME", "eu-west-1")
+    monkeypatch.setenv("AIRFLOW__TEAM_A___AWS_EKS_EXECUTOR__CONN_ID", "aws_team_a")
+
+    core_v1 = factory(team_name="team_a")
+
+    mock_aws["eks_hook_cls"].assert_called_once_with(aws_conn_id="aws_team_a", region_name="eu-west-1")
+    mock_aws["eks_hook"].conn.describe_cluster.assert_called_once_with(name="team-a-cluster")
+    assert mock_aws["fetch_token"].call_args.args[0] == "team-a-cluster"
+    if inspect.iscoroutinefunction(core_v1.api_client.close):
+        await core_v1.api_client.close()
 
 
 @pytest.mark.asyncio
