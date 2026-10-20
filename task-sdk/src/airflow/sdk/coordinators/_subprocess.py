@@ -452,10 +452,10 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self, msg: SetTaskStateStore, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
         # A Python task warns in its own setter; a language SDK runtime cannot compute the size
-        # json.dumps gives, so the supervisor warns for it.
+        # json.dumps gives, so the supervisor warns for it in the task log.
         if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
             if (size := len(json.dumps(msg.value))) > limit:
-                log.warning(
+                self.process_log.warning(
                     "Task store value exceeds configured max_value_storage_bytes",
                     key=msg.key,
                     size=size,

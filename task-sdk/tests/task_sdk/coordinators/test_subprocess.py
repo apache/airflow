@@ -951,8 +951,9 @@ class TestPopenActivitySubprocessSetTaskStateStore:
     )
     def test_warns_when_value_exceeds_max_value_storage_bytes(self, limit, value, warns):
         client = MagicMock(spec=Client)
+        process_log = MagicMock()
         proc = _PopenActivitySubprocess(
-            process_log=MagicMock(),
+            process_log=process_log,
             id=uuid7(),
             pid=12345,
             stdin=MagicMock(),
@@ -962,24 +963,23 @@ class TestPopenActivitySubprocessSetTaskStateStore:
             logs_server=MagicMock(spec=socket.socket),
         )
         msg = SetTaskStateStore(ti_id=proc.id, key="k", value=value, expires_at=None)
-        log = MagicMock()
 
         with (
             conf_vars({("state_store", "max_value_storage_bytes"): limit}),
             patch.object(_PopenActivitySubprocess, "send_msg", autospec=True),
         ):
-            proc._handle_request(msg, log=log, req_id=1)
+            proc._handle_request(msg, log=MagicMock(), req_id=1)
 
         client.task_state_store.set.assert_called_once_with(proc.id, "k", value, expires_at=None)
         if warns:
-            log.warning.assert_called_once_with(
+            process_log.warning.assert_called_once_with(
                 "Task store value exceeds configured max_value_storage_bytes",
                 key="k",
                 size=15,
                 max_value_storage_bytes=14,
             )
         else:
-            log.warning.assert_not_called()
+            process_log.warning.assert_not_called()
 
 
 # This script connects back to the supervisor the way a language SDK runtime does, then waits for
