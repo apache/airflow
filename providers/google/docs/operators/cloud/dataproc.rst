@@ -193,7 +193,7 @@ High Obtainability (HO) mode enables creating Dataproc clusters using abstract h
 (number of instances, core count, and hardware class) instead of concrete machine types. The Dataproc backend
 resolves these requirements into a ranked list of widely available machine families to minimize stockouts and
 improve cluster creation reliability. For more information, refer to the
-`Dataproc High Obtainability documentation <https://cloud.google.com/dataproc/docs/concepts/compute/high-obtainability>`_
+`Dataproc High Obtainability documentation <https://docs.cloud.google.com/managed-spark/docs/concepts/configuring-clusters/high-obtainability>`_
 and the `FlexibleInstanceGroupConfig API reference <https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig#FlexibleInstanceGroupConfig>`_.
 
 High Obtainability clusters have the following characteristics:
