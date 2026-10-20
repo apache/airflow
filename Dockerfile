@@ -2270,7 +2270,11 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS="false"
 
 # By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
 ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
-ENV PATH="/usr/python/bin:$PATH"
+# The virtualenv must come before /usr/python/bin - same as in the main image. In hardened images
+# /usr/python is /usr, so /usr/python/bin holds Debian's pip, whose Python also sees
+# /usr/lib/python3/dist-packages. Installing with it treats packages there (for example wheel) as
+# already satisfied, so they never land in the virtualenv and are missing from the final image.
+ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:$PATH"
 RUN bash /scripts/docker/install_packaging_tools.sh; bash /scripts/docker/create_prod_venv.sh
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
