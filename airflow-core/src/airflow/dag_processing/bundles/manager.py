@@ -361,13 +361,7 @@ class DagBundlesManager(LoggingMixin):
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
     @provide_session
-    def sync_bundles_to_db(
-        self,
-        *,
-        deactivate_missing: bool = True,
-        include_bundle_urls: bool = True,
-        session: Session = NEW_SESSION,
-    ) -> None:
+    def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
         """
         Persist the configured DAG bundles into ``DagBundleModel`` rows.
 
@@ -377,8 +371,6 @@ class DagBundlesManager(LoggingMixin):
         ``DagBag`` plus ``sync_bag_to_db`` (or, in production, the DAG
         processor); calling this method does not trigger that work.
 
-        :param include_bundle_urls: Sync ownership without constructing bundles when ``False``, so
-            API authorization can be established before bundle code requests secrets.
         :param deactivate_missing: When ``True`` (the default), any bundle stored in
             the database that is not present in this manager's config is marked
             inactive. This is only correct when the calling process sees the
@@ -420,27 +412,25 @@ class DagBundlesManager(LoggingMixin):
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
-            if include_bundle_urls:
-                try:
-                    with self._bundle_context(name):
-                        new_template, new_params = _extract_and_sign_template(name)
-                except Exception as e:
-                    self.log.exception("Error creating bundle '%s': %s", name, e)
-                    continue
+            try:
+                with self._bundle_context(name):
+                    new_template, new_params = _extract_and_sign_template(name)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                continue
 
             if bundle := stored.pop(name, None):
                 bundle.active = True
-                if include_bundle_urls and new_template != bundle.signed_url_template:
+                if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
-                if include_bundle_urls and new_params != bundle.template_params:
+                if new_params != bundle.template_params:
                     bundle.template_params = new_params
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
                 bundle = DagBundleModel(name=name)
-                if include_bundle_urls:
-                    bundle.signed_url_template = new_template
-                    bundle.template_params = new_params
+                bundle.signed_url_template = new_template
+                bundle.template_params = new_params
 
                 session.add(bundle)
                 self.log.info("Added new DAG bundle %s to the database", name)

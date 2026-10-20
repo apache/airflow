@@ -80,6 +80,7 @@ from airflow.dag_processing.manager import (
     DagFileInfo,
     DagFileProcessorManager,
     DagFileStat,
+    PendingBundleInventory,
     PendingDagPublication,
 )
 from airflow.dag_processing.processor import (
@@ -602,18 +603,14 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
-        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(
-            deactivate_missing=True, include_bundle_urls=True
-        )
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
 
     def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
         """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
         manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
         with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
             manager.sync_bundles()
-        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(
-            deactivate_missing=False, include_bundle_urls=True
-        )
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
 
     @pytest.mark.parametrize(
         "safe_mode",
@@ -6289,6 +6286,40 @@ class TestDagFileProcessorManager:
             read_end.close()
             proc.close()
 
+    def test_api_publication_reports_a_result_the_api_would_refuse(self, session):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        file = _get_file_infos(["dag.py"])[0]
+        dag = SdkDAG("published", schedule=None)
+        dag.fileloc = "/worker/dag.py"
+        dag.relative_fileloc = "dag.py"
+        # Mutating the set skips the SDK's constructor check, so only the API model rejects the tag.
+        dag.tags.add("x" * 101)
+        revision = uuid7()
+        proc, read_end = self.mock_processor()
+        proc.had_callbacks = False
+        proc.dispatch_sequence = 1
+        proc.parse_source = DagParseSource(bundle_version="v1", bundle_revision=revision)
+        proc.parsing_result = DagFileParsingResult(
+            fileloc=dag.fileloc, serialized_dags=[LazyDeserializedDAG.from_dag(dag)]
+        )
+        try:
+            manager.handle_parsing_result(file, proc, session=session)
+            manager._publish_pending_results()
+        finally:
+            read_end.close()
+            proc.close()
+
+        report = client.publish_parse_result.call_args.args[0]
+        assert report.serialized_dags == []
+        assert (report.bundle_version, report.bundle_revision) == ("v1", revision)
+        assert report.import_errors == {
+            "dag.py": "The parsing result was not published: it is not a valid Dag publication "
+            "(Value error, Dag tags must be strings of at most 100 characters)."
+        }
+        assert manager._file_stats[file].import_errors == 1
+        assert not manager._pending_publications
+
     @pytest.mark.parametrize("source_available", [True, False])
     def test_api_publication_carries_diagnostics_and_explicit_source_availability(self, source_available):
         client = mock.create_autospec(DagProcessorAPIClient, instance=True)
@@ -7150,7 +7181,7 @@ def test_refresh_reads_one_fresh_catalog_per_pass(find_files, tmp_path):
     pending_body = DagBundleInventoryBody(
         attempt_id=uuid7(), dispatch_sequence=3, expected_revision=states[0].revision, files=[]
     )
-    manager._pending_inventories["a"] = (pending_body, set(), DagParseSource())
+    manager._pending_inventories["a"] = PendingBundleInventory(pending_body, set(), DagParseSource())
     client.get_bundles.side_effect = httpx2.ConnectError("API unavailable")
     manager._refresh_dag_bundles(known_files)
     assert client.get_bundles.call_count == 3
@@ -7192,7 +7223,9 @@ def test_catalog_omission_releases_source_and_allows_recovery(
         attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, files=["a.py"]
     )
     if has_pending_inventory:
-        manager._pending_inventories["missing"] = (pending_body, files["missing"], missing_source)
+        manager._pending_inventories["missing"] = PendingBundleInventory(
+            pending_body, files["missing"], missing_source
+        )
         manager._bundle_parse_sources.pop("missing")
     manager._force_refresh_bundles.add("missing")
     manager._bundles_waiting_for_refresh.add("missing")
@@ -7216,7 +7249,7 @@ def test_catalog_omission_releases_source_and_allows_recovery(
         assert manager._bundles_waiting_for_refresh == {"missing"}
         if has_pending_inventory:
             client.publish_inventory.assert_called_once_with("missing", pending_body)
-            assert manager._pending_inventories["missing"][0] is pending_body
+            assert manager._pending_inventories["missing"].body is pending_body
         else:
             client.publish_inventory.assert_not_called()
             assert manager._bundle_parse_sources["missing"] is missing_source
@@ -7285,7 +7318,7 @@ def test_api_inventory_failure_preserves_known_files(status_code):
         failed_sources=["archive.zip"],
     )
     manager._bundle_failed_sources["testing"] = frozenset({"previous.zip"})
-    manager._pending_inventories["testing"] = (body, set(), DagParseSource())
+    manager._pending_inventories["testing"] = PendingBundleInventory(body, set(), DagParseSource())
     known_files = {"testing": set(_get_file_infos(["previous.py"]))}
     previous = known_files.copy()
     response = httpx2.Response(status_code, request=httpx2.Request("POST", "http://api/inventory"))
@@ -7300,7 +7333,7 @@ def test_api_inventory_failure_preserves_known_files(status_code):
         assert not manager._pending_inventories
         assert "testing" in manager._force_refresh_bundles
     else:
-        assert manager._pending_inventories["testing"][0] is body
+        assert manager._pending_inventories["testing"].body is body
         revision = uuid7()
         client.publish_inventory.side_effect = None
         client.publish_inventory.return_value = DagBundleInventoryResponse(
@@ -7311,6 +7344,47 @@ def test_api_inventory_failure_preserves_known_files(status_code):
         assert known_files == {"testing": set()}
         assert manager._bundle_parse_sources["testing"].bundle_revision == revision
         assert manager._bundle_failed_sources["testing"] == frozenset({"archive.zip"})
+
+
+@pytest.mark.parametrize("status_code", [None, 503])
+@conf_vars(
+    {("workers", "execution_api_retry_wait_min"): "2", ("workers", "execution_api_retry_wait_max"): "3"}
+)
+@mock.patch("airflow.dag_processing.manager.time", autospec=True)
+def test_pending_inventory_retries_back_off(clock, status_code, tmp_path):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+    client.get_bundles.return_value = [
+        DagBundleStateResponse(
+            name="testing", version=None, last_refreshed=None, revision=None, team_name=None
+        )
+    ]
+    client.publish_inventory.side_effect = (
+        httpx2.ConnectError("API unavailable") if status_code is None else _make_status_error(status_code)
+    )
+    clock.monotonic.return_value = 100
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_refresh_check_interval=3600)
+    manager._bundles_last_refreshed = 100
+    manager._dag_bundles.append(_make_bundle(tmp_path))
+    body = DagBundleInventoryBody(attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, files=[])
+    manager._pending_inventories["testing"] = PendingBundleInventory(body, set(), DagParseSource())
+
+    for now, expected_sends, retry_at in [(100, 1, 102), (101, 1, 102), (102, 2, 104), (103, 2, 104)]:
+        clock.monotonic.return_value = now
+        manager._refresh_dag_bundles({})
+        assert client.publish_inventory.call_count == expected_sends
+        assert client.get_bundles.call_count == expected_sends
+        assert manager._pending_inventories["testing"].next_attempt_time == retry_at
+
+    revision = uuid7()
+    client.publish_inventory.side_effect = None
+    client.publish_inventory.return_value = DagBundleInventoryResponse(
+        attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=revision
+    )
+    clock.monotonic.return_value = 104
+    manager._refresh_dag_bundles({})
+    assert client.publish_inventory.call_count == 3
+    assert not manager._pending_inventories
+    assert manager._bundle_parse_sources["testing"].bundle_revision == revision
 
 
 @pytest.mark.parametrize("rejection", ["local_limit", "server_limit"])
@@ -7347,7 +7421,7 @@ def test_oversized_inventory_preserves_previous_inventory_and_other_bundle_progr
         )
         if name == "oversized" and rejection == "local_limit":
             assert len(body.model_dump_json()) < 1024 < len(body.model_dump_json().encode())
-        manager._pending_inventories[name] = (
+        manager._pending_inventories[name] = PendingBundleInventory(
             body,
             {ready_file} if name == "ready" else set(),
             DagParseSource(bundle_version="new"),
@@ -7384,7 +7458,7 @@ def test_oversized_inventory_byte_boundary_preserves_auth_failures(auth_status):
     body = DagBundleInventoryBody(
         attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, files=["é.py"]
     )
-    pending = (body, set(), DagParseSource())
+    pending = PendingBundleInventory(body, set(), DagParseSource())
     manager._pending_inventories["testing"] = pending
     client.publish_inventory.return_value = DagBundleInventoryResponse(
         attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=uuid7()
