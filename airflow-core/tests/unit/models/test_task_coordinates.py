@@ -208,6 +208,38 @@ def test_expanded_ti_count_counts_live_instances_of_the_expansion(loop_coordinat
     assert resolver.get_expanded_ti_count(outside) is None
 
 
+def test_expanded_ti_count_counts_each_instance_of_one_loop_iteration_once(dag_maker, session):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+
+    with dag_maker(serialized=True):
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    first, second = sorted(
+        (ti for ti in dr.task_instances if ti.task_id == "body.mapped"), key=lambda ti: ti.map_index
+    )
+    first.prepare_db_for_next_try(session)
+    next_expansion = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id=first.task_id,
+        parent_region_id=session.get(DynamicRegion, first.region_id).parent_region_id,
+        parent_region_index=1,
+        session=session,
+    )
+    session.add(next_expansion)
+    session.flush()
+    next_iteration = TaskInstance(task=first.task, run_id=dr.run_id, dag_version_id=first.dag_version_id)
+    next_iteration.region_id, next_iteration.region_index = next_expansion.id, 0
+    session.add(next_iteration)
+    session.flush()
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    assert resolver.get_expanded_ti_count(second) == 2
+    assert resolver.get_expanded_ti_count(next_iteration) == 1
+
+
 def test_removed_task_coordinates_degrade_to_stored_region_data(dag_maker, session):
     with dag_maker("removed-coordinates", serialized=True):
         EmptyOperator(task_id="kept")
