@@ -24,12 +24,23 @@
 ARG DOCKER_IMAGE
 FROM ${DOCKER_IMAGE}
 
+# "Adoptium GPG Key (DEB/RPM Signing Key)", published at
+# https://adoptium.net/installation/gpg-verification/
+ARG ADOPTIUM_KEY_FINGERPRINT="3B04D753C9050D9A5D343F39843C48A565F8F04B"
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-c"]
 USER root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL --retry 3 https://packages.adoptium.net/artifactory/api/gpg/key/public \
         -o /etc/apt/keyrings/adoptium.asc \
+    && fingerprint="$(gpg --show-keys --with-colons /etc/apt/keyrings/adoptium.asc \
+        | awk -F: '/^fpr:/ {print $10; exit}')" \
+    && if [ "${fingerprint}" != "${ADOPTIUM_KEY_FINGERPRINT}" ]; then \
+        echo "Adoptium key fingerprint '${fingerprint}' != expected '${ADOPTIUM_KEY_FINGERPRINT}'" >&2; \
+        exit 1; \
+    fi \
     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb \
 $(. /etc/os-release && echo "${VERSION_CODENAME}") main" > /etc/apt/sources.list.d/adoptium.list \
     && apt-get update \
