@@ -21,13 +21,14 @@ from unittest import mock
 
 import pytest
 from kubernetes.client import Configuration
+from urllib3.connection import HTTPConnection
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.kube_client import (
     _disable_verify_ssl,
     _enable_tcp_keepalive,
     _TimeoutK8sApiClient,
-    enable_tcp_keepalive,
+    configure_tcp_keepalive,
     get_kube_client,
 )
 
@@ -90,15 +91,15 @@ class TestClient:
             ),
         ],
     )
-    def test_enable_tcp_keepalive(self, config_overrides, expected_idle, expected_intvl, expected_cnt):
+    def test_configure_tcp_keepalive(self, config_overrides, expected_idle, expected_intvl, expected_cnt):
         configuration = Configuration()
         configuration.socket_options = None
 
         with conf_vars(config_overrides):
-            enable_tcp_keepalive(configuration)
+            configure_tcp_keepalive(configuration)
 
         assert configuration.socket_options == [
-            (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
+            *HTTPConnection.default_socket_options,
             (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
             (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, expected_idle),
             (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, expected_intvl),
@@ -106,7 +107,7 @@ class TestClient:
         ]
 
     @pytest.mark.platform("linux")
-    def test_enable_tcp_keepalive_preserves_existing_options(self):
+    def test_configure_tcp_keepalive_preserves_existing_options(self):
         configuration = Configuration()
         configuration.socket_options = [
             (socket.SOL_SOCKET, socket.SO_RCVBUF, 1234),
@@ -114,7 +115,7 @@ class TestClient:
             (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 5),
         ]
 
-        enable_tcp_keepalive(configuration)
+        configure_tcp_keepalive(configuration)
 
         assert configuration.socket_options == [
             (socket.SOL_SOCKET, socket.SO_RCVBUF, 1234),
@@ -125,13 +126,13 @@ class TestClient:
         ]
 
     @pytest.mark.platform("linux")
-    def test_enable_tcp_keepalive_is_idempotent(self):
+    def test_configure_tcp_keepalive_is_idempotent(self):
         configuration = Configuration()
         configuration.socket_options = None
 
-        enable_tcp_keepalive(configuration)
+        configure_tcp_keepalive(configuration)
         first_call_options = list(configuration.socket_options)
-        enable_tcp_keepalive(configuration)
+        configure_tcp_keepalive(configuration)
 
         assert configuration.socket_options == first_call_options
 
@@ -164,7 +165,7 @@ class TestClient:
         api_client = _TimeoutK8sApiClient(
             configuration,
             disable_verify_ssl=disable_verify_ssl,
-            should_enable_tcp_keepalive=enabled,
+            enable_tcp_keepalive=enabled,
         )
 
         if supply_configuration:

@@ -429,7 +429,7 @@ class TestKubernetesHook:
         ),
     )
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
-    @patch("airflow.providers.cncf.kubernetes.kube_client.enable_tcp_keepalive", autospec=True)
+    @patch("airflow.providers.cncf.kubernetes.kube_client.configure_tcp_keepalive", autospec=True)
     def test_disable_tcp_keepalive(
         self,
         mock_enable,
@@ -652,7 +652,7 @@ class TestKubernetesHook:
             kubernetes_hook = KubernetesHook(conn_id="kubernetes_default")
             kubernetes_hook.get_conn()
             mock_get_client.assert_called_with(
-                cluster_context="test", disable_verify_ssl=None, should_enable_tcp_keepalive=True
+                cluster_context="test", disable_verify_ssl=None, enable_tcp_keepalive=True
             )
             assert kubernetes_hook.get_namespace() == "test"
 

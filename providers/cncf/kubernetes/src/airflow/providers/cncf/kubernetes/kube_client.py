@@ -65,7 +65,7 @@ try:
         Wrapper around kubernetes sync ApiClient to set default timeout.
 
         When *disable_verify_ssl* is True the TLS certificate check is turned off, and when
-        *should_enable_tcp_keepalive* is True TCP keepalive is enabled, on the *configuration*
+        *enable_tcp_keepalive* is True TCP keepalive is enabled, on the *configuration*
         that is passed (or on a fresh default copy) so that callers do not need to repeat
         this logic at every call-site.
         """
@@ -75,15 +75,15 @@ try:
             configuration: client.Configuration | None = None,
             *,
             disable_verify_ssl: bool = False,
-            should_enable_tcp_keepalive: bool = False,
+            enable_tcp_keepalive: bool = False,
         ) -> None:
-            if disable_verify_ssl or should_enable_tcp_keepalive:
+            if disable_verify_ssl or enable_tcp_keepalive:
                 if configuration is None:
                     configuration = client.Configuration.get_default_copy()
                 if disable_verify_ssl:
                     configuration.verify_ssl = False
-                if should_enable_tcp_keepalive:
-                    enable_tcp_keepalive(configuration)
+                if enable_tcp_keepalive:
+                    configure_tcp_keepalive(configuration)
             super().__init__(configuration=configuration)
 
         def call_api(self, *args: Any, **kwargs: Any) -> Any:
@@ -124,7 +124,7 @@ except ImportError as e:
     _import_err = e
 
 
-def enable_tcp_keepalive(configuration: Configuration) -> None:
+def configure_tcp_keepalive(configuration: Configuration) -> None:
     """
     Enable TCP keepalive on the Kubernetes client ``configuration``.
 
@@ -169,17 +169,17 @@ def _enable_tcp_keepalive(configuration: Configuration | None = None) -> None:
     Enable TCP keepalive mechanism.
 
     .. deprecated::
-        Use :func:`enable_tcp_keepalive` instead.
+        Use :func:`configure_tcp_keepalive` instead.
     """
     warnings.warn(
-        "_enable_tcp_keepalive is deprecated, use enable_tcp_keepalive(configuration) instead.",
+        "_enable_tcp_keepalive is deprecated, use configure_tcp_keepalive(configuration) instead.",
         AirflowProviderDeprecationWarning,
         stacklevel=2,
     )
     set_default = configuration is None
     if configuration is None:
         configuration = _get_default_configuration()
-    enable_tcp_keepalive(configuration)
+    configure_tcp_keepalive(configuration)
     if set_default:
         Configuration.set_default(configuration)
 
@@ -205,7 +205,7 @@ def get_kube_client(
     configuration = _get_default_configuration()
 
     if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
-        enable_tcp_keepalive(configuration)
+        configure_tcp_keepalive(configuration)
     api_client_retry_configuration = conf.getjson(
         "kubernetes_executor", "api_client_retry_configuration", fallback={}
     )
