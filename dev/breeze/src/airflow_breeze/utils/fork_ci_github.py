@@ -45,7 +45,14 @@ class GitHubClient:
         self.dry_run = dry_run
         self.calls: Counter[str] = Counter()
 
-    def _gh(self, args: Sequence[str], body: dict[str, Any] | None, kind: str) -> Any:
+    def _gh(
+        self, args: Sequence[str], body: dict[str, Any] | None, kind: str, *, allow_error_output: bool = False
+    ) -> Any:
+        """
+        :param allow_error_output: return the JSON output of a failed call when it has any. ``gh api
+            graphql`` exits non-zero when some fields of the response errored, with the data GitHub
+            could resolve still on stdout.
+        """
         payload = json.dumps(body) if body is not None else None
         for attempt in range(MAX_ATTEMPTS):
             self.calls[kind] += 1
@@ -69,6 +76,11 @@ class GitHubClient:
                 console_print(f"[warning]GitHub rate limit, retrying in {wait}s[/]")
                 time.sleep(wait)
                 continue
+            if allow_error_output and result.stdout.strip():
+                try:
+                    return json.loads(result.stdout)
+                except json.JSONDecodeError:
+                    pass
             raise GitHubError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
         raise GitHubError(f"gh {' '.join(args)} still rate limited after {MAX_ATTEMPTS} attempts")
 
@@ -81,7 +93,12 @@ class GitHubClient:
         :param allow_partial: return the data GitHub could resolve when some fields failed, e.g.
             one unreadable fork in a batch, instead of failing the whole query.
         """
-        response = self._gh(["api", "graphql"], {"query": query, "variables": variables or {}}, "graphql")
+        response = self._gh(
+            ["api", "graphql"],
+            {"query": query, "variables": variables or {}},
+            "graphql",
+            allow_error_output=allow_partial,
+        )
         if response.get("errors"):
             if not allow_partial or not response.get("data"):
                 raise GitHubError(f"GraphQL errors: {response['errors']}")
@@ -170,9 +187,18 @@ class GitHubClient:
             {"state": "closed"},
         )
 
-    def set_status(self, pr: int, sha: str, state: str, target_url: str, description: str) -> None:
+    def set_status(
+        self,
+        pr: int,
+        sha: str,
+        state: str,
+        target_url: str,
+        description: str,
+        *,
+        context: str = STATUS_CONTEXT,
+    ) -> None:
         self._mutate(
-            f"#{pr}: status {state} on {sha[:8]}",
+            f"#{pr}: status {context!r} {state} on {sha[:8]}",
             ["api", "-X", "POST", f"repos/{self.repo}/statuses/{sha}"],
-            {"state": state, "target_url": target_url, "description": description, "context": STATUS_CONTEXT},
+            {"state": state, "target_url": target_url, "description": description, "context": context},
         )

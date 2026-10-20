@@ -81,11 +81,14 @@ def test_raises_on_other_errors(mock_run):
         pytest.param({"data": None, "errors": [{"m": "x"}]}, True, GitHubError, id="no-data"),
     ],
 )
-def test_graphql_errors(mock_run, response, allow_partial, expected):
-    mock_run.return_value = _completed(stdout=json.dumps(response))
+@pytest.mark.parametrize("returncode", [pytest.param(0, id="exit-0"), pytest.param(1, id="gh-exits-1")])
+def test_graphql_errors(mock_run, returncode, response, allow_partial, expected):
+    mock_run.return_value = _completed(returncode, stdout=json.dumps(response), stderr="gh: errors")
 
     if expected is GitHubError:
-        with pytest.raises(GitHubError, match="GraphQL errors"):
+        with pytest.raises(
+            GitHubError, match="GraphQL errors" if returncode == 0 or allow_partial else "failed"
+        ):
             GitHubClient().graphql("q", allow_partial=allow_partial)
     else:
         assert GitHubClient().graphql("q", allow_partial=allow_partial) == expected
@@ -141,3 +144,19 @@ def test_remove_label_quotes_the_name(mock_run):
         "DELETE",
         "repos/apache/airflow/issues/1/labels/ready%20for%20maintainer%20review",
     ]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+@pytest.mark.parametrize(
+    ("kwargs", "context"),
+    [
+        pytest.param({}, "Fork CI / Tests (AMD)", id="fork-ci-status"),
+        pytest.param({"context": "CI passed"}, "CI passed", id="ci-passed"),
+    ],
+)
+def test_set_status_context(mock_run, kwargs, context):
+    mock_run.return_value = _completed()
+
+    GitHubClient().set_status(1, "abc", "success", "https://x", "desc", **kwargs)
+
+    assert json.loads(mock_run.call_args.kwargs["input"])["context"] == context

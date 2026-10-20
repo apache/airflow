@@ -28,17 +28,19 @@ from click.testing import CliRunner
 from airflow_breeze.commands.ci_commands import fork_ci_reconcile
 from airflow_breeze.utils.fork_ci_gate import GateConfig
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
-from airflow_breeze.utils.fork_ci_messages import Marker, render_marker
+from airflow_breeze.utils.fork_ci_messages import Marker, parse_marker, render_marker
 from airflow_breeze.utils.fork_ci_reconcile import (
     BaseGateConfigs,
     BypassFinder,
     ForkObservation,
     ForkState,
+    Plan,
     PullRequestSnapshot,
     apply_plan,
     build_slack_payload,
     changes_ci_definition,
     classify,
+    count_commits_behind,
     discover,
     fetch_fork_observations,
     fetch_workflow_state,
@@ -83,7 +85,7 @@ def _marker(state: str, *, days_ago: float = 0, sha: str = "abc123") -> Marker:
     return Marker(state=state, sha=sha, since=NOW - timedelta(days=days_ago))
 
 
-def _classify(pr, fork=None, *, bypass_run=None, changes_ci_files=False, config=CONFIG):
+def _classify(pr, fork=None, *, bypass_run=None, changes_ci_files=False, config=CONFIG, behind=None):
     find_bypass = mock.Mock(return_value=bypass_run)
     changes = mock.Mock(return_value=changes_ci_files)
     plan = classify(
@@ -94,6 +96,7 @@ def _classify(pr, fork=None, *, bypass_run=None, changes_ci_files=False, config=
         repo=REPO,
         find_bypass_run=find_bypass,
         changes_ci_files=changes,
+        count_behind=mock.Mock(return_value=behind),
     )
     return plan, find_bypass, changes
 
@@ -217,7 +220,8 @@ def test_green_is_not_trusted_when_ci_files_change():
         RUN_URL,
         "Fork CI passed, but CI files changed - a maintainer must run project CI",
     )
-    assert len(plan.attention) == 1
+    assert plan.attention == []
+    assert plan.ci_passed is None
     changes.assert_called_once_with()
 
 
@@ -264,6 +268,68 @@ UNVERIFIED_STATUS = (
     RUN_URL,
     "Fork CI passed, but CI files changed - a maintainer must run project CI",
 )
+
+
+CI_PASSED = ("success", RUN_URL, "Fork CI passed for this commit")
+CI_PASSED_REVOKED = ("pending", RUN_URL, "Fork CI result no longer trusted for this commit")
+
+
+@pytest.mark.parametrize(
+    ("fork", "changes_ci_files", "ci_passed_state", "expected"),
+    [
+        pytest.param(GREEN, False, None, CI_PASSED, id="green-posts-success"),
+        pytest.param(GREEN, False, "success", None, id="green-already-posted"),
+        pytest.param(GREEN, False, "pending", CI_PASSED, id="green-after-revoke"),
+        pytest.param(GREEN, True, None, None, id="unverified-gets-none"),
+        pytest.param(
+            ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL),
+            False,
+            "success",
+            CI_PASSED_REVOKED,
+            id="failed-rerun-revokes",
+        ),
+        pytest.param(GREEN, True, "success", CI_PASSED_REVOKED, id="unverified-after-retarget-revokes"),
+        pytest.param(
+            ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL),
+            False,
+            None,
+            None,
+            id="running-gets-none",
+        ),
+    ],
+)
+def test_ci_passed_reports_trusted_green_only(fork, changes_ci_files, ci_passed_state, expected):
+    plan, _, _ = _classify(_pr(ci_passed_state=ci_passed_state), fork, changes_ci_files=changes_ci_files)
+
+    assert plan.ci_passed == expected
+
+
+@pytest.mark.parametrize(
+    ("pr_overrides", "behind", "expected_behind", "warned"),
+    [
+        pytest.param({}, 250, 250, True, id="counted-on-decision"),
+        pytest.param({}, 3, 3, False, id="close-to-base"),
+        pytest.param(
+            {"current_status": GREEN_STATUS, "marker": Marker("green", "abc123", NOW, behind=300)},
+            None,
+            300,
+            True,
+            id="kept-from-the-marker",
+        ),
+        pytest.param(
+            {"current_status": GREEN_STATUS, "marker": Marker("green", "old-sha", NOW, behind=300)},
+            None,
+            None,
+            False,
+            id="not-kept-for-another-commit",
+        ),
+    ],
+)
+def test_green_records_how_far_behind_the_base_branch(pr_overrides, behind, expected_behind, warned):
+    plan, _, _ = _classify(_pr(**pr_overrides), GREEN, behind=behind)
+
+    assert parse_marker(plan.marker_comment).behind == expected_behind
+    assert ("commits behind `main`" in plan.marker_comment) is warned
 
 
 @pytest.mark.parametrize(
@@ -344,9 +410,22 @@ def test_changes_ci_definition(files, expected):
     ],
 )
 def test_pull_request_changes_ci_files_follows_renames(client, entries, expected):
-    client.rest_get.return_value = entries
+    client.rest_get.side_effect = [entries, {"head": {"sha": "abc123"}}]
 
-    assert pull_request_changes_ci_files(client, REPO, 42) is expected
+    assert pull_request_changes_ci_files(client, REPO, 42, "abc123") is expected
+
+
+def test_pull_request_changes_ci_files_gives_no_answer_when_the_head_moved(client):
+    client.rest_get.side_effect = [[{"filename": "README.md"}], {"head": {"sha": "pushed-meanwhile"}}]
+
+    assert pull_request_changes_ci_files(client, REPO, 42, "abc123") is None
+
+
+def test_green_decision_waits_when_the_head_moved():
+    plan, _, changes = _classify(_pr(), GREEN, changes_ci_files=None)
+
+    assert plan == Plan()
+    changes.assert_called_once_with()
 
 
 def test_nudge_on_transition_from_setup_required():
@@ -557,13 +636,16 @@ def test_gate_tampering_closes(pr_overrides, checked):
 # ---------------------------------------------------------------------------------------------
 
 
-def _job(name: str, conclusion: str | None = "skipped", minutes: float = 0.2) -> dict:
+def _job(
+    name: str, conclusion: str | None = "skipped", minutes: float = 0.2, status: str = "completed"
+) -> dict:
     start = NOW - timedelta(hours=1)
     return {
         "name": name,
+        "status": status,
         "conclusion": conclusion,
         "started_at": start.isoformat(),
-        "completed_at": (start + timedelta(minutes=minutes)).isoformat(),
+        "completed_at": (start + timedelta(minutes=minutes)).isoformat() if status == "completed" else None,
     }
 
 
@@ -574,7 +656,18 @@ def _job(name: str, conclusion: str | None = "skipped", minutes: float = 0.2) ->
         pytest.param(
             [_job("Fork CI gate", "success"), _job("Build info", "success")], True, id="build-info-ran"
         ),
-        pytest.param([_job("Fork CI gate", "success"), _job("Tests", None)], True, id="job-in-progress"),
+        pytest.param(
+            [_job("Fork CI gate", "success"), _job("Tests", None, status="in_progress")],
+            True,
+            id="job-in-progress",
+        ),
+        pytest.param(
+            [_job("Fork CI gate", "success"), _job("Tests", None, status="queued")],
+            False,
+            id="queued-job-is-not-counted",
+        ),
+        pytest.param([_job("Fork CI gate", None, status="queued")], False, id="gate-waiting-for-a-runner"),
+        pytest.param([_job("Fork CI gate", None, status="in_progress")], True, id="gate-running-for-an-hour"),
         pytest.param([_job("Build info", "success")], True, id="gate-removed"),
         pytest.param(
             [_job("Fork CI gate", "success"), _job("Fork CI gate", "success")], True, id="gate-twice"
@@ -594,6 +687,7 @@ def _run(
     sha="sha-old",
     age_hours=1.0,
     event="pull_request",
+    status="completed",
 ):
     created = NOW - timedelta(hours=age_hours)
     return {
@@ -606,7 +700,7 @@ def _run(
         "created_at": created.isoformat(),
         "run_started_at": created.isoformat(),
         "updated_at": (created + timedelta(minutes=minutes)).isoformat(),
-        "status": "completed",
+        "status": status,
         "event": event,
     }
 
@@ -636,7 +730,8 @@ def _finder(
         if path.endswith("jobs?filter=latest&per_page=100"):
             return list(jobs)
         if "/compare/" in path:
-            return [{"filename": name} for name in compare_files]
+            assert not paginate, "the compare API returns files only on its first page"
+            return {"files": [{"filename": name} for name in compare_files]}
         raise AssertionError(path)
 
     client.rest_get_pages.side_effect = rest_get_pages
@@ -655,6 +750,13 @@ def client():
 TAMPERED_JOBS = [_job("Fork CI gate", "success"), _job("Build info", "success")]
 
 
+def test_finder_catches_a_tampered_run_still_in_progress(client):
+    """A tampered run that outlasts the tamper window must be caught while it runs."""
+    finder = _finder(client, [_run(7, status="in_progress", age_hours=5.5)], jobs=TAMPERED_JOBS)
+
+    assert finder.find(_pr()) == "https://github.com/apache/airflow/actions/runs/7"
+
+
 def test_finder_catches_a_tampered_run_on_an_earlier_commit(client):
     finder = _finder(client, [_run(7, sha="tampered")], jobs=TAMPERED_JOBS)
 
@@ -665,6 +767,20 @@ def test_finder_catches_a_tampered_run_on_an_earlier_commit(client):
     ("runs", "jobs", "compare_files", "pr_overrides"),
     [
         pytest.param([_run(7, minutes=1)], TAMPERED_JOBS, (".github/workflows/x.yml",), {}, id="short-run"),
+        pytest.param(
+            [_run(7, status="queued")],
+            TAMPERED_JOBS,
+            (".github/workflows/x.yml",),
+            {},
+            id="queued-run-waiting-for-a-runner",
+        ),
+        pytest.param(
+            [_run(7, status="in_progress", age_hours=0.05)],
+            TAMPERED_JOBS,
+            (".github/workflows/x.yml",),
+            {},
+            id="run-started-moments-ago",
+        ),
         pytest.param(
             [_run(7)], [_job("Fork CI gate", "success")], (".github/workflows/x.yml",), {}, id="gate-held"
         ),
@@ -761,7 +877,7 @@ def test_finder_catches_a_workflow_moved_away(client):
     client.rest_get.side_effect = lambda path, paginate=False, items_key=None: (
         TAMPERED_JOBS
         if path.endswith("jobs?filter=latest&per_page=100")
-        else [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]
+        else {"files": [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]}
     )
 
     assert finder.find(_pr()) == "https://github.com/apache/airflow/actions/runs/7"
@@ -854,7 +970,8 @@ def test_parse_pull_request_reads_timeline_status_and_marker():
                                 "targetUrl": "u",
                                 "description": "d",
                                 "createdAt": "2026-11-08T00:00:00Z",
-                            }
+                            },
+                            "ciPassed": {"state": "SUCCESS"},
                         }
                     }
                 }
@@ -882,6 +999,7 @@ def test_parse_pull_request_reads_timeline_status_and_marker():
     assert pr.last_base_change_at == datetime(2026, 11, 7, tzinfo=UTC)
     assert pr.current_status == ("pending", "u", "d")
     assert pr.status_created_at == datetime(2026, 11, 8, tzinfo=UTC)
+    assert pr.ci_passed_state == "success"
     assert pr.marker == marker
     assert pr.marker_comment_id == 5
     assert pr.head_repo == "someone/my-airflow"
@@ -901,31 +1019,6 @@ def test_discover_labels_pilot_pull_requests_while_disabled(client):
 
     assert labelled == [1]
     client.add_labels.assert_called_once_with(1, ["fork ci required"])
-
-
-@pytest.mark.parametrize(
-    ("permission", "labelled"),
-    [
-        pytest.param({"permission": "write"}, [], id="committer-with-private-membership"),
-    ],
-)
-def test_discover_checks_the_permission_of_external_authors(client, permission, labelled):
-    client.graphql.side_effect = [_search_result({**_pr_node(1), "labels": {"nodes": []}}), _search_result()]
-    client.rest_get.side_effect = [permission]
-    configs = BaseGateConfigs(client, repo=REPO, default_branch="main", default_config=CONFIG)
-
-    assert discover(client, configs, repo=REPO, now=NOW) == labelled
-    assert client.rest_get.call_args.args[0] == f"repos/{REPO}/collaborators/someone/permission"
-
-
-def test_discover_looks_up_each_author_once(client):
-    nodes = [{**_pr_node(n), "labels": {"nodes": []}} for n in (1, 2)]
-    client.graphql.side_effect = [_search_result(*nodes), _search_result()]
-    client.rest_get.return_value = {"permission": "write"}
-    configs = BaseGateConfigs(client, repo=REPO, default_branch="main", default_config=CONFIG)
-
-    assert discover(client, configs, repo=REPO, now=NOW) == []
-    client.rest_get.assert_called_once_with(f"repos/{REPO}/collaborators/someone/permission")
 
 
 def _contents(files: dict[tuple[str, str], str]):
@@ -1214,3 +1307,25 @@ def test_slack_payload_stays_within_slack_limits():
     assert "…" in texts[1]
     assert texts[-1].startswith("_")
     assert "more sections are in the <https://run|run log>" in texts[-1]
+
+
+def test_apply_plan_posts_ci_passed_under_its_own_context(client):
+    plan, _, _ = _classify(_pr(), GREEN)
+
+    apply_plan(client, _pr(), plan)
+
+    assert mock.call(42, "abc123", *CI_PASSED, context="CI passed") in client.set_status.call_args_list
+
+
+@pytest.mark.parametrize(
+    ("side_effect", "expected"),
+    [
+        pytest.param([{"behind_by": 17}], 17, id="counted"),
+        pytest.param(GitHubError("gh api failed: HTTP 500"), None, id="unreadable"),
+    ],
+)
+def test_count_commits_behind(client, side_effect, expected):
+    client.rest_get.side_effect = side_effect
+
+    assert count_commits_behind(client, REPO, _pr(base_ref="v3-1-test")) == expected
+    assert client.rest_get.call_args.args[0] == f"repos/{REPO}/compare/v3-1-test...someone:abc123?per_page=1"

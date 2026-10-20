@@ -30,6 +30,15 @@ from dataclasses import dataclass
 from datetime import datetime
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
+# The check the "Require CI on main" ruleset requires before a pull request can (auto-)merge. Project
+# CI's gate job reports it; for a gated pull request, which never runs project CI, the reconciler
+# reports it from the fork run.
+CI_PASSED_CONTEXT = "CI passed"
+CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
+CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
+# A fork run tests the head commit as it is, not merged with the base branch. Further behind than
+# this, it says little about the result after merge.
+BEHIND_WARNING_COMMITS = 200
 MARKER_PREFIX = "<!-- fork-ci-gate: "
 MARKER_PATTERN = re.compile(r"<!-- fork-ci-gate: (?P<payload>.*?) -->")
 DESIGN_URL = (
@@ -63,13 +72,15 @@ class Marker:
     state: str
     sha: str
     since: datetime
+    # Commits the head commit was behind its base branch when its fork CI turned green.
+    behind: int | None = None
 
 
 def render_marker(marker: Marker) -> str:
-    payload = json.dumps(
-        {"state": marker.state, "sha": marker.sha, "since": marker.since.isoformat()}, sort_keys=True
-    )
-    return f"{MARKER_PREFIX}{payload} -->"
+    data: dict[str, object] = {"state": marker.state, "sha": marker.sha, "since": marker.since.isoformat()}
+    if marker.behind is not None:
+        data["behind"] = marker.behind
+    return f"{MARKER_PREFIX}{json.dumps(data, sort_keys=True)} -->"
 
 
 def parse_marker(body: str) -> Marker | None:
@@ -79,7 +90,12 @@ def parse_marker(body: str) -> Marker | None:
         return None
     try:
         data = json.loads(match.group("payload"))
-        return Marker(state=data["state"], sha=data["sha"], since=datetime.fromisoformat(data["since"]))
+        return Marker(
+            state=data["state"],
+            sha=data["sha"],
+            since=datetime.fromisoformat(data["since"]),
+            behind=data.get("behind"),
+        )
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
         raise ValueError(f"Malformed fork CI marker: {match.group(0)!r}") from e
 
@@ -122,8 +138,22 @@ _STATE_TEXTS = {
 }
 
 
-def state_comment(marker: Marker, *, fork: str, run_url: str | None) -> str:
+def behind_warning(behind: int, *, base_ref: str) -> str:
+    return (
+        f"**This branch is {behind} commits behind `{base_ref}`.** Fork CI tests the branch as it is, "
+        f"while the merged result also contains those commits, so it can still fail after the merge. "
+        f"Rebase on `{base_ref}` and push to test it against the current code."
+    )
+
+
+def state_comment(marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main") -> str:
     parts = [render_marker(marker), _STATE_TEXTS[marker.state], WHY_FORK_CI]
+    if (
+        marker.state in ("green", "green_unverified")
+        and marker.behind is not None
+        and marker.behind >= BEHIND_WARNING_COMMITS
+    ):
+        parts.append(behind_warning(marker.behind, base_ref=base_ref))
     if run_url:
         parts.append(f"Latest run: {run_url}")
     if marker.state == "setup_required":

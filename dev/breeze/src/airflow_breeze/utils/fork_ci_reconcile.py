@@ -48,13 +48,16 @@ from airflow_breeze.utils.fork_ci_gate import (
     TAMPER_CHECKED_REASONS,
     GateConfig,
     GateEvent,
-    Reason,
     decide,
     parse_config,
     parse_github_datetime,
 )
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
 from airflow_breeze.utils.fork_ci_messages import (
+    CI_PASSED_CONTEXT,
+    CI_PASSED_DESCRIPTION,
+    CI_PASSED_REVOKED_DESCRIPTION,
+    STATUS_CONTEXT,
     STATUS_STATES,
     Marker,
     fork_actions_url,
@@ -147,8 +150,12 @@ class WorkflowRun:
         return self.path.rsplit("/", 1)[-1]
 
     def is_long_running(self, now: datetime) -> bool:
-        end = self.updated_at if self.status == "completed" else now
-        return end - self.run_started_at >= SUSPICIOUS_RUN_DURATION
+        # Time spent waiting for a runner is not work, so a run that has not started is never
+        # long. A running one is judged as it goes: one tampered to outlast the tamper window
+        # would otherwise never be judged at all.
+        if self.status == "completed":
+            return self.updated_at - self.run_started_at >= SUSPICIOUS_RUN_DURATION
+        return self.status == "in_progress" and now - self.run_started_at >= SUSPICIOUS_RUN_DURATION
 
 
 @dataclass(frozen=True)
@@ -171,6 +178,7 @@ class PullRequestSnapshot:
     last_base_change_at: datetime | None = None
     current_status: tuple[str, str, str] | None = None
     status_created_at: datetime | None = None
+    ci_passed_state: str | None = None
     marker: Marker | None = None
     marker_comment_id: int | None = None
     marker_comment_body: str | None = None
@@ -196,6 +204,8 @@ class Plan:
     remove_labels: list[str] = field(default_factory=list)
     draft: bool | None = None
     status: tuple[str, str, str] | None = None
+    # (state, target URL, description) of the `CI passed` status.
+    ci_passed: tuple[str, str, str] | None = None
     marker_comment: str | None = None
     new_comments: list[str] = field(default_factory=list)
     close: bool = False
@@ -247,23 +257,35 @@ def needs_workflow_state(marker: Marker | None) -> bool:
     return marker is None or marker.state != ForkState.AWAITING_PUSH.value
 
 
+STARTED_JOB_STATUSES = frozenset({"in_progress", "completed"})
+
+
 def jobs_show_project_ci(jobs: Iterable[dict[str, Any]], now: datetime) -> bool:
     """
     Whether the jobs of a ci-amd.yml run show more than the gate deciding to skip.
 
-    Any job other than the gate that was not skipped counts, and so does a gate job that is
-    missing, duplicated or ran for longer than the gate ever needs, which is how a renamed job
-    doing project CI work under the gate's name shows up.
+    Any started job other than the gate that was not skipped counts, and so does a gate job that
+    is missing, duplicated or ran for longer than the gate ever needs, which is how a renamed job
+    doing project CI work under the gate's name shows up. Jobs that have not started do not
+    count: a queued job reports its creation as ``started_at``, so waiting for a runner would
+    look like work.
     """
     jobs = list(jobs)
     gate_jobs = [job for job in jobs if job["name"] == GATE_JOB_NAME]
     if len(gate_jobs) != 1:
         return True
-    started = parse_github_datetime(gate_jobs[0].get("started_at") or "")
-    completed = parse_github_datetime(gate_jobs[0].get("completed_at") or "") or now
-    if started is not None and completed - started > GATE_MAX_DURATION:
-        return True
-    return any(job["name"] != GATE_JOB_NAME and job.get("conclusion") != "skipped" for job in jobs)
+    gate = gate_jobs[0]
+    if gate.get("status") in STARTED_JOB_STATUSES:
+        started = parse_github_datetime(gate.get("started_at") or "")
+        completed = parse_github_datetime(gate.get("completed_at") or "") or now
+        if started is not None and completed - started > GATE_MAX_DURATION:
+            return True
+    return any(
+        job["name"] != GATE_JOB_NAME
+        and job.get("status") in STARTED_JOB_STATUSES
+        and job.get("conclusion") != "skipped"
+        for job in jobs
+    )
 
 
 def touches(files: Iterable[str], prefixes: tuple[str, ...]) -> bool:
@@ -334,6 +356,20 @@ def _set_status(
         plan.status = desired
 
 
+def _set_ci_passed(plan: Plan, pr: PullRequestSnapshot, *, passed: bool, target_url: str) -> None:
+    """
+    Report fork CI to the `CI passed` check the merge ruleset requires.
+
+    Only success is ever posted: a gated pull request without the status cannot merge, which is
+    what a pending or failing one would say. A success that no longer holds for the head commit,
+    such as a failed re-run in the fork, is overwritten so the pull request cannot merge on it.
+    """
+    if passed and pr.ci_passed_state != "success":
+        plan.ci_passed = ("success", target_url, CI_PASSED_DESCRIPTION)
+    elif not passed and pr.ci_passed_state == "success":
+        plan.ci_passed = ("pending", target_url, CI_PASSED_REVOKED_DESCRIPTION)
+
+
 def _set_marker_comment(plan: Plan, pr: PullRequestSnapshot, body: str) -> None:
     if body != pr.marker_comment_body:
         plan.marker_comment = body
@@ -347,7 +383,8 @@ def classify(
     now: datetime,
     repo: str,
     find_bypass_run: Callable[[], str | None],
-    changes_ci_files: Callable[[], bool],
+    changes_ci_files: Callable[[], bool | None],
+    count_behind: Callable[[], int | None] = lambda: None,
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -356,8 +393,12 @@ def classify(
         branch has no gate, so its gate job runs project CI.
     :param find_bypass_run: returns the project CI run that bypassed the gate, if any; only
         called for pull requests that the gate tampering check applies to.
-    :param changes_ci_files: whether the pull request changes CI-defining paths; only called
-        when a new head commit turns green in the fork.
+    :param changes_ci_files: whether the pull request changes CI-defining paths, None when that
+        cannot be told for the snapshot's head commit; only called when a new head commit turns
+        green in the fork. On None nothing is changed, since the decision would be recorded on a
+        commit the answer may not belong to.
+    :param count_behind: how many commits the head commit is behind the base branch, None when
+        unknown; called at the same time as ``changes_ci_files``.
     """
     plan = Plan()
     labels = set(pr.labels)
@@ -445,6 +486,7 @@ def classify(
         plan.unknown.append(unknown_reason or "unknown fork state")
         return plan
     refresh_status = False
+    behind = marker.behind if marker and marker.sha == pr.head_sha else None
     if state == ForkState.GREEN:
         # The decision is read back from the commit status on the head commit, which only
         # apache/airflow's own tokens can write, never from a comment. The changed files depend
@@ -461,12 +503,12 @@ def classify(
         else:
             # Writing the status again, even unchanged, records when this decision was made.
             refresh_status = decided
-            unverified = changes_ci_files()
-            if unverified:
-                plan.attention.append(
-                    "fork CI is green, but the pull request changes CI-defining files that the fork run "
-                    "itself executed; review them and add `use project ci` to verify"
-                )
+            # The `needs project ci` label lists these pull requests for maintainers.
+            changes = changes_ci_files()
+            if changes is None:
+                return Plan()
+            unverified = changes
+            behind = count_behind()
         if unverified:
             state = ForkState.GREEN_UNVERIFIED
     plan.state = state
@@ -504,11 +546,19 @@ def classify(
     # otherwise look like any other draft with a pending fork CI status.
     _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=state == ForkState.GREEN_UNVERIFIED)
 
-    _set_status(plan, pr, state.value, fork.run_url or fork_actions_url(pr.head_repo), force=refresh_status)
+    target_url = fork.run_url or fork_actions_url(pr.head_repo)
+    _set_status(plan, pr, state.value, target_url, force=refresh_status)
+    _set_ci_passed(plan, pr, passed=state == ForkState.GREEN, target_url=target_url)
+    green = state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED)
     _set_marker_comment(
         plan,
         pr,
-        state_comment(Marker(state.value, pr.head_sha, since), fork=pr.head_repo, run_url=fork.run_url),
+        state_comment(
+            Marker(state.value, pr.head_sha, since, behind=behind if green else None),
+            fork=pr.head_repo,
+            run_url=fork.run_url,
+            base_ref=pr.base_ref,
+        ),
     )
     return plan
 
@@ -553,7 +603,10 @@ query($q: String!, $cursor: String) {
         }
       }
       commits(last: 1) { nodes { commit {
-        status { context(name: "%(context)s") { state targetUrl description createdAt } }
+        status {
+          context(name: "%(context)s") { state targetUrl description createdAt }
+          ciPassed: context(name: "%(ci_passed)s") { state }
+        }
       } } }
       comments(first: 100) {
         pageInfo { hasNextPage endCursor }
@@ -620,9 +673,13 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
 
     current_status = None
     status_created_at = None
+    ci_passed_state = None
     commits = (node.get("commits") or {}).get("nodes") or []
     if commits:
-        context = (commits[0]["commit"].get("status") or {}).get("context")
+        status = commits[0]["commit"].get("status") or {}
+        if status.get("ciPassed"):
+            ci_passed_state = status["ciPassed"]["state"].lower()
+        context = status.get("context")
         if context:
             current_status = (
                 context["state"].lower(),
@@ -659,6 +716,7 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
         last_base_change_at=last_base_change,
         current_status=current_status,
         status_created_at=status_created_at,
+        ci_passed_state=ci_passed_state,
         marker=marker,
         marker_comment_id=marker_id,
         marker_comment_body=marker_body,
@@ -722,23 +780,6 @@ class BaseGateConfigs:
         return self._configs[base_ref]
 
 
-COMMITTER_PERMISSIONS = frozenset({"admin", "maintain", "write"})
-
-
-def has_write_access(client: GitHubClient, repo: str, login: str) -> bool:
-    """
-    Whether the author can push to the repository; False when that cannot be read.
-
-    GitHub reports an author whose membership of the organisation is private as CONTRIBUTOR, so a
-    committer could look external.
-    """
-    try:
-        permission = client.rest_get(f"repos/{repo}/collaborators/{quote(login, safe='')}/permission")
-    except GitHubError:
-        return False
-    return (permission or {}).get("permission") in COMMITTER_PERMISSIONS
-
-
 def discover(
     client: GitHubClient,
     configs: BaseGateConfigs,
@@ -758,8 +799,6 @@ def discover(
         f'repo:{repo} is:pr is:open label:"{LABEL_USE_FORK_CI}" -label:"{LABEL_FORK_CI_REQUIRED}"',
     )
     labelled: list[int] = []
-    # An author with many open pull requests is looked up once.
-    write_access = functools.cache(functools.partial(has_write_access, client, repo))
     for search_query in queries:
         for node in _search(client, DISCOVERY_QUERY, search_query):
             if node["number"] in labelled:
@@ -782,10 +821,7 @@ def discover(
                 created_at=parse_github_datetime(node["createdAt"]),
                 labels=_labels(node),
             )
-            reason = decide(event, config).reason
-            if reason == Reason.EXTERNAL and write_access(event.author_login):
-                continue
-            if reason in GATED_REASONS:
+            if decide(event, config).reason in GATED_REASONS:
                 client.add_labels(node["number"], [LABEL_FORK_CI_REQUIRED])
                 labelled.append(node["number"])
     return labelled
@@ -951,11 +987,10 @@ class BypassFinder:
         key = (run.head_sha, base_ref)
         if key not in self._changes_workflows:
             owner = run.head_repo.split("/", 1)[0]
+            # The compare API returns `files` only on its first page; later pages list commits.
             files = self._client.rest_get(
-                f"repos/{self._repo}/compare/{base_ref}...{owner}:{run.head_sha}?per_page=100",
-                paginate=True,
-                items_key="files",
-            )
+                f"repos/{self._repo}/compare/{base_ref}...{owner}:{run.head_sha}?per_page=1"
+            ).get("files", [])
             if touches(changed_paths(files), (".github/workflows/",)):
                 self._changes_workflows[key] = True
             else:
@@ -1022,9 +1057,31 @@ def find_state_comment(client: GitHubClient, repo: str, pr: PullRequestSnapshot)
     return replace(pr, comments_cursor=None)
 
 
-def pull_request_changes_ci_files(client: GitHubClient, repo: str, number: int) -> bool:
+def pull_request_changes_ci_files(client: GitHubClient, repo: str, number: int, head_sha: str) -> bool | None:
+    """
+    Whether the pull request at ``head_sha`` changes CI-defining paths; None when it cannot tell.
+
+    The files endpoint lists the current head, which a push may have moved since the snapshot.
+    When the head moved while the files were read, the listing may belong to another commit, so
+    no answer is given; the next run decides for the new head.
+    """
     files = client.rest_get(f"repos/{repo}/pulls/{number}/files?per_page=100", paginate=True)
+    if client.rest_get(f"repos/{repo}/pulls/{number}")["head"]["sha"] != head_sha:
+        return None
     return changes_ci_definition(changed_paths(files), file_count=len(files))
+
+
+def count_commits_behind(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -> int | None:
+    """Commits on the base branch that the head commit does not have; None when not readable."""
+    owner = (pr.head_repo or "").split("/", 1)[0]
+    try:
+        compare = client.rest_get(
+            f"repos/{repo}/compare/{quote(pr.base_ref, safe='')}...{owner}:{pr.head_sha}?per_page=1"
+        )
+    except GitHubError as e:
+        console_print(f"[warning]#{pr.number}: could not count commits behind {pr.base_ref}: {e}[/]")
+        return None
+    return compare.get("behind_by")
 
 
 def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> None:
@@ -1042,6 +1099,8 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Non
             client.create_comment(pr.number, plan.marker_comment)
     if plan.status is not None:
         client.set_status(pr.number, pr.head_sha, *plan.status)
+    if plan.ci_passed is not None:
+        client.set_status(pr.number, pr.head_sha, *plan.ci_passed, context=CI_PASSED_CONTEXT)
     for comment in plan.new_comments:
         client.create_comment(pr.number, comment)
     if plan.draft is False:
@@ -1130,7 +1189,8 @@ def run_reconcile(
         parse_pull_request(node)
         for node in _search(
             client,
-            PASS_TWO_QUERY % {"page": PASS_TWO_PAGE_SIZE, "context": "Fork CI / Tests (AMD)"},
+            PASS_TWO_QUERY
+            % {"page": PASS_TWO_PAGE_SIZE, "context": STATUS_CONTEXT, "ci_passed": CI_PASSED_CONTEXT},
             f'repo:{repo} is:pr is:open label:"{LABEL_FORK_CI_REQUIRED}"',
         )
     ]
@@ -1158,7 +1218,10 @@ def run_reconcile(
                 now=now,
                 repo=repo,
                 find_bypass_run=functools.partial(bypass_finder.find, pr),
-                changes_ci_files=functools.partial(pull_request_changes_ci_files, client, repo, pr.number),
+                changes_ci_files=functools.partial(
+                    pull_request_changes_ci_files, client, repo, pr.number, pr.head_sha
+                ),
+                count_behind=functools.partial(count_commits_behind, client, repo, pr),
             )
             apply_plan(client, pr, plan)
             unknown.extend((pr.number, reason) for reason in plan.unknown)

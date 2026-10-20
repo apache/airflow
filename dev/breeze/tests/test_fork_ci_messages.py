@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -23,6 +24,9 @@ import pytest
 from airflow_breeze.utils.fork_ci_messages import (
     _STATE_TEXTS,
     _STATUS_DESCRIPTIONS,
+    BEHIND_WARNING_COMMITS,
+    CI_PASSED_DESCRIPTION,
+    CI_PASSED_REVOKED_DESCRIPTION,
     FOOTER,
     Marker,
     inactivity_close_comment,
@@ -37,8 +41,34 @@ from airflow_breeze.utils.fork_ci_messages import (
 MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15, 10, 0, tzinfo=UTC))
 
 
-def test_marker_round_trip():
-    assert parse_marker(f"text before\n{render_marker(MARKER)}\ntext after") == MARKER
+@pytest.mark.parametrize(
+    "marker",
+    [pytest.param(MARKER, id="without-behind"), pytest.param(replace(MARKER, behind=12), id="behind")],
+)
+def test_marker_round_trip(marker):
+    assert parse_marker(f"text before\n{render_marker(marker)}\ntext after") == marker
+
+
+def test_marker_without_behind_keeps_its_rendering():
+    assert "behind" not in render_marker(MARKER)
+
+
+@pytest.mark.parametrize(
+    ("state", "behind", "warned"),
+    [
+        pytest.param("green", BEHIND_WARNING_COMMITS, True, id="green-far-behind"),
+        pytest.param("green_unverified", BEHIND_WARNING_COMMITS + 1, True, id="unverified-far-behind"),
+        pytest.param("green", BEHIND_WARNING_COMMITS - 1, False, id="green-close"),
+        pytest.param("green", None, False, id="green-not-counted"),
+        pytest.param("failed", BEHIND_WARNING_COMMITS, False, id="failed"),
+    ],
+)
+def test_state_comment_warns_about_a_branch_far_behind(state, behind, warned):
+    text = state_comment(
+        Marker(state, "a", MARKER.since, behind=behind), fork="u/airflow", run_url=None, base_ref="v3-1-test"
+    )
+
+    assert ("commits behind `v3-1-test`" in text) is warned
 
 
 def test_parse_marker_absent():
@@ -91,4 +121,5 @@ def test_setup_texts_give_the_exact_command(text):
 
 
 def test_status_descriptions_fit_github_limit():
-    assert all(len(description) < 140 for description in _STATUS_DESCRIPTIONS.values())
+    descriptions = [*_STATUS_DESCRIPTIONS.values(), CI_PASSED_DESCRIPTION, CI_PASSED_REVOKED_DESCRIPTION]
+    assert all(len(description) < 140 for description in descriptions)

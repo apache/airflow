@@ -101,7 +101,10 @@ record captures the decisions that shape it and the alternatives rejected.
    reset, a removed ``use project ci``) and legitimate workflow edits that keep the gate
    intact are never closed. A green fork run is trusted only when the pull request does not
    change what fork CI runs (``.github/``, ``dev/breeze/``, ``scripts/ci/`` and the like);
-   otherwise it stays a draft until a maintainer runs project CI. Commit statuses were chosen over check
+   otherwise it stays a draft until a maintainer runs project CI. A trusted green fork run also
+   gets a ``CI passed`` commit status, the check the merge ruleset requires, because a gated
+   pull request never runs project CI to report it; it is only ever posted as success, and
+   overwritten when the head commit is no longer green. Commit statuses were chosen over check
    runs because a check run created with the workflow token links to the creating workflow
    instead of the fork run. ``pull_request_target`` was rejected: it would react to
    untrusted events with write permissions for a gain of a few minutes of latency.
@@ -111,7 +114,8 @@ record captures the decisions that shape it and the alternatives rejected.
    ``internal-airflow-ci-cd`` Slack channel through the same action and payload convention
    as the CI duration monitor. Two expected outcomes are posted as well, in their own
    section: a pull request closed for gate tampering and a pull request carrying both
-   override labels.
+   override labels. A green fork run that cannot be trusted is not posted: the
+   ``needs project ci`` label lists those pull requests for maintainers.
 
 6. **``breeze ci audit`` is the contributor's pre-flight.** It checks ``gh``, the
    ``upstream``/``origin`` remote convention, fork existence, who the user is to the project,
