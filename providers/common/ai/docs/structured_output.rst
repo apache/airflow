@@ -113,4 +113,7 @@ that pattern work.
 
 If a downstream consumer needs the dict shape (e.g. forwarding to an external
 system that expects JSON-style payloads), pass ``serialize_output=True`` and the
-operator calls ``model_dump()`` before pushing to XCom.
+operator dumps the model with ``pydantic_core.to_jsonable_python`` before pushing to XCom,
+so ``HttpUrl``, ``Path`` and ``Enum`` fields become plain JSON values. The operator also dumps an
+output that is a list, tuple, set or dict holding models, and any model of a shape the worker
+registers no class for (such as a list of types), even without ``serialize_output``.

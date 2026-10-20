@@ -16,24 +16,29 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
+from pathlib import Path
 from typing import Annotated, Literal, NamedTuple
 from unittest import mock
 
 import pytest
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, computed_field, model_validator
 from pydantic_ai import NativeOutput, PromptedOutput, ToolOutput
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
 from airflow.providers.common.ai.utils.output_type import (
     _is_container_mismatch,
+    dump_output_for_xcom,
     dump_output_to_json,
     is_model_dump_required,
     rehydrate_pydantic_output,
 )
+from airflow.sdk.serde import deserialize, serialize
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -54,6 +59,10 @@ class SubA(A):
     pass
 
 
+class Item(BaseModel):
+    n: int
+
+
 class B(BaseModel):
     y: str
 
@@ -70,6 +79,12 @@ class DataclassOutput:
 
 class Color(str, Enum):
     RED = "red"
+
+
+class Page(BaseModel):
+    url: HttpUrl
+    kind: Color
+    path: Path
 
 
 class ValidationAlias(BaseModel):
@@ -199,6 +214,106 @@ class TestIsModelDumpRequired:
     def test_defers_to_serialize_output_without_the_sdk_walker(self):
         assert is_model_dump_required(A(x=1), A, serialize_output=False) is False
         assert is_model_dump_required(A(x=1), A, serialize_output=True) is True
+
+
+class TestIsModelDumpRequiredForContainerOutputs:
+    @pytest.mark.parametrize(
+        ("output", "output_type"),
+        [
+            ([A(x=1)], list[A]),
+            ({"k": A(x=1)}, dict[str, A]),
+            (None, A | None),
+            ("text", [list[Item], str]),
+        ],
+        ids=["registered-list", "registered-dict", "none-for-optional", "no-model-in-output"],
+    )
+    @requires_walker
+    def test_is_false_for_a_registered_shape_or_an_output_without_a_model(self, output, output_type):
+        assert is_model_dump_required(output, output_type, serialize_output=False) is False
+
+    @pytest.mark.parametrize(
+        ("output", "output_type"),
+        [
+            ([Item(n=1)], [list[Item], str]),
+            ({"k": Item(n=1)}, [dict[str, Item], str]),
+            ((Item(n=1),), [tuple[Item, ...], str]),
+        ],
+        ids=["list", "dict", "tuple"],
+    )
+    @requires_walker
+    def test_is_true_for_models_inside_a_container_the_worker_registers_no_class_for(
+        self, output, output_type
+    ):
+        assert is_model_dump_required(output, output_type, serialize_output=False) is True
+
+    @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
+    def test_defers_to_serialize_output_for_a_container_without_the_sdk_walker(self):
+        assert is_model_dump_required([A(x=1)], list[A], serialize_output=False) is False
+        assert is_model_dump_required([A(x=1)], list[A], serialize_output=True) is True
+
+
+class TestDumpOutputForXcom:
+    @requires_walker
+    def test_dumped_model_with_http_url_enum_path_serializes_through_serde(self):
+        page = Page(url="https://example.com/a", kind=Color.RED, path=Path("/tmp/a"))
+
+        dumped = dump_output_for_xcom(page, [Page, str], serialize_output=False)
+
+        assert deserialize(serialize(dumped)) == {
+            "url": "https://example.com/a",
+            "kind": "red",
+            "path": "/tmp/a",
+        }
+
+    @requires_walker
+    def test_dumps_models_inside_a_list_when_output_type_is_a_list_of_types(self):
+        dumped = dump_output_for_xcom([Item(n=1)], [list[Item], str], serialize_output=False)
+
+        assert dumped == [{"n": 1}]
+        assert deserialize(serialize(dumped)) == [{"n": 1}]
+
+    @requires_walker
+    def test_keeps_a_registered_container_as_model_instances(self):
+        output = {"k": A(x=1)}
+
+        dumped = dump_output_for_xcom(output, dict[str, A], serialize_output=False)
+
+        assert dumped is output
+        assert isinstance(dumped["k"], A)
+
+    @pytest.mark.parametrize(
+        "output",
+        [datetime(2026, 1, 1, tzinfo=UTC), 5, "s", None, {"a": 1}],
+        ids=["datetime", "int", "str", "none", "dict"],
+    )
+    def test_non_model_outputs_are_returned_unchanged(self, output):
+        dumped = dump_output_for_xcom(output, [A, int], serialize_output=True)
+
+        assert dumped is output
+
+    @requires_walker
+    def test_dumps_the_whole_output_when_only_some_of_its_models_are_unregistered(self):
+        output = [A(x=1), Item(n=1)]
+
+        assert is_model_dump_required(output, A, serialize_output=False) is True
+        assert dump_output_for_xcom(output, A, serialize_output=False) == [{"x": 1}, {"n": 1}]
+
+    @pytest.mark.parametrize("model_cls", [SerializationAlias, SerializedByAlias])
+    @requires_walker
+    def test_dumps_field_names_not_aliases_like_dump_output_to_json(self, model_cls):
+        model = model_cls(user_name="kax")
+
+        dumped = dump_output_for_xcom(model, [model_cls, str], serialize_output=False)
+
+        assert dumped == {"user_name": "kax"}
+        assert dumped == json.loads(dump_output_to_json(model))
+
+    @mock.patch("airflow.providers.common.ai.utils.output_type.iter_pydantic_models", None)
+    def test_dumps_a_container_without_the_sdk_walker_only_when_serialize_output(self):
+        output = [A(x=1)]
+
+        assert dump_output_for_xcom(output, list[A], serialize_output=True) == [{"x": 1}]
+        assert dump_output_for_xcom(output, list[A], serialize_output=False) is output
 
 
 class TestRehydratePydanticOutput:
