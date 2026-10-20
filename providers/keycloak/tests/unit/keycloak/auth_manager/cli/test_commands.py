@@ -475,6 +475,33 @@ def test_default_attachment_preview_reads_one_snapshot(missing_policy, capsys):
 
 
 @pytest.mark.parametrize(
+    ("missing_kind", "message"),
+    [
+        ("permission", "Permission 'PoolRead' not found"),
+        ("policy", "Policy 'Allow-Viewer' not found"),
+    ],
+)
+@patch("airflow.providers.keycloak.auth_manager.cli.commands._get_policy_id", autospec=True)
+def test_default_attachment_rejects_missing_objects_before_updates(mock_get_policy_id, missing_kind, message):
+    client = Mock(spec=["get_client_authz_permissions"])
+    client.get_client_authz_permissions.return_value = [
+        {"id": config["name"], "name": config["name"]}
+        for config in _get_default_permission_configs()
+        if not (missing_kind == "permission" and config["name"] == "PoolRead")
+    ]
+    mock_get_policy_id.return_value = None
+
+    with pytest.raises(ValueError, match=message):
+        _attach_default_role_permissions(client, "test-id")
+
+    assert client.mock_calls == [call.get_client_authz_permissions("test-id")]
+    if missing_kind == "permission":
+        mock_get_policy_id.assert_not_called()
+    else:
+        mock_get_policy_id.assert_called_once_with(client, "test-id", "Allow-Viewer")
+
+
+@pytest.mark.parametrize(
     ("permission_name", "resource_names", "scope_names"),
     [
         ("AdminViewRead", ["AdminView"], ["GET", "LIST"]),
@@ -1395,7 +1422,8 @@ class TestCommands:
         assert payload["resources"] == ["dag-global", "dag-team-a", "dag-team-b", "asset-global"]
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_resource_permission")
-    @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_scope_permission")
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_permission_policy_ids", autospec=True)
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_policy_id", autospec=True)
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._ensure_role_policy")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_permissions")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
@@ -1409,11 +1437,22 @@ class TestCommands:
         mock_get_client,
         mock_create_permissions,
         mock_ensure_role_policy,
-        mock_attach_scope_policy,
+        mock_get_policy_id,
+        mock_get_permission_policy_ids,
         mock_attach_resource_policy,
     ):
         client = Mock()
         mock_get_client.return_value = client
+        mock_get_policy_id.side_effect = lambda client, client_uuid, name: f"policy-{name}"
+        mock_get_permission_policy_ids.return_value = [
+            "custom-policy",
+            "policy-Allow-Viewer",
+            "custom-policy",
+        ]
+        client.get_client_authz_permissions.return_value = [
+            {"id": f"permission-{config['name']}", "name": config["name"]}
+            for config in _get_default_permission_configs()
+        ]
         client.get_client_authz_scopes.return_value = [
             {"id": name.lower(), "name": name} for name in ["GET", "LIST", "POST", "PUT", "DELETE", "MENU"]
         ]
@@ -1464,36 +1503,56 @@ class TestCommands:
                 ("Read", ["GET", "LIST"], read_roles),
                 ("Write", ["POST", "PUT", "DELETE"], write_roles),
             ]:
-                for role in roles:
-                    expected_calls.append(
-                        call(
-                            client,
-                            "test-id",
-                            permission_name=f"{resource}{suffix}",
-                            policy_name=f"Allow-{role}",
-                            scope_names=scopes,
-                            resource_names=[resource],
-                            decision_strategy="AFFIRMATIVE",
-                            _dry_run=False,
-                        )
+                expected_calls.append(
+                    call(
+                        client_id="test-id",
+                        scope_id=f"permission-{resource}{suffix}",
+                        payload={
+                            "id": f"permission-{resource}{suffix}",
+                            "name": f"{resource}{suffix}",
+                            "type": "scope",
+                            "logic": "POSITIVE",
+                            "decisionStrategy": "AFFIRMATIVE",
+                            "scopes": [scope.lower() for scope in scopes],
+                            "resources": [f"resource-{resource}"],
+                            "policies": list(
+                                dict.fromkeys(
+                                    [
+                                        "custom-policy",
+                                        "policy-Allow-Viewer",
+                                        *[f"policy-Allow-{role}" for role in roles],
+                                    ]
+                                )
+                            ),
+                        },
                     )
-
-        for role in read_roles:
-            expected_calls.append(
-                call(
-                    client,
-                    "test-id",
-                    permission_name="DefaultMenuAccess",
-                    policy_name=f"Allow-{role}",
-                    scope_names=["MENU"],
-                    resource_names=[item.value for item in MenuItem],
-                    decision_strategy="AFFIRMATIVE",
-                    _dry_run=False,
                 )
-            )
 
-        mock_attach_scope_policy.assert_has_calls(expected_calls, any_order=True)
-        assert mock_attach_scope_policy.call_count == len(expected_calls)
+        expected_calls.append(
+            call(
+                client_id="test-id",
+                scope_id="permission-DefaultMenuAccess",
+                payload={
+                    "id": "permission-DefaultMenuAccess",
+                    "name": "DefaultMenuAccess",
+                    "type": "scope",
+                    "logic": "POSITIVE",
+                    "decisionStrategy": "AFFIRMATIVE",
+                    "scopes": ["menu"],
+                    "resources": [f"resource-{item.value}" for item in MenuItem],
+                    "policies": ["custom-policy", *[f"policy-Allow-{role}" for role in read_roles]],
+                },
+            )
+        )
+        client.update_client_authz_scope_permission.assert_has_calls(expected_calls, any_order=True)
+        assert client.update_client_authz_scope_permission.call_count == 25
+        client.get_client_authz_permissions.assert_called_once_with("test-id")
+        assert client.get_client_authz_scopes.call_count == 2
+        assert client.get_client_authz_resources.call_count == 2
+        assert mock_get_permission_policy_ids.call_count == 25
+        assert mock_get_policy_id.call_count == 5
+        for role in read_roles:
+            mock_get_policy_id.assert_any_call(client, "test-id", f"Allow-{role}")
         mock_attach_resource_policy.assert_not_called()
         mock_ensure_strategy.assert_called_once_with(client, "test-id", _dry_run=False)
 

@@ -410,18 +410,45 @@ def _attach_default_role_permissions(
             )
         return
 
-    for permission in _get_default_permission_configs():
-        for role_name in permission["role_names"]:
-            _attach_policy_to_scope_permission(
-                client,
-                client_uuid,
-                permission_name=permission["name"],
-                policy_name=_role_policy_name(role_name),
-                scope_names=permission["scope_names"],
-                resource_names=permission["resources"],
-                decision_strategy="AFFIRMATIVE",
-                _dry_run=_dry_run,
-            )
+    permission_configs = _get_default_permission_configs()
+    permissions = {
+        permission["name"]: permission for permission in client.get_client_authz_permissions(client_uuid)
+    }
+    for config in permission_configs:
+        if config["name"] not in permissions:
+            raise ValueError(f"Permission '{config['name']}' not found.")
+
+    role_policy_ids = {}
+    for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
+        policy_name = _role_policy_name(role_name)
+        policy_id = _get_policy_id(client, client_uuid, policy_name)
+        if not policy_id:
+            raise ValueError(f"Policy '{policy_name}' not found.")
+        role_policy_ids[role_name] = policy_id
+
+    scopes = client.get_client_authz_scopes(client_uuid)
+    resources = client.get_client_authz_resources(client_uuid)
+    for config in permission_configs:
+        permission_id = permissions[config["name"]]["id"]
+        existing_policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)
+        policy_ids = list(
+            dict.fromkeys([*existing_policy_ids, *(role_policy_ids[role] for role in config["role_names"])])
+        )
+        payload = {
+            "id": permission_id,
+            "name": config["name"],
+            "type": "scope",
+            "logic": "POSITIVE",
+            "decisionStrategy": "AFFIRMATIVE",
+            "scopes": [scope["id"] for scope in scopes if scope["name"] in config["scope_names"]],
+            "resources": [
+                resource["_id"] for resource in resources if resource["name"] in config["resources"]
+            ],
+            "policies": policy_ids,
+        }
+        client.update_client_authz_scope_permission(
+            payload=payload, client_id=client_uuid, scope_id=permission_id
+        )
 
 
 def _update_read_only_permission_resources(
