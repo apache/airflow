@@ -1,0 +1,39 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Docker Compose override for lang_sdk_xcom_object_storage E2E test mode, listed after
+# localstack.yml and ts.yml.
+#
+# One image runs the Dag definitions of all three language SDKs. It is the airflow-java-worker image
+# conftest builds (see java.yml), and ts.yml adds the node binary and the TypeScript bundle mount.
+# The Go and Java bundles sit in the Dags folder, which the Dag processor and the worker both mount.
+# The worker consumes the "typescript", "golang" and "java-native" queues that the Dags set.
+# USER and HOME are set for the statically linked Go bundle, as in go.yml.
+---
+services:
+  airflow-dag-processor:
+    image: airflow-java-worker
+    environment:
+      USER: airflow
+      HOME: /home/airflow
+
+  airflow-worker:
+    image: airflow-java-worker
+    environment:
+      USER: airflow
+      HOME: /home/airflow
+    command: celery worker -q typescript,golang,java-native,default

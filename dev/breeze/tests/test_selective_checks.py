@@ -1784,6 +1784,67 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run go e2e tests when ExecutableCoordinator changes",
         ),
         pytest.param(
+            ("task-sdk/src/airflow/sdk/coordinators/_xcom_backend.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java, go and ts e2e tests when the coordinator XCom backend changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/bases/xcom.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java, go and ts e2e tests when the base XCom class changes",
+        ),
+        pytest.param(
+            ("providers/common/io/src/airflow/providers/common/io/xcom/backend.py",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java, go and ts e2e tests when the object storage XCom backend changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/lang-sdk-xcom-object-storage.yml",),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java, go and ts e2e tests when the Lang-SDK XCom compose override changes",
+        ),
+        pytest.param(
+            (
+                "airflow-e2e-tests/tests/airflow_e2e_tests/lang_sdk_xcom_object_storage_tests/test_lang_sdk_xcom_backend.py",
+            ),
+            {
+                "run-java-sdk-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+                "run-ts-sdk-e2e-tests": "true",
+                "prod-image-build": "true",
+            },
+            id="Run java, go and ts e2e tests when the Lang-SDK XCom e2e suite changes",
+        ),
+        pytest.param(
+            ("providers/common/io/src/airflow/providers/common/io/operators/file_transfer.py",),
+            {
+                "run-java-sdk-e2e-tests": "false",
+                "run-go-sdk-e2e-tests": "false",
+                "run-ts-sdk-e2e-tests": "false",
+            },
+            id="Skip java, go and ts e2e tests when common.io changes outside the XCom backend",
+        ),
+        pytest.param(
             ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
             {
                 "run-openlineage-e2e-tests": "true",

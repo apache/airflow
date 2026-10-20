@@ -1535,6 +1535,7 @@ option_e2e_test_mode = click.option(
             "go_sdk",
             "openlineage",
             "ts_sdk",
+            "lang_sdk_xcom_object_storage",
         ],
         case_sensitive=False,
     ),
