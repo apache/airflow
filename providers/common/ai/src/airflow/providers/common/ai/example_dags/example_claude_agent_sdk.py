@@ -37,7 +37,6 @@ Before running:
 
 from __future__ import annotations
 
-import asyncio
 import os
 
 from airflow.providers.common.compat.sdk import BaseHook, dag, task
@@ -56,6 +55,8 @@ def example_claude_agent_sdk():
 
     @task
     def ask_the_warehouse(question: str = DEFAULT_QUESTION) -> str | None:
+        import asyncio
+
         from claude_agent_sdk import query
 
         from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
