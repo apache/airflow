@@ -39,6 +39,8 @@ UNLISTED_WEBHOOK_TAG = "other"
 # retain_until is a TIMESTAMP on MySQL, which ends in January 2038. Without a bound, a large value would
 # fail the insert of every delivery rather than the start of the process.
 MAX_DELIVERY_RETENTION_DAYS = 365
+# An inbound wait's deadline is a TIMESTAMP on MySQL too, so a wait's timeout is bounded the same way.
+MAX_WAIT_TIMEOUT = timedelta(days=365)
 
 
 def get_webhook_name_problem(name: str) -> str | None:
@@ -120,6 +122,29 @@ def _get_delivery_retention() -> timedelta:
             f"[webhooks] delivery_retention must be {MAX_DELIVERY_RETENTION_DAYS} or less, not {days}"
         )
     return timedelta(days=days)
+
+
+def get_default_wait_timeout() -> timedelta | None:
+    """
+    Return ``[webhooks] default_wait_timeout``, or None if it is not set.
+
+    :raises AirflowConfigException: if it is set to less than 1 second, or to more than
+        ``MAX_WAIT_TIMEOUT``.
+    """
+    if not conf.get("webhooks", "default_wait_timeout"):
+        return None
+    timeout = timedelta(seconds=_get_int_at_least("default_wait_timeout", 1))
+    if timeout > MAX_WAIT_TIMEOUT:
+        raise AirflowConfigException(
+            f"[webhooks] default_wait_timeout must be {int(MAX_WAIT_TIMEOUT.total_seconds())} or less, "
+            f"not {int(timeout.total_seconds())}"
+        )
+    return timeout
+
+
+def get_early_delivery_ttl() -> timedelta:
+    """Return ``[webhooks] early_delivery_ttl``; raise ``AirflowConfigException`` if it is below 1 second."""
+    return timedelta(seconds=_get_int_at_least("early_delivery_ttl", 1))
 
 
 def _get_store_payload() -> StorePayload:

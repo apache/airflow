@@ -22,7 +22,13 @@ from datetime import timedelta
 import pytest
 
 from airflow.exceptions import AirflowConfigException
-from airflow.webhooks.registry import WebhookRegistry, parse_source_type_owners, parse_webhook_names
+from airflow.webhooks.registry import (
+    WebhookRegistry,
+    get_default_wait_timeout,
+    get_early_delivery_ttl,
+    parse_source_type_owners,
+    parse_webhook_names,
+)
 
 from tests_common.test_utils.config import conf_vars
 
@@ -177,3 +183,42 @@ class TestWebhookRegistry:
             match=r"^\[webhooks\] store_payload must be one of full, summary, none, not 'some'$",
         ):
             WebhookRegistry.from_config()
+
+
+class TestWaitOptions:
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param("", None, id="unset"),
+            pytest.param("3600", timedelta(hours=1), id="seconds"),
+            pytest.param("31536000", timedelta(days=365), id="maximum"),
+        ],
+    )
+    def test_default_wait_timeout(self, value, expected):
+        with conf_vars({("webhooks", "default_wait_timeout"): value}):
+            assert get_default_wait_timeout() == expected
+
+    def test_early_delivery_ttl_defaults_to_ten_minutes(self):
+        assert get_early_delivery_ttl() == timedelta(minutes=10)
+
+    @pytest.mark.parametrize(
+        ("option", "get"),
+        [
+            pytest.param("default_wait_timeout", get_default_wait_timeout, id="default-wait-timeout"),
+            pytest.param("early_delivery_ttl", get_early_delivery_ttl, id="early-delivery-ttl"),
+        ],
+    )
+    def test_refuses_a_value_below_one_second(self, option, get):
+        with conf_vars({("webhooks", option): "0"}):
+            with pytest.raises(
+                AirflowConfigException, match=rf"^\[webhooks\] {option} must be 1 or more, not 0$"
+            ):
+                get()
+
+    @conf_vars({("webhooks", "default_wait_timeout"): "31536001"})
+    def test_refuses_a_default_wait_timeout_above_365_days(self):
+        with pytest.raises(
+            AirflowConfigException,
+            match=r"^\[webhooks\] default_wait_timeout must be 31536000 or less, not 31536001$",
+        ):
+            get_default_wait_timeout()
