@@ -1142,15 +1142,16 @@ These are all available flags of ``workflow-run release-constraints`` command:
 Publishing the schema files to S3
 """""""""""""""""""""""""""""""""
 
-Alongside the documentation, the ``Publish Docs to S3`` workflow also publishes two generated schema artifacts
+Alongside the documentation, the ``Publish Docs to S3`` workflow also publishes generated schema artifacts
 to the same docs bucket, under the ``schemas/`` prefix (served at ``https://airflow.apache.org/schemas/``):
 
 * The Execution API OpenAPI spec ``schemas/execution-api/<version>.json``
 * The Supervisor JSON Schema ``schemas/supervisor-schema/<version>.json``
+* The YAML Dag JSON Schema ``schemas/dag/<version>.json``
 
 Each dated file is immutable, so the command uploads individual objects and skips a date that already exists
-unless ``--overwrite`` is given. Publishing is gated on the package set. The schema files are only published
-when ``apache-airflow`` or ``task-sdk`` is built.
+unless ``--overwrite`` is given. Publishing is gated on the package set. The Execution API schema is published
+when ``apache-airflow`` is built; the Supervisor and YAML Dag schemas when ``task-sdk`` is built.
 
 To publish the schema files to S3, use the ``release-management publish-schemas-to-s3`` command:
 
@@ -1159,11 +1160,12 @@ To publish the schema files to S3, use the ``release-management publish-schemas-
      breeze release-management publish-schemas-to-s3 \
        --execution-api execution-api.json \
        --supervisor supervisor-schema.json \
+       --dag dag.json \
        --destination-location s3://live-docs-airflow-apache-org/schemas/
 
 ``--destination-location`` is the ``s3://<bucket>/schemas/`` location to publish under; each schema is
 written to ``<location>/<schema-type>/<version>.json``. Pass at least one of
-``--execution-api`` / ``--supervisor``.
+``--execution-api`` / ``--supervisor`` / ``--dag``.
 
 These are all available flags of ``release-management publish-schemas-to-s3`` command:
 
