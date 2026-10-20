@@ -26,7 +26,7 @@ import time
 from contextlib import suppress
 from pathlib import Path
 from socket import socket
-from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, cast
 
 import attrs
 import msgspec
@@ -62,7 +62,7 @@ from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
     from structlog.typing import FilteringBoundLogger
 
@@ -88,6 +88,7 @@ class StartLangSDKRuntime(BaseModel):
     bundle_path: Path
     bundle_name: str
     dag_file_rel_path: str
+    bundle_config: dict[str, Any] | None = None
     comm_address: tuple[str, int]
     logs_address: tuple[str, int]
     type: Literal["StartLangSDKRuntime"] = "StartLangSDKRuntime"
@@ -113,7 +114,7 @@ def _get_import_timeout(path: str) -> float | None:
     return timeout if timeout > 0 else None
 
 
-def _start_runtime_entrypoint() -> None:
+def _start_runtime_entrypoint(*, importer_registry: DagImporterRegistry | None = None) -> None:
     """Exec the runtime that parses the file named by the start request, or report why it cannot start."""
     os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
     # fd 0 becomes the runtime's stdin, so the request channel moves to a close-on-exec copy.
@@ -135,7 +136,11 @@ def _start_runtime_entrypoint() -> None:
     try:
         # The policy is user code: it runs in this child, where a failure is only this file's import error.
         import_timeout = _get_import_timeout(msg.file)
-        if (importer := get_claiming_importer(msg.file, msg.bundle_name)) is None:
+        if msg.bundle_config is not None and importer_registry is None:
+            importer_registry = DagImporterRegistry.from_config(
+                bundle_name=msg.bundle_name, bundle_importers=msg.bundle_config.get("importers")
+            )
+        if (importer := get_claiming_importer(msg.file, msg.bundle_name, registry=importer_registry)) is None:
             raise RuntimeError(f"No coordinator Dag importer claims {msg.file}")
         importer.get_parsing_coordinator().parse_dag(
             path=Path(msg.file),
@@ -191,6 +196,8 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_path: Path,
         bundle_name: str,
         dag_file_rel_path: str,
+        bundle_config: dict[str, Any] | None = None,
+        importer_registry: DagImporterRegistry | None = None,
         **kwargs,
     ) -> Self:
         listeners: dict[_Channel, socket] = {"comm": _start_server(), "logs": _start_server()}
@@ -200,14 +207,19 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             parse_request = DagFileParseRequest(
                 file=os.fspath(path), bundle_path=bundle_path, bundle_name=bundle_name
             )
+            use_exec = supervisor._should_use_exec()
+            target: Callable[[], None] = _start_runtime_entrypoint
+            if importer_registry is not None and not use_exec:
+                target = functools.partial(_start_runtime_entrypoint, importer_registry=importer_registry)
             proc = super().start(
-                target=_start_runtime_entrypoint,
-                use_exec=supervisor._should_use_exec(),
+                target=target,
+                use_exec=use_exec,
                 new_process_group=True,
                 bundle_name=bundle_name,
                 dag_file_rel_path=dag_file_rel_path,
                 listeners=listeners,
                 parse_request=parse_request,
+                importer_registry=importer_registry,
                 **kwargs,
             )
         except BaseException:
@@ -227,6 +239,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
                 bundle_path=bundle_path,
                 bundle_name=bundle_name,
                 dag_file_rel_path=dag_file_rel_path,
+                bundle_config=bundle_config,
                 comm_address=listeners["comm"].getsockname()[:2],
                 logs_address=listeners["logs"].getsockname()[:2],
             ),

@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
+from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
@@ -450,13 +451,14 @@ class DagImporterRegistry:
             self._register_default_importers()
 
     @classmethod
-    def from_config(cls, bundle_name: str | None = None) -> Self:
+    def from_config(cls, bundle_name: str | None = None, *, bundle_importers: Any = NOTSET) -> Self:
         """
         Create and configure a DagImporterRegistry.
 
         Importers are registered in this order, a later one taking over an extension from an
         earlier one: the defaults, the Dag importers of the runtimes that have a configured
         coordinator, the global ``dag_importer_configs``, then the bundle's own ``importers``.
+        Explicit ``bundle_importers``, including None, bypasses the bundle configuration lookup.
         """
         registry = cls(register_defaults=True)
         if bundle_name:
@@ -472,7 +474,8 @@ class DagImporterRegistry:
             registry.register_specs(global_importers, context="global configuration")
 
         if bundle_name:
-            bundle_importers = cls._get_bundle_importers_config(bundle_name)
+            if not is_arg_set(bundle_importers):
+                bundle_importers = cls._get_bundle_importers_config(bundle_name)
             if bundle_importers:
                 registry.register_specs(bundle_importers, context=f"bundle '{bundle_name}'")
 

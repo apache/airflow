@@ -26,8 +26,6 @@ import re
 import selectors
 import shutil
 import signal
-import subprocess
-import sys
 import textwrap
 import time
 import zipfile
@@ -526,38 +524,19 @@ class TestDagFileProcessorManager:
             mock_sync.side_effect = RuntimeError("database unavailable")
             processor._reconcile_bundles(known_files={})
 
-            def start(**kwargs):
-                code = (
-                    "from airflow.dag_processing.dagbag import _get_bundle_team_name; "
-                    "from airflow.dag_processing.bundles.manager import DagBundlesManager; "
-                    "import json; "
-                    "print(json.dumps([_get_bundle_team_name('bundle-a'), "
-                    "str(DagBundlesManager().get_bundle('bundle-a').path)]))"
-                )
-                result = subprocess.run(
-                    [sys.executable, "-c", code],
-                    env={
-                        **os.environ,
-                        "AIRFLOW__CORE__MULTI_TEAM": "True",
-                        "AIRFLOW__CORE__LOAD_EXAMPLES": "False",
-                    },
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                assert json.loads(result.stdout.splitlines()[-1]) == ["team-a", str(bundle_path)]
-
-                if native:
-                    assert kwargs["team_name"] == "team-a"
-                    assert kwargs["importer_registry"] is processor._get_importer_registry("bundle-a")
-                return mock.Mock(spec=LangSDKDagFileProcessorProcess if native else DagFileProcessorProcess)
-
             mock_start = mock_native if native else mock_python
-            mock_start.side_effect = start
             processor._create_process(
                 DagFileInfo(bundle_name="bundle-a", bundle_path=bundle_path, rel_path=Path("dag.py"))
             )
             mock_start.assert_called_once()
+            kwargs = mock_start.call_args.kwargs
+            assert kwargs["bundle_config"] == {"importers": None, "team_name": "team-a"}
+            assert kwargs["importer_registry"] is processor._get_importer_registry("bundle-a")
+            if native:
+                assert kwargs["team_name"] == "team-a"
+            assert processor._dag_bundle_manager.get_bundle_config("bundle-a").kwargs["path"] == str(
+                bundle_path
+            )
             assert "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST" not in os.environ
 
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
@@ -2469,6 +2448,7 @@ class TestDagFileProcessorManager:
                     "file": "/opt/airflow/dags/test_dag.py",
                     "bundle_path": "/opt/airflow/dags",
                     "bundle_name": "testing",
+                    "bundle_config": None,
                     "callback_requests": [],
                     "type": "DagFileParseRequest",
                 },
@@ -2490,6 +2470,7 @@ class TestDagFileProcessorManager:
                     "file": "/opt/airflow/dags/dag_callback_dag.py",
                     "bundle_path": "/opt/airflow/dags",
                     "bundle_name": "testing",
+                    "bundle_config": None,
                     "callback_requests": [
                         {
                             "filepath": "dag_callback_dag.py",

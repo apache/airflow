@@ -51,6 +51,7 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.dag_processing.processor import DagFileParseRequest
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.api.datamodels._generated import (
     BundleInfo,
@@ -85,6 +86,22 @@ class _MockBody(BaseModel):
     ti_id: str
     queue_capacity: int | None = None
     sentry_trace_id: str | None = None
+
+
+@pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+def test_parser_bundle_settings_follow_supervisor_version(version):
+    message = DagFileParseRequest(
+        file="dag.py",
+        bundle_path="/bundles/payments",
+        bundle_name="payments",
+        bundle_config={"importers": None, "team_name": "payments"},
+    )
+    result = get_schema_version_migrator().downgrade(message, version).model_dump()
+    assert result["bundle_name"] == "payments"
+    if version == "2026-06-16":
+        assert "bundle_config" not in result
+    else:
+        assert result["bundle_config"] == message.bundle_config
 
 
 @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
