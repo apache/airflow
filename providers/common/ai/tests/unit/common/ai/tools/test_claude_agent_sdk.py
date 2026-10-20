@@ -633,6 +633,65 @@ class TestRun:
         assert tools._run is None
 
     @pytest.mark.asyncio
+    async def test_a_call_after_a_successful_run_has_ended_does_not_run(self):
+        ran: list[dict[str, Any]] = []
+        tools, handlers = _build_tools(_tool(ToolResult("ok"), ran))
+        await tools.run(_fake_cli(handlers, [[("lookup", {"key": "a"})]]))
+        assert len(ran) == 1
+
+        payload = await handlers["lookup"]({"key": "b"})
+
+        assert payload["is_error"] is True
+        assert payload["content"][0]["text"].startswith("Not run")
+        assert "failed" not in payload["content"][0]["text"]
+        assert len(ran) == 1
+
+    @pytest.mark.asyncio
+    async def test_a_call_after_a_failed_run_has_ended_does_not_run(self):
+        ran: list[dict[str, Any]] = []
+        tools, handlers = _build_tools(_tool(PermissionError("role cannot read orders"), ran))
+        with pytest.raises(ToolCallError):
+            await tools.run(_fake_cli(handlers, [[("lookup", {"key": "a"})]]))
+
+        payload = await handlers["lookup"]({"key": "b"})
+
+        assert payload["is_error"] is True
+        assert payload["content"][0]["text"] == "Not run: an earlier Airflow tool call in this run failed."
+        assert len(ran) == 1
+
+    @pytest.mark.asyncio
+    async def test_a_new_run_is_not_blocked_by_the_previous_ended_run(self):
+        ran: list[dict[str, Any]] = []
+        tools, handlers = _build_tools(_tool(ToolResult("ok"), ran))
+        await tools.run(_fake_cli(handlers, [[("lookup", {"key": "a"})]]))
+
+        await tools.run(_fake_cli(handlers, [[("lookup", {"key": "b"})]]))
+
+        assert ran == [{"key": "a"}, {"key": "b"}]
+
+    @pytest.mark.asyncio
+    async def test_a_call_landing_after_the_stream_is_closed_is_refused(self):
+        ran: list[dict[str, Any]] = []
+        tools, handlers = _build_tools(_tool(ToolResult("ok"), ran))
+        late_calls: list[asyncio.Task[dict[str, Any]]] = []
+
+        async def _cli_whose_teardown_calls_a_tool_later() -> AsyncIterator[Message]:
+            try:
+                yield _assistant_message()
+                yield _result_message()
+            finally:
+                late_calls.append(asyncio.create_task(handlers["lookup"]({"key": "late"})))
+
+        await tools.run(_cli_whose_teardown_calls_a_tool_later())
+        assert tools._run is None
+
+        payload = await late_calls[0]
+
+        assert payload["is_error"] is True
+        assert payload["content"][0]["text"].startswith("Not run")
+        assert ran == []
+
+    @pytest.mark.asyncio
     async def test_a_stream_without_aclose_is_driven_to_the_end(self):
         class _PlainStream:
             def __init__(self, messages: list[Message]) -> None:

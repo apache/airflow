@@ -195,7 +195,9 @@ goes to the model this way.
 An ``AirflowTools`` instance drives one query at a time: build a new instance per task,
 or call
 :meth:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.run` again
-only once the previous call has returned.
+only once the previous call has returned. A tool call that arrives after a run has ended
+is refused with an ``is_error`` result until the next run starts, including a handler
+called directly between two runs.
 
 Built-in tools run on the worker host
 ----------------------------------------
