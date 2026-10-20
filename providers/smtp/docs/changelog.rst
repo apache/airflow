@@ -35,6 +35,11 @@ Features
 
 * ``Add emailer utilities to the SMTP provider (#74623)``
 
+Doc-only
+~~~~~~~~
+
+* ``Fix SMTP email backend documentation link (#75243)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
 
