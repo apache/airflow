@@ -86,6 +86,15 @@ def _out(result: subprocess.CompletedProcess) -> str:
     return (result.stdout or "").strip()
 
 
+def redact_url(url: str) -> str:
+    """Drop the credentials an http(s) remote URL may carry, so a finding never prints a token."""
+    return re.sub(r"^(https?://)[^@/]+@", r"\1", url)
+
+
+def _is_not_found(result: subprocess.CompletedProcess) -> bool:
+    return "404" in (result.stderr or "") or "Not Found" in (result.stderr or "")
+
+
 def get_role(*, login: str, run: Runner, config: GateConfig, collaborators: frozenset[str]) -> Role:
     # In the gate's order: a pilot entry gates a pull request whatever its author's role.
     if config.pilot_joined_at(login) is not None:
@@ -135,6 +144,13 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
     login = _out(user)
     results.append(CheckResult(1, "gh", CheckStatus.OK, f"authenticated as {login}"))
 
+    # The role decides whether the fork setup matters at all: a committer working from an
+    # apache/airflow clone without a fork is fine while their pull requests run project CI.
+    role = get_role(login=login, run=run, config=config, collaborators=collaborators)
+    required = fork_ci_required(role, config)
+    setup_status = CheckStatus.INFO if required is False else CheckStatus.FAIL
+    setup_note = "; only needed for fork CI, which your pull requests do not use" if required is False else ""
+
     remotes = parse_remotes(_out(run(["git", "remote", "-v"])))
     upstream = find_remote(remotes, "upstream")
     apache = find_remote_for_repo(remotes, APACHE_AIRFLOW_GITHUB_REPOSITORY)
@@ -151,8 +167,8 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
                 CheckResult(
                     2,
                     "remotes",
-                    CheckStatus.FAIL,
-                    "`origin` points at apache/airflow; it should be your fork",
+                    setup_status,
+                    f"`origin` points at apache/airflow; it should be your fork{setup_note}",
                     (f"git remote set-url origin https://github.com/{login}/airflow.git",),
                 )
             )
@@ -167,9 +183,19 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
             CheckResult(
                 2,
                 "remotes",
-                CheckStatus.FAIL,
-                f"apache/airflow is the remote `{apache.name}`; Airflow's convention is `upstream`",
+                setup_status,
+                f"apache/airflow is the remote `{apache.name}`; Airflow's convention is `upstream`{setup_note}",
                 tuple(fix),
+            )
+        )
+    elif upstream is not None:
+        results.append(
+            CheckResult(
+                2,
+                "remotes",
+                CheckStatus.FAIL,
+                f"`upstream` points at {redact_url(upstream.url)}, not apache/airflow",
+                (f"git remote set-url upstream {UPSTREAM_URL}",),
             )
         )
     else:
@@ -190,8 +216,8 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
             CheckResult(
                 3,
                 "fork",
-                CheckStatus.FAIL,
-                "no `origin` remote pointing at your fork of apache/airflow",
+                setup_status,
+                f"no `origin` remote pointing at your fork of apache/airflow{setup_note}",
                 (
                     f"gh repo fork {APACHE_AIRFLOW_GITHUB_REPOSITORY} --remote=false",
                     *(
@@ -206,8 +232,27 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
         repo_info = run(
             ["gh", "api", f"repos/{fork}", "--jq", "{owner: .owner.login, parent: .parent.full_name}"]
         )
-        info = json.loads(_out(repo_info)) if _ok(repo_info) else {}
-        if (info.get("parent") or "").casefold() != APACHE_AIRFLOW_GITHUB_REPOSITORY:
+        info = json.loads(_out(repo_info)) if _ok(repo_info) else None
+        if info is None and _is_not_found(repo_info):
+            results.append(
+                CheckResult(
+                    3,
+                    "fork",
+                    setup_status,
+                    f"{fork} does not exist{setup_note}",
+                    (f"gh repo fork {APACHE_AIRFLOW_GITHUB_REPOSITORY} --remote=false",),
+                )
+            )
+        elif info is None:
+            results.append(
+                CheckResult(
+                    3,
+                    "fork",
+                    CheckStatus.INFO,
+                    f"could not check {fork}: {(repo_info.stderr or '').strip() or 'gh api failed'}",
+                )
+            )
+        elif (info.get("parent") or "").casefold() != APACHE_AIRFLOW_GITHUB_REPOSITORY:
             results.append(
                 CheckResult(3, "fork", CheckStatus.FAIL, f"{fork} is not a fork of apache/airflow")
             )
@@ -217,14 +262,21 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
             fork_ok = True
             results.append(CheckResult(3, "fork", CheckStatus.OK, f"{fork} is your fork of apache/airflow"))
 
-    role = get_role(login=login, run=run, config=config, collaborators=collaborators)
     results.append(CheckResult(4, "role", CheckStatus.INFO, f"you are a {role.value}"))
 
     if fork_ok and fork is not None:
-        required = fork_ci_required(role, config)
         workflow = run(["gh", "api", f"repos/{fork}/actions/workflows/{CI_WORKFLOW_FILE}", "--jq", ".state"])
-        state = _out(workflow) if _ok(workflow) else "missing"
-        if required is True and state != "active":
+        state = _out(workflow) if _ok(workflow) else "missing" if _is_not_found(workflow) else None
+        if state is None:
+            results.append(
+                CheckResult(
+                    5,
+                    "fork workflows",
+                    CheckStatus.INFO,
+                    f"could not check `Tests (AMD)` in {fork}: {(workflow.stderr or '').strip() or 'gh api failed'}",
+                )
+            )
+        elif required is True and state != "active":
             enable: tuple[str, ...] = (f"gh workflow enable {CI_WORKFLOW_FILE} -R {fork}",)
             if state == "missing":
                 enable = (f"gh repo sync {fork} --branch main", *enable)
@@ -238,13 +290,14 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
                 )
             )
         elif required is False and state == "active":
+            # Not a failure: a committer trying fork CI with the `use fork ci` label needs it on.
             results.append(
                 CheckResult(
                     5,
                     "fork workflows",
-                    CheckStatus.FAIL,
-                    f"`Tests (AMD)` is enabled in {fork}, but your pull requests run project CI; "
-                    "every push would run CI twice",
+                    CheckStatus.INFO,
+                    f"`Tests (AMD)` is enabled in {fork}, but your pull requests run project CI, so each "
+                    "push runs CI twice; disable it unless you use the `use fork ci` label",
                     (f"gh workflow disable {CI_WORKFLOW_FILE} -R {fork}",),
                 )
             )

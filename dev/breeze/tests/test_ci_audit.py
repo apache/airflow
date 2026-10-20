@@ -35,9 +35,13 @@ REMOTES_OK = (
 )
 
 
-def _machine(**overrides: tuple[int, str] | None) -> dict[str, tuple[int, str] | None]:
+# (return code, stdout) or (return code, stdout, stderr) of a command.
+Output = tuple[int, str] | tuple[int, str, str]
+
+
+def _machine(**overrides: Output | None) -> dict[str, Output | None]:
     """Outputs of every command the audit runs, keyed by a short name."""
-    machine: dict[str, tuple[int, str] | None] = {
+    machine: dict[str, Output | None] = {
         "gh_version": (0, "gh version 2.80.0 (2026-09-01)"),
         "login": (0, "someone"),
         "remotes": (0, REMOTES_OK),
@@ -74,8 +78,8 @@ def _runner(machine):
                 key = "repo"
         if key is None:
             raise AssertionError(f"unexpected command {command}")
-        returncode, stdout = machine[key]
-        return subprocess.CompletedProcess(list(command), returncode, stdout=stdout, stderr="")
+        returncode, stdout, *stderr = machine[key]
+        return subprocess.CompletedProcess(list(command), returncode, stdout=stdout, stderr="".join(stderr))
 
     return run
 
@@ -148,6 +152,12 @@ def test_gh_problems_stop_the_audit(overrides, message):
             ("git remote set-url origin https://github.com/someone/airflow.git",),
             id="origin-also-upstream",
         ),
+        pytest.param(
+            "origin\tgit@github.com:someone/airflow.git (fetch)\n"
+            "upstream\thttps://github.com/someone-else/airflow.git (fetch)\n",
+            ("git remote set-url upstream https://github.com/apache/airflow.git",),
+            id="upstream-points-elsewhere",
+        ),
     ],
 )
 def test_remote_fixes(remotes, fix):
@@ -197,7 +207,7 @@ def test_fork_problems(repo, message):
             GateConfig(enabled=True),
             (1, ""),
             frozenset(),
-            (1, ""),
+            (1, "", "gh: Not Found (HTTP 404)"),
             Role.EXTERNAL,
             CheckStatus.FAIL,
             (
@@ -232,9 +242,19 @@ def test_fork_problems(repo, message):
             frozenset(),
             (0, "active"),
             Role.COMMITTER,
-            CheckStatus.FAIL,
+            CheckStatus.INFO,
             ("gh workflow disable ci-amd.yml -R someone/airflow",),
-            id="committer-enabled",
+            id="committer-enabled-is-not-a-failure",
+        ),
+        pytest.param(
+            GateConfig(enabled=True),
+            (1, ""),
+            frozenset(),
+            (1, "", "HTTP 502: Bad Gateway"),
+            Role.EXTERNAL,
+            CheckStatus.INFO,
+            (),
+            id="workflow-call-failed",
         ),
         pytest.param(
             GateConfig(enabled=True, pilot={"someone": datetime(2026, 10, 20, tzinfo=UTC)}),
@@ -332,3 +352,49 @@ def test_run_tool_reports_a_missing_executable():
 
     assert result.returncode == 127
     assert "breeze-audit-no-such-executable" in result.stderr
+
+
+def test_missing_fork_fails():
+    results = _audit(_machine(repo=(1, "", "gh: Not Found (HTTP 404)")))
+
+    assert results[3].status == CheckStatus.FAIL
+    assert results[3].finding == "someone/airflow does not exist"
+    assert 5 not in results
+
+
+def test_failed_fork_lookup_is_not_reported_as_a_wrong_fork():
+    results = _audit(_machine(repo=(1, "", "HTTP 502: Bad Gateway")))
+
+    assert results[3].status == CheckStatus.INFO
+    assert results[3].finding.startswith("could not check someone/airflow")
+    assert 5 not in results
+
+
+@pytest.mark.parametrize(
+    ("membership", "status"),
+    [
+        pytest.param((0, "active"), CheckStatus.INFO, id="committer"),
+        pytest.param((1, ""), CheckStatus.FAIL, id="external"),
+    ],
+)
+def test_fork_setup_matters_only_for_fork_ci(membership, status):
+    results = _audit(
+        _machine(
+            membership=membership, remotes=(0, "origin\thttps://github.com/apache/airflow.git (fetch)\n")
+        )
+    )
+
+    assert results[2].status == status
+    assert results[3].status == status
+
+
+def test_wrong_upstream_finding_does_not_print_credentials():
+    remotes = (
+        "origin\tgit@github.com:someone/airflow.git (fetch)\n"
+        "upstream\thttps://someone:ghp_secret@github.com/someone-else/airflow.git (fetch)\n"
+    )
+
+    results = _audit(_machine(remotes=(0, remotes)))
+
+    assert "ghp_secret" not in results[2].finding
+    assert "https://github.com/someone-else/airflow.git" in results[2].finding

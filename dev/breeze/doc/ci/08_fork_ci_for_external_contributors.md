@@ -765,20 +765,32 @@ prints one row: status, finding, and the command that fixes it.
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
 | 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds it |
 | 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (`GET /user/memberships/orgs/apache` active), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external | informational |
-| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: state is not `active` | `gh workflow enable ci-amd.yml -R <fork>` or `gh workflow disable ...` |
+| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: informational, with a hint when it is `active` | `gh workflow enable ci-amd.yml -R <fork>`, or `gh workflow disable ...` shown but not run by `--fix` |
 | 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than the configured threshold | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
 
-Committers and collaborators are told to keep fork workflows disabled because their pull
-requests run on project CI; an enabled fork would run every push twice and attach a second,
-confusing status. Forks of a public repository cannot be made private on GitHub, so that is
-the only recommendation available.
+The role is determined before checks 2 and 3, though printed as check 4. For a committer,
+collaborator or exempted contributor, whose pull requests run project CI, checks 2 and 3 are
+informational: working from an `apache/airflow` clone without a fork is fine for them, and
+`--fix` only runs the fixes of failed checks. The same goes for check 5: an enabled fork
+workflow runs every push twice and attaches a second status, so they are told they can disable
+it, but it is not a failure, because a committer trying fork CI with the `use fork ci` label
+needs it enabled. Forks of a public repository cannot be made private on GitHub, so disabling
+the workflow is the only recommendation available.
+
+A failed API call is reported as "could not check" rather than as a finding: a failed fork
+lookup is not "not a fork of apache/airflow", and a failed workflow lookup is not "missing".
+A 404 is a finding: the fork does not exist, or the workflow is missing. An `upstream` remote
+that points somewhere else gets `git remote set-url upstream`, since `git remote add` would
+fail on the existing name.
 
 The remote-parsing block currently inside `breeze ci upgrade` is factored into
 `utils/git_remotes.py` and reused, so both commands agree on what a correct setup is. A remote
 is recognised as a GitHub repository in every form git accepts (`http` or `https` with optional
 credentials, `www.` or a port, scp-like ssh, `ssh://` with an optional port, any case of the
-host), and only when the repository is the whole path, so `apache/airflow-site` is never taken
+host, and an ssh host alias from `~/.ssh/config` such as `git@github-personal:apache/airflow.git`,
+counted when the alias names `github` and has no dot, since a dotted host such as a GitHub
+Enterprise server is a different GitHub), and only when the repository is the whole path, so `apache/airflow-site` is never taken
 for `apache/airflow`. A command the audit runs that is not installed, `gh` included, is reported
 as a failed check rather than a crash.
 
