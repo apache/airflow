@@ -25,7 +25,7 @@ import os
 from http import HTTPStatus
 from importlib import reload
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
 
@@ -62,6 +62,7 @@ from airflow.utils.log.file_task_handler import (
     _log_stream_to_parsed_log_stream,
     _stream_lines_by_chunk,
 )
+from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -77,6 +78,9 @@ from tests_common.test_utils.file_task_handler import (
 )
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 pytestmark = [pytest.mark.db_test]
 
 DEFAULT_DATE = pendulum.datetime(2016, 1, 1)
@@ -91,6 +95,18 @@ def cleanup_tables():
     yield
     clear_db_runs()
     clear_db_connections()
+
+
+def _tracking_stream(lines: list[str]) -> tuple[Generator[str, None, None], list[str]]:
+    """Return a stream of ``lines`` and the list of lines pulled from it so far."""
+    pulled: list[str] = []
+
+    def gen() -> Generator[str, None, None]:
+        for line in lines:
+            pulled.append(line)
+            yield line
+
+    return gen(), pulled
 
 
 class TestFileTaskLogHandler:
@@ -504,18 +520,29 @@ class TestFileTaskLogHandler:
         assert extract_events(log_handler_output_stream) == ["line 3"]
         assert metadata == {"end_of_log": True}
 
-    @pytest.mark.parametrize("ti_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED])
-    @patch("airflow.utils.log.file_task_handler.LogStreamAccumulator")
-    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
-    def test__read_end_of_log_skips_accumulator(
-        self, mock_read_local, mock_accumulator, ti_state, create_task_instance
+    @pytest.mark.parametrize(
+        ("ti_state", "ti_try_number", "expected_metadata"),
+        [
+            pytest.param(
+                TaskInstanceState.RUNNING,
+                1,
+                {"end_of_log": False, "log_pos": 3},
+                id="running-current-try",
+            ),
+            pytest.param(
+                TaskInstanceState.DEFERRED,
+                1,
+                {"end_of_log": False, "log_pos": 3},
+                id="deferred-current-try",
+            ),
+            pytest.param(TaskInstanceState.RUNNING, 2, {"end_of_log": True}, id="running-older-try"),
+            pytest.param(TaskInstanceState.SUCCESS, 1, {"end_of_log": True}, id="success"),
+            pytest.param(TaskInstanceState.FAILED, 1, {"end_of_log": True}, id="failed"),
+        ],
+    )
+    def test__read_accumulates_only_unfinished_reads(
+        self, ti_state, ti_try_number, expected_metadata, create_task_instance
     ):
-        """A terminal-state read issues no continuation token, so the stream must pass
-        through without the accumulator's eager full drain to memory/disk."""
-        mock_read_local.return_value = (
-            ["the messages"],
-            [convert_list_to_stream(["line 1", "line 2", "line 3"])],
-        )
         ti = create_task_instance(
             dag_id="dag_for_testing_local_log_read",
             task_id="task_for_testing_local_log_read",
@@ -523,16 +550,43 @@ class TestFileTaskLogHandler:
             logical_date=DEFAULT_DATE,
             state=ti_state,
         )
+        ti.try_number = ti_try_number
+        source, pulled = _tracking_stream(["line 1", "line 2", "line 3"])
         fth = FileTaskHandler("")
 
-        log_handler_output_stream, metadata = fth._read(ti=ti, try_number=1)
+        with (
+            patch.object(fth, "_read_from_local", return_value=(["the messages"], [source])),
+            patch.object(fth, "_read_from_logs_server", return_value=([], [])),
+            patch.object(fth, "_get_executor") as get_executor,
+            patch(
+                "airflow.utils.log.file_task_handler.LogStreamAccumulator", wraps=LogStreamAccumulator
+            ) as accumulator,
+        ):
+            get_executor.return_value.get_streaming_task_log.return_value = ([], [])
+            log_handler_output_stream, metadata = fth._read(ti=ti, try_number=1)
 
-        assert extract_events(log_handler_output_stream) == ["line 1", "line 2", "line 3"]
-        assert metadata == {"end_of_log": True}
-        mock_accumulator.assert_not_called()
+            accumulated = not expected_metadata["end_of_log"]
+            # An unfinished read drains the source up front to count lines; a finished read stays lazy.
+            assert len(pulled) == (3 if accumulated else 0)
+            assert accumulator.called is accumulated
+            assert extract_events(log_handler_output_stream) == ["line 1", "line 2", "line 3"]
+        assert metadata == expected_metadata
 
+    @pytest.mark.parametrize(
+        ("ti_state", "expected_metadata"),
+        [
+            pytest.param(TaskInstanceState.SUCCESS, {"end_of_log": True}, id="finished"),
+            pytest.param(
+                TaskInstanceState.RUNNING,
+                {"end_of_log": False, "log_pos": 3},
+                id="running-follow-up-poll",
+            ),
+        ],
+    )
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
-    def test_read_respects_log_pos_metadata(self, mock_read_local, create_task_instance):
+    def test_read_respects_log_pos_metadata(
+        self, mock_read_local, ti_state, expected_metadata, create_task_instance
+    ):
         """The public `read()` wrapper must accept the `islice` stream `_read()` returns for log_pos reads."""
         mock_read_local.return_value = (
             ["the messages"],
@@ -543,18 +597,26 @@ class TestFileTaskLogHandler:
             task_id="task_for_testing_local_log_read",
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
+            state=ti_state,
         )
+        local_log_file_read.try_number = 1
         fth = FileTaskHandler("")
 
-        log_handler_output_stream, metadata = fth.read(
-            local_log_file_read,
-            try_number=1,
-            metadata={"log_pos": 2},
-        )
+        with (
+            patch.object(fth, "_read_from_logs_server", return_value=([], [])),
+            patch.object(fth, "_get_executor") as get_executor,
+        ):
+            get_executor.return_value.get_streaming_task_log.return_value = ([], [])
+            log_handler_output_stream, metadata = fth.read(
+                local_log_file_read,
+                try_number=1,
+                metadata={"log_pos": 2},
+            )
 
         # Should resume from the third line only.
         assert extract_events(log_handler_output_stream) == ["line 3"]
-        assert metadata == {"end_of_log": True}
+        # log_pos counts every record read so far, not only the ones returned in this call.
+        assert metadata == expected_metadata
 
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
