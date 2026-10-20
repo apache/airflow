@@ -21,6 +21,7 @@ import os
 import signal
 import tempfile
 import threading
+import time
 from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -152,6 +153,8 @@ class TestGetEksKubeClient:
         def watch():
             while building.is_set():
                 seen.add(os.environ.get("AWS_STS_REGIONAL_ENDPOINTS"))
+                # A bare spin loop holds the GIL against the builders and can push the test past its timeout.
+                time.sleep(0.001)
 
         building.set()
         watcher = threading.Thread(target=watch)
