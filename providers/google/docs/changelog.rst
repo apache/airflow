@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+22.8.0
+......
+
+.. note::
+
+    On Airflow 3.3 and later, killing a deferred Dataflow template, flex-template or YAML task
+    now cancels its job by default. Set ``cancel_on_kill=False`` to leave it running, or use
+    ``drain_pipeline=True`` to drain a streaming job.
+
+    ``BigQueryToGCSOperator`` now also cancels synchronous extract jobs when its task is killed.
+    Set ``cancel_on_kill=False`` to leave the job running. A cancelled job cannot be reattached
+    with ``force_rerun=False``; use ``force_rerun=True`` when retries should submit a new job.
+
+Features
+~~~~~~~~
+
+* ``Add retry-safe batch_id_prefix to DataprocCreateBatchOperator (#69855)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Preserve HTTPError for Dataprep responses with non-JSON error bodies (#71702)``
+* ``Honor execution_timeout in deferrable GKEStartPodOperator tasks (#71528)``
+* ``Guard BigQuery job cancellation before hook initialization (#74946)``
+* ``Handle remote-log reads without a task instance (#73580)``
+* ``Warn when ignore_unknown_values cannot drop fields during BigQuery schema autodetection (#71675)``
+* ``Use the default Google console domain for an empty environment value (#70067)``
+* ``Allow GKE Autopilot clusters without node pools and preserve pod finish actions after deferral (#69876)``
+* ``Avoid Vertex AI Feature Store imports during Dag parsing (#69823)``
+* ``Cancel Dataflow jobs when deferred tasks are killed (#69586)``
+* ``Cancel BigQuery extract jobs when BigQueryToGCSOperator tasks are killed (#74564)``
+
+Misc
+~~~~
+
+* ``Update Google client dependency minimum versions (#73822)``
+* ``Use the shared ResumableJobMixin compatibility fallback (#74673)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix the Cloud Function invocation operator documentation link (#69226)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Cover long-running jobs in the deferrable BigQuery check system test (#74356)``
+
 22.7.0
 ......
 

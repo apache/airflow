@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-vespa``
 
-Release: ``0.1.2``
+Release: ``0.2.0``
 
 
 `Vespa <https://vespa.ai/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``vespa`` provider. All classes for this provider
 are in ``airflow.providers.vespa`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-vespa/0.1.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-vespa/0.2.0/>`_.
 
 Installation
 ------------
@@ -60,4 +60,4 @@ PIP package                                 Version required
 ==========================================  =====================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-vespa/0.1.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-vespa/0.2.0/changelog.html>`_.

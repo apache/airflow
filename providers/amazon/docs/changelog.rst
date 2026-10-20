@@ -26,6 +26,43 @@
 Changelog
 ---------
 
+9.39.0
+......
+
+.. note::
+
+    Glue retries without a stored run ID search at most 2,000 recent runs for the task UUID.
+    An older matching run is no longer found and a new run may be submitted. Unexpected
+    non-AWS lookup errors now fail the task instead of being ignored.
+
+Features
+~~~~~~~~
+
+* ``Add 'AwsEksExecutor' to run tasks on Amazon EKS with automatically refreshed credentials (#74399)``
+* ``Add 'EmrServerlessStopSessionOperator' with synchronous and deferrable waiting (#74870)``
+* ``Add 'EksHook.generate_config_file_with_credentials' for shared kubeconfig and credential setup (#74775)``
+* ``Add 'AthenaSparkSensor' to monitor existing Athena Spark calculations (#72229)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent Dag processor crashes with CloudWatch logging when logs are outside 'base_log_folder' (#74929)``
+* ``Bound Glue retry task UUID lookups to 10 pages of 200 runs and surface unexpected lookup errors (#71546)``
+* ``Report missing Parquet engines before 'SqlToS3Operator' queries and name the required extra (#74817)``
+* ``Fix CSV, JSON and Parquet uploads in 'SqlToS3Operator' with 'df_type="polars"' (#74692)``
+* ``Declare a 'parquet' extra with pyarrow for 'SqlToS3Operator' (#74691)``
+* ``Fix the DMS 'replication_task_modified' waiter failing on running and stopping states (#74522)``
+
+Misc
+~~~~
+
+* ``Raise boto3 and botocore dependency floors to 1.42.93 (#73822)``
+* ``Use the shared 'ResumableJobMixin' compatibility fallback in Glue and Redshift Data operators (#74673)``
+* ``Allow optional task instances in S3 and CloudWatch remote log reader type annotations (#73580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.38.0
 ......
 

@@ -25,10 +25,21 @@
 Changelog
 ---------
 
+0.2.0
+.....
+
 .. note::
   The provider now supports Python 3.14. On 3.14 it requires ``pyvespa>=1.2.9``, the first release to
   allow Python 3.14: every earlier release caps itself at ``<3.14``, which was why the provider was
   excluded from it. Python 3.11-3.13 keep ``pyvespa>=1.1.2``, so nothing is forced to upgrade there.
+
+Features
+~~~~~~~~
+
+* ``Support Python 3.14 with pyvespa 1.2.9 (#74559, #75062)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 0.1.2
 .....

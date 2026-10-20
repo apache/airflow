@@ -20,6 +20,22 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add async aget_conn and acreate_embeddings to OpenAIHook (#74149)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Require common.compat 1.21.0 for asynchronous OpenAI hook helpers (#74933)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.1.0
 .....
 

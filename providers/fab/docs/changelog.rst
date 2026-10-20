@@ -20,6 +20,36 @@
 Changelog
 ---------
 
+3.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Check all names before airflow roles import writes anything (#74711)``
+* ``Keep the /auth mount path when ProxyFix applies X-Forwarded-Prefix (#74603)``
+* ``Sync Dag permissions for CustomAuthManager (#74022)``
+
+Misc
+~~~~
+
+* ``Support SQLAlchemy 2.1 typing in permission sorting (#75075)``
+* ``Bump prettier to 3.9.10 (#74765)``
+* ``Bump @babel/core, @babel/eslint-parser and @babel/preset-env to 8.0.7 (#74670)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix missing and incorrect endpoints in the API permission reference (#74871)``
+* ``Scope asset-wide queued event deletion to editable Dags (#74839)``
+* ``Update remaining FAB Website permissions rows for Airflow 3 (#74653)``
+* ``Update FAB Website permissions rows for Airflow 3 views (#74630)``
+* ``Fix FAB Website permissions rows for the Grid and Graph views (#74599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Require Python 3.11+ for permission doc generators and fail on parse errors (#74654)``
+
 3.10.1
 ......
 

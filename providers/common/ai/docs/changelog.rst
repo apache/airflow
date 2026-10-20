@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Expose LLMOperator token usage, cost, and run identity through XCom (#74355)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Preserve SQL table allowlist validation with newer sqlglot and update model-vendor metadata (#73822)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.0.0
 .....
 

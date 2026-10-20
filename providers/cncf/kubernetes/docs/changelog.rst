@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+10.24.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'KubernetesExecutor' leaving invalid-config tasks stuck in queued (#74512)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop loading the task runner on every Airflow process startup (#74496)``
+
 10.24.0
 .......
 

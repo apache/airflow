@@ -18,6 +18,17 @@
 ``apache-airflow-providers-apache-tinkerpop``
 
 
+1.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Exclude unsupported Python 3.14 from Apache TinkerPop (#74559)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.2.1
 .....
 

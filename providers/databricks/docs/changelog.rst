@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+7.22.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent shared mutable state between Databricks OpenLineage query events (#73655)``
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.22.0
 ......
 

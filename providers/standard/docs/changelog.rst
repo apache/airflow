@@ -35,6 +35,28 @@
 Changelog
 ---------
 
+1.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support templated target_time with start_from_trigger in DateTimeSensorAsync (#73928)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Close SubprocessHook stdout pipe after command completes (#74780)``
+
+Misc
+~~~~
+
+* ``Support SQLAlchemy 2.1 typing in external task sensor queries (#75075)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pass runtime values to example Dag shell commands through env (#73787)``
+
 1.20.1
 ......
 

@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+6.20.0
+......
+
+.. note::
+
+    The Cortex Agent hook and operator modules are now ``hooks.cortex_agent`` and
+    ``operators.cortex_agent``, and the SQL API hook module is ``hooks.sql_api`` under
+    ``airflow.providers.snowflake``. Previously released imports continue to work with
+    deprecation warnings. SQLAlchemy must be below 2.1 for compatibility with snowflake-sqlalchemy.
+
+Features
+~~~~~~~~
+
+* ``Add password grant type to Snowflake OAuth token requests (#74804)``
+* ``Add Snowflake Cortex Agent management operators (#70930)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent Snowflake SQLAlchemy import failures by requiring SQLAlchemy below 2.1 (#73822)``
+* ``Prevent shared mutable state between Snowflake OpenLineage query events (#73655)``
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+* ``Remove redundant Snowflake prefixes from Cortex Agent and SQL API modules (#74300)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.19.0
 ......
 
