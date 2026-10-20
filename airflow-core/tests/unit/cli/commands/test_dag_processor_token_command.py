@@ -27,6 +27,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_token_command
+from airflow.cli.commands.dag_processor_token_kubernetes import KubernetesSecretTokenError
 from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
 
 from tests_common.test_utils.config import conf_vars
@@ -165,6 +166,176 @@ class TestDagProcessorTokenCommand:
         with pytest.raises(OSError, match="disk full"):
             self._run("--token-file", str(tmp_path / "token"), "--rotate")
 
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("args", "error"),
+        [
+            ([], "Choose exactly one"),
+            (["--token-file", "token", "--kubernetes-secret", "processor"], "Choose exactly one"),
+            (["--kubernetes-secret", "processor"], "must be supplied together"),
+            (["--token-file", "token", "--kubernetes-namespace", "processors"], "must be supplied together"),
+        ],
+    )
+    @mock.patch.object(dag_processor_token_command, "KubernetesSecretTokenStore", autospec=True)
+    def test_rejects_invalid_output_options(self, store, args, error):
+        with pytest.raises(SystemExit, match=error):
+            self._run(*args)
+        store.assert_not_called()
+
+
+class TestKubernetesTokenCommand:
+    @pytest.fixture
+    def secret_store(self):
+        with mock.patch.object(
+            dag_processor_token_command, "KubernetesSecretTokenStore", autospec=True
+        ) as factory:
+            store = factory.return_value
+            store.__enter__.return_value = store
+            published = []
+            store.read_token.side_effect = lambda: published[-1] if published else None
+            store.write_token.side_effect = published.append
+            yield store, published
+
+        factory.assert_called_with("processor-session", "processors")
+        store.__exit__.assert_called()
+
+    def _run(self, *args: str) -> None:
+        dag_processor_token_command.dag_processor_token(
+            cli_parser.get_parser().parse_args(
+                [
+                    "dag-processor-token",
+                    "--kubernetes-secret",
+                    "processor-session",
+                    "--kubernetes-namespace",
+                    "processors",
+                    *args,
+                ]
+            )
+        )
+
+    def test_bootstraps_without_a_local_token_file(self, secret_store):
+        store, published = secret_store
+
+        self._run("-B", "bundle_a")
+
+        claims = _decode(published[0])
+        assert claims["scope"] == "dag_processor_session"
+        assert claims["dag_bundles"] == ["bundle_a"]
+        assert claims["exp"] - claims["iat"] == 600
+        store.read_token.assert_called_once_with()
+
+    @pytest.mark.parametrize("bundle", ["bundle_a", "bundle_b"])
+    @pytest.mark.parametrize("elapsed", [0, 601], ids=["unexpired", "expired"])
+    def test_restart_recovers_the_session_unless_grants_change(
+        self, secret_store, bundle, elapsed, time_machine
+    ):
+        _, published = secret_store
+        time_machine.move_to("2026-10-20T12:00:00Z", tick=False)
+        self._run("-B", "bundle_a")
+        time_machine.shift(elapsed)
+
+        self._run("-B", bundle)
+
+        first, second = map(_decode, published)
+        assert (first["sub"] == second["sub"]) == (bundle == "bundle_a")
+        assert first["jti"] != second["jti"]
+        assert second["dag_bundles"] == [bundle]
+        assert second["exp"] - first["exp"] == elapsed
+
+    @mock.patch.object(
+        dag_processor_token_command.time, "sleep", autospec=True, side_effect=[None, _StopRotation]
+    )
+    def test_rotation_reloads_the_secret_and_preserves_the_session(self, mock_sleep, secret_store):
+        store, published = secret_store
+        with pytest.raises(_StopRotation):
+            self._run("--valid-for", "120", "--rotate")
+
+        first, second = map(_decode, published)
+        assert first["sub"] == second["sub"]
+        assert first["jti"] != second["jti"]
+        assert store.read_token.call_count == 2
+        assert mock_sleep.call_args_list == [mock.call(60), mock.call(60)]
+
+    @mock.patch.object(
+        dag_processor_token_command.time, "sleep", autospec=True, side_effect=[None, _StopRotation]
+    )
+    def test_first_patch_conflict_recovers_the_winning_session(self, mock_sleep, secret_store):
+        store, published = secret_store
+        self._run()
+        winner = published[0]
+        store.read_token.side_effect = [None, winner]
+        store.write_token.reset_mock()
+        store.write_token.side_effect = [KubernetesSecretTokenError("Conflict"), None]
+
+        with pytest.raises(_StopRotation):
+            self._run("--valid-for", "120", "--rotate")
+
+        rejected, retried = (_decode(call.args[0]) for call in store.write_token.call_args_list)
+        assert rejected["sub"] != _decode(winner)["sub"]
+        assert retried["sub"] == _decode(winner)["sub"]
+        assert mock_sleep.call_args_list == [mock.call(2), mock.call(60)]
+
+    @mock.patch.object(
+        dag_processor_token_command.time, "sleep", autospec=True, side_effect=[None, _StopRotation]
+    )
+    def test_lost_first_patch_response_recovers_the_published_session(self, mock_sleep, secret_store):
+        store, published = secret_store
+
+        def publish(token):
+            published.append(token)
+            if len(published) == 1:
+                raise KubernetesSecretTokenError("Response timed out")
+
+        store.write_token.side_effect = publish
+        with pytest.raises(_StopRotation):
+            self._run("--valid-for", "120", "--rotate")
+
+        first, second = map(_decode, published)
+        assert first["sub"] == second["sub"]
+        assert first["jti"] != second["jti"]
+        assert mock_sleep.call_args_list == [mock.call(2), mock.call(60)]
+
+    @mock.patch.object(
+        dag_processor_token_command.time, "sleep", autospec=True, side_effect=[None, _StopRotation]
+    )
+    def test_first_read_failure_is_retried_without_publishing(self, mock_sleep, secret_store):
+        store, published = secret_store
+        store.read_token.side_effect = [KubernetesSecretTokenError("API unavailable"), None]
+
+        with pytest.raises(_StopRotation):
+            self._run("--valid-for", "120", "--rotate")
+
+        assert len(published) == 1
+        assert mock_sleep.call_args_list == [mock.call(2), mock.call(60)]
+
+    @mock.patch.object(dag_processor_token_command.time, "sleep", autospec=True)
+    @pytest.mark.parametrize("operation", ["read_token", "write_token"])
+    def test_one_shot_failure_is_reported(self, mock_sleep, secret_store, operation):
+        store, published = secret_store
+        getattr(store, operation).side_effect = KubernetesSecretTokenError("Forbidden")
+
+        with pytest.raises(KubernetesSecretTokenError, match="Forbidden"):
+            self._run()
+
+        assert not published
+        mock_sleep.assert_not_called()
+
+    @mock.patch.object(dag_processor_token_command.time, "sleep", autospec=True)
+    @mock.patch.object(
+        dag_processor_token_command,
+        "create_jwt_generator",
+        autospec=True,
+        side_effect=ValueError("Invalid signing configuration"),
+    )
+    def test_first_signing_failure_exits_without_publishing(self, _, mock_sleep, secret_store):
+        store, published = secret_store
+
+        with pytest.raises(ValueError, match="Invalid signing configuration"):
+            self._run("--rotate")
+
+        assert not published
+        store.write_token.assert_not_called()
         mock_sleep.assert_not_called()
 
 
