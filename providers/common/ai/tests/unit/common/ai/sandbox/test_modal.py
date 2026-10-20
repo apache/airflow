@@ -144,7 +144,10 @@ class TestVendorContract:
     def test_the_calls_behind_the_tools_still_exist(self, real_modal):
         import inspect
 
-        from modal.sandbox import _SandboxFilesystem
+        try:
+            from modal.sandbox._filesystem import _SandboxFilesystem
+        except ImportError:  # modal < 1.6 keeps it in a flat module
+            from modal.sandbox import _SandboxFilesystem
 
         assert list(inspect.signature(_SandboxFilesystem.write_bytes).parameters)[1:3] == [
             "data",
