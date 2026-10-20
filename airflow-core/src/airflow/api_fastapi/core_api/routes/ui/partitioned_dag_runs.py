@@ -22,6 +22,7 @@ import structlog
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, select
 
+from airflow.api_fastapi.common.asset_expression import redact_asset_expression
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryLimit,
@@ -42,6 +43,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.partitioned_dag_runs import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
     requires_access_asset,
     requires_access_dag,
@@ -251,6 +253,7 @@ def get_partitioned_dag_runs(
     limit: QueryLimit,
     offset: QueryOffset,
     readable_dags_filter: ReadableDagsFilterDep,
+    readable_assets_filter: ReadableAssetsFilterDep,
     dag_id: QueryPartitionedDagRunDagIdFilter,
     has_created_dag_run_id: QueryPartitionedDagRunHasCreatedDagRunIdFilter,
 ) -> PartitionedDagRunCollectionResponse:
@@ -351,7 +354,11 @@ def get_partitioned_dag_runs(
 
     asset_expressions: dict[str, dict | None] | None = None
     if dag_id.value is None:
-        asset_expressions = {dm.dag_id: dm.asset_expression for dm in dag_models.values()}
+        readable_asset_ids = readable_assets_filter.value or set()
+        asset_expressions = {
+            dm.dag_id: redact_asset_expression(dm.asset_expression, readable_asset_ids=readable_asset_ids)
+            for dm in dag_models.values()
+        }
 
     model_data: dict[str, Any] = {
         "partitioned_dag_runs": results,
@@ -370,6 +377,7 @@ def get_pending_partitioned_dag_run(
     dag_id: str,
     partition_key: str,
     session: SessionDep,
+    readable_assets_filter: ReadableAssetsFilterDep,
     partitioned_dag_run_id: int | None = None,
 ) -> PartitionedDagRunDetailResponse:
     """Return full details for pending PartitionedDagRun."""
@@ -496,7 +504,13 @@ def get_pending_partitioned_dag_run(
 
     total_received = sum(a.received_count for a in assets)
     total_required = sum(a.required_count for a in assets)
-    asset_expression = dag_model.asset_expression if dag_model is not None else None
+    asset_expression = (
+        redact_asset_expression(
+            dag_model.asset_expression, readable_asset_ids=readable_assets_filter.value or set()
+        )
+        if dag_model is not None
+        else None
+    )
 
     model_data: dict[str, Any] = {
         "id": partitioned_dag_run.id,
