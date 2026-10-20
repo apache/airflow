@@ -190,10 +190,11 @@ High Obtainability (HO) mode clusters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 High Obtainability (HO) mode enables creating Dataproc clusters using abstract hardware requirements
-(:class:`~airflow.providers.google.cloud.operators.dataproc.FlexibleInstanceGroupConfig`: number of
-instances, core count, and hardware class) instead of concrete machine types. The Dataproc backend resolves
-these requirements into a ranked list of widely available machine families to minimize stockouts and improve
-cluster creation reliability.
+(number of instances, core count, and hardware class) instead of concrete machine types. The Dataproc backend
+resolves these requirements into a ranked list of widely available machine families to minimize stockouts and
+improve cluster creation reliability. For more information, refer to the
+`Dataproc High Obtainability documentation <https://cloud.google.com/dataproc/docs/concepts/compute/high-obtainability>`_
+and the `FlexibleInstanceGroupConfig API reference <https://cloud.google.com/dataproc/docs/reference/rest/v1/ClusterConfig#FlexibleInstanceGroupConfig>`_.
 
 High Obtainability clusters have the following characteristics:
 
@@ -205,8 +206,7 @@ High Obtainability clusters have the following characteristics:
   ``worker_config``, ``secondary_worker_config``) cannot be mixed with flexible configs.
 * **Secondary workers**: In HO mode, secondary workers are configured via ``secondary_worker_flexible_config``.
 * **Allowed core counts**: Supported core counts per instance are 2, 4, 8, 16, and 32.
-* **Hardware classes**: Supported hardware classes are ``STANDARD`` and ``PERFORMANCE``
-  (:class:`~airflow.providers.google.cloud.operators.dataproc.HardwareClass`).
+* **Hardware classes**: Supported hardware classes are ``STANDARD`` and ``PERFORMANCE``.
 
 A High Obtainability cluster configuration can be defined directly as a dictionary:
 
@@ -300,28 +300,15 @@ You can use deferrable mode for this action in order to run the operator asynchr
 Scaling High Obtainability (HO) clusters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For clusters created in High Obtainability mode, scale through the authoritative flexible update paths:
-``config.worker_flexible_config.num_instances`` and ``config.secondary_worker_flexible_config.num_instances``.
-Only the number of instances is mutable; core count, hardware class, and boot disk size are create-time only,
-and the master node group cannot be resized.
-
-The helper function :func:`~airflow.providers.google.cloud.operators.dataproc.flexible_scale_cluster_update`
-builds the appropriate ``cluster`` and ``update_mask`` dictionaries:
+For clusters created in High Obtainability mode, scale through the flexible update paths:
+``config.worker_flexible_config.num_instances`` and ``config.secondary_worker_flexible_config.num_instances``
+using :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocUpdateClusterOperator`:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_high_obtainability.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_dataproc_scale_ho_cluster_flexible_path]
-    :end-before: [END how_to_cloud_dataproc_scale_ho_cluster_flexible_path]
-
-For backwards compatibility, the Dataproc API also accepts the legacy ``config.worker_config.num_instances``
-and ``config.secondary_worker_config.num_instances`` paths for HO clusters:
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_high_obtainability.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_dataproc_scale_ho_cluster_legacy_path]
-    :end-before: [END how_to_cloud_dataproc_scale_ho_cluster_legacy_path]
+    :start-after: [START how_to_cloud_dataproc_scale_ho_cluster]
+    :end-before: [END how_to_cloud_dataproc_scale_ho_cluster]
 
 Starting a cluster
 ---------------------------
