@@ -480,7 +480,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
 
         attempt_usage = RunUsage()
         try:
-            result = self._run_with_usage_budget(
+            result = self._run_agent_within_budget(
                 context, agent, user_prompt, usage_limits=usage_limits, run_usage=attempt_usage, **run_kwargs
             )
         except BaseException:
@@ -509,7 +509,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
             self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_name)
         return result
 
-    def _run_with_usage_budget(
+    def _run_agent_within_budget(
         self,
         context: Context,
         agent: Agent[Any, Any],
