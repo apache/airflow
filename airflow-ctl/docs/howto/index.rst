@@ -43,7 +43,7 @@ Let's take example of triggering a Dag run with a logical date, run after and a 
 
 .. code-block:: bash
 
-  airflowctl dagrun trigger --dag-id="example_bash_operator" --logical-date="2025-09-06T00:00:00+00:00" --run-after="2025-09-06T00:00:00+00:00" --note="Triggered from airflowctl"
+  airflowctl dags trigger example_bash_operator --logical-date="2025-09-06T00:00:00+00:00" --run-after="2025-09-06T00:00:00+00:00" --note="Triggered from airflowctl"
 
 
 Login
