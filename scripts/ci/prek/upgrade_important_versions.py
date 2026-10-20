@@ -942,7 +942,7 @@ def fetch_all_package_versions() -> dict[str, str]:
         "protoc": get_latest_image_version("rvolosatovs/protoc") if UPGRADE_PROTOC else "",
         "alpine": get_latest_image_version("alpine") if UPGRADE_ALPINE else "",
         "busybox": get_latest_image_version("busybox") if UPGRADE_BUSYBOX else "",
-        "mprocs": get_latest_github_release_version("pvolok/mprocs") if UPGRADE_MPROCS else "",
+        "mprocs": get_latest_github_release_version("pvolok/dekit") if UPGRADE_MPROCS else "",
         "openapi_generator": get_latest_openapi_generator_version() if UPGRADE_OPENAPI_GENERATOR else "",
         "sphinx_airflow_theme": get_latest_sphinx_airflow_theme_version()
         if UPGRADE_SPHINX_AIRFLOW_THEME
