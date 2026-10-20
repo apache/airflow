@@ -28,7 +28,9 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import Any, ClassVar, cast
 from unittest.mock import ANY, MagicMock, call, patch
 
 import attrs
@@ -36,12 +38,14 @@ import httpx2
 import msgspec
 import psutil
 import pytest
+import structlog
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.sdk.api.client import Client, TaskInstanceOperations
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance, TIRunContext
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.coordinators._subprocess import (
     SubprocessCoordinator,
@@ -55,10 +59,24 @@ from airflow.sdk.coordinators._subprocess import (
     _start_server,
     log,
 )
-from airflow.sdk.execution_time.comms import SetTaskStateStore
+from airflow.sdk.coordinators._xcom_backend import (
+    XComBackendCall,
+    XComBackendProcess,
+    XComBackendResult,
+    _HookRunner,
+)
+from airflow.sdk.execution_time.comms import (
+    DeleteXCom,
+    GetXCom,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
+    SetTaskStateStore,
+    SetXCom,
+)
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
-from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+from airflow.sdk.execution_time.supervisor import ActivitySubprocess, ProcessTracker
 from airflow.sdk.importers import DagSourceCode, reset_importer_registry
+from airflow.sdk.serde import serialize
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -1190,6 +1208,408 @@ class TestPopenActivitySubprocessExecutionTimeout:
         mock_monotonic.return_value += 35
         proc._handle_execution_timeout_if_needed()
         assert mock_kill.called is killed
+
+
+class _RefXCom(BaseXCom):
+    """Keeps values in ``stored``, and a reference to each in the XCom row."""
+
+    stored: ClassVar[dict[str, Any]] = {}
+    purged: ClassVar[list[Any]] = []
+
+    @classmethod
+    def store_value(cls, coordinate, key, value):
+        ref = f"ref://{coordinate.task_id}/{coordinate.ti_id}/{key}"
+        cls.stored[ref] = value
+        return ref
+
+    @classmethod
+    def load_value(cls, stored):
+        if isinstance(stored, str) and stored.startswith("ref://"):
+            return cls.stored[stored]
+        return super().load_value(stored)
+
+    @classmethod
+    def purge(cls, xcom, *args):
+        cls.purged.append(xcom.value)
+
+
+class _FailingPurgeXCom(_RefXCom):
+    @classmethod
+    def purge(cls, xcom, *args):
+        raise PermissionError("purge refused")
+
+
+class _PurgeOnlyXCom(BaseXCom):
+    @classmethod
+    def purge(cls, xcom, *args):
+        pass
+
+
+class _LegacyXCom(BaseXCom):
+    @staticmethod
+    def serialize_value(value, *, key=None, task_id=None, dag_id=None, run_id=None, map_index=None):
+        return f"legacy:{value}"
+
+
+@attrs.define
+class _InProcessXComBackend:
+    """Runs XCom backend calls in the test process, the way the helper process runs them."""
+
+    xcom: type[BaseXCom]
+    on_result: Callable[[XComBackendResult], None]
+    calls: list[XComBackendCall] = attrs.field(factory=list)
+
+    def send_call(self, call):
+        self.calls.append(call)
+        self.on_result(_HookRunner(self.xcom).run(call))
+
+    def stop(self):
+        pass
+
+
+@attrs.define
+class _FakeApi:
+    """Records Execution API requests, and answers each with ``responses`` by method and path."""
+
+    responses: dict[tuple[str, str], tuple[int, Any]] = attrs.field(factory=dict)
+    requests: list[tuple[str, str, Any]] = attrs.field(factory=list)
+
+    def __call__(self, request: httpx2.Request) -> httpx2.Response:
+        body = json.loads(request.content) if request.content else None
+        self.requests.append((request.method, request.url.path, body))
+        status, content = self.responses.get((request.method, request.url.path), (200, {}))
+        # json=None would send an empty body, but a null XCom item is the body "null".
+        return httpx2.Response(
+            status, content=json.dumps(content), headers={"content-type": "application/json"}
+        )
+
+
+def _sent_body(proc: _PopenActivitySubprocess) -> Any:
+    frame = cast("MagicMock", proc.stdin).sendall.call_args.args[0]
+    return msgspec.msgpack.decode(frame[4:])[1]
+
+
+_XCOM_PATH = "/xcoms/tutorial_dag/run_1/task_1/summary"
+
+
+class TestPopenActivitySubprocessXComBackend:
+    @pytest.fixture(autouse=True)
+    def _clear_ref_xcom(self):
+        yield
+        _RefXCom.stored.clear()
+        _RefXCom.purged.clear()
+
+    @pytest.fixture
+    def make_proc(self, monkeypatch):
+        procs: list[_PopenActivitySubprocess] = []
+
+        def make(
+            xcom: type[BaseXCom], api: _FakeApi, ti: TaskInstance | None = None
+        ) -> _PopenActivitySubprocess:
+            monkeypatch.setattr("airflow.sdk.execution_time.xcom.XCom", xcom)
+            ti = ti or _make_ti()
+            process = MagicMock(spec=ProcessTracker)
+            process.pid = 12345
+            proc = _PopenActivitySubprocess(
+                id=ti.id,
+                pid=12345,
+                process=process,
+                process_log=structlog.get_logger(logger_name="task"),
+                stdin=MagicMock(spec=socket.socket),
+                client=make_client(transport=httpx2.MockTransport(api)),
+                comm_server=MagicMock(spec=socket.socket),
+                logs_server=MagicMock(spec=socket.socket),
+            )
+            proc.ti = ti  # type: ignore[assignment]
+            proc._xcom_backend = _InProcessXComBackend(xcom, proc._finish_xcom_backend_call)  # type: ignore[assignment]
+            procs.append(proc)
+            return proc
+
+        yield make
+        for proc in procs:
+            proc.selector.close()
+
+    @pytest.mark.parametrize(
+        ("task_id", "map_index", "is_own"),
+        [
+            pytest.param("task_1", None, True, id="own"),
+            pytest.param("task_1", 0, False, id="other-map-index"),
+            pytest.param("other", None, False, id="other-task"),
+        ],
+    )
+    def test_set_xcom_stores_the_value_through_the_backend(self, make_proc, task_id, map_index, is_own):
+        api = _FakeApi()
+        proc = make_proc(_RefXCom, api)
+        msg = SetXCom(
+            key="summary",
+            value={"orders": 12},
+            dag_id="tutorial_dag",
+            run_id="run_1",
+            task_id=task_id,
+            map_index=map_index,
+        )
+
+        proc._handle_request(msg, log, 1)
+
+        ref = f"ref://{task_id}/{proc.ti.id if is_own else None}/summary"
+        assert api.requests == [("POST", f"/xcoms/tutorial_dag/run_1/{task_id}/summary", ref)]
+        assert _RefXCom.stored == {ref: {"orders": 12}}
+
+    @pytest.mark.parametrize(
+        ("xcom", "key"),
+        [
+            pytest.param(BaseXCom, "summary", id="default-backend"),
+            pytest.param(_PurgeOnlyXCom, "summary", id="backend-that-does-not-store"),
+            pytest.param(_RefXCom, "skipmixin_key", id="skipmixin-key"),
+            pytest.param(_RefXCom, "_link_TriggerDagRunLink", id="extra-link-key"),
+        ],
+    )
+    def test_set_xcom_sends_the_value_as_it_is(self, make_proc, xcom, key):
+        api = _FakeApi()
+        proc = make_proc(xcom, api)
+        value = {"skipped": ["load"]}
+
+        proc._handle_request(
+            SetXCom(key=key, value=value, dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+
+        assert api.requests == [("POST", f"/xcoms/tutorial_dag/run_1/task_1/{key}", value)]
+        assert proc._xcom_backend.calls == []
+
+    def test_set_xcom_sends_a_value_it_cannot_decode_as_it_is(self, make_proc, captured_logs):
+        api = _FakeApi()
+        proc = make_proc(_RefXCom, api)
+        value = {"__classname__": "not.importable.Thing", "__version__": 1, "__data__": {}}
+
+        proc._handle_request(
+            SetXCom(key="summary", value=value, dag_id="tutorial_dag", run_id="run_1", task_id="task_1"),
+            log,
+            1,
+        )
+
+        assert api.requests == [("POST", _XCOM_PATH, value)]
+        assert _RefXCom.stored == {}
+        assert {
+            "event": "Cannot decode the XCom value; storing it without the XCom backend",
+            "key": "summary",
+            "error": ANY,
+            "level": "warning",
+            "logger": "xcom_backend",
+            "timestamp": ANY,
+            "loc": ANY,
+        } in captured_logs
+
+    def test_set_xcom_rejects_a_loop_task_when_the_backend_cannot_tell_iterations_apart(self, make_proc):
+        api = _FakeApi()
+        proc = make_proc(
+            _LegacyXCom, api, ti=_make_ti().model_copy(update={"region_id": uuid7(), "region_index": 0})
+        )
+
+        with pytest.raises(TypeError, match="uses a loop"):
+            proc._handle_request(
+                SetXCom(key="summary", value=1, dag_id="tutorial_dag", run_id="run_1", task_id="task_1"),
+                log,
+                1,
+            )
+        assert api.requests == []
+
+    def test_set_xcom_stores_a_mapped_task_through_a_backend_that_cannot_tell_iterations_apart(
+        self, make_proc
+    ):
+        api = _FakeApi()
+        ti = _make_ti(map_index=0).model_copy(update={"region_id": uuid7(), "region_index": 0})
+        proc = make_proc(_LegacyXCom, api, ti=ti)
+
+        proc._handle_request(
+            SetXCom(
+                key="summary",
+                value=1,
+                dag_id="tutorial_dag",
+                run_id="run_1",
+                task_id="task_1",
+                map_index=0,
+            ),
+            log,
+            1,
+        )
+
+        assert api.requests == [("POST", _XCOM_PATH, "legacy:1")]
+
+    @pytest.mark.parametrize(
+        ("xcom", "response", "expected"),
+        [
+            pytest.param(
+                _RefXCom,
+                (200, {"key": "summary", "value": "ref://task_1/None/summary"}),
+                serialize((12, 3402.0)),
+                id="loaded",
+            ),
+            pytest.param(
+                BaseXCom,
+                (200, {"key": "summary", "value": "ref://task_1/None/summary"}),
+                "ref://task_1/None/summary",
+                id="default-backend",
+            ),
+            pytest.param(_RefXCom, (404, {"detail": "not found"}), None, id="missing"),
+        ],
+    )
+    def test_get_xcom_loads_the_value_through_the_backend(self, make_proc, xcom, response, expected):
+        _RefXCom.stored["ref://task_1/None/summary"] = (12, 3402.0)
+        proc = make_proc(xcom, _FakeApi({("GET", _XCOM_PATH): response}))
+
+        proc._handle_request(
+            GetXCom(key="summary", dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+
+        assert _sent_body(proc).get("value") == expected
+
+    @pytest.mark.parametrize(
+        ("item", "expected"),
+        [
+            pytest.param("ref://task_1/None/summary", serialize((12, 3402.0)), id="loaded"),
+            pytest.param(None, None, id="none-item"),
+        ],
+    )
+    def test_get_xcom_sequence_item_loads_the_value_through_the_backend(self, make_proc, item, expected):
+        _RefXCom.stored["ref://task_1/None/summary"] = (12, 3402.0)
+        proc = make_proc(_RefXCom, _FakeApi({("GET", f"{_XCOM_PATH}/item/0"): (200, item)}))
+
+        proc._handle_request(
+            GetXComSequenceItem(
+                key="summary", dag_id="tutorial_dag", run_id="run_1", task_id="task_1", offset=0
+            ),
+            log,
+            1,
+        )
+
+        assert _sent_body(proc)["root"] == expected
+        assert proc._xcom_backend.calls == [XComBackendCall(hook="load", key="summary", value=item)]
+
+    def test_get_xcom_sequence_slice_loads_the_values_through_the_backend(self, make_proc):
+        _RefXCom.stored["ref://task_1/None/summary"] = (12, 3402.0)
+        proc = make_proc(
+            _RefXCom, _FakeApi({("GET", f"{_XCOM_PATH}/slice"): (200, ["ref://task_1/None/summary", 5])})
+        )
+
+        proc._handle_request(
+            GetXComSequenceSlice(
+                key="summary",
+                dag_id="tutorial_dag",
+                run_id="run_1",
+                task_id="task_1",
+                start=None,
+                stop=None,
+                step=None,
+            ),
+            log,
+            1,
+        )
+
+        assert _sent_body(proc)["root"] == [serialize((12, 3402.0)), 5]
+
+    @pytest.mark.parametrize(
+        ("xcom", "requests", "purged"),
+        [
+            pytest.param(BaseXCom, [("DELETE", _XCOM_PATH, None)], [], id="default-backend"),
+            pytest.param(
+                _RefXCom,
+                [("GET", _XCOM_PATH, None), ("DELETE", _XCOM_PATH, None)],
+                ["ref://task_1/None/summary"],
+                id="purged",
+            ),
+        ],
+    )
+    def test_delete_xcom_purges_it_from_the_backend(self, make_proc, xcom, requests, purged):
+        api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
+        proc = make_proc(xcom, api)
+
+        proc._handle_request(
+            DeleteXCom(key="summary", dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+
+        assert api.requests == requests
+        assert _RefXCom.purged == purged
+
+    def test_clearing_purges_the_xcoms_from_the_backend(self, make_proc, make_ti_context):
+        api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
+        proc = make_proc(_RefXCom, api)
+        ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["summary"]})
+
+        prepared = proc._prepare_ti_context(proc.ti, ti_context)
+
+        assert prepared is not None
+        assert prepared.xcom_keys_to_clear == []
+        assert api.requests == [("GET", _XCOM_PATH, None), ("DELETE", _XCOM_PATH, None)]
+        assert _RefXCom.purged == ["ref://task_1/None/summary"]
+
+    @pytest.mark.parametrize(
+        ("xcom", "read_status", "event"),
+        [
+            pytest.param(
+                _FailingPurgeXCom, 200, "Cannot purge the XCom from the XCom backend", id="purge-fails"
+            ),
+            pytest.param(
+                _RefXCom,
+                500,
+                "Cannot read the XCom, so it is not purged from the XCom backend",
+                id="read-fails",
+            ),
+        ],
+    )
+    # The patch turns off the API client's retry policy, so the read that fails fails at once.
+    @patch.object(Client, "_request_with_retry", Client._request_without_retry)
+    def test_clearing_runs_the_task_when_an_xcom_cannot_be_purged(
+        self, make_proc, make_ti_context, captured_logs, xcom, read_status, event
+    ):
+        api = _FakeApi(
+            {("GET", _XCOM_PATH): (read_status, {"key": "summary", "value": "ref://task_1/None/summary"})}
+        )
+        proc = make_proc(xcom, api)
+        ti_context = make_ti_context().model_copy(update={"xcom_keys_to_clear": ["summary"]})
+
+        prepared = proc._prepare_ti_context(proc.ti, ti_context)
+
+        assert prepared is not None
+        assert prepared.xcom_keys_to_clear == []
+        assert ("DELETE", _XCOM_PATH, None) in api.requests
+        assert _RefXCom.purged == []
+        assert {
+            "event": event,
+            "key": "summary",
+            "level": "warning",
+            "logger": "task",
+            "timestamp": ANY,
+            "exc_info": ANY,
+            "loc": ANY,
+        } in captured_logs
+
+    @patch.object(XComBackendProcess, "start", autospec=True)
+    def test_starts_one_backend_process_for_the_task(self, mock_start, make_proc):
+        proc = make_proc(_RefXCom, _FakeApi())
+        proc._xcom_backend = None
+        backend_call = XComBackendCall(hook="load", key="summary", value=1)
+
+        proc._call_xcom_backend(backend_call, lambda result: (result, {}), req_id=1)
+        proc._call_xcom_backend(backend_call, lambda result: (result, {}), req_id=2)
+
+        assert mock_start.call_count == 1
+        assert mock_start.call_args.kwargs == {
+            "id": proc.id,
+            "client": proc.client,
+            "logger": proc.process_log,
+            "selector": proc.selector,
+            "on_result": proc._finish_xcom_backend_call,
+        }
+
+    @patch.object(ActivitySubprocess, "_monitor_subprocess", autospec=True, side_effect=RuntimeError("boom"))
+    def test_stops_the_backend_process_when_the_task_process_is_done(self, mock_monitor, make_proc):
+        proc = make_proc(_RefXCom, _FakeApi())
+        backend = proc._xcom_backend = MagicMock(spec=XComBackendProcess)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            proc._monitor_subprocess()
+
+        backend.stop.assert_called_once_with()
 
 
 class TestResolveArtifactBundle:
