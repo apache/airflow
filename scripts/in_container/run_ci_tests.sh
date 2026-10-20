@@ -23,13 +23,21 @@ echo "Starting the tests with those pytest arguments:" "${@}"
 echo
 set +e
 
+# Breeze passes the JUnit XML path only as a pytest argument.
+RESULT_LOG_FILE=""
+for arg in "${@}"; do
+    if [[ ${arg} == --junitxml=* ]]; then
+        RESULT_LOG_FILE="${arg#--junitxml=}"
+    fi
+done
+
 pytest "${@}"
 RES=$?
 
 if [[ ${RES} == "139" ]]; then
     echo "${COLOR_YELLOW}Sometimes Pytest fails at exiting with segfault, but all tests actually passed${COLOR_RESET}"
     echo "${COLOR_YELLOW}We should ignore such case. Checking if junitxml file ${RESULT_LOG_FILE} is there with 0 errors and failures${COLOR_RESET}"
-    if [[ -f ${RESULT_LOG_FILE} ]]; then
+    if [[ -n ${RESULT_LOG_FILE} && -f ${RESULT_LOG_FILE} ]]; then
         python "${AIRFLOW_SOURCES}/scripts/in_container/check_junitxml_result.py" "${RESULT_LOG_FILE}"
         RES=$?
     else
