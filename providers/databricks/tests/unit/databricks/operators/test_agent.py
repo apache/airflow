@@ -154,6 +154,20 @@ def test_submit_without_waiting(operator):
     operator.hook.get_invocation.assert_not_called()
 
 
+def test_failed_submission_without_waiting(operator):
+    operator.wait_for_termination = False
+    operator.hook.create_invocation.return_value = {
+        "id": INVOCATION_ID,
+        "status": "failed",
+        "status_url": f"/api/invocations/{INVOCATION_ID}",
+    }
+
+    with pytest.raises(AirflowFailException, match="new.*invocation_id"):
+        operator.execute({})
+
+    operator.hook.get_invocation.assert_not_called()
+
+
 @mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True, return_value=0)
 @pytest.mark.parametrize("deferrable", [False, True])
 @pytest.mark.parametrize("status", ["completed", "interrupted"])

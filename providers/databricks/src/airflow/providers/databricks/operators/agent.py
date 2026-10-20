@@ -135,10 +135,10 @@ class DatabricksAgentInvokeOperator(BaseOperator):
         self.log.info("Submitting Databricks agent invocation %s.", invocation_id)
         submitted = self.hook.create_invocation(invocation_id, self.input, self.session_id)
         self.log.info("Databricks agent invocation %s was submitted.", invocation_id)
-        if not self.wait_for_termination:
-            return submitted
         if submitted.get("status") == "failed":
             self._get_result(submitted, invocation_id)
+        if not self.wait_for_termination:
+            return submitted
         # Background submissions omit output even when the invocation is already completed.
         if self.deferrable and submitted.get("status") != "completed":
             self.log.info("Deferring until Databricks agent invocation %s completes.", invocation_id)

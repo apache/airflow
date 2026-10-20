@@ -153,7 +153,7 @@ Install them when installing from PyPI. For example:
 ==================  ================================================================================================================================================================
 Extra               Dependencies
 ==================  ================================================================================================================================================================
-``common.ai``       ``apache-airflow-providers-common-ai>=0.10.0``
+``common.ai``       ``apache-airflow-providers-common-ai>=0.11.0``
 ``avro``            ``fastavro>=1.9.0; python_version<"3.14"``, ``fastavro>=1.10.0; python_version>="3.12" and python_version<"3.14"``, ``fastavro>=1.12.1; python_version>="3.14"``
 ``amazon``          ``apache-airflow-providers-amazon>=9.22.0``
 ``azure-identity``  ``azure-identity>=1.25.3``

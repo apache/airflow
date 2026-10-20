@@ -78,7 +78,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "common.ai" = [
-    "apache-airflow-providers-common-ai>=0.10.0",  # use next version
+    "apache-airflow-providers-common-ai>=0.11.0",
 ]
 # pip install apache-airflow-providers-databricks[sdk]
 "avro" = [

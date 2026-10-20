@@ -105,9 +105,28 @@ Common AI managed-agent interface
 
 Install ``apache-airflow-providers-databricks[common.ai]`` to use the hook with
 Common AI consumers such as ``ManagedAgentToolset``. Bind the deployed app's URL
-to a hook configured with the same OAuth connection:
+to a hook configured with the same OAuth connection.
 
-Import ``ManagedAgentRequest`` from ``airflow.providers.common.ai.managed_agents``
+To let an agent running under Common AI's ``AgentOperator`` consult the deployed
+Databricks agent as a tool, pass ``hook.agent(app_url)`` to ``ManagedAgentToolset``:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
+    from airflow.providers.databricks.hooks.agent import DatabricksAgentHook
+
+    hook = DatabricksAgentHook(databricks_conn_id="databricks_oauth")
+    toolset = ManagedAgentToolset(
+        hook.agent("https://my-agent.databricksapps.com"),
+        tool_name="ask_analyst",
+        description="Answers revenue questions.",
+        timeout=300,
+    )
+
+The app must serve ``DurableAgentServer``'s invocation API. The toolset sends each
+prompt through that API and returns the normalized answer text to the calling model.
+
+For a direct invocation, import ``ManagedAgentRequest`` from ``airflow.providers.common.ai.managed_agents``
 and ``DatabricksAgentHook`` from ``airflow.providers.databricks.hooks.agent``:
 
 .. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_agent.py
@@ -151,4 +170,10 @@ a stored ``failed`` status becomes ``ManagedAgentInvocationError``. If the looku
 cannot confirm a stored failure, the original HTTP error propagates as transient.
 The request timeout bounds the HTTP call, its retries and the status lookup;
 OAuth refresh retains its separate timeout.
+``ManagedAgentToolset`` defaults to ``timeout=None``, so each synchronous HTTP
+attempt uses the hook's ``timeout_seconds`` (180 seconds by default). After the
+hook's retries are exhausted (three attempts by default), the call fails without
+cancelling the remote invocation. A task retry generates a new invocation UUID
+and can start another run while the previous one is still running. For long-running
+agents, set ``ManagedAgentToolset(..., timeout=...)`` to the expected request budget.
 The operator and background hook methods do not require the Common AI extra.
