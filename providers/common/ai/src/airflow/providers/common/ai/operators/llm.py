@@ -368,45 +368,10 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
 
         agent = self._create_agent(output_type=self.output_type, instructions=self.system_prompt)
 
-        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on each
-        # retry; dag/run/task/map/try on Airflow 2) ties this run to its GenAI trace, the same
-        # join key AgentOperator uses. A hand-built context with no task instance runs untracked.
-        ti = self._resolve_task_instance(context)
-        run_kwargs: dict[str, Any] = {}
-        if ti is not None:
-            stamp_identity_on_agent_spans(agent, build_run_identity_attributes(ti))
-            run_kwargs["run_id"] = make_task_instance_run_key(ti)
-
-        attempt_usage = RunUsage()
-        try:
-            result = self._run_llm(
-                context, agent, self.prompt, usage_limits=usage_limits, run_usage=attempt_usage, **run_kwargs
-            )
-        except BaseException:
-            # A run that raises partway through (e.g. a cost_limit-triggered UsageLimitExceeded)
-            # still reports what it spent: the capped run is the one cost tracking most needs.
-            try:
-                log_run_usage(self.log, attempt_usage, outcome="failed")
-            except Exception:
-                self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
-            try:
-                self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
-            except Exception:
-                self.log.warning("Failed to push usage XCom for the failed run", exc_info=True)
-            if ti is not None:
-                try:
-                    self._push_xcom(context, "run_id", run_kwargs["run_id"])
-                except Exception:
-                    self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
-            raise
+        result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 
-        self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
-        if ti is not None:
-            self._push_xcom(context, "run_id", result.run_id)
         model_confidence = ModelConfidence.from_result(result)
-        if model_confidence.model is not None:
-            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_confidence.model)
         # Gated by the least confident of the fields that reported a confidence; a field whose type
         # reports none is not gated. A bare output type is the one field ``response``.
         fields = list(model_confidence.confidence) or ["response"]
@@ -493,6 +458,60 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         )
 
     def _run_llm(
+        self,
+        context: Context,
+        agent: Agent[Any, Any],
+        user_prompt: Any,
+        *,
+        usage_limits: UsageLimits | None,
+    ) -> AgentRunResult[Any]:
+        """
+        Run the agent and publish the run's ``usage``, ``run_id`` and model name on XCom.
+
+        Every ``execute`` of this operator and its subclasses runs the agent through here, so they
+        all report the same run metadata.
+        """
+        # A per-attempt key (the task-instance id on Airflow 3, which is regenerated on each
+        # retry; dag/run/task/map/try on Airflow 2) ties this run to its GenAI trace, the same
+        # join key AgentOperator uses. A hand-built context with no task instance runs untracked.
+        ti = self._resolve_task_instance(context)
+        run_kwargs: dict[str, Any] = {}
+        if ti is not None:
+            stamp_identity_on_agent_spans(agent, build_run_identity_attributes(ti))
+            run_kwargs["run_id"] = make_task_instance_run_key(ti)
+
+        attempt_usage = RunUsage()
+        try:
+            result = self._run_with_usage_budget(
+                context, agent, user_prompt, usage_limits=usage_limits, run_usage=attempt_usage, **run_kwargs
+            )
+        except BaseException:
+            # A run that raises partway through (e.g. a cost_limit-triggered UsageLimitExceeded)
+            # still reports what it spent: the capped run is the one cost tracking most needs.
+            try:
+                log_run_usage(self.log, attempt_usage, outcome="failed")
+            except Exception:
+                self.log.warning("Failed to log partial usage for the failed run", exc_info=True)
+            try:
+                self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
+            except Exception:
+                self.log.warning("Failed to push usage XCom for the failed run", exc_info=True)
+            if ti is not None:
+                try:
+                    self._push_xcom(context, "run_id", run_kwargs["run_id"])
+                except Exception:
+                    self.log.warning("Failed to push run_id XCom for the failed run", exc_info=True)
+            raise
+
+        self._push_xcom(context, "usage", format_usage_for_xcom(attempt_usage))
+        if ti is not None:
+            self._push_xcom(context, "run_id", result.run_id)
+        model_name = ModelConfidence.from_result(result).model
+        if model_name is not None:
+            self._push_xcom(context, MODEL_NAME_XCOM_KEY, model_name)
+        return result
+
+    def _run_with_usage_budget(
         self,
         context: Context,
         agent: Agent[Any, Any],

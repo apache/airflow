@@ -298,8 +298,8 @@ See what ran
      - Exports model and tool calls as OpenTelemetry spans.
      - None
    * - :ref:`AI Model tab <howto/observability:model-tab>`
-     - Shows the model on the task instance page of ``@task.llm`` and ``@task.agent``
-       tasks, and their token counts and an estimated cost.
+     - Shows the model on the task instance page of ``@task.agent`` and every ``@task.llm*``
+       task except ``@task.llm_batch``, and their token counts and an estimated cost.
      - None
 
 .. toctree::
