@@ -118,11 +118,16 @@ async def _close_stream(messages: AsyncIterable[Message]) -> None:
 
 
 class _Run:
-    """One run of :meth:`AirflowTools.run`: identifies its calls and collects their failures."""
+    """
+    One run of :meth:`AirflowTools.run`.
+
+    Identifies its calls, collects their failures, and records whether it has ended.
+    """
 
     def __init__(self) -> None:
         self.failures: list[ToolCallError] = []
         self.turn: str | None = None
+        self.ended = False
 
 
 class AirflowTools:
@@ -158,7 +163,9 @@ class AirflowTools:
     reads, so drive the query with :meth:`run` rather than iterating it yourself.
 
     An instance runs one query at a time: build a new ``AirflowTools`` per task, or
-    call :meth:`run` again once the previous run has finished.
+    call :meth:`run` again once the previous run has finished. A tool call that arrives
+    after a run has ended is refused until the next :meth:`run` starts. A call that lands
+    after the next run has started cannot be told apart and is served by that run.
 
     :param sources: Toolsets and tools to serve, in order.
     :param server_name: The MCP server name the tools are served under. Also the
@@ -170,7 +177,10 @@ class AirflowTools:
         self.server_name = server_name
         airflow_tools = collect_tools(sources)
         self.allowed_tools: list[str] = [f"mcp__{server_name}__{t.name}" for t in airflow_tools]
+        # ``_run`` is the run in progress (guards re-entry); ``_last_run`` is the one that most
+        # recently ended (refuses late calls). It is only read while ``_run`` is None.
         self._run: _Run | None = None
+        self._last_run: _Run | None = None
         annotations = ToolAnnotations(maxResultSizeChars=_MAX_INLINE_RESULT_CHARS)
         sdk_tools = [
             tool(t.name, t.description, self._build_tool_schema(t), annotations=annotations)(
@@ -236,8 +246,10 @@ class AirflowTools:
         ``ClaudeSDKClient.receive_messages()`` is not supported: it never ends.
 
         ``messages`` is closed when this returns or raises. For ``query()`` that ends the CLI
-        session, so it stops asking for tool calls; a ``ClaudeSDKClient`` stays connected until
-        you disconnect it, for example by leaving its ``async with`` block.
+        session, but only once the SDK finishes tearing down, so a tool call can still arrive
+        after this returns or raises; it is answered with an ``is_error`` "Not run" result.
+        A ``ClaudeSDKClient`` stays connected until you disconnect it, for example by leaving
+        its ``async with`` block.
 
         :raises RuntimeError: when this instance is already running a query, when
             ``messages`` ends without a :class:`~claude_agent_sdk.ResultMessage`, or, for
@@ -284,6 +296,8 @@ class AirflowTools:
                     raise
                 log.warning("Closing the Claude Agent SDK stream failed: %s", e)
             finally:
+                state.ended = True
+                self._last_run = state
                 self._run = None
 
     @staticmethod
@@ -296,15 +310,15 @@ class AirflowTools:
         self, airflow_tool: AirflowTool
     ) -> Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]:
         async def handle_tool_call(args: dict[str, Any]) -> dict[str, Any]:
-            state = self._run
-            if state is not None and state.failures:
+            state = self._run if self._run is not None else self._last_run
+            if state is not None and (state.failures or state.ended):
+                reason = (
+                    "an earlier Airflow tool call in this run failed"
+                    if state.failures
+                    else "the Airflow tool run has ended"
+                )
                 return {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "Not run: an earlier Airflow tool call in this run failed.",
-                        }
-                    ],
+                    "content": [{"type": "text", "text": f"Not run: {reason}."}],
                     "is_error": True,
                 }
             with (
