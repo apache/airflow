@@ -183,7 +183,7 @@ class _FrameMixin:
         # https://jcristharif.com/msgspec/perf-tips.html#length-prefix-framing for inspiration
         buffer = bytearray(256)
 
-        self._encoder.encode_into(self, buffer, 4)  # type: ignore[arg-type]
+        self._encoder.encode_into(self, buffer, 4)
 
         n = len(buffer) - 4
         if n >= 2**32:
@@ -193,7 +193,7 @@ class _FrameMixin:
         return buffer
 
 
-class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
+class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
     id: int
     """
     The request id, set by the sender.
@@ -216,7 +216,7 @@ class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, o
     """
 
 
-class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
+class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):
     id: int
     """
     The id of the request this is a response to
@@ -308,7 +308,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 resp.fds = fds
                 # Since we know this is an explicit ResendLoggingFD, and since this class is generic SentFDs might not
                 # always be in the return type union
-                return resp  # type: ignore[return-value]
+                return resp
 
             return self._get_response()
         finally:
@@ -341,7 +341,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                     if TYPE_CHECKING:
                         assert isinstance(resp, SentFDs)
                     resp.fds = fds
-                    return resp  # type: ignore[return-value]
+                    return resp
 
                 # Normal blocking read in a thread
                 frame = await asyncio.to_thread(self._read_frame)

@@ -127,7 +127,7 @@ class TestSdkPartitionMapperMaxDownstreamKeysValidator:
     def test_max_downstream_keys_invalid_raises(self, bad_value):
         """0, negative integers, floats, and strings are all rejected."""
         with pytest.raises(ValueError, match="max_downstream_keys"):
-            IdentityMapper(max_downstream_keys=bad_value)  # type: ignore[arg-type]
+            IdentityMapper(max_downstream_keys=bad_value)
 
 
 class TestSdkWindowExpectedDecodedType:

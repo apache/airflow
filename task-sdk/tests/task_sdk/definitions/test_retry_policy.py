@@ -353,11 +353,11 @@ class TestChainRetryPolicy:
 
     def test_a_single_policy_must_be_wrapped_in_a_sequence(self):
         with pytest.raises(TypeError, match="wrap the single policy in a list"):
-            ChainRetryPolicy(self.FLOOR)  # type: ignore[arg-type]
+            ChainRetryPolicy(self.FLOOR)
 
     def test_members_must_be_retry_policies(self):
         with pytest.raises(TypeError, match=r"policies\[1\] must be a RetryPolicy, got str"):
-            ChainRetryPolicy([self.FLOOR, "rules"])  # type: ignore[list-item]
+            ChainRetryPolicy([self.FLOOR, "rules"])
 
     def test_accepts_any_sequence(self):
         policy = ChainRetryPolicy((self.FAIL_403, self.FLOOR))

@@ -518,7 +518,7 @@ class TestBackwardsCompatibility:
         def get_fs_no_storage_options(_: str):
             return LocalFileSystem()
 
-        _BUILTIN_SCHEME_TO_FS["file"] = get_fs_no_storage_options  # type: ignore[call-arg]
+        _BUILTIN_SCHEME_TO_FS["file"] = get_fs_no_storage_options
         assert get_fs("file")
         with pytest.raises(AttributeError):
             get_fs("file", storage_options={"foo": "bar"})
