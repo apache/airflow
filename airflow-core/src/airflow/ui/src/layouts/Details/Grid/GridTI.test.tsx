@@ -49,13 +49,19 @@ const SELECTED_RUN_ID = "manual__2026-04-21T00:00:00+00:00";
 
 type RenderGridTIOptions = {
   readonly instance?: LightGridTaskInstanceSummary;
+  readonly isMultiSelected?: boolean;
   readonly runId?: string;
   readonly taskId?: string;
 };
 
 const renderGridTI = (
   route: string,
-  { instance = taskInstance, runId = SELECTED_RUN_ID, taskId = "selected_task" }: RenderGridTIOptions = {},
+  {
+    instance = taskInstance,
+    isMultiSelected,
+    runId = SELECTED_RUN_ID,
+    taskId = "selected_task",
+  }: RenderGridTIOptions = {},
 ) =>
   render(
     <BaseWrapper>
@@ -67,6 +73,7 @@ const renderGridTI = (
                 <GridTI
                   dagId="example_dag"
                   instance={{ ...instance, task_id: taskId }}
+                  isMultiSelected={isMultiSelected}
                   label={taskId}
                   runId={runId}
                   taskId={taskId}
@@ -130,6 +137,22 @@ describe("GridTI", () => {
       "data-selected",
       "true",
     );
+  });
+
+  it("marks a multi-selected task square that is not the opened one", () => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+      isMultiSelected: true,
+      runId: "other_run",
+      taskId: "other_task",
+    });
+
+    expect(screen.getByTestId("task-state-badge")).toHaveAttribute("data-selected", "true");
+  });
+
+  it("does not mark the opened task square when a selection leaves it out", () => {
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, { isMultiSelected: false });
+
+    expect(screen.getByTestId("task-state-badge")).not.toHaveAttribute("data-selected");
   });
 
   it("links to the task overview when the run has no task instance", () => {
