@@ -182,22 +182,129 @@ class TestUriMasking:
     """Test URI credential masking functionality."""
 
     @pytest.mark.parametrize(
+        ("conn", "expected"),
+        [
+            # Full credentials (user and password)
+            (
+                Connection(
+                    conn_id="c1",
+                    conn_type="postgresql",
+                    host="host",
+                    port=5432,
+                    schema="db",
+                    login="user",
+                    password="pass",
+                ),
+                "postgresql://***:***@host:5432/db",
+            ),
+            (
+                Connection(
+                    conn_id="c2",
+                    conn_type="mysql",
+                    host="localhost",
+                    port=3306,
+                    schema="test",
+                    login="admin",
+                    password="secret",
+                ),
+                "mysql://***:***@localhost:3306/test",
+            ),
+            (
+                Connection(
+                    conn_id="c3",
+                    conn_type="http",
+                    host="api.example.com",
+                    port=8080,
+                    schema="v1",
+                    login="api",
+                    password="key123",
+                ),
+                "http://***:***@api.example.com:8080/v1",
+            ),
+            (
+                Connection(
+                    conn_id="c4",
+                    conn_type="postgresql",
+                    host="host",
+                    port=5432,
+                    schema="db",
+                    login="user",
+                    password="p@ssword",
+                ),
+                "postgresql://***:***@host:5432/db",
+            ),
+            # Username only
+            (
+                Connection(
+                    conn_id="c5",
+                    conn_type="ssh",
+                    host="github.com",
+                    port=22,
+                    schema="repo",
+                    login="git",
+                ),
+                "ssh://***@github.com:22/repo",
+            ),
+            # Password only (token)
+            (
+                Connection(
+                    conn_id="c6",
+                    conn_type="http",
+                    host="api.example.com",
+                    password="secret_token",
+                ),
+                "http://:***@api.example.com",
+            ),
+            # Empty password (Connection ignores empty string password, so no colon emitted)
+            (
+                Connection(
+                    conn_id="c7",
+                    conn_type="http",
+                    host="api.example.com",
+                    login="user",
+                    password="",
+                ),
+                "http://***@api.example.com",
+            ),
+            # Connections without credentials
+            (
+                Connection(
+                    conn_id="c8",
+                    conn_type="http",
+                    host="example.com",
+                ),
+                "http://example.com",
+            ),
+            (
+                Connection(
+                    conn_id="c9",
+                    conn_type="redis",
+                    host="localhost",
+                    port=6379,
+                    schema="0",
+                ),
+                "redis://localhost:6379/0",
+            ),
+        ],
+    )
+    def test_mask_uri_credentials_from_connection(self, conn, expected):
+        result = _mask_uri_credentials(conn.get_uri())
+        assert result == expected
+
+    @pytest.mark.parametrize(
         ("uri", "expected"),
         [
-            # URIs with credentials
-            ("postgresql://user:pass@host:5432/db", "postgresql://***:***@host:5432/db"),
-            ("mysql://admin:secret@localhost:3306/test", "mysql://***:***@localhost:3306/test"),
-            ("http://api:key123@api.example.com:8080/v1", "http://***:***@api.example.com:8080/v1"),
-            # URIs without credentials
-            ("sqlite:///tmp/test.db", "sqlite:///tmp/test.db"),
-            ("filesystem://", "filesystem://"),
-            ("redis://localhost:6379/0", "redis://localhost:6379/0"),
+            # Regression tests for literal URIs exercising specific parsing paths
+            ("postgresql://user:p@ss@host:5432/db", "postgresql://***:***@host:5432/db"),
+            ("http://@host:5432/db", "http://@host:5432/db"),
+            ("http://user:@host:5432/db", "http://***:@host:5432/db"),
+            ("http://:secret@host:5432/db", "http://:***@host:5432/db"),
             # Edge cases
             ("", ""),
             ("invalid-uri", "***"),  # Falls back to full masking on parse error
         ],
     )
-    def test_mask_uri_credentials(self, uri, expected):
+    def test_mask_uri_credentials_edge_cases(self, uri, expected):
         result = _mask_uri_credentials(uri)
         assert result == expected
 
