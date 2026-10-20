@@ -23,6 +23,8 @@ description: |
 
 state: ready
 lifecycle: production
+excluded-python-versions:
+  - "3.16"
 source-date-epoch: 1791328852
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.

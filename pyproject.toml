@@ -380,7 +380,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-smtp>=1.8.1"
 ]
 "snowflake" = [
-    "apache-airflow-providers-snowflake>=5.8.0"
+    "apache-airflow-providers-snowflake>=5.8.0; python_version !=\"3.16\""
 ]
 "sqlite" = [
     "apache-airflow-providers-sqlite>=3.9.1"
@@ -518,7 +518,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-singularity>=3.7.0",
     "apache-airflow-providers-slack>=8.9.1",
     "apache-airflow-providers-smtp>=1.8.1",
-    "apache-airflow-providers-snowflake>=5.8.0",
+    "apache-airflow-providers-snowflake>=5.8.0; python_version !=\"3.16\"",
     "apache-airflow-providers-sqlite>=3.9.1",
     "apache-airflow-providers-ssh>=3.14.0",
     "apache-airflow-providers-standard>=0.0.1",
