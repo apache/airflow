@@ -30,6 +30,7 @@ import type { ConnectionResponse } from "openapi/requests/types.gen";
 import { Tooltip, ActionBar } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -46,11 +47,12 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
+import DuplicateConnectionButton from "./DuplicateConnectionButton";
 import EditConnectionButton from "./EditConnectionButton";
 import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
@@ -75,8 +77,8 @@ const getColumns = ({
 }: {
   hasSelection: boolean;
   translate: TFunction;
-} & GetColumnsParams): Array<ColumnDef<ConnectionResponse>> => {
-  const columns: Array<ColumnDef<ConnectionResponse>> = [
+} & GetColumnsParams): Array<ColumnDef<DataTableFeatures, ConnectionResponse>> => {
+  const columns: Array<ColumnDef<DataTableFeatures, ConnectionResponse>> = [
     {
       accessorKey: "select",
       cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.connection_id} />,
@@ -124,9 +126,11 @@ const getColumns = ({
         <Flex justifyContent="end">
           <TestConnectionButton connection={original} />
           <EditConnectionButton connection={original} disabled={hasSelection} />
+          <DuplicateConnectionButton connection={original} disabled={hasSelection} />
           <DeleteConnectionButton connectionId={original.connection_id} disabled={hasSelection} />
         </Flex>
       ),
+      enableHiding: false,
       enableSorting: false,
       header: "",
       meta: {
@@ -139,7 +143,7 @@ const getColumns = ({
 };
 
 export const Connections = () => {
-  const { t: translate } = useTranslation(["admin", "common"]);
+  const { i18n, t: translate } = useTranslation(["admin", "common"]);
 
   useDocumentTitle(translate("common:admin.Connections"));
 
@@ -154,7 +158,7 @@ export const Connections = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
-  const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
+  const { data, error, isLoading } = useConnectionServiceGetConnections({
     ...(advancedSearch.enabled
       ? { connectionIdPattern: connectionIdPattern ?? undefined }
       : { connectionIdPrefixPattern: connectionIdPattern ?? undefined }),
@@ -210,7 +214,6 @@ export const Connections = () => {
           />
         }
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="admin:connections.connection"
         noRowsMessage={<NothingFoundInfo />}
@@ -221,7 +224,7 @@ export const Connections = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("deleteActions.tooltip")}>

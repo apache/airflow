@@ -168,6 +168,26 @@ needed for your use case.
 It is also possible to build the image based of ``apache/airflow:latest``
  and the Lambda runtime can be included separately (follow steps `here <https://docs.aws.amazon.com/lambda/latest/dg/images-create.html#images-ric>`__).
 
+Writable paths and ``HOME``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A Lambda function's file system is read-only apart from ``/tmp``, which is why the provided
+Dockerfile sets ``AIRFLOW_HOME=/tmp/airflow``. Unless you attach an Amazon EFS file system to the
+function, anything that has to write at runtime has to write under ``/tmp``.
+
+A Lambda function also starts with no ``HOME`` set. Airflow itself does not need one, but third
+party libraries commonly write caches, credentials or downloaded components under the user's home
+directory and fail outright when it is missing. DuckDB is one example: installing an extension
+fails with ``IO Error: Can't find the home directory``. The provided Dockerfile sets ``HOME=/tmp/home``,
+and the provided ``app.py`` creates that directory when the function starts.
+
+It has to be created at runtime rather than in the image, because each execution environment gets a
+fresh ``/tmp`` and anything written there at build time is gone by the time the function runs.
+
+If you build your own image or supply your own handler, keep both halves. ``HOME`` has to point
+somewhere writable, which on Lambda means ``/tmp``, a directory below it, or a path on an attached
+EFS file system, and whatever you point it at has to exist before a task runs.
+
 
 .. include:: general.rst
   :start-after: .. BEGIN LOADING_DAGS_OVERVIEW
@@ -365,3 +385,8 @@ To configure Airflow to utilize the Lambda Executor and leverage the resources w
 
 .. include:: general.rst
   :start-after: .. BEGIN INIT_DB
+  :end-before: .. END INIT_DB
+
+.. include:: general.rst
+  :start-after: .. BEGIN TASK_INSTANCE_IDENTITY
+  :end-before: .. END TASK_INSTANCE_IDENTITY

@@ -25,15 +25,15 @@
     "files": {
       "columns": {
         "file": "Datei",
-        "lastParsed": "Zuletzt Geparst",
+        "lastParsed": "Zuletzt geparst",
         "parseDuration": "Parsezeit"
       },
       "file_one": "Datei",
       "file_other": "Dateien",
       "importErrorGone": "Der Importfehler ist nicht mehr aufgetreten. Vermutlich durch ein Wiedereinlesen behoben.",
       "neverParsed": "Nie",
-      "showImportError_one": "{{count}} Importfehler ansehen",
-      "showImportError_other": "{{count}} Importfehler ansehen"
+      "showImportError_one": "{{count, number}} Importfehler ansehen",
+      "showImportError_other": "{{count, number}} Importfehler ansehen"
     },
     "inactive": "Inaktiv",
     "neverRefreshed": "Nie",

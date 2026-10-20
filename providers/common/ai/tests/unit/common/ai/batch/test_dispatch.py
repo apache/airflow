@@ -31,7 +31,7 @@ from airflow.providers.common.ai.exceptions import (
     BatchProviderNotYetSupportedError,
     UnsupportedBatchProviderError,
 )
-from airflow.sdk import Connection
+from airflow.providers.common.compat.sdk import Connection
 
 
 class TestSplitModelId:

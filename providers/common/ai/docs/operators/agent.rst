@@ -238,8 +238,10 @@ file, and ``system_prompt`` is added to the file's ``instructions``:
 Build the path from ``__file__``: a relative path resolves against the worker's
 working directory, not the Dag file.
 
-With ``durable=True``, tools from capabilities declared in the spec file are not
-replayed on retry; they run again. Pass tools you need replayed in ``toolsets=``.
+With ``durable=True``, the toolsets that spec-file capabilities contribute are replayed
+like any other, and need an id the same way (see :doc:`../durable_execution`). The
+operator cannot see inside a spec file when the Dag is parsed, so a missing id there
+fails the task when the agent is built rather than the Dag when it loads.
 
 Agent features
 --------------
@@ -251,8 +253,8 @@ Five features have pages of their own:
   on retry instead of paying for them again.
 - :doc:`../capabilities`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
   with ``capabilities=``.
-- :doc:`../code_mode`: set ``code_mode=True`` to collapse the agent's tools into a single
-  ``run_code`` tool the model drives by writing Python.
+- :doc:`../code_mode`: pass the ``CodeMode`` capability to collapse the agent's tools into a
+  single ``run_code`` tool the model drives by writing Python.
 - :doc:`../tool_approval`: mark tools that need a person's approval, and the task pauses before
   a marked call runs.
 
@@ -262,6 +264,100 @@ Durable execution
 ^^^^^^^^^^^^^^^^^
 
 Moved to :doc:`../durable_execution`.
+
+.. _agent-prompt-caching:
+
+Prompt caching
+^^^^^^^^^^^^^^
+
+Every request an agent makes re-sends its tool definitions, its system prompt and the
+conversation so far. An agent that calls three tools makes four requests, and a mapped
+``@task.agent`` makes that many per map index, all starting with the same system prompt.
+``cache_prompt`` (on by default) asks the provider to keep that repeated prefix, so later
+requests read it back instead of paying the full input price for it again.
+
+What it turns on depends on the model the connection resolves to:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Provider
+     - What ``cache_prompt=True`` does
+   * - Anthropic (``anthropic:``)
+     - Marks the end of the tool definitions, the end of the system prompt and the latest
+       message as points to cache up to.
+   * - Bedrock (``bedrock:``) and OpenRouter (``openrouter:``)
+     - The same three marks, for models pydantic-ai knows support caching. Nothing for the
+       rest.
+   * - OpenAI, Azure OpenAI, Gemini
+     - Nothing. These cache long prompts on their own.
+
+Because each model reads only its own provider's settings, the same flag covers a
+:doc:`fallback chain <../provider_fallback>` that spans providers.
+
+On Anthropic, a 5-minute cache write costs 1.25x the normal input price and a read costs
+0.1x (less on some newer models), so a prefix read back even once costs less than sending it
+twice. A prompt shorter than the model's minimum length for caching (512 to 4,096 tokens,
+depending on the model) is not cached and costs nothing extra. See Anthropic's
+`prompt caching guide <https://platform.claude.com/docs/en/build-with-claude/prompt-caching>`__
+for the per-model minimums and prices.
+
+Caching costs more than it saves in three cases:
+
+- **A single long request.** An agent with no tools that sends a long prompt once and is not
+  run again within five minutes pays the write and never reads it back.
+- **A large final tool result.** The latest message is written to the cache on every request,
+  including the last one, which nothing reads. When the last tool returns much more than the
+  system prompt and tool definitions add up to, as a query returning thousands of rows can,
+  that final write costs more than the earlier reads saved.
+- **Map indexes that start together.** A cache entry exists only once the response that wrote
+  it has started, so map indexes that all start at the same moment each write their own copy.
+  Indexes that start later read it back.
+
+Turn it off for such a task:
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="summarize_quarter",
+        prompt="Summarize the attached report.",
+        llm_conn_id="anthropic_default",
+        system_prompt=long_style_guide,
+        cache_prompt=False,
+    )
+
+To choose what is cached or for how long, set the provider's own settings in
+``agent_params["model_settings"]``. Setting any ``anthropic_cache*`` key hands Anthropic
+caching back to you, and ``cache_prompt`` adds nothing for Anthropic; the same holds for
+``bedrock_cache*`` and ``openrouter_cache*``. A ``CachePoint`` in the prompt or the message
+history hands caching back to you for every provider. For example, a mapped task whose
+instances run further apart than five minutes can keep the system prompt for an hour, at 2x
+the input price for each write instead of 1.25x:
+
+.. code-block:: python
+
+    AgentOperator.partial(
+        task_id="classify_ticket",
+        llm_conn_id="anthropic_default",
+        system_prompt=long_taxonomy,
+        agent_params={
+            "model_settings": {
+                "anthropic_cache_instructions": "1h",
+                "anthropic_cache_tool_definitions": "1h",
+            }
+        },
+    ).expand(prompt=tickets)
+
+When the provider reports cache activity, the task log shows it under the run summary:
+
+.. code-block:: text
+
+    LLM run complete: model=claude-sonnet-4-5, requests=2, tool_calls=1, input_tokens=..., ...
+    LLM prompt cache: cache_read_tokens=..., cache_write_tokens=...
+
+``input_tokens`` includes both counts. With :doc:`../observability` turned on, each
+request's GenAI span carries them too. The ``usage`` XCom carries them as
+``cache_read_tokens`` and ``cache_write_tokens``.
 
 Parameters
 ----------
@@ -279,9 +375,13 @@ Parameters
   ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
 - ``capabilities``: List of pydantic-ai capabilities (``Thinking``, ``WebSearch``, guardrails,
   etc.). See :ref:`capabilities`.
-- ``enable_tool_logging``: Wrap each toolset in
+- ``enable_tool_logging``: Wrap the assembled function toolset in
   :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
-  every tool call is logged in real time. Default ``True``.
+  tools supplied through ``toolsets=``, ``agent_params={"tools": [...]}``, and
+  capabilities are logged in real time, including tools the model found through
+  :ref:`tool search <howto/toolset:progressive-disclosure>`. Output tools, provider-native
+  tools, and tools another capability adds through its own wrapper (code mode's
+  ``run_code``, ToolSearch's ``search_tools``) are not covered. Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
 - .. _agent-usage-budget:
@@ -327,28 +427,33 @@ Parameters
   regeneration shares the count of the run before it whenever ``usage_limits``
   is set, on every Airflow version; with ``usage_limits=None`` each
   regeneration starts a fresh count.
-- ``durable``: When ``True``, enables step-level caching of model responses and
-  tool results. On retry, cached steps are replayed instead of re-executing
-  expensive LLM calls. On Airflow >= 3.3 the cache uses the task state store (no
-  configuration needed); on older cores it requires the ``[common.ai]
-  durable_cache_path`` config option to be set. Default ``False``. A replayed
+- ``durable``: When ``True``, records each step the agent completes (model
+  requests, tool calls, other capabilities' ``@durable_operation`` methods) in a
+  journal kept for the task instance, and replays the recorded steps on retry
+  instead of running them again. Every ``FunctionToolset``, ``MCPToolset`` and
+  ``DynamicToolset`` needs an ``id``. On Airflow >= 3.3 the journal uses the task
+  state store (no configuration needed); on older Airflow versions it requires the
+  ``[common.ai] durable_cache_path`` config option to be set. Default ``False``. A replayed
   step adds nothing to the usage counted against ``usage_limits`` or reported
   in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
   each attempt counts only the model and tool calls it actually makes, on
   every Airflow version. A step that re-runs live because the conversation
   changed since the previous attempt is counted like any other live call, and
   a retry whose cross-attempt total already sits at a limit can still start
-  when the steps it needs are cached. Clearing a failed task instance starts
-  a fresh budget but keeps the durable cache its attempts left behind, so what
-  the rerun replays from that cache is free there too.
-- ``code_mode``: When ``True``, wraps the agent's tools in a single ``run_code``
-  tool that the model drives by writing Python, executed in the Monty sandbox.
-  Requires the ``code-mode`` extra. Default ``False``. See :ref:`code-mode`.
+  when the steps it needs are recorded. Clearing a failed task instance starts
+  a fresh budget but keeps the journal its attempts left behind, so what the
+  rerun replays from it is free there too. See :doc:`../durable_execution`.
+- ``cache_prompt``: Ask the provider to cache the tool definitions, system prompt and
+  conversation so later requests read them back at a discount. Default ``True``; a no-op for
+  providers that cache on their own. See :ref:`agent-prompt-caching`.
 - ``message_history``: Prior conversation to seed a multi-turn session, as a list
   of pydantic-ai ``ModelMessage`` objects or their JSON form (``str`` / ``bytes``).
   When set, the post-run transcript is pushed to XCom under the key
   ``message_history`` for the next run to resume. Default ``None`` (single-turn).
   See :doc:`../message_history`.
+- ``emit_message_history``: Push the post-run transcript to XCom under the key
+  ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
+  otherwise; ``True`` records a single-turn run without seeding it. See :doc:`../message_history`.
 - ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
   ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
   ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
@@ -364,8 +469,8 @@ Logging
 -------
 
 All AI operators automatically log a post-run summary after ``run_sync()``
-completes. ``AgentOperator`` additionally wraps toolsets for real-time
-per-tool-call logging (controlled by ``enable_tool_logging``).
+completes. ``AgentOperator`` additionally wraps the assembled function toolset
+for real-time per-tool-call logging (controlled by ``enable_tool_logging``).
 
 **Real-time tool call logging** (AgentOperator only): each tool call is
 logged as it happens:

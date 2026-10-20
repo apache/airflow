@@ -229,7 +229,7 @@ You should import such shared Dags using full path (starting from the directory 
    from my_company.my_custom_dags.base_dag import BaseDag  # This is cool
 
 The relative imports are counter-intuitive, and depending on how you start your python code, they can behave
-differently. In Airflow the same Dag file might be parsed in different contexts (by schedulers, by workers
+differently. In Airflow the same Dag file might be parsed in different contexts (by the Dag processor, by workers
 or during tests) and in those cases, relative imports might behave differently. Always use full
 python package paths when you import anything in Airflow Dags, this will save you a lot of troubles.
 You can read more about relative import caveats in

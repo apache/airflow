@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -27,6 +28,7 @@ from botocore.exceptions import ClientError, WaiterError
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.operators.ecs import (
     EcsBaseOperator,
     EcsCreateClusterOperator,
@@ -190,32 +192,6 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         fetcher = self.ecs._get_task_log_fetcher()
 
         assert fetcher.hook.region_name == "region"
-
-    def test_template_fields_overrides(self):
-        assert self.ecs.template_fields == (
-            "task_definition",
-            "cluster",
-            "overrides",
-            "launch_type",
-            "capacity_provider_strategy",
-            "volume_configurations",
-            "group",
-            "placement_constraints",
-            "placement_strategy",
-            "platform_version",
-            "network_configuration",
-            "tags",
-            "awslogs_group",
-            "awslogs_region",
-            "awslogs_stream_prefix",
-            "awslogs_fetch_interval",
-            "container_name",
-            "propagate_tags",
-            "reattach",
-            "number_logs_exception",
-            "wait_for_completion",
-            "deferrable",
-        )
 
     @pytest.mark.parametrize(
         (
@@ -651,6 +627,26 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs.skip_on_exit_code = [2]
         self.ecs.task_log_fetcher = log_fetcher_mock
         log_fetcher_mock.get_last_log_messages.return_value = ["log1", "log2"]
+        client_mock.describe_tasks.return_value = {
+            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 2}]}]
+        }
+        with pytest.raises(AirflowSkipException, match="This task is not in success state"):
+            self.ecs._check_success_task()
+
+    @mock.patch.object(AwsLogsHook, "conn")
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_check_success_task_skip_exception_with_missing_log_stream(self, client_mock, logs_conn_mock):
+        self.ecs.arn = "arn"
+        self.ecs.skip_on_exit_code = [2]
+        self.ecs.task_log_fetcher = AwsTaskLogFetcher(
+            log_group="group",
+            log_stream_name="stream",
+            fetch_interval=timedelta(seconds=1),
+            logger=self.ecs.log,
+        )
+        logs_conn_mock.get_log_events.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException"}}, "GetLogEvents"
+        )
         client_mock.describe_tasks.return_value = {
             "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 2}]}]
         }

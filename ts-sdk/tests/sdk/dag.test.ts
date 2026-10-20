@@ -25,11 +25,13 @@ import {
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
+  label,
   type DagSpec,
   type TaskRef,
   type TaskSpec,
 } from "../../src/sdk/dag.js";
 import { Bundle, finalizeBundleDags } from "../../src/sdk/bundle.js";
+import { brandOperator, type Operator } from "../../src/sdk/operator.js";
 
 describe("Dag", () => {
   it("returns a factory whose call yields a frozen TaskRef with the Dag and task identity", () => {
@@ -561,6 +563,117 @@ describe("Dag", () => {
       ]);
     });
 
+    it("labels each edge of a fan-out from its own endpoint", () => {
+      const { dag, refs } = placedDag("d", "check", "process", "notify");
+
+      refs.check!.before(label(refs.process!, "rows found"), label(refs.notify!, "no rows"));
+      refs.notify!.after(label(refs.process!, "after processing"));
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "check", downstream: "process", label: "rows found" },
+        { upstream: "check", downstream: "notify", label: "no rows" },
+        { upstream: "process", downstream: "notify", label: "after processing" },
+      ]);
+    });
+
+    it("replaces a label on a redrawn edge, and keeps it on an unlabelled redraw", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(label(refs.cleanup!, "first"));
+      refs.load!.before(label(refs.cleanup!, "second"));
+      refs.cleanup!.after(refs.load!);
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "cleanup", label: "second" },
+      ]);
+    });
+
+    it("leaves the label out of an unlabelled edge", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+
+      expect(getDagOrderEdges(dag)).toStrictEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it.each(["before", "after"] as const)("rejects %s() called on a label", (verb) => {
+      const { refs } = placedDag("d", "load", "cleanup");
+
+      expect(() => label(refs.load!, "rows")[verb](refs.cleanup!)).toThrowError(
+        `label(..., "rows") on "load" of Dag "d" names the edge drawn to it, ` +
+          `so pass it to before() or after() rather than calling ${verb}() on it`,
+      );
+    });
+
+    it.each([
+      ["undefined", undefined],
+      ["an object", { dagId: "d", taskId: "load" }],
+    ])("rejects a label on %s", (described, node) => {
+      expect(() => label(node as never, "rows")).toThrowError(
+        `label() takes a task or task group reference, not ${described}`,
+      );
+    });
+
+    it("rejects an empty label", () => {
+      const { refs } = placedDag("d", "load");
+
+      expect(() => label(refs.load!, "")).toThrowError(
+        "label() takes the text to put on the edge, not an empty string",
+      );
+    });
+
+    it("rejects a label given as a task input", () => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+      const load = dag.task("load", async (_: { rows: unknown }) => undefined);
+
+      expect(() => load({ rows: label(extracted, "rows") as never })).toThrowError(
+        'Input "rows" of task "load" was given a label(), which only goes into before() or ' +
+          "after(); pass the reference itself",
+      );
+    });
+
+    it("rejects a label nested in a literal task input", () => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+      const load = dag.task("load", async (_: { rows: unknown }) => undefined);
+
+      expect(() => load({ rows: [label(extracted, "rows")] as never })).toThrowError(
+        /Input "rows" of task "load" holds a reference to "extract" inside a literal value/,
+      );
+    });
+
+    it("rejects a label given as a decider input", () => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+
+      expect(() =>
+        dag.if(
+          async (_: { rows: unknown }) => true,
+          { rows: label(extracted, "rows") as never },
+          { taskId: "has_rows" },
+        ),
+      ).toThrowError('Input "rows" of task "has_rows" was given a label()');
+    });
+
+    it("rejects a label that is not a string", () => {
+      const { refs } = placedDag("d", "load");
+
+      expect(() => label(refs.load!, 42 as never)).toThrowError(
+        "label() takes a string to name the edge with, not the number 42",
+      );
+    });
+
+    it("rejects a label from another copy of the SDK", () => {
+      const { refs } = placedDag("d", "load", "cleanup");
+      const foreign = { dagId: "d", before: () => foreign, after: () => foreign };
+      Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.LabelledNode"), { value: true });
+
+      expect(() => refs.load!.before(foreign)).toThrowError(
+        /before\(\) on Dag "d" was given a label\(\) that comes from a different copy/,
+      );
+    });
+
     it.each([
       ["before", (a: TaskRef, b: TaskRef) => a.before(b)],
       ["after", (a: TaskRef, b: TaskRef) => b.after(a)],
@@ -630,9 +743,7 @@ describe("Dag", () => {
       const { refs: there } = placedDag("there", "cleanup");
 
       expect(() => draw(here.load!, there.cleanup!)).toThrowError(
-        new RegExp(
-          `${verb}\\(\\) cannot draw an edge to Dag "there" node "cleanup" from Dag "here"`,
-        ),
+        new RegExp(`${verb}\\(\\) cannot reach Dag "there" node "cleanup" from Dag "here"`),
       );
     });
 
@@ -865,6 +976,22 @@ describe("Dag", () => {
       },
     );
 
+    it.each(["upstream_join_id", "downstream_join_id"])(
+      "rejects a task or group taking the %s of its group",
+      (joinId) => {
+        const dag = new Dag("grouped");
+        const staging = dag.taskGroup("staging");
+
+        expect(() => staging.task(joinId, async () => undefined)).toThrowError(
+          `Task "staging.${joinId}" of Dag "grouped" takes the ID of a join node of task group ` +
+            '"staging"; pick another ID',
+        );
+        expect(() => staging.taskGroup(joinId)).toThrowError(
+          `Task group "staging.${joinId}" of Dag "grouped" takes the ID of a join node`,
+        );
+      },
+    );
+
     it("allows the same group ID under different parents", () => {
       const dag = new Dag("grouped");
       dag
@@ -1082,5 +1209,39 @@ describe("Dag", () => {
     // And not the prefix or the leaf on its own.
     expect(bundle.getTaskHandler("example_dag", "transforms")).toBeUndefined();
     expect(bundle.getTaskHandler("example_dag", "normalize")).toBeUndefined();
+  });
+});
+
+describe("an operator that does not enforce executionTimeout", () => {
+  const waiter = (alternative?: string) =>
+    brandOperator<Operator<void, void>>({
+      operatorName: "WaitOperator",
+      label: "wait",
+      ...(alternative !== undefined && { executionTimeoutAlternative: alternative }),
+      execute: async () => {
+        throw new Error("not run");
+      },
+    });
+
+  it("is rejected with an executionTimeout, naming the option that bounds it", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter("pollTimeout"), { executionTimeout: 60 })).toThrowError(
+      'Task "wait" of Dag "d" is a wait task, which does not enforce executionTimeout; use ' +
+        "pollTimeout instead",
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it("takes the other options, and no executionTimeout", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter("pollTimeout"), { retries: 1 })).not.toThrow();
+  });
+
+  it("leaves an operator that does not name one free to take an executionTimeout", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter(), { executionTimeout: 60 })).not.toThrow();
   });
 });

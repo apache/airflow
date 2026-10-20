@@ -49,6 +49,18 @@ DuckDB support is an optional extra
     ``autoinstall_extensions=False`` and make the extensions available yourself, either
     in an ``extension_directory`` or baked into your image.
 
+.. warning::
+
+    Because this provider installs those two extensions by default, it needs the environment to
+    have a usable ``HOME``. DuckDB installs extensions under the user's home directory and fails
+    with ``IO Error: Can't find the home directory`` when there is none, which is the default state
+    of an AWS Lambda function. Configuring a writable home directory is the deployment
+    administrator's job; see
+    :doc:`the DuckDB connection docs <apache-airflow-providers-duckdb:connections/duckdb>` for the
+    details and for the alternative that needs no home directory at all. If you run tasks on the
+    :doc:`Lambda executor <../executors/lambda-executor>`, set ``HOME`` in the function's image or
+    environment variables.
+
 .. _howto/connection:duckdb_aws:
 
 Run a DuckDB query against Amazon S3

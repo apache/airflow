@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.providers.common.ai.operators.document_loader import DocumentLoaderOperator
-from airflow.sdk import DAG
+from airflow.providers.common.compat.sdk import DAG
 
 
 class TestDocumentLoaderInit:
@@ -528,7 +528,7 @@ class TestFileDiscovery:
 class TestCloudUriDispatch:
     """``source_path`` containing a URI scheme routes through ObjectStoragePath."""
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     def test_single_object_uri_returns_one_document(self, mock_osp_cls):
         # `str(mock_obj)` returns whatever MagicMock renders; we only assert
         # the file_name field, not file_path, so leaving __str__ default is
@@ -552,7 +552,7 @@ class TestCloudUriDispatch:
         assert result[0]["text"] == "cloud content"
         assert result[0]["metadata"]["file_name"] == "report.txt"
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     def test_directory_uri_iterates_children(self, mock_osp_cls):
         # Root is a directory; iterdir yields two text files.
         def _mock_child(name: str, content: bytes):
@@ -577,7 +577,7 @@ class TestCloudUriDispatch:
 
         assert {doc["text"] for doc in result} == {"alpha", "beta"}
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     def test_neither_file_nor_dir_uri_raises(self, mock_osp_cls):
         bad = MagicMock()
         bad.is_file.return_value = False
@@ -588,7 +588,7 @@ class TestCloudUriDispatch:
         with pytest.raises(FileNotFoundError, match="neither a file nor a directory"):
             op.execute(context=MagicMock())
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     def test_glob_uri_matches_across_directories(self, mock_osp_cls):
         def _mock_match(name: str, content: bytes):
             match = MagicMock()
@@ -613,7 +613,7 @@ class TestCloudUriDispatch:
         root.glob.assert_called_once_with("**/*.txt")
         assert {doc["text"] for doc in result} == {"alpha", "beta"}
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     def test_glob_in_bucket_segment_raises(self, mock_osp_cls):
         op = DocumentLoaderOperator(task_id="test", source_path="s3://bucket-*/dir/a.txt")
         with pytest.raises(ValueError, match="scheme or bucket segment"):

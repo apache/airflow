@@ -50,9 +50,5 @@ export const getTabPath = (matches: Array<RouteMatch>, entities: Array<TabEntity
     return "";
   }
 
-  if (tabMatch.handle.tab === TabName.Overview) {
-    return "";
-  }
-
-  return `/${tabMatch.handle.tab}`;
+  return tabMatch.handle.tab === TabName.Overview ? "" : `/${tabMatch.handle.tab}`;
 };

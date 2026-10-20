@@ -47,7 +47,7 @@ else:
     # bad hack but does the job
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.utils.types import (  # type: ignore[attr-defined,no-redef]
-        NOTSET as SET_DURING_EXECUTION,  # type: ignore[assignment]
+        NOTSET as SET_DURING_EXECUTION,
     )
 from airflow.providers.common.compat.sdk import timezone
 

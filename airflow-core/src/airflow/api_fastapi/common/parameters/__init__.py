@@ -64,6 +64,7 @@ from airflow.api_fastapi.common.parameters.dag import (
     QueryHasImportErrorsFilter as QueryHasImportErrorsFilter,
     QueryOwnersFilter as QueryOwnersFilter,
     QueryPausedFilter as QueryPausedFilter,
+    QueryRelativeFilelocPrefixFilter as QueryRelativeFilelocPrefixFilter,
     QueryTagsFilter as QueryTagsFilter,
     QueryTeamsFilter as QueryTeamsFilter,
     QueryTimetableTypePrefixPatternSearch as QueryTimetableTypePrefixPatternSearch,

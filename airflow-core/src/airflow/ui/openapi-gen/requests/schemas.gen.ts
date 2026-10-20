@@ -285,6 +285,18 @@ export const $AssetEventResponse = {
             type: 'integer',
             title: 'Source Map Index'
         },
+        source_task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Source Task Instance Id'
+        },
         created_dagruns: {
             items: {
                 '$ref': '#/components/schemas/DagRunAssetReference'
@@ -671,6 +683,38 @@ export const $AssetStateStoreLastUpdatedBy = {
                 }
             ],
             title: 'Map Index'
+        },
+        task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Id'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        try_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Try Number'
         }
     },
     type: 'object',
@@ -955,6 +999,12 @@ export const $BackfillPostBody = {
             ],
             title: 'Run On Latest Version',
             description: 'Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).'
+        },
+        drain_dag: {
+            type: 'boolean',
+            title: 'Drain Dag',
+            description: 'Drain the Dag together with the backfill. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.',
+            default: false
         }
     },
     additionalProperties: false,
@@ -1860,6 +1910,29 @@ export const $BulkTaskInstanceBody = {
                 }
             ]
         },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
+        },
         note: {
             anyOf: [
                 {
@@ -2397,6 +2470,38 @@ export const $ClearTaskInstancesBody = {
             ],
             title: 'Task Group Id',
             description: "Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are."
+        },
+        task_instance_ids: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    type: 'array',
+                    minItems: 1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Ids',
+            description: 'Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.'
+        },
+        whole_expansion_ids: {
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            type: 'array',
+            title: 'Whole Expansion Ids',
+            description: 'Selected execution IDs whose entire mapped expansion should be cleared.'
+        },
+        include_later_loop_iterations: {
+            type: 'boolean',
+            title: 'Include Later Loop Iterations',
+            description: 'Clear later iterations when the selection includes a loop gate.',
+            default: true
         },
         dag_run_id: {
             anyOf: [
@@ -3466,6 +3571,16 @@ export const $DAGDetailsResponse = {
             ],
             title: 'Team Name'
         },
+        latest_dag_version: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DagVersionResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',
@@ -3486,22 +3601,10 @@ export const $DAGDetailsResponse = {
 Deprecated: Use max_active_tasks instead.`,
             deprecated: true,
             readOnly: true
-        },
-        latest_dag_version: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/DagVersionResponse'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Return the latest DagVersion.',
-            readOnly: true
         }
     },
     type: 'object',
-    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'catchup', 'dag_run_timeout', 'asset_expression', 'doc_md', 'start_date', 'end_date', 'is_paused_upon_creation', 'params', 'render_template_as_native_obj', 'template_search_path', 'timezone', 'last_parsed', 'default_args', 'is_backfillable', 'file_token', 'concurrency', 'latest_dag_version'],
+    required: ['dag_id', 'dag_display_name', 'is_paused', 'is_stale', 'last_parsed_time', 'last_parse_duration', 'last_expired', 'bundle_name', 'bundle_version', 'relative_fileloc', 'fileloc', 'description', 'timetable_summary', 'timetable_description', 'timetable_partitioned', 'timetable_periodic', 'tags', 'max_active_tasks', 'max_active_runs', 'max_consecutive_failed_dag_runs', 'has_task_concurrency_limits', 'has_import_errors', 'next_dagrun_logical_date', 'next_dagrun_data_interval_start', 'next_dagrun_data_interval_end', 'next_dagrun_run_after', 'allowed_run_types', 'owners', 'catchup', 'dag_run_timeout', 'asset_expression', 'doc_md', 'start_date', 'end_date', 'is_paused_upon_creation', 'params', 'render_template_as_native_obj', 'template_search_path', 'timezone', 'last_parsed', 'default_args', 'latest_dag_version', 'is_backfillable', 'file_token', 'concurrency'],
     title: 'DAGDetailsResponse',
     description: 'Specific serializer for Dag Details responses.'
 } as const;
@@ -5261,6 +5364,194 @@ export const $DagTagResponse = {
     description: 'Dag Tag serializer for responses.'
 } as const;
 
+export const $DagVersionDiffCategory = {
+    type: 'string',
+    enum: ['asset', 'authorization', 'callback', 'deadline', 'dependency', 'metadata', 'param', 'provenance', 'schedule', 'task', 'unknown'],
+    title: 'DagVersionDiffCategory',
+    description: 'What part of a Dag a difference belongs to. Mirrors ``DiffCategory``.'
+} as const;
+
+export const $DagVersionDiffChangeResponse = {
+    properties: {
+        path: {
+            type: 'string',
+            title: 'Path'
+        },
+        operation: {
+            '$ref': '#/components/schemas/DagVersionDiffOperation'
+        },
+        category: {
+            '$ref': '#/components/schemas/DagVersionDiffCategory'
+        },
+        impact: {
+            '$ref': '#/components/schemas/DagVersionDiffImpact'
+        },
+        occurrence_count: {
+            type: 'integer',
+            title: 'Occurrence Count',
+            description: 'How many underlying changes this record stands for. Always 1 when values are disclosed, since each change is then its own record; a redacted record merges every change sharing its path and operation.'
+        },
+        before_digest: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Before Digest',
+            description: 'SHA-256 over the canonical JSON of `before_value`. Present only when values are disclosed, and null when the change has no before side.'
+        },
+        after_digest: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'After Digest',
+            description: 'SHA-256 over the canonical JSON of `after_value`. Present only when values are disclosed, and null when the change has no after side.'
+        },
+        before_value: {
+            title: 'Before Value',
+            description: 'The value this path held in the base version. Present only when values are disclosed, and omitted entirely when the change has no before side — which is how an absent side is told apart from a stored null.'
+        },
+        after_value: {
+            title: 'After Value',
+            description: 'The value this path holds in the target version. Present only when values are disclosed, and omitted entirely when the change has no after side — which is how an absent side is told apart from a stored null.'
+        }
+    },
+    type: 'object',
+    required: ['path', 'operation', 'category', 'impact', 'occurrence_count'],
+    title: 'DagVersionDiffChangeResponse',
+    description: 'One structural difference between two stored Dag versions.'
+} as const;
+
+export const $DagVersionDiffImpact = {
+    type: 'string',
+    enum: ['authorization', 'execution', 'metadata', 'provenance', 'unknown'],
+    title: 'DagVersionDiffImpact',
+    description: 'What a difference affects. Mirrors ``DiffImpact``.'
+} as const;
+
+export const $DagVersionDiffMode = {
+    type: 'string',
+    enum: ['observed_state', 'unavailable'],
+    title: 'DagVersionDiffMode',
+    description: 'Whether a comparison could be made at all.'
+} as const;
+
+export const $DagVersionDiffOperation = {
+    type: 'string',
+    enum: ['added', 'removed', 'changed'],
+    title: 'DagVersionDiffOperation',
+    description: 'How a difference presents at its path.'
+} as const;
+
+export const $DagVersionDiffResponse = {
+    properties: {
+        diff_schema_version: {
+            type: 'integer',
+            title: 'Diff Schema Version',
+            description: 'Wire format of this payload. Incremented when its shape changes.'
+        },
+        base_version_number: {
+            type: 'integer',
+            title: 'Base Version Number'
+        },
+        target_version_number: {
+            type: 'integer',
+            title: 'Target Version Number'
+        },
+        serializer_versions: {
+            '$ref': '#/components/schemas/DagVersionDiffSerializerVersions'
+        },
+        mode: {
+            '$ref': '#/components/schemas/DagVersionDiffMode'
+        },
+        unavailable_reason: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Unavailable Reason',
+            description: 'Why no comparison could be made. Populated only when `mode` is `unavailable`.'
+        },
+        values_status: {
+            '$ref': '#/components/schemas/DagVersionDiffValuesStatus'
+        },
+        truncated: {
+            type: 'boolean',
+            title: 'Truncated',
+            description: 'Whether a change at a path not already in `changes` was dropped to stay within `max_changes`. Paths that are absent are absent, not unchanged.'
+        },
+        total_changes: {
+            type: 'integer',
+            title: 'Total Changes',
+            description: 'Underlying changes across every disclosed path, not the number of records. Exact when `truncated` is false; a lower bound when it is true, because the changes at dropped paths are not counted.'
+        },
+        changes: {
+            items: {
+                '$ref': '#/components/schemas/DagVersionDiffChangeResponse'
+            },
+            type: 'array',
+            title: 'Changes'
+        }
+    },
+    type: 'object',
+    required: ['diff_schema_version', 'base_version_number', 'target_version_number', 'serializer_versions', 'mode', 'values_status', 'truncated', 'total_changes', 'changes'],
+    title: 'DagVersionDiffResponse',
+    description: 'Observed-state difference between two stored Dag versions.'
+} as const;
+
+export const $DagVersionDiffSerializerVersions = {
+    properties: {
+        base: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Base'
+        },
+        target: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Target'
+        }
+    },
+    type: 'object',
+    required: ['base', 'target'],
+    title: 'DagVersionDiffSerializerVersions',
+    description: `Which Dag serializer format each compared version was stored under.
+
+Unrelated to \`\`diff_schema_version\`\`, which versions this payload rather than the
+serialized Dags it describes.`
+} as const;
+
+export const $DagVersionDiffValuesStatus = {
+    type: 'string',
+    enum: ['available', 'unavailable'],
+    title: 'DagVersionDiffValuesStatus',
+    description: 'Whether values were disclosed. Mirrors ``ValuesStatus``.'
+} as const;
+
 export const $DagVersionResponse = {
     properties: {
         id: {
@@ -5327,7 +5618,7 @@ export const $DagVersionResponse = {
 
 export const $DagWarningType = {
     type: 'string',
-    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value'],
+    enum: ['asset conflict', 'duplicate dag id', 'non-existent pool', 'runtime varying value', 'task group cycle'],
     title: 'DagWarningType',
     description: `Enum for DAG warning types.
 
@@ -5436,6 +5727,18 @@ export const $EventLogResponse = {
             type: 'string',
             format: 'date-time',
             title: 'When'
+        },
+        task_instance_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Id'
         },
         dag_id: {
             anyOf: [
@@ -6397,6 +6700,23 @@ export const $LastAssetEventResponse = {
     description: 'Last asset event response serializer.'
 } as const;
 
+export const $LoopIterationResponse = {
+    properties: {
+        loop_id: {
+            type: 'string',
+            title: 'Loop Id'
+        },
+        iteration: {
+            type: 'integer',
+            title: 'Iteration'
+        }
+    },
+    type: 'object',
+    required: ['loop_id', 'iteration'],
+    title: 'LoopIterationResponse',
+    description: "A task execution's position in an enclosing loop."
+} as const;
+
 export const $MaterializeAssetBody = {
     properties: {
         dag_run_id: {
@@ -6502,6 +6822,12 @@ export const $MaterializeAssetBody = {
                 }
             ],
             title: 'Bundle Version'
+        },
+        drain_dag: {
+            type: 'boolean',
+            title: 'Drain Dag',
+            description: 'Drain the Dag together with this run. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag.',
+            default: false
         }
     },
     additionalProperties: false,
@@ -6538,6 +6864,29 @@ export const $PatchTaskInstanceBody = {
                     type: 'null'
                 }
             ]
+        },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
         },
         note: {
             anyOf: [
@@ -6579,82 +6928,22 @@ export const $PatchTaskInstanceBody = {
 } as const;
 
 export const $PluginAppliesToResponse = {
-    properties: {
-        dag_tags: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Dag Tags'
+    additionalProperties: {
+        items: {
+            type: 'string'
         },
-        dag_ids: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Dag Ids'
-        },
-        task_ids: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Task Ids'
-        },
-        operators: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Operators'
-        },
-        operator_names: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Operator Names'
-        }
+        type: 'array'
     },
-    additionalProperties: false,
     type: 'object',
     title: 'PluginAppliesToResponse',
-    description: 'Serializer for the optional Dag/task scoping criteria of a UI plugin.'
+    description: `Serializer for the optional scoping criteria of a UI plugin.
+
+An open map of dotted field path to the values that path may take -- not a closed set of
+criteria. \`\`{"state": ["failed"], "dag.tags.name": ["ml"]}\`\` scopes to failed entities of
+ml-tagged Dags. An unqualified path is rooted at the entity the \`\`destination\`\` is about;
+a path may instead name a related record (\`\`dag\`\`, \`\`dag_run\`\`, \`\`task\`\`, \`\`task_instance\`\`)
+as its first segment. Matching is equality against the listed values, OR within a path and
+AND across paths, and is evaluated client-side.`
 } as const;
 
 export const $PluginCollectionResponse = {
@@ -7508,6 +7797,11 @@ export const $TaskInstanceHistoryCollectionResponse = {
 
 export const $TaskInstanceHistoryResponse = {
     properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -7523,6 +7817,25 @@ export const $TaskInstanceHistoryResponse = {
         map_index: {
             type: 'integer',
             title: 'Map Index'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        loop_iteration: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LoopIterationResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         start_date: {
             anyOf: [
@@ -7719,6 +8032,17 @@ export const $TaskInstanceHistoryResponse = {
                 }
             ]
         },
+        note: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        },
         state_reason: {
             anyOf: [
                 {
@@ -7733,7 +8057,7 @@ export const $TaskInstanceHistoryResponse = {
         }
     },
     type: 'object',
-    required: ['task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'dag_version'],
     title: 'TaskInstanceHistoryResponse',
     description: 'TaskInstanceHistory serializer for responses.'
 } as const;
@@ -7760,6 +8084,29 @@ export const $TaskInstanceResponse = {
         map_index: {
             type: 'integer',
             title: 'Map Index'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        in_loop: {
+            type: 'boolean',
+            title: 'In Loop'
+        },
+        loop_iteration: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LoopIterationResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         logical_date: {
             anyOf: [
@@ -8045,7 +8392,7 @@ export const $TaskInstanceResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
+    required: ['id', 'task_id', 'dag_id', 'dag_run_id', 'map_index', 'in_loop', 'logical_date', 'run_after', 'start_date', 'end_date', 'duration', 'state', 'try_number', 'max_tries', 'task_display_name', 'dag_display_name', 'hostname', 'unixname', 'pool', 'pool_slots', 'queue', 'priority_weight', 'operator', 'operator_name', 'queued_when', 'scheduled_when', 'pid', 'executor', 'executor_config', 'note', 'rendered_map_index', 'trigger', 'triggerer_job', 'dag_version'],
     title: 'TaskInstanceResponse',
     description: 'TaskInstance serializer for responses.'
 } as const;
@@ -9032,6 +9379,12 @@ export const $TriggerDAGRunPostBody = {
                 }
             ],
             title: 'Bundle Version'
+        },
+        drain_dag: {
+            type: 'boolean',
+            title: 'Drain Dag',
+            description: 'Drain the Dag together with this run. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag.',
+            default: false
         }
     },
     additionalProperties: false,
@@ -9196,6 +9549,19 @@ export const $UpdateHITLDetailPayload = {
             additionalProperties: true,
             type: 'object',
             title: 'Params Input'
+        },
+        request_created_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Request Created At',
+            description: 'The ``created_at`` of the request this response answers, exactly as the GET endpoint returned it. When the task has since replaced its request (it asked again after a resume, retry or clear), the response is refused with 409 instead of answering a request the user did not see. Leave it out to answer whatever request is waiting.'
         }
     },
     type: 'object',
@@ -9409,6 +9775,30 @@ export const $XComCreateBody = {
             type: 'integer',
             title: 'Map Index',
             default: -1
+        },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: -1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
         }
     },
     additionalProperties: false,
@@ -9444,6 +9834,15 @@ export const $XComResponse = {
         map_index: {
             type: 'integer',
             title: 'Map Index'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
         },
         task_id: {
             type: 'string',
@@ -9514,6 +9913,15 @@ export const $XComResponseNative = {
         map_index: {
             type: 'integer',
             title: 'Map Index'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
         },
         task_id: {
             type: 'string',
@@ -9588,6 +9996,15 @@ export const $XComResponseString = {
             type: 'integer',
             title: 'Map Index'
         },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -9651,6 +10068,30 @@ export const $XComUpdateBody = {
             type: 'integer',
             title: 'Map Index',
             default: -1
+        },
+        region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Id'
+        },
+        region_index: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: -1
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Region Index'
         }
     },
     additionalProperties: false,
@@ -9867,6 +10308,13 @@ export const $CalendarTimeRangeResponse = {
     description: 'Represents a summary of DAG runs for a specific calendar time range.'
 } as const;
 
+export const $CallbackState = {
+    type: 'string',
+    enum: ['scheduled', 'pending', 'queued', 'running', 'success', 'failed'],
+    title: 'CallbackState',
+    description: 'All possible states of callbacks.'
+} as const;
+
 export const $ConfigResponse = {
     properties: {
         fallback_page_limit: {
@@ -10062,6 +10510,37 @@ export const $ConnectionHookMetaData = {
 
 It is used to transfer providers information loaded by providers_manager such that
 the API server/Web UI can use this data to render connection form UI.`
+} as const;
+
+export const $DAGRecentTaskInstanceStateCountsResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_ids: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Run Ids'
+        },
+        state_counts: {
+            additionalProperties: {
+                type: 'integer'
+            },
+            type: 'object',
+            title: 'State Counts'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'run_ids', 'state_counts'],
+    title: 'DAGRecentTaskInstanceStateCountsResponse',
+    description: `Task-instance state counts for a Dag's recent runs.
+
+The counts cover every running Dag run, or the latest run when none is running;
+\`\`run_ids\`\` lists those runs. \`\`state_counts\`\` only carries states present in them;
+task instances without a state yet are keyed as \`\`no_status\`\`.`
 } as const;
 
 export const $DAGRunLightResponse = {
@@ -10533,6 +11012,22 @@ export const $DAGWithLatestDagRunsResponse = {
     description: 'DAG with latest dag runs response serializer.'
 } as const;
 
+export const $DAGsRecentTaskInstanceStateCountsCollectionResponse = {
+    properties: {
+        dags: {
+            items: {
+                '$ref': '#/components/schemas/DAGRecentTaskInstanceStateCountsResponse'
+            },
+            type: 'array',
+            title: 'Dags'
+        }
+    },
+    type: 'object',
+    required: ['dags'],
+    title: 'DAGsRecentTaskInstanceStateCountsCollectionResponse',
+    description: 'Collection of per-Dag recent task-instance state counts for the Dag list page.'
+} as const;
+
 export const $DAGsRunStateCountsCollectionResponse = {
     properties: {
         dags: {
@@ -10551,6 +11046,43 @@ export const $DAGsRunStateCountsCollectionResponse = {
     required: ['dags', 'state_count_limit'],
     title: 'DAGsRunStateCountsCollectionResponse',
     description: 'Collection of per-Dag DagRun-state counts for the Dag list page.'
+} as const;
+
+export const $DagFolderCollectionResponse = {
+    properties: {
+        folders: {
+            items: {
+                '$ref': '#/components/schemas/DagFolderResponse'
+            },
+            type: 'array',
+            title: 'Folders'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['folders', 'total_entries'],
+    title: 'DagFolderCollectionResponse',
+    description: 'Collection of distinct Dag folders, each scoped to the bundle it belongs to.'
+} as const;
+
+export const $DagFolderResponse = {
+    properties: {
+        bundle_name: {
+            type: 'string',
+            title: 'Bundle Name'
+        },
+        folder: {
+            type: 'string',
+            title: 'Folder'
+        }
+    },
+    type: 'object',
+    required: ['bundle_name', 'folder'],
+    title: 'DagFolderResponse',
+    description: 'A distinct Dag folder (directory of ``relative_fileloc``) within a bundle.'
 } as const;
 
 export const $DagRunStatsResponse = {
@@ -10765,10 +11297,40 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Team Name'
+        },
+        callback_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Callback Id'
+        },
+        callback_type: {
+            type: 'string',
+            title: 'Callback Type'
+        },
+        callback_state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/CallbackState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        callback_path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Path'
         }
     },
     type: 'object',
-    required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id'],
+    required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id', 'callback_id', 'callback_type'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
 } as const;
@@ -10852,6 +11414,216 @@ export const $EdgeResponse = {
     description: 'Edge serializer for responses.'
 } as const;
 
+export const $ExecutionCollectionResponse = {
+    properties: {
+        task_instances: {
+            items: {
+                '$ref': '#/components/schemas/ExecutionTaskResponse'
+            },
+            type: 'array',
+            title: 'Task Instances'
+        },
+        regions: {
+            items: {
+                '$ref': '#/components/schemas/ExecutionRegionResponse'
+            },
+            type: 'array',
+            title: 'Regions'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['task_instances', 'regions', 'total_entries'],
+    title: 'ExecutionCollectionResponse',
+    description: 'A page of task executions with their region ancestry.'
+} as const;
+
+export const $ExecutionRegionResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        node_id: {
+            type: 'string',
+            title: 'Node Id'
+        },
+        parent_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parent Region Id'
+        },
+        parent_region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Parent Region Index'
+        },
+        forked_from_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Forked From Region Id'
+        },
+        resumes_from_index: {
+            type: 'integer',
+            title: 'Resumes From Index'
+        }
+    },
+    type: 'object',
+    required: ['id', 'node_id', 'parent_region_id', 'parent_region_index', 'forked_from_region_id', 'resumes_from_index'],
+    title: 'ExecutionRegionResponse',
+    description: 'Immutable region structure for interpreting task coordinates.'
+} as const;
+
+export const $ExecutionTaskResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            type: 'string',
+            title: 'Dag Run Id'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        task_display_name: {
+            type: 'string',
+            title: 'Task Display Name'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        map_index: {
+            type: 'integer',
+            title: 'Map Index'
+        },
+        try_number: {
+            type: 'integer',
+            title: 'Try Number'
+        },
+        state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        },
+        duration: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Duration'
+        },
+        dag_version_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Version Id'
+        },
+        operator: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Operator'
+        },
+        note: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Note'
+        }
+    },
+    type: 'object',
+    required: ['id', 'dag_id', 'dag_run_id', 'task_id', 'task_display_name', 'map_index', 'try_number', 'state', 'start_date', 'end_date', 'duration', 'dag_version_id', 'operator'],
+    title: 'ExecutionTaskResponse',
+    description: 'A task try together with the coordinates that address it exactly.'
+} as const;
+
 export const $ExtraMenuItem = {
     properties: {
         text: {
@@ -10895,6 +11667,34 @@ export const $GanttResponse = {
 
 export const $GanttTaskInstance = {
     properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        },
+        region_index: {
+            type: 'integer',
+            title: 'Region Index'
+        },
+        loop_iteration: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/LoopIterationResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        map_index: {
+            type: 'integer',
+            title: 'Map Index'
+        },
         task_id: {
             type: 'string',
             title: 'Task Id'
@@ -10977,7 +11777,7 @@ export const $GanttTaskInstance = {
         }
     },
     type: 'object',
-    required: ['task_id', 'task_display_name', 'try_number', 'state', 'scheduled_dttm', 'queued_dttm', 'start_date', 'end_date'],
+    required: ['id', 'map_index', 'task_id', 'task_display_name', 'try_number', 'state', 'scheduled_dttm', 'queued_dttm', 'start_date', 'end_date'],
     title: 'GanttTaskInstance',
     description: 'Task instance data for Gantt chart.'
 } as const;
@@ -11048,6 +11848,50 @@ export const $GridNodeResponse = {
                 }
             ],
             title: 'Is Mapped'
+        },
+        is_loop: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Loop'
+        },
+        loop_max_iterations: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Max Iterations'
+        },
+        loop_exit_task_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Exit Task Id'
+        },
+        loop_exit_criteria_doc: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Exit Criteria Doc'
         },
         setup_teardown_type: {
             anyOf: [
@@ -11293,12 +12137,336 @@ export const $LightGridTaskInstanceSummary = {
             type: 'boolean',
             title: 'Has Note',
             default: false
+        },
+        loop_iterations_count: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Iterations Count'
+        },
+        latest_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Region Id'
+        },
+        latest_region_index: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Region Index'
         }
     },
     type: 'object',
     required: ['task_id', 'task_display_name', 'state', 'child_states', 'min_start_date', 'max_end_date'],
     title: 'LightGridTaskInstanceSummary',
     description: 'Task Instance Summary model for the Grid UI.'
+} as const;
+
+export const $LoopHistoryResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        group_id: {
+            type: 'string',
+            title: 'Group Id'
+        },
+        runs: {
+            items: {
+                '$ref': '#/components/schemas/LoopRunSummary'
+            },
+            type: 'array',
+            title: 'Runs'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'group_id', 'runs'],
+    title: 'LoopHistoryResponse',
+    description: 'Loop invocations across recent DAG runs.'
+} as const;
+
+export const $LoopInvocationResponse = {
+    properties: {
+        region_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Region Id'
+        }
+    },
+    type: 'object',
+    required: ['region_id'],
+    title: 'LoopInvocationResponse',
+    description: 'One invocation of a loop in a Dag run.'
+} as const;
+
+export const $LoopIterationSummary = {
+    properties: {
+        index: {
+            type: 'integer',
+            title: 'Index'
+        },
+        task_count: {
+            type: 'integer',
+            title: 'Task Count',
+            default: 0
+        },
+        state: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        },
+        decision_reason: {
+            type: 'string',
+            title: 'Decision Reason',
+            description: "Why the loop's gate continued or stopped the loop at this iteration, if its until callable said."
+        }
+    },
+    type: 'object',
+    required: ['index'],
+    title: 'LoopIterationSummary',
+    description: 'Execution state for one existing iteration.'
+} as const;
+
+export const $LoopRunSummary = {
+    properties: {
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        run_after: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Run After'
+        },
+        logical_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Logical Date'
+        },
+        max_iterations: {
+            type: 'integer',
+            title: 'Max Iterations'
+        },
+        iterations_ran: {
+            type: 'integer',
+            title: 'Iterations Ran'
+        },
+        status: {
+            type: 'string',
+            enum: ['running', 'stopped_early', 'ran_to_cap', 'failed', 'skipped', 'removed'],
+            title: 'Status'
+        },
+        reason: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['cap_reached', 'iteration_failed']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Reason'
+        },
+        loop_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Region Id'
+        }
+    },
+    type: 'object',
+    required: ['run_id', 'run_after', 'max_iterations', 'iterations_ran', 'status'],
+    title: 'LoopRunSummary',
+    description: 'A loop invocation in a recent DAG run.'
+} as const;
+
+export const $LoopSummaryResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        group_id: {
+            type: 'string',
+            title: 'Group Id'
+        },
+        max_iterations: {
+            type: 'integer',
+            title: 'Max Iterations'
+        },
+        iterations_ran: {
+            type: 'integer',
+            title: 'Iterations Ran'
+        },
+        status: {
+            type: 'string',
+            enum: ['running', 'stopped_early', 'ran_to_cap', 'failed', 'skipped', 'removed'],
+            title: 'Status'
+        },
+        stopped_at_iteration: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Stopped At Iteration'
+        },
+        failed_at_iteration: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Failed At Iteration'
+        },
+        exit_criteria_doc: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Exit Criteria Doc'
+        },
+        exit_criteria_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Exit Criteria Name'
+        },
+        reason: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['cap_reached', 'iteration_failed']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Reason'
+        },
+        reason_task_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Reason Task Id'
+        },
+        loop_region_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Region Id'
+        },
+        loop_regions: {
+            items: {
+                '$ref': '#/components/schemas/LoopInvocationResponse'
+            },
+            type: 'array',
+            title: 'Loop Regions',
+            default: []
+        },
+        iterations: {
+            items: {
+                '$ref': '#/components/schemas/LoopIterationSummary'
+            },
+            type: 'array',
+            title: 'Iterations'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'run_id', 'group_id', 'max_iterations', 'iterations_ran', 'status', 'iterations'],
+    title: 'LoopSummaryResponse',
+    description: 'Runtime state of one loop invocation.'
 } as const;
 
 export const $MenuItem = {
@@ -11446,6 +12614,11 @@ export const $NextRunAssetsResponse = {
             type: 'array',
             title: 'Events'
         },
+        scheduling_asset_count: {
+            type: 'integer',
+            title: 'Scheduling Asset Count',
+            default: 0
+        },
         pending_partition_count: {
             anyOf: [
                 {
@@ -11526,6 +12699,50 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Is Mapped'
+        },
+        is_loop: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Loop'
+        },
+        loop_max_iterations: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Max Iterations'
+        },
+        loop_exit_task_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Exit Task Id'
+        },
+        loop_exit_criteria_doc: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Loop Exit Criteria Doc'
         },
         tooltip: {
             anyOf: [

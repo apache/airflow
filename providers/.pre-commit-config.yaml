@@ -37,6 +37,13 @@ repos:
         entry: ../scripts/ci/prek/check_trigger_serialize_init.py
         pass_filenames: true
         files: ^.*/src/airflow/providers/.*/triggers/[^/]+\.py$
+      - id: check-deferred-hook-configuration
+        name: Check deferred AWS tasks pass their hook configuration
+        description: An operator that defers must hand region_name, verify and botocore_config to its trigger
+        language: python
+        entry: ../scripts/ci/prek/check_deferred_hook_configuration.py
+        pass_filenames: false
+        files: ^amazon/src/airflow/providers/amazon/aws/.*\.py$
       - id: check-migration-patterns
         name: Check migration files for anti-patterns and style (MIG001-MIG004)
         entry: ../scripts/ci/prek/check_migration_patterns.py
@@ -290,7 +297,7 @@ repos:
         files: ^.*/src/airflow/providers/.*\.py$
         require_serial: true
   - repo: https://github.com/boidolr/ast-grep-pre-commit
-    rev: 7bae9c67e1a003cd5ef629c64f0466dc46556b3b  # frozen: 0.45.3
+    rev: 94d054a7862021ae626589210e260ce68f4d8b78  # frozen: 0.50.0
     hooks:
       - id: ast-grep
         name: Check providers import httpx2 rather than httpx

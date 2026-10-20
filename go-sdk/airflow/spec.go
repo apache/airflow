@@ -19,15 +19,16 @@ package airflow
 
 import "reflect"
 
-// DagSpec and TaskSpec are generated from Airflow core's Dag serialization schema,
-// which Python owns, so that neither struct drifts from it silently. genspec
+// DagSpec, TaskSpec and TaskGroupSpec are generated from Airflow core's Dag serialization
+// schema, which Python owns, so that no struct drifts from it silently. genspec
 // rewrites the schema into the authoring shape, go-jsonschema writes the structs,
 // and genspec puts the license header back on what it wrote. The rewritten schema
 // is a build artifact under .build; spec.gen.go is committed.
 //
 // To change a field, change the schema on the Python side, or the exclusions, type
 // overrides and injected properties in internal/genspec/authoring.go, and run
-// `just generate-specs`.
+// `just generate-specs`. genspec also writes spec_fields.gen.go, which holds the schema key
+// and the schema default of each field, so that serialize.go does not type them by hand.
 //
 // The structs carry no struct tags, because they are the authoring shape and not the
 // wire format: encoding/json would write a time.Duration as the nanoseconds Go counts it
@@ -35,40 +36,10 @@ import "reflect"
 // the zero value. Serializing a Dag converts the fields; a tag would invite
 // json.Marshal(spec) to skip that step and produce a shape core misreads.
 
-//go:generate go run ../internal/genspec -schema ../../airflow-core/src/airflow/serialization/schema.json -out ../../.build/go-sdk/spec.schema.json
-//go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags "" --capitalization ID --capitalization JSON --capitalization MD --capitalization XCom -p airflow -o spec.gen.go ../../.build/go-sdk/spec.schema.json
+//go:generate go run ../internal/genspec -schema ../schema/dag-schema.json -out ../../.build/go-sdk/spec.schema.json
+//go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags "" --capitalization ID --capitalization JSON --capitalization FgColor --capitalization MD --capitalization UI --capitalization XCom -p airflow -o spec.gen.go ../../.build/go-sdk/spec.schema.json
 //go:generate go run ../internal/genspec -license spec.gen.go
-
-// TriggerRule is when a task runs, given the state of the tasks upstream of it, and
-// WeightRule is how a task's priority weight is worked out from the graph around it.
-// The serialization schema types both as a plain string and names none of the values
-// either takes, so the constants are written here and the generated fields are given
-// these types by internal/genspec/authoring.go.
-type TriggerRule string
-
-const (
-	TriggerRuleAllSuccess              TriggerRule = "all_success"
-	TriggerRuleAllFailed               TriggerRule = "all_failed"
-	TriggerRuleAllDone                 TriggerRule = "all_done"
-	TriggerRuleAllDoneMinOneSuccess    TriggerRule = "all_done_min_one_success"
-	TriggerRuleAllDoneSetupSuccess     TriggerRule = "all_done_setup_success"
-	TriggerRuleOneSuccess              TriggerRule = "one_success"
-	TriggerRuleOneFailed               TriggerRule = "one_failed"
-	TriggerRuleOneDone                 TriggerRule = "one_done"
-	TriggerRuleNoneFailed              TriggerRule = "none_failed"
-	TriggerRuleNoneFailedMinOneSuccess TriggerRule = "none_failed_min_one_success"
-	TriggerRuleNoneSkipped             TriggerRule = "none_skipped"
-	TriggerRuleAllSkipped              TriggerRule = "all_skipped"
-	TriggerRuleAlways                  TriggerRule = "always"
-)
-
-type WeightRule string
-
-const (
-	WeightRuleDownstream WeightRule = "downstream"
-	WeightRuleUpstream   WeightRule = "upstream"
-	WeightRuleAbsolute   WeightRule = "absolute"
-)
+//go:generate go run ../internal/genspec -fields ../../.build/go-sdk/spec.schema.json -out spec_fields.gen.go
 
 // copySpec returns a copy of spec that shares no slice, map or pointer with it, so that a
 // caller changing what it still holds cannot change a registered Dag. Assigning a spec

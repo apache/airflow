@@ -42,9 +42,12 @@ from pydantic_ai.toolsets.abstract import ToolsetTool
 
 from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
+    DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_RESULT_BYTES,
+    GET_SCHEMA_TOOL_DESCRIPTION as _GET_SCHEMA_DESCRIPTION,
     QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
     build_query_result,
+    build_schema_result,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
@@ -73,6 +76,13 @@ _GET_SCHEMA_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "table_name": {"type": "string", "description": "Name of the table to inspect."},
+        "name_contains": {
+            "type": "string",
+            "description": (
+                "Return only columns whose name contains this substring (case-insensitive). "
+                "Use it to find the relevant columns on a very wide table."
+            ),
+        },
     },
     "required": ["table_name"],
 }
@@ -241,7 +251,8 @@ class SQLToolset(AirflowToolset):
         the time the first row is read, so only the per-row Python conversion is
         skipped. Treat this as a bound on what the agent is shown, not as a guarantee
         that ``SELECT * FROM huge_table`` is cheap.
-    :param max_result_bytes: Budget for the serialized ``query`` result, in bytes.
+    :param max_result_bytes: Budget for the serialized ``query`` result, in bytes, and the
+        byte backstop that also triggers the ``get_schema`` summary (see ``max_columns``).
         Default 64 KiB. ``max_rows`` bounds rows, which says nothing about size: one
         row of a 3000-column table is larger than a thousand rows of a narrow one, and
         a tool result stays in the model's message history for the rest of the run, so
@@ -250,6 +261,11 @@ class SQLToolset(AirflowToolset):
         rather than skipping it and packing later ones, so one wide row early in the
         result ends it. The result reports which limit it hit so the agent can narrow
         its projection rather than page through the table.
+    :param max_columns: Maximum number of columns ``get_schema`` returns in full. Default
+        ``100``. Above it -- or when the serialized columns exceed ``max_result_bytes`` --
+        the full list is replaced by a bounded summary (column count, a type histogram, a
+        sample of columns) that points the agent at the ``name_contains`` filter, so a
+        several-thousand-column table cannot exhaust the context before a query is written.
     :param max_retries: How many times the model may correct a failed call to one of these
         tools before the run fails. ``None`` (the default) uses the agent's tool retry
         budget, its ``retries``, as pydantic-ai's own toolsets do.
@@ -269,6 +285,7 @@ class SQLToolset(AirflowToolset):
         allow_writes: bool = False,
         max_rows: int = 50,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
+        max_columns: int = DEFAULT_MAX_COLUMNS,
         max_retries: int | None = None,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
@@ -294,6 +311,7 @@ class SQLToolset(AirflowToolset):
         self._allow_writes = allow_writes
         self._max_rows = max_rows
         self._max_result_bytes = max_result_bytes
+        self._max_columns = max_columns
         self._hook: DbApiHook | None = None
 
         # Canonical ``(catalog, schema, table)`` view of allowed_tables for membership
@@ -379,7 +397,7 @@ class SQLToolset(AirflowToolset):
 
         for name, description, schema in (
             ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
-            ("get_schema", "Get column names and types for a table.", _GET_SCHEMA_SCHEMA),
+            ("get_schema", _GET_SCHEMA_DESCRIPTION, _GET_SCHEMA_SCHEMA),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
         ):
@@ -431,7 +449,7 @@ class SQLToolset(AirflowToolset):
         if name == "list_tables":
             return self._list_tables()
         if name == "get_schema":
-            return self._get_schema(tool_args["table_name"])
+            return self._get_schema(tool_args["table_name"], tool_args.get("name_contains"))
         if name == "query":
             return self._query(tool_args["sql"])
         return self._check_query(tool_args["sql"])
@@ -475,13 +493,18 @@ class SQLToolset(AirflowToolset):
 
         return dumps_masked(tables)
 
-    def _get_schema(self, table_name: str) -> str:
+    def _get_schema(self, table_name: str, name_contains: str | None = None) -> str:
         schema, table = self._split_table_identifier(table_name)
         if not self._is_ref_allowed("", schema, table):
             return dumps_masked({"error": f"Table {table_name!r} is not in the allowed tables list."})
         hook = self._get_db_hook()
         columns = hook.get_table_schema(table, schema=schema)
-        return dumps_masked(columns)
+        return build_schema_result(
+            columns,
+            max_columns=self._max_columns,
+            max_result_bytes=self._max_result_bytes,
+            name_contains=name_contains,
+        )
 
     def _dialect_for_validation(self) -> str | None:
         """Resolve the hook's sqlglot dialect so DESCRIBE/SHOW validate correctly."""
@@ -491,18 +514,7 @@ class SQLToolset(AirflowToolset):
     def _query(self, sql: str) -> str:
         hook = self._get_db_hook()
         dialect = self._dialect_for_validation()
-        statements: list[Any] | None = None
-        if not self._allow_writes:
-            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
-            # (a common first move) instead of hard-failing; the deep scan still
-            # rejects any data-modifying statement, including EXPLAIN <write>.
-            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
-        elif self._allowed_canonical is not None:
-            # Writes are allowed but tables are restricted: parse anyway so the
-            # allow-list still governs which tables a write may touch.
-            statements = _parse_sql(sql, dialect=dialect)
-        if statements is not None:
-            self._enforce_allowed_tables(statements)
+        self._validate_for_execution(sql, dialect=dialect, require_parse=False)
 
         # One row beyond the cap, so "there is more" is knowable without fetching the
         # rest. strip_sql_string mirrors what get_records did for the hooks that
@@ -523,6 +535,31 @@ class SQLToolset(AirflowToolset):
             total_rows=fetch.total_rows,
         )
 
+    def _validate_for_execution(self, sql: str, *, dialect: str | None, require_parse: bool) -> None:
+        """
+        Apply the checks ``query`` runs before executing ``sql``, raising when it would be refused.
+
+        ``check_query`` shares this so it never reports valid for a statement ``query`` refuses.
+        ``require_parse`` makes ``check_query`` syntax-check writes too; ``query`` leaves a write
+        unparsed unless ``allowed_tables`` needs the AST, so a statement sqlglot cannot parse
+        still reaches the database.
+        """
+        statements: list[Any] | None = None
+        if not self._allow_writes:
+            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
+            # (a common first move) instead of hard-failing; the deep scan still
+            # rejects any data-modifying statement, including EXPLAIN <write>.
+            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
+        elif require_parse or self._allowed_canonical is not None:
+            # Writes are allowed, so only parse: the allow-list, when set, still
+            # governs which tables a write may touch. Without one, ``query`` sends the
+            # string to the hook unparsed, multi-statement included, so don't reject it here.
+            statements = _parse_sql(
+                sql, dialect=dialect, allow_multiple_statements=self._allowed_canonical is None
+            )
+        if statements is not None:
+            self._enforce_allowed_tables(statements)
+
     def _check_query(self, sql: str) -> str:
         # Resolve the dialect best-effort: if the connection can't be reached we
         # still syntax-check dialect-agnostically rather than reporting invalid.
@@ -530,8 +567,7 @@ class SQLToolset(AirflowToolset):
         with suppress(Exception):
             dialect = self._dialect_for_validation()
         try:
-            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
-            self._enforce_allowed_tables(statements)
+            self._validate_for_execution(sql, dialect=dialect, require_parse=True)
             return dumps_masked({"valid": True})
         except Exception as e:
             return dumps_masked({"valid": False, "error": str(e)})

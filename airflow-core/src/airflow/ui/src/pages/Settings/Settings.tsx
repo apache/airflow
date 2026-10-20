@@ -33,9 +33,11 @@ import {
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
   useDefaultLandingPage,
+  useDefaultMatchAnywhere,
   useDefaultTaskInstanceTab,
   useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
+  useShowDagsListRecentTasks,
   type LandingPageOption,
 } from "src/hooks/useUserSettings";
 import { useDocumentTitle } from "src/utils";
@@ -180,6 +182,8 @@ export const Settings = () => {
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
+  const [matchAnywhere, setMatchAnywhere] = useDefaultMatchAnywhere();
+  const [showRecentTasks, setShowRecentTasks] = useShowDagsListRecentTasks();
 
   const taskInstanceTabOptions: Array<SelectOption<DefaultTaskInstanceTab>> = [
     { label: translate("dag:tabs.logs"), value: "logs" },
@@ -233,6 +237,34 @@ export const Settings = () => {
             options={landingPageOptions}
             testId="default-landing-page"
             value={defaultLandingPage}
+          />
+        </Section>
+        <Section title={translate("settings.search.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.search.matchAnywhere.label")}
+                checked={matchAnywhere}
+                data-testid="default-match-anywhere"
+                onCheckedChange={(event) => setMatchAnywhere(event.checked)}
+              />
+            }
+            helper={translate("settings.search.matchAnywhere.helper")}
+            label={translate("settings.search.matchAnywhere.label")}
+          />
+        </Section>
+        <Section title={translate("settings.dagsList.title")}>
+          <SettingRow
+            control={
+              <Switch
+                aria-label={translate("settings.dagsList.recentTasks.label")}
+                checked={showRecentTasks}
+                data-testid="dags-list-show-recent-tasks"
+                onCheckedChange={(event) => setShowRecentTasks(event.checked)}
+              />
+            }
+            helper={translate("settings.dagsList.recentTasks.helper")}
+            label={translate("settings.dagsList.recentTasks.label")}
           />
         </Section>
         <Section title={translate("settings.graph.title")}>

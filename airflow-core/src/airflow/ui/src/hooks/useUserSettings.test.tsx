@@ -26,6 +26,7 @@ import {
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
   DEFAULT_LANDING_PAGE_KEY,
+  DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
@@ -37,6 +38,7 @@ import {
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
   useDefaultLandingPage,
+  useDefaultMatchAnywhere,
   useDefaultTaskInstanceTab,
   useMarkTaskInstanceDefaultOptions,
 } from "./useUserSettings";
@@ -149,6 +151,25 @@ describe("useClearKeepTaskStateDefault", () => {
 
     expect(result.current[0]).toBe(true);
     expect(JSON.parse(localStorage.getItem(CLEAR_KEEP_TASK_STATE_KEY) ?? "false")).toBe(true);
+  });
+});
+
+describe("useDefaultMatchAnywhere", () => {
+  it("defaults to false", () => {
+    const { result } = renderHook(() => useDefaultMatchAnywhere());
+
+    expect(result.current[0]).toBe(false);
+  });
+
+  it("persists a new value", () => {
+    const { result } = renderHook(() => useDefaultMatchAnywhere());
+
+    act(() => {
+      result.current[1](true);
+    });
+
+    expect(result.current[0]).toBe(true);
+    expect(JSON.parse(localStorage.getItem(DEFAULT_MATCH_ANYWHERE_KEY) ?? "false")).toBe(true);
   });
 });
 

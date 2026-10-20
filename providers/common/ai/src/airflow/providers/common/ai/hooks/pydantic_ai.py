@@ -20,6 +20,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
@@ -27,7 +28,13 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
+from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
+
+# An Airflow task is never interactive, and pydantic-ai's first-run banner on stderr would
+# land in the task log as ERROR lines.
+pydantic_ai.BANNER_ENABLED = False
 
 OutputT = TypeVar("OutputT")
 
@@ -39,6 +46,8 @@ _UNSET: Any = object()
 FALLBACK_CONN_IDS_EXTRA_KEY = "fallback_conn_ids"
 
 if TYPE_CHECKING:
+    from collections.abc import MutableMapping
+
     from pydantic_ai.models import KnownModelName, Model
 
     from airflow.providers.common.compat.sdk import Connection
@@ -86,12 +95,25 @@ def _looks_like_unrecognized_provider_prefix(prefix: str) -> bool:
     return bool(_PROVIDER_SLUG_RE.match(prefix))
 
 
+def _get_registered_hooks() -> MutableMapping[str, Any]:
+    """Return the connection-type-to-``HookInfo`` registry that ``Connection.get_hook`` dispatches through."""
+    # Airflow 3.2+ resolves hooks through the task runtime's manager; earlier versions,
+    # Airflow 2 included, go through ``ProvidersManager``. Both expose the same ``hooks`` mapping.
+    try:
+        from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
+    except ImportError:
+        from airflow.providers_manager import ProvidersManager
+
+        return ProvidersManager().hooks
+    return ProvidersManagerTaskRuntime().hooks
+
+
 class PydanticAIHook(BaseHook):
     """
     Hook for LLM access via pydantic-ai.
 
     Covers providers that use a standard ``api_key`` + optional ``base_url``
-    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, …).
+    (OpenAI, Anthropic, Groq, Mistral, DeepSeek, Ollama, vLLM, GitHub Copilot, …).
 
     For cloud providers with non-standard auth use the dedicated subclasses:
     :class:`PydanticAIAzureHook`, :class:`PydanticAIBedrockHook`,
@@ -157,6 +179,39 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
+
+    @classmethod
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None):
+        """
+        Return the hook for ``conn_id``, built with ``hook_params``.
+
+        Airflow 3's ``BaseHook.get_hook`` already takes ``hook_params``; Airflow 2's does
+        not, so this mirrors the Airflow 3 body.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
+        conn = cls.get_connection(conn_id)
+        hooks = _get_registered_hooks()
+        # Resolved from the registry rather than from ``cls.conn_type`` or the subclasses
+        # imported so far: operators call this on the base class, and a subclass from another
+        # provider (e.g. Snowflake's ``pydanticai_snowflake``) is only imported on lookup.
+        # A missing or unregistered type is left to ``conn.get_hook``, whose error explains a
+        # URI that parsed with no type, or the '-'/'_' spelling a renamed type needs.
+        hook_info = hooks.get(conn.conn_type) if conn.conn_type else None
+        # ``generic`` and ``email`` are registered with ``hook_class_name=None``; that is not a
+        # Pydantic AI hook either.
+        if hook_info is not None and (
+            hook_info.hook_class_name is None
+            or not issubclass(import_string(hook_info.hook_class_name), PydanticAIHook)
+        ):
+            expected_types = sorted(conn_type for conn_type in hooks if conn_type.startswith("pydanticai"))
+            raise ValueError(
+                f"Connection {conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
+                f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
+                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
+            )
+        return conn.get_hook(hook_params=hook_params)
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -562,6 +617,12 @@ class PydanticAIHook(BaseHook):
         GenAI spans through Airflow's tracing pipeline. See
         :mod:`airflow.providers.common.ai.observability`.
 
+        What each tool returns or raises while it runs passes through Airflow's secret
+        masker before the model sees it, whichever toolset or capability supplied the
+        tool: the agent gets a
+        :class:`~airflow.providers.common.ai.utils.toolset_base.MaskingCapability` after
+        any ``capabilities`` passed in.
+
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
             Required when *spec_file* is not given. When *spec_file* is given,
@@ -583,6 +644,9 @@ class PydanticAIHook(BaseHook):
         # it after construction so a caller that passes its own ``instrument``
         # still wins over the provider's auto-instrumentation.
         caller_instrument = agent_kwargs.pop("instrument", _UNSET)
+
+        # Last, so it is the innermost capability; see MaskingCapability.
+        agent_kwargs["capabilities"] = [*(agent_kwargs.get("capabilities") or ()), MaskingCapability()]
 
         if spec_file is not None:
             from_file_kwargs = dict(agent_kwargs)

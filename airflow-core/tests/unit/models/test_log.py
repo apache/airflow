@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import InvalidRequestError
@@ -24,9 +26,11 @@ from sqlalchemy.orm import joinedload
 
 from airflow.models.dag import DagModel, clear_team_name_cache
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.log import Log
 from airflow.models.team import Team
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
@@ -41,6 +45,35 @@ pytestmark = pytest.mark.db_test
 
 
 class TestLogTaskInstanceReproduction:
+    def test_log_stays_attached_to_try_that_emitted_it(self, dag_maker, session):
+        with dag_maker("log_attempt_history", session=session):
+            EmptyOperator(task_id="task")
+        run = dag_maker.create_dagrun()
+        ti = run.get_task_instance("task")
+        ti.state = TaskInstanceState.SUCCESS
+        ti = session.merge(ti)
+        session.flush()
+        log = Log(event="attempt_event", task_instance=ti)
+        legacy = Log(event="attempt_event", task_instance=ti.key)
+        session.add_all([log, legacy])
+        session.flush()
+        log_id, legacy_id, old_id = log.id, legacy.id, ti.id
+        assert log.task_instance_id == old_id
+        assert legacy.task_instance_id is None
+        successor = ti.prepare_db_for_next_try(session)
+        successor_id = successor.id
+        session.commit()
+        session.expunge_all()
+
+        rows = session.scalars(
+            select(Log).where(Log.id.in_([log_id, legacy_id])).options(joinedload(Log.task_instance))
+        ).all()
+
+        by_id = {row.id: row for row in rows}
+        assert successor_id != old_id
+        assert by_id[log_id].task_instance.id == old_id
+        assert by_id[legacy_id].task_instance is None
+
     def test_log_task_instance_raises_without_joinedload(self, dag_maker, session):
         """Accessing Log.task_instance without joinedload should raise."""
         with dag_maker("dag_raise_test", session=session):
@@ -118,6 +151,95 @@ class TestLogTaskInstanceReproduction:
 
 
 DAG_IN_TEAM = "dag_owned_by_a_team"
+
+
+class TestLogTaskInstanceId:
+    @pytest.fixture
+    def ti(self, dag_maker, session):
+        with dag_maker("log_task_instance_id", session=session):
+            EmptyOperator(task_id="task")
+        return dag_maker.create_dagrun().get_task_instance("task")
+
+    def test_records_the_attempt_that_wrote_the_event(self, ti):
+        assert Log(event="event", task_instance=ti).task_instance_id == ti.id
+
+    def test_task_instance_key_has_no_attempt(self, ti):
+        assert Log(event="event", task_instance=ti.key).task_instance_id is None
+
+    def test_explicit_attempt_id_overrides_the_task_instance(self, ti):
+        attempt_id = uuid4()
+        assert (
+            Log(event="event", task_instance=ti, task_instance_id=attempt_id).task_instance_id == attempt_id
+        )
+
+
+class TestLogPublicMapIndex:
+    @pytest.fixture
+    def make_task_instance(self, dag_maker, session):
+        def make(mapped: bool):
+            with dag_maker("log_public_map_index", session=session):
+                if mapped:
+                    PythonOperator.partial(task_id="work", python_callable=list).expand(
+                        op_kwargs=[{}, {}, {}]
+                    )
+                else:
+                    EmptyOperator(task_id="work")
+            run = dag_maker.create_dagrun()
+            ti = max(run.task_instances, key=lambda ti: ti.region_index)
+            if not mapped:
+                region = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+                session.add(region)
+                session.flush()
+                ti.region_id, ti.region_index = region.id, 2
+            session.flush()
+            return ti
+
+        return make
+
+    @pytest.mark.parametrize(("mapped", "expected"), [(True, 2), (False, -1)])
+    @pytest.mark.parametrize("keyed_by_coordinates", [False, True])
+    def test_attributed_event_stores_the_index_a_client_sees(
+        self, make_task_instance, session, mapped, expected, keyed_by_coordinates
+    ):
+        ti = make_task_instance(mapped)
+        log = (
+            Log(event="event", task_instance=ti.key, task_instance_id=ti.id)
+            if keyed_by_coordinates
+            else Log(event="event", task_instance=ti)
+        )
+        assert log.map_index == 2
+
+        session.add(log)
+        session.flush()
+
+        assert log.map_index == expected
+
+    def test_event_of_a_task_instance_in_no_region_keeps_its_index(self, dag_maker, session):
+        with dag_maker("log_legacy_map_index", session=session):
+            EmptyOperator(task_id="work")
+        ti = dag_maker.create_dagrun().get_task_instance("work")
+        log = Log(event="event", task_instance=ti)
+
+        session.add(log)
+        session.flush()
+
+        assert log.map_index == -1
+
+    def test_event_of_a_purged_task_instance_keeps_the_index_it_was_given(self, session):
+        log = Log(event="event", task_instance_id=uuid4(), map_index=5)
+
+        session.add(log)
+        session.flush()
+
+        assert log.map_index == 5
+
+    def test_event_without_a_task_instance_keeps_the_index_it_was_given(self, session):
+        log = Log(event="event", map_index=5)
+
+        session.add(log)
+        session.flush()
+
+        assert log.map_index == 5
 
 
 class TestLogTeamName:

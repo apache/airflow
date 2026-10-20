@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
@@ -79,6 +79,35 @@ describe("DagRuns tags filter", () => {
 
     await waitFor(() => expect(screen.getByText("run_multi_tagged_dag")).toBeInTheDocument());
     expect(screen.queryByText("run_tagged_dag")).not.toBeInTheDocument();
+  });
+});
+
+describe("DagRuns logical date column", () => {
+  afterEach(() => {
+    globalThis.localStorage.clear();
+  });
+
+  it("hides the logical date column by default", async () => {
+    render(<AppWrapper initialEntries={["/dag_runs"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
+    expect(screen.queryByTestId("table-cell-logical_date")).not.toBeInTheDocument();
+  });
+
+  it("renders the logical date once the column is enabled", async () => {
+    globalThis.localStorage.setItem(
+      "dataTable:common:dagRun:columnVisibility",
+      JSON.stringify({ logical_date: true }),
+    );
+
+    render(<AppWrapper initialEntries={["/dag_runs"]} />);
+
+    await waitFor(() => expect(screen.getByText("run_in_range")).toBeInTheDocument());
+
+    const cells = screen.getAllByTestId("table-cell-logical_date");
+
+    expect(cells.length).toBeGreaterThan(0);
+    expect(within(cells[0] as HTMLElement).getByTestId("time-display")).toBeInTheDocument();
   });
 });
 

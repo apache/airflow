@@ -256,6 +256,11 @@ modes. It is also why the spec is deliberately not `@task.stub`-shaped — no fi
 natively authored call. (Its docstrings still say "stub", reflecting the only producer that
 exists today; that is wording to revisit, not a constraint in the format.)
 
+A runtime that holds its own Dag may resolve call arguments from that Dag rather than from the
+delivered spec. The spec stays the recorded and displayed form, which keeps one wire format across
+both authoring modes. The Go SDK reads the delivered bindings and the Java SDK resolves locally;
+both emit the same spec.
+
 ### H. Scope: what does not cross the boundary
 
 The following raise when the Dag is serialized, rather than being silently dropped or deferred to

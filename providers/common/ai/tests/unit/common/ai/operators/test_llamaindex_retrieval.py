@@ -58,19 +58,6 @@ def _byo_embedding():
     return MagicMock(name="MyBaseEmbedding", spec=["get_text_embedding", "_get_query_embedding"])
 
 
-class TestRetrievalOperatorInit:
-    def test_template_fields(self):
-        assert set(LlamaIndexRetrievalOperator.template_fields) == {
-            "query",
-            "index_persist_dir",
-            "persist_conn_id",
-            "embed_model",
-            "llm_conn_id",
-            "embed_conn_id",
-            "embedding_kwargs",
-        }
-
-
 class TestRetrievalOperatorOutput:
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_chunk_shape(self, mock_get_embed, _li, tmp_path):
@@ -201,7 +188,7 @@ class TestRetrievalOperatorMissingIndex:
         with pytest.raises(FileNotFoundError, match="LlamaIndexEmbeddingOperator"):
             op.execute(context=MagicMock())
 
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_cloud_missing_uri_raises_with_hint(self, mock_get_embed, mock_osp_cls, _li):
         missing = MagicMock()
@@ -219,7 +206,7 @@ class TestRetrievalOperatorMissingIndex:
 
 
 class TestRetrievalOperatorCloudURI:
-    @patch("airflow.sdk.ObjectStoragePath")
+    @patch("airflow.providers.common.compat.sdk.ObjectStoragePath")
     @patch("airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook.get_embedding_model")
     def test_cloud_uri_opens_storage_with_fs(self, mock_get_embed, mock_osp_cls, _li):
         # ``ObjectStoragePath.__str__`` returns ``<scheme>://<conn_id>@<bucket>/...``
