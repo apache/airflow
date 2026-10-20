@@ -33,7 +33,7 @@ import subprocess
 import sys
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
@@ -94,7 +94,6 @@ def compile_branch_filter(pattern: str) -> re.Pattern[str]:
 CANONICAL_PUSH_BRANCH_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
     compile_branch_filter(pattern) for pattern in CANONICAL_PUSH_BRANCH_FILTERS
 )
-PERMISSIONS_OF_COMMITTERS = frozenset({"admin", "maintain", "write"})
 
 TRUSTED_ASSOCIATIONS = frozenset({"MEMBER", "OWNER", "COLLABORATOR"})
 
@@ -261,12 +260,6 @@ def _run_gh(*args: str) -> str | None:
     return result.stdout
 
 
-def fetch_author_permission(repository: str, login: str) -> str | None:
-    """The author's permission on the repository (``write``, ``read``, ...), or None if unknown."""
-    output = _run_gh("api", f"repos/{repository}/collaborators/{login}/permission", "--jq", ".permission")
-    return output.strip() if output else None
-
-
 def fetch_pull_request_labels(repository: str, number: str) -> tuple[str, ...] | None:
     """Read the labels live, so a label added after the event is seen on a re-run."""
     output = _run_gh("api", f"repos/{repository}/pulls/{number}", "--jq", "[.labels[].name]")
@@ -311,14 +304,7 @@ def evaluate_from_env(env: Mapping[str, str]) -> Decision:
         labels=labels,
     )
     config = load_config(Path(env.get("GATE_CONFIG", ".github/fork-ci-gate.toml")))
-    decision = decide(event, config)
-    # GitHub reports an author whose membership of the organisation is private as CONTRIBUTOR, so
-    # a committer could look external. Their write access to the repository tells them apart;
-    # when it cannot be read the pull request stays gated.
-    if decision.reason == Reason.EXTERNAL and event.author_login:
-        if fetch_author_permission(repository, event.author_login) in PERMISSIONS_OF_COMMITTERS:
-            decision = decide(replace(event, author_association="COLLABORATOR"), config)
-    return decision
+    return decide(event, config)
 
 
 def main(env: Mapping[str, str] | None = None) -> int:

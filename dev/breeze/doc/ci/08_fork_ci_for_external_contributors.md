@@ -177,7 +177,7 @@ concurrency cap. A manual `workflow_dispatch` in a fork still runs.
 | Author login is in `[pilot]` and the pull request was created at or after that login's join instant | skip | `pilot` |
 | `enabled` is false | run | `gate_disabled` |
 | Pull request created before `enabled_since` | run | `before_enabled_since` |
-| Author association is `MEMBER`, `OWNER` or `COLLABORATOR`, or the author has write access (see below) | run | `trusted_author` |
+| Author association is `MEMBER`, `OWNER` or `COLLABORATOR` (see below for private membership) | run | `trusted_author` |
 | Author login is in `[allowlist]` | run | `allowlisted` |
 | Anything else | skip | `external` |
 
@@ -191,11 +191,11 @@ has no fork to run CI in, and its pushes are `adhoc_branch` skips: `use fork ci`
 request would otherwise leave it with no CI at all.
 
 GitHub reports an author whose membership of the `apache` organisation is private as
-`CONTRIBUTOR`, so a committer could look external. When the rules end at `external`, the gate
-asks for the author's permission on the repository
-(`gh api repos/apache/airflow/collaborators/<login>/permission`) and treats `write`, `maintain`
-or `admin` as `trusted_author`; when that call fails, the pull request stays gated. The
-reconciler's discovery does the same before labelling.
+`CONTRIBUTOR`, so a committer with private membership looks external and is gated. Neither the
+gate nor the reconciler can look up the author's permission instead: that endpoint needs push
+access, which the read-only token of a fork `pull_request` run and the monitor's token do not
+have. A committer who is gated this way makes their `apache` membership public
+(<https://github.com/orgs/apache/people>) or is added to `[allowlist]`.
 
 "Gated" throughout this document means a pull request whose decision reason is `external`,
 `pilot` or `label_fork_ci`. The reconciler labels exactly those; an `adhoc_branch` skip is
@@ -292,7 +292,20 @@ directly with the runner's `python3` without installing breeze. The reconciler i
 
 1. Sparse checkout of `.github/fork-ci-gate.toml` and
    `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py` from the base branch
-   (`github.base_ref` for pull requests, `github.ref` otherwise), `fetch-depth: 1`.
+   (`github.base_ref` for pull requests, the default branch for pushes in `apache/airflow`,
+   `github.ref` otherwise), `fetch-depth: 1`. A push in `apache/airflow` has no base branch and
+   its decision depends only on the pushed ref, so it takes the gate from the default branch:
+   taking it from the pushed branch would make a push to a branch without the gate files, such as
+   a release branch cut before it, look like `base_without_gate` and run project CI where it never
+   ran before. A push in a fork keeps the pushed commit's gate, checked out by `github.sha`. The
+   fork's default branch is the contributor's to change outside the pull request, and so is the
+   pushed branch's later tip, which a re-run of an earlier push would check out by `github.ref`; a
+   gate there that skips every job would produce a green run for a commit nothing in the pull
+   request shows. A gate change in the pushed commit is in the pull request's files and makes the
+   green run `green_unverified`. While the default branch has no gate yet, which is the case
+   until the gate merges, a push in `apache/airflow` takes the gate from the pushed commit
+   instead. Only committers can push there, and otherwise every pushed branch would run the
+   full project CI as `base_without_gate`.
 2. For pull requests, one read-only API call for the current labels
    (`gh api repos/apache/airflow/pulls/<n> --jq '.labels[].name'`), so override labels added
    after the event are seen on a re-run. If that call fails, the gate uses the labels of the
@@ -302,6 +315,10 @@ directly with the runner's `python3` without installing breeze. The reconciler i
    fields and the labels passed as environment variables. It writes `project-ci=true|false`
    and `reason=...` to `GITHUB_OUTPUT`. A base branch with neither file skips the script and
    writes `project-ci=true` with `reason=base_without_gate`.
+4. For a gated pull request, the PR title check of `ci-image-checks.yml`
+   (`scripts/ci/prek/check_no_conventional_commit_message.py`, from the same sparse checkout).
+   Project CI is skipped and the fork run is a `push` event without a title, so this is the
+   only place the title is checked.
 
 `build-info` gains `needs: [gate]` and `if: needs.gate.outputs.project-ci == 'true'`. Every
 other job already depends on `build-info`, so a gated pull request produces a run in which the

@@ -403,32 +403,6 @@ def test_main_pull_request(mock_run, gate_env, returncode, stdout, event_labels,
     assert mock_run.call_args_list[0].args[0][:3] == ["gh", "api", "repos/apache/airflow/pulls/1"]
 
 
-@mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
-@pytest.mark.parametrize(
-    ("permission", "expected"),
-    [
-        pytest.param(
-            "write\n", ["project-ci=true", "reason=trusted_author"], id="committer-with-private-membership"
-        ),
-        pytest.param("read\n", ["project-ci=false", "reason=external"], id="contributor"),
-    ],
-)
-def test_main_checks_the_permission_of_an_external_author(mock_run, gate_env, permission, expected):
-    mock_run.side_effect = [
-        subprocess.CompletedProcess([], 0, stdout="[]\n", stderr=""),
-        subprocess.CompletedProcess([], 0, stdout=permission, stderr=""),
-    ]
-
-    main(gate_env)
-
-    assert _outputs(gate_env) == expected
-    assert mock_run.call_args.args[0][:3] == [
-        "gh",
-        "api",
-        "repos/apache/airflow/collaborators/someone/permission",
-    ]
-
-
 @mock.patch(
     "airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True, side_effect=FileNotFoundError("gh")
 )
