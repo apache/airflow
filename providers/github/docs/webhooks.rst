@@ -187,6 +187,24 @@ Each delivery record also keeps the delivery's attributes, as far as the deliver
     form ``refs/heads/<branch>`` names. Tags have no branch.
 * ``number``: the number of the pull request or issue.
 
+Correlation key
+---------------
+
+A delivery about a pull request or an issue has the correlation key ``<repository>#<number>``, such as
+``my-org/web#7``: the repository's full name exactly as GitHub sends it, as in the ``repository``
+attribute, and the ``number`` attribute. The repository is part of the key because every repository
+numbers its pull requests and issues from 1. Pull requests and issues share one sequence of numbers per
+repository, so every delivery about pull request 7 of ``my-org/web`` has the key ``my-org/web#7``,
+whether it is a ``pull_request``, ``pull_request_review`` or ``pull_request_review_comment``, or an
+``issue_comment`` on the pull request. A delivery without a repository or a number, such as a ``push``,
+a ``workflow_run`` or an organization event, has no key. A repository that is renamed or transferred
+gets new keys, as its full name changes.
+
+The key is kept in the delivery record and in the ``correlation_key`` of each topic event's extra.
+Deliveries can be filtered by it in the UI, in the **Deliveries** tab of **Browse → Webhook Deliveries**,
+and through the REST API, with the ``#`` written as ``%23``:
+``GET /api/v2/webhooks/github/deliveries?correlation_key=my-org/web%237``.
+
 Stored payload
 --------------
 

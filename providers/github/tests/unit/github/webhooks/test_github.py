@@ -365,6 +365,78 @@ def test_parse_attributes(event, payload, expected):
 
 
 @pytest.mark.parametrize(
+    ("event", "payload", "expected"),
+    [
+        pytest.param(
+            "pull_request",
+            {
+                "action": "closed",
+                "number": 7,
+                "pull_request": {"number": 7, "merged": True, "head": {"ref": "feature/x"}},
+                "repository": REPOSITORY,
+            },
+            "my-org/web#7",
+            id="pull-request",
+        ),
+        pytest.param(
+            "issues",
+            {"action": "opened", "issue": {"number": 9}, "repository": REPOSITORY},
+            "my-org/web#9",
+            id="issue",
+        ),
+        pytest.param(
+            "issue_comment",
+            {
+                "action": "created",
+                "issue": {"number": 7, "pull_request": {"merged_at": None}},
+                "comment": {"id": 1, "body": "/deploy"},
+                "repository": REPOSITORY,
+            },
+            "my-org/web#7",
+            id="comment-on-a-pull-request",
+        ),
+        pytest.param(
+            "pull_request_review",
+            {
+                "action": "submitted",
+                "review": {"state": "approved"},
+                "pull_request": {"number": 8, "head": {"ref": "feature/x"}},
+                "repository": REPOSITORY,
+            },
+            "my-org/web#8",
+            id="pull-request-review",
+        ),
+        pytest.param(
+            "push",
+            {"ref": "refs/heads/main", "repository": REPOSITORY},
+            None,
+            id="push",
+        ),
+        pytest.param(
+            "issues",
+            {"action": "opened", "issue": {"number": 9}},
+            None,
+            id="no-repository",
+        ),
+        pytest.param(
+            "issues",
+            {"action": "opened", "issue": {"number": 9}, "repository": {"full_name": "my-org/" + "w" * 246}},
+            f"my-org/{'w' * 246}#9",
+            id="longest-key",
+        ),
+        pytest.param(
+            "issues",
+            {"action": "opened", "issue": {"number": 10}, "repository": {"full_name": "my-org/" + "w" * 246}},
+            None,
+            id="key-too-long",
+        ),
+    ],
+)
+def test_parse_correlation_key(event, payload, expected):
+    assert parse_json(payload, **{"X-GitHub-Event": event}).correlation_key == expected
+
+
+@pytest.mark.parametrize(
     "branch",
     [
         pytest.param("ma\u00edn", id="accented"),
