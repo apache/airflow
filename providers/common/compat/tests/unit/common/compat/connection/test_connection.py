@@ -25,6 +25,7 @@ import pytest
 
 from airflow.models.connection import Connection
 from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class MockAgetBaseHook:
@@ -91,6 +92,69 @@ class TestGetAsyncConnection:
 
         conn = await get_async_connection("test_conn", hook=OverrideHook)
         assert conn.password == "override_token"
+
+
+class _ConnectionBeforeAirflow332:
+    """The Task SDK ``Connection`` before Airflow 3.3.2, without ``aextra_dejson``."""
+
+
+@mock.patch("airflow.providers.common.compat.connection.Connection", _ConnectionBeforeAirflow332)
+class TestGetAsyncConnectionBeforeAirflow332:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("as_instance", [False, True], ids=["hook-class", "hook-instance"])
+    async def test_base_aget_connection_gives_way_to_get_connection_in_a_worker_thread(
+        self, as_instance, caplog
+    ):
+        """``BaseHook.aget_connection`` masks synchronously there, so ``get_connection`` runs off the loop."""
+        loop_thread = threading.get_ident()
+        threads = []
+
+        class SyncOnlyHook(BaseHook):
+            @classmethod
+            def get_connection(cls, conn_id: str):
+                threads.append(threading.get_ident())
+                return Connection(conn_id=conn_id, conn_type="http", password="sync_token")
+
+        hook = SyncOnlyHook() if as_instance else SyncOnlyHook
+        with caplog.at_level(logging.DEBUG):
+            conn = await get_async_connection("test_conn", hook=hook)
+
+        assert conn.password == "sync_token"
+        assert len(threads) == 1
+        assert threads[0] != loop_thread
+        assert "Get connection using `SyncOnlyHook.get_connection()`." in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_overridden_aget_connection_is_honored(self):
+        class AsyncOverrideHook(BaseHook):
+            @classmethod
+            def get_connection(cls, conn_id: str):
+                raise AssertionError("get_connection must not run when aget_connection is overridden")
+
+            @classmethod
+            async def aget_connection(cls, conn_id: str):
+                return Connection(conn_id=conn_id, conn_type="http", password="async_token")
+
+        conn = await get_async_connection("test_conn", hook=AsyncOverrideHook)
+
+        assert conn.password == "async_token"
+
+    @pytest.mark.asyncio
+    async def test_own_aget_connection_is_honored_without_base_aget_connection(self):
+        """Before Airflow 3.1 ``BaseHook`` has no ``aget_connection``, so a hook's own one is used."""
+
+        class BaseHookBeforeAirflow31:
+            """The ``BaseHook`` before Airflow 3.1, without ``aget_connection``."""
+
+        class AsyncOwnHook(BaseHookBeforeAirflow31):
+            @classmethod
+            async def aget_connection(cls, conn_id: str):
+                return Connection(conn_id=conn_id, conn_type="http", password="async_token")
+
+        with mock.patch("airflow.providers.common.compat.connection.BaseHook", BaseHookBeforeAirflow31):
+            conn = await get_async_connection("test_conn", hook=AsyncOwnHook)
+
+        assert conn.password == "async_token"
 
 
 def _raising_extra_dejson():

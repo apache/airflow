@@ -63,6 +63,7 @@ from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
@@ -138,6 +139,7 @@ from airflow.triggers.shared_stream import SharedStreamManager
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
+from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
@@ -163,12 +165,6 @@ _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 _REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
-
-# Task instance of the trigger whose code is running, so its SDK requests act as that task instance; tasks
-# serving several triggers must not inherit it.
-_current_trigger_ti_id: contextvars.ContextVar[UUID | None] = contextvars.ContextVar(
-    "airflow_current_trigger_ti_id", default=None
-)
 
 # Task instance of the trigger whose request the supervisor is handling, sent to the API as
 # ``TRIGGER_TI_ID_HEADER``.
@@ -454,7 +450,8 @@ The types of messages that the async Trigger Runner can send back up to the supe
 class TriggerLoggingFactory:
     log_path: str
 
-    ti: RuntimeTI = attrs.field(repr=False)
+    # Callback triggers have no task instance; ``upload_to_remote`` accepts ``ti=None``.
+    ti: RuntimeTI | None = attrs.field(default=None, repr=False)
 
     bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
@@ -561,7 +558,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return self._exit_code is None
 
     @classmethod
-    def start(  # type: ignore[override]
+    def start(
         cls,
         *,
         job: Job | None = None,
@@ -822,8 +819,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         Trigger.submit_event(trigger_id=trigger_id, event=event)
 
     def clean_unused(self) -> None:
-        """Remove triggers that are no longer needed."""
-        Trigger.clean_unused()
+        """Remove triggers that are no longer needed, retrying database errors in a new transaction."""
+        for attempt in run_with_db_retries():
+            with attempt, create_session() as session:
+                Trigger.clean_unused(session=session)
 
     def handle_failed_triggers(self):
         """
@@ -890,6 +889,19 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             if trigger.assets:
                 watched_assets = {a.name: a.uri for a in trigger.assets}
+
+            if callback := getattr(trigger, "callback", None):
+                # Log callback triggers to a file the UI callback logs endpoint can read.
+                callback_data = callback.data or {}
+                context = (callback_data.get("kwargs") or {}).get("context") or {}
+                dag_run_data = context.get("dag_run") or {}
+                dag_id = callback_data.get("dag_id") or dag_run_data.get("dag_id") or "unknown"
+                run_id = dag_run_data.get("dag_run_id") or "unknown"
+                # One directory per callback: with delete_local_logs, remote handlers delete the
+                # log file's parent directory after upload, which must not hold other callbacks' logs.
+                self.logger_cache[trigger.id] = TriggerLoggingFactory(
+                    log_path=f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}/callback.log",
+                )
 
             return workloads.RunTrigger(
                 id=trigger.id,
@@ -1247,8 +1259,11 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
             # non-blocking for the foreign loop.
             cf = asyncio.run_coroutine_threadsafe(self.asend(msg), self._loop)
             return await asyncio.wrap_future(cf)
+        trigger_ti = _current_trigger_ti.get()
         frame = _RequestFrame(
-            id=next(self.id_counter), body=msg.model_dump(), ti_id=_current_trigger_ti_id.get()
+            id=next(self.id_counter),
+            body=msg.model_dump(),
+            ti_id=trigger_ti.id if trigger_ti else None,
         )
         future: asyncio.Future = current_loop.create_future()
         self._pending[frame.id] = future
@@ -1503,8 +1518,10 @@ class TriggerRunner:
                 else:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
-            except TypeError as err:
-                self.log.error("Trigger failed to inflate", error=err)
+            except Exception as err:
+                # Kwargs are decoded here rather than when queued, so one trigger with undecodable
+                # kwargs (e.g. a class not in allowed_deserialization_classes) must not stop the runner.
+                self.log.error("Trigger failed to inflate", error=err, trigger_id=trigger_id)
                 self.failed_triggers.append((trigger_id, err))
                 continue
             trigger_instance.trigger_id = trigger_id
@@ -1724,7 +1741,7 @@ class TriggerRunner:
 
         ti = trigger.task_instance
         if ti is not None:
-            _current_trigger_ti_id.set(ti.id)
+            _current_trigger_ti.set(ti)
         bind_log_contextvars(
             trigger_id=trigger_id,
             ti_id=str(ti.id) if ti else None,
@@ -1769,7 +1786,7 @@ class TriggerRunner:
                     # subscribe() may start the group's poll task, which copies the current context but
                     # serves several triggers.
                     subscribe_ctx = contextvars.copy_context()
-                    subscribe_ctx.run(_current_trigger_ti_id.set, None)
+                    subscribe_ctx.run(_current_trigger_ti.set, None)
                     shared_stream = subscribe_ctx.run(
                         self._shared_streams.subscribe,
                         trigger_id=trigger_id,

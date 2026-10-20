@@ -209,7 +209,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             exc, "resp", {}
         ).get("status") == "404"
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         messages, log_streams = self.stream(relative_path, ti)
         if not log_streams:
             return messages, None
@@ -224,7 +224,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return messages, logs
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
         messages: list[str] = []
         log_streams: list[RawLogStream] = []
         remote_loc = os.path.join(self.remote_base, relative_path)

@@ -69,7 +69,6 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
-    SCHEDULER_DAG_CACHE_SIZE,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     SchedulerJobRunner,
 )
@@ -527,7 +526,7 @@ class TestSchedulerJob:
 
         assert isinstance(job_runner.scheduler_dag_bag, CachedDBDagBag)
         assert isinstance(job_runner.scheduler_dag_bag._dags, LRUCache)
-        assert job_runner.scheduler_dag_bag._dags.maxsize == SCHEDULER_DAG_CACHE_SIZE
+        assert job_runner.scheduler_dag_bag._dags.maxsize == 512
         # Reported separately from the API server's cache, not folded into it.
         assert job_runner.scheduler_dag_bag._stats_prefix == "scheduler.dag_bag"
 
@@ -6585,6 +6584,27 @@ class TestSchedulerJob:
         assert dr.start_date is None
         assert dr.creating_job_id == scheduler_job.id
 
+    def test_do_scheduling_creates_task_instances_for_scheduler_created_mapped_run(self, dag_maker, session):
+        """A Dag run the scheduler creates itself (not via dag_maker.create_dagrun()) for a
+        dynamically mapped task must get its mapped TaskInstances created.
+
+        Only reproducible through the real CommitProhibitorGuard installed by _do_scheduling:
+        other tests in this file exercise _create_dagruns_for_dags/_schedule_all_dag_runs
+        directly with the plain session cast as the guard (`cast("CommitProhibitorGuard",
+        session)`), which never installs the real before_commit listener.
+        """
+        with dag_maker(dag_id="test_scheduled_mapped_task", schedule="@once", session=session):
+            BashOperator.partial(task_id="mapped", bash_command="true").expand(env=[{"n": "1"}, {"n": "2"}])
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        self.job_runner._do_scheduling(session)
+
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == "test_scheduled_mapped_task")).one()
+        tis = dr.get_task_instances(session=session)
+        assert sorted(ti.map_index for ti in tis) == [0, 1]
+
     @pytest.mark.need_serialized_dag
     @conf_vars({("scheduler", "batch_asset_events"): "True"})
     def test_create_dag_runs_assets(self, session, dag_maker):
@@ -11336,6 +11356,65 @@ class TestSchedulerJob:
 
         # Assert that all deadlines which are both expired and unhandled get processed.
         assert mock_handle_miss.call_count == 2
+
+    @pytest.mark.parametrize(
+        "reserved_value",
+        [
+            pytest.param({"__type": "airflow.ConfProbe", "__var": {}}, id="legacy"),
+            pytest.param(
+                {"__classname__": "airflow.ConfProbe", "__version__": 0, "__data__": {}}, id="current"
+            ),
+        ],
+    )
+    def test_expired_deadline_with_reserved_keys_in_conf_does_not_stop_other_deadlines(
+        self, session, dag_maker, reserved_value
+    ):
+        """The scheduler keeps handling other deadlines and does not pick this one up again."""
+        dag_id = "test_deadline_reserved_conf"
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="empty")
+        reserved_run = dag_maker.create_dagrun(run_id="reserved", conf={"probe": reserved_value})
+        other_run = dag_maker.create_dagrun(
+            run_id="other", logical_date=timezone.utcnow() - timedelta(days=1), conf={"probe": "plain"}
+        )
+        past_date = timezone.utcnow() - timedelta(minutes=5)
+        reserved_deadline = Deadline(
+            deadline_time=past_date,
+            callback=AsyncCallback("classpath.notify"),
+            dagrun_id=reserved_run.id,
+            dag_id=dag_id,
+            deadline_alert_id=None,
+        )
+        other_deadline = Deadline(
+            deadline_time=past_date,
+            callback=AsyncCallback("classpath.notify"),
+            dagrun_id=other_run.id,
+            dag_id=dag_id,
+            deadline_alert_id=None,
+        )
+        session.add_all([reserved_deadline, other_deadline])
+        session.commit()
+
+        with mock.patch.object(
+            Deadline, "handle_miss", autospec=True, side_effect=Deadline.handle_miss
+        ) as spy:
+            for _ in range(2):
+                self.job_runner = SchedulerJobRunner(job=Job(), num_runs=1, executors=[MockExecutor()])
+                self.job_runner._execute()
+
+        assert spy.call_count == 2
+        session.expire_all()
+        reserved_deadline = session.get(Deadline, reserved_deadline.id)
+        other_deadline = session.get(Deadline, other_deadline.id)
+        assert reserved_deadline.missed
+        assert reserved_deadline.callback.state == CallbackState.FAILED
+        assert other_deadline.missed
+        assert other_deadline.callback.state == CallbackState.QUEUED
+        assert [t.id for t in session.scalars(select(Trigger))] == [other_deadline.callback.trigger_id]
+
+        # The shared cleanup deletes triggers before callbacks.
+        session.execute(update(Callback).values(trigger_id=None))
+        session.commit()
 
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines_no_deadlines_found(self, mock_handle_miss, session):

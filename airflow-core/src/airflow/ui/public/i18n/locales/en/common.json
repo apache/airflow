@@ -139,6 +139,7 @@
     "all": "All",
     "and": "AND",
     "any": "Any",
+    "hiddenAsset": "Hidden asset",
     "or": "OR"
   },
   "filter": "Filter",
@@ -414,6 +415,7 @@
     "no_status": "No Status",
     "none": "No Status",
     "open": "Open",
+    "pending": "Pending",
     "planned": "Planned",
     "queued": "Queued",
     "removed": "Removed",

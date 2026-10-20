@@ -94,6 +94,7 @@ toolset to log its calls, the other converts a toolset for a LangChain agent.
     LangChain tools <langchain>
     Tool call logging <logging>
     Progressive tool disclosure <progressive_disclosure>
+    Writing your own toolset <custom>
 
 Importing toolsets
 ------------------
@@ -121,7 +122,8 @@ Every toolset here implements pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface, so it works in any
 pydantic-ai ``Agent``. ``AgentOperator`` accepts any ``AbstractToolset`` too, such as
 pydantic-ai's own ``MCPToolset`` or a third-party toolset; those miss the connection
-handling the toolsets on this page add.
+handling the toolsets on this page add. To write a toolset of your own on the same base
+class, see :doc:`custom`.
 
 Choosing a toolset
 ------------------

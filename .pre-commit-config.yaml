@@ -19,7 +19,7 @@ default_stages: [pre-commit, pre-push]
 default_install_hook_types: [pre-commit, commit-msg]
 minimum_prek_version: '0.4.8'
 default_language_version:
-  python: python3
+  python: ">=3.11"
   node: 22.19.0
   golang: 1.25.0
 default_env:
@@ -721,7 +721,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 2c1fb3ad1373b1eb5148176bb6dcd4773f2a564d  # frozen: nightly
+    rev: 54f8bf47ffbd35973b8eb016ccbc67221c75ba5f  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -821,7 +821,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.16.8']
+        additional_dependencies: ['ruff==0.17.0']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -975,6 +975,14 @@ repos:
         entry: "^\\s*from urllib\\.parse import ((\\|, )(urlparse\\|urlunparse))+$"
         pass_filenames: true
         files: \.py$
+      - id: check-auth-manager-mock-targets
+        name: Patch SimpleAuthManager, not BaseAuthManager, for methods it overrides
+        description: The API test client uses SimpleAuthManager, so patching an overridden BaseAuthManager method has no effect
+        entry: ./scripts/ci/prek/check_auth_manager_mock_targets.py
+        language: python
+        pass_filenames: true
+        files: ^airflow-core/tests/unit/api_fastapi/.*\.py$
+        exclude: ^airflow-core/tests/unit/api_fastapi/auth/managers/simple/
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
@@ -1010,7 +1018,7 @@ repos:
           ^airflow-core/src/airflow/ui/openapi-gen/|
           ^airflow-core/src/airflow/ui/pnpm-lock\.yaml$|
           ^providers/common/ai/src/airflow/providers/common/ai/plugins/www/pnpm-lock\.yaml$|
-          ^airflow-core/src/airflow/ui/public/i18n/locales/de/README\.md$|
+          ^airflow-core/src/airflow/ui/public/i18n/locales/(?!en/)|
           ^airflow-core/src/airflow/ui/src/i18n/config\.ts$|
           ^airflow-core/src/airflow/ui/src/i18n/dayjsLocale\.ts$|
           ^\.agents/skills/airflow-translations/|
@@ -1158,6 +1166,12 @@ repos:
       - id: check-example-dag-tags
         name: Check example DAGs carry the "example" tag
         entry: ./scripts/ci/prek/check_example_dag_tags.py
+        language: python
+        files: ^.*/example_dags/.*\.py$
+        pass_filenames: true
+      - id: check-example-dag-shell-commands
+        name: Check example Dags do not build shell commands from runtime values
+        entry: ./scripts/ci/prek/check_example_dag_shell_commands.py
         language: python
         files: ^.*/example_dags/.*\.py$
         pass_filenames: true

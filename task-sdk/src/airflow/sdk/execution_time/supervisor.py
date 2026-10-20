@@ -191,6 +191,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.api.datamodels._generated import TIRunContext
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -1735,6 +1736,10 @@ class ActivitySubprocess(WatchedSubprocess):
                 return
             raise
 
+        if (prepared := self._prepare_ti_context(ti, ti_context)) is None:
+            return
+        ti_context = prepared
+
         # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
         # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
         # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
@@ -1758,6 +1763,17 @@ class ActivitySubprocess(WatchedSubprocess):
         except (BrokenPipeError, ConnectionResetError):
             # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
             log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
+
+    def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
+        """
+        Return the context the supervisor sends to the task process, or None when the task must not run.
+
+        An implementation that returns None must first stop the task process and record the outcome that
+        will be reported. This base version returns the context unchanged, because the Python task runner
+        itself deletes the XComs in ``ti_context.xcom_keys_to_clear`` with ``XCom.delete``, which also
+        purges them from the XCom backend.
+        """
+        return ti_context
 
     def wait(self) -> int:
         if self._wait_completed and self._exit_code is not None:
@@ -2596,8 +2612,14 @@ class InProcessTestSupervisor(ActivitySubprocess):
             **kwargs,
         )
 
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
+        from airflow.sdk.execution_time.task_runner import (
+            RuntimeTaskInstance,
+            check_xcom_backend_supports_loops,
+            finalize,
+            run,
+        )
 
+        check_xcom_backend_supports_loops(task.dag)
         supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
         with set_supervisor_comms(supervisor.comms):
             supervisor.ti = what  # type: ignore[assignment]
@@ -2885,7 +2907,15 @@ def process_log_messages_from_subprocess(
         if ts := event.get("timestamp"):
             # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
             # datetime.strptime cn
-            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
+            try:
+                event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
+            except msgspec.DecodeError:
+                # The subprocess sends the timestamp field, and msgspec cannot always parse its value. For
+                # example, user code can call self.log.info("...", timestamp=1697190085).
+                # An uncaught DecodeError would stop the task supervisor before it reports the
+                # task state, or stop the whole Dag processor during Dag parsing. Moving the value to
+                # invalid_timestamp lets MaybeTimeStamper add the time the supervisor received the line.
+                event["invalid_timestamp"] = event.pop("timestamp")
 
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace
