@@ -1,1 +1,0 @@
-Mask registered secrets at any nesting depth. Secret values registered with the masker are now replaced wherever they appear in a nested structure, instead of only up to the masker's maximum depth.

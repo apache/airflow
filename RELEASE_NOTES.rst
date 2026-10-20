@@ -42,6 +42,28 @@ under a per-attempt UUID so each iteration's data is preserved and can be cleare
 
 For detailed usage instructions, see :doc:`/authoring-and-scheduling/loops`.
 
+.. note::
+  Downgrading to any version earlier than 3.4.0 can be slow, depending on the number of
+  XCom rows that have been written after upgrading. Upgrading was tested on a
+  300m row XCom table, so please don't worry about upgrade time (we made sure
+  that the XCom *data* didn't get touched or read during migration to keep it
+  fast).
+
+  This is because this release contains a migration that starts storing new XCom
+  rows in an xcom_v2 table, and in order to downgrade we have to move those over
+  to the old table, and there is no way of doing this without copying the
+  written xcom values.
+
+  The downgrade refuses to continue when it finds data it cannot map back
+  safely. Each migration commits separately, so the later 3.4.0 migrations
+  have already been reversed at that point: fix the data and re-run the
+  downgrade, or run ``airflow db migrate`` to return to 3.4.
+
+  On MySQL a failure after those checks leaves the schema partly downgraded,
+  as MySQL cannot roll back DDL. Taking a backup before attempting the
+  downgrade on MySQL is advised, so it can be restored in that case.
+
+
 Dag Importer for non-Python Dags (#72369, #73728, #73853, #74020, #74084, #74333, #74586)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -379,9 +401,105 @@ Airflow drops support for a Python version in ``main`` as soon as it reaches end
 ``apache-airflow`` distribution, the Task SDK, ``airflowctl`` and all providers released from
 ``main`` declare ``requires-python = ">=3.11"``.
 
+Deprecate the ``required_kwargs`` attribute for custom deadline references (#70714)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Implement ``_evaluate_with()`` with a ``dagrun`` parameter instead.
+
+CI and production images are now based on Docker Hardened Images and Debian 13 (#73038)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Airflow's CI and production images are now based on `Docker Hardened Images <https://dhi.io>`_ for
+Python and Debian 13 "trixie".
+
+Python is no longer compiled from source during the image build - it comes from the hardened base
+image instead, which removes the source download, its signature verification and the compilation
+itself from the build. Python still lives in ``/usr/python``, which is now a symlink to the
+``/opt/python`` location the base image uses, so paths inside the image are unchanged.
+
+The ``BASE_IMAGE`` build argument now defaults to
+``ghcr.io/apache/airflow/base/python:<version>-debian13-dev``, Airflow's public mirror of the
+upstream ``dhi.io/python`` image, so building an image needs no registry credentials. Anyone
+overriding ``BASE_IMAGE`` with a plain ``debian:bookworm-slim`` image has to switch to an image that
+already provides Python, or build the ``legacy`` flavor.
+
+The base OS moved from Debian 12 "bookworm" to Debian 13 "trixie". Library packages renamed in
+trixie's 64-bit ``time_t`` transition (for example ``libssl3`` is now ``libssl3t64``) have to be
+updated in custom ``RUNTIME_APT_DEPS`` / ``ADDITIONAL_RUNTIME_APT_DEPS``, and the MySQL-compatible
+client now comes from MariaDB 11.8.
+
+For the 3.4.x line, production images built the previous way - Python compiled from sources on
+``debian:bookworm-slim`` - are still published as the deprecated ``legacy`` flavor, selected with
+the new ``AIRFLOW_IMAGE_FLAVOR="legacy"`` build argument. They will be removed in Airflow 3.5.0.
+
+The ``PYTHON_LTO`` build argument is gone. To build a FIPS-compliant image, point ``BASE_IMAGE`` at a
+FIPS variant of the hardened image instead, for example ``dhi.io/python:3.13.16-debian13-fips-dev``.
+
+Task SDK API client trusts the system certificate store instead of ``certifi`` (#73116)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+With ``[api] client_use_public_certs`` enabled (the default), the Task SDK client that talks to the
+Execution API now trusts the operating system's certificate store through ``truststore`` instead of
+the ``certifi`` CA bundle. CAs from ``[api] ssl_ca_file`` and ``[api] ssl_cert`` are still trusted
+in addition to the system store, and ``certifi`` is no longer a Task SDK dependency.
+
+Workers must have the public CAs they rely on installed in the system store (for example, the
+``ca-certificates`` package on Debian-based images). On macOS and Windows, certificate validation
+is delegated to the operating system, which can reject server certificates that OpenSSL accepted,
+such as private-CA certificates without the ``serverAuth`` extended key usage.
+
+Older workers can no longer resume deferred tasks whose ``next_kwargs`` hold custom classes (#73577)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+When a deferred task resumes on a worker with an older Task SDK, the API server no longer reconstructs arbitrary classes from the stored ``next_kwargs`` to convert them to the legacy format. Built-in value types, assets and asset aliases (including asset access control) are still converted, without constructing them. A deferred task whose ``next_kwargs`` hold any other class now fails on such a worker with an error naming the type and asking to upgrade the Task SDK, instead of crashing on a payload it cannot decode.
+
+**What to do:** if you run workers with ``apache-airflow-task-sdk`` 1.1.x or older and your deferrable operators or triggers pass instances of custom classes in ``next_kwargs`` (for example via ``self.defer(..., kwargs=...)`` or in the trigger event payload), upgrade the Task SDK on those workers to 1.2.0 or later. Newer workers receive ``next_kwargs`` unchanged and are not affected. Until all workers are upgraded, pass only built-in values, assets and asset aliases in ``next_kwargs`` of tasks that may resume on older workers.
+
+Deadline Alert callback kwargs are decoded where the callback runs (#74830)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The keyword arguments of Deadline Alert callbacks are no longer decoded by the scheduler. They
+are kept in their serialized form and decoded where the callback runs: by the triggerer for an
+``AsyncCallback``, and by the callback runner on the worker for a ``SyncCallback``.
+
+Workers that run ``SyncCallback`` Deadline Alerts need a Task SDK that includes this change, so
+upgrade ``apache-airflow`` and ``apache-airflow-task-sdk`` on workers together. A worker with
+an upgraded ``apache-airflow`` and an older Task SDK fails such callbacks with an error instead
+of running them. Callbacks created before the upgrade run as before.
+
+Custom XCom backends that override ``serialize_value`` must implement ``store_value`` to support task loops (#74858)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Every iteration of a task inside a loop is its own task instance, but ``serialize_value``
+receives the same ``dag_id``, ``run_id``, ``task_id``, ``map_index`` and ``key`` for all of
+them, so a backend that builds its storage location from those makes every iteration's XCom
+read back as the last iteration's value. Backends should override ``store_value`` and
+``load_value`` instead, and build the storage location with ``XComCoordinate.build_path``,
+which is unique per task instance, or per write when the write cannot know the task instance.
+
+A Dag that uses a loop fails on startup when the configured XCom backend still stores values
+through ``serialize_value``, even if it already writes to a unique location. This includes
+``XComObjectStorageBackend`` from ``apache-airflow-providers-common-io`` 1.10.1 and earlier;
+upgrade the provider before using task loops with it.
+
+Custom Task State Store backends will likewise need to include
+``scope.region_id`` in their storage key to support mapped tasks inside a loop
+and loop iterations regenerated by clearing.
+
 New Features
 ^^^^^^^^^^^^
 
+- Java SDK: Add edge labels to native Dags (#75173)
+- Add a Duplicate action to the Connections list (#75143)
+- Make the scheduler Dag cache size and TTL configurable (#75087)
+- TS SDK: Add edge labels with label() (#75031)
+- Let retry policies reschedule a task without using a retry (#74993)
+- Let plugin views be scoped to specific Assets (#74992)
+- UI: Add Select Recent Configurations dropdown to Trigger Dag form (#74977)
+- Add support for forwarding CeleryExecutor task logs to stdout (#74976)
+- Add deadline callback log visibility to the Dag Run view in UI (#74955)
+- Allow loop gates to add human-readable decisions (#74932)
+- Add Map Index search to dag breadcrumb (#74893)
 - Add dag version lookup on get task endpoint (#74365)
 - Add Logical Date column to the Runs table (#74340)
 - UI: Add a Dag Run ID column to the Task Instances list (#74316)
@@ -455,6 +573,43 @@ New Features
 Bug Fixes
 ^^^^^^^^^
 
+- Fix log template sync failing when a custom SQL Alchemy schema is configured (#75194)
+- Java SDK: Send log timestamps in UTC (#75186)
+- Fix 500 when ordering the Dag list by state or start_date (#75148)
+- Keep Dag folder selection distinct across bundle names (#75146)
+- Keep parent Dag folders collapsed after one click (#75145)
+- Fix ``Trigger.clean_unused`` rejecting a caller-provided session (#75122)
+- Scope asset Dag and task references to readable Dags (#75107)
+- Reject reserved serialization keys in Dag run conf (#75105)
+- Reserve graph header width for loop-group iteration badge (#75095)
+- Scope asset-wide queued event deletion to editable Dags (#75089)
+- Refuse a HITL response for a request the task has since replaced (#74982)
+- Stop the secrets backend lookup from importing the task runner outside tasks (#74980)
+- Fix ``map_index_template`` failing for numeric-looking labels with ``render_template_as_native_obj`` (#74978)
+- Do not abort Dag run creation when a deadline alert fails (#74975)
+- Fix ORM models failing to configure in processes that skip database setup (#74971)
+- Fix Lang-SDK decoder typing for pydantic 2.14 ``TypeForm`` signature (#74970)
+- Fix CLI --bundle-name finding no Dags in Git bundles (#74969)
+- Fix clearing with upstream and downstream selecting unrelated tasks (#74968)
+- Make ``ZIP_REGEX`` case-insensitive to match .ZIP archives (#74967)
+- Fix /ui/dags recent-runs query degradation on large, skewed dag_run tables (#74966)
+- Fix missing ``task.queued_duration`` metric in Airflow 3 (#74965)
+- UI: Keep JSON text in string HITL params instead of showing [object Object] (#74961)
+- UI: Fix the Dags list showing an error page and reduce unnecessary re-renders (#74956)
+- Fix Dag list run badges and counters not refreshing after completion (#74954)
+- Drain result_queue before dispatch in LocalExecutor to prevent runtime dispatch deadlock (#74949)
+- Clear language SDK task XComs in the coordinator when a try starts (#74936)
+- Fix dynamically mapped tasks never running on scheduled Dag runs (#74918)
+- Match camelCase keys against sensitive field names in masker (#74897)
+- Keep queued connection tests from overwriting newer connections (#74895)
+- Fix Dag version diff max-changes border, limit wording and duplicate count (#74886)
+- Do not warn about bare postgresql:// metadata DB URLs (#74884)
+- Resolve a trigger's XCom requests as its deferred task instance (#74868)
+- Fix JWT token not refreshed when token expires mid-request (#74865)
+- Java SDK: Reject byte arrays instead of letting the task hang (#74831)
+- Go SDK: pack a bundle that registers no Dags at pack time (#74821)
+- Report a Dag whose timetable fails to load as an import error (#74807)
+- UI: Fix clearing a task instance doing nothing after Confirm (#74738)
 - Fix 400 and 500s on POST /connections/defaults in multi-team mode (#74615)
 - Keep the scheduler running when a queued run's Dag fails to deserialize (#74499)
 - Fix plugin applies_to scoping (#74425)
@@ -530,6 +685,38 @@ Bug Fixes
 Miscellaneous
 ^^^^^^^^^^^^^
 
+- TS SDK: Collect ``dag_dependencies`` in the tasks pass (#75191)
+- Mask CLI secrets in the audit log by parsed argument, not argv position (#75144)
+- UI: Replace stacked Dag header banners with inline status (#75125)
+- Pass runtime values to example Dag shell commands through env (#75121)
+- Read XCom without object reconstruction during dependency evaluation (#75117)
+- Add the resume event to stored next_kwargs without decoding them (#75116)
+- Mask XCom values in the audit log (#75113)
+- Mask registered secrets at any nesting depth (#75112)
+- Open the Dags menu from the Dags nav button instead of navigating (#75109)
+- Scope upstream asset events of a Dag run to assets and Dags the caller may read (#75108)
+- Mask provider-declared sensitive connection extras on every connection type (#75106)
+- Validate ``CallbackTrigger`` callback path before running the callback (#75102)
+- Render XCom values on the API server without rebuilding objects (#75088)
+- UI: Guard the remaining ``RadioCardRoot`` values instead of casting (#74989)
+- UI: Keep unnamed columns out of the table columns menu (#74988)
+- Lazy-load the Code tab grammar from the Dag's stored language (#74987)
+- UI: Use ``RadioCardRoot``'s typed ``onValueChange`` instead of DOM casts (#74979)
+- Highlight YAML Dag source in the Code tab (#74972)
+- UI: Drop the loading spinner for base React plugins (#74964)
+- Resolve loop iterations through family and path columns on dynamic regions (#74963)
+- Show Dag version diff values-hidden pill only when values are hidden (#74960)
+- Coerce delta and other typed fields when building operators from YAML Dags (#74959)
+- UI: Fold draining into the Dags Paused state filter (#74958)
+- UI: Add clicked tags to the Dags list filters instead of replacing them (#74957)
+- UI: Open nav sidebar menus on hover and add a Dags menu (#74953)
+- Reduce db clean batch probe overhead (#74952)
+- Batch triggerer unused trigger cleanup deletes (#74950)
+- Upgrade Task Loop UX (#74931)
+- Skip the scheduler's Dag lookup for Dag runs with no callback to send (#74857)
+- TS SDK: Reject ``triggerDagRun`` tasks in ``dag.if`` and ``dag.switch`` (#74828)
+- Java SDK: Rename annotation namespace from Builder to Airflow (#74826)
+- Show serializer schema in Dag version diff only when it differs (#74739)
 - Update waiting tasks to the latest Dag version (#74592)
 - Disable psycopg3 auto-prepare by default behind connection poolers (#74581)
 - Make airflow standalone discover new Dag files within seconds (#74479)
@@ -694,6 +881,16 @@ Miscellaneous
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
 
+- Complete Hindi (hi) UI translations (#75183)
+- Document that the HITL operator body is rendered as Markdown (#75136)
+- Fix missing and incorrect endpoints in the API permission reference (#75099)
+- Add documentation for the new YAML Dag format (#75053)
+- Add missing zh-CN translations for new UI strings (#75023)
+- Close German Translation Gaps 2026-10-15 (#74990)
+- Point the TaskFlow tutorial's retries section to resumable tasks (#74984)
+- Close German Translation Gaps 2026-10-14 (#74962)
+- Document that ``use_job_schedule`` also stops asset-triggered Dag runs (#74951)
+- Complete Hebrew UI translations 2026-10-16 (#74855)
 - Add missing Taiwanese Mandarin translations (#74545)
 - Add missing Polish UI translations (#74533)
 - Add missing Taiwanese Mandarin translations for task states and Dag list settings (#74486)
