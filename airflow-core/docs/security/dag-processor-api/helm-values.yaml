@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-# Install as a separate processor-only release, using an image with API mode.
+# Install as a separate processor-only release in airflow-dag-processor.
+# Apply kubernetes-token-provisioner.yaml first, using an image with API mode.
 airflowVersion: "3.5.0"
 defaultAirflowTag: "3.5.0"
 executor: LocalExecutor
