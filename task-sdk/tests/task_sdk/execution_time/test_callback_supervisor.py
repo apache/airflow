@@ -31,6 +31,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk.api.client import CallbackOperations, Client
 from airflow.sdk.api.datamodels._generated import CallbackTerminalState
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
@@ -666,6 +667,13 @@ class TestCallbackSubprocessStart:
         assert calls == ["import task runner", "fork"]
 
 
+@pytest.fixture
+def callback_client():
+    client = Mock(spec=Client)
+    client.callbacks = Mock(spec=CallbackOperations)
+    return client
+
+
 class TestSuperviseCallbackExchangesTokenFirst:
     """No callback code may run until the single-use token has been exchanged."""
 
@@ -699,8 +707,10 @@ class TestSuperviseCallbackExchangesTokenFirst:
 
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
     @patch.object(CallbackSubprocess, "start")
-    def test_rejected_exchange_prevents_the_subprocess_from_starting(self, mock_start, _nondumpable):
-        client = Mock()
+    def test_rejected_exchange_prevents_the_subprocess_from_starting(
+        self, mock_start, _nondumpable, callback_client
+    ):
+        client = callback_client
         client.callbacks.run.side_effect = RuntimeError("409 Conflict: token already exchanged")
 
         with pytest.raises(RuntimeError, match="already exchanged"):
@@ -747,8 +757,8 @@ class TestSuperviseCallbackReportsTerminalState:
 
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
     @patch.object(CallbackSubprocess, "start")
-    def test_clean_exit_reports_success(self, mock_start, _nondumpable):
-        client = Mock()
+    def test_clean_exit_reports_success(self, mock_start, _nondumpable, callback_client):
+        client = callback_client
         mock_start.return_value = Mock(wait=Mock(return_value=0))
 
         assert self._supervise(client) == 0
@@ -761,8 +771,8 @@ class TestSuperviseCallbackReportsTerminalState:
 
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
     @patch.object(CallbackSubprocess, "start")
-    def test_nonzero_exit_reports_failed_before_raising(self, mock_start, _nondumpable):
-        client = Mock()
+    def test_nonzero_exit_reports_failed_before_raising(self, mock_start, _nondumpable, callback_client):
+        client = callback_client
         mock_start.return_value = Mock(wait=Mock(return_value=3))
 
         with pytest.raises(RuntimeError, match="exited with code 3"):
@@ -776,8 +786,8 @@ class TestSuperviseCallbackReportsTerminalState:
 
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
     @patch.object(CallbackSubprocess, "start")
-    def test_supervisor_error_reports_failed_with_the_cause(self, mock_start, _nondumpable):
-        client = Mock()
+    def test_supervisor_error_reports_failed_with_the_cause(self, mock_start, _nondumpable, callback_client):
+        client = callback_client
         mock_start.side_effect = ValueError("boom")
 
         with pytest.raises(ValueError, match="boom"):
@@ -791,9 +801,9 @@ class TestSuperviseCallbackReportsTerminalState:
 
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
     @patch.object(CallbackSubprocess, "start")
-    def test_a_failure_to_report_does_not_mask_the_outcome(self, mock_start, _nondumpable):
+    def test_a_failure_to_report_does_not_mask_the_outcome(self, mock_start, _nondumpable, callback_client):
         """The scheduler fallback still has the executor event, so a reporting blip is not fatal."""
-        client = Mock()
+        client = callback_client
         client.callbacks.finish.side_effect = RuntimeError("API unreachable")
         mock_start.return_value = Mock(wait=Mock(return_value=0))
 
