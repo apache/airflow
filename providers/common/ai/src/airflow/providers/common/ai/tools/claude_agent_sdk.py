@@ -63,6 +63,11 @@ _MAX_ERROR_ENTRIES = 5
 # versions may differ), so a larger value is a no-op. With ``tools=[]`` the model has no Read
 # tool, so a result over the ceiling that the CLI spills to a ``<persisted-output>`` file is lost.
 _MAX_INLINE_RESULT_CHARS = 500_000
+# The CLI writes each tool result to stdout twice, JSON-escaped, and the SDK fails the stream on any
+# line over ``max_buffer_size`` (1 MiB by default). Escaping can multiply a result by up to ~6, so the
+# buffer must sit far above ``_MAX_INLINE_RESULT_CHARS``. Sizes observed with the CLI bundled in
+# claude-agent-sdk 0.2.165, not a documented guarantee.
+_MAX_BUFFER_BYTES = 16 * 1024 * 1024
 
 
 def _truncate_result_text(text: str) -> str:
@@ -221,6 +226,7 @@ class AirflowTools:
         kwargs.setdefault("setting_sources", [])
         kwargs.setdefault("strict_mcp_config", True)
         kwargs.setdefault("verbatim_prompts", True)
+        kwargs.setdefault("max_buffer_size", _MAX_BUFFER_BYTES)
         return ClaudeAgentOptions(mcp_servers=mcp_servers, allowed_tools=allowed_tools, **kwargs)
 
     async def run(self, messages: AsyncIterable[Message]) -> ResultMessage:
