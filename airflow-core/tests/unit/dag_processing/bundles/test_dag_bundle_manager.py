@@ -35,7 +35,6 @@ from airflow.dag_processing.bundles.manager import (
     _guess_best_bundle_for_fileloc,
     _load_bundle_config_snapshot,
     _refresh_bundle_config_snapshot,
-    _reset_bundle_config_after_fork,
     get_configured_bundle_names,
     get_configured_bundle_team_names,
 )
@@ -2296,10 +2295,7 @@ def test_bundle_configuration_preserves_importer_settings_without_validating_the
     dynamic_bundle_config.write_text(json.dumps([config]))
     manager = DagBundlesManager()
     assert manager.get_all_bundle_names() == ["my-test-bundle"]
-    parser_config = json.loads(
-        manager.get_bundle_config_env()["AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST"]
-    )
-    assert parser_config[0]["importers"] == config["importers"]
+    assert manager.get_bundle_config(config["name"]).importers == config["importers"]
 
 
 def test_bundle_enumeration_refreshes_existing_manager(dynamic_bundle_config):
@@ -2309,19 +2305,16 @@ def test_bundle_enumeration_refreshes_existing_manager(dynamic_bundle_config):
     assert [bundle.name for bundle in manager.get_all_dag_bundles()] == ["second-bundle"]
 
 
-@pytest.mark.parametrize("parser_config", [None, "[]"])
 @mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
-def test_fork_keeps_cached_configuration_unless_parser_receives_explicit_list(
-    mock_command, dynamic_bundle_config, monkeypatch, parser_config
-):
+def test_get_bundle_config_retains_accepted_data_without_refresh(mock_command, dynamic_bundle_config):
     mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
-    assert DagBundlesManager().get_bundle("my-test-bundle").name == "my-test-bundle"
+    manager = DagBundlesManager()
     mock_command.side_effect = OSError("configuration source unavailable")
 
-    if parser_config is not None:
-        monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", parser_config)
-    _reset_bundle_config_after_fork()
-    manager = DagBundlesManager()
-    assert sorted(manager._bundle_config) == ([] if parser_config else ["my-test-bundle"])
-
+    config = manager.get_bundle_config("my-test-bundle")
+    assert config.name == "my-test-bundle"
+    config.kwargs["path"] = "changed by caller"
+    assert manager.get_bundle_config("my-test-bundle").kwargs == BASIC_BUNDLE_CONFIG[0]["kwargs"]
+    with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured"):
+        manager.get_bundle_config("missing")
     mock_command.assert_called_once()

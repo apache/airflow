@@ -23,6 +23,7 @@ import os
 import pathlib
 import sys
 import textwrap
+import time
 import typing
 import uuid
 import zipfile
@@ -71,6 +72,7 @@ from airflow.dag_processing.processor import (
 )
 from airflow.models import DagRun
 from airflow.models.dagwarning import DagWarning
+from airflow.models.pool import Pool
 from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
@@ -91,7 +93,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-from airflow.sdk.importers import DagSourceCode
+from airflow.sdk.importers import DagImporterRegistry, DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
@@ -545,6 +547,62 @@ def test_start_ignores_execute_tasks_new_python_interpreter(mocker, option_value
         )
 
     assert base_start.call_args.kwargs["use_exec"] is False
+
+
+@pytest.mark.parametrize("use_exec", [False, True], ids=["fork", "fresh_interpreter"])
+@pytest.mark.parametrize("team_name", [None, "payments"])
+def test_parser_uses_accepted_importers_and_team_when_source_is_unavailable(
+    use_exec, team_name, tmp_path, monkeypatch, mocker, inprocess_client
+):
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: use_exec)
+    config = {
+        "importers": [{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}],
+        "team_name": team_name,
+    }
+    registry = DagImporterRegistry.from_config("payments", bundle_importers=config["importers"])
+    registry.warm_importers()
+    mocker.patch.object(
+        DagImporterRegistry,
+        "from_config",
+        autospec=True,
+        side_effect=AssertionError("forked parser must reuse the warmed registry"),
+    )
+    monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", "invalid JSON")
+    monkeypatch.setenv("AIRFLOW__CORE__MULTI_TEAM", "True")
+    path = tmp_path / "dag.custom"
+    path.write_text(
+        "from airflow.sdk import DAG\n"
+        "from airflow.providers.standard.operators.empty import EmptyOperator\n"
+        "with DAG('accepted_importers', schedule=None):\n"
+        "    EmptyOperator(task_id='run')\n"
+    )
+    proc = DagFileProcessorProcess.start(
+        id=uuid.uuid4(),
+        path=path,
+        bundle_path=tmp_path,
+        bundle_name="payments",
+        dag_file_rel_path=path.name,
+        callbacks=[],
+        bundle_config=config,
+        importer_registry=registry,
+        client=inprocess_client,
+        logger=structlog.get_logger(),
+        logger_filehandle=MagicMock(spec=BinaryIO),
+    )
+    try:
+        deadline = time.monotonic() + 60
+        while not proc.is_ready:
+            assert time.monotonic() < deadline, "parser did not finish"
+            proc._service_subprocess(0.1)
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        [dag] = result.serialized_dags
+        assert dag.dag_id == "accepted_importers"
+        expected_pool = Pool.get_default_team_pool_name(team_name) if team_name else Pool.DEFAULT_POOL_NAME
+        assert dag.data["dag"]["tasks"][0]["__var"].get("pool", Pool.DEFAULT_POOL_NAME) == expected_pool
+    finally:
+        proc.close()
 
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:

@@ -211,6 +211,8 @@ type AwaitInputTask struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type BundleConfig map[string]interface{}
+
 // Schema for telling task which bundle to run with.
 type BundleInfo struct {
 	// Name corresponds to the JSON schema field "name".
@@ -385,6 +387,9 @@ type DagCallbackRequest struct {
 // file and
 // any other necessary metadata.
 type DagFileParseRequest struct {
+	// BundleConfig corresponds to the JSON schema field "bundle_config".
+	BundleConfig *BundleConfig `msgpack:"bundle_config,omitempty"`
+
 	// BundleName corresponds to the JSON schema field "bundle_name".
 	BundleName string `msgpack:"bundle_name"`
 

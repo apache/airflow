@@ -933,6 +933,19 @@
           "title": "Bundle Name",
           "type": "string"
         },
+        "bundle_config": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Config"
+        },
         "callback_requests": {
           "items": {
             "discriminator": {

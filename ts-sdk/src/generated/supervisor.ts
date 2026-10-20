@@ -202,6 +202,9 @@ export type Type12 = "DagCallbackRequest";
 export type File = string;
 export type BundlePath = string;
 export type BundleName1 = string;
+export type BundleConfig = {
+  [k: string]: unknown;
+} | null;
 export type Filepath1 = string;
 export type BundleName2 = string;
 export type BundleVersion1 = string | null;
@@ -1024,6 +1027,7 @@ export interface DagFileParseRequest {
   file: File;
   bundle_path: BundlePath;
   bundle_name: BundleName1;
+  bundle_config?: BundleConfig;
   callback_requests?: CallbackRequests;
   type?: Type15;
 }

@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from itsdangerous import URLSafeSerializer
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import and_, delete, exists, or_, select, update
 from sqlalchemy.orm import selectinload
 
@@ -88,12 +88,11 @@ def _guess_best_bundle_for_fileloc(
 class _ExternalBundleConfig(BaseModel):
     """Schema defining the user-specified configuration for a DAG bundle."""
 
-    model_config = ConfigDict(extra="allow")
-
     name: str
     classpath: str
     kwargs: dict
     team_name: str | None = None
+    importers: Any = None
 
 
 class _InternalBundleConfig(BaseModel):
@@ -120,7 +119,6 @@ class _BundleConfigSnapshot:
     """The last accepted bundle configuration in this process."""
 
     configs: dict[str, _ExternalBundleConfig]
-    config_json: str
     names: frozenset[str]
     team_names: dict[str, str | None]
     last_checked: float = field(default_factory=lambda: time.monotonic())
@@ -146,16 +144,11 @@ def _get_bundle_config_reload_option() -> tuple[str, str] | None:
 
 def _create_bundle_config_snapshot(bundle_config_list: list[_ExternalBundleConfig]) -> _BundleConfigSnapshot:
     team_names = {cfg.name: cfg.team_name for cfg in bundle_config_list}
-    # Literal config lookup expands environment variables; preserve command/secret values verbatim.
-    config_json = json.dumps([cfg.model_dump(exclude_none=True) for cfg in bundle_config_list]).replace(
-        "$", r"\u0024"
-    )
     if bundle_config_list and conf.getboolean("core", "LOAD_EXAMPLES"):
         _add_example_dag_bundle(bundle_config_list)
         _add_provider_example_dags_to_bundle(bundle_config_list)
     return _BundleConfigSnapshot(
         configs={cfg.name: cfg for cfg in bundle_config_list},
-        config_json=config_json,
         names=frozenset(cfg.name for cfg in bundle_config_list),
         team_names=team_names,
     )
@@ -172,15 +165,6 @@ def _load_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfi
     if metadata_only:
         return replace(_load_bundle_config_snapshot())
     return _create_bundle_config_snapshot(_read_bundle_config_list())
-
-
-def _reset_bundle_config_after_fork() -> None:
-    # Parsers receive an explicit list; other forks retain the last valid snapshot.
-    if "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST" in os.environ:
-        _load_bundle_config_snapshot.cache_clear()
-
-
-os.register_at_fork(after_in_child=_reset_bundle_config_after_fork)
 
 
 def _refresh_bundle_config_snapshot(
@@ -225,7 +209,6 @@ def _refresh_bundle_config_snapshot(
         log.exception("Could not reload Dag bundle configuration; keeping the last accepted list")
         return snapshot
     snapshot.configs = current.configs
-    snapshot.config_json = current.config_json
     snapshot.names = current.names
     snapshot.team_names = current.team_names
     return snapshot
@@ -815,11 +798,12 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
-    def get_bundle_config_env(self) -> dict[str, str]:
-        """Get the accepted configuration to pass to a fresh parser interpreter."""
-        if not is_bundle_config_reload_enabled():
-            return {}
-        return {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": self._snapshot.config_json}
+    def get_bundle_config(self, name: str) -> _ExternalBundleConfig:
+        """Get the accepted configuration without refreshing or constructing the bundle."""
+        try:
+            return self._snapshot.configs[name].model_copy(deep=True)
+        except KeyError:
+            raise ValueError(f"Requested bundle '{name}' is not configured.") from None
 
     def _refresh_config(self) -> None:
         """Refresh bundle configuration and update this manager."""
