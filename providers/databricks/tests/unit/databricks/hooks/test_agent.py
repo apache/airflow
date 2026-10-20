@@ -276,7 +276,7 @@ class TestManagedAgent:
             pytest.param(
                 {"prompt": "hello"},
                 {},
-                {"messages": [{"role": "user", "content": [{"type": "text", "text": "hello"}]}]},
+                {"messages": [{"role": "user", "content": "hello"}]},
                 id="prompt",
             ),
             pytest.param(
@@ -430,7 +430,7 @@ class TestManagedAgent:
             assert payload == {
                 "id": payload["id"],
                 "session_id": payload["id"],
-                "input": {"messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]},
+                "input": {"messages": [{"role": "user", "content": prompt}]},
             }
             assert call.args == ("POST", f"{APP_URL}/api/invocations")
             assert call.kwargs["headers"]["X-Routing-Key"] == payload["session_id"]

@@ -174,7 +174,11 @@ class DatabricksAgentHook(BaseDatabricksHook, BaseManagedAgentHook):
             "session_id": session_id,
             "input": {input_key: request.prompt}
             if input_key is not None
-            else {"messages": request.as_messages()},
+            else {
+                "messages": [{"role": "user", "content": request.prompt}]
+                if request.prompt is not None
+                else request.as_messages()
+            },
         }
         if request.timeout is not None and request.timeout <= 0:
             raise ValueError("timeout_seconds must be positive")
