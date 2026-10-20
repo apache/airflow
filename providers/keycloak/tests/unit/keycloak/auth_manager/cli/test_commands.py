@@ -261,6 +261,31 @@ def test_ensure_resource_server_decision_strategy(
         assert output == ""
 
 
+@pytest.mark.parametrize("settings", [b"invalid settings", []], ids=["bytes", "list"])
+@pytest.mark.parametrize("dry_run", [False, True])
+@patch(
+    "airflow.providers.keycloak.auth_manager.cli.commands.raise_error_from_response",
+    autospec=True,
+)
+def test_ensure_resource_server_decision_strategy_rejects_invalid_settings(
+    mock_check_response, settings, dry_run, capsys
+):
+    client = Mock(spec=["connection"])
+    client.connection = Mock(spec=["realm_name", "raw_get", "raw_put"])
+    client.connection.realm_name = "test-realm"
+    mock_check_response.return_value = settings
+
+    with pytest.raises(ValueError, match="Expected Keycloak resource-server settings to be a JSON object"):
+        _ensure_resource_server_decision_strategy(client, "test-id", _dry_run=dry_run)
+
+    client.connection.raw_get.assert_called_once_with(
+        "admin/realms/test-realm/clients/test-id/authz/resource-server"
+    )
+    client.connection.raw_put.assert_not_called()
+    assert mock_check_response.call_count == 1
+    assert capsys.readouterr().out == ""
+
+
 @pytest.mark.parametrize("include_global_admin", [True, False])
 def test_team_permission_preview_without_existing_objects(include_global_admin, capsys):
     client = Mock(spec=["get_client_authz_permissions"])
@@ -1265,7 +1290,15 @@ class TestCommands:
         mock_get_permission_policy_ids,
         mock_attach_resource_policy,
     ):
-        client = Mock()
+        client = Mock(
+            spec=[
+                "get_clients",
+                "get_client_authz_permissions",
+                "get_client_authz_scopes",
+                "get_client_authz_resources",
+                "update_client_authz_scope_permission",
+            ]
+        )
         mock_get_client.return_value = client
         mock_get_policy_id.side_effect = lambda client, client_uuid, name: f"policy-{name}"
         mock_get_permission_policy_ids.return_value = [
