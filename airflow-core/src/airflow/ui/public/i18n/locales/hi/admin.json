@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "सेक्शन"
-    }
+    },
+    "config_one": "विन्यास",
+    "config_other": "विन्यास"
   },
   "connections": {
     "add": "कनेक्शन जोड़ें",
@@ -32,6 +34,7 @@
     "form": {
       "connectionIdRequired": "कनेक्शन ID आवश्यक है",
       "connectionIdRequirement": "कनेक्शन ID में केवल अंतरिक्ष कुंजियाँ नहीं हो सकते",
+      "connectionTypeFields": "{{connectionType}} फ़ील्ड",
       "connectionTypeRequired": "कनेक्शन प्रकार आवश्यक है",
       "extraFieldsJson": "अतिरिक्त फ़ील्ड JSON",
       "helperText": "कनेक्शन प्रकार गायब है? सुनिश्चित करें कि आपने संबंधित Airflow Providers Package इंस्टॉल किया है।",
@@ -94,7 +97,9 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "जॉब",
+    "job_other": "जॉब्स"
   },
   "plugins": {
     "columns": {
@@ -102,6 +107,8 @@
     },
     "importError_one": "प्लगइन आयात त्रुटि",
     "importError_other": "प्लगइन आयात त्रुटियां",
+    "plugin_one": "प्लगइन",
+    "plugin_other": "प्लगइन",
     "searchPlaceholder": "फ़ाइल द्वारा खोजें"
   },
   "pools": {
@@ -135,7 +142,9 @@
     "columns": {
       "packageName": "पैकेज नाम",
       "version": "संस्करण"
-    }
+    },
+    "provider_one": "प्रोवाइडर",
+    "provider_other": "प्रोवाइडर्स"
   },
   "variables": {
     "add": "वेरिएबल जोड़ें",
