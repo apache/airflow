@@ -595,6 +595,9 @@ def clear_task_instances(
             dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
             was_finished = dr.state in State.finished_dr_states
+            previous_start_date = dr.start_date
+            previous_bundle_version = dr.bundle_version
+            bundle_version_changed = False
             if reset_dag_runs:
                 # Always update clear_number and queued_at when clearing tasks, regardless of state
                 dr.clear_number += 1
@@ -627,14 +630,19 @@ def clear_task_instances(
                     dr.dag = dr_dag
                     dr.verify_integrity(session=session, dag_version_id=dag_version.id)
                     dr.bundle_version = (
-                        None if dr_dag.disable_bundle_versioning else dr.dag_model.bundle_version
+                        None if dr_dag.disable_bundle_version else dr.dag_model.bundle_version
                     )
+                    bundle_version_changed = previous_bundle_version != dr.bundle_version
+                    if was_finished and bundle_version_changed:
+                        # The rerun's duration should include work completed on the previous bundle.
+                        dr.start_date = previous_start_date
             elif was_finished and not scheduler_dagbag.get_dag_for_run(dag_run=dr, session=session):
                 log.warning("No serialized dag found for dag '%s'", dr.dag_id)
 
             if reset_dag_runs and was_finished and dag_run_state == DagRunState.QUEUED:
                 dr.last_scheduling_decision = None
-                dr.start_date = None
+                if not bundle_version_changed:
+                    dr.start_date = None
 
             if dr.created_dag_version_id:
                 _pin_versionless_tis_to_run_version(dr, dr.created_dag_version_id, session)
