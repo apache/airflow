@@ -37,6 +37,7 @@ import pendulum
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from airflow.configuration import conf
+from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import SetContextPropagate
@@ -57,6 +58,7 @@ if TYPE_CHECKING:
         StreamingLogResponse,
     )
     from airflow.executors.base_executor import BaseExecutor
+    from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
 
 CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
@@ -412,6 +414,18 @@ def _get_compatible_log_stream(
     )
 
 
+def _get_team_executor_name(executor: str | None, team_name: str) -> ExecutorName:
+    """Find the executor of a team's task the way the scheduler does: the team's own, else a global one."""
+    try:
+        if executor is None:
+            return ExecutorLoader.get_default_executor_name(team_name=team_name)
+        return ExecutorLoader.lookup_executor_name_by_str(executor, team_name=team_name)
+    except (IndexError, UnknownExecutorException):
+        if executor is None:
+            return ExecutorLoader.get_default_executor_name()
+        return ExecutorLoader.lookup_executor_name_by_str(executor)
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -531,13 +545,22 @@ class FileTaskHandler(logging.Handler):
         :return: executor of the task instance
         """
         executor_name = ti.executor or self.DEFAULT_EXECUTOR_KEY
-        executor = self.executor_instances.get(executor_name)
+        team_name = None
+        if conf.getboolean("core", "multi_team"):
+            from airflow.models.dag import DagModel
+
+            team_name = DagModel.get_team_name(ti.dag_id)
+        # A team's executor has its own config, such as the cluster its pods run on.
+        cache_key = f"{team_name}:{executor_name}" if team_name else executor_name
+        executor = self.executor_instances.get(cache_key)
         if executor is None:
-            if executor_name == self.DEFAULT_EXECUTOR_KEY:
+            if team_name:
+                executor = ExecutorLoader.load_executor(_get_team_executor_name(ti.executor, team_name))
+            elif executor_name == self.DEFAULT_EXECUTOR_KEY:
                 executor = ExecutorLoader.get_default_executor()
             else:
                 executor = ExecutorLoader.load_executor(executor_name)
-            self.executor_instances[executor_name] = executor
+            self.executor_instances[cache_key] = executor
 
         return executor
 
