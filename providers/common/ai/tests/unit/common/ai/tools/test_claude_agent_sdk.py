@@ -858,6 +858,14 @@ class TestOptions:
         assert options.allowed_tools == tools.allowed_tools
         assert options.verbatim_prompts is True
         assert options.permission_mode is None
+        assert options.max_buffer_size == 16 * 1024 * 1024
+
+    def test_explicit_max_buffer_size_is_kept(self):
+        tools, _ = _build_tools(_tool(ToolResult("ok")))
+
+        options = tools.build_options(max_buffer_size=1024)
+
+        assert options.max_buffer_size == 1024
 
     def test_explicit_kwargs_override_the_defaults(self):
         tools, _ = _build_tools(_tool(ToolResult("ok")))

@@ -102,8 +102,10 @@ exception; give the SDK the MCP server directly instead. Each tool:
   CLI caps that value at 500,000 (observed on CLI 2.1.286). A single result longer than that
   is truncated to fit and ends with a notice asking the model to narrow the request; the
   model still reads it as a normal result, not an error. Without the truncation the CLI would
-  spill the result to a file the model cannot read, and a result of about 1 million characters
-  or more makes the SDK stream fail.
+  spill the result to a file the model cannot read. The CLI also writes each result to stdout
+  twice, JSON-escaped, and the SDK fails the stream on any line over its ``max_buffer_size``
+  (1 MiB by default), which a result well under 500,000 characters can exceed.
+  ``build_options()`` therefore sets ``max_buffer_size`` to 16 MiB.
 - Passes its result through Airflow's secret masker before the model sees it. A
   connection password that turns up in a query result reaches the model as ``***``.
 - Writes a ``Tool call: <name>`` group to the task log. Calls to a toolset are also
@@ -207,7 +209,9 @@ so only the MCP servers passed in the options are used: the one ``AirflowTools``
 plus any ``mcp_servers`` you pass to ``build_options()``. It also sets
 ``verbatim_prompts=True``, so the CLI does not expand ``@path`` file mentions in a prompt.
 Otherwise anyone who controls the prompt could send any file the worker user can read to the
-model, and that content would not pass through the secret masker.
+model, and that content would not pass through the secret masker. It sets
+``max_buffer_size`` to 16 MiB (the SDK's default is 1 MiB) so a result near the 500,000
+character limit does not break the stream; a value you pass wins.
 
 ``verbatim_prompts=True`` has side effects:
 
