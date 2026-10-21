@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -72,9 +72,15 @@ from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
+    WaitStatus,
 )
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import (
+    AirflowRuntimeError,
+    ErrorType,
+    TaskAlreadyRunningError,
+    WebhookWaitUnsupported,
+)
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -128,12 +134,14 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceSlice,
     HITLDetailRequestResult,
     InactiveAssetsResult,
+    InboundWaitResult,
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    RegisterInboundWait,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -3786,6 +3794,36 @@ REQUEST_TEST_CASES = [
         test_id="create_hitl_detail_payload",
     ),
     RequestTestCase(
+        message=RegisterInboundWait(
+            webhook="github",
+            events=["pull_request"],
+            match={"repository": "my-org/configs", "number": 4242},
+            timeout=timedelta(hours=1),
+        ),
+        expected_body={
+            "id": "019a0000-0000-7000-8000-000000000001",
+            "status": "registered",
+            "deadline": timezone.parse("2024-10-31T13:00:00Z"),
+            "type": "InboundWaitResult",
+        },
+        client_mock=ClientMock(
+            method_path="inbound_waits.register",
+            args=(TI_ID,),
+            kwargs={
+                "webhook": "github",
+                "events": ["pull_request"],
+                "match": {"repository": "my-org/configs", "number": 4242},
+                "timeout": timedelta(hours=1),
+            },
+            response=InboundWaitResult(
+                id=UUID("019a0000-0000-7000-8000-000000000001"),
+                status=WaitStatus.REGISTERED,
+                deadline=timezone.parse("2024-10-31T13:00:00Z"),
+            ),
+        ),
+        test_id="register_inbound_wait",
+    ),
+    RequestTestCase(
         message=MaskSecret(value=["iter1", "iter2", {"key": "value"}], name="test_secret"),
         mask_secret_args=(["iter1", "iter2", {"key": "value"}], "test_secret"),
         test_id="mask_secret_list",
@@ -4506,6 +4544,31 @@ class TestHandleRequest:
         expected = set(get_args(get_args(ToSupervisor)[0])) - {GetHITLDetailResponse, UpdateHITLDetail}
         assert set(ActivitySubprocess._request_handlers) == expected
         assert {type(case.message) for case in REQUEST_TEST_CASES} == expected
+
+    def test_handle_register_inbound_wait_on_server_without_waits(self, watched_subprocess, mocker):
+        """The task process is answered with an error it raises WebhookWaitUnsupported for, not a failure."""
+        watched_subprocess, read_socket = watched_subprocess
+        watched_subprocess.client.inbound_waits.register.side_effect = WebhookWaitUnsupported(
+            "The API server does not support webhook waits"
+        )
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock(spec=FilteringBoundLogger))
+        next(generator)
+        msg = RegisterInboundWait(webhook="github")
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+
+        assert frame.id == req_frame.id
+        assert frame.error is None
+        assert frame.body == {
+            "error": "WEBHOOK_WAIT_UNSUPPORTED",
+            "detail": {"message": "The API server does not support webhook waits"},
+            "type": "ErrorResponse",
+        }
 
     def test_handle_requests_api_server_error(self, watched_subprocess, mocker):
         """Test that API server errors are properly handled and sent back to the task."""

@@ -174,6 +174,8 @@ class WebhookRegistry:
         its source type says.
     :param max_event_payload_bytes: The largest payload, as compact JSON, copied into a topic event, or 0
         for no limit.
+    :param early_delivery_ttl: How long after it is received an early delivery can be claimed by a wait.
+    :param early_delivery_max_per_webhook: The most early deliveries a webhook keeps claimable.
     """
 
     names: frozenset[str]
@@ -184,6 +186,8 @@ class WebhookRegistry:
     rate_limit_per_minute: int
     store_payload: StorePayload
     max_event_payload_bytes: int
+    early_delivery_ttl: timedelta
+    early_delivery_max_per_webhook: int
 
     @classmethod
     def from_config(cls) -> Self:
@@ -197,4 +201,6 @@ class WebhookRegistry:
             rate_limit_per_minute=_get_int_at_least("rate_limit_per_minute", 0),
             store_payload=_get_store_payload(),
             max_event_payload_bytes=_get_int_at_least("max_event_payload_bytes", 0),
+            early_delivery_ttl=get_early_delivery_ttl(),
+            early_delivery_max_per_webhook=_get_int_at_least("early_delivery_max_per_webhook", 1),
         )

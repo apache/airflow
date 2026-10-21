@@ -44,7 +44,7 @@ from cadwyn import (
     convert_request_to_next_version_for,
     schema,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from task_sdk.execution_time.schema._mock_version_bundle import (
     MOCK_REGISTRY,
     _LangSdkRequest,
@@ -62,7 +62,9 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TIRunContext,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    ErrorResponse,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -652,3 +654,25 @@ class TestRealBundleFirstTaskRescheduleStartDate:
     def test_head_version_keeps_field(self, real_migrator, startup_details):
         out = real_migrator.downgrade(startup_details, "2026-10-30")
         assert out.ti_context.first_task_reschedule_start_date == self.FIRST_RESCHEDULE
+
+
+class TestRealBundleWebhookWaitUnsupported:
+    """
+    Drive the *real* supervisor bundle through the ``WEBHOOK_WAIT_UNSUPPORTED`` error type.
+
+    ``AddWebhookWaitUnsupportedErrorType`` is ``didnt_have``-only, so the downgrade re-validation is
+    the only place it is visible: without it, a runtime pinned to the previous version would be handed
+    an error type its schema does not have.
+    """
+
+    @pytest.fixture
+    def message(self) -> ErrorResponse:
+        return ErrorResponse(error=ErrorType.WEBHOOK_WAIT_UNSUPPORTED, detail={"message": "upgrade"})
+
+    def test_downgrade_refuses_error_type_for_previous_version(self, message):
+        with pytest.raises(ValidationError, match="WEBHOOK_WAIT_UNSUPPORTED"):
+            get_schema_version_migrator().downgrade(message, "2026-06-16")
+
+    def test_head_version_keeps_error_type(self, message):
+        out = get_schema_version_migrator().downgrade(message, "2026-10-30")
+        assert out.error == ErrorType.WEBHOOK_WAIT_UNSUPPORTED

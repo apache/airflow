@@ -78,12 +78,14 @@ const (
 	TypeGetXComSequenceSlice        = "GetXComSequenceSlice"
 	TypeHITLDetailRequestResult     = "HITLDetailRequestResult"
 	TypeInactiveAssetsResult        = "InactiveAssetsResult"
+	TypeInboundWaitResult           = "InboundWaitResult"
 	TypeMaskSecret                  = "MaskSecret"
 	TypeOKResponse                  = "OKResponse"
 	TypePrevSuccessfulDagRunResult  = "PrevSuccessfulDagRunResult"
 	TypePreviousDagRunResult        = "PreviousDagRunResult"
 	TypePreviousTIResult            = "PreviousTIResult"
 	TypePutVariable                 = "PutVariable"
+	TypeRegisterInboundWait         = "RegisterInboundWait"
 	TypeRescheduleTask              = "RescheduleTask"
 	TypeResendLoggingFD             = "ResendLoggingFD"
 	TypeRetryTask                   = "RetryTask"
@@ -285,6 +287,9 @@ func EnsureType(m any) any {
 	case InactiveAssetsResult:
 		b.Type = TypeInactiveAssetsResult
 		return b
+	case InboundWaitResult:
+		b.Type = TypeInboundWaitResult
+		return b
 	case MaskSecret:
 		b.Type = TypeMaskSecret
 		return b
@@ -302,6 +307,9 @@ func EnsureType(m any) any {
 		return b
 	case PutVariable:
 		b.Type = TypePutVariable
+		return b
+	case RegisterInboundWait:
+		b.Type = TypeRegisterInboundWait
 		return b
 	case RescheduleTask:
 		b.Type = TypeRescheduleTask

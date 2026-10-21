@@ -79,6 +79,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
+    WaitStatus,
 )
 from airflow.sdk.bases.operator import ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
@@ -114,6 +115,7 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     AssetsByAliasResult,
+    AwaitInputTask,
     BundleInfo,
     ClearAssetStateStoreByName,
     ClearTaskStateStore,
@@ -142,11 +144,13 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComSequenceSlice,
     InactiveAssetsResult,
+    InboundWaitResult,
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
+    RegisterInboundWait,
     RescheduleTask,
     RetryTask,
     SetAssetStateStoreByName,
@@ -1236,6 +1240,42 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
 
         # send will only be called when the TaskDeferred exception is raised
         mock_supervisor_comms.send.assert_any_call(expected_defer_task)
+
+
+def test_wait_for_webhook_parks_task_awaiting_input(time_machine, create_runtime_ti, mock_supervisor_comms):
+    """A task that waits for a webhook registers its wait, then parks until the deadline the server set."""
+    instant = timezone.datetime(2026, 10, 20, 12)
+    time_machine.move_to(instant, tick=False)
+
+    class WaitForMergeOperator(BaseOperator):
+        def execute(self, context):
+            self.wait_for_webhook(
+                webhook="github",
+                events=["pull_request"],
+                match={"repository": "my-org/configs", "number": 4242},
+                method_name="execute_complete",
+            )
+
+    # Registered without a timeout, so the deadline comes from [webhooks] default_wait_timeout.
+    mock_supervisor_comms.send.return_value = InboundWaitResult(
+        id=uuid7(), status=WaitStatus.REGISTERED, deadline=instant + timedelta(days=3)
+    )
+    ti = create_runtime_ti(dag_id="wait_for_webhook", task=WaitForMergeOperator(task_id="wait_for_merge"))
+
+    run(ti, context=ti.get_template_context(), log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger))
+
+    assert ti.state == TaskInstanceState.AWAITING_INPUT
+    mock_supervisor_comms.send.assert_any_call(
+        RegisterInboundWait(
+            webhook="github",
+            events=["pull_request"],
+            match={"repository": "my-org/configs", "number": 4242},
+            timeout=None,
+        )
+    )
+    mock_supervisor_comms.send.assert_any_call(
+        AwaitInputTask(timeout=timedelta(days=3), next_method="execute_complete", next_kwargs={})
+    )
 
 
 class FakeEventTrigger(BaseEventTrigger):

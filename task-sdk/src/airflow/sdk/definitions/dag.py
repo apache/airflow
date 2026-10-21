@@ -1458,12 +1458,13 @@ class DAG:
                     - awaiting_input_tis
                 )
                 if not scheduled_tis and awaiting_input_tis:
-                    # Human-in-the-loop tasks stay parked in AWAITING_INPUT: dag.test() never
-                    # resolves them itself. Keep the run alive until a response recorded from
-                    # outside -- the Required Actions UI or the HITL REST API of an api-server
-                    # sharing this metadata DB -- flips them back to SCHEDULED.
+                    # Tasks waiting for a Human-in-the-loop response or a webhook delivery stay
+                    # parked in AWAITING_INPUT: dag.test() never resolves them itself. Keep the run
+                    # alive until input recorded from outside -- a response through the Required
+                    # Actions UI or the HITL REST API, or a delivery to the webhooks app, of an
+                    # api-server sharing this metadata DB -- flips them back to SCHEDULED.
                     log.info(
-                        "Waiting for Human-in-the-loop input for tasks: %s",
+                        "Waiting for input for tasks: %s",
                         sorted(x.task_id for x in awaiting_input_tis),
                     )
                     time.sleep(1)

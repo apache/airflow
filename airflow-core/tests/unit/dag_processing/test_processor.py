@@ -2370,6 +2370,7 @@ class TestDagProcessingMessageTypes:
             "CreateHITLDetailPayload",
             "UpdateHITLDetail",
             "GetHITLDetailResponse",
+            "RegisterInboundWait",
             "SetRenderedMapIndex",
             "SetExecutionTimeout",
             # AIP-103 task/asset store — Dag processor has no task execution context.
@@ -2405,6 +2406,7 @@ class TestDagProcessingMessageTypes:
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
             "HITLDetailRequestResult",
+            "InboundWaitResult",
             # AIP-103 task/asset store results — worker-only responses to the above messages.
             "TaskStateStoreResult",
             "AssetStateStoreResult",

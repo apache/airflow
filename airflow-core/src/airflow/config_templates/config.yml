@@ -2562,11 +2562,12 @@ webhooks:
       description: |
         .. note:: |experimental|
 
-        What is kept of the payload of a delivery that records events, in its delivery record and in the
-        extra of the topic events and asset route events it records: ``full``, the payload as parsed from
-        the body; ``summary``, the parts its source type keeps; or ``none``. A webhook uses
+        What is kept of the payload of a delivery that records events, goes to a webhook wait or is kept
+        early for one, in its delivery record, in the extra of the topic events and asset route events it
+        records, and in the event that a webhook wait resumes its task with: ``full``, the payload as
+        parsed from the body; ``summary``, the parts its source type keeps; or ``none``. A webhook uses
         ``store_payload`` from its connection's extra if set, or else its source type's default if the
-        source type has one, or else this option. Deliveries that record nothing keep no payload.
+        source type has one, or else this option. Deliveries that act on nothing keep no payload.
 
         The extra of these events, payload included, can be read by every user allowed to read assets
         and by every Dag scheduled on their assets, so use ``summary`` or ``none`` for senders whose
@@ -2617,8 +2618,9 @@ webhooks:
         .. note:: |experimental|
 
         Largest number of early deliveries, received within ``early_delivery_ttl`` and not yet claimed,
-        that a webhook keeps claimable. At this number, keeping one more marks the oldest one expired, so
-        that no wait can claim it.
+        that a webhook keeps claimable. At this number, keeping one more marks the oldest one expired and
+        drops its payload, so that no wait can claim it. Deliveries recorded at the same moment can each
+        keep one more, and the next early delivery expires that excess too. At least 1.
       version_added: 3.5.0
       type: integer
       example: "10000"

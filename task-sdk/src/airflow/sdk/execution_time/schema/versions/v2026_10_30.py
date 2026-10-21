@@ -26,7 +26,7 @@ require a ``VersionChange`` entry below.
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import VersionChange, enum, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (
@@ -35,6 +35,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
     TISuccessStatePayload,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComCount,
@@ -119,3 +120,16 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
     )
+
+
+class AddWebhookWaitUnsupportedErrorType(VersionChange):
+    """
+    Add the ``WEBHOOK_WAIT_UNSUPPORTED`` error type.
+
+    The supervisor answers ``RegisterInboundWait`` with it when the API server has no webhook waits.
+    A runtime pinned to an earlier version never sends that request, so it never receives this error.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (enum(ErrorType).didnt_have("WEBHOOK_WAIT_UNSUPPORTED"),)

@@ -28,6 +28,7 @@ from airflow.webhooks.waits import (
     MatchResult,
     build_resume_event,
     build_timeout_event,
+    compute_covered_key_digests,
     compute_key_digest,
     compute_match_digest,
     evaluate,
@@ -149,6 +150,21 @@ class TestDigests:
     )
     def test_match_digest_differs_for_different_keys(self, first, second):
         assert compute_match_digest(*first) != compute_match_digest(*second)
+
+    def test_covered_key_digests_are_those_of_every_key_set_within_the_names(self):
+        assert sorted(compute_covered_key_digests(["repository", "event", "number"])) == sorted(
+            compute_key_digest(dict.fromkeys(keys, "x"))
+            for keys in [
+                (),
+                ("event",),
+                ("number",),
+                ("repository",),
+                ("event", "number"),
+                ("event", "repository"),
+                ("number", "repository"),
+                ("event", "number", "repository"),
+            ]
+        )
 
 
 class TestEvaluate:

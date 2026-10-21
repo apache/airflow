@@ -44,6 +44,7 @@ def get_bundle() -> VersionBundle:
         AddLoopRuntime,
         AddRegionCoordinatesToSupervisorTaskInstance,
         AddRetryReasonToTaskState,
+        AddWebhookWaitUnsupportedErrorType,
     )
 
     return VersionBundle(
@@ -56,6 +57,7 @@ def get_bundle() -> VersionBundle:
             AddDagDefinitionsToDagFileParsingResult,
             AddRegionCoordinatesToSupervisorTaskInstance,
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
+            AddWebhookWaitUnsupportedErrorType,
         ),
         Version("2026-06-16"),
     )

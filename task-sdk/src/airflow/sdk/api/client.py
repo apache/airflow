@@ -21,7 +21,7 @@ import logging
 import ssl
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import cache
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -63,6 +63,8 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailResponse,
     HITLUser,
     InactiveAssetsResponse,
+    InboundWaitRequest,
+    InboundWaitResponse,
     LoopDecisionPayload,
     Note,
     PrevSuccessfulDagRunResponse,
@@ -93,7 +95,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError, WebhookWaitUnsupported
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
     CreateHITLDetailPayload,
@@ -345,7 +347,7 @@ class TaskInstanceOperations:
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def await_input(self, id: uuid.UUID, msg):
-        """Tell the API server that this TI is parked awaiting human input (Human-in-the-loop)."""
+        """Tell the API server that this TI is parked awaiting input, without a trigger."""
         body = TIAwaitingInputStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
@@ -1147,6 +1149,59 @@ class HITLOperations:
         return HITLDetailResponse.model_validate_json(resp.read())
 
 
+class InboundWaitOperations:
+    """
+    Operations related to webhook waits. Require an API server with webhook waits.
+
+    :meta: private
+    """
+
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client) -> None:
+        self.client = client
+
+    def register(
+        self,
+        ti_id: uuid.UUID,
+        *,
+        webhook: str,
+        events: list[JsonValue] | None = None,
+        match: dict[str, JsonValue] | None = None,
+        timeout: timedelta | None = None,
+    ) -> InboundWaitResponse:
+        """
+        Register the task instance's wait for a delivery to an inbound webhook.
+
+        :raises WebhookWaitUnsupported: if the API server has no route to register waits, which it answers
+            with a 404 that has no ``reason``.
+        :raises ServerResponseError: if the API server refuses the wait; its ``detail`` has the ``reason``
+            and ``message``, such as ``webhook_not_found`` (404), ``dag_has_team`` (403),
+            ``wait_key_taken`` (409) or ``timeout_required`` (422).
+        """
+        body = InboundWaitRequest(webhook=webhook, events=events, match=match, timeout=timeout)
+        try:
+            resp = self.client.request(
+                "POST",
+                f"inbound-waits/{ti_id}",
+                content=body.model_dump_json(),
+                # A repeat after the API server committed would end the wait this request registered, and
+                # an early delivery that wait claimed would stay with the ended wait. A failed try instead
+                # hands such a delivery to the next try, which takes over the wait's key.
+                retry=False,
+            )
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND and not (
+                isinstance(e.detail, dict) and "reason" in e.detail
+            ):
+                raise WebhookWaitUnsupported(
+                    "The API server does not support webhook waits; it must be upgraded to wait for "
+                    "webhook deliveries"
+                ) from e
+            raise
+        return InboundWaitResponse.model_validate_json(resp.read())
+
+
 class ConnectionTestOperations:
     __slots__ = ("client",)
 
@@ -1399,6 +1454,12 @@ class Client(httpx2.Client):
     def hitl(self):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def inbound_waits(self) -> InboundWaitOperations:
+        """Operations related to webhook waits."""
+        return InboundWaitOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

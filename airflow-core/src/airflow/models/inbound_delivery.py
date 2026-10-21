@@ -35,19 +35,24 @@ MAX_CORRELATION_KEY_LENGTH = 255
 class DeliveryOutcome(str, Enum):
     """What Airflow did with a recorded delivery, as ``InboundDelivery.outcome`` stores it."""
 
-    #: The delivery recorded topic events, or events through asset routes, for Dags that can run.
+    #: The delivery recorded topic events, or events through asset routes, for Dags that can run, and
+    #: went to no webhook wait. It is never kept early, so a wait registered later cannot claim it.
     ACCEPTED = "accepted"
-    #: Only paused or draining Dags subscribe to the delivery or to its asset routes' assets, so nothing
-    #: acted on it.
+    #: Only paused or draining Dags subscribe to the delivery or to its asset routes' assets, and it has
+    #: no correlation key to be kept early by, so nothing acted on it.
     DAG_PAUSED = "dag_paused"
-    #: No Dag that an event could start subscribes to the delivery, and none of its asset routes could
-    #: record an event, so nothing acted on it.
+    #: No Dag that an event could start subscribes to the delivery, none of its asset routes could record
+    #: an event, and it has no correlation key to be kept early by, so nothing acted on it.
     NO_SUBSCRIBERS = "no_subscribers"
     #: The delivery has a correlation key, went to no open webhook wait and recorded no events, so a wait
     #: registered later may still claim it.
     EARLY = "early"
-    #: The delivery resumes a webhook wait's task, or will once the task parks.
+    #: The delivery resumes a webhook wait's task, or will once the task parks. Its actions also list the
+    #: events it recorded, if any.
     RESUMED_WAIT = "resumed_wait"
+    #: The delivery was early, until its webhook kept ``[webhooks] early_delivery_max_per_webhook`` later
+    #: early deliveries; no wait can claim it any more.
+    EXPIRED = "expired"
 
     def __str__(self) -> str:
         return self.value

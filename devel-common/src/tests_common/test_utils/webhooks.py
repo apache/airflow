@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
@@ -198,3 +199,24 @@ class FakeHmacSource(WebhookSource):
         if not (challenge := get_text(load_json_object(request), "challenge")):
             raise ValueError("Missing challenge")
         return {"challenge": challenge}
+
+
+class FakeWaitSource(FakeHmacSource):
+    """
+    ``FakeHmacSource`` with the attributes and the correlation key that webhook waits match on.
+
+    The JSON body's ``repository`` and ``number``, when present, are attributes too, and together they
+    make the correlation key ``<repository>#<number>``, as in the GitHub source.
+    """
+
+    def parse(self, request: WebhookRequest) -> WebhookDelivery:
+        delivery = super().parse(request)
+        found = {
+            "repository": get_text(delivery.payload, "repository"),
+            "number": delivery.payload.get("number"),
+        }
+        attributes = {key: value for key, value in found.items() if value is not None}
+        correlation_key = f"{found['repository']}#{found['number']}" if len(attributes) == 2 else None
+        return replace(
+            delivery, attributes={**delivery.attributes, **attributes}, correlation_key=correlation_key
+        )
