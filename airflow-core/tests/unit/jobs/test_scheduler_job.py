@@ -12194,6 +12194,61 @@ class TestSchedulerJob:
         assert result == mock_executors[0]
 
     @conf_vars({("core", "multi_team"): "true"})
+    @pytest.mark.parametrize(
+        ("task_executor", "expected_index"),
+        [
+            pytest.param("CeleryExecutor", 1, id="classname-resolves-to-team"),
+            pytest.param(
+                "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                1,
+                id="module-path-resolves-to-team",
+            ),
+            pytest.param("team_celery_exec", 1, id="team-alias"),
+            pytest.param("global_celery_exec", 0, id="global-alias"),
+        ],
+    )
+    def test_multi_team_try_to_load_executor_prefers_team_over_global_with_same_name(
+        self, dag_maker, mock_executors, session, task_executor, expected_index
+    ):
+        """A team task naming an executor that exists both globally and for its team gets the team one.
+
+        Mirrors ``global_celery_exec:CeleryExecutor;team_a=team_celery_exec:CeleryExecutor`` from the
+        multi-team docs. Global executors come first in ``self.executors``, so only the global alias
+        should reach the global executor.
+        """
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        celery_module_path = "airflow.providers.celery.executors.celery_executor.CeleryExecutor"
+        mock_executors[0].name = ExecutorName(alias="global_celery_exec", module_path=celery_module_path)
+        mock_executors[1].name = ExecutorName(
+            alias="team_celery_exec", module_path=celery_module_path, team_name="team_a"
+        )
+        mock_executors[1].team_name = "team_a"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task", executor=task_executor)
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session=session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session=session)
+
+        assert result == mock_executors[expected_index]
+
+    @conf_vars({("core", "multi_team"): "true"})
     def test_multi_team_scheduling_loop_batch_optimization(self, dag_maker, mock_executors, session):
         """Test that the scheduling loop uses batch team resolution optimization."""
         clear_db_teams()

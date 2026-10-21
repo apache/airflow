@@ -4583,17 +4583,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # No executor found for that team, fall back to global default
                     executor = self.executor
         else:
-            # An executor is specified on the workload (as a str), so we need to find it in the list of executors
+            # An executor is specified on the workload (as a str), so we need to find it in the list of executors.
+            # The executor must either match the team or be global, and a team match wins over a global one.
+            executor_name = workload.get_executor_name()
+            global_executor = None
             for _executor in self.executors:
-                if _executor.name and workload.get_executor_name() in (
+                if not _executor.name or executor_name not in (
                     _executor.name.alias,
                     _executor.name.module_path,
                     _executor.name.module_path.split(".")[-1],
                 ):
-                    # The executor must either match the team or be global (i.e. team_name is None)
-                    if team_name and _executor.team_name == team_name or _executor.team_name is None:
-                        executor = _executor
-                        break
+                    # Name doesn't match, so this executor is not a candidate.
+                    continue
+                if team_name and _executor.team_name == team_name:
+                    # Match from the workload's own team. Nothing can beat it, so stop here.
+                    executor = _executor
+                    break
+                if _executor.team_name is None and global_executor is None:
+                    # Global match. It may turn out to be a fallback, so don't break just yet. Global
+                    # executors come first in self.executors, and breaking here would hide a team
+                    # executor with the same class name or module path (possibly running the team's
+                    # workload on the global executor). Only the first global match is kept.
+                    global_executor = _executor
+            else:
+                # The loop never broke, so there was no team match. Use what was set earlier (i.e. the
+                # first global match).
+                executor = global_executor
 
         if executor is not None:
             self.log.debug(
