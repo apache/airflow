@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+10.25.0
+.......
+
+.. note::
+
+    TCP keepalive settings now apply through the Kubernetes client configuration,
+    including with urllib3 2.x. This release requires ``kubernetes>=36.0.1,<37.0.0``.
+
+Features
+~~~~~~~~
+
+* ``Make KubernetesPodOperator event logging best-effort and optional (#75016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Kubernetes TCP keepalive not being applied with urllib3 2.x (#74921)``
+* ``Fix 'KubernetesExecutor' leaving invalid-config tasks stuck in queued (#74512)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop loading the task runner on every Airflow process startup (#74496)``
+
 10.24.0
 .......
 

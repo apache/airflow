@@ -360,6 +360,7 @@ definitions in Airflow.
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
+        # The server preloads the bundle of a "base" app from a plugin with no team, so it downloads alongside the UI's own scripts.
         "destination": "task",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
