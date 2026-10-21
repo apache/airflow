@@ -79,6 +79,7 @@ from airflow.sdk.execution_time.task_runner import (
     check_xcom_backend_supports_loops,
 )
 from airflow.sdk.importers import DagImporterRegistry, DagSourceCode
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
@@ -254,23 +255,23 @@ def _parse_file(
             import_errors=stability_check_error_dict,
         )
 
-    bag_kwargs: dict[str, Any] = {}
+    team_name: str | None | ArgNotSet = NOTSET
     if msg.bundle_config is not None:
         if importer_registry is None:
             importer_registry = DagImporterRegistry.from_config(
                 bundle_name=msg.bundle_name, bundle_importers=msg.bundle_config.get("importers")
             )
-        bag_kwargs = {
-            "importer_registry": importer_registry,
-            "team_name": msg.bundle_config.get("team_name"),
-        }
+        team_name = msg.bundle_config.get("team_name")
+    else:
+        importer_registry = None
 
     bag = BundleDagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
         load_op_links=False,
-        **bag_kwargs,
+        importer_registry=importer_registry,
+        team_name=team_name,
     )
 
     if msg.callback_requests:
