@@ -299,3 +299,48 @@ def test_python_patchlevel_exits_when_the_catalog_lists_no_tag(monkeypatch):
 
     with pytest.raises(SystemExit):
         uiv.get_latest_python_version("3.14")
+
+
+@pytest.mark.parametrize(
+    ("package_name", "latest_package_managers", "expected_version"),
+    [
+        pytest.param("pip", True, "26.3.0", id="pip-latest-package-managers-bypasses-cooldown"),
+        pytest.param("pip", False, "26.2.1", id="pip-default-respects-cooldown"),
+        pytest.param("uv", True, "0.14.0", id="uv-latest-package-managers-bypasses-cooldown"),
+        pytest.param("uv", False, "0.13.1", id="uv-default-respects-cooldown"),
+        pytest.param("rich", True, "13.6.0", id="non-package-manager-respects-cooldown-even-with-latest-package-managers"),
+    ],
+)
+def test_get_latest_pypi_version_latest_package_managers(
+    monkeypatch, package_name, latest_package_managers, expected_version
+):
+    from datetime import datetime, timedelta
+
+    from ci.prek import upgrade_important_versions as uiv
+
+    monkeypatch.setattr(uiv, "LATEST_PACKAGE_MANAGERS", latest_package_managers)
+
+    now = datetime.now(UTC)
+    two_days_ago = (now - timedelta(days=2)).isoformat().replace("+00:00", "Z")
+    ten_days_ago = (now - timedelta(days=10)).isoformat().replace("+00:00", "Z")
+
+    pypi_data = {
+        "info": {
+            "version": "26.3.0" if package_name == "pip" else "0.14.0" if package_name == "uv" else "13.7.0"
+        },
+        "releases": {
+            "26.2.1" if package_name == "pip" else "0.13.1" if package_name == "uv" else "13.6.0": [
+                {"upload_time_iso_8601": ten_days_ago}
+            ],
+            "26.3.0" if package_name == "pip" else "0.14.0" if package_name == "uv" else "13.7.0": [
+                {"upload_time_iso_8601": two_days_ago}
+            ],
+        },
+    }
+
+    response = mock.MagicMock()
+    response.raise_for_status = mock.MagicMock()
+    response.json = mock.MagicMock(return_value=pypi_data)
+    monkeypatch.setattr(uiv.requests, "get", mock.MagicMock(return_value=response))
+
+    assert uiv.get_latest_pypi_version(package_name, should_upgrade=True) == expected_version
