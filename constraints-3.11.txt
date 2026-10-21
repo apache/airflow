@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-20T10:01:42.027137
+# This constraints file was automatically generated on 2026-10-21T07:14:41.730763
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -56,7 +56,7 @@ PyNaCl==1.6.2
 PyYAML==6.0.3
 Pygments==2.21.0
 SQLAlchemy-Utils==0.43.0
-SQLAlchemy==2.1.4
+SQLAlchemy==2.1.5
 SecretStorage==3.5.0
 WTForms==3.2.2
 Werkzeug==3.1.9
@@ -236,7 +236,7 @@ azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==26.0.0
-azure-mgmt-storage==25.2.0
+azure-mgmt-storage==25.3.0
 azure-nspkg==3.0.2
 azure-servicebus==7.15.0
 azure-storage-blob==12.31.0
@@ -274,7 +274,7 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.4.1
 click==8.5.0
-clickhouse-connect==1.10.1
+clickhouse-connect==1.11.0
 cloudpickle==3.1.1
 cohere==7.2.0
 colorama==0.4.6
@@ -296,7 +296,7 @@ decorator==5.3.1
 defusedxml==0.7.1
 deprecation==2.1.0
 dill==0.4.1
-distlib==0.4.3
+distlib==0.4.4
 distro==1.9.0
 dnspython==2.9.0
 docker==7.2.0
@@ -327,7 +327,7 @@ flower==2.2.0
 frozenlist==1.8.0
 fsspec==2026.9.0
 future==1.0.0
-gcloud-aio-auth==5.5.1
+gcloud-aio-auth==5.5.3
 gcloud-aio-bigquery==7.3.0
 gcloud-aio-storage==9.6.5
 gcsfs==2026.10.1
@@ -453,7 +453,7 @@ jmespath==1.1.0
 joblib==1.6.0
 joserfc==1.7.5
 jpype1==1.7.1
-jsonpath-ng==1.10.1
+jsonpath-ng==1.11.0
 jsonpickle==4.1.4
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
