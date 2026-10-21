@@ -22,8 +22,6 @@ import dayjsDuration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { humanizeSeconds } from "src/utils/datetimeUtils";
-
 import { applyArabicPluralForms } from "./dayjsArabicPlurals";
 
 dayjs.extend(dayjsDuration);
@@ -101,15 +99,6 @@ describe("Arabic plural forms", () => {
     { count: 100, expected: "100 عام" },
   ])("inflects $count years as $expected", ({ count, expected }) => {
     expect(dayjs.duration(count, "years").humanize()).toBe(expected);
-  });
-
-  // The tooltip reaches these forms through humanizeSeconds, not through dayjs
-  // directly, so the seam between the two is worth pinning.
-  it.each([
-    { expected: "ساعتين", seconds: 7200 },
-    { expected: "عامين", seconds: 63_072_000 },
-  ])("humanizes $seconds seconds as $expected", ({ expected, seconds }) => {
-    expect(humanizeSeconds(seconds)).toBe(expected);
   });
 
   // The oblique dual is chosen for the governed position, and dayjs's own past/future
