@@ -2025,6 +2025,8 @@ export type ProviderConfigOptionInfo = {
     example?: string | number | null;
     default?: string | number | null;
     sensitive?: boolean | null;
+    is_template?: boolean | null;
+    see_also?: string | null;
 };
 
 /**
@@ -2038,12 +2040,41 @@ export type ProviderConfigSectionInfo = {
 };
 
 /**
+ * Custom connection field a connection type stores in ``Connection.extra``.
+ */
+export type ProviderConnectionFieldInfo = {
+    label: string;
+    description?: string | null;
+    schema: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * Connection type provided by a provider.
  */
 export type ProviderConnectionTypeInfo = {
-    'connection-type': string;
-    'hook-class-name': string;
-    'hook-name'?: string | null;
+    connection_type: string;
+    hook_class_name: string;
+    hook_name?: string | null;
+    ui_field_behaviour?: ProviderConnectionUiFieldBehaviourInfo | null;
+    conn_fields?: {
+    [key: string]: ProviderConnectionFieldInfo;
+} | null;
+    external_services?: Array<(string)> | null;
+};
+
+/**
+ * Customizations a connection type applies to the standard connection form fields.
+ */
+export type ProviderConnectionUiFieldBehaviourInfo = {
+    hidden_fields?: Array<(string)> | null;
+    relabeling?: {
+    [key: string]: (string);
+} | null;
+    placeholders?: {
+    [key: string]: (string);
+} | null;
 };
 
 /**
@@ -2061,18 +2092,18 @@ export type ProviderDetailsResponse = {
  * SQL dialect provided by a provider.
  */
 export type ProviderDialectInfo = {
-    'dialect-type'?: string | null;
-    'dialect-class-name'?: string | null;
+    dialect_type?: string | null;
+    dialect_class_name?: string | null;
 };
 
 /**
  * Typed provider metadata (from ``provider.yaml``) exposed by the API.
  */
 export type ProviderInfoResponse = {
-    'package-name'?: string | null;
+    package_name?: string | null;
     name?: string | null;
     description?: string | null;
-    'documentation-url'?: string | null;
+    documentation_url?: string | null;
     filesystems?: Array<(string)> | null;
     integrations?: Array<ProviderIntegrationInfo> | null;
     operators?: Array<ProviderIntegrationModulesInfo> | null;
@@ -2080,25 +2111,25 @@ export type ProviderInfoResponse = {
     hooks?: Array<ProviderIntegrationModulesInfo> | null;
     triggers?: Array<ProviderIntegrationModulesInfo> | null;
     bundles?: Array<ProviderIntegrationModulesInfo> | null;
-    'asset-uris'?: Array<ProviderAssetUriInfo> | null;
+    asset_uris?: Array<ProviderAssetUriInfo> | null;
     dialects?: Array<ProviderDialectInfo> | null;
     transfers?: Array<ProviderTransferInfo> | null;
-    'connection-types'?: Array<ProviderConnectionTypeInfo> | null;
-    'extra-links'?: Array<(string)> | null;
-    'secrets-backends'?: Array<(string)> | null;
-    'email-backends'?: Array<(string)> | null;
+    connection_types?: Array<ProviderConnectionTypeInfo> | null;
+    extra_links?: Array<(string)> | null;
+    secrets_backends?: Array<(string)> | null;
+    email_backends?: Array<(string)> | null;
     logging?: Array<(string)> | null;
-    'remote-logging'?: Array<ProviderRemoteLoggingInfo> | null;
-    'auth-backends'?: Array<(string)> | null;
-    'auth-managers'?: Array<(string)> | null;
+    remote_logging?: Array<ProviderRemoteLoggingInfo> | null;
+    auth_backends?: Array<(string)> | null;
+    auth_managers?: Array<(string)> | null;
     notifications?: Array<(string)> | null;
     executors?: Array<(string)> | null;
-    'db-managers'?: Array<(string)> | null;
+    db_managers?: Array<(string)> | null;
     cli?: Array<(string)> | null;
     config?: {
     [key: string]: ProviderConfigSectionInfo;
 } | null;
-    'task-decorators'?: Array<ProviderTaskDecoratorInfo> | null;
+    task_decorators?: Array<ProviderTaskDecoratorInfo> | null;
     plugins?: Array<ProviderPluginInfo> | null;
     queues?: Array<(string)> | null;
 };
@@ -2107,9 +2138,9 @@ export type ProviderInfoResponse = {
  * Integration provided by a provider.
  */
 export type ProviderIntegrationInfo = {
-    'integration-name': string;
-    'external-doc-url'?: string | null;
-    'how-to-guide'?: Array<(string)> | null;
+    integration_name: string;
+    external_doc_url?: string | null;
+    how_to_guide?: Array<(string)> | null;
     logo?: string | null;
     tags?: Array<(string)> | null;
 };
@@ -2118,8 +2149,8 @@ export type ProviderIntegrationInfo = {
  * Python modules an integration contributes for one kind of functionality.
  */
 export type ProviderIntegrationModulesInfo = {
-    'integration-name': string;
-    'python-modules': Array<(string)>;
+    integration_name: string;
+    python_modules: Array<(string)>;
 };
 
 /**
@@ -2127,7 +2158,7 @@ export type ProviderIntegrationModulesInfo = {
  */
 export type ProviderPluginInfo = {
     name?: string | null;
-    'plugin-class'?: string | null;
+    plugin_class?: string | null;
 };
 
 /**
@@ -2153,17 +2184,17 @@ export type ProviderResponse = {
  */
 export type ProviderTaskDecoratorInfo = {
     name?: string | null;
-    'class-name'?: string | null;
+    class_name?: string | null;
 };
 
 /**
  * Transfer operator provided by a provider.
  */
 export type ProviderTransferInfo = {
-    'source-integration-name': string;
-    'target-integration-name': string;
-    'python-module': string;
-    'how-to-guide'?: string | null;
+    source_integration_name: string;
+    target_integration_name: string;
+    python_module: string;
+    how_to_guide?: string | null;
 };
 
 /**

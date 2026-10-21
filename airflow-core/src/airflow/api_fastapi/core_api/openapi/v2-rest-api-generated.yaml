@@ -17540,6 +17540,16 @@ components:
           - type: boolean
           - type: 'null'
           title: Sensitive
+        is_template:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Template
+        see_also:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: See Also
       type: object
       title: ProviderConfigOptionInfo
       description: Configuration option contributed by a provider.
@@ -17558,25 +17568,90 @@ components:
       type: object
       title: ProviderConfigSectionInfo
       description: Configuration section contributed by a provider.
-    ProviderConnectionTypeInfo:
+    ProviderConnectionFieldInfo:
       properties:
-        connection-type:
+        label:
           type: string
-          title: Connection-Type
-        hook-class-name:
-          type: string
-          title: Hook-Class-Name
-        hook-name:
+          title: Label
+        description:
           anyOf:
           - type: string
           - type: 'null'
-          title: Hook-Name
+          title: Description
+        schema:
+          additionalProperties: true
+          type: object
+          title: Schema
       type: object
       required:
-      - connection-type
-      - hook-class-name
+      - label
+      - schema
+      title: ProviderConnectionFieldInfo
+      description: Custom connection field a connection type stores in ``Connection.extra``.
+    ProviderConnectionTypeInfo:
+      properties:
+        connection_type:
+          type: string
+          title: Connection Type
+        hook_class_name:
+          type: string
+          title: Hook Class Name
+        hook_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hook Name
+        ui_field_behaviour:
+          anyOf:
+          - $ref: '#/components/schemas/ProviderConnectionUiFieldBehaviourInfo'
+          - type: 'null'
+        conn_fields:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/ProviderConnectionFieldInfo'
+            type: object
+          - type: 'null'
+          title: Conn Fields
+        external_services:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: External Services
+      type: object
+      required:
+      - connection_type
+      - hook_class_name
       title: ProviderConnectionTypeInfo
       description: Connection type provided by a provider.
+    ProviderConnectionUiFieldBehaviourInfo:
+      properties:
+        hidden_fields:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Hidden Fields
+        relabeling:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Relabeling
+        placeholders:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Placeholders
+      type: object
+      title: ProviderConnectionUiFieldBehaviourInfo
+      description: Customizations a connection type applies to the standard connection
+        form fields.
     ProviderDetailsResponse:
       properties:
         package_name:
@@ -17606,26 +17681,26 @@ components:
       description: Detailed provider serializer for responses.
     ProviderDialectInfo:
       properties:
-        dialect-type:
+        dialect_type:
           anyOf:
           - type: string
           - type: 'null'
-          title: Dialect-Type
-        dialect-class-name:
+          title: Dialect Type
+        dialect_class_name:
           anyOf:
           - type: string
           - type: 'null'
-          title: Dialect-Class-Name
+          title: Dialect Class Name
       type: object
       title: ProviderDialectInfo
       description: SQL dialect provided by a provider.
     ProviderInfoResponse:
       properties:
-        package-name:
+        package_name:
           anyOf:
           - type: string
           - type: 'null'
-          title: Package-Name
+          title: Package Name
         name:
           anyOf:
           - type: string
@@ -17636,11 +17711,11 @@ components:
           - type: string
           - type: 'null'
           title: Description
-        documentation-url:
+        documentation_url:
           anyOf:
           - type: string
           - type: 'null'
-          title: Documentation-Url
+          title: Documentation Url
         filesystems:
           anyOf:
           - items:
@@ -17690,13 +17765,13 @@ components:
             type: array
           - type: 'null'
           title: Bundles
-        asset-uris:
+        asset_uris:
           anyOf:
           - items:
               $ref: '#/components/schemas/ProviderAssetUriInfo'
             type: array
           - type: 'null'
-          title: Asset-Uris
+          title: Asset Uris
         dialects:
           anyOf:
           - items:
@@ -17711,34 +17786,34 @@ components:
             type: array
           - type: 'null'
           title: Transfers
-        connection-types:
+        connection_types:
           anyOf:
           - items:
               $ref: '#/components/schemas/ProviderConnectionTypeInfo'
             type: array
           - type: 'null'
-          title: Connection-Types
-        extra-links:
+          title: Connection Types
+        extra_links:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Extra-Links
-        secrets-backends:
+          title: Extra Links
+        secrets_backends:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Secrets-Backends
-        email-backends:
+          title: Secrets Backends
+        email_backends:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Email-Backends
+          title: Email Backends
         logging:
           anyOf:
           - items:
@@ -17746,27 +17821,27 @@ components:
             type: array
           - type: 'null'
           title: Logging
-        remote-logging:
+        remote_logging:
           anyOf:
           - items:
               $ref: '#/components/schemas/ProviderRemoteLoggingInfo'
             type: array
           - type: 'null'
-          title: Remote-Logging
-        auth-backends:
+          title: Remote Logging
+        auth_backends:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Auth-Backends
-        auth-managers:
+          title: Auth Backends
+        auth_managers:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Auth-Managers
+          title: Auth Managers
         notifications:
           anyOf:
           - items:
@@ -17781,13 +17856,13 @@ components:
             type: array
           - type: 'null'
           title: Executors
-        db-managers:
+        db_managers:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Db-Managers
+          title: Db Managers
         cli:
           anyOf:
           - items:
@@ -17802,13 +17877,13 @@ components:
             type: object
           - type: 'null'
           title: Config
-        task-decorators:
+        task_decorators:
           anyOf:
           - items:
               $ref: '#/components/schemas/ProviderTaskDecoratorInfo'
             type: array
           - type: 'null'
-          title: Task-Decorators
+          title: Task Decorators
         plugins:
           anyOf:
           - items:
@@ -17829,21 +17904,21 @@ components:
         API.
     ProviderIntegrationInfo:
       properties:
-        integration-name:
+        integration_name:
           type: string
-          title: Integration-Name
-        external-doc-url:
+          title: Integration Name
+        external_doc_url:
           anyOf:
           - type: string
           - type: 'null'
-          title: External-Doc-Url
-        how-to-guide:
+          title: External Doc Url
+        how_to_guide:
           anyOf:
           - items:
               type: string
             type: array
           - type: 'null'
-          title: How-To-Guide
+          title: How To Guide
         logo:
           anyOf:
           - type: string
@@ -17858,23 +17933,23 @@ components:
           title: Tags
       type: object
       required:
-      - integration-name
+      - integration_name
       title: ProviderIntegrationInfo
       description: Integration provided by a provider.
     ProviderIntegrationModulesInfo:
       properties:
-        integration-name:
+        integration_name:
           type: string
-          title: Integration-Name
-        python-modules:
+          title: Integration Name
+        python_modules:
           items:
             type: string
           type: array
-          title: Python-Modules
+          title: Python Modules
       type: object
       required:
-      - integration-name
-      - python-modules
+      - integration_name
+      - python_modules
       title: ProviderIntegrationModulesInfo
       description: Python modules an integration contributes for one kind of functionality.
     ProviderPluginInfo:
@@ -17884,11 +17959,11 @@ components:
           - type: string
           - type: 'null'
           title: Name
-        plugin-class:
+        plugin_class:
           anyOf:
           - type: string
           - type: 'null'
-          title: Plugin-Class
+          title: Plugin Class
       type: object
       title: ProviderPluginInfo
       description: Plugin provided by a provider.
@@ -17937,35 +18012,35 @@ components:
           - type: string
           - type: 'null'
           title: Name
-        class-name:
+        class_name:
           anyOf:
           - type: string
           - type: 'null'
-          title: Class-Name
+          title: Class Name
       type: object
       title: ProviderTaskDecoratorInfo
       description: TaskFlow decorator provided by a provider.
     ProviderTransferInfo:
       properties:
-        source-integration-name:
+        source_integration_name:
           type: string
-          title: Source-Integration-Name
-        target-integration-name:
+          title: Source Integration Name
+        target_integration_name:
           type: string
-          title: Target-Integration-Name
-        python-module:
+          title: Target Integration Name
+        python_module:
           type: string
-          title: Python-Module
-        how-to-guide:
+          title: Python Module
+        how_to_guide:
           anyOf:
           - type: string
           - type: 'null'
-          title: How-To-Guide
+          title: How To Guide
       type: object
       required:
-      - source-integration-name
-      - target-integration-name
-      - python-module
+      - source_integration_name
+      - target_integration_name
+      - python_module
       title: ProviderTransferInfo
       description: Transfer operator provided by a provider.
     QueuedEventCollectionResponse:

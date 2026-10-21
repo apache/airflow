@@ -1234,6 +1234,8 @@ class ProviderConfigOptionInfo(BaseModel):
     example: Annotated[str | int | float | None, Field(title="Example")] = None
     default: Annotated[str | int | float | None, Field(title="Default")] = None
     sensitive: Annotated[bool | None, Field(title="Sensitive")] = None
+    is_template: Annotated[bool | None, Field(title="Is Template")] = None
+    see_also: Annotated[str | None, Field(title="See Also")] = None
 
 
 class ProviderConfigSectionInfo(BaseModel):
@@ -1245,14 +1247,24 @@ class ProviderConfigSectionInfo(BaseModel):
     options: Annotated[dict[str, ProviderConfigOptionInfo] | None, Field(title="Options")] = None
 
 
-class ProviderConnectionTypeInfo(BaseModel):
+class ProviderConnectionFieldInfo(BaseModel):
     """
-    Connection type provided by a provider.
+    Custom connection field a connection type stores in ``Connection.extra``.
     """
 
-    connection_type: Annotated[str, Field(alias="connection-type", title="Connection-Type")]
-    hook_class_name: Annotated[str, Field(alias="hook-class-name", title="Hook-Class-Name")]
-    hook_name: Annotated[str | None, Field(alias="hook-name", title="Hook-Name")] = None
+    label: Annotated[str, Field(title="Label")]
+    description: Annotated[str | None, Field(title="Description")] = None
+    schema_: Annotated[dict[str, Any], Field(alias="schema", title="Schema")]
+
+
+class ProviderConnectionUiFieldBehaviourInfo(BaseModel):
+    """
+    Customizations a connection type applies to the standard connection form fields.
+    """
+
+    hidden_fields: Annotated[list[str] | None, Field(title="Hidden Fields")] = None
+    relabeling: Annotated[dict[str, str] | None, Field(title="Relabeling")] = None
+    placeholders: Annotated[dict[str, str] | None, Field(title="Placeholders")] = None
 
 
 class ProviderDialectInfo(BaseModel):
@@ -1260,10 +1272,8 @@ class ProviderDialectInfo(BaseModel):
     SQL dialect provided by a provider.
     """
 
-    dialect_type: Annotated[str | None, Field(alias="dialect-type", title="Dialect-Type")] = None
-    dialect_class_name: Annotated[
-        str | None, Field(alias="dialect-class-name", title="Dialect-Class-Name")
-    ] = None
+    dialect_type: Annotated[str | None, Field(title="Dialect Type")] = None
+    dialect_class_name: Annotated[str | None, Field(title="Dialect Class Name")] = None
 
 
 class ProviderIntegrationInfo(BaseModel):
@@ -1271,9 +1281,9 @@ class ProviderIntegrationInfo(BaseModel):
     Integration provided by a provider.
     """
 
-    integration_name: Annotated[str, Field(alias="integration-name", title="Integration-Name")]
-    external_doc_url: Annotated[str | None, Field(alias="external-doc-url", title="External-Doc-Url")] = None
-    how_to_guide: Annotated[list[str] | None, Field(alias="how-to-guide", title="How-To-Guide")] = None
+    integration_name: Annotated[str, Field(title="Integration Name")]
+    external_doc_url: Annotated[str | None, Field(title="External Doc Url")] = None
+    how_to_guide: Annotated[list[str] | None, Field(title="How To Guide")] = None
     logo: Annotated[str | None, Field(title="Logo")] = None
     tags: Annotated[list[str] | None, Field(title="Tags")] = None
 
@@ -1283,8 +1293,8 @@ class ProviderIntegrationModulesInfo(BaseModel):
     Python modules an integration contributes for one kind of functionality.
     """
 
-    integration_name: Annotated[str, Field(alias="integration-name", title="Integration-Name")]
-    python_modules: Annotated[list[str], Field(alias="python-modules", title="Python-Modules")]
+    integration_name: Annotated[str, Field(title="Integration Name")]
+    python_modules: Annotated[list[str], Field(title="Python Modules")]
 
 
 class ProviderPluginInfo(BaseModel):
@@ -1293,7 +1303,7 @@ class ProviderPluginInfo(BaseModel):
     """
 
     name: Annotated[str | None, Field(title="Name")] = None
-    plugin_class: Annotated[str | None, Field(alias="plugin-class", title="Plugin-Class")] = None
+    plugin_class: Annotated[str | None, Field(title="Plugin Class")] = None
 
 
 class ProviderRemoteLoggingInfo(BaseModel):
@@ -1322,7 +1332,7 @@ class ProviderTaskDecoratorInfo(BaseModel):
     """
 
     name: Annotated[str | None, Field(title="Name")] = None
-    class_name: Annotated[str | None, Field(alias="class-name", title="Class-Name")] = None
+    class_name: Annotated[str | None, Field(title="Class Name")] = None
 
 
 class ProviderTransferInfo(BaseModel):
@@ -1330,14 +1340,10 @@ class ProviderTransferInfo(BaseModel):
     Transfer operator provided by a provider.
     """
 
-    source_integration_name: Annotated[
-        str, Field(alias="source-integration-name", title="Source-Integration-Name")
-    ]
-    target_integration_name: Annotated[
-        str, Field(alias="target-integration-name", title="Target-Integration-Name")
-    ]
-    python_module: Annotated[str, Field(alias="python-module", title="Python-Module")]
-    how_to_guide: Annotated[str | None, Field(alias="how-to-guide", title="How-To-Guide")] = None
+    source_integration_name: Annotated[str, Field(title="Source Integration Name")]
+    target_integration_name: Annotated[str, Field(title="Target Integration Name")]
+    python_module: Annotated[str, Field(title="Python Module")]
+    how_to_guide: Annotated[str | None, Field(title="How To Guide")] = None
 
 
 class QueuedEventResponse(BaseModel):
@@ -2730,17 +2736,28 @@ class ProviderCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class ProviderConnectionTypeInfo(BaseModel):
+    """
+    Connection type provided by a provider.
+    """
+
+    connection_type: Annotated[str, Field(title="Connection Type")]
+    hook_class_name: Annotated[str, Field(title="Hook Class Name")]
+    hook_name: Annotated[str | None, Field(title="Hook Name")] = None
+    ui_field_behaviour: ProviderConnectionUiFieldBehaviourInfo | None = None
+    conn_fields: Annotated[dict[str, ProviderConnectionFieldInfo] | None, Field(title="Conn Fields")] = None
+    external_services: Annotated[list[str] | None, Field(title="External Services")] = None
+
+
 class ProviderInfoResponse(BaseModel):
     """
     Typed provider metadata (from ``provider.yaml``) exposed by the API.
     """
 
-    package_name: Annotated[str | None, Field(alias="package-name", title="Package-Name")] = None
+    package_name: Annotated[str | None, Field(title="Package Name")] = None
     name: Annotated[str | None, Field(title="Name")] = None
     description: Annotated[str | None, Field(title="Description")] = None
-    documentation_url: Annotated[str | None, Field(alias="documentation-url", title="Documentation-Url")] = (
-        None
-    )
+    documentation_url: Annotated[str | None, Field(title="Documentation Url")] = None
     filesystems: Annotated[list[str] | None, Field(title="Filesystems")] = None
     integrations: Annotated[list[ProviderIntegrationInfo] | None, Field(title="Integrations")] = None
     operators: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Operators")] = None
@@ -2748,33 +2765,25 @@ class ProviderInfoResponse(BaseModel):
     hooks: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Hooks")] = None
     triggers: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Triggers")] = None
     bundles: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Bundles")] = None
-    asset_uris: Annotated[
-        list[ProviderAssetUriInfo] | None, Field(alias="asset-uris", title="Asset-Uris")
-    ] = None
+    asset_uris: Annotated[list[ProviderAssetUriInfo] | None, Field(title="Asset Uris")] = None
     dialects: Annotated[list[ProviderDialectInfo] | None, Field(title="Dialects")] = None
     transfers: Annotated[list[ProviderTransferInfo] | None, Field(title="Transfers")] = None
-    connection_types: Annotated[
-        list[ProviderConnectionTypeInfo] | None, Field(alias="connection-types", title="Connection-Types")
-    ] = None
-    extra_links: Annotated[list[str] | None, Field(alias="extra-links", title="Extra-Links")] = None
-    secrets_backends: Annotated[
-        list[str] | None, Field(alias="secrets-backends", title="Secrets-Backends")
-    ] = None
-    email_backends: Annotated[list[str] | None, Field(alias="email-backends", title="Email-Backends")] = None
+    connection_types: Annotated[list[ProviderConnectionTypeInfo] | None, Field(title="Connection Types")] = (
+        None
+    )
+    extra_links: Annotated[list[str] | None, Field(title="Extra Links")] = None
+    secrets_backends: Annotated[list[str] | None, Field(title="Secrets Backends")] = None
+    email_backends: Annotated[list[str] | None, Field(title="Email Backends")] = None
     logging: Annotated[list[str] | None, Field(title="Logging")] = None
-    remote_logging: Annotated[
-        list[ProviderRemoteLoggingInfo] | None, Field(alias="remote-logging", title="Remote-Logging")
-    ] = None
-    auth_backends: Annotated[list[str] | None, Field(alias="auth-backends", title="Auth-Backends")] = None
-    auth_managers: Annotated[list[str] | None, Field(alias="auth-managers", title="Auth-Managers")] = None
+    remote_logging: Annotated[list[ProviderRemoteLoggingInfo] | None, Field(title="Remote Logging")] = None
+    auth_backends: Annotated[list[str] | None, Field(title="Auth Backends")] = None
+    auth_managers: Annotated[list[str] | None, Field(title="Auth Managers")] = None
     notifications: Annotated[list[str] | None, Field(title="Notifications")] = None
     executors: Annotated[list[str] | None, Field(title="Executors")] = None
-    db_managers: Annotated[list[str] | None, Field(alias="db-managers", title="Db-Managers")] = None
+    db_managers: Annotated[list[str] | None, Field(title="Db Managers")] = None
     cli: Annotated[list[str] | None, Field(title="Cli")] = None
     config: Annotated[dict[str, ProviderConfigSectionInfo] | None, Field(title="Config")] = None
-    task_decorators: Annotated[
-        list[ProviderTaskDecoratorInfo] | None, Field(alias="task-decorators", title="Task-Decorators")
-    ] = None
+    task_decorators: Annotated[list[ProviderTaskDecoratorInfo] | None, Field(title="Task Decorators")] = None
     plugins: Annotated[list[ProviderPluginInfo] | None, Field(title="Plugins")] = None
     queues: Annotated[list[str] | None, Field(title="Queues")] = None
 

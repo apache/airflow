@@ -31,14 +31,19 @@ class TestProviderCommands:
     provider_name = "apache-airflow-providers-standard"
     provider_info = {
         "name": "Standard",
-        "connection-types": [
+        "connection_types": [
             {
-                "connection-type": "fs",
-                "hook-class-name": "airflow.providers.standard.hooks.filesystem.FSHook",
-                "hook-name": "File (path)",
+                "connection_type": "fs",
+                "hook_class_name": "airflow.providers.standard.hooks.filesystem.FSHook",
+                "hook_name": "File (path)",
+                "ui_field_behaviour": {"hidden_fields": ["host", "port"]},
+                "conn_fields": {
+                    "path": {"label": "Path", "schema": {"type": "string"}},
+                },
+                "external_services": ["Local filesystem"],
             }
         ],
-        "extra-links": ["airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink"],
+        "extra_links": ["airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink"],
     }
     provider_response = ProviderDetailsResponse(
         package_name=provider_name,
@@ -74,11 +79,11 @@ class TestProviderCommands:
     # Metadata made up entirely of keys that also exist on the summary response, plus
     # ``email-backends`` — ``--full`` must keep every one of them.
     sendgrid_info = {
-        "package-name": sendgrid_name,
+        "package_name": sendgrid_name,
         "name": "Sendgrid",
         "description": "Sendgrid https://sendgrid.com/",
-        "email-backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
-        "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
+        "email_backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
+        "documentation_url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
     }
 
     def test_get_provider_full_keeps_all_metadata(self, api_client_maker):
@@ -86,7 +91,7 @@ class TestProviderCommands:
             package_name=self.sendgrid_name,
             version="4.2.5",
             description=self.sendgrid_info["description"],
-            documentation_url=self.sendgrid_info["documentation-url"],
+            documentation_url=self.sendgrid_info["documentation_url"],
             provider_info=ProviderInfoResponse.model_validate(self.sendgrid_info),
         )
         api_client = api_client_maker(

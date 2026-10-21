@@ -7470,6 +7470,28 @@ export const $ProviderConfigOptionInfo = {
                 }
             ],
             title: 'Sensitive'
+        },
+        is_template: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Template'
+        },
+        see_also: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'See Also'
         }
     },
     type: 'object',
@@ -7503,17 +7525,13 @@ export const $ProviderConfigSectionInfo = {
     description: 'Configuration section contributed by a provider.'
 } as const;
 
-export const $ProviderConnectionTypeInfo = {
+export const $ProviderConnectionFieldInfo = {
     properties: {
-        'connection-type': {
+        label: {
             type: 'string',
-            title: 'Connection-Type'
+            title: 'Label'
         },
-        'hook-class-name': {
-            type: 'string',
-            title: 'Hook-Class-Name'
-        },
-        'hook-name': {
+        description: {
             anyOf: [
                 {
                     type: 'string'
@@ -7522,13 +7540,134 @@ export const $ProviderConnectionTypeInfo = {
                     type: 'null'
                 }
             ],
-            title: 'Hook-Name'
+            title: 'Description'
+        },
+        schema: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Schema'
         }
     },
     type: 'object',
-    required: ['connection-type', 'hook-class-name'],
+    required: ['label', 'schema'],
+    title: 'ProviderConnectionFieldInfo',
+    description: 'Custom connection field a connection type stores in ``Connection.extra``.'
+} as const;
+
+export const $ProviderConnectionTypeInfo = {
+    properties: {
+        connection_type: {
+            type: 'string',
+            title: 'Connection Type'
+        },
+        hook_class_name: {
+            type: 'string',
+            title: 'Hook Class Name'
+        },
+        hook_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hook Name'
+        },
+        ui_field_behaviour: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/ProviderConnectionUiFieldBehaviourInfo'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        conn_fields: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/ProviderConnectionFieldInfo'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Conn Fields'
+        },
+        external_services: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'External Services'
+        }
+    },
+    type: 'object',
+    required: ['connection_type', 'hook_class_name'],
     title: 'ProviderConnectionTypeInfo',
     description: 'Connection type provided by a provider.'
+} as const;
+
+export const $ProviderConnectionUiFieldBehaviourInfo = {
+    properties: {
+        hidden_fields: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hidden Fields'
+        },
+        relabeling: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'string'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Relabeling'
+        },
+        placeholders: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'string'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Placeholders'
+        }
+    },
+    type: 'object',
+    title: 'ProviderConnectionUiFieldBehaviourInfo',
+    description: 'Customizations a connection type applies to the standard connection form fields.'
 } as const;
 
 export const $ProviderDetailsResponse = {
@@ -7568,7 +7707,7 @@ export const $ProviderDetailsResponse = {
 
 export const $ProviderDialectInfo = {
     properties: {
-        'dialect-type': {
+        dialect_type: {
             anyOf: [
                 {
                     type: 'string'
@@ -7577,9 +7716,9 @@ export const $ProviderDialectInfo = {
                     type: 'null'
                 }
             ],
-            title: 'Dialect-Type'
+            title: 'Dialect Type'
         },
-        'dialect-class-name': {
+        dialect_class_name: {
             anyOf: [
                 {
                     type: 'string'
@@ -7588,7 +7727,7 @@ export const $ProviderDialectInfo = {
                     type: 'null'
                 }
             ],
-            title: 'Dialect-Class-Name'
+            title: 'Dialect Class Name'
         }
     },
     type: 'object',
@@ -7598,7 +7737,7 @@ export const $ProviderDialectInfo = {
 
 export const $ProviderInfoResponse = {
     properties: {
-        'package-name': {
+        package_name: {
             anyOf: [
                 {
                     type: 'string'
@@ -7607,7 +7746,7 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Package-Name'
+            title: 'Package Name'
         },
         name: {
             anyOf: [
@@ -7631,7 +7770,7 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Description'
         },
-        'documentation-url': {
+        documentation_url: {
             anyOf: [
                 {
                     type: 'string'
@@ -7640,7 +7779,7 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Documentation-Url'
+            title: 'Documentation Url'
         },
         filesystems: {
             anyOf: [
@@ -7740,7 +7879,7 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Bundles'
         },
-        'asset-uris': {
+        asset_uris: {
             anyOf: [
                 {
                     items: {
@@ -7752,7 +7891,7 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Asset-Uris'
+            title: 'Asset Uris'
         },
         dialects: {
             anyOf: [
@@ -7782,7 +7921,7 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Transfers'
         },
-        'connection-types': {
+        connection_types: {
             anyOf: [
                 {
                     items: {
@@ -7794,9 +7933,9 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Connection-Types'
+            title: 'Connection Types'
         },
-        'extra-links': {
+        extra_links: {
             anyOf: [
                 {
                     items: {
@@ -7808,9 +7947,9 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Extra-Links'
+            title: 'Extra Links'
         },
-        'secrets-backends': {
+        secrets_backends: {
             anyOf: [
                 {
                     items: {
@@ -7822,9 +7961,9 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Secrets-Backends'
+            title: 'Secrets Backends'
         },
-        'email-backends': {
+        email_backends: {
             anyOf: [
                 {
                     items: {
@@ -7836,7 +7975,7 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Email-Backends'
+            title: 'Email Backends'
         },
         logging: {
             anyOf: [
@@ -7852,7 +7991,7 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Logging'
         },
-        'remote-logging': {
+        remote_logging: {
             anyOf: [
                 {
                     items: {
@@ -7864,9 +8003,9 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Remote-Logging'
+            title: 'Remote Logging'
         },
-        'auth-backends': {
+        auth_backends: {
             anyOf: [
                 {
                     items: {
@@ -7878,9 +8017,9 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Auth-Backends'
+            title: 'Auth Backends'
         },
-        'auth-managers': {
+        auth_managers: {
             anyOf: [
                 {
                     items: {
@@ -7892,7 +8031,7 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Auth-Managers'
+            title: 'Auth Managers'
         },
         notifications: {
             anyOf: [
@@ -7922,7 +8061,7 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Executors'
         },
-        'db-managers': {
+        db_managers: {
             anyOf: [
                 {
                     items: {
@@ -7934,7 +8073,7 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Db-Managers'
+            title: 'Db Managers'
         },
         cli: {
             anyOf: [
@@ -7964,7 +8103,7 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Config'
         },
-        'task-decorators': {
+        task_decorators: {
             anyOf: [
                 {
                     items: {
@@ -7976,7 +8115,7 @@ export const $ProviderInfoResponse = {
                     type: 'null'
                 }
             ],
-            title: 'Task-Decorators'
+            title: 'Task Decorators'
         },
         plugins: {
             anyOf: [
@@ -8014,11 +8153,11 @@ export const $ProviderInfoResponse = {
 
 export const $ProviderIntegrationInfo = {
     properties: {
-        'integration-name': {
+        integration_name: {
             type: 'string',
-            title: 'Integration-Name'
+            title: 'Integration Name'
         },
-        'external-doc-url': {
+        external_doc_url: {
             anyOf: [
                 {
                     type: 'string'
@@ -8027,9 +8166,9 @@ export const $ProviderIntegrationInfo = {
                     type: 'null'
                 }
             ],
-            title: 'External-Doc-Url'
+            title: 'External Doc Url'
         },
-        'how-to-guide': {
+        how_to_guide: {
             anyOf: [
                 {
                     items: {
@@ -8041,7 +8180,7 @@ export const $ProviderIntegrationInfo = {
                     type: 'null'
                 }
             ],
-            title: 'How-To-Guide'
+            title: 'How To Guide'
         },
         logo: {
             anyOf: [
@@ -8070,27 +8209,27 @@ export const $ProviderIntegrationInfo = {
         }
     },
     type: 'object',
-    required: ['integration-name'],
+    required: ['integration_name'],
     title: 'ProviderIntegrationInfo',
     description: 'Integration provided by a provider.'
 } as const;
 
 export const $ProviderIntegrationModulesInfo = {
     properties: {
-        'integration-name': {
+        integration_name: {
             type: 'string',
-            title: 'Integration-Name'
+            title: 'Integration Name'
         },
-        'python-modules': {
+        python_modules: {
             items: {
                 type: 'string'
             },
             type: 'array',
-            title: 'Python-Modules'
+            title: 'Python Modules'
         }
     },
     type: 'object',
-    required: ['integration-name', 'python-modules'],
+    required: ['integration_name', 'python_modules'],
     title: 'ProviderIntegrationModulesInfo',
     description: 'Python modules an integration contributes for one kind of functionality.'
 } as const;
@@ -8108,7 +8247,7 @@ export const $ProviderPluginInfo = {
             ],
             title: 'Name'
         },
-        'plugin-class': {
+        plugin_class: {
             anyOf: [
                 {
                     type: 'string'
@@ -8117,7 +8256,7 @@ export const $ProviderPluginInfo = {
                     type: 'null'
                 }
             ],
-            title: 'Plugin-Class'
+            title: 'Plugin Class'
         }
     },
     type: 'object',
@@ -8187,7 +8326,7 @@ export const $ProviderTaskDecoratorInfo = {
             ],
             title: 'Name'
         },
-        'class-name': {
+        class_name: {
             anyOf: [
                 {
                     type: 'string'
@@ -8196,7 +8335,7 @@ export const $ProviderTaskDecoratorInfo = {
                     type: 'null'
                 }
             ],
-            title: 'Class-Name'
+            title: 'Class Name'
         }
     },
     type: 'object',
@@ -8206,19 +8345,19 @@ export const $ProviderTaskDecoratorInfo = {
 
 export const $ProviderTransferInfo = {
     properties: {
-        'source-integration-name': {
+        source_integration_name: {
             type: 'string',
-            title: 'Source-Integration-Name'
+            title: 'Source Integration Name'
         },
-        'target-integration-name': {
+        target_integration_name: {
             type: 'string',
-            title: 'Target-Integration-Name'
+            title: 'Target Integration Name'
         },
-        'python-module': {
+        python_module: {
             type: 'string',
-            title: 'Python-Module'
+            title: 'Python Module'
         },
-        'how-to-guide': {
+        how_to_guide: {
             anyOf: [
                 {
                     type: 'string'
@@ -8227,11 +8366,11 @@ export const $ProviderTransferInfo = {
                     type: 'null'
                 }
             ],
-            title: 'How-To-Guide'
+            title: 'How To Guide'
         }
     },
     type: 'object',
-    required: ['source-integration-name', 'target-integration-name', 'python-module'],
+    required: ['source_integration_name', 'target_integration_name', 'python_module'],
     title: 'ProviderTransferInfo',
     description: 'Transfer operator provided by a provider.'
 } as const;

@@ -1867,7 +1867,7 @@ class TestProvidersOperations:
         description="description",
         documentation_url=None,
         provider_info=ProviderInfoResponse.model_validate(
-            {"name": "Provider", "extra-links": ["airflow.providers.package.links.Link"]}
+            {"name": "Provider", "extra_links": ["airflow.providers.package.links.Link"]}
         ),
     )
 

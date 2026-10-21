@@ -40,9 +40,45 @@ MOCK_PROVIDERS = {
                     "connection-type": "aws",
                     "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
                     "hook-name": "Amazon Web Services",
+                    "ui-field-behaviour": {
+                        "hidden-fields": ["host", "schema", "port"],
+                        "relabeling": {"login": "AWS Access Key ID"},
+                        "placeholders": {"password": "AWS Secret Access Key"},
+                    },
+                    "conn-fields": {
+                        "region_name": {
+                            "label": "Region Name",
+                            "description": "AWS region",
+                            "schema": {"type": "string", "default": "us-east-1"},
+                        }
+                    },
+                    "external-services": ["AWS"],
                 }
             ],
             "extra-links": ["airflow.providers.amazon.aws.links.emr.EmrClusterLink"],
+            "config": {
+                "aws": {
+                    "description": "Amazon options",
+                    "options": {
+                        "log_format": {
+                            "description": "Log format",
+                            "version_added": "1.0.0",
+                            "type": "string",
+                            "example": None,
+                            "default": "{message}",
+                            "is_template": True,
+                        },
+                        "pod_template_file": {
+                            "description": "Pod template",
+                            "version_added": "1.0.0",
+                            "type": "string",
+                            "example": None,
+                            "default": None,
+                            "see_also": ":ref:`concepts:pod_template_file`",
+                        },
+                    },
+                }
+            },
         },
     ),
     "apache-airflow-providers-apache-cassandra": ProviderInfo(
@@ -126,18 +162,35 @@ class TestGetProvider:
         assert body["description"] == "Amazon Web Services (AWS) https://aws.amazon.com/"
         provider_info = body["provider_info"]
         assert provider_info["name"] == "Amazon"
-        assert provider_info["connection-types"] == [
+        # ``provider.yaml`` keys are kebab-case, the response is snake_case like the rest of the API
+        assert provider_info["connection_types"] == [
             {
-                "connection-type": "aws",
-                "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
-                "hook-name": "Amazon Web Services",
+                "connection_type": "aws",
+                "hook_class_name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
+                "hook_name": "Amazon Web Services",
+                "ui_field_behaviour": {
+                    "hidden_fields": ["host", "schema", "port"],
+                    "relabeling": {"login": "AWS Access Key ID"},
+                    "placeholders": {"password": "AWS Secret Access Key"},
+                },
+                "conn_fields": {
+                    "region_name": {
+                        "label": "Region Name",
+                        "description": "AWS region",
+                        "schema": {"type": "string", "default": "us-east-1"},
+                    }
+                },
+                "external_services": ["AWS"],
             }
         ]
-        assert provider_info["extra-links"] == ["airflow.providers.amazon.aws.links.emr.EmrClusterLink"]
-        assert provider_info["package-name"] == "apache-airflow-providers-amazon"
+        aws_options = provider_info["config"]["aws"]["options"]
+        assert aws_options["log_format"]["is_template"] is True
+        assert aws_options["pod_template_file"]["see_also"] == ":ref:`concepts:pod_template_file`"
+        assert provider_info["extra_links"] == ["airflow.providers.amazon.aws.links.emr.EmrClusterLink"]
+        assert provider_info["package_name"] == "apache-airflow-providers-amazon"
         assert provider_info["description"] == "Amazon Web Services (AWS) https://aws.amazon.com/"
         assert (
-            provider_info["documentation-url"]
+            provider_info["documentation_url"]
             == "https://airflow.apache.org/docs/apache-airflow-providers-amazon/1.0.0/"
         )
         # Only keys explicitly declared in ProviderInfoResponse are serialized
@@ -155,11 +208,11 @@ class TestGetProvider:
         provider_info = response.json()["provider_info"]
         # The CLI renders the metadata with ``exclude_none``, so only the populated keys matter
         assert {key: value for key, value in provider_info.items() if value is not None} == {
-            "package-name": "apache-airflow-providers-sendgrid",
+            "package_name": "apache-airflow-providers-sendgrid",
             "name": "Sendgrid",
             "description": "Sendgrid https://sendgrid.com/",
-            "email-backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
-            "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
+            "email_backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
+            "documentation_url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
         }
 
     @mock.patch(
