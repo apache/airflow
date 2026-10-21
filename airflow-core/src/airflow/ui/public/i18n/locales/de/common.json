@@ -139,6 +139,7 @@
     "all": "Alle",
     "and": "UND",
     "any": "Jeder",
+    "hiddenAsset": "Versteckte Datensets (Asset)",
     "or": "ODER"
   },
   "filter": "Filter",
