@@ -2129,7 +2129,7 @@ class TestDag:
             nonlocal spins
             spins += 1
             assert spins < 50, "dag.test() never logged that it was waiting on the parked task"
-            if "Waiting for Human-in-the-loop input" in caplog.text:
+            if "Waiting for input for tasks: ['ask']" in caplog:
                 deliver_external_response()
 
         monkeypatch.setattr(time, "sleep", respond_once_waiting)
@@ -2138,8 +2138,8 @@ class TestDag:
             dr = dag.test()
 
         # The task must take the new "waiting for input" branch, not the old "unrunnable" one.
-        assert "Waiting for Human-in-the-loop input" in caplog.text
-        assert "No tasks to run" not in caplog.text
+        assert "Waiting for input for tasks: ['ask']" in caplog
+        assert {"event": re.compile("No tasks to run")} not in caplog
 
         ti = dr.get_task_instance("ask")
         assert ti is not None

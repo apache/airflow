@@ -65,7 +65,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_ar
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.exceptions import RemovedInAirflow4Warning
+from airflow.sdk.exceptions import RemovedInAirflow4Warning, TaskAwaitingInput
 
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
 # postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
@@ -1698,6 +1698,60 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         from airflow.sdk.exceptions import TaskDeferred
 
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+
+    def wait_for_webhook(
+        self,
+        *,
+        webhook: str,
+        events: Sequence[str | int] | None = None,
+        match: Mapping[str, str | int | Sequence[str | int]] | None = None,
+        method_name: str,
+        timeout: timedelta | None = None,
+    ) -> NoReturn:
+        """
+        Wait for a delivery to an inbound webhook, suspending execution until one matches or time runs out.
+
+        This registers the wait with the API server and parks the task in the ``awaiting_input`` state,
+        which holds no worker slot and no trigger. The first delivery to ``webhook`` whose event is one of
+        ``events`` and whose attributes match ``match`` resumes the task, which then calls
+        ``method_name`` with ``event`` set to ``{"webhook", "event", "delivery_id", "received_at",
+        "attributes", "payload"}``. A delivery that arrived before the wait and was kept for it resumes
+        the task as soon as it parks. If none matches before the timeout, ``event`` is ``{"error",
+        "error_type": "timeout"}``.
+
+        Within a webhook, only one running or parked task instance can wait with the same ``events`` and
+        ``match``. Calling this again in the same try replaces the earlier wait.
+
+        .. note:: |experimental|
+
+        :param webhook: The webhook's name, as listed in ``[webhooks] names``.
+        :param events: The delivery events to accept, as a list or another sequence of strings or
+            integers, or None to accept any event.
+        :param match: The attributes the delivery must have, each a value or a sequence of values of which
+            one must match. Values compare as strings, so ``42`` and ``"42"`` match the same deliveries.
+        :param method_name: The name of the method to resume the task in.
+        :param timeout: How long to wait, at most 365 days, or None for the API server's
+            ``[webhooks] default_wait_timeout``. The task's ``execution_timeout`` does not run while it
+            waits.
+        :raises WebhookWaitUnsupported: if the API server cannot hold webhook waits.
+        :raises TypeError: if ``timeout`` is neither a ``timedelta`` nor None.
+        :raises ValueError: if ``events`` is a string or not a sequence, ``match`` is not a mapping, or
+            either holds a value that JSON cannot carry.
+        :raises AirflowRuntimeError: if the API server refuses the wait, with the status, reason and
+            message it answered: for example ``webhook_not_found`` for a webhook it does not serve, or a
+            422 whose message names the ``events``, ``match`` or ``timeout`` it does not accept.
+        """
+        from airflow.sdk.execution_time.inbound_wait import register_inbound_wait
+
+        wait = register_inbound_wait(webhook=webhook, events=events, match=match, timeout=timeout)
+        self.log.info(
+            "Waiting for a delivery to webhook %r until %s; the wait %s is %s",
+            webhook,
+            wait.deadline.isoformat(),
+            wait.id,
+            wait.status.value,
+        )
+        raise TaskAwaitingInput(method_name=method_name, timeout=wait.deadline - timezone.utcnow())
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""

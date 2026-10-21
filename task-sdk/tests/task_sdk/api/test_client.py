@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import pickle
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -44,13 +44,15 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
+    InboundWaitResponse,
     LoopDecisionPayload,
     TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
+    WaitStatus,
     XComResponse,
 )
-from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError, WebhookWaitUnsupported
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
     DeferTask,
@@ -1989,6 +1991,105 @@ class TestHITLOperations:
         assert result.params_input == {}
         assert result.responded_by_user == HITLUser(id="admin", name="admin")
         assert result.responded_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
+
+
+class TestInboundWaitOperations:
+    TI_ID = uuid7()
+    WAIT_ID = uuid7()
+
+    def test_register(self) -> None:
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.method == "POST" and request.url.path == f"/inbound-waits/{self.TI_ID}":
+                assert json.loads(request.read()) == {
+                    "webhook": "github",
+                    "events": ["pull_request"],
+                    "match": {"repository": "my-org/configs", "number": 4242},
+                    "timeout": "PT1H",
+                }
+                return httpx2.Response(
+                    status_code=201,
+                    json={
+                        "id": str(self.WAIT_ID),
+                        "status": "registered",
+                        "deadline": "2026-10-20T13:00:00Z",
+                    },
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.inbound_waits.register(
+            self.TI_ID,
+            webhook="github",
+            events=["pull_request"],
+            match={"repository": "my-org/configs", "number": 4242},
+            timeout=timedelta(hours=1),
+        )
+
+        assert result == InboundWaitResponse(
+            id=self.WAIT_ID, status=WaitStatus.REGISTERED, deadline=timezone.datetime(2026, 10, 20, 13)
+        )
+
+    @pytest.mark.parametrize(
+        ("failure", "error"),
+        [
+            pytest.param(
+                httpx2.Response(500, text="Internal Server Error"), httpx2.HTTPStatusError, id="server-error"
+            ),
+            pytest.param(httpx2.ReadTimeout("timed out"), httpx2.ReadTimeout, id="read-timeout"),
+        ],
+    )
+    def test_register_is_not_retried(self, failure, error) -> None:
+        """The server may have committed the wait, and a repeat would end it and lose its claimed delivery."""
+        requests: list[httpx2.Request] = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            if isinstance(failure, Exception):
+                raise failure
+            return failure
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        with pytest.raises(error):
+            client.inbound_waits.register(self.TI_ID, webhook="github")
+
+        assert len(requests) == 1
+
+    def test_register_on_server_without_the_route_raises_webhook_wait_unsupported(self) -> None:
+        """An API server older than webhook waits routes no such path, and its 404 has no reason."""
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=404, json={"detail": "Not Found"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        with pytest.raises(WebhookWaitUnsupported, match="does not support webhook waits"):
+            client.inbound_waits.register(self.TI_ID, webhook="github")
+
+    @pytest.mark.parametrize(
+        ("status_code", "reason"),
+        [
+            pytest.param(403, "dag_has_team", id="dag-has-team"),
+            pytest.param(404, "webhook_not_found", id="webhook-not-found"),
+            pytest.param(409, "wait_key_taken", id="wait-key-taken"),
+            pytest.param(410, "not_found", id="archived-attempt"),
+            pytest.param(422, "timeout_required", id="timeout-required"),
+        ],
+    )
+    def test_register_refused_raises_server_error_with_its_reason(self, status_code, reason) -> None:
+        """A refusal from the route has a reason, so even its 404 is not read as a server without waits."""
+        detail = {"reason": reason, "message": "Refused"}
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=status_code, json={"detail": detail})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError) as ctx:
+            client.inbound_waits.register(self.TI_ID, webhook="github")
+
+        assert ctx.value.response.status_code == status_code
+        assert ctx.value.detail == detail
 
 
 class TestSSLContextCaching:

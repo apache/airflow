@@ -16,7 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
+from uuid6 import uuid7
+
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
+from airflow.sdk.api.client import Client
+from airflow.sdk.exceptions import WebhookWaitUnsupported
 
 pytestmark = pytest.mark.db_test
 
@@ -42,3 +49,12 @@ class TestInboundWaitEndpointVersioning:
 
         assert response.status_code == 404
         assert response.json()["detail"]["reason"] == "webhook_not_found"
+
+    def test_sdk_client_raises_webhook_wait_unsupported_on_old_version(self):
+        """The Task SDK reads the old version's routing 404 as a server without webhook waits."""
+        api = InProcessExecutionAPI()
+        with Client(base_url="http://in-process.invalid./", token="", transport=api.transport) as client:
+            client.headers["Airflow-API-Version"] = "2026-10-30"
+
+            with pytest.raises(WebhookWaitUnsupported):
+                client.inbound_waits.register(uuid7(), webhook="unlisted", timeout=timedelta(hours=1))

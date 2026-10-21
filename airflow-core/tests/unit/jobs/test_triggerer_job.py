@@ -3312,6 +3312,7 @@ class TestTriggererMessageTypes:
             "TriggerDagRun",
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
+            "RegisterInboundWait",
             "SetRenderedMapIndex",
             "SetExecutionTimeout",
             "GetDag",
@@ -3341,6 +3342,7 @@ class TestTriggererMessageTypes:
             "PreviousDagRunResult",
             "PreviousTIResult",
             "HITLDetailRequestResult",
+            "InboundWaitResult",
             "DagResult",
             # AIP-103 task store result — worker-only response to the above messages.
             "TaskStateStoreResult",

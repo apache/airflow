@@ -344,7 +344,7 @@
     },
     "AwaitInputTask": {
       "additionalProperties": false,
-      "description": "Park a task instance awaiting human input (Human-in-the-loop), without a trigger.",
+      "description": "Park a task instance awaiting a Human-in-the-loop response or a webhook delivery, without a trigger.",
       "properties": {
         "state": {
           "const": "awaiting_input",
@@ -1899,6 +1899,7 @@
         "ASSET_STORE_NOT_FOUND",
         "DAGRUN_ALREADY_EXISTS",
         "PERMISSION_DENIED",
+        "WEBHOOK_WAIT_UNSUPPORTED",
         "GENERIC_ERROR",
         "API_SERVER_ERROR"
       ],
@@ -3203,6 +3204,37 @@
       "title": "InactiveAssetsResult",
       "type": "object"
     },
+    "InboundWaitResult": {
+      "description": "Response to RegisterInboundWait: the registered wait and its deadline.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/WaitStatus"
+        },
+        "deadline": {
+          "format": "date-time",
+          "title": "Deadline",
+          "type": "string"
+        },
+        "type": {
+          "const": "InboundWaitResult",
+          "default": "InboundWaitResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "deadline"
+      ],
+      "title": "InboundWaitResult",
+      "type": "object"
+    },
     "JsonValue": {
       "title": "JsonValue",
       "type": [
@@ -3637,6 +3669,84 @@
         "description"
       ],
       "title": "PutVariable",
+      "type": "object"
+    },
+    "RegisterInboundWait": {
+      "additionalProperties": false,
+      "description": "Register the task instance's wait for a delivery to an inbound webhook, before it parks.",
+      "properties": {
+        "webhook": {
+          "title": "Webhook",
+          "type": "string"
+        },
+        "events": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/JsonValue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Events"
+        },
+        "match": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/JsonValue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Match"
+        },
+        "timeout": {
+          "anyOf": [
+            {
+              "format": "duration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout"
+        },
+        "type": {
+          "const": "RegisterInboundWait",
+          "default": "RegisterInboundWait",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "webhook"
+      ],
+      "title": "RegisterInboundWait",
       "type": "object"
     },
     "RescheduleTask": {
@@ -4744,6 +4854,18 @@
       ],
       "title": "VariableResult",
       "type": "object"
+    },
+    "WaitStatus": {
+      "description": "Where a webhook wait is, as ``InboundWait.status`` stores it.",
+      "enum": [
+        "registered",
+        "received",
+        "resumed",
+        "ended",
+        "timed_out"
+      ],
+      "title": "WaitStatus",
+      "type": "string"
     },
     "XComCountResponse": {
       "properties": {

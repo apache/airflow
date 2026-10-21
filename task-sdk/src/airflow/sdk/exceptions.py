@@ -99,6 +99,7 @@ class ErrorType(enum.Enum):
     # a deny rather than a "not found" so the secrets-backend dispatcher
     # does NOT fall through to a less-restrictive backend (e.g. env vars).
     PERMISSION_DENIED = "PERMISSION_DENIED"
+    WEBHOOK_WAIT_UNSUPPORTED = "WEBHOOK_WAIT_UNSUPPORTED"
     GENERIC_ERROR = "GENERIC_ERROR"
     API_SERVER_ERROR = "API_SERVER_ERROR"
 
@@ -238,13 +239,13 @@ class TaskDeferred(BaseException):
 
 class TaskAwaitingInput(BaseException):
     """
-    Signal an operator parking the task in awaiting_input state (Human-in-the-loop).
+    Signal an operator parking the task in awaiting_input state.
 
-    Raised to signal that the operator wishes to pause until external human input arrives,
-    WITHOUT creating a trigger or involving the triggerer. Resumption is driven by the Core API
-    response handler (or the scheduler timeout sweep) flipping the task instance back to SCHEDULED
-    with ``next_method`` / ``next_kwargs`` intact, after which the worker calls
-    ``resume_execution(method_name, kwargs)``.
+    Raised to signal that the operator wishes to pause until external input arrives, such as a
+    Human-in-the-loop response or a webhook delivery, WITHOUT creating a trigger or involving the
+    triggerer. Resumption is driven by the API server that records the input (or the scheduler
+    timeout sweep) flipping the task instance back to SCHEDULED with ``next_method`` /
+    ``next_kwargs`` intact, after which the worker calls ``resume_execution(method_name, kwargs)``.
 
     Subclasses ``BaseException`` (like ``TaskDeferred``) so that a user ``except Exception`` in
     ``execute()`` cannot accidentally swallow the park signal.
@@ -276,6 +277,16 @@ class TaskAwaitingInput(BaseException):
 
     def __repr__(self) -> str:
         return f"<TaskAwaitingInput method={self.method_name}>"
+
+
+class WebhookWaitUnsupported(AirflowException):
+    """
+    Raise when the API server cannot hold webhook waits, because it is older than webhook waits.
+
+    An operator that can also wait another way, such as by polling, can catch it and do so.
+
+    .. note:: |experimental|
+    """
 
 
 class TaskDeferralError(AirflowException):

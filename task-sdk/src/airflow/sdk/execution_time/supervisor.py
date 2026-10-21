@@ -72,7 +72,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalStateNonSuccess,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, WebhookWaitUnsupported
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -121,9 +121,11 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceSlice,
     HITLDetailRequestResult,
     InactiveAssetsResult,
+    InboundWaitResult,
     MaskSecret,
     OKResponse,
     PutVariable,
+    RegisterInboundWait,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -2292,6 +2294,17 @@ class ActivitySubprocess(WatchedSubprocess):
         )
         return HITLDetailRequestResult.from_api_response(hitl_detail_request), {"exclude_unset": True}
 
+    def _handle_register_inbound_wait(
+        self, msg: RegisterInboundWait, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        try:
+            wait = self.client.inbound_waits.register(
+                self.id, webhook=msg.webhook, events=msg.events, match=msg.match, timeout=msg.timeout
+            )
+        except WebhookWaitUnsupported as e:
+            return ErrorResponse(error=ErrorType.WEBHOOK_WAIT_UNSUPPORTED, detail={"message": str(e)}), {}
+        return InboundWaitResult.from_api_response(wait), {}
+
     def _handle_get_dag(self, msg: GetDag, log: FilteringBoundLogger, req_id: int) -> RequestResult:
         dag = self.client.dags.get(
             dag_id=msg.dag_id,
@@ -2442,6 +2455,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(GetTaskBreadcrumbs, _handle_get_task_breadcrumbs),
                 register_request_method(GetTaskRescheduleStartDate, _handle_get_task_reschedule_start_date),
                 register_request_method(GetTaskStateStore, _handle_get_task_state_store),
+                register_request_method(RegisterInboundWait, _handle_register_inbound_wait),
                 register_request_method(RescheduleTask, _handle_reschedule_task),
                 register_request_method(ResendLoggingFD, _handle_resend_logging_fd),
                 register_request_method(RetryTask, _handle_task_state),

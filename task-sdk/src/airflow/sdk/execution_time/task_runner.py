@@ -1566,7 +1566,7 @@ def _defer_task(
 def _await_input_task(
     awaiting: TaskAwaitingInput, ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[ToSupervisor, TaskInstanceState]:
-    """Build the message that parks a task in AWAITING_INPUT (HITL), with no trigger."""
+    """Build the message that parks a task in AWAITING_INPUT, with no trigger."""
     log.info("Pausing task as AWAITING_INPUT.", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
 
     from airflow.sdk.serde import serialize as serde_serialize
