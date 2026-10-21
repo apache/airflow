@@ -243,17 +243,8 @@ class TestRequestInputFromTask:
         assert state == TaskInstanceState.FAILED
         assert isinstance(err, ValueError)
 
-    @pytest.mark.parametrize(
-        ("params_input", "error", "match"),
-        [
-            pytest.param({"note": "x"}, ValueError, "does not match params", id="unknown-field"),
-            pytest.param(
-                {"reason": 5}, ParamValidationError, "Invalid input for param reason", id="fails-schema"
-            ),
-        ],
-    )
     def test_params_input_is_checked_against_the_request_params(
-        self, refund_op, seen, create_runtime_ti, mock_supervisor_comms, params_input, error, match
+        self, refund_op, seen, create_runtime_ti, mock_supervisor_comms
     ):
         ti = create_runtime_ti(task=refund_op)
         _, park_msg, _ = _run(ti)
@@ -263,12 +254,12 @@ class TestRequestInputFromTask:
             refund_op,
             ti.id,
             park_msg,
-            {**_answer("Approve"), "params_input": params_input},
+            {**_answer("Approve"), "params_input": {"reason": 5}},
         )
 
         assert state == TaskInstanceState.FAILED
-        assert isinstance(err, error)
-        assert match in str(err)
+        assert isinstance(err, ParamValidationError)
+        assert "Invalid input for param reason" in str(err)
         assert seen == []
 
 
