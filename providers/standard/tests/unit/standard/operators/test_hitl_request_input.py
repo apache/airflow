@@ -66,9 +66,13 @@ def _answer(chosen: str, *, reason: str = "", timedout: bool = False) -> dict[st
 
 def _resume(ti: RuntimeTaskInstance, park_msg: AwaitInputTask, event: dict[str, Any]) -> None:
     """Set up ``ti`` the way the server hands back a task whose request was answered."""
-    ti._ti_context_from_server.next_method = park_msg.next_method
+    server_context = ti._ti_context_from_server
+    parked_kwargs = deserialize(park_msg.next_kwargs)
+    assert server_context is not None
+    assert isinstance(parked_kwargs, dict)
+    server_context.next_method = park_msg.next_method
     # handle_event_submit keeps the parked kwargs and adds the response as ``event``.
-    ti._ti_context_from_server.next_kwargs = serialize({**deserialize(park_msg.next_kwargs), "event": event})
+    server_context.next_kwargs = serialize({**parked_kwargs, "event": event})
 
 
 def _sent(mock_supervisor_comms, msg_type: type) -> list[Any]:
