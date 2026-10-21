@@ -153,6 +153,8 @@ type Node interface {
     node()
 }
 
+type LabelRef struct{ /* unexported */ }
+
 // Label makes an edge label, and On carries the label into Before or After. The Node that On
 // returns stands for node and each node in more.
 func Label(text string) *LabelRef
@@ -200,6 +202,7 @@ const (
 - **An edge cannot connect a group to what it holds.** Python's `group >> node_in_group` orders the last tasks of the group before the first tasks of a node inside it, which fails as a cycle whenever that node holds a task. The edge verb rejects the edge when it is declared.
 - **A label stays on the edge it is declared on, with one exception.** A label on a group edge labels that group edge. A group edge from a task in no group to a group with tasks also puts its label on the task edges from that task to the first tasks of the group. Python's `extract >> Label("rows") >> group` does the same. If one of those task edges was also declared on its own, or an earlier group edge added it, that task edge keeps the label it has. If it has no label, it stays unlabelled. Python labels those task edges when `>>` runs, so in Python the label written last wins.
   A label does not change the ends of its edge. When `a` and `b` are in different groups, Python's `a >> Label("x") >> b` replaces `a` with its group, so all the last tasks of `a`'s group run before `b`. The Go SDK keeps the edge between `a` and `b`.
+- **A label on a task or task group is rejected when it would get no edge.** `Before` and `After` panic when their receiver carries a label. Python's `Label("x") >> b` drops that label without an error. `Before` and `After` also panic when they are given a label but their receiver stands for no task or task group. A chain such as `loaded.Before(shards...).Before(airflow.Label("x").On(merged))` panics when `shards` is empty. The same chain without the label declares nothing and does not panic. When `On` is given only empty sets, the label is on no task or task group, so `Before` and `After` drop it without an error.
 - **`TaskGroup` takes `spec ...TaskGroupSpec`, as `Dag` takes `spec ...DagSpec`.** A group has one kind of option, so it needs no sealed option interface. A mapped task group would come through a method of its own, not through this variadic.
 
 ## Alternatives

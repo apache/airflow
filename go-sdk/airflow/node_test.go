@@ -206,6 +206,9 @@ func TestLabelOnLabelsTheEdgeToEachNodeItIsGiven(t *testing.T) {
 	assertEdgeLabel(t, dag, "load", "notify_empty", "forks")
 	assertGroupEdgeLabel(t, dag, "load", "staging", "forks")
 	assertEdgeLabel(t, dag, "load", "notify_suspicious", "forks")
+
+	Bundle().Register(dag)
+	assertEdgeLabel(t, dag, "load", "staging.stage", "forks")
 }
 
 func TestAfterLabelsTheEdgeToTheNodeItWasGiven(t *testing.T) {
@@ -274,7 +277,7 @@ func TestTheLastLabelOfOneCallWins(t *testing.T) {
 // TestEdgeVerbsRejectALabelledReceiver covers a verb whose receiver carries a label. That label has
 // no edge to go on. The verb panics before it declares any edge. The Java SDK throws in the same
 // case. Python's Label("x") >> b drops the label without an error instead. When the label is on a
-// nil *TaskRef, the verb's panic reports the nil task.
+// zero TaskRef, the verb panics about that TaskRef instead of about the label.
 func TestEdgeVerbsRejectALabelledReceiver(t *testing.T) {
 	dag := Dag("etl")
 	loaded := orderedTask(t, dag, "load")
@@ -314,9 +317,10 @@ func TestEdgeVerbsRejectALabelledReceiver(t *testing.T) {
 				`labelled "always", task group "staging" labelled "always"; ` + fix,
 		},
 		{
-			name: "a label on a nil task",
-			call: func() { Label("always").On((*TaskRef)(nil)).Before(cleaned) },
-			want: "airflow.Node.Before: got a nil *airflow.TaskRef",
+			name: "a label on a task that DagRef.Task did not return",
+			call: func() { Label("always").On(&TaskRef{}).Before(cleaned) },
+			want: "airflow.Node.Before: got a *airflow.TaskRef that DagRef.Task or " +
+				"TaskGroupRef.Task did not return",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -358,6 +362,46 @@ func TestLabelBelongsToTheVerbItIsPassedTo(t *testing.T) {
 	assertEdgeLabel(t, dag, "extract", "cleanup", "")
 }
 
+// TestALabelledNodeCanGoIntoSeveralVerbs checks that a verb does not change the labels of the Node
+// that On returned. The same Node can then label the edges of every verb it is passed to.
+func TestALabelledNodeCanGoIntoSeveralVerbs(t *testing.T) {
+	dag := Dag("etl")
+	loaded := orderedTask(t, dag, "load")
+	extracted := orderedTask(t, dag, "extract")
+	cleaned := orderedTask(t, dag, "cleanup")
+
+	always := Label("always").On(cleaned)
+	loaded.Before(always)
+	extracted.Before(always)
+
+	assertEdgeLabel(t, dag, "load", "cleanup", "always")
+	assertEdgeLabel(t, dag, "extract", "cleanup", "always")
+}
+
+// TestAVerbResultCanGoIntoSeveralVerbs checks that a verb copies the Node it is given instead of
+// appending to it. The slice behind the Node that a verb returns can have room for more endpoints.
+// A verb that appended to that slice would change the Node that another verb returned.
+func TestAVerbResultCanGoIntoSeveralVerbs(t *testing.T) {
+	dag := Dag("etl")
+	source := orderedTask(t, dag, "source")
+	extracted := orderedTask(t, dag, "extract")
+	loaded := orderedTask(t, dag, "load")
+	cleaned := orderedTask(t, dag, "cleanup")
+	audited := orderedTask(t, dag, "audit")
+	first := orderedTask(t, dag, "first")
+	second := orderedTask(t, dag, "second")
+	done := orderedTask(t, dag, "done")
+
+	var none []Node
+	// shared stands for extract and load, and its slice has room for one more endpoint.
+	shared := source.Before(extracted, loaded, source.Before(none...))
+	fromFirst := first.Before(shared, cleaned)
+	second.Before(shared, audited)
+	fromFirst.Before(done)
+
+	assertTasks(t, done.upstreams, extracted, loaded, cleaned)
+}
+
 // TestLabelPassesThroughNoVerbTwice covers the same rule for After, which reads the label from
 // the node it was given rather than from its receiver.
 func TestLabelPassesThroughNoVerbTwice(t *testing.T) {
@@ -383,6 +427,10 @@ func TestLabelOnPanicsOnANilNode(t *testing.T) {
 	assert.PanicsWithValue(t,
 		"airflow.LabelRef.On: more[1] is a nil airflow.Node",
 		func() { Label("when empty").On(loaded, loaded, nil) },
+	)
+	assert.PanicsWithValue(t,
+		"airflow.LabelRef.On: more[0] is a nil *airflow.TaskRef",
+		func() { Label("when empty").On(loaded, (*TaskRef)(nil)) },
 	)
 }
 
@@ -433,8 +481,8 @@ func TestEdgeVerbsRejectANilNode(t *testing.T) {
 		func() { loaded.After(nil) },
 	)
 	assert.PanicsWithValue(t,
-		"airflow.Node.Before: got a nil *airflow.TaskRef",
-		func() { loaded.Before((*TaskRef)(nil)) },
+		"airflow.Node.Before: nodes[1] is a nil *airflow.TaskRef",
+		func() { loaded.Before(cleaned, (*TaskRef)(nil)) },
 	)
 }
 
@@ -525,6 +573,10 @@ func TestEdgeVerbsWithNoNodeDeclareNoEdge(t *testing.T) {
 	var none []Node
 	loaded.Before(none...).Before(cleaned)
 	loaded.After(none...)
+	// When On is given only that empty set, it returns a Node that holds no task or task group, so
+	// nothing carries the label. A verb called on that Node then has no label to reject, so it does
+	// not panic.
+	Label("always").On(loaded.Before(none...)).Before(cleaned)
 
 	assert.Empty(t, loaded.downstreams)
 	assert.Empty(t, loaded.upstreams)
@@ -532,20 +584,30 @@ func TestEdgeVerbsWithNoNodeDeclareNoEdge(t *testing.T) {
 	assert.Empty(t, dag.edgeLabels)
 }
 
-// TestAVerbThatDeclaresNoEdgeReturnsNoLabel covers a verb whose receiver stands for no task. The
-// verb declares no edge. The Node that the verb returns carries none of the labels on the verb's
-// arguments, so a chain can go on from that Node.
-func TestAVerbThatDeclaresNoEdgeReturnsNoLabel(t *testing.T) {
+// TestAVerbWithAnEmptyReceiverRejectsALabel covers a verb whose receiver stands for no task or task
+// group, such as the Node that a verb given no node returns. The verb declares no edge, so a label
+// that it is given has no edge to go on.
+func TestAVerbWithAnEmptyReceiverRejectsALabel(t *testing.T) {
 	dag := Dag("etl")
 	loaded := orderedTask(t, dag, "load")
 	cleaned := orderedTask(t, dag, "cleanup")
+
 	done := orderedTask(t, dag, "done")
 
 	var none []Node
-	loaded.Before(none...).Before(Label("always").On(cleaned)).Before(done)
-
+	assert.PanicsWithValue(t,
+		`airflow.Node.Before: Dag "etl": the receiver stands for no task or task group, `+
+			`so there is no edge for task "cleanup" labelled "always"`,
+		func() { loaded.Before(none...).Before(Label("always").On(cleaned)) },
+	)
+	assert.PanicsWithValue(t,
+		`airflow.Node.Before: Dag "etl": the receiver stands for no task or task group, `+
+			`so there is no edge for task "done" labelled "always"`,
+		func() { loaded.Before(none...).Before(cleaned, Label("always").On(done)) },
+	)
 	assert.Empty(t, cleaned.upstreams)
-	assertEdgeLabel(t, dag, "cleanup", "done", "")
+	assert.Empty(t, done.upstreams)
+	assert.Empty(t, dag.edgeLabels)
 }
 
 // TestEdgeVerbsCheckTheTasksEvenWithNoNode pins that a verb with no node to point at still checks
@@ -562,7 +624,7 @@ func TestEdgeVerbsCheckTheTasksEvenWithNoNode(t *testing.T) {
 		func() { (&TaskRef{}).Before(none...) },
 	)
 	assert.PanicsWithValue(t,
-		"airflow.Node.After: got a nil *airflow.TaskRef",
+		"airflow.Node.After: the receiver is a nil *airflow.TaskRef",
 		func() { (*TaskRef)(nil).After(none...) },
 	)
 

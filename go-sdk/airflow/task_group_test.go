@@ -1263,7 +1263,8 @@ func snapshot(dag *DagRef) dagSnapshot {
 		s.groups = append(s.groups, group.groupID)
 		for _, child := range group.children {
 			s.children[group.groupID] = append(
-				s.children[group.groupID], endpoints("child", child)[0].id(),
+				s.children[group.groupID],
+				appendEndpoints(nil, child, position{"snapshot", "child", -1})[0].id(),
 			)
 		}
 	}
