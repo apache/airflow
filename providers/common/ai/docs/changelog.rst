@@ -121,14 +121,6 @@ Misc
   :ref:`howto/operator:llm`.
 
 .. note::
-  ``airflow.providers.common.ai.toolsets.logging.LoggingToolset`` (public since 0.1.0) is
-  removed from the public API, and importing it now raises ``ImportError``. ``AgentOperator``
-  still logs tool calls through ``enable_tool_logging``. To log tool calls of an agent you
-  build yourself, pass ``capabilities=[ToolLoggingCapability()]`` to the pydantic-ai ``Agent``
-  (import it from ``airflow.providers.common.ai.toolsets.logging``); its ``logger`` argument
-  sets the logger. See :doc:`stability`.
-
-.. note::
   On Airflow >= 3.3, the ``usage_limits`` of the ``LLM*`` operators (``LLMOperator``,
   ``LLMBranchOperator``, ``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``,
   ``LLMFileAnalysisOperator``) counts usage across every attempt of the task instance
@@ -242,7 +234,7 @@ Features
 * ``Rename 'HookToolset' 'tool_name_prefix' to 'tool_prefix' (#74447)``
 * ``Log capability tool calls in AgentOperator (#72202)``
 * ``Let the HITL review plugin address one loop pass or mapped slot (#74351)``
-* ``Export 'DataFusionToolset' and 'AgentSkillsToolset' from 'common.ai' toolsets (#74449)``
+* ``Export 'DataFusionToolset', 'AgentSkillsToolset' and 'LoggingToolset' from 'common.ai' toolsets (#74449)``
 * ``Expose the resolved LLM model name on a dedicated XCom key (#74272)``
 * ``Add 'max_retries' to 'AgentSkillsToolset' (#74381)``
 * ``Add 'include_traceback' to model-backed retry policies (#74308)``
