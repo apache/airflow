@@ -53,7 +53,6 @@ pytestmark = pytest.mark.db_test
 
 SECRET = "processor-client-test-secret-" * 3
 AUDIENCE = "urn:airflow.apache.org:task"
-SESSION_ID = "00000000-0000-0000-0000-0000000000aa"
 HEARTBEAT_EXPIRED = datetime(2026, 10, 5, 11, 0, tzinfo=UTC)
 
 
@@ -146,8 +145,9 @@ def api_url(async_db_engine, api_requests, api_bind_host, api_secret):
 @pytest.fixture
 def provision_token(tmp_path, api_secret):
     token_file = tmp_path / "processor.jwt"
+    test_session_id = str(uuid7())
 
-    def provision(*, session_id=SESSION_ID, valid_for=600):
+    def provision(*, session_id=test_session_id, valid_for=600):
         token = JWTGenerator(secret_key=api_secret, audience=AUDIENCE, valid_for=valid_for).generate(
             {"sub": session_id, "scope": "dag_processor_session", "dag_bundles": ["bundle-a"]}
         )
