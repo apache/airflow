@@ -734,6 +734,10 @@ class IndexedTaskLifecycle:
             # state_store_backend configured the checkpoint holds only a reference to the payload.
             if result is not None and task.do_xcom_push:
                 indexed_task_state.result = result
+            elif task.pushed_return_value is not None:
+                # Pushed by the operator itself, which do_xcom_push does not govern: the retry
+                # replays it as it replays the other pushed XComs.
+                indexed_task_state.result = task.pushed_return_value
             indexed_task_state.record_outlet_events(runner.outlet_events)
             # Written with the one checkpoint, not per push: a retry that skips this indexed task pushes
             # them again, as the runner has deleted them by then.
@@ -841,8 +845,8 @@ class IndexedTaskLifecycle:
         again.
         """
         await self._report(self._runner.report_success, self.task.task.on_success_callback)
-        # The result is only checkpointed when the indexed task pushes XComs and returned something,
-        # so the same condition decides whether there is a return_value_<index> to push at all.
+        # The checkpoint holds a result when the indexed task returned one with do_xcom_push, or pushed
+        # return_value itself, so it alone decides whether there is a return_value_<index> to push.
         if indexed_task_state.result is not None:
             await self._push_result(indexed_task_state.result)
         self._runner.merge_outlet_events_into(self._run.context["outlet_events"])

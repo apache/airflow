@@ -471,6 +471,22 @@ class MockPushingOperator(BaseOperator):
         return self.arg1
 
 
+class MockReturnValuePushingOperator(BaseOperator):
+    """Operator that pushes its result itself under ``return_value`` and returns None."""
+
+    template_fields = ("arg1",)
+
+    def __init__(self, arg1=None, fail=False, **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+        self.fail = fail
+
+    def execute(self, context):
+        context["ti"].xcom_push(key="return_value", value=f"pushed-{self.arg1}")
+        if self.fail:
+            raise RuntimeError("sibling failed")
+
+
 class MockClearingStateStoreOperator(BaseOperator):
     template_fields = ()
 
@@ -2532,6 +2548,44 @@ class TestIterableOperator:
         assert MockPushingOperator.executed == ["a", "b", "b"]
         assert ("foo_0", "foo-of-a") in pushed
         assert ("return_value_0", "a") in pushed
+
+    @pytest.mark.parametrize("do_xcom_push", [True, False])
+    def test_a_return_value_pushed_by_the_operator_is_pushed_again_when_a_retry_skips_the_indexed_task(
+        self, do_xcom_push
+    ):
+        """
+        An operator that pushes ``return_value`` itself and returns None still gets it back on the retry
+        that skips it after a sibling failed; do_xcom_push governs only what execute returns.
+        """
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b", "fail": True}]),
+                task_id="pushes_its_return_value",
+                task_concurrency=1,
+                operator_class=MockReturnValuePushingOperator,
+                do_xcom_push=do_xcom_push,
+            )
+
+            with mock_context(task=iterable_op) as context:
+                store = context["task_state_store"]
+                context["ti"].try_number = 1
+                with pytest.raises(RuntimeError, match="sibling failed"):
+                    iterable_op.execute(context=context)
+                checkpoint = store["_iterable_0"]
+
+                pushed = []
+
+                async def recording_apush(cls, ti, key, value, **kwargs):
+                    pushed.append((key, value))
+
+                iterable_op.expand_input = ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b"}])
+                context["ti"].try_number = 2
+                with patch.object(XCom, "_apush", classmethod(recording_apush)):
+                    iterable_op.execute(context=context)
+
+        assert checkpoint["status"] == "success"
+        assert ("return_value_0", "pushed-a") in pushed
 
     def test_an_indexed_task_pushing_many_keys_writes_one_checkpoint(self):
         """The extra pushes are kept in memory and written with the one SUCCESS checkpoint, not per push."""

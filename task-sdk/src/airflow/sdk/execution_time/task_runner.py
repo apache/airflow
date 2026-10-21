@@ -1156,6 +1156,9 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     # The XComs the indexed task pushed other than its return value, by their key before the index
     # suffix: kept in memory while it runs and written once, with its SUCCESS checkpoint.
     pushed_xcoms: dict[str, Any] = Field(default_factory=dict)
+    # The return value the indexed task pushed itself (``ti.xcom_push("return_value", ...)``): the
+    # checkpoint keeps it when execute returns None, as nothing else would push it again on a retry.
+    pushed_return_value: Any = None
     # The params processed for this index's operator when they differ from the iterated task's:
     # the index iterates ``params``, or the operator set its own. None when the parent's apply.
     own_params: dict[str, Any] | None = None
@@ -1223,7 +1226,9 @@ class IndexedTaskInstance(RuntimeTaskInstance):
 
     def _record_push(self, key: str, value: Any) -> None:
         # The return value has its own slot on the checkpoint and is published by the operator.
-        if key != BaseXCom.XCOM_RETURN_KEY:
+        if key == BaseXCom.XCOM_RETURN_KEY:
+            self.pushed_return_value = value
+        else:
             self.pushed_xcoms[key] = value
 
     def _own_key(self, task_ids: str | Iterable[str] | None, dag_id: str | None, key: str) -> str:
