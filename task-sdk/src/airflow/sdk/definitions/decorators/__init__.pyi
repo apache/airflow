@@ -20,7 +20,7 @@
 # documentation for more details.
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Container, Iterable, Mapping
+from collections.abc import Callable, Collection, Container, Iterable, Mapping, Sequence
 from datetime import timedelta
 from typing import Any, Literal, TypeVar, overload
 
@@ -890,6 +890,26 @@ class TaskDecoratorCollection:
         """
     @overload
     def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
+    def webhook_wait(
+        self,
+        *,
+        webhook: str,
+        events: Sequence[str | int] | None = None,
+        timeout: timedelta | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """
+        Wraps a Python function that returns a match into a task that waits for a webhook delivery.
+
+        The function runs once in each try and returns the wait's match as a dict. The task then parks
+        until a delivery to ``webhook`` that matches it arrives, and returns that delivery as its XCom.
+        A resumed task does not run the function again.
+
+        :param webhook: The webhook's name, as listed in ``[webhooks] names``. (templated)
+        :param events: The delivery events to accept, or None to accept any event. (templated)
+        :param timeout: How long to wait, at most 365 days, or None for the API server's
+            ``[webhooks] default_wait_timeout``.
+        """
     @overload
     def pyspark(  # type: ignore[misc]
         self,

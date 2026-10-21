@@ -38,6 +38,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-standard/operators/datetime.rst",
                     "/docs/apache-airflow-providers-standard/operators/trigger_dag_run.rst",
                     "/docs/apache-airflow-providers-standard/operators/latest_only.rst",
+                    "/docs/apache-airflow-providers-standard/operators/webhooks.rst",
                     "/docs/apache-airflow-providers-standard/sensors/bash.rst",
                     "/docs/apache-airflow-providers-standard/sensors/python.rst",
                     "/docs/apache-airflow-providers-standard/sensors/datetime.rst",
@@ -60,6 +61,7 @@ def get_provider_info():
                     "airflow.providers.standard.operators.smooth",
                     "airflow.providers.standard.operators.branch",
                     "airflow.providers.standard.operators.hitl",
+                    "airflow.providers.standard.operators.webhooks",
                 ],
             }
         ],
@@ -273,5 +275,9 @@ def get_provider_info():
                 "name": "short_circuit",
             },
             {"class-name": "airflow.providers.standard.decorators.stub.stub", "name": "stub"},
+            {
+                "class-name": "airflow.providers.standard.decorators.webhook_wait.webhook_wait_task",
+                "name": "webhook_wait",
+            },
         ],
     }
