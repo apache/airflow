@@ -30,9 +30,10 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(logger_name="http.metrics")
 
-# `/execution` is the Task SDK execution API, mounted as a sub-app. The middleware runs on the
-# outer app, so a request to it passes through here like any other.
-_API_METRICS_PATH_PREFIXES = ("/api/v2", "/ui", "/execution")
+# `/execution` is the Task SDK execution API and `/webhooks` the inbound webhooks app, both mounted
+# as sub-apps. The middleware runs on the outer app, so a request to them passes through here like
+# any other.
+_API_METRICS_PATH_PREFIXES = ("/api/v2", "/ui", "/execution", "/webhooks")
 # Only methods registered on API routes get their own tag value. A method mismatch is rejected
 # before authentication, so any other value would let anonymous clients mint metric series.
 _SERVED_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE"})

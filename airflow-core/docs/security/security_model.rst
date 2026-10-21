@@ -96,6 +96,15 @@ The ``/api/v2/monitor/health`` endpoint responsible for health check updates sho
 accessible. This is because other systems would want to retrieve that information. Another exception
 is the ``/login`` endpoint, as the users are expected to be unauthenticated to use it.
 
+The experimental inbound webhooks are a further exception. An API server started with
+``--apps webhooks``, and only such a server, serves ``POST /webhooks/<name>`` and
+``GET /webhooks/_health`` to callers without Airflow credentials, because the services that send
+webhooks are not Airflow users. A delivery is accepted only for a name that ``[webhooks] names`` lists,
+and only when it passes the check that its source type makes against the shared secret in the
+``webhook_<name>`` connection, so whoever may edit that connection administers the webhook. A source
+type may declare that it answers handshakes, with which some senders check a webhook's URL, without
+that check; a handshake records nothing. See :ref:`inbound-webhooks-security`.
+
 Capabilities of authenticated UI users
 --------------------------------------
 
@@ -442,6 +451,12 @@ A structural test asserts both routers carry the router-level ``Depends(get_user
 refactor that drops the dependency without considering its purpose fails CI rather than
 silently widening the unauthenticated surface.
 
+The inbound webhooks app, which only ``--apps webhooks`` mounts at ``/webhooks``, resolves no user
+at all. Tests pin its surface instead: the app serves exactly ``GET /_health``, ``POST /{name}`` and
+``POST /{name}/``, with no API documentation, and an API server started with ``--apps webhooks``
+alone serves nothing at its root but that mount. Adding a route to either fails CI until the
+allowlist in the test is changed on purpose.
+
 Current isolation limitations
 .............................
 
@@ -654,6 +669,13 @@ model — Airflow does not enforce these natively.
                S5[Remote log handler kwargs]
            end
 
+           subgraph WHK["Webhooks API Server (--apps webhooks)"]
+               direction TB
+               H1[DB connection]
+               H2[Fernet key]
+               H3[Non-worker secrets backend credentials]
+           end
+
            subgraph API["API Server (most privileged)"]
                direction TB
                A1[DB connection]
@@ -664,18 +686,19 @@ model — Airflow does not enforce these natively.
            classDef wrk fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
            classDef ctrl fill:#bbdefb,stroke:#1565c0,stroke-width:2px,color:#000
            class WRK wrk
-           class API,SCH,DFP,TRG ctrl
+           class API,WHK,SCH,DFP,TRG ctrl
 
    Read row-by-row to check which components need a given secret; read column-by-column to
    check what one component is allowed to see:
 
    .. list-table::
       :header-rows: 1
-      :widths: 32 14 14 13 14 13
+      :widths: 28 12 12 12 12 12 12
       :align: left
 
       * - Sensitive value
         - API Server
+        - Webhooks API Server
         - Scheduler
         - Dag File Processor
         - Triggerer
@@ -685,9 +708,11 @@ model — Airflow does not enforce these natively.
         - ✓
         - ✓
         - ✓
+        - ✓
         - —
       * - JWT signing key
         - ✓
+        - —
         - ✓
         - —
         - —
@@ -698,8 +723,10 @@ model — Airflow does not enforce these natively.
         - ✓
         - ✓
         - ✓
+        - ✓
       * - Secrets backend credentials (non-worker)
         - —
+        - ✓
         - ✓
         - ✓
         - ✓
@@ -709,13 +736,20 @@ model — Airflow does not enforce these natively.
         - —
         - —
         - —
+        - —
         - ✓
       * - Remote log handler kwargs
         - —
+        - —
         - ✓
         - —
         - ✓
         - ✓
+
+   The Webhooks API Server is an API server started with ``--apps webhooks`` (experimental, see
+   :ref:`inbound-webhooks-security`). It neither issues nor validates JWTs and serves none of the Core
+   API's routes, so it needs neither the JWT signing key nor ``[api] secret_key``: where the "Needed
+   by" column below lists the API Server for those, it means the Core and Execution API Servers.
 
    The following tables list all security-sensitive configuration variables (marked ``sensitive: true``
    in Airflow's configuration). Deployment Managers should review each variable and ensure it is only
@@ -745,22 +779,22 @@ model — Airflow does not enforce these natively.
         - Dag File Processor
       * - ``AIRFLOW__CORE__FERNET_KEY``
         - Fernet encryption key for connections/variables at rest
-        - API Server, Scheduler, Workers, Dag File Processor, Triggerer
+        - API Server, Webhooks API Server, Scheduler, Workers, Dag File Processor, Triggerer
       * - ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``
         - Metadata database connection string
-        - API Server, Scheduler, Dag File Processor, Triggerer
+        - API Server, Webhooks API Server, Scheduler, Dag File Processor, Triggerer
       * - ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC``
         - Async metadata database connection string
-        - API Server, Scheduler, Dag File Processor, Triggerer
+        - API Server, Webhooks API Server, Scheduler, Dag File Processor, Triggerer
       * - ``AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS``
         - SQLAlchemy engine parameters (may contain credentials)
-        - API Server, Scheduler, Dag File Processor, Triggerer
+        - API Server, Webhooks API Server, Scheduler, Dag File Processor, Triggerer
       * - ``AIRFLOW__LOGGING__REMOTE_TASK_HANDLER_KWARGS``
         - Remote logging handler credentials
         - Scheduler, Workers, Triggerer
       * - ``AIRFLOW__SECRETS__BACKEND_KWARGS``
         - Secrets backend credentials (non-worker mode)
-        - Scheduler, Dag File Processor, Triggerer
+        - Webhooks API Server, Scheduler, Dag File Processor, Triggerer
       * - ``AIRFLOW__SENTRY__SENTRY_DSN``
         - Sentry error reporting endpoint
         - Scheduler, Triggerer
@@ -1148,12 +1182,59 @@ Experimental and alpha features
 Features the project documents as experimental, alpha, or preview do not yet carry security
 guarantees, and defects confined to them are not treated as production security vulnerabilities.
 This includes, at the time of writing, multi-team mode and executors marked alpha in their provider
-documentation.
+documentation. Inbound webhooks are the exception, described in :ref:`inbound-webhooks-security`.
 
 Such defects are still worth fixing and are welcome as public contributions; they are simply not
 handled through the security process, and no advisory is issued. When a feature graduates out of
 experimental status, previously deferred issues affecting it should be reassessed on their merits at
 that point.
+
+.. _inbound-webhooks-security:
+
+Inbound webhooks
+................
+
+Inbound webhooks, served by an API server started with ``--apps webhooks``, are experimental, but
+request handling under ``/webhooks/*`` goes through the security process all the same: verifying
+deliveries, recognizing repeated deliveries, the allowlists of routes and of webhook names, and the
+code of provider webhook sources that runs on these requests (``verify``, ``parse`` and the handshake
+methods), even while such a source is experimental in its provider. These routes answer callers that
+hold no Airflow credentials, so a defect in them is handled like one in any other released feature,
+advisory included. Their experimental status only leaves the project free to change their interface,
+such as their configuration, routes and responses, between releases.
+
+The design leaves the following residual risks, which are not vulnerabilities:
+
+* **A leaked shared secret.** Whoever holds a webhook's shared secret can send deliveries that pass as
+  the sender's, for any event, until the secret is rotated by editing the ``webhook_<name>``
+  connection.
+* **A delivery replayed under a new id.** A delivery is recognized as a repeat by its delivery id
+  together with a digest of its body. Some senders, such as GitHub and Jira, sign only the body, others
+  send a token that covers nothing, and the delivery id travels in a header, so a captured delivery can
+  be sent again under a new id and is processed again. Where the event name travels in a header too, as
+  with GitHub's ``X-GitHub-Event`` or the ``event_header`` option of the standard provider's
+  ``hmac_json`` and ``token_header`` source types, a captured body can also be sent again under any
+  event name, and starts the Dags that subscribe to that event rather than to the original one.
+  Likewise, a delivery from a sender that sends no delivery id cannot be recognized as a repeat, a
+  captured delivery that recorded nothing acts if it is sent again after a Dag subscribes, and any
+  captured delivery can be sent again once its record is older than ``[webhooks] delivery_retention``.
+  Rotating the secret ends all of these.
+* **Discoverable webhook names.** A name that ``[webhooks] names`` lists is answered differently from
+  one it does not list, so the listed names can be found by probing. The secret, not the name, is the
+  credential.
+* **The cost of unsigned requests.** Each request to a listed name costs one signature check over a
+  body of up to the webhook's limit: ``[webhooks] max_body_bytes``, or ``max_body_bytes`` in the extra
+  of its connection. Reading that body holds a connection and up to that much memory for as long as the
+  client takes to send it, since neither Airflow nor Uvicorn times out a slow body, and every request
+  under ``/webhooks`` other than ``/webhooks/_health`` writes an access log line.
+  ``[webhooks] rate_limit_per_minute`` counts only verified deliveries, so that unsigned requests cannot
+  use up a sender's limit; shedding a flood of unsigned or slow requests, by buffering bodies, timing
+  them out and limiting requests per address, is the job of the proxy in front of the process.
+* **Credentials held by an exposed process.** The process that serves inbound webhooks holds the
+  metadata database credentials, the credentials of any secrets backend it reads, and the Fernet key
+  unless it is withheld because no ``webhook_<name>`` connection is stored in the metadata database,
+  while it answers anyone who can reach it. It also imports every installed plugin. Network isolation
+  and a proxy that forwards only ``/webhooks`` to it reduce this exposure but do not remove it.
 
 Request size limits and other reverse-proxy responsibilities
 .............................................................
@@ -1172,7 +1253,10 @@ holds regardless of whether the request is authenticated: it is a distinct point
 as well.
 
 Deployment Managers should ensure a request-size limit is configured at the proxy layer. Airflow is
-not intended to be exposed directly to untrusted networks.
+not intended to be exposed directly to untrusted networks. The exception is an API server started
+with ``--apps webhooks``, which is meant to receive requests from untrusted networks, but only through
+a reverse proxy that forwards nothing but ``/webhooks`` to it and bounds request sizes as described
+here.
 
 Issues only reachable on end-of-life Airflow versions
 ......................................................

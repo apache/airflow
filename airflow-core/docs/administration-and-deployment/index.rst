@@ -38,6 +38,7 @@ This section contains information about deploying Dags into production and the a
     cluster-policies
     priority-weight
     web-stack
+    webhooks
     plugins
     task-and-asset-state-store
     task-and-asset-state-store-cleanup

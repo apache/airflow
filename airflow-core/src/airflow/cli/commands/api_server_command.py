@@ -230,14 +230,18 @@ def api_server(args: Namespace):
 
     # create_app also validates, but only inside the server process, where a failure is retried by
     # uvicorn's multi-worker supervisor and the --dev reloader, or hidden in the --daemon log.
-    from airflow.api_fastapi.app import validate_apps
+    from airflow.api_fastapi.app import build_webhook_registry, validate_apps
 
-    validate_apps(apps)
+    apps_list = validate_apps(apps)
+    if "webhooks" in apps_list:
+        build_webhook_registry()
 
-    # Ensure we set this now, so that each subprocess gets the same value
-    from airflow.api_fastapi.auth.tokens import get_signing_args
+    # A webhooks-only process neither issues nor validates JWTs, so it runs without the signing key.
+    if {"all", "core", "execution"}.intersection(apps_list):
+        # Ensure we set this now, so that each subprocess gets the same value
+        from airflow.api_fastapi.auth.tokens import get_signing_args
 
-    get_signing_args()
+        get_signing_args()
 
     if cli_utils.should_enable_hot_reload(args):
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")

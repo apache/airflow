@@ -904,6 +904,7 @@ Show Plugins menu                      Plugins.menu_access                      
 Show Providers menu                    Providers.menu_access                                                   Op
 List Providers                         Providers.can_read                                                      Op
 Show Connections menu                  Connections.menu_access                                                 Op
+Show Webhook Deliveries menu           Connections.menu_access                                                 Op
 Show Pools menu                        Pools.menu_access                                                       Op
 Show Variables menu                    Variables.menu_access                                                   Op
 Show Roles menu                        List Roles.menu_access                                                  Admin

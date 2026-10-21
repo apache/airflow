@@ -79,12 +79,20 @@ CORE_COMPONENT_MAP: dict[tuple[str, str], str] = {
     ("api", "secret_key"): "API Server, Scheduler, Workers, Triggerer",
     ("api_auth", "jwt_secret"): "API Server, Scheduler",
     ("core", "asset_manager_kwargs"): "Dag File Processor",
-    ("core", "fernet_key"): "API Server, Scheduler, Workers, Dag File Processor, Triggerer",
-    ("database", "sql_alchemy_conn"): "API Server, Scheduler, Dag File Processor, Triggerer",
-    ("database", "sql_alchemy_conn_async"): "API Server, Scheduler, Dag File Processor, Triggerer",
-    ("database", "sql_alchemy_engine_args"): "API Server, Scheduler, Dag File Processor, Triggerer",
+    ("core", "fernet_key"): (
+        "API Server, Webhooks API Server, Scheduler, Workers, Dag File Processor, Triggerer"
+    ),
+    ("database", "sql_alchemy_conn"): (
+        "API Server, Webhooks API Server, Scheduler, Dag File Processor, Triggerer"
+    ),
+    ("database", "sql_alchemy_conn_async"): (
+        "API Server, Webhooks API Server, Scheduler, Dag File Processor, Triggerer"
+    ),
+    ("database", "sql_alchemy_engine_args"): (
+        "API Server, Webhooks API Server, Scheduler, Dag File Processor, Triggerer"
+    ),
     ("logging", "remote_task_handler_kwargs"): "Scheduler, Workers, Triggerer",
-    ("secrets", "backend_kwargs"): "Scheduler, Dag File Processor, Triggerer",
+    ("secrets", "backend_kwargs"): "Webhooks API Server, Scheduler, Dag File Processor, Triggerer",
     ("sentry", "sentry_dsn"): "Scheduler, Triggerer",
     ("workers", "secrets_backend_kwargs"): "Workers",
 }
