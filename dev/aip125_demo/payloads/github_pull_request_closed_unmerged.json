@@ -1,0 +1,34 @@
+{
+  "action": "closed",
+  "number": 4242,
+  "pull_request": {
+    "number": 4242,
+    "state": "closed",
+    "title": "Update configs",
+    "html_url": "https://github.com/my-org/configs/pull/4242",
+    "user": {"login": "octocat", "id": 2, "type": "User"},
+    "merged": false,
+    "merged_at": null,
+    "merged_by": null,
+    "merge_commit_sha": null,
+    "head": {
+      "ref": "update-configs",
+      "sha": "8f1c2d7a9b3e4f5061728394a5b6c7d8e9f0a1b2",
+      "repo": {"full_name": "my-org/configs", "owner": {"login": "my-org"}, "fork": false}
+    },
+    "base": {
+      "ref": "main",
+      "sha": "f95f852bd8fca8fcc58a9a2d6c842781e32a215e",
+      "repo": {"full_name": "my-org/configs", "owner": {"login": "my-org"}, "fork": false}
+    }
+  },
+  "repository": {
+    "id": 2,
+    "name": "configs",
+    "full_name": "my-org/configs",
+    "private": false,
+    "owner": {"login": "my-org", "id": 3, "type": "Organization"}
+  },
+  "organization": {"login": "my-org", "id": 3},
+  "sender": {"login": "octocat", "id": 2, "type": "User"}
+}
