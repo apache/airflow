@@ -98,7 +98,6 @@ internal object TaskRunner {
     bundle: Bundle,
     request: StartupDetails,
     client: Client,
-    cancellation: Cancellation = Cancellation(),
   ): Any {
     val taskDef =
       bundle.taskDef(request.ti.dagId, request.ti.taskId)
@@ -143,7 +142,7 @@ internal object TaskRunner {
         return TaskResult.failure(request.tiContext.shouldRetry)
       }
     return try {
-      val context = Context.from(request, taskDef, cancellation)
+      val context = Context.from(request, taskDef)
       val decider = taskDef.decider
       if (decider == null) instance.execute(context, client) else decide(decider, taskDef, instance, context, client)
       TaskResult.success()
@@ -160,12 +159,10 @@ internal fun runTask(
   bundle: Bundle,
   request: StartupDetails,
   comm: CoordinatorComm,
-  cancellation: Cancellation,
-): Any = TaskRunner.runTask(bundle, request, Client(request, CoordinatorClient(comm)), cancellation)
+): Any = TaskRunner.runTask(bundle, request, Client(request, CoordinatorClient(comm)))
 
 internal fun runTask(
   bundle: Bundle,
   request: StartupDetails,
   client: Client,
-  cancellation: Cancellation = Cancellation(),
-) = TaskRunner.runTask(bundle, request, client, cancellation)
+) = TaskRunner.runTask(bundle, request, client)

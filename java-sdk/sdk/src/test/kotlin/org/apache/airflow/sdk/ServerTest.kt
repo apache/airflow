@@ -78,6 +78,27 @@ class StopAwareTask : Task {
   }
 }
 
+/** The copy that [CopyCheckingTask] checked, kept so the test can check it again after the task returns. */
+@Volatile
+private var checkedCopy: Context? = null
+
+/**
+ * This task works like [StopAwareTask], but it checks for a stop request only through a copy of its
+ * context that another thread made.
+ */
+class CopyCheckingTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    thread { checkedCopy = context.copy() }.join()
+    val copy = checkNotNull(checkedCopy)
+    taskEvents.put("isCancelled() returned ${copy.isCancelled()}")
+    taskEvents.put("started")
+    taskEvents.put("awaitCancellation returned ${copy.awaitCancellation(Duration.ofSeconds(20))}")
+  }
+}
+
 class CheckOnceTask : Task {
   override fun execute(
     context: Context,
@@ -158,12 +179,14 @@ class ServerTest {
   /**
    * Runs [taskClass] as task "a" of Dag "c" through [CoordinatorServer.dispatchTask] and returns the
    * result that the task reports. A thread that plays the supervisor sends the startup details, calls
-   * [whileRunning], reads the result, and calls [beforeAck] before it acknowledges the result.
+   * [whileRunning], reads the result, and calls [beforeAck] before it acknowledges the result. With
+   * [ack] set to false, that thread closes the connection instead, so reporting the result fails.
    */
   private fun dispatchTask(
     taskClass: Class<out Task>,
     whileRunning: () -> Unit = {},
     beforeAck: () -> Unit = {},
+    ack: Boolean = true,
   ): IncomingFrame {
     taskEvents.clear()
     LogSender.messages.clear()
@@ -183,13 +206,16 @@ class ServerTest {
           val result = CoordinatorComm.decode(payload)
           reported.put(result)
           beforeAck()
-          toServer.writeFrame(ackFrame(result.id))
+          if (ack) toServer.writeFrame(ackFrame(result.id)) else comm.close()
         }
       }
 
-    runBlocking { server.dispatchTask(Bundle(listOf(DagDef("c").addTask(TaskDef("a", taskClass)))), comm) }
-    supervisor.join()
-    comm.close()
+    try {
+      runBlocking { server.dispatchTask(Bundle(listOf(DagDef("c").addTask(TaskDef("a", taskClass)))), comm) }
+    } finally {
+      supervisor.join()
+      comm.close()
+    }
     return reported.take()
   }
 
@@ -247,6 +273,51 @@ class ServerTest {
       Assertions.assertInstanceOf(SucceedTask::class.java, result.body, "the task returned, so its success is reported")
       Assertions.assertEquals(listOf("Asking the task to stop", "Letting the JVM handle the signal"), signalLogs())
       Assertions.assertEquals(listOf("SIGTERM"), pollSignals(recorded, 1), "the second SIGTERM should reach the JVM's handler")
+    }
+
+  @Test
+  @DisplayName(
+    "Should let a task that checks for a stop request only through a copy of its context see SIGTERM, " +
+      "and let the copy still see it after the task returns",
+  )
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun copiedContextSeesStopSignal() =
+    withSignalRecorder("TERM") { recorded ->
+      checkedCopy = null
+      dispatchTask(
+        CopyCheckingTask::class.java,
+        whileRunning = {
+          awaitTaskEvent("started")
+          Signal.raise(Signal("TERM"))
+        },
+      )
+
+      Assertions.assertEquals(listOf("awaitCancellation returned true"), taskEvents.toList(), "the copy should see the SIGTERM")
+      Assertions.assertEquals(listOf("Asking the task to stop"), signalLogs())
+      Assertions.assertNull(recorded.poll(), "the SDK should keep the SIGTERM for the task")
+      val copy = checkNotNull(checkedCopy)
+      Assertions.assertTrue(copy.isCancelled(), "the copy should still see the stop request after the task returns")
+      Assertions.assertFalse(copy.copy().isCancelled(), "a context made after the task returns should not see the stop request")
+    }
+
+  @Test
+  @DisplayName("Should not show the stop request to a context made after the task when reporting the result fails")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun stopRequestEndsWhenReportingFails() =
+    withSignalRecorder("TERM") { _ ->
+      Assertions.assertThrows(ApiError::class.java) {
+        dispatchTask(
+          StopAwareTask::class.java,
+          whileRunning = {
+            awaitTaskEvent("started")
+            Signal.raise(Signal("TERM"))
+          },
+          ack = false,
+        )
+      }
+
+      Assertions.assertEquals(listOf("Asking the task to stop"), signalLogs())
+      Assertions.assertFalse(taskContext().isCancelled(), "a context made after the failed report should not see the stop request")
     }
 
   @Test

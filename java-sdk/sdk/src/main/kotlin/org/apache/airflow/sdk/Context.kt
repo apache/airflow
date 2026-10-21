@@ -129,7 +129,10 @@ data class Context(
   /** Registration of the executing task; resolves wired data inputs. */
   internal var taskDef: TaskDef? = null
 
-  internal var cancellation = Cancellation()
+  // The value is read once, when the context is made. A context that read Cancellation.running on
+  // every call would stop seeing the stop request once the server sets the field back to null, for
+  // example in a shutdown hook.
+  private val cancellation = Cancellation.current()
 
   /**
    * Whether Airflow has asked this task to stop.
@@ -148,7 +151,10 @@ data class Context(
    * handles the signal as it would without the SDK. By default the JVM runs its
    * shutdown hooks and exits.
    *
-   * A context made with [copy] does not see the stop request.
+   * Every context made while the task runs sees the same stop request,
+   * including a context made with `copy()`, and keeps seeing it after the task
+   * returns. A context made when the server is not running a task, for example
+   * in a unit test that calls a task directly, never sees a stop request.
    */
   fun isCancelled(): Boolean = cancellation.check()
 
@@ -158,6 +164,10 @@ data class Context(
    * Use this method in place of [Thread.sleep] in a polling loop, so the task
    * stops waiting as soon as Airflow asks it to stop. See [isCancelled] for when
    * Airflow asks a task to stop.
+   *
+   * A context made when the server is not running a task never sees a stop
+   * request. On such a context, this method waits for the whole [timeout] and
+   * returns false.
    *
    * @param timeout How long to wait at most.
    * @return `true` if Airflow asked the task to stop, `false` if [timeout]
@@ -171,7 +181,6 @@ data class Context(
     fun from(
       request: StartupDetails,
       taskDef: TaskDef? = null,
-      cancellation: Cancellation = Cancellation(),
     ): Context =
       Context(
         dagRun =
@@ -188,9 +197,6 @@ data class Context(
             )
           },
         ti = with(request.ti) { TaskInstance(dagId, runId, taskId, mapIndex, tryNumber) },
-      ).also {
-        it.taskDef = taskDef
-        it.cancellation = cancellation
-      }
+      ).also { it.taskDef = taskDef }
   }
 }

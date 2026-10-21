@@ -68,6 +68,25 @@ internal class Cancellation {
   private fun watch() {
     if (!isWatched) isWatched = true
   }
+
+  companion object {
+    /**
+     * The stop request of the task that the server is running in this JVM. The server sets this field
+     * before the task starts. When the server is done with the task, it sets the field back to null.
+     * Every [org.apache.airflow.sdk.Context] made while the task runs keeps this instance, so a copy
+     * of a context made during the task also sees the same request. A single field is enough because
+     * the server runs one task at a time in a JVM, and a stop signal reaches the whole JVM, not one
+     * task.
+     */
+    @Volatile
+    var running: Cancellation? = null
+
+    /**
+     * Returns [running]. When the server is not running a task, for example in a unit test that calls
+     * a task directly, it returns a new [Cancellation] that nobody asks to stop.
+     */
+    fun current(): Cancellation = running ?: Cancellation()
+  }
 }
 
 private val logger = Logger(Cancellation::class)

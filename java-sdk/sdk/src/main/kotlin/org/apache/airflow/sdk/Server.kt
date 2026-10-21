@@ -238,24 +238,29 @@ class CoordinatorServer(
     coordinator: CoordinatorComm,
   ) {
     val cancellation = Cancellation()
-    // The trap stays open until the result is reported. For a task that checks, a signal that
-    // arrives during the report therefore cannot stop the JVM before the result is sent.
-    trapStopSignals { signal ->
-      // A task that never checks cannot stop on its own. A second signal means the sender does not
-      // want to wait. In either case the JVM handles the signal as it would without the SDK.
-      val take = cancellation.isWatched && cancellation.claim()
-      if (take) {
-        // Log before the task can see the request. Otherwise the task may return and the JVM may
-        // exit before this line is written.
-        logger.warning("Asking the task to stop", mapOf("signal" to signal))
-        cancellation.request()
-      } else {
-        logger.info("Letting the JVM handle the signal", mapOf("signal" to signal))
+    Cancellation.running = cancellation
+    try {
+      // The trap stays open until the result is reported. For a task that checks, a signal that
+      // arrives during the report therefore cannot stop the JVM before the result is sent.
+      trapStopSignals { signal ->
+        // A task that never checks cannot stop on its own. A second signal means the sender does not
+        // want to wait. In either case the JVM handles the signal as it would without the SDK.
+        val take = cancellation.isWatched && cancellation.claim()
+        if (take) {
+          // Log before the task can see the request. Otherwise the task may return and the JVM may
+          // exit before this line is written.
+          logger.warning("Asking the task to stop", mapOf("signal" to signal))
+          cancellation.request()
+        } else {
+          logger.info("Letting the JVM handle the signal", mapOf("signal" to signal))
+        }
+        take
+      }.use {
+        val result = runTask(bundle, startup, coordinator)
+        coordinator.communicate<Unit>(result)
       }
-      take
-    }.use {
-      val result = runTask(bundle, startup, coordinator, cancellation)
-      coordinator.communicate<Unit>(result)
+    } finally {
+      Cancellation.running = null
     }
   }
 
