@@ -585,7 +585,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.13.1",
+    "uv>=0.13.4",
 ]
 
 [project.urls]
@@ -1465,7 +1465,7 @@ ci-image = [
 # with AIRFLOW_UV_VERSION would force everyone to upgrade uv on every release. The
 # breeze/prek uv version checks read this value dynamically and tolerate a stale
 # floor; `scripts/ci/prek/upgrade_important_versions.py` deliberately skips it.
-required-version = ">=0.13.1"
+required-version = ">=0.13.4"
 no-build-isolation-package = ["sphinx-redoc"]
 # pydantic-ai-slim[openai]>=2.33 declares openai>=3 (>=3.8 from 2.39), while
 # llama-index-llms-openai (<=0.8.1) and litellm (<=1.102.0, pulled in by the Google provider's
@@ -1640,6 +1640,9 @@ apache-airflow-task-sdk-integration-tests = false
 # past that release so 1.164.0 resolves while any later release stays quarantined.
 # Remove once the rolling window advances past 2026-08-12.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+
+# We need 0.13.4 for trust store fixeds. Remove this `exclude-newer-package` after 2026-10-24, when that release has been out for 4 days
+uv = "2026-10-21T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
