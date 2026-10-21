@@ -193,6 +193,7 @@ connection-types:
       - Heroku
       - Hugging Face
       - LiteLLM
+      - Meta
       - Mistral AI
       - Moonshot AI
       - Nebius
