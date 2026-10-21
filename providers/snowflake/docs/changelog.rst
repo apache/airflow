@@ -37,6 +37,10 @@ Changelog
     ``airflow.providers.snowflake``. Previously released imports continue to work with
     deprecation warnings. SQLAlchemy must be below 2.1 for compatibility with snowflake-sqlalchemy.
 
+.. note::
+
+    **Significant change: OpenLineage query lineage events**
+
     The ``openlineage`` extra now requires ``apache-airflow-providers-openlineage>=2.16.0``
     instead of ``>=2.3.0``. Query lineage emission requires OpenLineage provider 2.16.0
     or later; with an older version it is skipped and only a log message is written.
@@ -53,13 +57,13 @@ Features
 ~~~~~~~~
 
 * ``Add password grant type to Snowflake OAuth token requests (#74804)``
+* ``Snowflake, Databricks: emit query lineage via OpenLineage public API (#73655)``
 * ``Add Snowflake Cortex Agent management operators (#70930)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Prevent Snowflake SQLAlchemy import failures by requiring SQLAlchemy below 2.1 (#73822)``
-* ``Snowflake, Databricks: emit query lineage via OpenLineage public API (#73655)``
 
 Misc
 ~~~~
