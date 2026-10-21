@@ -24,7 +24,6 @@ export const reprocessBehaviors = [
   { label: "components:backfill.missingRuns", taskLevel: false, value: "none" },
   { label: "components:backfill.missingAndErroredRuns", taskLevel: false, value: "failed" },
   { label: "components:backfill.allRuns", taskLevel: false, value: "completed" },
-  // Task-level behaviors are not supported for partitioned Dags.
   { label: "components:backfill.failedTasksOnly", taskLevel: true, value: "failed_tasks" },
   { label: "components:backfill.newTasksOnly", taskLevel: true, value: "new_tasks" },
 ] as const satisfies ReadonlyArray<{ label: string; taskLevel: boolean; value: ReprocessBehavior }>;
