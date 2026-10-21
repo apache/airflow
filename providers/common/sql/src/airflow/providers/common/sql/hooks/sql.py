@@ -381,8 +381,8 @@ class DbApiHook(BaseHook):
                 "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
             )
         # The inspector is cached for the hook's lifetime, so a pooled engine would keep the
-        # connection it reflected with open until the process exits. NullPool closes it after
-        # each inspection instead, like run() and get_records() do.
+        # connection it reflected with open until the process exits. With NullPool, no
+        # connection outlives the inspection that opened it.
         return inspect(self.get_sqlalchemy_engine({"poolclass": NullPool}))
 
     def get_table_schema(self, table_name: str, schema: str | None = None) -> list[dict[str, str]]:
