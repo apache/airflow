@@ -63,7 +63,7 @@ type IfRef struct {
 // When the task runs, the result of fn decides what it skips:
 //   - true skips the task from Else, or nothing if there is no task from Else
 //   - false skips the task from Then
-//   - an error fails the task, which then skips nothing
+//   - an error fails the task, which then pushes no XCom and skips nothing
 //
 // A task from Then or Else runs after the condition, so naming it records an edge from the
 // condition to it, as [TaskRef.Before] would. Declaring that edge as well changes nothing.
@@ -132,7 +132,7 @@ func (g *IfRef) setTask(side string, task *TaskRef) {
 	method := "airflow.IfRef." + side
 	// When the condition task runs, it reads the tasks from Then and Else from the IfRef that If
 	// returned. A task given to a copy of that IfRef would never reach the condition task.
-	if g == nil || g.task == nil || g.task.ifRef != g {
+	if g == nil || g.task == nil || g.task.decider != g {
 		panic(method + ": DagRef.If or TaskGroupRef.If did not return the *airflow.IfRef")
 	}
 	condition, d := g.task.taskID, g.task.dag
@@ -190,9 +190,9 @@ func (g *IfRef) setTask(side string, task *TaskRef) {
 	d.addEdgeLocked(g.task, task, "")
 }
 
-// wrapCondition wraps fn as the task of g. The task skips the side of g that the result of fn
-// does not take.
-func (g *IfRef) wrapCondition(fn any) (bundle.Task, error) {
+// wrap wraps fn as the task of g. The task skips the side of g that the result of fn does not
+// take.
+func (g *IfRef) wrap(fn any) (bundle.Task, error) {
 	fnType := reflect.TypeOf(fn)
 	if fnType.NumOut() != 2 ||
 		fnType.Out(0) != reflect.TypeFor[bool]() ||
@@ -202,20 +202,22 @@ func (g *IfRef) wrapCondition(fn any) (bundle.Task, error) {
 			funcName(fn), describeResults(fnType),
 		)
 	}
-	return bundle.NewPositionalBranchFunction(fn, g.findSkipped)
+	return bundle.NewPositionalBranchFunction(fn, g.decide)
 }
 
-// findSkipped returns the task_id of the task on the side of g that result does not take. It
-// returns nil when that side has no task.
-func (g *IfRef) findSkipped(result any) []string {
+func (g *IfRef) bind(task *TaskRef) { g.task = task }
+
+// decide returns result as the value to push. It also returns the task_id of the task on the side
+// of g that result does not take, when that side has a task.
+func (g *IfRef) decide(result any) (any, []string, error) {
 	notTaken := g.thenTask
 	if result.(bool) {
 		notTaken = g.elseTask
 	}
 	if notTaken == nil {
-		return nil
+		return result, nil, nil
 	}
-	return []string{notTaken.taskID}
+	return result, []string{notTaken.taskID}, nil
 }
 
 func describeResults(fnType reflect.Type) string {

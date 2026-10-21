@@ -25,7 +25,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property, wraps
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import pendulum
 
@@ -58,15 +58,15 @@ def get_execution_api_server_url(conf_source: AirflowConfigParser | ExecutorConf
         Team-specific executors can pass their own config (e.g. ``ExecutorConf``) to resolve
         a team-specific URL.
     """
+    execution_api_server_url = conf_source.get("core", "execution_api_server_url", fallback=None)
+    if execution_api_server_url is not None:
+        return execution_api_server_url
     base_url = conf_source.get("api", "base_url", fallback="/")
     # ExecutorConf.get() is typed as str | None even when fallback= guarantees a str,
-    # so the `not base_url` guard and the cast() below keep mypy happy.
+    # so the `not base_url` guard keeps mypy happy.
     if not base_url or base_url.startswith("/"):
-        base_url = f"http://localhost:8080{base_url}"
-    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-    return cast(
-        "str", conf_source.get("core", "execution_api_server_url", fallback=default_execution_api_server)
-    )
+        base_url = f"http://localhost:{conf_source.getint('api', 'port')}{base_url}"
+    return f"{base_url.rstrip('/')}/execution/"
 
 
 if TYPE_CHECKING:
@@ -418,7 +418,10 @@ class BaseExecutor(LoggingMixin):
         coordinates = ti_key if isinstance(ti_key, TaskInstanceKey) else self._task_coordinates.get(ti_key)
         if coordinates is None:
             extra = f"Task instance {ti_key}: {extra}"
-        self._task_event_logs.append(Log(event=event, task_instance=coordinates, extra=extra))
+        task_instance_id = ti_key.id if isinstance(ti_key, TaskInstanceUuid) else None
+        self._task_event_logs.append(
+            Log(event=event, task_instance=coordinates, task_instance_id=task_instance_id, extra=extra)
+        )
 
     def _register_task(self, ti: TaskInstance | TaskInstanceDTO) -> None:
         """Snapshot identity before provider submission or adoption can emit events."""
@@ -857,7 +860,7 @@ class BaseExecutor(LoggingMixin):
         *,
         server: str | None = None,
         dry_run: bool = False,
-        subprocess_logs_to_stdout: bool = False,
+        subprocess_logs_to_stdout: bool | None = None,
         proctitle: str | None = None,
     ) -> int:
         """
@@ -870,10 +873,15 @@ class BaseExecutor(LoggingMixin):
         :param server: Base URL of the API server (used by task workloads).
         :param dry_run: If True, execute without actual task execution (simulate run).
         :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
+            When not passed (``None``), falls back to the core ``[logging] task_logs_to_stdout``
+            setting, so executors that do not need a worker-level override can rely on this default.
         :param proctitle: Process title to set for this workload. If not provided, defaults to
             ``"airflow supervisor: <workload.display_name>"``.
         :return: Exit code of the process.
         """
+        if subprocess_logs_to_stdout is None:
+            subprocess_logs_to_stdout = conf.getboolean("logging", "task_logs_to_stdout", fallback=False)
+
         try:
             if sys.platform != "darwin":
                 from setproctitle import setproctitle
@@ -904,8 +912,15 @@ class BaseExecutor(LoggingMixin):
                 sentry_integration=getattr(workload, "sentry_integration", ""),
             )
         if isinstance(workload, ExecuteCallback):
+            from airflow.executors.workloads.callback import CALLBACK_KWARGS_ENCODING_KEY
             from airflow.sdk.execution_time.callback_supervisor import supervise_callback
 
+            # Only passed when set, so callbacks stored without it run on any Task SDK, while
+            # encoded kwargs fail on a Task SDK that cannot decode them instead of reaching
+            # the callback encoded.
+            encoding_kwargs = {}
+            if kwargs_encoding := workload.callback.data.get(CALLBACK_KWARGS_ENCODING_KEY):
+                encoding_kwargs["callback_kwargs_encoding"] = kwargs_encoding
             return supervise_callback(
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),
@@ -915,6 +930,7 @@ class BaseExecutor(LoggingMixin):
                 bundle_info=workload.bundle_info,
                 token=workload.token,
                 server=server,
+                **encoding_kwargs,
             )
         if isinstance(workload, TestConnection):
             from airflow.sdk.execution_time.connection_test_supervisor import supervise_connection_test

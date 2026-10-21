@@ -19,9 +19,14 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.DagSource
+import org.apache.airflow.sdk.internal.GROUP_ID
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.checkConfigValue
+import org.apache.airflow.sdk.internal.deriveJoinNodeIds
+import org.apache.airflow.sdk.internal.deriveTaskId
 import org.apache.airflow.sdk.internal.validateTaskInput
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.Throws
 
 /**
@@ -29,7 +34,7 @@ import kotlin.Throws
  *
  * Create a [DagDef] directly and register [TaskDef]s with [addTask].
  *
- * The [Builder.Dag] annotation should generally be preferred in user code,
+ * The [Airflow.Dag] annotation should generally be preferred in user code,
  * where the annotation processor generates the wiring for you. Only use this
  * class directly if you need to do low-level plumbing:
  *
@@ -39,16 +44,40 @@ import kotlin.Throws
  * extract.before(dag.task("load", Load.class));
  * ```
  *
- * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
- *    dashes, dots, or underscores; must be unique within a [Bundle].
+ * Dag and task IDs are validated authoritatively by the Airflow server. This
+ * class does not check the characters or length of a Dag or task ID. IDs the
+ * server would reject are reported as best-effort build-time warnings by the
+ * Gradle plugin's `checkAirflowBundle` task, which runs [BundleInspector]
+ * against the assembled [Bundle].
  *
- * @see Builder.Dag
+ * @param id Dag identifier; must be unique within a [Bundle].
+ *
+ * @see Airflow.Dag
  */
 class DagDef(
-  val id: String, // TODO: charset check?
+  val id: String,
 ) {
   internal val tasks = linkedMapOf<String, TaskDef>()
   internal val dagConfig = linkedMapOf<String, Any>()
+
+  /** Task groups keyed by their full ID, parents before the groups nested in them. */
+  internal val groups = linkedMapOf<String, TaskGroupRef>()
+
+  /** Edges with a task group at either end, in the order drawn. */
+  internal val groupEdges = linkedSetOf<Pair<Endpoint, Endpoint>>()
+
+  /** The labels that [Label.on] put on [groupEdges], keyed by the edge. */
+  internal val groupEdgeLabels = mutableMapOf<Pair<Endpoint, Endpoint>, EdgeLabel>()
+
+  /**
+   * Whether a [Bundle] has taken this Dag. A decider checked when the Dag was
+   * registered cannot be changed afterwards, because nothing would check the
+   * change.
+   */
+  internal var registered: Boolean = false
+
+  /** Outermost class that declared this Dag, or `null` if it could not be told. */
+  internal var declaringClass: Class<*>? = DagSource.capture()
 
   /**
    * Sets one Dag-level configuration value.
@@ -133,13 +162,321 @@ class DagDef(
     task.owner?.let { owner ->
       throw IllegalArgumentException("Task '${task.id}' already belongs to Dag '${owner.id}'")
     }
+    require(task.id !in groups) { "Dag '$id' already has a task group with ID: ${task.id}" }
+    requireNotJoinNode(task.id)
     require(tasks.putIfAbsent(task.id, task) == null) {
       "Tasks in Dag have duplicate ID: ${task.id}"
     }
     task.owner = this
     return this
   }
+
+  /**
+   * Declares a task that starts a run of another Dag.
+   *
+   * ```java
+   * dag.task("trigger_downstream", new TriggerDagRun("downstream_etl"));
+   * ```
+   *
+   * The task runs no Java code and takes no arguments, so it has no ID to
+   * derive and names one here.
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param trigger What to trigger, and how.
+   * @return The handle representing this task.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  fun task(
+    id: String,
+    trigger: TriggerDagRun,
+  ): TaskRef<Void> {
+    val def = TaskDef(id, trigger)
+    addTask(def)
+    return TaskRef(def)
+  }
+
+  /**
+   * Declares a task whose boolean picks one of two tasks; the other is
+   * skipped.
+   *
+   * The task's ID is the class's simple name with its first character
+   * lowercased, so `HasRows.class` becomes `hasRows`. Use
+   * [If(id, definition)][If] to set it, and [ConditionRef.config] for the
+   * task's other settings:
+   *
+   * ```java
+   * dag.If(HasRows.class).config("retries", 2).Then(load).Else(reportEmpty);
+   * ```
+   *
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(definition: Class<out ConditionTask>): ConditionRef = If(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a task whose boolean picks one of two tasks, under the task ID
+   * [id].
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   *
+   * @see If
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(
+    id: String,
+    definition: Class<out ConditionTask>,
+  ): ConditionRef = ConditionRef.of(task(id, definition))
+
+  /**
+   * Declares a task that chooses one of several tasks to run; every other one
+   * is skipped.
+   *
+   * The task's ID is the class's simple name with its first character
+   * lowercased, so `PickPath.class` becomes `pickPath`. Use
+   * [Switch(id, definition)][Switch] to set it, and [SwitchRef.config] for the
+   * task's other settings:
+   *
+   * ```java
+   * dag.Switch(PickPath.class).Case(handleLong).Case(handleShort);
+   * ```
+   *
+   * @param definition Class that implements [SwitchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The switch, to list its cases on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Switch(definition: Class<out SwitchTask>): SwitchRef = Switch(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a task that chooses one of several tasks to run, under the task
+   * ID [id].
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [SwitchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The switch, to list its cases on.
+   * @throws IllegalArgumentException if a task with the same ID is already
+   *    registered.
+   *
+   * @see Switch
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Switch(
+    id: String,
+    definition: Class<out SwitchTask>,
+  ): SwitchRef = SwitchRef.of(task<Any?>(id, definition))
+
+  /**
+   * Declares a task group of this Dag.
+   *
+   * ```java
+   * var staging = dag.taskGroup("staging");
+   * var stage = staging.task("stage", Stage.class); // task "staging.stage"
+   * extract.before(staging);
+   * ```
+   *
+   * @param id Group ID. Must contain only ASCII letters, digits, underscores,
+   *    or dashes, and differ from every task and group ID in this Dag.
+   * @return The group, to declare tasks in and to wire edges with.
+   * @throws IllegalArgumentException if [id] is not a valid group ID, or the
+   *    Dag already has a task or task group with that ID. Also thrown if a
+   *    task already has the ID of one of the group's join nodes.
+   *    [TaskGroupRef] explains join nodes.
+   */
+  fun taskGroup(id: String): TaskGroupRef = addGroup(null, id)
+
+  internal fun addGroup(
+    parent: TaskGroupRef?,
+    localId: String,
+  ): TaskGroupRef {
+    require(GROUP_ID.matches(localId)) {
+      "Task group ID '$localId' must contain only ASCII letters, digits, underscores, or dashes"
+    }
+    val groupId = parent?.qualify(localId) ?: localId
+    require(groupId !in tasks && groupId !in groups) {
+      "Dag '$id' already has a task or task group with ID: $groupId"
+    }
+    requireNotJoinNode(groupId)
+    // Python accepts a task that took a join node ID of the new group before
+    // the group existed. The Graph view then draws the edges into or out of
+    // the group through that task. This check rejects that order. The Go SDK
+    // rejects it too. Only a task can already have a join node ID of the new
+    // group. A group with that ID would have to be nested inside the new
+    // group, which does not exist yet.
+    deriveJoinNodeIds(groupId).firstOrNull { it in tasks }?.let { taken ->
+      throw IllegalArgumentException(
+        "Dag '$id' already has a task with ID: $taken, which is the ID of a join node of task group '$groupId'",
+      )
+    }
+    return TaskGroupRef(this, groupId, parent).also {
+      groups[groupId] = it
+      parent?.children?.add(it)
+    }
+  }
+
+  /**
+   * Rejects [nodeId] if a task group of this Dag has a join node with the ID
+   * [nodeId]. A join node's ID is its group's ID, a dot, and a suffix with no
+   * dot in it. So at most one group can have a join node with the ID [nodeId].
+   * That group's ID is the part of [nodeId] before its last dot.
+   */
+  private fun requireNotJoinNode(nodeId: String) {
+    val groupId = nodeId.substringBeforeLast('.', "")
+    require(groupId !in groups || nodeId !in deriveJoinNodeIds(groupId)) {
+      "Dag '$id' already has a join node of task group '$groupId' with ID: $nodeId"
+    }
+  }
+
+  /**
+   * What this Dag's task-group edges mean in terms of tasks.
+   *
+   * A group upstream stands for its leaves and a group downstream for its
+   * roots. Edges are read in the order they were drawn, each seeing the ones
+   * before it, which is how Python resolves a group's endpoints at every
+   * `>>`. The result is computed on demand and stored nowhere, so a task
+   * added to a group after the Dag was registered still counts.
+   */
+  internal fun expandGroupEdges(): GroupExpansion {
+    val upstreams = mutableMapOf<String, MutableSet<String>>()
+    val edges = mutableMapOf<String, MutableGroupEdges>()
+    val labels = mutableMapOf<Pair<String, String>, EdgeLabel>()
+    val grouped = groups.values.flatMapTo(mutableSetOf()) { it.taskIds }
+
+    fun edgesOf(groupId: String) = edges.getOrPut(groupId) { MutableGroupEdges() }
+
+    fun upstreamIds(def: TaskDef): Set<String> = def.upstreams.mapTo(linkedSetOf()) { it.id } + upstreams[def.id].orEmpty()
+
+    fun roots(group: TaskGroupRef): List<TaskDef> {
+      val members = group.nodes()
+      val ids = members.mapTo(mutableSetOf()) { it.id }
+      return members.filter { task -> upstreamIds(task).none { it in ids } }
+    }
+
+    fun leaves(group: TaskGroupRef): List<TaskDef> {
+      val members = group.nodes()
+      val ids = members.mapTo(mutableSetOf()) { it.id }
+      val fedInside = members.flatMapTo(mutableSetOf()) { task -> upstreamIds(task).filter { it in ids } }
+      return members.filter { it.id !in fedInside }
+    }
+
+    // Python's find_leaves: the group's own leaves, else whatever already runs
+    // before it, else the group it is nested in.
+    fun leavesOf(endpoint: Endpoint): List<TaskDef> =
+      when (endpoint) {
+        is TaskDef -> listOf(endpoint)
+        is TaskGroupRef -> {
+          var group: TaskGroupRef? = endpoint
+          var found: List<TaskDef> = emptyList()
+          while (group != null && found.isEmpty()) {
+            found = leaves(group).ifEmpty { edgesOf(group.id).upstreamTaskIds.map { tasks.getValue(it) } }
+            group = group.parent
+          }
+          found
+        }
+      }
+
+    fun rootsOf(endpoint: Endpoint): List<TaskDef> =
+      when (endpoint) {
+        is TaskDef -> listOf(endpoint)
+        is TaskGroupRef -> roots(endpoint)
+      }
+
+    for ((upstream, downstream) in groupEdges) {
+      val from = leavesOf(upstream).map { it.id }
+      val roots = rootsOf(downstream)
+      roots.forEach { task -> upstreams.getOrPut(task.id) { linkedSetOf() } += from }
+      // Python's `extract >> Label("x") >> group` also writes the label on
+      // the edge from extract to each root of the group. The code below does
+      // the same when no group holds extract. It does not copy the rarer
+      // cases where Python labels such edges. The UI never draws the edges
+      // from extract to the roots, because it draws an edge to the group's
+      // node instead.
+      val label = groupEdgeLabels[upstream to downstream]
+      if (label != null && upstream is TaskDef && upstream.id !in grouped && downstream is TaskGroupRef) {
+        roots.forEach { root ->
+          val ends = upstream.id to root.id
+          if (labels[ends].let { it == null || it.order < label.order }) labels[ends] = label
+        }
+      }
+      if (downstream is TaskGroupRef) {
+        edgesOf(downstream.id).upstreamTaskIds += from
+        if (upstream is TaskGroupRef) edgesOf(downstream.id).upstreamGroupIds += upstream.id
+      }
+      // When both ends are groups, the upstream records the downstream group
+      // only, not its tasks, which is how Python leaves it.
+      when {
+        upstream is TaskGroupRef && downstream is TaskGroupRef ->
+          edgesOf(upstream.id).downstreamGroupIds += downstream.id
+        upstream is TaskGroupRef && downstream is TaskDef ->
+          edgesOf(upstream.id).downstreamTaskIds += downstream.id
+      }
+    }
+    return GroupExpansion(upstreams, edges, labels)
+  }
 }
+
+/**
+ * A label that [Label.on] put on an edge.
+ * [order] grows with each label set, so when two labels land on the same edge, the one set later wins, as in Python.
+ */
+internal class EdgeLabel(
+  val text: String,
+) {
+  val order: Long = nextOrder.getAndIncrement()
+
+  private companion object {
+    val nextOrder = AtomicLong()
+  }
+}
+
+/**
+ * The task edges a Dag's task-group edges stand for, and the edges each group
+ * records for itself, as [DagDef.expandGroupEdges] worked them out.
+ *
+ * @property labels The label that each of those task edges takes from its
+ *    group edge. Each key is the pair of task IDs at the two ends of the
+ *    task edge, upstream first.
+ */
+internal class GroupExpansion(
+  private val upstreams: Map<String, Set<String>>,
+  private val edges: Map<String, GroupEdges>,
+  val labels: Map<Pair<String, String>, EdgeLabel>,
+) {
+  /** Every task [def] runs after: the edges it carries, plus the ones a group edge implies. */
+  fun upstreamsOf(def: TaskDef): Set<String> = def.upstreams.mapTo(linkedSetOf()) { it.id } + upstreams[def.id].orEmpty()
+
+  /** The edges the group with full ID [groupId] records for itself. */
+  fun edgesOf(groupId: String): GroupEdges = edges[groupId] ?: EMPTY_GROUP_EDGES
+}
+
+/** One task group's own edges, as Python's `TaskGroup` records them. */
+internal open class GroupEdges {
+  open val upstreamGroupIds: Set<String> = emptySet()
+  open val downstreamGroupIds: Set<String> = emptySet()
+  open val upstreamTaskIds: Set<String> = emptySet()
+  open val downstreamTaskIds: Set<String> = emptySet()
+}
+
+private class MutableGroupEdges : GroupEdges() {
+  override val upstreamGroupIds = linkedSetOf<String>()
+  override val downstreamGroupIds = linkedSetOf<String>()
+  override val upstreamTaskIds = linkedSetOf<String>()
+  override val downstreamTaskIds = linkedSetOf<String>()
+}
+
+private val EMPTY_GROUP_EDGES = GroupEdges()
 
 /**
  * One task definition: its ID, the class that implements it, its upstream
@@ -159,20 +496,47 @@ class DagDef(
  *    declared input cannot be bound, so that a mis-declared input fails while
  *    the [Bundle] is built rather than mid-run.
  *
- * @see Builder.Task
+ * @see Airflow.Task
  */
 class TaskDef(
   val id: String,
   val definition: Class<out Task>,
-) {
+) : Endpoint {
+  /**
+   * Declares a task that starts a run of another Dag instead of running Java
+   * code.
+   *
+   * [DagDef.task] is the spelling user code uses; this is what a generated
+   * wiring view calls.
+   *
+   * @param id Task identifier, unique within a [DagDef].
+   * @param trigger What to trigger, and how; settings made on it later do not
+   *    reach this task.
+   */
+  constructor(id: String, trigger: TriggerDagRun) : this(id, TriggerDagRunPlaceholder::class.java) {
+    this.trigger = trigger.snapshot()
+  }
+
   init {
     validateTaskInput(definition)
   }
 
   internal val configValues = linkedMapOf<String, Any>()
   internal val inputs = mutableListOf<Arg<*>>()
+
+  /** Name of the task parameter each of [inputs] feeds, in the same order. */
+  internal val inputNames = mutableListOf<String>()
   internal val upstreams = linkedSetOf<TaskDef>()
+
+  /** The labels that [Label.on] put on edges from [upstreams], keyed by the upstream task. */
+  internal val upstreamLabels = mutableMapOf<TaskDef, EdgeLabel>()
   internal var owner: DagDef? = null
+
+  /** What this task decides to run, for a condition or a switch; null otherwise. */
+  internal var decider: DeciderDef? = null
+
+  /** The Dag run this task starts, for a task declared from a [TriggerDagRun]; null otherwise. */
+  internal var trigger: TriggerDagRun? = null
 
   /**
    * Sets one task-level configuration value.
@@ -208,7 +572,7 @@ class TaskDef(
 /**
  * A single unit of work executed by Airflow.
  *
- * Prefer using the [Builder.Task] annotation with [Builder.Dag] to have the
+ * Prefer using the [Airflow.Task] annotation with [Airflow.Dag] to have the
  * annotation processor generate an implementation for you. Only use this
  * interface if you need to do low-level plumbing.
  *
@@ -219,8 +583,8 @@ class TaskDef(
  * Implement [InputTask] instead for a task the Python Dag file calls with
  * TaskFlow arguments; the SDK then resolves those arguments and injects them.
  *
- * @see Builder.Dag
- * @see Builder.Task
+ * @see Airflow.Dag
+ * @see Airflow.Task
  * @see InputTask
  */
 interface Task {

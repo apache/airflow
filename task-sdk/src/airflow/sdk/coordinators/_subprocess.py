@@ -30,12 +30,16 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
+import json
 import os
 import selectors
 import signal
 import socket
+import stat
 import subprocess
 import time
+from datetime import UTC, datetime
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
 
 import attrs
@@ -43,23 +47,28 @@ import psutil
 import structlog
 
 from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
-from airflow.sdk.api.datamodels._generated import BundleInfo
+from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
 from airflow.sdk.configuration import conf
+from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
-from airflow.sdk.execution_time.coordinator import BaseCoordinator
+from airflow.sdk.execution_time.comms import RetryTask, TaskState
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
 if TYPE_CHECKING:
     import pathlib
     from collections.abc import Callable, Sequence
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
-    from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.api.datamodels._generated import TaskInstance, TIRunContext
+    from airflow.sdk.execution_time.comms import SetTaskStateStore
+    from airflow.sdk.execution_time.supervisor import RequestResult
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
@@ -193,6 +202,7 @@ def _build_runtime_env() -> dict[str, str]:
         "AIRFLOW__API__BASE_URL": conf.get("api", "base_url", fallback="/"),
         "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": str(conf.getboolean("operators", "default_deferrable")),
         "AIRFLOW__TRIGGERER__QUEUES_ENABLED": str(conf.getboolean("triggerer", "queues_enabled")),
+        "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS": conf.get("state_store", "default_retention_days"),
     }
 
 
@@ -398,10 +408,60 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         return self
 
+    def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
+        """
+        Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
+
+        Unlike ``XCom.delete``, this method does not purge the XCom backend, for two reasons. XComs that a
+        runtime pushes go straight to the API server and never pass through the backend. Also, a purge may
+        need a connection that a hook running in the supervisor process cannot look up, such as a
+        connection that exists only in Airflow's metadata database. So if Python code stored an XCom for
+        this task instance through the backend, deleting that XCom here leaves the stored object in the
+        backend's storage.
+
+        If an XCom cannot be deleted, this try fails and the task does not run.
+        """
+        for key in ti_context.xcom_keys_to_clear or ():
+            self.process_log.debug("Clearing XCom with key", key=key)
+            try:
+                self.client.xcoms.delete(ti.dag_id, ti.run_id, ti.task_id, key, ti.map_index)
+            except Exception as e:
+                self.process_log.exception("Failed to clear XCom; not running the task", key=key)
+                end_date = datetime.now(tz=UTC)
+                reason = f"Failed to clear XCom {key!r}: {e}"
+                # wait() sends this outcome to the server after the runtime process exits, the same
+                # way it sends an outcome that the runtime itself reported.
+                self._pending_terminal_state_msg = (
+                    RetryTask(end_date=end_date, retry_reason=reason)
+                    if ti_context.should_retry
+                    else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
+                )
+                self.kill(signal.SIGKILL)
+                return None
+        # The supervisor has already deleted the listed XComs, so it sends the runtime an empty list.
+        # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
+        # them a second time.
+        return ti_context.model_copy(update={"xcom_keys_to_clear": []})
+
     def wait(self) -> int:
         code = super().wait()
         self._close_unused_sockets(self._comm_server, self._logs_server)
         return code
+
+    def _handle_set_task_state_store(
+        self, msg: SetTaskStateStore, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        # A Python task warns in its own setter; a language SDK runtime cannot compute the size
+        # json.dumps gives, so the supervisor warns for it in the task log.
+        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
+            if (size := len(json.dumps(msg.value))) > limit:
+                self.process_log.warning(
+                    "Task store value exceeds configured max_value_storage_bytes",
+                    key=msg.key,
+                    size=size,
+                    max_value_storage_bytes=limit,
+                )
+        return super()._handle_set_task_state_store(msg, log, req_id)
 
 
 def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
@@ -427,6 +487,54 @@ def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) 
     return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
 
 
+def _resolve_task_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+    """
+    Materialize the Dag bundle of a task, pinned to a concrete version.
+
+    *logger* is the task logger, so materialization failures surface in the task log.
+
+    :raises TaskLaunchError: when the bundle cannot be read.
+    """
+    cannot_read = f"Dag bundle {bundle_info.name!r} cannot be read"
+    try:
+        bundle = _initialize_pinned_bundle(bundle_info, logger)
+    except Exception as e:
+        raise TaskLaunchError(f"{cannot_read}: {e}") from e
+    try:
+        bundle.path.stat()
+    except (FileNotFoundError, NotADirectoryError):
+        raise TaskLaunchError(f"{cannot_read}: it resolved to {bundle.path}, which does not exist.") from None
+    except OSError as e:
+        raise TaskLaunchError(f"{cannot_read}: {e}") from e
+    return bundle
+
+
+def _is_file_in_bundle(bundle: BaseDagBundle, rel_path: str) -> bool:
+    """
+    Return whether *rel_path* names a file inside *bundle*.
+
+    *rel_path* must be a relative path inside the bundle, with no ``..`` part. A symlink in the
+    bundle is followed, as the Dag processor follows it when it lists the bundle's files.
+    """
+    path = PurePosixPath(rel_path)
+    if path.is_absolute() or ".." in path.parts:
+        return False
+    try:
+        return stat.S_ISREG((bundle.path / path).stat().st_mode)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+
+
+def _require_supported_schema_version(version: str) -> None:
+    """Raise ``ValueError`` unless the supervisor of this worker's Task SDK knows *version*."""
+    try:
+        get_schema_version_migrator().resolve_version(version)
+    except ValueError as e:
+        raise ValueError(
+            f"uses supervisor schema version {version!r}, which this worker's Task SDK does not support"
+        ) from e
+
+
 @attrs.define(kw_only=True)
 class SubprocessCoordinator(BaseCoordinator):
     """
@@ -446,6 +554,7 @@ class SubprocessCoordinator(BaseCoordinator):
         If unset, the task's own Dag bundle is used. A named bundle resolves to the
         version current when the task starts; the task's own bundle uses the run's
         version. Either way the resolved version is pinned for the whole task.
+        A task of a native Dag does not read this bundle: it runs its own Dag file.
     """
 
     task_startup_timeout: float = 10.0
@@ -495,6 +604,18 @@ class SubprocessCoordinator(BaseCoordinator):
         then exchanged at the runtime's native wire format.
         """
         raise NotImplementedError
+
+    def _build_dag_file_command(
+        self, *, what: TaskInstance, path: pathlib.Path
+    ) -> tuple[list[str], str | None]:
+        """
+        Build the command that runs *what* from the native Dag file at *path*.
+
+        Subclasses can retrieve the root of the Dag bundle holding *path* with
+        :meth:`_get_scan_roots`. The contract is that of :meth:`_build_execute_task_command`.
+        Raise an exception when the file cannot run *what*.
+        """
+        raise NotImplementedError(f"{type(self).__name__} cannot run the tasks of a native Dag")
 
     def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
         """
@@ -557,6 +678,72 @@ class SubprocessCoordinator(BaseCoordinator):
         finally:
             self._active_scan_roots = None
 
+    def _is_native_dag_file(self, rel_path: str, bundle_name: str) -> bool:
+        """
+        Return whether *rel_path* is a native Dag file, which this coordinator must run.
+
+        :raises TaskLaunchError: when the bundle's Dag importers cannot be built, the coordinator class
+            of the file's importer cannot be loaded, or the file is a native Dag file of a runtime that
+            this coordinator does not run. None of these retries.
+        """
+        try:
+            importer = find_claiming_importer(rel_path, bundle_name)
+        except Exception as e:
+            raise TaskLaunchError(
+                f"Cannot tell whether {rel_path!r} is a native Dag file, because the Dag importers of "
+                f"Dag bundle {bundle_name!r} cannot be built: {e.__cause__ or e}",
+                retryable=False,
+            ) from e
+        if importer is None:
+            return False
+        try:
+            runtime = import_string(importer.coordinator_classpath)
+            is_runtime = isinstance(self, runtime)
+        except Exception as e:
+            raise TaskLaunchError(
+                f"{rel_path!r} is a native Dag file, but its coordinator class "
+                f"{importer.coordinator_classpath!r} cannot be loaded: {e}",
+                retryable=False,
+            ) from e
+        if not is_runtime:
+            raise TaskLaunchError(
+                f"{rel_path!r} is a native Dag file that a {runtime.__name__} runs, but the task's queue "
+                f"routes it to a {type(self).__name__}. Route the queue to a {runtime.__name__} in "
+                "[sdk] queue_to_coordinator.",
+                retryable=False,
+            )
+        return True
+
+    def _build_native_task_command(
+        self, *, what: TaskInstance, bundle: BaseDagBundle, rel_path: str
+    ) -> tuple[list[str], str | None]:
+        """
+        Check that *rel_path* is a file of *bundle* that this coordinator can run, and return its command.
+
+        :raises TaskLaunchError: when the file is missing or cannot be read, cannot run *what*, or needs
+            a supervisor schema version that this worker's Task SDK does not support.
+        """
+        version = f" at version {bundle.version!r}" if bundle.version is not None else ""
+        try:
+            is_file = _is_file_in_bundle(bundle, rel_path)
+        except OSError as e:
+            raise TaskLaunchError(
+                f"Dag file {rel_path!r} in Dag bundle {bundle.name!r}{version} cannot be read: {e}"
+            ) from e
+        if not is_file:
+            raise TaskLaunchError(
+                f"Dag file {rel_path!r} is not a file in Dag bundle {bundle.name!r}{version}"
+            )
+        try:
+            command, schema_version = self._build_dag_file_command(what=what, path=bundle.path / rel_path)
+            if schema_version is not None:
+                _require_supported_schema_version(schema_version)
+        except Exception as e:
+            raise TaskLaunchError(
+                f"Dag file {rel_path!r} in Dag bundle {bundle.name!r}{version} cannot run: {e}"
+            ) from e
+        return command, schema_version
+
     def execute_task(
         self,
         *,
@@ -569,7 +756,23 @@ class SubprocessCoordinator(BaseCoordinator):
         subprocess_logs_to_stdout: bool,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
-        bundle = self._resolve_artifact_bundle(bundle_info, logger or log)
+        """
+        Run *what*.
+
+        A task of a native Dag runs its own Dag file, *dag_rel_path* in the Dag bundle of
+        *bundle_info* at the version of the run, and never another Dag file. Its runtime may still
+        read other files of the bundle, such as the JARs on a Java classpath. Any other task runs the
+        artifact found by scanning the bundle that holds the artifacts.
+
+        :raises TaskLaunchError: when a native Dag file cannot run, before the runtime starts.
+        """
+        task_logger = logger or log
+        rel_path = os.fspath(dag_rel_path)
+        is_native = self._is_native_dag_file(rel_path, bundle_info.name)
+        if is_native:
+            bundle = _resolve_task_bundle(bundle_info, task_logger)
+        else:
+            bundle = self._resolve_artifact_bundle(bundle_info, task_logger)
         # Hold the version lock across start()/wait() so bundle cleanup cannot
         # rmtree a version this task is still reading from, mirroring
         # task_runner.main() for the Python task path.
@@ -577,7 +780,12 @@ class SubprocessCoordinator(BaseCoordinator):
             BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version),
             self._set_scan_roots([bundle.path]),
         ):
-            command, subprocess_schema_version = self._build_execute_task_command(what=what)
+            if is_native:
+                command, subprocess_schema_version = self._build_native_task_command(
+                    what=what, bundle=bundle, rel_path=rel_path
+                )
+            else:
+                command, subprocess_schema_version = self._build_execute_task_command(what=what)
             process = _PopenActivitySubprocess.start(
                 what=what,
                 dag_rel_path=dag_rel_path,

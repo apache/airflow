@@ -34,7 +34,7 @@ sealed class Arg<T> {
      * Wraps an inline constant as a task argument, passed to the task as a
      * constant and creating no dependency edge.
      *
-     * [Deps.lit] is the spelling a [Builder.Deps] class uses; this is the same
+     * [Deps.lit] is the spelling an [Airflow.Deps] class uses; this is the same
      * call for code with no `Deps` in scope.
      *
      * @param value Constant to bind; may be null for a nullable parameter.

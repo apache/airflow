@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from airflow_breeze.utils.functools_cache import clear_all_cached_functions
@@ -64,3 +66,17 @@ def pytest_unconfigure(config):
 @pytest.fixture(autouse=True)
 def clear_clearable_cache():
     clear_all_cached_functions()
+
+
+@pytest.fixture
+def make_worktree(tmp_path):
+    """Create a linked git worktree whose ``.git`` file points at an existing gitdir."""
+
+    def make(path: Path) -> Path:
+        gitdir = tmp_path / "main-checkout" / ".git" / "worktrees" / path.name
+        gitdir.mkdir(parents=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True)
+        (path / ".git").write_text(f"gitdir: {gitdir}\n")
+        return path
+
+    return make

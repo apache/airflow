@@ -23,7 +23,7 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError
@@ -43,42 +43,7 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_glue_arguments,
     inject_transport_information_into_glue_arguments,
 )
-from airflow.providers.common.compat.sdk import AirflowException, conf
-
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-# ResumableJobMixin only exists on Airflow 3.3+; this provider still targets >=2.11. Drop this
-# fallback once the provider's minimum Airflow version is >=3.3.
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "glue_job_run_id"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
+from airflow.providers.common.compat.sdk import AirflowException, ResumableJobMixin, conf
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -180,6 +145,8 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
 
     operator_extra_links = (GlueJobRunDetailsLink(),)
     TASK_UUID_ARG = "--airflow_task_uuid"
+    TASK_UUID_SCAN_PAGE_SIZE = 200
+    TASK_UUID_SCAN_MAX_PAGES = 10
     external_id_key = "glue_job_run_id"
 
     def __init__(
@@ -329,11 +296,9 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         return script_args, task_uuid
 
     def _find_job_run_id_by_task_uuid(self, task_uuid: str) -> tuple[str, str] | None:
-        # Unbounded walk with no page cap; a no-match run is the common retry shape and pays the
-        # full scan. Tracked at https://github.com/apache/airflow/issues/71489.
         next_token: str | None = None
-        while True:
-            request = {"JobName": self.job_name, "MaxResults": 50}
+        for _ in range(self.TASK_UUID_SCAN_MAX_PAGES):
+            request = {"JobName": self.job_name, "MaxResults": self.TASK_UUID_SCAN_PAGE_SIZE}
             if next_token:
                 request["NextToken"] = next_token
             response = self.hook.conn.get_job_runs(**request)
@@ -347,6 +312,11 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
             next_token = response.get("NextToken")
             if not next_token:
                 return None
+        self.log.warning(
+            "Stopped scanning Glue job runs for task UUID after %s pages without a match",
+            self.TASK_UUID_SCAN_MAX_PAGES,
+        )
+        return None
 
     def execute(self, context: Context) -> str | None:
         """
@@ -449,8 +419,10 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                 self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
                 if self.is_job_active(state):
                     return previous_job_run_id
-            except Exception:
-                self.log.warning("Failed to get previous Glue job run state", exc_info=True)
+            except (ClientError, BotoCoreError):
+                self.log.exception(
+                    "Failed to get previous Glue job run state; submitting a fresh Glue job run"
+                )
         else:
             try:
                 existing = self._find_job_run_id_by_task_uuid(task_uuid)
@@ -463,8 +435,10 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                     )
                     if self.is_job_active(existing_job_run_state):
                         return existing_job_run_id
-            except Exception:
-                self.log.warning("Failed to find previous Glue job run by task UUID", exc_info=True)
+            except ClientError:
+                self.log.exception(
+                    "Failed to find previous Glue job run by task UUID; submitting a fresh Glue job run"
+                )
         return None
 
     def _has_stored_external_id(self, context: Context) -> bool:

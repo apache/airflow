@@ -16,35 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { Button, Icon, Table, Text } from "@chakra-ui/react";
-import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
+import { flexRender, type RowData, type Table as TanStackTable } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
 
 import { Tooltip } from "src/system-components";
 
-type TableListProps<TData> = {
+import type { DataTableFeatures } from "./features";
+
+type TableListProps<TData extends RowData> = {
   readonly noRowsMessage?: ReactNode;
-  readonly table: TanStackTable<TData>;
+  readonly renderSubComponent?: (row: TData) => ReactNode;
+  readonly table: TanStackTable<DataTableFeatures, TData>;
 };
 
-export const TableList = <TData,>({ noRowsMessage, table }: TableListProps<TData>) => {
+export const TableList = <TData extends RowData>({
+  noRowsMessage,
+  renderSubComponent,
+  table,
+}: TableListProps<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
   const { t: translate } = useTranslation("components");
   const { rows } = table.getRowModel();
-  const isMultiSorted = table.getState().sorting.length > 1;
+  const isMultiSorted = table.store.state.sorting.length > 1;
 
   return (
     <Table.Root data-testid="table-list" size="sm" striped>
       <Table.Header bg="chakra-body-bg" position="sticky" top={0} zIndex={1}>
         {table.getHeaderGroups().map((headerGroup) => (
           <Table.Row key={headerGroup.id}>
-            {headerGroup.headers.map(({ colSpan, column, getContext, id, isPlaceholder }) => {
+            {headerGroup.headers.map((header) => {
+              // v9 header methods live on the prototype, so `getContext` can't be destructured.
+              const { colSpan, column, id, isPlaceholder } = header;
               const sort = column.getIsSorted();
               const canSort = column.getCanSort();
-              const text = flexRender(column.columnDef.header, getContext());
+              const text = flexRender(column.columnDef.header, header.getContext());
               let rightIcon;
 
               if (canSort) {
@@ -111,13 +120,22 @@ export const TableList = <TData,>({ noRowsMessage, table }: TableListProps<TData
           </Table.Row>
         ) : (
           rows.map((row) => (
-            <Table.Row key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <Table.Cell data-testid={`table-cell-${cell.column.id}`} key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </Table.Cell>
-              ))}
-            </Table.Row>
+            <Fragment key={row.id}>
+              <Table.Row>
+                {row.getVisibleCells().map((cell) => (
+                  <Table.Cell data-testid={`table-cell-${cell.column.id}`} key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </Table.Cell>
+                ))}
+              </Table.Row>
+              {renderSubComponent !== undefined && row.getIsExpanded() ? (
+                <Table.Row data-testid="table-sub-row">
+                  <Table.Cell colSpan={row.getVisibleCells().length}>
+                    {renderSubComponent(row.original)}
+                  </Table.Cell>
+                </Table.Row>
+              ) : undefined}
+            </Fragment>
           ))
         )}
       </Table.Body>

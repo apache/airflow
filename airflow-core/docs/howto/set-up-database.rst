@@ -93,8 +93,8 @@ You can make sure which version is used by the interpreter by running this check
 
 .. code-block:: bash
 
-    [Breeze:3.10.19] root@b8a8e73caa2c:/opt/airflow# python
-    Python 3.8.10 (default, Mar 15 2022, 12:22:08)
+    [Breeze:3.11.16] root@b8a8e73caa2c:/opt/airflow# python
+    Python 3.11.16 (default, Oct 06 2026, 12:22:08)
     [GCC 8.3.0] on linux
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import sqlite3
@@ -235,8 +235,12 @@ When ``[database] sql_alchemy_conn_async`` is not set, its URL is derived from `
 
    postgresql+psycopg_async://<user>:<password>@<host>/<db>
 
-psycopg3 is the default because it is safe behind transaction-mode PgBouncer (recommended for all production Postgres installations, see the note below) with no extra configuration.
-psycopg3 `defers statement preparation <https://www.psycopg.org/psycopg3/docs/advanced/prepare.html>`_ behind a threshold (default 5 executions) and lets you disable it entirely with ``prepare_threshold=None``.
+psycopg3 is the default because Airflow can make it safe behind transaction-mode PgBouncer (recommended for all production Postgres installations, see the note below) automatically, which it cannot do for asyncpg without you opting in.
+psycopg3 `prepares statements server-side <https://www.psycopg.org/psycopg3/docs/advanced/prepare.html>`_ once a statement has been executed ``prepare_threshold`` times (5 by default), which a transaction-pooling pooler cannot honor unless it tracks prepared statements itself.
+Airflow therefore sets ``prepare_threshold = None`` by default for both the sync and async psycopg3 engines, which disables the behaviour.
+If your pooler tracks prepared statements, or you run without a pooler at all, you can opt back in by pointing ``sql_alchemy_connect_args`` (or ``sql_alchemy_connect_args_async``) at a dictionary that sets ``prepare_threshold``.
+With PgBouncer that needs all of 1.22 or newer, ``max_prepared_statements`` above 0 — it defaults to 0 until 1.24, where it becomes 200 — and ``libpq`` 17 or newer on the Airflow side, as `psycopg documents <https://www.psycopg.org/psycopg3/docs/advanced/prepare.html#using-prepared-statements-with-pgbouncer>`_.
+Opting back in without all three gives you the failures the default avoids.
 If psycopg3 is not installed — for example with an older ``apache-airflow-providers-postgres`` release that ships ``asyncpg`` but not ``psycopg`` — Airflow falls back to deriving an ``asyncpg`` URL instead.
 
 If you need the extra throughput of ``asyncpg``, opt in by installing the ``apache-airflow-providers-postgres[asyncpg]`` extra and setting the async URL explicitly:

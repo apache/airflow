@@ -17,17 +17,23 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import or_, select, union_all
+from sqlalchemy import or_, select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.parameters import RangeFilter, datetime_range_filter_factory
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
 from airflow.api_fastapi.core_api.datamodels.ui.gantt import GanttResponse, GanttTaskInstance
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.models.dagrun import DagRun
+from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.state import TaskInstanceState
 
 gantt_router = AirflowRouter(prefix="/gantt", tags=["Gantt"])
@@ -58,11 +64,23 @@ gantt_router = AirflowRouter(prefix="/gantt", tags=["Gantt"])
 def get_gantt_data(
     dag_id: str,
     run_id: str,
+    start_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("start_date", TaskInstance))
+    ],
+    end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TaskInstance))],
     session: SessionDep,
+    dag_bag: DagBagDep,
 ) -> GanttResponse:
     """Get all task instance tries for Gantt chart."""
-    # Exclude mapped tasks (use grid summaries) and UP_FOR_RETRY (already in history)
+    # Pending retries retain timing for backoff; only the archived attempt belongs on the chart.
     current_tis = select(
+        TaskInstance.id,
+        TaskInstance.dag_id,
+        TaskInstance.run_id,
+        TaskInstance.dag_version_id,
+        TaskInstance.region_id,
+        TaskInstance.region_index,
+        public_map_index_expression(TaskInstance).label("map_index"),
         TaskInstance.task_id.label("task_id"),
         TaskInstance.task_display_name.label("task_display_name"),  # type: ignore[attr-defined]
         TaskInstance.try_number.label("try_number"),
@@ -74,38 +92,49 @@ def get_gantt_data(
     ).where(
         TaskInstance.dag_id == dag_id,
         TaskInstance.run_id == run_id,
-        TaskInstance.map_index == -1,
+        public_map_index_expression(TaskInstance) == -1,
         or_(TaskInstance.state != TaskInstanceState.UP_FOR_RETRY, TaskInstance.state.is_(None)),
     )
 
-    history_tis = select(
-        TaskInstanceHistory.task_id.label("task_id"),
-        TaskInstanceHistory.task_display_name.label("task_display_name"),
-        TaskInstanceHistory.try_number.label("try_number"),
-        TaskInstanceHistory.state.label("state"),
-        TaskInstanceHistory.scheduled_dttm.label("scheduled_dttm"),
-        TaskInstanceHistory.queued_dttm.label("queued_dttm"),
-        TaskInstanceHistory.start_date.label("start_date"),
-        TaskInstanceHistory.end_date.label("end_date"),
-    ).where(
-        TaskInstanceHistory.dag_id == dag_id,
-        TaskInstanceHistory.run_id == run_id,
-        TaskInstanceHistory.map_index == -1,
-    )
-
-    combined = union_all(current_tis, history_tis).subquery()
-    query = select(combined).order_by(combined.c.task_id, combined.c.try_number)
+    query = current_tis.order_by(
+        TaskInstance.task_id,
+        TaskInstance.region_id,
+        TaskInstance.region_index,
+        TaskInstance.try_number,
+        # Every attempt is its own row and only the newest stays live, so without this the chart
+        # loses each earlier try the moment a clear archives it -- including the attempt the
+        # filter above drops the pending retry in favour of.
+    ).execution_options(include_all_attempts=True)
+    query = start_date_range.to_orm(query)
+    query = end_date_range.to_orm(query)
 
     results = session.execute(query).fetchall()
 
     if not results:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"No task instances for dag_id={dag_id} run_id={run_id}",
-        )
+        filtered_existing_run = (
+            start_date_range.is_active() or end_date_range.is_active()
+        ) and session.scalar(
+            select(DagRun.run_id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        ) is not None
+        if not filtered_existing_run:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"No task instances for dag_id={dag_id} run_id={run_id}",
+            )
 
+    resolver = TaskCoordinateResolver(dag_bag, session)
+    resolver.prefetch_regions(results)
     task_instances = [
         GanttTaskInstance(
+            id=row.id,
+            region_id=row.region_id,
+            region_index=row.region_index,
+            loop_iteration=(
+                None
+                if (position := resolver.get_loop_iteration(row)) is None
+                else LoopIterationResponse(loop_id=position[0], iteration=position[1])
+            ),
+            map_index=row.map_index,
             task_id=row.task_id,
             task_display_name=row.task_display_name,
             try_number=row.try_number,

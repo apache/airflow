@@ -75,6 +75,7 @@ const SelectedVersionsDiff = ({
         <VersionDiff
           baseVersionNumber={baseVersionNumber}
           diff={data}
+          maxChanges={maxChanges}
           targetVersionNumber={targetVersionNumber}
         />
       )}
@@ -103,6 +104,13 @@ export const Versions = () => {
   // The field keeps what was typed while the debounced write settles; the URL only ever holds a
   // bound the endpoint accepts.
   const [maxChangesDraft, setMaxChangesDraft] = useState(maxChanges === undefined ? "" : `${maxChanges}`);
+
+  // Explicit because the number input otherwise flags an empty field as out of range (an empty
+  // value parses to NaN), which drew an error border around the field's normal, unset state.
+  const draftNumber = Number(maxChangesDraft);
+  const maxChangesInvalid =
+    maxChangesDraft !== "" &&
+    (!Number.isInteger(draftNumber) || draftNumber < 1 || draftNumber > MAX_CHANGES_LIMIT);
 
   const updateParam = (key: string, value: string) =>
     setSearchParams(
@@ -149,6 +157,7 @@ export const Versions = () => {
         <VStack alignItems="flex-start" gap={1}>
           <Text fontSize="xs">{translate("versions.maxChanges")}</Text>
           <NumberInputRoot
+            invalid={maxChangesInvalid}
             max={MAX_CHANGES_LIMIT}
             min={1}
             onValueChange={({ value }) => {

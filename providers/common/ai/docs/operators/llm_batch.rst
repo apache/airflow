@@ -20,11 +20,6 @@
 Batch processing: ``LLMBatchOperator``
 ======================================
 
-.. note::
-
-    Experimental: this can change or be removed in a minor release of this provider.
-    See :ref:`howto/stability`.
-
 Use :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator` to run many
 prompts through a provider's **batch API** instead of one synchronous call per prompt:
 roughly half the per-token cost of :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`,
@@ -163,6 +158,12 @@ keys (``temperature``, ``reasoning_effort``, ``user``, ``seed``, ...); for an ``
 it means Anthropic Messages keys (``temperature``, ``top_k``, ``metadata``, ``thinking``, ...).
 The operator does not validate these; an unknown key surfaces as a per-request ``error`` row
 from the provider, or as a failed batch when the provider rejects the whole input file.
+
+``request_params`` is templated: every string inside the dict is rendered, so a value can come
+from a Variable, a param or an upstream XCom. Jinja hands back a string, so a numeric parameter
+written as a template needs ``render_template_as_native_obj=True`` on the Dag. The rendered values
+feed the re-attach fingerprint, so the same rule as ``result_path`` applies: a value that changes
+between attempts of one task instance makes a retry pay for a new batch.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
     :language: python
@@ -314,6 +315,12 @@ storage with a reconciled manifest.
 
 Adding an adapter
 ------------------
+
+.. note::
+
+    Experimental: the adapter contract can change or be removed in a minor release of this
+    provider.
+    See :ref:`howto/stability`.
 
 Another provider package can add a batch engine without changes here: subclass
 :class:`~airflow.providers.common.ai.batch.base.BatchAdapter`, set its ``name`` to the model

@@ -1,7 +1,7 @@
 {
   "backfill": {
     "affected_one": "1 çalıştırma tetiklenecek.",
-    "affected_other": "{{count}} çalıştırma tetiklenecek.",
+    "affected_other": "{{count, number}} çalıştırma tetiklenecek.",
     "affectedNone": "Seçilen kriterlere uygun çalıştırma bulunamadı.",
     "allRuns": "Bütün Dag Çalıştırmaları",
     "backwards": "Geriye Dönük Çalıştır",
@@ -41,7 +41,6 @@
   },
   "close": "Kapat",
   "configForm": {
-    "advancedOptions": "Gelişmiş Seçenekler",
     "configJson": "Yapılandırma JSON",
     "invalidJson": "Geçersiz JSON formatı: {{errorMessage}}"
   },
@@ -49,7 +48,7 @@
     "error_one": "1 Hata",
     "errorAndWarning": "1 Hata ve {{warningText}}",
     "warning_one": "1 Uyarı",
-    "warning_other": "{{count}} Uyarı"
+    "warning_other": "{{count, number}} Uyarı"
   },
   "dateRangeFilter": {
     "validation": {
@@ -61,16 +60,16 @@
   "durationChart": {
     "duration": "Süre (saniye)",
     "lastDagRun_one": "Son Dag Çalıştırması",
-    "lastDagRun_other": "Son {{count}} Dag Çalıştırması",
+    "lastDagRun_other": "Son {{count, number}} Dag Çalıştırması",
     "lastTaskInstance_one": "Son Görev Örneği",
-    "lastTaskInstance_other": "Son {{count}} Görev Örneği",
+    "lastTaskInstance_other": "Son {{count, number}} Görev Örneği",
     "queuedDuration": "Kuyrukta Kalma Süresi",
     "runAfter": "Sonra Çalıştır",
     "runDuration": "Çalışma Süresi"
   },
   "fileUpload": {
-    "files_one": "{{count}} dosya(lar)",
-    "files_other": "{{count}} dosya"
+    "files_one": "{{count, number}} dosya(lar)",
+    "files_other": "{{count, number}} dosya"
   },
   "flexibleForm": {
     "durationPlaceholder": "Süreyi ISO 8601 formatında girin",
@@ -93,20 +92,20 @@
     "downloadImageError": "Grafik görseli indirilemedi.",
     "downloadImageErrorTitle": "İndirme Başarısız",
     "otherDagRuns": "+Diğer Dag Çalıştırmaları",
-    "taskCount_one": "{{count}} Görev",
-    "taskCount_other": "{{count}} Görev",
+    "taskCount_one": "{{count, number}} Görev",
+    "taskCount_other": "{{count, number}} Görev",
     "taskGroup": "Görev Grubu",
     "zoomToTask": "Seçili göreve yakınlaş"
   },
-  "limitedList": "+{{count}} daha",
-  "limitedList.allItems": "Tüm {{count}} öğeler:",
+  "limitedList": "+{{count, number}} daha",
+  "limitedList.allItems": "Tüm {{count, number}} öğeler:",
   "limitedList.allTags_one": "Tüm Etiketler (1)",
-  "limitedList.allTags_other": "Tüm Etiketler ({{count}})",
+  "limitedList.allTags_other": "Tüm Etiketler ({{count, number}})",
   "limitedList.clickToInteract": "Bir etikete tıklayarak Dag'leri filtreleyin",
-  "limitedList.clickToOpenFull": "\"+{{count}} daha\" tıklayarak tam görünümü açın",
+  "limitedList.clickToOpenFull": "\"+{{count, number}} daha\" tıklayarak tam görünümü açın",
   "limitedList.copyPasteText": "Yukarıdaki metni kopyalayıp yapıştırabilirsiniz",
   "limitedList.showingItems_one": "1 öğe gösteriliyor",
-  "limitedList.showingItems_other": "{{count}} öğeler gösteriliyor",
+  "limitedList.showingItems_other": "{{count, number}} öğeler gösteriliyor",
   "logs": {
     "file": "Dosya",
     "location": "{{name}} içinde satır {{line}}"

@@ -33,10 +33,14 @@ from airflow._shared.timezones.timezone import utc, utcnow
 from airflow.api_fastapi.core_api.routes.public import hitl as hitl_routes
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TIModel
 from airflow.models.team import Team
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION
@@ -56,6 +60,140 @@ if TYPE_CHECKING:
 
 
 pytestmark = pytest.mark.db_test
+
+
+LOOP_PASS_SUBJECTS = {"original": "Iteration 3", "rerun": "Iteration 3 rerun"}
+
+
+def _create_loop_iterations(dag_maker, session):
+    @task_group
+    def body():
+        EmptyOperator(task_id="work")
+
+    with dag_maker(serialized=True) as dag:
+        loop = create_loop(body, max_iterations=4)
+    run = dag_maker.create_dagrun()
+    region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    resumed_region = DynamicRegion(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        node_id=loop.group_id,
+        forked_from_region_id=region.id,
+        resumes_from_index=2,
+    )
+    session.add(resumed_region)
+    session.flush()
+    passes = {}
+    for name, region_id in (("rerun", resumed_region.id), ("original", region.id)):
+        ti = TIModel(
+            task=dag.get_task("body.work"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region_id,
+            region_index=2,
+        )
+        ti.try_number = 1
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        session.add(ti)
+        session.flush()
+        session.add(HITLDetail(ti_id=ti.id, options=["Approve", "Reject"], subject=LOOP_PASS_SUBJECTS[name]))
+        passes[name] = ti
+    session.commit()
+    return run, passes
+
+
+def _assert_selected_iteration(data, name, ti):
+    assert data["subject"] == LOOP_PASS_SUBJECTS[name]
+    assert data["task_instance"]["map_index"] == -1
+    assert data["task_instance"]["region_index"] == 2
+    assert data["task_instance"]["region_id"] == str(ti.region_id)
+
+
+@pytest.mark.parametrize("selected", ["original", "rerun"])
+def test_hitl_get_selects_loop_iteration(test_client, dag_maker, session, selected):
+    run, passes = _create_loop_iterations(dag_maker, session)
+    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/-1/hitlDetails"
+
+    response = test_client.get(url, params={"region_id": str(passes[selected].region_id), "region_index": 2})
+
+    assert response.status_code == 200, response.text
+    _assert_selected_iteration(response.json(), selected, passes[selected])
+
+
+@pytest.mark.parametrize("selected", ["original", "rerun"])
+def test_hitl_history_selects_loop_iteration(test_client, dag_maker, session, selected):
+    run, passes = _create_loop_iterations(dag_maker, session)
+    for ti in passes.values():
+        ti.state = TaskInstanceState.SUCCESS
+        ti.archive(reason="superseded", session=session)
+    session.commit()
+    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/-1/hitlDetails/tries/1"
+
+    response = test_client.get(url, params={"region_id": str(passes[selected].region_id), "region_index": 2})
+
+    assert response.status_code == 200, response.text
+    _assert_selected_iteration(response.json(), selected, passes[selected])
+
+
+def test_hitl_list_reports_every_loop_iteration(test_client, dag_maker, session):
+    run, passes = _create_loop_iterations(dag_maker, session)
+
+    response = test_client.get(
+        f"/dags/{run.dag_id}/dagRuns/{run.run_id}/hitlDetails", params={"map_index": -1}
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["total_entries"] == 2
+    selected = next(row for row in data["hitl_details"] if row["subject"] == LOOP_PASS_SUBJECTS["original"])
+    _assert_selected_iteration(selected, "original", passes["original"])
+
+
+@pytest.mark.parametrize("with_region_index", [False, True])
+def test_hitl_list_selects_loop_iteration_by_region(test_client, dag_maker, session, with_region_index):
+    run, passes = _create_loop_iterations(dag_maker, session)
+    params = {
+        "region_id": str(passes["original"].region_id),
+        **({"region_index": 2} if with_region_index else {}),
+    }
+
+    response = test_client.get(f"/dags/{run.dag_id}/dagRuns/{run.run_id}/hitlDetails", params=params)
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["total_entries"] == 1
+    _assert_selected_iteration(data["hitl_details"][0], "original", passes["original"])
+
+
+def test_hitl_list_rejects_region_index_without_region_id(test_client, dag_maker, session):
+    run, _ = _create_loop_iterations(dag_maker, session)
+
+    response = test_client.get(
+        f"/dags/{run.dag_id}/dagRuns/{run.run_id}/hitlDetails", params={"region_index": 2}
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "region_index requires region_id"
+
+
+@pytest.mark.parametrize(("selected", "other"), [("original", "rerun"), ("rerun", "original")])
+def test_hitl_respond_selects_loop_iteration(test_client, dag_maker, session, selected, other):
+    run, passes = _create_loop_iterations(dag_maker, session)
+    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/-1/hitlDetails"
+
+    response = test_client.patch(
+        url,
+        params={"region_id": str(passes[selected].region_id), "region_index": 2},
+        json={"chosen_options": ["Approve"]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["chosen_options"] == ["Approve"]
+    session.refresh(passes[selected])
+    session.refresh(passes[other])
+    assert passes[selected].state == TaskInstanceState.SCHEDULED
+    assert passes[other].state == TaskInstanceState.AWAITING_INPUT
+
 
 DAG_ID = "test_hitl_dag"
 ANOTHER_DAG_ID = "another_hitl_dag"
@@ -266,6 +404,8 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "hostname": "",
             "id": str(sample_ti.id),
             "logical_date": mock.ANY,
+            "in_loop": False,
+            "loop_iteration": None,
             "map_index": -1,
             "max_tries": 0,
             "note": None,
@@ -329,6 +469,50 @@ def sample_update_payload() -> dict[str, Any]:
 
 
 class TestUpdateHITLDetailEndpoint:
+    def test_response_rejects_attempt_archived_after_lookup(
+        self,
+        test_client,
+        sample_ti,
+        sample_hitl_detail,
+        sample_ti_url_identifier,
+        sample_update_payload,
+        session,
+        mocker,
+    ):
+        get_task_instance = hitl_routes._get_task_instance_with_hitl_detail
+
+        def archive_after_lookup(*args, **kwargs):
+            task_instance = get_task_instance(*args, **kwargs)
+            with Session(bind=session.get_bind()) as other_session:
+                current = other_session.get(TIModel, task_instance.id)
+                current.prepare_db_for_next_try(other_session)
+                other_session.commit()
+            return task_instance
+
+        mocker.patch.object(
+            hitl_routes,
+            "_get_task_instance_with_hitl_detail",
+            autospec=True,
+            side_effect=archive_after_lookup,
+        )
+
+        response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)
+
+        assert response.status_code == 409
+        with Session(bind=session.get_bind()) as verify_session:
+            assert verify_session.get(TIModel, sample_ti.id).working_set is None
+            assert not verify_session.get(HITLDetail, sample_ti.id).response_received
+            current = verify_session.scalar(
+                select(TIModel).where(
+                    TIModel.dag_id == sample_ti.dag_id,
+                    TIModel.task_id == sample_ti.task_id,
+                    TIModel.run_id == sample_ti.run_id,
+                )
+            )
+            assert current.id != sample_ti.id
+            assert current.state is None
+            assert verify_session.get(HITLDetail, current.id) is None
+
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
     @pytest.mark.usefixtures("sample_hitl_detail")
     @mock.patch(
@@ -669,6 +853,95 @@ class TestUpdateHITLDetailEndpoint:
         }
 
     @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_response_for_a_replaced_request_is_refused(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+        session: Session,
+    ) -> None:
+        """A form loaded before the task asked again names the old request; it must not answer the new one."""
+        loaded = test_client.get(f"{sample_ti_url_identifier}/hitlDetails").json()["created_at"]
+        # The task asks again: core replaces the request, and with it created_at.
+        detail = session.get(HITLDetail, sample_ti.id)
+        assert detail is not None
+        detail.created_at = detail.created_at + timedelta(minutes=5)
+        session.commit()
+
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": {}, "request_created_at": loaded},
+        )
+
+        assert response.status_code == 409
+        assert "replaced after it was loaded" in response.json()["detail"]
+        session.expire_all()
+        unanswered = session.get(HITLDetail, sample_ti.id)
+        assert unanswered is not None
+        assert not unanswered.response_received
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_stale_response_to_an_answered_request_reports_it_answered(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_ti: TaskInstance,
+        session: Session,
+    ) -> None:
+        """Nothing is waiting, so the error must not tell the user to answer the waiting request."""
+        loaded = test_client.get(f"{sample_ti_url_identifier}/hitlDetails").json()["created_at"]
+        detail = session.get(HITLDetail, sample_ti.id)
+        assert detail is not None
+        detail.created_at = detail.created_at + timedelta(minutes=5)
+        session.commit()
+        answered = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": {"input_1": 2}},
+        )
+        assert answered.status_code == 200
+
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": {}, "request_created_at": loaded},
+        )
+
+        assert response.status_code == 409
+        assert "already been updated" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_naive_request_created_at_is_rejected(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+    ) -> None:
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "request_created_at": "2025-07-03T00:00:00"},
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_a_response_naming_the_waiting_request_is_applied(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+    ) -> None:
+        loaded = test_client.get(f"{sample_ti_url_identifier}/hitlDetails").json()["created_at"]
+
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={
+                "chosen_options": ["Approve"],
+                "params_input": {"input_1": 2},
+                "request_created_at": loaded,
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["chosen_options"] == ["Approve"]
+
+    @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_422_with_empty_option(
         self,
         test_client: TestClient,
@@ -731,13 +1004,41 @@ class TestGetHITLDetailEndpoint:
 
 
 class TestGetHITLDetailsEndpoint:
+    def test_lists_only_current_task_instance_details(
+        self, test_client, sample_ti, sample_hitl_detail, session
+    ):
+        old_id = sample_ti.id
+        successor = sample_ti.prepare_db_for_next_try(session)
+        session.add(
+            HITLDetail(
+                ti_id=successor.id,
+                options=["Approve", "Reject"],
+                subject="Current subject",
+                body="Current body",
+                defaults=["Approve"],
+                multiple=False,
+                params={},
+                assignees=None,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+        assert [detail["task_instance"]["id"] for detail in response.json()["hitl_details"]] == [
+            str(successor.id)
+        ]
+        assert session.get(HITLDetail, sample_hitl_detail.ti_id).ti_id == old_id
+
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_200_with_existing_response(
         self,
         test_client: TestClient,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        with assert_queries_count(3):
+        with assert_queries_count(5):
             response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
         assert response.status_code == 200
         assert response.json() == {
@@ -813,7 +1114,7 @@ class TestGetHITLDetailsEndpoint:
         params: dict[str, Any],
         expected_ti_count: int,
     ) -> None:
-        with assert_queries_count(3):
+        with assert_queries_count(5):
             response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count

@@ -25,7 +25,7 @@ from pydantic_ai.messages import ImageUrl
 from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
+from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 
@@ -176,10 +176,9 @@ class TestAgentDecoratedOperator:
         op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        passed_toolsets = create_call[1]["toolsets"]
-        assert len(passed_toolsets) == 1
-        assert isinstance(passed_toolsets[0], LoggingToolset)
-        assert passed_toolsets[0].wrapped == MaskingToolset(wrapped=toolset)
+        assert create_call[1]["toolsets"] == [MaskingToolset(wrapped=toolset)]
+        assert create_call[1]["capabilities"][0] == PromptCaching()
+        assert isinstance(create_call[1]["capabilities"][1], ToolLoggingCapability)
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_capabilities_through(self, mock_hook_cls, make_mock_run_result):
@@ -197,7 +196,8 @@ class TestAgentDecoratedOperator:
         op.execute(context=_make_context())
 
         create_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert create_call.kwargs["capabilities"] == [thinking, PromptCaching()]
+        assert create_call.kwargs["capabilities"][:2] == [thinking, PromptCaching()]
+        assert isinstance(create_call.kwargs["capabilities"][2], ToolLoggingCapability)
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)

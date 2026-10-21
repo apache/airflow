@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -93,29 +93,23 @@ describe("ConnectionForm", () => {
     i18n.addResourceBundle("en", "admin", adminLocale, true, true);
   });
 
-  it("titles the provider fields section after the connection type and opens it by default", () => {
+  it("titles the provider fields section after the connection type", () => {
     mockUseConnectionTypeMeta.mockReturnValue(loadedMeta);
 
     render(renderForm(), { wrapper: Wrapper });
 
-    expect(screen.getByRole("button", { name: "Pydantic AI Fields" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Standard Fields" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("heading", { name: "Pydantic AI Fields" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Standard Fields" })).toBeInTheDocument();
   });
 
-  it("keeps the saved extra and opens the section when hook metadata loads after the form mounts", () => {
+  it("keeps the saved extra and shows the section when hook metadata loads after the form mounts", () => {
     mockUseConnectionTypeMeta.mockReturnValue(pendingMeta);
     const { rerender } = render(renderForm(), { wrapper: Wrapper });
 
     mockUseConnectionTypeMeta.mockReturnValue(loadedMeta);
     rerender(renderForm());
 
-    expect(screen.getByRole("button", { name: "Pydantic AI Fields" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    expect(screen.getByRole("heading", { name: "Pydantic AI Fields" })).toBeInTheDocument();
     expect(document.querySelector<HTMLInputElement>("#element_model")).toHaveValue("openai:gpt-5");
   });
 });

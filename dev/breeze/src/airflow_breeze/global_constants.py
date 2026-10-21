@@ -49,16 +49,11 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
     "3.13"  # "highest complete" python version (where all providers are included)
 )
-
-
-# Maps each supported Python version to the minimum Airflow version that supports it.
-# Used to filter Airflow versions incompatible with a given Python runtime.
-PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
@@ -140,7 +135,12 @@ OPENLINEAGE_INTEGRATION = "openlineage"
 OPENSEARCH_INTEGRATION = "opensearch"
 OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, KEYCLOAK_INTEGRATION]
 OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
-ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
+# The first one is the default. Only the PROD image can be built on the others - the CI image is
+# always built on the default one.
+ALLOWED_DEBIAN_VERSIONS = ["trixie", "bookworm"]
+# "hardened" images get Python from a Docker Hardened Image base, "legacy" ones compile it from
+# source on a plain debian-slim base - the way all images were built before.
+ALLOWED_IMAGE_FLAVORS = ["hardened", "legacy"]
 ALL_CORE_INTEGRATIONS = sorted(
     [
         *TESTABLE_CORE_INTEGRATIONS,
@@ -300,7 +300,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "26.2.1"
-UV_VERSION = "0.12.18"
+UV_VERSION = "0.13.4"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -524,10 +524,16 @@ SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYCACHE_PREFIX_IN_CONTAINER = "/root/.cache/airflow-pycache"
 
 PRODUCTION_IMAGE = False
-# All python versions include all past python versions available in previous branches
-# Even if we remove them from the main version. This is needed to make sure we can cherry-pick
-# changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+# Python versions that CI on main builds images for and tests with.
+#
+# When main drops a Python version, the version goes through two phases here:
+# 1. While we still cherry-pick changes from main to a release branch that supports that version
+#    (e.g. v3-3-test), keep it in this list even though main no longer supports it. Changes made
+#    on main are then still tested on that version before they are cherry-picked.
+# 2. Once we stop cherry-picking to the last release branch that supports it (that branch then only
+#    gets fixes applied directly), remove it from this list. Release branches keep their own copy
+#    of this list, so their CI and image builds are not affected.
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
 ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
@@ -870,31 +876,31 @@ DEFAULT_EXTRAS = [
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "2.11.1",
         "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "3.0.6",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "3.1.8",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "3.2.2",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
     {
-        "python-version": "3.10",
+        "python-version": "3.11",
         "airflow-version": "3.3.2",
         "remove-providers": "",
         "run-unit-tests": "true",
@@ -902,12 +908,35 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.21",
-    "3.11": "3.11.16",
-    "3.12": "3.12.14",
-    "3.13": "3.13.15",
-    "3.14": "3.14.7",
+    "3.10": "3.10.22",
+    "3.11": "3.11.17",
+    "3.12": "3.12.15",
+    "3.13": "3.13.16",
+    "3.14": "3.14.8",
 }
+
+# Airflow images are based on Docker Hardened Images (https://dhi.io). The "-dev" variant carries
+# apt, a shell and runs as root; the tags encode the Debian release rather than its codename.
+# Pulling from dhi.io requires a Docker Hub login, so the tags Airflow builds against are mirrored
+# to a public ghcr.io repository by the "Mirror hardened base images" workflow - building Airflow
+# images needs no registry credentials at all, which is what the default below points at.
+HARDENED_PYTHON_IMAGE_SOURCE = "dhi.io/python"
+HARDENED_PYTHON_IMAGE_MIRROR = "ghcr.io/apache/airflow/base/python"
+DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO = {"trixie": "debian13", "bookworm": "debian12"}
+
+
+def get_hardened_python_image_tag(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    distro = DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO[debian_version]
+    return f"{ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python)}-{distro}-dev"
+
+
+def get_hardened_python_base_image(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    return f"{HARDENED_PYTHON_IMAGE_MIRROR}:{get_hardened_python_image_tag(python, debian_version)}"
+
+
+def get_legacy_base_image(debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    return f"debian:{debian_version}-slim"
+
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
