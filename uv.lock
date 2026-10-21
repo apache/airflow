@@ -4617,6 +4617,7 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-standard" },
+    { name = "httpx2" },
     { name = "pydantic-ai-slim" },
     { name = "structlog" },
 ]
@@ -4754,6 +4755,7 @@ requires-dist = [
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
     { name = "grpcio", marker = "extra == 'openshell'", specifier = ">=1.78.0" },
+    { name = "httpx2", specifier = ">=2.7" },
     { name = "islo", marker = "extra == 'islo'", specifier = ">=0.3.19" },
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0" },
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },

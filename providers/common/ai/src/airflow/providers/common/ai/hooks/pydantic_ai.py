@@ -20,10 +20,13 @@ import asyncio
 import concurrent.futures
 import contextvars
 import functools
+import math
 import re
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+import httpx2
 import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
@@ -32,6 +35,10 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider_class
 from typing_extensions import ParamSpec
 
+from airflow.providers.common.ai.hooks.ollama import (
+    DEFAULT_REQUEST_TIMEOUT,
+    OllamaBackend,
+)
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.module_loading import import_string
@@ -527,10 +534,7 @@ class PydanticAIHook(BaseHook):
             model_name = forwarded_model_id
             forwarded = True
         if not model_name:
-            raise ValueError(
-                f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
-                "hook or the Model field on the connection."
-            )
+            raise self._build_missing_model_error()
         model_name = self._qualify_model_name(
             model_name,
             forwarded_from_conn_id=forwarded_from_conn_id if forwarded else None,
@@ -561,6 +565,91 @@ class PydanticAIHook(BaseHook):
             return infer_model(model_name, provider_factory=_provider_factory)
 
         return infer_model(model_name)
+
+    def _build_missing_model_error(self) -> ValueError:
+        return ValueError(
+            f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
+            "hook or the Model field on the connection."
+        )
+
+    def ensure_model_ready(self, *, timeout: float = 300.0, poll_interval: float = 2.0) -> None:
+        """
+        Block until this connection's local model is loaded, asking the server to load it if needed.
+
+        Only Ollama is supported. Only this hook's own connection is checked -- connections in
+        ``fallback_conn_ids`` are not, so a fallback model is never loaded ahead of need.
+
+        The connection password is not sent to Ollama, so a server behind authentication is not
+        supported.
+
+        Polling uses ``time.sleep`` and holds the worker slot for the whole wait.
+
+        The first readiness check and the load request fail fast: a wrong host or a server
+        error is raised as is. Once the load request has been sent, polling retries
+        connection failures, 5xx responses and single-request timeouts (logging a warning)
+        until *timeout* is used up; non-5xx error responses and malformed responses are raised as is.
+
+        :param timeout: Seconds to wait in total for the model to become ready.
+        :param poll_interval: Seconds between readiness checks after the load request.
+        :raises ValueError: If *timeout* or *poll_interval* is not a positive finite number,
+            no model is configured, or the connection has no host.
+        :raises NotImplementedError: If the model's provider prefix is not ``ollama``.
+        :raises TimeoutError: If the model is not ready within *timeout*, or the first
+            readiness check or the load request times out.
+        :raises httpx2.TransportError: If the first readiness check or the load request cannot
+            reach the server.
+        :raises httpx2.HTTPStatusError: If the server answers with an error status that is not
+            retried (see above).
+        """
+        if (
+            not (math.isfinite(timeout) and math.isfinite(poll_interval))
+            or timeout <= 0
+            or poll_interval <= 0
+        ):
+            raise ValueError(
+                f"timeout and poll_interval must be positive and finite, got timeout={timeout}, "
+                f"poll_interval={poll_interval}."
+            )
+        if not (configured_name := self._get_configured_model_name()):
+            raise self._build_missing_model_error()
+        model_name = self._qualify_model_name(configured_name)
+        prefix, _, ollama_model = model_name.partition(":")
+        if prefix != "ollama":
+            raise NotImplementedError(
+                f"ensure_model_ready only supports Ollama models, got '{model_name}' on connection "
+                f"'{self.llm_conn_id}'."
+            )
+        conn, _ = self._get_conn_and_extra()
+        if not conn.host:
+            raise ValueError(f"Connection '{self.llm_conn_id}' needs a host to check model readiness.")
+
+        backend = OllamaBackend(conn.host, ollama_model)
+        started = time.monotonic()
+        deadline = started + timeout
+        if backend.is_ready(timeout=min(timeout, DEFAULT_REQUEST_TIMEOUT)):
+            return
+        remaining = self._get_remaining_seconds(deadline, model_name, timeout)
+        self.log.info("Loading model '%s' on %s", model_name, conn.host)
+        backend.load(timeout=remaining)
+        while True:
+            remaining = self._get_remaining_seconds(deadline, model_name, timeout)
+            try:
+                if backend.is_ready(timeout=min(remaining, DEFAULT_REQUEST_TIMEOUT)):
+                    break
+            except (httpx2.TransportError, TimeoutError, httpx2.HTTPStatusError) as e:
+                if isinstance(e, httpx2.HTTPStatusError) and e.response.status_code < 500:
+                    raise
+                self.log.warning("Readiness check for model '%s' failed: %s; retrying", model_name, e)
+            time.sleep(min(poll_interval, remaining))
+        self.log.info("Model '%s' is ready after %.1f seconds", model_name, time.monotonic() - started)
+
+    @staticmethod
+    def _get_remaining_seconds(deadline: float, model_name: str, timeout: float) -> float:
+        """Return the seconds left until *deadline*, raising ``TimeoutError`` when none are left."""
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f"Model '{model_name}' was not ready after {timeout} seconds.")
+        return remaining
 
     def _get_fallback_conn_ids(self) -> list[str]:
         """
