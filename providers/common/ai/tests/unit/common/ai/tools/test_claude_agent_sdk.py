@@ -883,6 +883,37 @@ class TestResultTruncation:
         assert ("Truncated" in text) is True
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("text", "is_cut"),
+        [
+            pytest.param("\N{GRINNING FACE}" * 250_000, False, id="at-the-ceiling-in-utf16-units"),
+            pytest.param("\N{GRINNING FACE}" * 250_001, True, id="one-emoji-over-the-ceiling"),
+            pytest.param("\N{GRINNING FACE}" * 300_000, True, id="under-the-ceiling-in-code-points"),
+        ],
+    )
+    async def test_the_ceiling_is_measured_in_utf16_units(self, text, is_cut):
+        _, handlers = _build_tools(_tool(ToolResult(text)))
+
+        payload = await handlers["lookup"]({"key": "a"})
+
+        result = payload["content"][0]["text"]
+        assert (("Truncated" in result) is is_cut) is True
+        assert (len(result.encode("utf-16-le")) // 2 <= 500_000) is True
+
+    @pytest.mark.asyncio
+    async def test_a_cut_never_splits_a_surrogate_pair(self):
+        # The leading "a" shifts every emoji to an odd UTF-16 offset, so the cut falls between the
+        # two halves of a pair unless it is moved back to a code point boundary.
+        _, handlers = _build_tools(_tool(ToolResult("a" + "\N{GRINNING FACE}" * 300_000)))
+
+        payload = await handlers["lookup"]({"key": "a"})
+
+        result = payload["content"][0]["text"]
+        kept = result[: result.index("\n\n[Truncated")]
+        assert (kept == "a" + "\N{GRINNING FACE}" * (len(kept) - 1)) is True
+        assert (len(result.encode("utf-16-le")) // 2 <= 500_000) is True
+
+    @pytest.mark.asyncio
     async def test_a_small_result_is_returned_as_is(self):
         _, handlers = _build_tools(_tool(ToolResult("short")))
 
