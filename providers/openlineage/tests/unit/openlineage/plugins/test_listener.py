@@ -1344,6 +1344,16 @@ class TestOpenLineageListenerAirflow3:
             in_loop=True, map_index=-1, loop_index=2, loop_max_iterations=3, loop_group_id="body"
         )
 
+    def test_manual_event_times_placing_its_task_instance(self, mocker):
+        listener, ti = self._create_listener_and_task_instance(runtime_ti=False)
+        listener._executor = mocker.Mock(spec=ProcessPoolExecutor)
+        mocker.patch.object(listener, "submit_callable", autospec=True)
+        stats = mocker.patch("airflow.providers.openlineage.plugins.listener.Stats", autospec=True)
+
+        listener._on_task_instance_manual_state_change(ti, ti.dag_run, "success")
+
+        stats.timer.assert_called_once_with("ol.manual_state_change.place_task_instance")
+
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
     @patch("airflow.models.BaseOperator.render_template")
     def test_listener_does_not_change_task_instance(self, render_mock, mock_supervisor_comms, spy_agency):

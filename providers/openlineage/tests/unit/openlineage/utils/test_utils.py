@@ -3967,7 +3967,6 @@ def test_task_instance_run_id_is_the_attempt_uuid_only_inside_a_loop(in_loop):
         region_id=uuid4(),
         map_index=-1,
         task=dag.get_task("body.work"),
-        get_template_context=MagicMock(),
     )
     logical_date = timezone.datetime(2024, 1, 1)
 
@@ -3981,7 +3980,6 @@ def test_task_instance_run_id_is_the_attempt_uuid_only_inside_a_loop(in_loop):
         )
     )
     assert get_task_instance_map_index(ti) == -1
-    ti.get_template_context.assert_not_called()
 
 
 def test_task_instance_run_id_uses_the_map_index_of_the_given_position():
@@ -3998,39 +3996,7 @@ def test_task_instance_run_id_uses_the_map_index_of_the_given_position():
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
-@pytest.mark.parametrize("has_loop_context", [True, False])
-def test_runtime_task_instance_position_has_the_iteration_of_its_loop_context(has_loop_context):
-    from airflow.sdk import task_group
-    from airflow.sdk.definitions._internal.loop import create_loop
-
-    with DAG("position_dag") as dag:
-
-        @task_group
-        def body():
-            EmptyOperator(task_id="work")
-
-        create_loop(body, max_iterations=3)
-    loop = SimpleNamespace(index=2, max_iterations=3) if has_loop_context else None
-    ti = SimpleNamespace(
-        id=uuid4(),
-        region_id=uuid4(),
-        map_index=-1,
-        task=dag.get_task("body.work"),
-        get_template_context=MagicMock(return_value={"loop": loop}),
-    )
-
-    assert get_task_instance_position(ti) == TaskInstancePosition(
-        in_loop=True,
-        map_index=-1,
-        loop_index=2 if has_loop_context else None,
-        loop_max_iterations=3 if has_loop_context else None,
-        loop_group_id="body",
-    )
-    ti.get_template_context.assert_called_once_with()
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
-def test_runtime_task_instance_position_without_its_iteration_when_the_context_fails():
+def test_runtime_task_instance_position_without_its_loop_context_has_no_iteration():
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
 
@@ -4042,11 +4008,7 @@ def test_runtime_task_instance_position_without_its_iteration_when_the_context_f
 
         create_loop(body, max_iterations=3)
     ti = SimpleNamespace(
-        id=uuid4(),
-        region_id=uuid4(),
-        map_index=-1,
-        task=dag.get_task("body.work"),
-        get_template_context=MagicMock(side_effect=ValueError("invalid params")),
+        id=uuid4(), region_id=uuid4(), map_index=-1, task=dag.get_task("body.work"), loop=None
     )
 
     assert get_task_instance_position(ti) == TaskInstancePosition(
@@ -4081,7 +4043,6 @@ def test_runtime_task_instance_position_reads_its_loop_and_expansion_from_the_ta
             forked_from_region_id=forked_from_region_id,
             resumes_from_index=1,
         ),
-        get_template_context=MagicMock(),
     )
 
     assert get_task_instance_position(ti) == TaskInstancePosition(
@@ -4096,7 +4057,6 @@ def test_runtime_task_instance_position_reads_its_loop_and_expansion_from_the_ta
         loop_forked_from_region_id=forked_from_region_id,
         loop_resumes_from_index=1,
     )
-    ti.get_template_context.assert_not_called()
 
 
 @pytest.mark.db_test
@@ -4238,15 +4198,6 @@ def test_task_in_a_task_group_of_unknown_type_is_assumed_in_a_loop():
     assert get_task_instance_position(ti) == TaskInstancePosition(in_loop=True, map_index=-1)
 
 
-def test_task_instance_info_uses_a_given_position_as_is():
-    ti = SimpleNamespace(id=uuid4(), map_index=-1, get_template_context=MagicMock())
-
-    info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=True, map_index=-1)))
-
-    assert "loop" not in info
-    ti.get_template_context.assert_not_called()
-
-
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Region identity requires Airflow 3.4")
 def test_stored_task_instance_without_task_or_region_has_no_loop_index():
     ti = TaskInstance(task=MagicMock(), run_id="run_id", dag_version_id=uuid7())
@@ -4290,7 +4241,14 @@ def test_runtime_task_instance_info_has_loop_only_inside_a_loop(in_loop, mapped)
         task=dag.get_task("body.work"),
     )
     if in_loop:
-        ti.get_template_context = lambda: {"loop": SimpleNamespace(index=2, max_iterations=3)}
+        ti.loop = SimpleNamespace(
+            index=2,
+            max_iterations=3,
+            region_id=None,
+            trajectory=None,
+            forked_from_region_id=None,
+            resumes_from_index=None,
+        )
 
     info = dict(TaskInstanceInfo(ti))
 
@@ -4315,6 +4273,10 @@ def test_task_instance_info_has_the_decision_of_a_loop_gate(until, loop_index, e
     from airflow.sdk import LoopDecision
     from airflow.sdk.definitions._internal.loop import LoopGateOperator
     from airflow.sdk.execution_time.loop import LoopMaxIterationsExceeded, execute_loop_gate
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+    class GateTaskInstance(SimpleNamespace):
+        loop_decision = RuntimeTaskInstance.loop_decision
 
     if until is False:
         until_callable = lambda: False
@@ -4323,7 +4285,7 @@ def test_task_instance_info_has_the_decision_of_a_loop_gate(until, loop_index, e
     else:
         until_callable = None
     gate = LoopGateOperator(task_id="__loop_gate", until=until_callable)
-    ti = SimpleNamespace(id=uuid7(), map_index=-1)
+    ti = GateTaskInstance(id=uuid7(), map_index=-1, _loop_decision=None)
     context = {"loop": SimpleNamespace(index=loop_index, max_iterations=3), "ti": ti}
 
     if runs_out:
@@ -4437,7 +4399,14 @@ def test_task_instance_info_of_stored_instance_without_task_does_not_raise():
 
 
 def test_task_instance_info_uses_the_position_it_is_given():
-    ti = SimpleNamespace(id=uuid4(), region_id=uuid4(), map_index=-1)
+    # The task instance's own loop and expansion differ, so the info can only match the given position
+    ti = SimpleNamespace(
+        id=uuid4(),
+        region_id=uuid4(),
+        map_index=-1,
+        expanded_ti_count=9,
+        loop=SimpleNamespace(index=9, max_iterations=9),
+    )
     loop_region_id, forked_from_region_id = uuid4(), uuid4()
     position = TaskInstancePosition(
         in_loop=True,

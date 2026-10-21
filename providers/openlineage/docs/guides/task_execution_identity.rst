@@ -28,7 +28,9 @@ group events per execution, deduplicate alerts or tell whether a failure is fina
 
 All the fields below are in the ``airflow`` run facet of task events (``run.facets.airflow``), unless said
 otherwise. Dag run events carry the ``dag`` and ``dagRun`` parts in the ``airflowDagRun`` run facet. A field
-that doesn't apply to an execution is left out of the event.
+that doesn't apply to an execution is left out of the event. Events for a task state set in the UI or the API
+have no ``airflow`` run facet, see :ref:`state set outside the worker
+<guides/task_execution_identity:outside-worker>`.
 
 Run ids
 ^^^^^^^
@@ -214,14 +216,25 @@ not only ``forked_from_region_id``, when an earlier rerun resumed later than thi
 **Dag run cleared.** ``dagRun.clear_number`` grows and the Dag run gets a new ``runId``. The tasks it reruns
 get a new try.
 
-**State set by hand.** Marking a task instance successful or failed in the UI or the API emits COMPLETE or FAIL
-from the API server, with the same fields as the worker sends, ``loop`` and ``expanded_ti_count`` included
-from Airflow 3.4.0 on. A task that never started has no START. A gate marked by hand has no ``loop.decision``.
+.. _guides/task_execution_identity:outside-worker:
+
+**State set outside the worker.** Two kinds of state change emit COMPLETE or FAIL without the worker, so a task
+that never started has no START for them, and a gate's event has no ``loop.decision``:
+
+* The scheduler failing a task instance, e.g. when the executor reports a failure the worker couldn't send.
+  The FAIL event has the same ``airflow`` run facet as a worker's, ``loop`` and ``expanded_ti_count``
+  included on Airflow 3.4+.
+* Marking a task instance successful, failed or skipped in the UI or the API. The API server holds the task
+  instance without its task, so the event has its ``runId`` (the attempt's UUID inside a loop, as a worker's
+  event of that attempt), ``job.name`` and ``ParentRunFacet``, but no ``airflow`` run facet: none of
+  ``taskInstance``, ``loop`` or ``expanded_ti_count``. To place such an event in a loop iteration or a mapped
+  expansion, match its ``runId`` with the worker's START of the same attempt, which has them.
 
 Limitations
 ^^^^^^^^^^^
 
-* Loops need Airflow 3.4. Pre-releases of Airflow 3.4.0 give no ``loop`` details beyond ``group_id``,
-  ``index`` and ``max_iterations``, and no ``expanded_ti_count``.
+* Loops, ``region_id``, ``region_index`` and ``expanded_ti_count`` need Airflow 3.4.
+* Events for task states set in the UI or the API have no ``airflow`` run facet, see
+  :ref:`state set outside the worker <guides/task_execution_identity:outside-worker>`.
 * The ``airflowState`` run facet of Dag run events keys task states by ``task_id`` only, so mapped instances
   and loop iterations of one task share one entry.

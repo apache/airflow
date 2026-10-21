@@ -889,7 +889,9 @@ class OpenLineageListener:
             # pickler loses TaskGroup attributes and crashes event emission -- see
             # the equivalent note in `on_dag_run_running` (listener.py ~868).
             date = dagrun.logical_date or dagrun.run_after
-            position = get_stored_task_instance_position(ti, session=object_session(ti))
+            # Runs in the scheduler or API server process and can query the region tables for each task instance
+            with Stats.timer("ol.manual_state_change.place_task_instance"):
+                position = get_stored_task_instance_position(ti, session=object_session(ti))
             task_uuid = get_task_instance_run_id(ti, logical_date=date, position=position)
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=ti.dag_id,

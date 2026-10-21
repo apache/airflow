@@ -1126,63 +1126,10 @@ class TaskInstanceInfo(InfoJsonEncodable):
     """
     Encode a task instance as ``run.facets.airflow.taskInstance``, which tells which execution sent an event.
 
-    The fields that identify the execution, each left out when it doesn't apply:
-
-    * ``id`` (Airflow 3+): the UUID of the attempt. Every try, and every task instance a clear creates again,
-      gets a new one, so it identifies one execution, and it is the ``runId`` of a task inside a loop. Airflow's
-      API can look it up, but it says nothing by itself.
-    * ``try_number``: the try, counted per ``region_id`` and ``region_index`` (see below).
-    * ``max_tries``: the last ``try_number`` that still gets retried on failure, so a failed try with
-      ``try_number > max_tries`` is final. It equals the task's ``retries`` (in ``task``) only until a clear:
-      clearing sets it to the last try number plus ``retries``, giving the task its retries again.
-    * ``map_index``: the position in a mapped task's expansion that users see. Absent for a task that isn't
-      mapped.
-    * ``expanded_ti_count`` (Airflow 3.4+): the number of live instances in the mapped task's expansion, counted
-      within the loop iteration inside a loop, so ``map_index`` is one of ``range(expanded_ti_count)``. Absent
-      for a task that isn't mapped.
-    * ``region_id`` and ``region_index`` (Airflow 3.4+): the coordinates Airflow stores the task instance under.
-      A region is one execution of a loop, or of a mapped task's expansion, and is shared by all the task
-      instances it creates. ``region_index`` is the position inside it: the iteration for a task in a loop that
-      isn't mapped, the map index for a mapped task. Neither is unique: ``(dag_id, dagRun.run_id, task_id,
-      region_id, region_index, try_number)`` is, as Airflow enforces it (``task_instance_try_key``). Both are
-      absent for a task in no region, i.e. one that is neither mapped nor in a loop.
-    * ``loop`` (Airflow 3.4+): the iteration of the innermost loop around the task, absent outside a loop.
-      Loops can't be nested. Its fields, each left out when unknown:
-
-      * ``group_id``: the loop's group id, which can differ from ``task.task_group`` when the task sits in a
-        task group inside the loop.
-      * ``index`` and ``max_iterations``: the iteration, counted from 1, and the loop's limit.
-      * ``region_id``: the loop region holding the iteration, shared by every task instance of that pass of
-        the loop, mapped ones included, whose own ``region_id`` is their expansion's.
-      * ``trajectory``, ``forked_from_region_id`` and ``resumes_from_index``: clearing a loop gate with the
-        later iterations forks the loop region, see below. ``trajectory`` is 1 for the original region and one
-        more for each fork, ``forked_from_region_id`` the previous region of the chain and
-        ``resumes_from_index`` the first iteration the fork holds. Both are absent for the original region.
-      * ``decision``: ``stop`` and the optional ``reason`` returned by ``until``, as evaluated by a loop's gate,
-        the task that ends each iteration (``gate_task_id`` of the loop group, in ``task.task_group`` and in
-        ``taskGroups`` of ``AirflowJobFacet``). Only the gate's COMPLETE and FAIL events carry it, as the gate
-        decides while it runs.
-
-    How a gate's ``loop.decision`` reads, with ``loop.index``, ``loop.max_iterations`` and the group's
-    ``has_until``:
-
-    * COMPLETE with ``stop`` false: the loop goes on to iteration ``index + 1``.
-    * COMPLETE with ``stop`` true and ``has_until``: ``until`` ended the loop at iteration ``index``, which can be
-      the last one.
-    * COMPLETE with ``stop`` true and no ``has_until``: the loop ran all its iterations, as one without ``until``
-      always stops at ``index == max_iterations``.
-    * FAIL with ``stop`` false: ``until`` was still false at the last iteration (``index == max_iterations``),
-      so the loop ran out of iterations and fails. That's the only failure after the decision is made.
-    * FAIL without ``decision``: the gate failed before deciding, e.g. ``until`` raised or returned something
-      other than a bool or a ``LoopDecision``; the error facet tells which.
-
-    How a cleared loop reads: clearing a loop from iteration ``k`` retries what was cleared in iteration ``k`` in
-    place, with the same region and the next ``try_number``. The iterations after ``k`` are created again in a
-    new region forked from the loop's newest region, with ``loop.trajectory`` one more and ``loop.resumes_from_index``
-    ``k + 1``, and try numbers count per region, so the new execution of iteration ``k + 1`` can repeat the task,
-    ``loop.index``, ``map_index`` and ``try_number`` of the one it replaces. ``loop.region_id`` and
-    ``loop.trajectory`` tell the two apart, and the higher trajectory is the current one.
-    ``dagRun.clear_number`` counts clears of the whole Dag run only.
+    Adds to the included fields, each left out when it doesn't apply: ``id``, ``map_index``,
+    ``rendered_map_index``, ``expanded_ti_count``, ``region_id``, ``region_index`` and ``loop``. The provider's
+    "Identifying task executions in events" guide (``guides/task_execution_identity.rst``) explains how
+    consumers read them, and ``AirflowRunFacet.json`` describes each one.
     """
 
     includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "try_number"]
@@ -1220,9 +1167,8 @@ class TaskInstanceInfo(InfoJsonEncodable):
             self.id = str(ti_id)
             self._fields.append("id")
         loop = _build_loop_info(position) if position and position.in_loop else {}
-        # Only a loop gate's runtime task instance has one, once it has evaluated ``until``. Airflow 3.4.0 exposes
-        # it, a pre-release only as a private attribute.
-        decision = getattr(self.obj, "loop_decision", None) or getattr(self.obj, "_loop_decision", None)
+        # Only a loop gate's runtime task instance has one, once it has evaluated ``until``
+        decision = getattr(self.obj, "loop_decision", None)
         if decision is not None:
             loop["decision"] = {"stop": decision.stop}
             if decision.reason is not None:
@@ -1609,12 +1555,11 @@ class TaskInstancePosition:
     """
     Where a task instance runs: in a loop or not, the map index users see, and its loop iteration.
 
-    The loop fields are ``None`` outside a loop, and also when they can't be known. Airflow 3.4+ tells all of
-    them, and ``expanded_ti_count`` for a mapped task: a runtime task instance through its ``loop`` and
-    ``expanded_ti_count``, read by ``get_task_instance_position``, and a stored one through Airflow's
-    ``TaskCoordinateResolver``, called by ``get_stored_task_instance_position``. Before that, a
-    runtime task instance only has the iteration and limit from its template context, and a stored one only what
-    its task and region rows tell. ``TaskInstanceInfo`` explains what these fields mean in events.
+    The loop fields are ``None`` outside a loop, and also when they can't be known. A runtime task instance
+    tells all of them, and ``expanded_ti_count`` for a mapped task, through its ``loop`` and
+    ``expanded_ti_count``, read by ``get_task_instance_position``. A stored one tells them through Airflow's
+    ``TaskCoordinateResolver``, called by ``get_stored_task_instance_position``, and otherwise only what its
+    task and region rows tell. ``AirflowRunFacet.json`` describes what these fields mean in events.
     """
 
     in_loop: bool
@@ -1703,30 +1648,20 @@ def _add_runtime_loop_iteration(
 ) -> TaskInstancePosition:
     if isinstance(task_instance, TaskInstance):
         return position
-    # Only runtime task instances of Airflow 3.4+ expose these, the expansion size from 3.4.0 on
+    # Only runtime task instances of Airflow 3.4+ expose these
     position = attrs.evolve(position, expanded_ti_count=getattr(task_instance, "expanded_ti_count", None))
     if not position.in_loop or position.loop_index is not None:
         return position
     if (loop := getattr(task_instance, "loop", None)) is None:
-        # Run ids, map indexes and the lineage macros don't need the iteration, so only this reads the template
-        # context: it re-validates the params on every call, which can raise from inside a user's template.
-        try:
-            loop = task_instance.get_template_context().get("loop")
-        except Exception:
-            # The iteration only describes the run, so failing to read it must not cost the event its run id
-            log.warning("OpenLineage failed to read the loop iteration of task instance %s", task_instance.id)
-            log.debug("Exception details:", exc_info=True)
-            return position
-    if loop is None:
         return position
     return attrs.evolve(
         position,
         loop_index=loop.index,
         loop_max_iterations=loop.max_iterations,
-        loop_region_id=getattr(loop, "region_id", None),
-        loop_trajectory=getattr(loop, "trajectory", None),
-        loop_forked_from_region_id=getattr(loop, "forked_from_region_id", None),
-        loop_resumes_from_index=getattr(loop, "resumes_from_index", None),
+        loop_region_id=loop.region_id,
+        loop_trajectory=loop.trajectory,
+        loop_forked_from_region_id=loop.forked_from_region_id,
+        loop_resumes_from_index=loop.resumes_from_index,
     )
 
 
@@ -1738,7 +1673,7 @@ def get_task_instance_position(task_instance: TaskInstance | RuntimeTaskInstance
 def _get_core_task_instance_position(
     task_instance: TaskInstance, *, session: Session | None
 ) -> TaskInstancePosition | None:
-    """Place a stored task instance in a region as Airflow places it for the worker, from Airflow 3.4.0 on."""
+    """Place a stored task instance in a region as Airflow places it for the worker, from Airflow 3.4 on."""
     if session is None or not AIRFLOW_V_3_4_PLUS:
         return None
     region_id = task_instance.region_id
@@ -1749,8 +1684,6 @@ def _get_core_task_instance_position(
         return None
     from airflow.models.task_coordinates import TaskCoordinateResolver
 
-    if not hasattr(TaskCoordinateResolver, "get_loop_context"):  # An Airflow 3.4 pre-release
-        return None
     try:
         # The savepoint keeps the caller's transaction usable after a failure
         with session.begin_nested():
@@ -1790,7 +1723,7 @@ def get_stored_task_instance_position(
     """
     Place a stored task instance for an event about it, as Airflow places it for the worker when it can.
 
-    That needs Airflow 3.4.0+ and a session. Otherwise, or when Airflow fails to, it is placed with
+    That needs Airflow 3.4+ and a session. Otherwise, or when Airflow fails to, it is placed with
     ``get_orm_task_instance_positions``, which only knows what the task and region rows tell.
     """
     if (position := _get_core_task_instance_position(task_instance, session=session)) is not None:
