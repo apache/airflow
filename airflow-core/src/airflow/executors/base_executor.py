@@ -921,6 +921,11 @@ class BaseExecutor(LoggingMixin):
             encoding_kwargs = {}
             if kwargs_encoding := workload.callback.data.get(CALLBACK_KWARGS_ENCODING_KEY):
                 encoding_kwargs["callback_kwargs_encoding"] = kwargs_encoding
+            # Same for the ids the context is built from: callbacks queued without a run_id use the
+            # context stored with them.
+            if workload.callback.data.get("run_id"):
+                for key in ("dag_id", "run_id", "deadline_id", "deadline_time"):
+                    encoding_kwargs[key] = workload.callback.data.get(key)
             return supervise_callback(
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),

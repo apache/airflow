@@ -266,64 +266,21 @@ class Deadline(Base):
         """Handle a missed deadline by queueing the callback."""
         from airflow.models.dag import DagModel  # Avoids circular import
 
-        def get_simple_context():
-            from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
-            from airflow.models import DagRun
+        # Store only the ids needed to load the Dag run; the context is built where the callback runs.
+        data = self.callback.data.copy()
+        data["dag_id"] = self.dagrun.dag_id
+        data["run_id"] = self.dagrun.run_id
+        data["deadline_id"] = str(self.id)
+        data["deadline_time"] = self.deadline_time.isoformat()
 
-            # TODO: Use the TaskAPI from within Triggerer to fetch full context instead of sending this context
-            #  from the scheduler
-
-            # Fetch the DagRun from the database again to avoid errors when self.dagrun's relationship fields
-            # are not in the current session.
-            dagrun = session.get(DagRun, self.dagrun_id)
-
-            return {
-                "dag_run": DAGRunResponse.model_validate(dagrun).model_dump(mode="json"),
-                "deadline": {"id": str(self.id), "deadline_time": self.deadline_time},
-            }
-
-        def callback_data_with_context():
-            data = self.callback.data.copy()
-            kwargs = dict(data.get("kwargs") or {})
-            kwargs["context"] = get_simple_context()
-            data["kwargs"] = kwargs
-            return data
-
-        callback_failed = False
         if isinstance(self.callback, TriggererCallback):
-            from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
-
-            data = callback_data_with_context()
-            # The triggerer decodes the context with full serde, which rebuilds a value in either
-            # encoding as an object, and strict serialize raises on the current one. Fail the
-            # callback instead of queueing it: raising here would abort the scheduler loop, and the
-            # deadline would be picked up and raise again on every restart.
-            if found := find_reserved_keys(data["kwargs"]["context"], root="context"):
-                _, keys = found
-                logger.error(
-                    "Not queueing the callback of deadline %s for Dag %s, run %s: its context holds "
-                    "reserved serialization keys %s",
-                    self.id,
-                    self.dagrun.dag_id,
-                    self.dagrun.run_id,
-                    ", ".join(keys),
-                )
-                self.callback.state = CallbackState.FAILED
-                self.callback.output = (
-                    f"Not queued: the callback context holds reserved serialization keys {', '.join(keys)}"
-                )
-                callback_failed = True
-            else:
-                self.callback.data = data
-                self.callback.queue(session=session)
+            self.callback.data = data
+            self.callback.queue(session=session)
             session.add(self.callback)
             session.flush()
 
         elif isinstance(self.callback, ExecutorCallback):
-            data = callback_data_with_context()
-            data["deadline_id"] = str(self.id)
             data["dag_run_id"] = str(self.dagrun.id)
-            data["dag_id"] = self.dagrun.dag_id
             self.callback.data = data
 
             self.callback.state = CallbackState.PENDING
@@ -347,12 +304,6 @@ class Deadline(Base):
                 {"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id, "team_name": team_name}
             ),
         )
-        if callback_failed:
-            stats.incr(
-                **self.callback.get_metric_info(
-                    CallbackState.FAILED, self.callback.output, team_name=team_name
-                )
-            )
 
 
 class ReferenceModels:

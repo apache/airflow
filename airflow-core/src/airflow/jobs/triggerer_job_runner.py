@@ -106,7 +106,7 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors, build_context_from_dag_run
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
     handle_clear_asset_state_store_by_uri,
@@ -890,13 +890,23 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if trigger.assets:
                 watched_assets = {a.name: a.uri for a in trigger.assets}
 
+            dag_run_data = None
             if callback := getattr(trigger, "callback", None):
-                # Log callback triggers to a file the UI callback logs endpoint can read.
                 callback_data = callback.data or {}
-                context = (callback_data.get("kwargs") or {}).get("context") or {}
-                dag_run_data = context.get("dag_run") or {}
-                dag_id = callback_data.get("dag_id") or dag_run_data.get("dag_id") or "unknown"
-                run_id = dag_run_data.get("dag_run_id") or "unknown"
+                dag_run_data = self._fetch_callback_dag_run_data(callback_data, session=session)
+                if dag_run_data is None and callback_data.get("run_id"):
+                    # The Dag run could not be loaded; skip the trigger so it is retried on the next loop.
+                    log.warning(
+                        "Skipping callback trigger, Dag run not found for context", trigger_id=trigger.id
+                    )
+                    return None
+                # Log callback triggers to a file the UI callback logs endpoint can read. Callbacks
+                # queued before the upgrade only have the Dag run in their stored context.
+                stored_dag_run = ((callback_data.get("kwargs") or {}).get("context") or {}).get(
+                    "dag_run"
+                ) or {}
+                dag_id = callback_data.get("dag_id") or stored_dag_run.get("dag_id") or "unknown"
+                run_id = callback_data.get("run_id") or stored_dag_run.get("dag_run_id") or "unknown"
                 # One directory per callback: with delete_local_logs, remote handlers delete the
                 # log file's parent directory after upload, which must not hold other callbacks' logs.
                 self.logger_cache[trigger.id] = TriggerLoggingFactory(
@@ -908,6 +918,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 classpath=trigger.classpath,
                 encrypted_kwargs=trigger.encrypted_kwargs,
                 watched_assets=watched_assets,
+                dag_run_data=dag_run_data,
             )
 
         if not trigger.task_instance.dag_version_id:
@@ -980,6 +991,23 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             ti=ser_ti,
             timeout_after=trigger.task_instance.trigger_timeout,
         )
+
+    @staticmethod
+    def _fetch_callback_dag_run_data(callback_data: dict, *, session: Session) -> dict | None:
+        """Load the Dag run of a deadline callback, as start_from_trigger tasks get theirs, plus its deadline."""
+        from airflow.models.dagrun import DagRun
+
+        if not (dag_id := callback_data.get("dag_id")) or not (run_id := callback_data.get("run_id")):
+            return None
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+        if dag_run is None:
+            return None
+        data = dag_run.dag_run_data.model_dump(exclude_unset=True)
+        data["_deadline"] = {
+            "id": callback_data.get("deadline_id"),
+            "deadline_time": callback_data.get("deadline_time"),
+        }
+        return data
 
     def fetch_trigger_details(self, trigger_ids: set[int], *, session: Session) -> dict[int, Trigger]:
         """Fetch trigger rows by ID."""
@@ -1467,6 +1495,15 @@ class TriggerRunner:
             ),
         )
 
+    @staticmethod
+    def _build_context_from_dag_run_data(dag_run_data: dict) -> Context:
+        """Build the context of a callback trigger from the Dag run data on its workload."""
+        from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel
+
+        dag_run_data = dict(dag_run_data)
+        deadline = dag_run_data.pop("_deadline", None)
+        return build_context_from_dag_run(DRDataModel(**dag_run_data), deadline=deadline)  # type: ignore[return-value]
+
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         # Emit batch creation duration only when triggers were processed.
@@ -1518,6 +1555,14 @@ class TriggerRunner:
                 else:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
+                    if workload.dag_run_data:
+                        from airflow.triggers.callback import CallbackTrigger
+
+                        # Same as setting task_instance on task-bound triggers above.
+                        if isinstance(trigger_instance, CallbackTrigger):
+                            trigger_instance._callback_context = self._build_context_from_dag_run_data(
+                                workload.dag_run_data
+                            )
             except Exception as err:
                 # Kwargs are decoded here rather than when queued, so one trigger with undecodable
                 # kwargs (e.g. a class not in allowed_deserialization_classes) must not stop the runner.

@@ -11468,11 +11468,14 @@ class TestSchedulerJob:
         session.expire_all()
         reserved_deadline = session.get(Deadline, reserved_deadline.id)
         other_deadline = session.get(Deadline, other_deadline.id)
+        # The context is no longer stored with the callback, so the conf does not stop it being queued.
         assert reserved_deadline.missed
-        assert reserved_deadline.callback.state == CallbackState.FAILED
+        assert reserved_deadline.callback.state == CallbackState.QUEUED
         assert other_deadline.missed
         assert other_deadline.callback.state == CallbackState.QUEUED
-        assert [t.id for t in session.scalars(select(Trigger))] == [other_deadline.callback.trigger_id]
+        assert sorted(t.id for t in session.scalars(select(Trigger))) == sorted(
+            [reserved_deadline.callback.trigger_id, other_deadline.callback.trigger_id]
+        )
 
         # The shared cleanup deletes triggers before callbacks.
         session.execute(update(Callback).values(trigger_id=None))

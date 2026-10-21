@@ -1713,3 +1713,37 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
+
+
+def build_context_from_dag_run(dag_run, deadline: dict | None = None) -> dict:
+    """
+    Build the context of a deadline callback from its Dag run.
+
+    It has the Dag run fields of a task's context (``ds``, ``ts``, ...), derived the same way as in
+    ``RuntimeTaskInstance.get_template_context``, plus ``deadline`` when given. Deadline callbacks
+    are not tied to a task, so there are no task fields.
+    """
+    from airflow.sdk.timezone import coerce_datetime
+
+    context: dict = {"dag_run": dag_run, "run_id": dag_run.run_id}
+
+    if logical_date := coerce_datetime(dag_run.logical_date):
+        ds = logical_date.strftime("%Y-%m-%d")
+        ts = logical_date.isoformat()
+        context.update(
+            {
+                "logical_date": logical_date,
+                "ds": ds,
+                "ds_nodash": ds.replace("-", ""),
+                "ts": ts,
+                "ts_nodash": logical_date.strftime("%Y%m%dT%H%M%S"),
+                "ts_nodash_with_tz": ts.replace("-", "").replace(":", ""),
+                "data_interval_start": coerce_datetime(dag_run.data_interval_start),
+                "data_interval_end": coerce_datetime(dag_run.data_interval_end),
+            }
+        )
+
+    if deadline:
+        context["deadline"] = deadline
+
+    return context

@@ -1,0 +1,8 @@
+Deadline Alert callbacks get their context when they run, and their kwargs are templated
+
+The context passed to Deadline Alert callbacks is now built where the callback runs, from the Dag run as it is
+then, instead of being stored by the scheduler when the deadline is missed. Its ``dag_run`` entry is now a Dag
+run object, as in a task's context, rather than a dict of the REST API Dag run fields, so read its fields as
+attributes (``context["dag_run"].dag_id``). Jinja templates in the callback's string kwargs, such as
+``{{ dag_run.run_id }}`` or ``{{ ds }}``, are rendered with this context. Callbacks queued before the upgrade
+still run with their stored context.
