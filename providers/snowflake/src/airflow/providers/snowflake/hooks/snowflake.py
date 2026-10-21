@@ -868,7 +868,7 @@ class SnowflakeHook(DbApiHook):
             conn_params.pop(LOGOUT_AUTO_DETECTION_PARAM, None)
             return conn_params
 
-        region = conn_params.pop("region")
+        region = conn_params.pop("region", None)
         # Same host as construct_hostname() in earlier connectors: "us-west-2" is the default
         # deployment and adds nothing, and the region replaces any region in the account.
         if region and region != "us-west-2" and "host" not in conn_params:
