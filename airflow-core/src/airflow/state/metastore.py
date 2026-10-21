@@ -471,8 +471,8 @@ class MetastoreBackend(BaseStoreBackend):
     async def _aget_task_state_store(
         self, scope: TaskScope, key: str, *, session: AsyncSession
     ) -> str | None:
-        row = await session.scalar(
-            select(TaskStateStoreModel).where(
+        return await session.scalar(
+            select(TaskStateStoreModel.value).where(
                 TaskStateStoreModel.dag_id == scope.dag_id,
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
@@ -481,7 +481,6 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.key == key,
             )
         )
-        return row.value if row is not None else None
 
     async def _aset_task_state_store(
         self,
