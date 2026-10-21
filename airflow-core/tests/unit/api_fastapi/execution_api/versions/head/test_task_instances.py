@@ -2301,7 +2301,7 @@ class TestTIUpdateState:
         session.expire_all()
         assert session.get(TaskInstance, right_id).state == State.RUNNING
         ready = dr.task_instance_scheduling_decisions(session=session).schedulable_tis
-        assert {(ti.task_id, ti.region_index) for ti in ready} == {("body.left", 1), ("body.right", 1)}
+        assert {(ti.task_id, ti.region_index) for ti in ready} == {("body.left", 2), ("body.right", 2)}
 
     @pytest.fixture
     def started_loop_successor(self, client, session, running_loop_gate):
@@ -2316,11 +2316,11 @@ class TestTIUpdateState:
         running = next(
             ti
             for ti in dr.get_task_instances(session=session)
-            if ti.task_id != gate.task_id and ti.region_index == 1
+            if ti.task_id != gate.task_id and ti.region_index == 2
         )
         running.state = State.QUEUED
         for ti in dr.get_task_instances(session=session):
-            if ti.task_id != gate.task_id and ti.region_index == 0:
+            if ti.task_id != gate.task_id and ti.region_index == 1:
                 ti.state = State.SUCCESS
         session.commit()
         running_id = running.id
@@ -2381,7 +2381,7 @@ class TestTIUpdateState:
         dr.dag = dag_maker.serialized_dag
         decision = dr.task_instance_scheduling_decisions(session=session)
         assert gate.id in {ti.id for ti in decision.schedulable_tis}
-        assert not any(ti.region_index == 1 for ti in dr.get_task_instances(session=session))
+        assert not any(ti.region_index == 2 for ti in dr.get_task_instances(session=session))
 
     def test_restart_ack_locks_run_before_task(self, client, session, create_task_instance, mocker):
         if session.bind.dialect.name == "sqlite":
@@ -2471,17 +2471,17 @@ class TestTIUpdateState:
     @pytest.mark.parametrize(
         ("decision", "state", "max_iterations", "conditional", "rejected", "passes"),
         [
-            ("continue", State.SUCCESS, 3, False, False, [0, 1]),
-            ("stop", State.SUCCESS, 3, False, True, [0]),
-            (None, State.SUCCESS, 3, False, True, [0]),
-            ("continue", State.FAILED, 3, False, False, [0]),
-            ("continue", State.SKIPPED, 3, False, False, [0]),
-            ("stop", State.SUCCESS, 1, False, False, [0]),
-            ("continue", State.SUCCESS, 1, False, True, [0]),
-            ("stop", State.SUCCESS, 3, True, False, [0]),
-            ("stop", State.SUCCESS, 1, True, False, [0]),
-            ("continue", State.SUCCESS, 1, True, True, [0]),
-            (None, State.FAILED, 1, True, False, [0]),
+            ("continue", State.SUCCESS, 3, False, False, [1, 2]),
+            ("stop", State.SUCCESS, 3, False, True, [1]),
+            (None, State.SUCCESS, 3, False, True, [1]),
+            ("continue", State.FAILED, 3, False, False, [1]),
+            ("continue", State.SKIPPED, 3, False, False, [1]),
+            ("stop", State.SUCCESS, 1, False, False, [1]),
+            ("continue", State.SUCCESS, 1, False, True, [1]),
+            ("stop", State.SUCCESS, 3, True, False, [1]),
+            ("stop", State.SUCCESS, 1, True, False, [1]),
+            ("continue", State.SUCCESS, 1, True, True, [1]),
+            (None, State.FAILED, 1, True, False, [1]),
         ],
     )
     def test_loop_gate_completion_consumes_decision_atomically(
@@ -2553,8 +2553,8 @@ class TestTIUpdateState:
                 )
                 == passes
             )
-        if mapped and passes == [0, 1]:
-            successor_region = next(region for region in children if region.parent_region_index == 1)
+        if mapped and passes == [1, 2]:
+            successor_region = next(region for region in children if region.parent_region_index == 2)
             assert [ti.region_index for ti in current if ti.region_id == successor_region.id] == [-1]
             dr.dag = dag_maker.serialized_dag
 
@@ -2609,7 +2609,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 500
         session.expire_all()
-        assert observed == [State.RUNNING, [0]]
+        assert observed == [State.RUNNING, [1]]
         assert gate.state == State.RUNNING
         assert len(dr.get_task_instances(session=session)) == 2
 
@@ -2668,7 +2668,7 @@ class TestTIUpdateState:
         assert gate.state == State.SUCCESS
         assert sorted(
             ti.region_index for ti in dr.get_task_instances(session=session) if ti.task_id == gate.task_id
-        ) == [0, 1]
+        ) == [1, 2]
 
     def test_loop_gate_completion_uses_its_pinned_limit(self, client, session, running_loop_gate, dag_maker):
         gate = running_loop_gate
@@ -2688,7 +2688,7 @@ class TestTIUpdateState:
 
         assert response.status_code == 204, response.text
         session.expire_all()
-        successors = [ti for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1]
+        successors = [ti for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 2]
         assert len(successors) == 2
         assert all(ti.dag_version_id == original_version for ti in successors)
 
@@ -2718,7 +2718,7 @@ class TestTIUpdateState:
         assert response.status_code == 204, response.text
         session.expire_all()
         assert gate.state == State.FAILED
-        assert [ti.region_index for ti in gate.dag_run.get_task_instances(session=session)] == [0, 0]
+        assert [ti.region_index for ti in gate.dag_run.get_task_instances(session=session)] == [1, 1]
 
     def test_loop_gate_state_update_error_rolls_back_next_pass(
         self, client, session, running_loop_gate, mocker
@@ -2794,7 +2794,7 @@ class TestTIUpdateState:
         assert response.status_code == 204
         session.refresh(gate)
         successor_ids = {
-            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1
+            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 2
         }
         archived_id = gate.id
         dag_run = gate.dag_run
@@ -2805,7 +2805,7 @@ class TestTIUpdateState:
                 TaskInstance.dag_id == dag_run.dag_id,
                 TaskInstance.run_id == dag_run.run_id,
                 TaskInstance.task_id == gate.task_id,
-                TaskInstance.region_index == 0,
+                TaskInstance.region_index == 1,
                 TaskInstance.working_set.is_(True),
             )
         )
@@ -2826,7 +2826,7 @@ class TestTIUpdateState:
         session.expire_all()
         assert gate.state == state
         assert {
-            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 1
+            ti.id for ti in gate.dag_run.get_task_instances(session=session) if ti.region_index == 2
         } == successor_ids
         assert _stored_loop_decision_reasons(session, archived_id) == ["first"]
         assert _stored_loop_decision_reasons(session, gate.id) == []
@@ -4782,7 +4782,7 @@ class TestTISkipDownstream:
         other_pass = TaskInstance(
             task=dag.get_task(target.task_id), run_id=dr.run_id, dag_version_id=target.dag_version_id
         )
-        other_pass.region_id, other_pass.region_index = region.id, 1
+        other_pass.region_id, other_pass.region_index = region.id, 2
         session.add(other_pass)
         session.commit()
 

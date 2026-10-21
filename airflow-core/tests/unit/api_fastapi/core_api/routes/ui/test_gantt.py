@@ -401,7 +401,7 @@ class TestGetGanttDataEndpoint:
         assert response.status_code == 200, response.text
         rows = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
         assert {row["id"] for row in rows} == {str(first.id), str(second.id)}
-        assert {row["region_index"] for row in rows} == {0, 2}
+        assert {row["region_index"] for row in rows} == {1, 2}
         assert {row["region_id"] for row in rows} == {str(first.region_id)}
         assert {row["map_index"] for row in rows} == {-1}
         assert all(

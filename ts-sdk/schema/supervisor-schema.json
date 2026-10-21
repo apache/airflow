@@ -3250,7 +3250,7 @@
           "type": "string"
         },
         "index": {
-          "minimum": 0,
+          "minimum": 1,
           "title": "Index",
           "type": "integer"
         },
