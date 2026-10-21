@@ -985,6 +985,7 @@ export const $BackfillPostBody = {
         },
         max_active_runs: {
             type: 'integer',
+            minimum: 1,
             title: 'Max Active Runs',
             default: 10
         },
