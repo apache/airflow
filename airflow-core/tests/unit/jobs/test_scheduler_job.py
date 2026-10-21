@@ -2341,7 +2341,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -2381,7 +2381,7 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
+        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
