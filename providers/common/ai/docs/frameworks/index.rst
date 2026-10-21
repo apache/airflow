@@ -50,8 +50,8 @@ AI because it does not tie a Dag to either:
 
 Pydantic AI is the recommendation, not a requirement. For a new agent, start with
 ``AgentOperator``, which gets the most from this provider. If your team has standardized
-on Strands, ADK, LangChain, the Anthropic SDK, the OpenAI Agents SDK or the Claude Agent SDK, keep that framework: the table below
-shows what this provider gives an agent written in each one.
+on Strands, ADK, LangChain, the Anthropic SDK, the OpenAI Agents SDK, the Claude Agent SDK or the OpenAI
+Codex SDK, keep that framework: the table below shows what this provider gives an agent written in each one.
 
 Supported frameworks
 --------------------
@@ -109,6 +109,14 @@ is Airflow's and which part stays yours.
        failure the model cannot fix fail the task. Guide: :doc:`claude_agent_sdk`.
      - You
      - ``[claude-agent-sdk]`` extra
+   * - OpenAI Codex SDK
+     - :class:`~airflow.providers.common.ai.tools.openai_codex.AirflowTools` serves the same
+       tools to Codex through an MCP server on ``127.0.0.1`` in the task's event loop,
+       points Codex at empty temporary directories instead of the worker's ``~/.codex``,
+       and makes a tool failure the model cannot fix fail the task. Guide:
+       :doc:`openai_codex`.
+     - You
+     - ``[openai-codex]`` extra
    * - LangChain
      - :class:`~airflow.providers.common.ai.hooks.langchain.LangChainHook` returns chat
        and embedding models configured from a connection, and
@@ -125,8 +133,8 @@ is Airflow's and which part stays yours.
      - No agent
      - ``[llamaindex]`` extra
 
-The Strands, ADK, Anthropic, OpenAI Agents and Claude Agent SDK integrations and the tracing
-helper are experimental: they can change or be removed in a minor release of this provider. The
+The Strands, ADK, Anthropic, OpenAI Agents, Claude Agent SDK and OpenAI Codex SDK integrations and
+the tracing helper are experimental: they can change or be removed in a minor release of this provider. The
 framework-neutral tool interface under them is stable. See :ref:`howto/stability`.
 
 Tested versions
@@ -154,12 +162,17 @@ Tested versions
    * - Claude Agent SDK
      - 0.2.168
      - Bundles the Claude Code CLI as the subprocess the SDK talks to.
+   * - OpenAI Codex SDK
+     - 0.163.0
+     - Its ``openai-codex-cli-bin`` dependency bundles the ``codex`` binary, one wheel per
+       platform of 119 to 152 MB. The adapter needs ``mcp`` 2.0 or later and Strands Agents pins
+       ``mcp`` below 2.2; installing both together was not tested.
 
 These are the versions the adapter tests have been run against. Strands and ADK cap
 packages below the versions in Airflow's dependency lock, and current OpenAI Agents SDK
 releases need ``openai`` 3, so CI runs their adapter tests in a job of their own, one
-framework at a time. The Claude Agent SDK adapter has no such conflict, so CI runs its
-tests.
+framework at a time. The Claude Agent SDK and OpenAI Codex SDK adapters have no such
+conflict, so CI runs their tests.
 
 Outside canary runs, the job holds every package already in the CI image at its
 installed version with ``--override``, so Strands' and ADK's own dependency caps are
@@ -187,6 +200,8 @@ Start from the agent you already have:
   ``tools`` with ``AirflowTools``. See :doc:`openai_agents`.
 - **A loop written on the Claude Agent SDK**: keep it, and hand it Airflow's toolsets with
   ``AirflowTools``. See :doc:`claude_agent_sdk`.
+- **A loop written on the OpenAI Codex SDK**: keep it, and hand it Airflow's toolsets with
+  ``AirflowTools``. See :doc:`openai_codex`.
 - **An existing LangChain agent**: build its model with ``LangChainHook`` and add
   Airflow's toolsets with ``airflow_toolset_to_langchain_tools``.
 - **No agent yet, or no preference**: use ``AgentOperator`` or ``@task.agent``. That route
@@ -206,7 +221,8 @@ Airflow also depends on, such as OpenTelemetry or a vendor SDK.
 
 To give such a framework Airflow's toolsets rather than hand-written tools, build on
 the framework-neutral interface in :mod:`airflow.providers.common.ai.tools`, which is
-what the Strands, ADK, Anthropic, OpenAI Agents and Claude Agent SDK integrations are written against:
+what the Strands, ADK, Anthropic, OpenAI Agents, Claude Agent SDK and OpenAI Codex SDK integrations are
+written against:
 
 - :class:`~airflow.providers.common.ai.tools.AirflowTool` is one operation: a name, a
   description, a JSON Schema for its arguments and an async function. Call it through
@@ -226,8 +242,8 @@ what the Strands, ADK, Anthropic, OpenAI Agents and Claude Agent SDK integration
 An adapter maps these onto the framework's own tool type and error status, and makes
 sure a ``ToolCallError`` ends the run rather than reaching the model, as the Strands
 plugin does. :func:`~airflow.providers.common.ai.tools.collect_tools` turns the toolsets and
-tools an adapter is given into one list, as the Strands, ADK, Anthropic, OpenAI Agents and Claude Agent SDK
-adapters do.
+tools an adapter is given into one list, as the Strands, ADK, Anthropic, OpenAI Agents, Claude Agent SDK
+and OpenAI Codex SDK adapters do.
 
 Blocking hook calls, such as a SQL query, run one at a time in the task's process, so an
 agent that calls two database tools at once gets its answers one after the other.
@@ -248,3 +264,4 @@ on; see :doc:`../observability`. For an OpenAI Agents SDK agent, also register
     Anthropic SDK <anthropic>
     OpenAI Agents SDK <openai_agents>
     Claude Agent SDK <claude_agent_sdk>
+    OpenAI Codex SDK <openai_codex>

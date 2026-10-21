@@ -251,6 +251,7 @@ Extra                 Dependencies
 ``docx``              ``python-docx>=1.0.0``
 ``git``               ``apache-airflow-providers-git``
 ``claude-agent-sdk``  ``claude-agent-sdk>=0.2.160``
+``openai-codex``      ``openai-codex>=0.163.0``, ``mcp>=2.0.0``, ``uvicorn>=0.31.1``
 ====================  =======================================================================================================================================
 
 Downloading official packages
