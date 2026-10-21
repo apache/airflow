@@ -161,7 +161,7 @@ definition.
    * - ``loop.forked_from_region_id``
      - The ``loop.region_id`` of the previous trajectory, or ``None`` in trajectory 1.
    * - ``loop.resumes_from_index``
-     - The first iteration this trajectory holds, or ``None`` in trajectory 1, which holds them from 0.
+     - The first iteration this trajectory holds, or ``None`` in trajectory 1, which holds them from 1.
 
 Use ``loop.index`` for the loop iteration and ``ti.map_index`` for a mapped
 task instance's position. Each task instance can have several tries, each with its own ``ti.try_number``.

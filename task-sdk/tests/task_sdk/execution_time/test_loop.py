@@ -145,9 +145,9 @@ def test_task_instance_exposes_the_size_of_its_expansion(create_runtime_ti, expa
 @pytest.mark.parametrize(
     ("index", "until", "expected"),
     [
-        (0, lambda: LoopDecision(stop=False, reason="not yet"), LoopDecision(stop=False, reason="not yet")),
-        (2, lambda: True, LoopDecision(stop=True)),
-        (2, lambda: False, LoopDecision(stop=False)),
+        (1, lambda: LoopDecision(stop=False, reason="not yet"), LoopDecision(stop=False, reason="not yet")),
+        (3, lambda: True, LoopDecision(stop=True)),
+        (3, lambda: False, LoopDecision(stop=False)),
     ],
     ids=["continue", "until_met", "cap_reached"],
 )

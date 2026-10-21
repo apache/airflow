@@ -232,7 +232,7 @@ def test_expanded_ti_count_counts_each_instance_of_one_loop_iteration_once(dag_m
         run_id=dr.run_id,
         node_id=first.task_id,
         parent_region_id=session.get(DynamicRegion, first.region_id).parent_region_id,
-        parent_region_index=1,
+        parent_region_index=2,
         session=session,
     )
     session.add(next_expansion)

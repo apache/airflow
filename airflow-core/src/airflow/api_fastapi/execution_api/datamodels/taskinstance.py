@@ -488,7 +488,7 @@ class LoopContext(BaseModel):
         SkipJsonSchema[None] | int,
         Field(json_schema_extra=_drop_null_default),
     ] = None
-    """The first iteration ``region_id`` holds. Absent for the original region, which holds them from 0."""
+    """The first iteration ``region_id`` holds. Absent for the original region, which holds them from 1."""
 
 
 class TIRunContext(BaseModel):
