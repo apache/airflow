@@ -47,7 +47,9 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import TypeAdapter
-from sqlalchemy import delete, update
+from sqlalchemy import create_engine, delete, event, func, select, text, update
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.pool import NullPool
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -67,7 +69,6 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
-    _current_trigger_ti_id,
     _make_trigger_span,
     messages,
 )
@@ -86,6 +87,7 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import DAG, Asset, BaseHook, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
@@ -683,6 +685,71 @@ def test_heartbeat_watchdog_disabled_when_threshold_is_zero(supervisor_builder, 
     supervisor.heartbeat()
 
     perform_heartbeat_mock.assert_called_once()
+
+
+def _is_trigger_delete(statement: str) -> bool:
+    return "delete from trigger" in " ".join(statement.lower().replace('"', "").replace("`", "").split())
+
+
+def test_clean_unused_retries_failed_batches_in_new_transactions(jobless_supervisor, session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+
+    delete_attempt_count = 0
+    begin_count = 0
+
+    def fail_first_two_deletes(connection, cursor, statement, parameters, context, executemany):
+        nonlocal delete_attempt_count
+        if _is_trigger_delete(statement):
+            delete_attempt_count += 1
+            if delete_attempt_count <= 2:
+                raise OperationalError(statement, parameters, RuntimeError("injected cleanup failure"))
+
+    def count_begin(cleanup_session, transaction, connection):
+        nonlocal begin_count
+        begin_count += 1
+
+    event.listen(session.bind, "before_cursor_execute", fail_first_two_deletes)
+    event.listen(session.__class__, "after_begin", count_begin)
+    try:
+        jobless_supervisor.clean_unused()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", fail_first_two_deletes)
+        event.remove(session.__class__, "after_begin", count_begin)
+
+    assert (delete_attempt_count, begin_count) == (3, 3)
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+
+
+@pytest.mark.backend("postgres")
+def test_clean_unused_recovers_after_the_database_connection_drops(jobless_supervisor, session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+
+    killer_engine = create_engine(session.bind.url, poolclass=NullPool)
+    terminated = []
+
+    def terminate_connection_before_delete(connection, cursor, statement, parameters, context, executemany):
+        if not terminated and _is_trigger_delete(statement):
+            backend_pid = connection.connection.dbapi_connection.info.backend_pid
+            with killer_engine.connect() as killer:
+                terminated.append(
+                    killer.execute(
+                        text("SELECT pg_terminate_backend(:pid, 5000)"), {"pid": backend_pid}
+                    ).scalar()
+                )
+
+    event.listen(session.bind, "before_cursor_execute", terminate_connection_before_delete)
+    try:
+        jobless_supervisor.clean_unused()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", terminate_connection_before_delete)
+        killer_engine.dispose()
+
+    assert terminated == [True]
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
 
 
 def test_metric_tags_default_uses_job_hostname(supervisor_builder):
@@ -1875,6 +1942,47 @@ class TestTriggerRunner:
         err = cap_structlog[0]["error"]
         assert isinstance(err, TypeError)
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
+
+    @pytest.mark.parametrize(
+        "decode_error",
+        [
+            pytest.param(KeyError("__var"), id="key_error"),
+            pytest.param(ImportError("not in allowed_deserialization_classes"), id="import_error"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", autospec=True)
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    @pytest.mark.asyncio
+    async def test_create_triggers_fails_only_trigger_with_undecodable_kwargs(
+        self, mock_get_trigger_by_classpath, mock_decrypt_kwargs, decode_error, cap_structlog
+    ) -> None:
+        moment = timezone.utcnow() + datetime.timedelta(hours=1)
+
+        def decrypt(encrypted_kwargs):
+            if encrypted_kwargs == "bad":
+                raise decode_error
+            return {"moment": moment}
+
+        mock_decrypt_kwargs.side_effect = decrypt
+
+        trigger_runner = TriggerRunner()
+        trigger_runner.to_create.extend(
+            [
+                workloads.RunTrigger.model_construct(id=1, classpath="abc", encrypted_kwargs="bad"),
+                workloads.RunTrigger.model_construct(id=2, classpath="abc", encrypted_kwargs="good"),
+            ]
+        )
+        await trigger_runner.create_triggers()
+
+        assert list(trigger_runner.failed_triggers) == [(1, decode_error)]
+        assert list(trigger_runner.triggers) == [2]
+        assert {"event": "Trigger failed to inflate", "trigger_id": 1, "error": decode_error} in cap_structlog
+
+        trigger_runner.triggers[2]["task"].cancel()
+        await trigger_runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
@@ -3534,15 +3642,15 @@ async def test_asend_frame_carries_the_current_trigger_ti_id(decoder_pair):
 
     thread = threading.Thread(target=serve, daemon=True)
     thread.start()
-    ti_id = uuid.uuid4()
-    token = _current_trigger_ti_id.set(ti_id)
+    ti = _make_ti_dto()
+    token = _current_trigger_ti.set(ti)
     try:
         await decoder.asend(messages.TriggerStateChanges(events=None, finished=[1], failures=None))
     finally:
-        _current_trigger_ti_id.reset(token)
+        _current_trigger_ti.reset(token)
     thread.join(timeout=5)
 
-    assert [frame.ti_id for frame in frames] == [ti_id]
+    assert [frame.ti_id for frame in frames] == [ti.id]
 
 
 def test_trigger_state_messages_round_trip_with_seqs():
@@ -3754,16 +3862,17 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("has_task_instance", [True, False])
-async def test_run_trigger_sets_current_trigger_ti_id_only_for_task_instance_triggers(has_task_instance):
-    ti = _make_ti_dto()
-    seen: list[uuid.UUID | None] = []
+async def test_run_trigger_sets_current_trigger_ti_only_for_task_instance_triggers(has_task_instance):
+    ti = _make_ti_dto(map_index=3)
+    ti.region_id, ti.region_index = uuid.uuid4(), 2
+    seen: list[TaskInstanceDTO | None] = []
 
     class _RecordingTrigger(BaseTrigger):
         def serialize(self):
             return (f"{type(self).__module__}.{type(self).__qualname__}", {})
 
         async def run(self):
-            seen.append(_current_trigger_ti_id.get())
+            seen.append(_current_trigger_ti.get())
             yield TriggerEvent(True)
 
     trigger_runner = TriggerRunner()
@@ -3776,13 +3885,13 @@ async def test_run_trigger_sets_current_trigger_ti_id_only_for_task_instance_tri
 
     await asyncio.create_task(trigger_runner.run_trigger(5, trigger))
 
-    assert seen == [ti.id if has_task_instance else None]
+    assert seen == [ti if has_task_instance else None]
 
 
 @pytest.mark.asyncio
-async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_ti_id():
-    ti = _make_ti_dto()
-    seen: dict[str, uuid.UUID | None] = {}
+async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_ti():
+    ti = _make_ti_dto(map_index=3)
+    seen: dict[str, TaskInstanceDTO | None] = {}
 
     class _SharedTrigger(BaseEventTrigger):
         def serialize(self):
@@ -3793,12 +3902,12 @@ async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_
 
         @classmethod
         async def open_shared_stream(cls, kwargs):
-            seen["group"] = _current_trigger_ti_id.get()
+            seen["group"] = _current_trigger_ti.get()
             yield {}
             await asyncio.Event().wait()
 
         async def filter_shared_stream(self, shared_stream):
-            seen["trigger"] = _current_trigger_ti_id.get()
+            seen["trigger"] = _current_trigger_ti.get()
             async for raw in shared_stream:
                 yield TriggerEvent(raw)
 
@@ -3821,7 +3930,7 @@ async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_
     with contextlib.suppress(asyncio.CancelledError):
         await run_task
 
-    assert seen == {"group": None, "trigger": ti.id}
+    assert seen == {"group": None, "trigger": ti}
 
 
 @pytest.mark.asyncio

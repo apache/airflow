@@ -123,7 +123,7 @@ describe("GanttTimeline segment bars", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each([0, 3])("shows loop iteration %s in the hovered bar's tooltip", async (iteration) => {
+  it.each([1, 3])("shows loop iteration %s in the hovered bar's tooltip", async (iteration) => {
     const segment: GanttDataItem = {
       loopIteration: { iteration, loop_id: "loop" },
       regionId: "11111111-1111-1111-1111-111111111111",

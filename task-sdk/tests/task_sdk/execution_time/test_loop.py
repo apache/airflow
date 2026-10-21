@@ -44,7 +44,7 @@ from airflow.sdk.execution_time.loop import LoopMaxIterationsExceeded
 
 @pytest.fixture
 def loop_ti(create_runtime_ti):
-    def make(*, index=0, max_iterations=3, until=None, map_index=-1):
+    def make(*, index=1, max_iterations=3, until=None, map_index=-1):
         @task_group
         def body():
             BaseOperator(task_id="terminal")
@@ -68,7 +68,7 @@ def test_first_iteration_previous_does_not_read_xcom(loop_ti, mock_supervisor_co
     ti = loop_ti(map_index=7)
     loop = ti.get_template_context()["loop"]
 
-    assert loop.index == 0
+    assert loop.index == 1
     assert loop.max_iterations == 3
     assert loop.previous is None
     assert ti.map_index == 7
@@ -107,7 +107,7 @@ def test_body_callable_receives_loop_context_after_unmapping(create_runtime_ti, 
 
 @pytest.mark.parametrize("value", [0, False, [], ""])
 def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_supervisor_comms, value):
-    ti = loop_ti(index=1)
+    ti = loop_ti(index=2)
     mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=value)
     loop = ti.get_template_context()["loop"]
 
@@ -123,31 +123,34 @@ def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_superv
 @pytest.mark.parametrize(
     ("index", "until", "expected"),
     [
-        (0, None, LoopDecisionPayload(stop=False)),
-        (2, None, LoopDecisionPayload(stop=True)),
-        (0, lambda: False, LoopDecisionPayload(stop=False)),
-        (0, lambda: True, LoopDecisionPayload(stop=True)),
-        (2, lambda: True, LoopDecisionPayload(stop=True)),
-        (0, lambda: LoopDecision(stop=True), LoopDecisionPayload(stop=True)),
+        (1, None, LoopDecisionPayload(stop=False)),
+        # max_iterations - 1: a zero-based cap check stops here instead, so this pins the base.
+        (2, None, LoopDecisionPayload(stop=False)),
+        (3, None, LoopDecisionPayload(stop=True)),
+        (1, lambda: False, LoopDecisionPayload(stop=False)),
+        (1, lambda: True, LoopDecisionPayload(stop=True)),
+        (3, lambda: True, LoopDecisionPayload(stop=True)),
+        (1, lambda: LoopDecision(stop=True), LoopDecisionPayload(stop=True)),
         (
-            0,
+            1,
             lambda: LoopDecision(stop=False, reason="score 0.7, needs > 0.9"),
             LoopDecisionPayload(stop=False, reason="score 0.7, needs > 0.9"),
         ),
         (
-            0,
+            1,
             lambda: LoopDecision(stop=True, reason="é" * 256),
             LoopDecisionPayload(stop=True, reason="é" * 256),
         ),
-        (0, lambda: LoopDecision(stop=True, reason=""), LoopDecisionPayload(stop=True)),
+        (1, lambda: LoopDecision(stop=True, reason=""), LoopDecisionPayload(stop=True)),
         (
-            0,
+            1,
             lambda: LoopDecision(stop=True, reason="token hunter2 expired"),
             LoopDecisionPayload(stop=True, reason="token *** expired"),
         ),
     ],
     ids=[
         "fixed_continue",
+        "fixed_continue_below_cap",
         "fixed_stop_at_cap",
         "bool_continue",
         "bool_stop",
@@ -221,7 +224,7 @@ def _raise_value_error():
     ],
 )
 def test_gate_fails_without_a_decision(loop_ti, mock_supervisor_comms, until, error, message):
-    ti = loop_ti(index=0, until=until)
+    ti = loop_ti(index=1, until=until)
 
     state, sent, raised = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
 
@@ -230,6 +233,17 @@ def test_gate_fails_without_a_decision(loop_ti, mock_supervisor_comms, until, er
     assert re.search(message, str(raised))
     assert isinstance(sent, TaskState)
     assert sent.loop_decision is None
+
+
+def test_unmet_condition_before_the_cap_continues_instead_of_failing(loop_ti, mock_supervisor_comms):
+    """The pass before the cap has an iteration left, so a false condition just continues."""
+    ti = loop_ti(index=2, until=lambda: False)
+
+    state, message, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
+
+    assert (state, error) == (TaskInstanceState.SUCCESS, None)
+    assert isinstance(message, SucceedTask)
+    assert message.loop_decision == LoopDecisionPayload(stop=False)
 
 
 @pytest.mark.parametrize(
@@ -247,7 +261,7 @@ def test_gate_fails_without_a_decision(loop_ti, mock_supervisor_comms, until, er
 def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(
     loop_ti, mock_supervisor_comms, result, message, reason
 ):
-    ti = loop_ti(index=2, until=lambda: result)
+    ti = loop_ti(index=3, until=lambda: result)
 
     state, sent, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
 
@@ -263,7 +277,7 @@ def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(
 def test_mapped_terminal_keeps_iteration_across_lazy_reads(
     loop_ti, mock_supervisor_comms, previous_iteration, values
 ):
-    ti = loop_ti(index=1)
+    ti = loop_ti(index=2)
     ti._ti_context_from_server.loop.terminal_is_mapped = True
 
     def respond(message):

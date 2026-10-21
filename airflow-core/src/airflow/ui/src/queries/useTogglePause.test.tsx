@@ -21,12 +21,12 @@ import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
 import type { DAGWithLatestDagRunsCollectionResponse } from "openapi/requests/types.gen";
 
+import { server } from "src/mocks/server";
 import { useTogglePause } from "src/queries/useTogglePause";
 
 const DAG_ID = "dag_under_test";
@@ -71,8 +71,6 @@ const buildDagsList = (isPaused: boolean): DAGWithLatestDagRunsCollectionRespons
   total_entries: 1,
 });
 
-const server = setupServer();
-
 const createWrapper =
   (queryClient: QueryClient) =>
   ({ children }: { readonly children: ReactNode }) => (
@@ -102,10 +100,6 @@ const seedClient = (initialIsPaused: boolean) => {
 
   return { dagsListKey, filteredListKey, queryClient };
 };
-
-beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 describe("useTogglePause", () => {
   it("optimistically flips is_paused in the dags list cache as soon as mutate() is called", async () => {

@@ -31,6 +31,7 @@ from starlette.middleware.gzip import GZipMiddleware
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
 from airflow import settings
+from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
 from airflow.utils.session import create_session_async
@@ -210,6 +211,15 @@ def test_api_metrics_middleware_skipped_without_a_metrics_backend(apps):
     installed = [m.cls for m in app_module.create_app(apps=apps).user_middleware]
 
     assert HttpMetricsMiddleware not in installed
+
+
+def test_jwt_refresh_middleware_skips_static_mount():
+    """Static UI assets are served without resolving the user from the JWT cookie."""
+    [middleware] = [
+        m for m in app_module.create_app(apps="core").user_middleware if m.cls is JWTRefreshMiddleware
+    ]
+
+    assert middleware.kwargs == {"skip_path_prefixes": ("/static/",)}
 
 
 def test_catch_all_route_last():

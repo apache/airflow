@@ -94,6 +94,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
+.. autoapiclass:: airflow.sdk.bases.xcom.XComCoordinate
+
 .. autoapiclass:: airflow.sdk.BranchMixIn
 
 .. autoapiclass:: airflow.sdk.PokeReturnValue

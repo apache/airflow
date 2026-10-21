@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import copy
 import hashlib
-import warnings
 from datetime import datetime, timedelta
 from typing import Any
 from unittest import mock
@@ -41,7 +40,6 @@ from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, 
 from airflow.providers.databricks.exceptions import DatabricksApiError
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
-    _DURABLE_UNSET,
     DatabricksCreateJobsOperator,
     DatabricksNotebookOperator,
     DatabricksRunNowOperator,
@@ -49,7 +47,6 @@ from airflow.providers.databricks.operators.databricks import (
     DatabricksSubmitRunOperator,
     DatabricksTaskBaseOperator,
     DatabricksTaskOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
@@ -5270,18 +5267,3 @@ class TestDatabricksTaskOperator:
 
         operator.monitor_databricks_job()
         assert mock_databricks_hook.return_value.get_run.call_count == 3
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False
