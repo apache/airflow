@@ -1485,6 +1485,34 @@ class WatchedSubprocess:
                 self.process_log.warning("Process exited abnormally", exit_code=self._exit_code)
         return self._exit_code
 
+    def _terminate_subprocess_after_monitor_error(self) -> None:
+        if self._exit_code is not None:
+            return
+
+        try:
+            self.cleanup_sockets_after_kill()
+        except Exception:
+            log.exception("Failed to clean up subprocess sockets after supervisor loop error", pid=self.pid)
+
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            try:
+                self._signal_subprocess(sig)
+                self._exit_code = self._process.wait(timeout=KILLED_TASK_CLEANUP_TIME)
+                self._process_exit_monotonic = time.monotonic()
+                log.info("Process exited", pid=self.pid, exit_code=self._exit_code, signal_sent=sig.name)
+                return
+            except self._process.TimeoutExpired:
+                msg = "Process did not terminate in time"
+                if sig != signal.SIGKILL:
+                    msg += "; escalating"
+                log.warning(msg, pid=self.pid, signal=sig.name)
+            except self._process.ProcessNotFound:
+                log.debug("Process already terminated", pid=self.pid)
+                self._exit_code = -1
+                return
+
+        log.error("Failed to terminate process after supervisor loop error", pid=self.pid)
+
 
 _REMOTE_LOGGING_CONN_CACHE: dict[str, Connection | None] = {}
 
@@ -1781,6 +1809,9 @@ class ActivitySubprocess(WatchedSubprocess):
 
         try:
             self._monitor_subprocess()
+        except BaseException:
+            self._terminate_subprocess_after_monitor_error()
+            raise
         finally:
             self.selector.close()
 
