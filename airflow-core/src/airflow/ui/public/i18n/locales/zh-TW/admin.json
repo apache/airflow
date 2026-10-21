@@ -39,7 +39,7 @@
       "connectionTypeRequired": "連線類型是必填的",
       "extraFieldsJson": "額外欄位 JSON",
       "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow 整合套件。",
-      "helperTextForDuplicatedRedactedFields": "遮蔽的欄位（「***」）不會複製。請為新的連線填寫這些欄位。",
+      "helperTextForDuplicatedRedactedFields": "遮蔽的欄位（「***」）不會被複製。請在新的連線中重新填寫這些欄位。",
       "helperTextForRedactedFields": "已遮蔽的欄位 ('***') 若未修改，將保持不變。",
       "selectConnectionType": "選擇連線類型",
       "standardFields": "標準欄位"
