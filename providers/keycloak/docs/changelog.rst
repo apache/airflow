@@ -25,9 +25,6 @@
 Changelog
 ---------
 
-0.11.1
-......
-
 .. note::
 
     Non-team provisioning now generates resource-specific read/write permissions and
@@ -48,6 +45,9 @@ Changelog
     can authorize access despite another permission's denial. Review custom
     authorization rules that depend on ``UNANIMOUS`` before provisioning an
     existing client. ``--dry-run`` reports the proposed change without applying it.
+
+0.11.1
+......
 
 .. note::
     In multi-team mode, the views covering records that are not tied to a Dag or a team -- audit log
