@@ -382,9 +382,10 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
+        task = get_task(dag_bag, ti, session=session)
+
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
-        task = get_task(dag_bag, ti, session=session)
         if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(task)):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)

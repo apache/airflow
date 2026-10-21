@@ -2004,9 +2004,8 @@ class ActivitySubprocess(WatchedSubprocess):
 
         For a Python task, ``StartExecutionTimeout`` arms the deadline right before ``execute()``, so bundle
         loading and Dag parsing are not covered; Dag parsing has its own ``dagbag_import_timeout``. For a
-        task a language SDK runs, the coordinator arms it from the run context once the runtime has
-        started. Either way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the timeout
-        elapses.
+        task a language SDK runs, it is armed once the runtime has been sent ``StartupDetails``. Either
+        way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the timeout elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return

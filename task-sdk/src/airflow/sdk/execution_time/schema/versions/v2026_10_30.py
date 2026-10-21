@@ -137,7 +137,7 @@ class AddExpandedTICountToSupervisorTIRunContext(VersionChange):
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
     """
-    Add the ``execution_timeout`` field carrying the timeout of a task that a language SDK runs.
+    Add the ``execution_timeout`` field carrying the task's timeout, which the supervisor enforces.
 
     The supervisor-schema mirror of the execution API's ``AddExecutionTimeoutToTIRunContext``,
     named apart so the two migrations are not confused.

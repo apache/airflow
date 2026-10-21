@@ -56,7 +56,7 @@ def get_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOpera
 
 def get_arg_bindings(task: SerializedOperator | None) -> list | None:
     """
-    Extract the stub task's TaskFlow arg spec from its Dag version.
+    Return the TaskFlow arg spec of *task* if it is a stub task.
 
     Mapped (``.expand()``) stubs never capture a parse-time spec, so they resolve to
     ``None`` here and keep the legacy ignored-args behavior; per-map-index delivery
