@@ -1798,7 +1798,7 @@ class BackfillPostBody(BaseModel):
     run_backwards: Annotated[bool | None, Field(title="Run Backwards")] = False
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     reprocess_behavior: ReprocessBehavior | None = "none"
-    max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
+    max_active_runs: Annotated[int | None, Field(ge=1, title="Max Active Runs")] = 10
     run_on_latest_version: Annotated[
         bool | None,
         Field(
