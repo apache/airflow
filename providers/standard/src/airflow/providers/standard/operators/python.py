@@ -61,6 +61,14 @@ from airflow.providers.common.compat.standard.operators import (
     is_async_callable,
 )
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
+from airflow.providers.standard.utils.hitl import (
+    InputResponse,
+    input_response_var,
+    params_from_serialized,
+    raise_for_error_event,
+    validate_chosen_options,
+    validate_params_input,
+)
 from airflow.providers.standard.utils.python_virtualenv import (
     _execute_in_subprocess,
     prepare_virtualenv,
@@ -235,6 +243,39 @@ class PythonOperator(BaseAsyncOperator):
             self.log.info("Done. Returned value not shown")
 
         return return_value
+
+    def resume_with_input(
+        self,
+        context: Context,
+        event: dict[str, Any],
+        options: list[str],
+        params: dict[str, dict[str, Any]],
+    ) -> Any:
+        """
+        Run the task again once the input it asked for with ``request_input()`` arrives.
+
+        The callable runs from the top, and
+        :func:`~airflow.providers.standard.operators.hitl.get_input_response` returns the answer
+        while it runs. A request that timed out without defaults raises
+        :class:`~airflow.providers.standard.exceptions.HITLTimeoutError`.
+        """
+        if "error" in event:
+            raise_for_error_event(event)
+        validate_chosen_options(event["chosen_options"], options)
+        validate_params_input(event["params_input"], params_from_serialized(params))
+        token = input_response_var.set(
+            InputResponse(
+                chosen_options=event["chosen_options"],
+                params_input=event["params_input"],
+                responded_at=event["responded_at"],
+                responded_by_user=event["responded_by_user"],
+                timedout=event["timedout"],
+            )
+        )
+        try:
+            return self.execute(context)
+        finally:
+            input_response_var.reset(token)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
