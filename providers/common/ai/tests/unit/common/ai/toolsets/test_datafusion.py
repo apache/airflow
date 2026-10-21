@@ -54,15 +54,8 @@ def _make_mock_engine(
     mock.session_context.catalog().schema().table_names.return_value = list(tables.keys())
     mock.session_context.table_exist.side_effect = lambda name: name in tables
 
-    fields = schema_fields or [("id", "Int64"), ("amount", "Float64")]
-    arrow_fields = []
-    for name, ftype in fields:
-        field = MagicMock()
-        field.name = name
-        field.type = ftype
-        arrow_fields.append(field)
-    for tname in tables:
-        mock.session_context.table(tname).schema.return_value = arrow_fields
+    fields = [{"name": n, "type": t} for n, t in schema_fields or [("id", "Int64"), ("amount", "Float64")]]
+    mock.get_schema.return_value = fields
 
     mock.session_context.sql.return_value.limit.return_value.to_pydict.return_value = (
         query_result
