@@ -22,6 +22,7 @@ from unittest.mock import ANY
 
 import pendulum
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
@@ -426,4 +427,124 @@ class TestGetGanttDataEndpoint:
     def test_should_response_404(self, test_client, dag_id, run_id):
         with assert_queries_count(3):
             response = test_client.get(f"/gantt/{dag_id}/{run_id}")
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids"),
+        [
+            pytest.param(
+                {"start_date_gte": "2024-11-30T10:04:00Z"},
+                ["task2", "task3"],
+                id="start_date_gte_excludes_earlier",
+            ),
+            pytest.param(
+                {"start_date_lte": "2024-11-30T10:04:00Z"},
+                ["task"],
+                id="start_date_lte_excludes_later",
+            ),
+            pytest.param(
+                {"end_date_gte": "2024-11-30T10:07:00Z"},
+                ["task2", "task3"],
+                id="end_date_gte_null_end_date_included",
+            ),
+            pytest.param(
+                {"end_date_lte": "2024-11-30T10:06:00Z"},
+                ["task"],
+                id="end_date_lte_running_task_excluded",
+            ),
+            pytest.param(
+                {"start_date_gte": "2024-11-30T10:04:00Z", "end_date_lte": "2124-01-01T00:00:00Z"},
+                ["task2", "task3"],
+                id="combined_start_and_end_filters",
+            ),
+        ],
+    )
+    def test_time_range_filters(self, test_client, params, expected_task_ids):
+        with assert_queries_count(3):
+            response = test_client.get(f"/gantt/{DAG_ID}/run_1", params=params)
+        assert response.status_code == 200
+        data = response.json()
+        actual_task_ids = sorted(ti["task_id"] for ti in data["task_instances"])
+        assert actual_task_ids == expected_task_ids
+
+    def test_null_start_date_excluded_by_past_lte(self, test_client, session):
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == DAG_ID,
+                TaskInstance.run_id == "run_1",
+                TaskInstance.task_id == TASK_ID_3,
+            )
+        ).one()
+        ti.state = None
+        ti.start_date = None
+        session.commit()
+
+        response = test_client.get(
+            f"/gantt/{DAG_ID}/run_1", params={"start_date_lte": "2024-11-30T10:04:00Z"}
+        )
+        assert response.status_code == 200
+        actual_task_ids = {ti["task_id"] for ti in response.json()["task_instances"]}
+        assert TASK_ID_3 not in actual_task_ids
+
+    @pytest.mark.parametrize(
+        ("params", "expected_tries"),
+        [
+            pytest.param(
+                {"start_date_lte": "2024-11-30T10:30:00Z"},
+                [1],
+                id="window_keeps_archived_try_drops_current",
+            ),
+            pytest.param(
+                {"start_date_gte": "2024-11-30T10:30:00Z"},
+                [2],
+                id="window_keeps_current_try_drops_archived",
+            ),
+        ],
+    )
+    def test_archived_attempts_are_filtered(self, test_client, dag_maker, session, params, expected_tries):
+        with dag_maker("gantt_filter_cleared", serialized=True):
+            EmptyOperator(task_id="work")
+        dr = dag_maker.create_dagrun()
+        first = next(ti for ti in dr.task_instances if ti.task_id == "work")
+        first.try_number = 1
+        first.state = TaskInstanceState.SUCCESS
+        first.start_date = pendulum.DateTime(2024, 11, 30, 10, 0, 0, tzinfo=pendulum.UTC)
+        first.end_date = pendulum.DateTime(2024, 11, 30, 10, 5, 0, tzinfo=pendulum.UTC)
+        session.flush()
+        first.archive(reason="cleared", session=session)
+        retry = TaskInstance(
+            task=dag_maker.serialized_dag.get_task("work"),
+            run_id=dr.run_id,
+            dag_version_id=first.dag_version_id,
+            region_id=first.region_id,
+            region_index=first.region_index,
+        )
+        retry.try_number = 2
+        retry.state = TaskInstanceState.SUCCESS
+        retry.start_date = pendulum.DateTime(2024, 11, 30, 11, 0, 0, tzinfo=pendulum.UTC)
+        retry.end_date = pendulum.DateTime(2024, 11, 30, 11, 5, 0, tzinfo=pendulum.UTC)
+        session.add(retry)
+        session.commit()
+
+        response = test_client.get(f"/gantt/{dr.dag_id}/{dr.run_id}", params=params)
+
+        assert response.status_code == 200, response.text
+        assert [row["try_number"] for row in response.json()["task_instances"]] == expected_tries
+
+    def test_filtered_out_existing_run_returns_empty_200(self, test_client):
+        with assert_queries_count(4):
+            response = test_client.get(
+                f"/gantt/{DAG_ID}/run_1", params={"start_date_gte": "2025-01-01T00:00:00Z"}
+            )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["dag_id"] == DAG_ID
+        assert data["run_id"] == "run_1"
+        assert data["task_instances"] == []
+
+    def test_filtered_missing_run_still_404(self, test_client):
+        with assert_queries_count(4):
+            response = test_client.get(
+                f"/gantt/{DAG_ID}/invalid_run", params={"start_date_gte": "2025-01-01T00:00:00Z"}
+            )
         assert response.status_code == 404
