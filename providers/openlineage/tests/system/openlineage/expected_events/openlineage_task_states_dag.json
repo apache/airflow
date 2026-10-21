@@ -1,0 +1,94 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_states_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_states_dag.skip_itself"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "dag_version_id": "{{ is_uuid(result) }}"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_states_dag.skip_itself"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "skipped",
+                        "dag_version_id": "{{ is_uuid(result) }}"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_task_states_dag.skip_itself"
+        },
+        "$absent": "a skipped task completes"
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_states_dag.fail_without_retry"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 2,
+                        "state": "running",
+                        "dag_version_id": "{{ is_uuid(result) }}"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_task_states_dag.fail_without_retry"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 2,
+                        "state": "failed",
+                        "dag_version_id": "{{ is_uuid(result) }}"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_task_states_dag.fail_without_retry"
+        },
+        "$absent": "the task fails without a retry"
+    }
+]

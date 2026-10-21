@@ -44,12 +44,17 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": null,
                         "region_index": null,
                         "max_tries": 0,
                         "loop": null,
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
+                    },
+                    "task": {
+                        "loop": null
                     }
                 }
             }
@@ -66,12 +71,17 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": null,
                         "region_index": null,
                         "max_tries": 0,
                         "loop": null,
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
+                    },
+                    "task": {
+                        "loop": null
                     }
                 }
             }
@@ -88,27 +98,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -127,27 +145,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -166,27 +192,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 2,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -205,27 +239,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 3,
                         "max_tries": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 3,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -244,27 +286,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -283,27 +333,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 2,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -322,27 +380,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 3,
                         "max_tries": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 3,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -361,27 +427,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "up_for_retry",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -400,27 +474,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -439,27 +521,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -478,27 +568,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 3,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 3,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -517,27 +615,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -556,27 +662,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -595,27 +709,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 3,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 3,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -634,27 +756,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null,
                             "decision": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -673,27 +803,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null,
                             "decision": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -712,27 +850,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 3,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 3,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null,
                             "decision": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -751,13 +897,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
@@ -766,14 +911,23 @@
                                 "stop": false
                             }
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -792,13 +946,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
@@ -807,14 +960,23 @@
                                 "stop": false
                             }
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -833,13 +995,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 3,
                         "loop": {
-                            "group_id": "accumulate",
                             "index": 3,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
@@ -848,14 +1009,23 @@
                                 "stop": true
                             }
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "accumulate",
-                            "gate_task_id": "accumulate.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
                             "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
                             "terminal_task_id": "accumulate.report"
                         }
                     }
@@ -874,27 +1044,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -913,27 +1091,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -952,27 +1138,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -991,27 +1185,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1030,28 +1232,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "map_index": 0,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1070,28 +1280,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1110,28 +1328,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 2,
+                        "state": "running",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1150,28 +1376,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 3,
+                        "state": "running",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1190,28 +1424,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "map_index": 0,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1230,28 +1472,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1270,28 +1520,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 2,
+                        "state": "running",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1310,28 +1568,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 3,
+                        "state": "running",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1350,28 +1616,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "map_index": 0,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1390,28 +1664,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 3,
+                        "state": "success",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1430,28 +1712,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "map_index": 0,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1470,28 +1760,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 3,
+                        "state": "success",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1510,28 +1808,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "up_for_retry",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1550,28 +1856,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 2,
+                        "state": "up_for_retry",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1590,28 +1904,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "up_for_retry",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1630,28 +1952,36 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 2,
+                        "state": "up_for_retry",
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 3,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1670,27 +2000,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null,
                             "decision": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1709,27 +2047,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null,
                             "decision": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1748,13 +2094,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
@@ -1763,14 +2108,23 @@
                                 "stop": false
                             }
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1789,13 +2143,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
@@ -1804,14 +2157,23 @@
                                 "stop": true
                             }
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "process_batch",
-                            "gate_task_id": "process_batch.__loop_gate",
-                            "has_until": false,
+                            "full_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
                             "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
                             "terminal_task_id": "process_batch.process"
                         }
                     }
@@ -1830,27 +2192,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "poll",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "poll",
-                            "gate_task_id": "poll.ready",
-                            "has_until": true,
+                            "full_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
                             "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
                         }
                     }
@@ -1869,27 +2239,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "poll",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "poll",
-                            "gate_task_id": "poll.ready",
-                            "has_until": true,
+                            "full_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
                             "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
                         }
                     }
@@ -1908,27 +2286,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "poll",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "poll",
-                            "gate_task_id": "poll.ready",
-                            "has_until": true,
+                            "full_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
                             "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
                         }
                     }
@@ -1947,27 +2333,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "max_tries": 0,
                         "loop": {
-                            "group_id": "poll",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "poll",
-                            "gate_task_id": "poll.ready",
-                            "has_until": true,
+                            "full_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
                             "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
                         }
                     }
@@ -1986,27 +2380,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "poll",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null,
                             "decision": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "poll",
-                            "gate_task_id": "poll.ready",
-                            "has_until": true,
+                            "full_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
                             "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
                         }
                     }
@@ -2025,27 +2427,35 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "loop": {
-                            "group_id": "poll",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null,
                             "decision": null
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "poll",
-                            "gate_task_id": "poll.ready",
-                            "has_until": true,
+                            "full_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
                             "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
                         }
                     }
@@ -2064,13 +2474,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "poll",
                             "index": 1,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
@@ -2080,14 +2489,23 @@
                                 "reason": "check returned 1"
                             }
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "poll",
-                            "gate_task_id": "poll.ready",
-                            "has_until": true,
+                            "full_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
                             "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
                         }
                     }
@@ -2106,13 +2524,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 2,
                         "loop": {
-                            "group_id": "poll",
                             "index": 2,
-                            "max_iterations": 3,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
@@ -2122,14 +2539,23 @@
                                 "reason": "check returned 2"
                             }
                         },
-                        "expanded_ti_count": null
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "poll",
-                            "gate_task_id": "poll.ready",
-                            "has_until": true,
+                            "full_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
                             "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
                             "terminal_task_id": "poll.check"
                         }
                     }
@@ -2148,29 +2574,37 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "max_tries": 0,
                         "map_index": 0,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "fetch",
+                            "full_group_id": "process_batch.fetch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
                         }
                     }
                 }
@@ -2188,29 +2622,37 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "max_tries": 0,
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "fetch",
+                            "full_group_id": "process_batch.fetch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
                         }
                     }
                 }
@@ -2228,29 +2670,37 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "max_tries": 0,
                         "map_index": 0,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "fetch",
+                            "full_group_id": "process_batch.fetch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
                         }
                     }
                 }
@@ -2268,29 +2718,37 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "max_tries": 0,
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "fetch",
+                            "full_group_id": "process_batch.fetch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
                         }
                     }
                 }
@@ -2308,29 +2766,37 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "max_tries": 0,
                         "map_index": 0,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "fetch",
+                            "full_group_id": "process_batch.fetch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
                         }
                     }
                 }
@@ -2348,29 +2814,37 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "max_tries": 0,
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 1,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "fetch",
+                            "full_group_id": "process_batch.fetch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
                         }
                     }
                 }
@@ -2388,29 +2862,37 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "max_tries": 0,
                         "map_index": 0,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 0,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "fetch",
+                            "full_group_id": "process_batch.fetch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
                         }
                     }
                 }
@@ -2428,29 +2910,37 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "success",
                         "max_tries": 0,
                         "map_index": 1,
                         "id": "{{ is_uuid(result) }}",
                         "region_id": "{{ is_uuid(result) }}",
                         "region_index": 1,
                         "loop": {
-                            "group_id": "process_batch",
                             "index": 2,
-                            "max_iterations": 2,
                             "region_id": "{{ is_uuid(result) }}",
                             "trajectory": 1,
                             "forked_from_region_id": null,
                             "resumes_from_index": null
                         },
-                        "expanded_ti_count": 2
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}"
                     },
                     "task": {
                         "task_group": {
                             "group_id": "fetch",
+                            "full_group_id": "process_batch.fetch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
                         }
                     }
                 }

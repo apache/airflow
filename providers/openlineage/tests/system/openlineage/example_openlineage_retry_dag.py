@@ -20,6 +20,8 @@ DAG with a task that fails on its first try and succeeds on the retry.
 It checks:
     - the first try emits START and FAIL, the retry emits START and COMPLETE
     - taskInstance's `try_number` is 1 for the first try and 2 for the retry, and `max_tries` is 1 for both
+    - task's `retries` and `retry_delay` on every event
+    - taskInstance's `state`: up_for_retry on the FAIL of the first try, success on the COMPLETE of the retry
     - each try has its own `runId` (the `runId` check of OpenLineageTestOperator is enabled by default)
 """
 

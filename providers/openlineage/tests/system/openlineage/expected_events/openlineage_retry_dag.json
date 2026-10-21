@@ -13,7 +13,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "running",
                         "max_tries": 1
+                    },
+                    "task": {
+                        "retries": 1,
+                        "retry_delay": "1.0 seconds"
                     }
                 }
             }
@@ -30,7 +35,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 1,
+                        "state": "up_for_retry",
                         "max_tries": 1
+                    },
+                    "task": {
+                        "retries": 1,
+                        "retry_delay": "1.0 seconds"
                     }
                 }
             }
@@ -47,7 +57,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 2,
+                        "state": "running",
                         "max_tries": 1
+                    },
+                    "task": {
+                        "retries": 1,
+                        "retry_delay": "1.0 seconds"
                     }
                 }
             }
@@ -64,7 +79,12 @@
                 "airflow": {
                     "taskInstance": {
                         "try_number": 2,
+                        "state": "success",
                         "max_tries": 1
+                    },
+                    "task": {
+                        "retries": 1,
+                        "retry_delay": "1.0 seconds"
                     }
                 }
             }

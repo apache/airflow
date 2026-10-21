@@ -183,6 +183,7 @@ def test_get_airflow_job_facet():
                 "task_0": {
                     "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
                     "task_group": None,
+                    "loop_group": None,
                     "emits_ol_events": True,
                     "ui_color": "#f0ede4",
                     "ui_fgcolor": "#000",
@@ -196,6 +197,7 @@ def test_get_airflow_job_facet():
                 "section_1.task_3": {
                     "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
                     "task_group": "section_1",
+                    "loop_group": None,
                     "emits_ol_events": True,
                     "ui_color": "#ffefeb",
                     "ui_fgcolor": "#000",
@@ -1389,6 +1391,7 @@ def test_get_tasks_details():
             "is_teardown": False,
             "operator": py_decorator_path,
             "task_group": None,
+            "loop_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
             "ui_label": "generate_list",
@@ -1404,6 +1407,7 @@ def test_get_tasks_details():
             "is_teardown": False,
             "operator": py_decorator_path,
             "task_group": None,
+            "loop_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
             "ui_label": "process_item",
@@ -1419,6 +1423,7 @@ def test_get_tasks_details():
             "is_teardown": False,
             "operator": py_decorator_path,
             "task_group": None,
+            "loop_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
             "ui_label": "sum_values",
@@ -1429,6 +1434,7 @@ def test_get_tasks_details():
         "task": {
             "operator": "unit.openlineage.utils.test_utils.CustomOperatorForTest",
             "task_group": None,
+            "loop_group": None,
             "emits_ol_events": True,
             "ui_color": CustomOperatorForTest.ui_color,
             "ui_fgcolor": CustomOperatorForTest.ui_fgcolor,
@@ -1445,6 +1451,7 @@ def test_get_tasks_details():
         "task_0": {
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
             "task_group": None,
+            "loop_group": None,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,
             "ui_fgcolor": BashOperator.ui_fgcolor,
@@ -1461,6 +1468,7 @@ def test_get_tasks_details():
         "task_1": {
             "operator": "unit.openlineage.utils.test_utils.CustomOperatorFromEmpty",
             "task_group": None,
+            "loop_group": None,
             "emits_ol_events": False,
             "ui_color": CustomOperatorFromEmpty.ui_color,
             "ui_fgcolor": CustomOperatorFromEmpty.ui_fgcolor,
@@ -1477,6 +1485,7 @@ def test_get_tasks_details():
         "task_2": {
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": None,
+            "loop_group": None,
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
             "ui_fgcolor": PythonOperator.ui_fgcolor,
@@ -1492,6 +1501,7 @@ def test_get_tasks_details():
         "task_3": {
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
             "task_group": None,
+            "loop_group": None,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,
             "ui_fgcolor": BashOperator.ui_fgcolor,
@@ -1509,6 +1519,7 @@ def test_get_tasks_details():
         "task_4.test.dot": {
             "operator": "airflow.providers.standard.operators.empty.EmptyOperator",
             "task_group": None,
+            "loop_group": None,
             "emits_ol_events": False,
             "ui_color": EmptyOperator.ui_color,
             "ui_fgcolor": EmptyOperator.ui_fgcolor,
@@ -1524,6 +1535,7 @@ def test_get_tasks_details():
         "task_5": {
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
             "task_group": None,
+            "loop_group": None,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,
             "ui_fgcolor": BashOperator.ui_fgcolor,
@@ -1540,6 +1552,7 @@ def test_get_tasks_details():
             "is_teardown": False,
             "operator": "unit.openlineage.utils.test_utils.TestMappedOperator",
             "task_group": None,
+            "loop_group": None,
             "ui_color": "#fff",
             "ui_fgcolor": "#000",
             "ui_label": "task_6",
@@ -1552,6 +1565,7 @@ def test_get_tasks_details():
         "section_1.task_3": {
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": "section_1",
+            "loop_group": None,
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
             "ui_fgcolor": PythonOperator.ui_fgcolor,
@@ -1567,6 +1581,7 @@ def test_get_tasks_details():
         "section_1.section_2.task_11": {
             "operator": "airflow.providers.standard.operators.empty.EmptyOperator",
             "task_group": "section_1.section_2",
+            "loop_group": None,
             "emits_ol_events": False,
             "ui_color": EmptyOperator.ui_color,
             "ui_fgcolor": EmptyOperator.ui_fgcolor,
@@ -1580,6 +1595,7 @@ def test_get_tasks_details():
         "section_1.section_2.section_3.task_12": {
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": "section_1.section_2.section_3",
+            "loop_group": None,
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
             "ui_fgcolor": PythonOperator.ui_fgcolor,
@@ -2040,6 +2056,34 @@ def test_get_task_groups_details_has_loop_attributes_only_for_a_loop():
         "gate_task_id": "body.__loop_gate",
     }
     assert not loop_attributes & set(result["plain"])
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+def test_get_tasks_details_has_the_loop_of_each_task():
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with DAG("loop_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+
+        @task_group
+        def body():
+            direct = EmptyOperator(task_id="direct")
+            with TaskGroup("inner"):
+                direct >> EmptyOperator(task_id="nested")
+
+        create_loop(body, max_iterations=3)
+        EmptyOperator(task_id="outside")
+
+    result = _get_tasks_details(dag, edge_map=_build_labeled_edge_map(dag))
+
+    assert {
+        task_id: (result[task_id]["task_group"], result[task_id]["loop_group"])
+        for task_id in ("body.direct", "body.inner.nested", "outside")
+    } == {
+        "body.direct": ("body", "body"),
+        "body.inner.nested": ("body.inner", "body"),
+        "outside": (None, None),
+    }
 
 
 def test_get_task_groups_details_nested():
@@ -3298,6 +3342,7 @@ def test_taskinstance_info_af3():
     bundle_instance.name = "bundle_name"
     runtime_ti.bundle_instance = bundle_instance
     runtime_ti.max_tries = 3
+    runtime_ti.state = TaskInstanceState.UP_FOR_RETRY
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
         "id": str(runtime_ti.id),
@@ -3306,7 +3351,9 @@ def test_taskinstance_info_af3():
         "max_tries": 3,
         "note": None,
         "rendered_map_index": None,
+        "state": "up_for_retry",
         "try_number": 1,
+        "dag_version_id": str(runtime_ti.dag_version_id),
         "dag_bundle_version": "bundle_version",
         "dag_bundle_name": "bundle_name",
     }
@@ -3320,6 +3367,19 @@ def test_taskinstance_info_af3():
     result = dict(TaskInstanceInfo(runtime_ti))
     assert result["map_index"] is None
     assert result["rendered_map_index"] is None
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 test")
+@pytest.mark.parametrize("rendered", ["country=PL", None])
+def test_stored_task_instance_info_has_only_a_rendered_map_index_label(rendered):
+    task_obj = PythonOperator(task_id="task_id", python_callable=lambda x: x)
+    ti = TaskInstance(task=task_obj, run_id="task_instance_run_id", map_index=2, dag_version_id=uuid7())
+    ti._rendered_map_index = rendered
+
+    info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=False, map_index=2)))
+
+    # The stored task instance's own rendered_map_index would fall back to "2", which the worker doesn't send
+    assert info["rendered_map_index"] == rendered
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 test")
@@ -3340,8 +3400,10 @@ def test_taskinstance_info_af2():
         "pool": "default_pool",
         "try_number": 0,
         "max_tries": 0,
+        "state": TaskInstanceState.RUNNING,
         "queued_dttm": "2024-06-01T00:00:00+00:00",
         "log_url": "some_log_url",
+        "dag_version_id": None,
         "dag_bundle_name": None,
         "dag_bundle_version": None,
         "note": None,
@@ -3424,6 +3486,7 @@ def test_task_info_af3():
         "downstream_group_ids": "[]",
         "downstream_task_ids": "['task_1']",
         "group_id": "section_1",
+        "full_group_id": "section_1",
         "prefix_group_id": True,
         "tooltip": "",
         "upstream_group_ids": "[]",
@@ -3457,8 +3520,10 @@ def test_task_info_af3():
         "priority_weight": 1,
         "queue": "default",
         "retries": 0,
+        "retry_delay": "300.0 seconds",
         "retry_exponential_backoff": False,
         "run_as_user": None,
+        "loop": None,
         "task_group": tg_info,
         "task_id": "section_1.task_3",
         "trigger_rule": "all_success",
@@ -3558,6 +3623,7 @@ def test_task_info_af2():
         "downstream_group_ids": "[]",
         "downstream_task_ids": "['task_1']",
         "group_id": "section_1",
+        "full_group_id": "section_1",
         "prefix_group_id": True,
         "tooltip": "",
         "upstream_group_ids": "[]",
@@ -3593,8 +3659,10 @@ def test_task_info_af2():
         "priority_weight": 1,
         "queue": "default",
         "retries": 0,
+        "retry_delay": "300.0 seconds",
         "retry_exponential_backoff": False,
         "run_as_user": None,
+        "loop": None,
         "task_group": tg_info,
         "task_id": "section_1.task_3",
         "trigger_rule": "all_success",
@@ -3636,6 +3704,7 @@ def test_task_info_complete():
     task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
     result = TaskInfoComplete(task_0)
     assert "'bash_command': 'exit 0;'" in str(result)
+    assert result["retry_delay"] == "300.0 seconds"
 
 
 @patch("airflow.providers.openlineage.utils.utils.get_fully_qualified_class_name")
@@ -4050,7 +4119,6 @@ def test_runtime_task_instance_position_reads_its_loop_and_expansion_from_the_ta
         map_index=1,
         expanded_ti_count=2,
         loop_index=2,
-        loop_max_iterations=3,
         loop_group_id="body",
         loop_region_id=loop_region_id,
         loop_trajectory=2,
@@ -4061,7 +4129,10 @@ def test_runtime_task_instance_position_reads_its_loop_and_expansion_from_the_ta
 
 @pytest.mark.db_test
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
-def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(dag_maker, session):
+@pytest.mark.parametrize("holds_another_version", [False, True])
+def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(
+    dag_maker, session, holds_another_version
+):
     from airflow.models.dynamic_region import DynamicRegion
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
@@ -4078,8 +4149,11 @@ def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(dag_
         PythonOperator.partial(task_id="outside", python_callable=list).expand(op_kwargs=[{}, {}, {}])
     run = dag_maker.create_dagrun()
     tis = {(ti.task_id, ti.region_index): ti for ti in run.task_instances}
-    # As the scheduler's Dag bag sets it on the Dag it loads for the run
-    tis["body.plain", 1].task.dag.dag_version_id = tis["body.plain", 1].dag_version_id
+    # As the scheduler's Dag bag sets it on the Dag it loads for the run, which can be a later version than the
+    # one the task instances pin
+    tis["body.plain", 1].task.dag.dag_version_id = (
+        uuid7() if holds_another_version else tis["body.plain", 1].dag_version_id
+    )
     loop_region = session.get(DynamicRegion, tis["body.plain", 1].region_id)
     fork = DynamicRegion.fork_family(loop_region.id, 2, {loop_region.id: loop_region}, session=session)
     session.flush()
@@ -4089,7 +4163,7 @@ def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(dag_
     rerun.region_id, rerun.region_index = fork.id, 2
     session.add(rerun)
     session.flush()
-    in_loop = {"in_loop": True, "loop_max_iterations": 3, "loop_group_id": "body", "loop_trajectory": 1}
+    in_loop = {"in_loop": True, "loop_trajectory": 1, "loop_group_id": "body"}
 
     # Placing reuses the Dag the task instance holds: its region rows, then the count of a mapped expansion
     with assert_queries_count(4):
@@ -4108,7 +4182,6 @@ def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(dag_
         in_loop=True,
         map_index=-1,
         loop_index=2,
-        loop_max_iterations=3,
         loop_group_id="body",
         loop_region_id=fork.id,
         loop_trajectory=2,
@@ -4116,9 +4189,7 @@ def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(dag_
         loop_resumes_from_index=2,
     )
     assert dict(TaskInstanceInfo(rerun, position=rerun_position))["loop"] == {
-        "group_id": "body",
         "index": 2,
-        "max_iterations": 3,
         "region_id": str(fork.id),
         "trajectory": 2,
         "forked_from_region_id": str(loop_region.id),
@@ -4126,18 +4197,85 @@ def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(dag_
     }
 
 
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+@pytest.mark.parametrize("task_id", ["body.plain", "body.inner.mapped"])
+def test_stored_and_runtime_task_instances_identify_an_execution_alike(dag_maker, session, task_id):
+    """
+    The scheduler's events about a stored task instance must tell everything the worker's tell about it.
+
+    A field missing on one side only would leave consumers without it for that kind of event, while the other
+    side's events made them rely on it.
+    """
+    from airflow.models.task_coordinates import TaskCoordinateResolver
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    with dag_maker(serialized=True):
+
+        @task_group
+        def body():
+            plain = EmptyOperator(task_id="plain")
+            with TaskGroup("inner"):
+                plain >> PythonOperator.partial(task_id="mapped", python_callable=list).expand(
+                    op_kwargs=[{}, {}]
+                )
+
+        create_loop(body, max_iterations=3)
+    run = dag_maker.create_dagrun()
+    stored = next(ti for ti in run.task_instances if ti.task_id == task_id and ti.region_index in (0, 1))
+    stored.task.dag.dag_version_id = stored.dag_version_id
+    stored.state, stored.try_number, stored.max_tries = TaskInstanceState.UP_FOR_RETRY, 1, 2
+    resolver = TaskCoordinateResolver.for_dag(stored.task.dag, session)
+    mapped = stored.task.get_needs_expansion()
+    # What the server sends the worker for this execution, on the task of the Dag the worker parses
+    runtime = SimpleNamespace(
+        id=stored.id,
+        dag_id=stored.dag_id,
+        run_id=stored.run_id,
+        task_id=stored.task_id,
+        try_number=stored.try_number,
+        max_tries=stored.max_tries,
+        state=stored.state,
+        map_index=stored.region_index if mapped else -1,
+        rendered_map_index=None,
+        region_id=stored.region_id,
+        region_index=stored.region_index,
+        dag_version_id=stored.dag_version_id,
+        bundle_instance=SimpleNamespace(
+            name=stored.dag_version.bundle_name, version=stored.dag_version.bundle_version
+        ),
+        loop=resolver.get_loop_context(stored, task=stored.task),
+        expanded_ti_count=resolver.get_expanded_ti_count(stored, task=stored.task),
+        task=dag_maker.dag.get_task(task_id),
+    )
+
+    stored_info = dict(
+        TaskInstanceInfo(stored, position=get_stored_task_instance_position(stored, session=session))
+    )
+    runtime_info = dict(TaskInstanceInfo(runtime, position=get_task_instance_position(runtime)))
+
+    # Only stored task instances have these, which describe the attempt's resources rather than which it is
+    resources = {"duration", "pool", "queued_dttm", "note", "log_url"}
+    assert {k: v for k, v in stored_info.items() if k not in resources} == {
+        k: v for k, v in runtime_info.items() if k not in resources
+    }
+    assert ("expanded_ti_count" in runtime_info) is mapped
+    assert runtime_info["loop"]["trajectory"] == 1
+    identity = ("task_id", "task_group", "loop", "retries", "retry_delay")
+    assert {k: dict(TaskInfo(stored.task))[k] for k in identity} == {
+        k: dict(TaskInfo(runtime.task))[k] for k in identity
+    }
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
 @pytest.mark.parametrize(
-    "pins_another_version",
-    [
-        pytest.param(False, id="airflow_fails"),
-        pytest.param(True, id="pins_another_version"),
-    ],
+    "dag_has_version", [pytest.param(True, id="airflow_fails"), pytest.param(False, id="no_version")]
 )
 @mock.patch(
     "airflow.models.task_coordinates.TaskCoordinateResolver.for_dag", side_effect=ValueError("Dag not found")
 )
-def test_stored_task_instance_is_placed_from_its_rows_without_airflow(mock_for_dag, pins_another_version):
+def test_stored_task_instance_is_placed_from_its_rows_without_airflow(mock_for_dag, dag_has_version):
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
 
@@ -4151,16 +4289,16 @@ def test_stored_task_instance_is_placed_from_its_rows_without_airflow(mock_for_d
     ti = TaskInstance(task=dag.get_task("body.work"), dag_version_id=uuid7())
     ti.region_id = uuid4()
     ti.region_index = 1
-    dag.dag_version_id = uuid7() if pins_another_version else ti.dag_version_id
+    dag.dag_version_id = ti.dag_version_id if dag_has_version else None
     session = MagicMock(spec=Session)
 
     assert get_stored_task_instance_position(ti, session=session) == TaskInstancePosition(
-        in_loop=True, map_index=-1, loop_index=1, loop_max_iterations=3, loop_group_id="body"
+        in_loop=True, map_index=-1, loop_index=1, loop_group_id="body"
     )
-    if pins_another_version:
-        mock_for_dag.assert_not_called()
-    else:
+    if dag_has_version:
         mock_for_dag.assert_called_once_with(dag, session)
+    else:
+        mock_for_dag.assert_not_called()
     session.execute.assert_not_called()
 
 
@@ -4184,9 +4322,7 @@ def test_stored_mapped_task_in_loop_is_placed_without_iteration_when_its_region_
 
     positions = get_orm_task_instance_positions([ti], session=session)
 
-    assert positions == {
-        ti.id: TaskInstancePosition(in_loop=True, map_index=1, loop_max_iterations=3, loop_group_id="body")
-    }
+    assert positions == {ti.id: TaskInstancePosition(in_loop=True, map_index=1, loop_group_id="body")}
     session.begin_nested.assert_called_once_with()
 
 
@@ -4267,9 +4403,55 @@ def test_runtime_task_instance_info_has_loop_only_inside_a_loop(in_loop, mapped)
 
     assert info["map_index"] == (1 if mapped else None)
     if in_loop:
-        assert info["loop"] == {"group_id": "body", "index": 2, "max_iterations": 3}
+        assert info["loop"] == {
+            "index": 2,
+        }
     else:
         assert "loop" not in info
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+@pytest.mark.parametrize("nested", [False, True])
+def test_task_info_has_the_loop_around_the_task(nested):
+    from airflow.sdk import task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    def ready():
+        return True
+
+    with DAG("nested_loop_dag") as dag:
+        with TaskGroup("outer"):
+
+            @task_group
+            def body():
+                if nested:
+
+                    @task_group
+                    def inner():
+                        EmptyOperator(task_id="work")
+
+                    inner()
+                else:
+                    EmptyOperator(task_id="work")
+
+            create_loop(body, max_iterations=3, until=ready)
+    task_id = "outer.body.inner.work" if nested else "outer.body.work"
+
+    info = dict(TaskInfo(dag.get_task(task_id)))
+
+    assert info["loop"] == {
+        "group_id": "outer.body",
+        "max_iterations": 3,
+        "has_until": True,
+        "gate_task_id": dag.task_group_dict["outer.body"].gate_task_id,
+        "terminal_task_id": task_id,
+    }
+    # task_group is the task's own group and never describes the loop; its full id tells whether it is the loop
+    assert (info["task_group"]["group_id"], info["task_group"]["full_group_id"]) == (
+        ("inner", "outer.body.inner") if nested else ("body", "outer.body")
+    )
+    assert (info["task_group"]["full_group_id"] == info["loop"]["group_id"]) is not nested
+    assert "gate_task_id" not in info["task_group"]
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
@@ -4358,9 +4540,7 @@ def test_stored_task_instance_in_loop_has_loop_index_and_max_iterations():
     ti.region_index = 2
 
     assert get_orm_task_instance_positions([ti], session=None) == {
-        ti.id: TaskInstancePosition(
-            in_loop=True, map_index=-1, loop_index=2, loop_max_iterations=3, loop_group_id="body"
-        )
+        ti.id: TaskInstancePosition(in_loop=True, map_index=-1, loop_index=2, loop_group_id="body")
     }
 
 
@@ -4390,7 +4570,6 @@ def test_stored_mapped_task_in_loop_gets_its_iteration_from_its_region(with_sess
             in_loop=True,
             map_index=1,
             loop_index=2 if with_session else None,
-            loop_max_iterations=3,
             loop_group_id="body",
         )
     }
@@ -4426,7 +4605,6 @@ def test_task_instance_info_uses_the_position_it_is_given():
         map_index=1,
         expanded_ti_count=4,
         loop_index=2,
-        loop_max_iterations=3,
         loop_group_id="body",
         loop_region_id=loop_region_id,
         loop_trajectory=2,
@@ -4438,9 +4616,7 @@ def test_task_instance_info_uses_the_position_it_is_given():
 
     assert (info["map_index"], info["expanded_ti_count"]) == (1, 4)
     assert info["loop"] == {
-        "group_id": "body",
         "index": 2,
-        "max_iterations": 3,
         "region_id": str(loop_region_id),
         "trajectory": 2,
         "forked_from_region_id": str(forked_from_region_id),
@@ -4449,7 +4625,7 @@ def test_task_instance_info_uses_the_position_it_is_given():
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
-def test_task_group_info_has_loop_attributes_only_for_a_loop():
+def test_task_group_info_has_no_loop_attributes():
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
 
@@ -4467,14 +4643,11 @@ def test_task_group_info_has_loop_attributes_only_for_a_loop():
 
         plain_group = plain()
 
+    loop_attributes = {"max_iterations", "has_until", "terminal_task_id", "gate_task_id"}
     loop_info = dict(TaskGroupInfo(loop))
-    assert loop_info["max_iterations"] == 3
-    assert loop_info["has_until"] is False
-    assert loop_info["terminal_task_id"] == "body.work"
-    assert loop_info["gate_task_id"] == "body.__loop_gate"
-    assert not {"max_iterations", "has_until", "terminal_task_id", "gate_task_id"} & set(
-        TaskGroupInfo(plain_group)
-    )
+    assert loop_info["group_id"] == "body"
+    assert not loop_attributes & set(loop_info)
+    assert not loop_attributes & set(TaskGroupInfo(plain_group))
 
 
 def _region_row(region_id, node_id, *, parent=None, grandparent_region_id=None):
@@ -4555,7 +4728,7 @@ def test_stored_mapped_task_in_loop_keeps_no_iteration_from_an_unexpected_region
     ]
 
     assert get_orm_task_instance_positions([ti], session=session) == {
-        ti.id: TaskInstancePosition(in_loop=True, map_index=1, loop_max_iterations=3, loop_group_id="body")
+        ti.id: TaskInstancePosition(in_loop=True, map_index=1, loop_group_id="body")
     }
 
 
@@ -4605,20 +4778,19 @@ def test_region_shapes_of_airflow_are_the_ones_openlineage_places(dag_maker, ses
     tis = [ti for ti in run.task_instances if ti.task_id != "body.__loop_gate"]
     for ti in tis:
         ti.task = dag.get_task(ti.task_id) if task_attached else None
-    in_loop_extra = {"loop_max_iterations": 2} if task_attached else {}
 
     positions = get_orm_task_instance_positions(tis, session=session)
 
     assert {(ti.task_id, ti.region_index): positions[ti.id] for ti in tis} == {
         ("body.plain", 1): TaskInstancePosition(
-            in_loop=True, map_index=-1, loop_index=1, loop_group_id="body", **in_loop_extra
+            in_loop=True, map_index=-1, loop_index=1, loop_group_id="body"
         ),
         ("body.last", 1): TaskInstancePosition(
-            in_loop=True, map_index=-1, loop_index=1, loop_group_id="body", **in_loop_extra
+            in_loop=True, map_index=-1, loop_index=1, loop_group_id="body"
         ),
         **{
             (task_id, map_index): TaskInstancePosition(
-                in_loop=True, map_index=map_index, loop_index=1, loop_group_id="body", **in_loop_extra
+                in_loop=True, map_index=map_index, loop_index=1, loop_group_id="body"
             )
             for task_id in ("body.mapped", "body.mapped_group.member")
             for map_index in (0, 1)

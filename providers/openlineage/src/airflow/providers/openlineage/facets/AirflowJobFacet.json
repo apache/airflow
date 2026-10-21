@@ -41,9 +41,22 @@
                 }
               },
               "tasks": {
-                "description": "Details of all individual tasks within the DAG.",
+                "description": "Details of all individual tasks within the DAG, keyed by task id.",
                 "type": "object",
-                "additionalProperties": true
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "task_group": {
+                      "description": "Full id of the task's own task group, a key of taskGroups.",
+                      "type": ["string", "null"]
+                    },
+                    "loop_group": {
+                      "description": "Full id of the loop the task runs in (Airflow 3.4+), a key of taskGroups. It is task_group when the task sits directly in the loop, and an enclosing group of it when the task is in a task group inside the loop. Null outside a loop.",
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "additionalProperties": true
+                }
               }
             },
             "required": ["taskTree", "taskGroups", "tasks"]

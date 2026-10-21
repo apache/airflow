@@ -1263,10 +1263,15 @@ class TestOpenLineageListenerAirflow3:
 
         method = {"running": "start_task", "failed": "fail_task"}.get(state, "complete_task")
         run_facets = getattr(listener.adapter, method).call_args.kwargs["run_facets"]
-        assert run_facets["airflow"].taskInstance["loop"] == {
+        assert run_facets["airflow"].task["loop"] == {
             "group_id": "body",
-            "index": 1,
             "max_iterations": 3,
+            "has_until": False,
+            "gate_task_id": "body.__loop_gate",
+            "terminal_task_id": "body.work",
+        }
+        assert run_facets["airflow"].taskInstance["loop"] == {
+            "index": 1,
             "region_id": str(ti.region_id),
             "trajectory": 2,
             "forked_from_region_id": str(forked_from_region_id),
@@ -1341,7 +1346,10 @@ class TestOpenLineageListenerAirflow3:
         listener._on_task_instance_manual_state_change(ti, ti.dag_run, "success")
 
         assert get_airflow_run_facet.call_args.kwargs["ti_position"] == TaskInstancePosition(
-            in_loop=True, map_index=-1, loop_index=2, loop_max_iterations=3, loop_group_id="body"
+            in_loop=True,
+            map_index=-1,
+            loop_index=2,
+            loop_group_id="body",
         )
 
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")

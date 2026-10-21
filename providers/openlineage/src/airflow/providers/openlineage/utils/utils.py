@@ -1128,18 +1128,36 @@ class TaskInstanceInfo(InfoJsonEncodable):
 
     Adds to the included fields, each left out when it doesn't apply: ``id``, ``map_index``,
     ``rendered_map_index``, ``expanded_ti_count``, ``region_id``, ``region_index`` and ``loop``.
-    ``AirflowRunFacet.json`` describes each one for consumers.
+    ``AirflowRunFacet.json`` describes each one for consumers. A runtime task instance and a stored one, as
+    the scheduler fails it, give the fields that identify the execution alike.
     """
 
-    includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "try_number"]
+    includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "state", "try_number"]
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
         "note": lambda ti: safe_getattr(ti, "note", None),  # From manual state changes only
-        "dag_bundle_version": lambda ti: (
-            ti.bundle_instance.version if hasattr(ti, "bundle_instance") else None
+        "dag_version_id": lambda ti: (
+            str(dag_version_id) if (dag_version_id := getattr(ti, "dag_version_id", None)) else None
         ),
-        "dag_bundle_name": lambda ti: ti.bundle_instance.name if hasattr(ti, "bundle_instance") else None,
+        "dag_bundle_version": lambda ti: TaskInstanceInfo.get_bundle_info(ti, "version"),
+        "dag_bundle_name": lambda ti: TaskInstanceInfo.get_bundle_info(ti, "name"),
     }
+
+    @staticmethod
+    def get_rendered_map_index(ti: TaskInstance | RuntimeTaskInstance) -> str | None:
+        """Return the label a mapped task rendered with ``map_index_template``, as the worker sends it."""
+        if AIRFLOW_V_3_0_PLUS and isinstance(ti, TaskInstance):
+            # Its rendered_map_index falls back to the map index when no label was rendered, the worker's doesn't
+            return safe_getattr(ti, "_rendered_map_index")
+        return getattr(ti, "rendered_map_index", None)
+
+    @staticmethod
+    def get_bundle_info(ti: TaskInstance | RuntimeTaskInstance, key: str) -> str | None:
+        """Return the name or version of the Dag bundle the attempt runs from."""
+        if (bundle := getattr(ti, "bundle_instance", None)) is not None:  # A runtime task instance
+            return getattr(bundle, key, None)
+        # A stored one only through its Dag version, which Airflow 2 doesn't have
+        return safe_getattr(safe_getattr(ti, "dag_version"), f"bundle_{key}")
 
     def __init__(self, obj, position: TaskInstancePosition | None = None):
         # Pass the position when the caller has already placed the task instance, e.g. from its stored region or
@@ -1157,7 +1175,7 @@ class TaskInstanceInfo(InfoJsonEncodable):
                 position = _add_runtime_loop_iteration(self.obj, position)
         map_index = position.map_index if position else -1
         self.map_index = map_index if map_index != -1 else None
-        self.rendered_map_index = getattr(self.obj, "rendered_map_index", None) if map_index != -1 else None
+        self.rendered_map_index = self.get_rendered_map_index(self.obj) if map_index != -1 else None
         self._fields.extend(("map_index", "rendered_map_index"))
         if position and position.expanded_ti_count is not None:
             self.expanded_ti_count = position.expanded_ti_count
@@ -1185,9 +1203,7 @@ class TaskInstanceInfo(InfoJsonEncodable):
 
 def _build_loop_info(position: TaskInstancePosition) -> dict[str, Any]:
     fields = {
-        "group_id": position.loop_group_id,
         "index": position.loop_index,
-        "max_iterations": position.loop_max_iterations,
         "region_id": str(position.loop_region_id) if position.loop_region_id else None,
         "trajectory": position.loop_trajectory,
         "forked_from_region_id": (
@@ -1300,6 +1316,7 @@ class TaskInfo(InfoJsonEncodable):
         "priority_weight",
         "queue",
         "retries",
+        "retry_delay",
         "retry_exponential_backoff",
         "run_as_user",
         "sla",
@@ -1346,6 +1363,12 @@ class TaskInfo(InfoJsonEncodable):
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
+        # task_group is the task's own group, without loop fields, and loop the loop around the task, so each is
+        # described once. For a loop "body", alone or in a task group "outer" (task_group's full_group_id):
+        #   task "body.work":           task_group "body", the loop itself      loop "body"
+        #   task "body.inner.work":     task_group "body.inner"                 loop "body"
+        #   task "outer.body.work":     task_group "outer.body", the loop       loop "outer.body"
+        "loop": lambda task: get_task_loop_info(task),
         "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
         "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
         "operator_provider_version": lambda task: get_operator_provider_version(task),
@@ -1393,7 +1416,6 @@ class TaskInfoComplete(TaskInfo):
         "handler",
         "params",
         "python_callable",
-        "retry_delay",
     ]
 
 
@@ -1403,6 +1425,10 @@ class TaskGroupInfo(InfoJsonEncodable):
     renames = {
         "_group_id": "group_id",
     }
+    casts = {
+        # group_id is the group's own id, while the job facet and task.loop name groups by their full id
+        "full_group_id": lambda tg: tg.group_id,
+    }
     includes = [
         "downstream_group_ids",
         "downstream_task_ids",
@@ -1410,10 +1436,6 @@ class TaskGroupInfo(InfoJsonEncodable):
         "tooltip",
         "upstream_group_ids",
         "upstream_task_ids",
-        "gate_task_id",  # in a loop group
-        "has_until",  # in a loop group
-        "max_iterations",  # in a loop group
-        "terminal_task_id",  # in a loop group
     ]
 
 
@@ -1564,7 +1586,6 @@ class TaskInstancePosition:
     in_loop: bool
     map_index: int
     loop_index: int | None = None
-    loop_max_iterations: int | None = None
     loop_group_id: str | None = None
     loop_region_id: UUID | None = None
     loop_trajectory: int | None = None
@@ -1597,6 +1618,21 @@ def _find_enclosing_loop(task: Any) -> tuple[bool, Any | None]:
     return True, None
 
 
+def get_task_loop_info(task: Any) -> dict[str, Any] | None:
+    """Describe the loop around a task as ``task.loop``, or return None for a task outside a known loop."""
+    if not AIRFLOW_V_3_4_PLUS:
+        return None
+    if (loop_group := _find_enclosing_loop(task)[1]) is None:
+        return None
+    return {
+        "group_id": loop_group.group_id,
+        "max_iterations": loop_group.max_iterations,
+        "has_until": loop_group.has_until,
+        "gate_task_id": loop_group.gate_task_id,
+        "terminal_task_id": loop_group.terminal_task_id,
+    }
+
+
 def _get_task_instance_position(
     task_instance: TaskInstance | RuntimeTaskInstance,
 ) -> TaskInstancePosition | None:
@@ -1612,10 +1648,6 @@ def _get_task_instance_position(
         return None
     in_loop, enclosing_loop = _find_enclosing_loop(task)
     loop_index: int | None = None
-    loop_max_iterations: int | None = None
-    loop_group_id = enclosing_loop.group_id if enclosing_loop is not None else None
-    if enclosing_loop is not None and is_stored:
-        loop_max_iterations = getattr(enclosing_loop, "max_iterations", None)
     if is_stored and not task.get_needs_expansion():
         # The stored region_index means a map index only for a mapped task. A task that isn't mapped has none,
         # and inside a loop its region_index is the iteration instead.
@@ -1626,8 +1658,7 @@ def _get_task_instance_position(
         in_loop=in_loop,
         map_index=map_index,
         loop_index=loop_index,
-        loop_max_iterations=loop_max_iterations,
-        loop_group_id=loop_group_id,
+        loop_group_id=enclosing_loop.group_id if enclosing_loop is not None else None,
     )
 
 
@@ -1656,7 +1687,6 @@ def _add_runtime_loop_iteration(
     return attrs.evolve(
         position,
         loop_index=loop.index,
-        loop_max_iterations=loop.max_iterations,
         loop_region_id=loop.region_id,
         loop_trajectory=loop.trajectory,
         loop_forked_from_region_id=loop.forked_from_region_id,
@@ -1669,6 +1699,18 @@ def get_task_instance_position(task_instance: TaskInstance | RuntimeTaskInstance
     return _add_runtime_loop_iteration(task_instance, _require_task_instance_position(task_instance))
 
 
+@attrs.define
+class _TaskCoordinate:
+    """Where Airflow stores a task instance, as its ``TaskCoordinateResolver`` reads it."""
+
+    dag_id: str
+    run_id: str
+    task_id: str
+    region_id: UUID
+    region_index: int
+    dag_version_id: UUID | None
+
+
 def _get_core_task_instance_position(
     task_instance: TaskInstance, *, session: Session | None
 ) -> TaskInstancePosition | None:
@@ -1678,26 +1720,31 @@ def _get_core_task_instance_position(
     region_id = task_instance.region_id
     if not isinstance(region_id, UUID) or region_id.int == 0:
         return None
-    if (dag := getattr(getattr(task_instance, "task", None), "dag", None)) is None:
-        return None
-    # The resolver would load and deserialize any other pinned version again, for every task instance, in the
-    # scheduler or API server process
-    if getattr(dag, "dag_version_id", None) != task_instance.dag_version_id:
+    dag = getattr(getattr(task_instance, "task", None), "dag", None)
+    if (dag_version_id := getattr(dag, "dag_version_id", None)) is None:
         return None
     from airflow.models.task_coordinates import TaskCoordinateResolver
 
+    # Placed with the Dag version the task instance holds, which its task facet describes too, even when it pins
+    # another one: the resolver would load and deserialize that version for every task instance in the scheduler
+    # or API server process, while the region rows it reads don't depend on the version.
+    coordinate = _TaskCoordinate(
+        dag_id=task_instance.dag_id,
+        run_id=task_instance.run_id,
+        task_id=task_instance.task_id,
+        region_id=region_id,
+        region_index=task_instance.region_index,
+        dag_version_id=dag_version_id,
+    )
     try:
         # The savepoint keeps the caller's transaction usable after a failure
         with session.begin_nested():
             resolver = TaskCoordinateResolver.for_dag(dag, session)
             task = resolver.get_task(
-                task_instance.dag_id,
-                task_instance.run_id,
-                task_instance.task_id,
-                dag_version_id=task_instance.dag_version_id,
+                coordinate.dag_id, coordinate.run_id, coordinate.task_id, dag_version_id=dag_version_id
             )
-            loop = resolver.get_loop_context(task_instance, task=task)
-            expanded_ti_count = resolver.get_expanded_ti_count(task_instance, task=task)
+            loop = resolver.get_loop_context(coordinate, task=task)
+            expanded_ti_count = resolver.get_expanded_ti_count(coordinate, task=task)
     except Exception:
         log.warning("OpenLineage failed to place task instance %s with Airflow", task_instance.id)
         log.debug("Exception details:", exc_info=True)
@@ -1710,7 +1757,6 @@ def _get_core_task_instance_position(
         map_index=map_index,
         expanded_ti_count=expanded_ti_count,
         loop_index=loop.index,
-        loop_max_iterations=loop.max_iterations,
         loop_group_id=loop.node_id,
         loop_region_id=loop.region_id,
         loop_trajectory=loop.trajectory,
@@ -2304,9 +2350,12 @@ def _get_tasks_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple[dict,
     tasks = {}
     for single_task in sorted(dag.tasks, key=lambda x: x.task_id):
         task_edges, group_edges = edge_map.get(single_task.task_id, ({}, {}))
+        task_loop = get_task_loop_info(single_task)
         tasks[single_task.task_id] = {
             "operator": get_fully_qualified_class_name(single_task),
             "task_group": single_task.task_group.group_id if single_task.task_group else None,
+            # The loop around the task, which is not task_group for a task in a task group inside the loop
+            "loop_group": task_loop["group_id"] if task_loop else None,
             "emits_ol_events": _emits_ol_events(single_task),
             "ui_color": single_task.ui_color,
             "ui_fgcolor": single_task.ui_fgcolor,
