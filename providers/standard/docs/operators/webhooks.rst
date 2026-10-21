@@ -24,17 +24,19 @@ Waiting for a Webhook Delivery
 
 |experimental|
 
-Use :class:`~airflow.providers.standard.operators.webhooks.WaitForWebhookOperator` to pause a Dag run
-until a service, such as GitHub, sends a matching delivery to one of Airflow's inbound webhooks. The
-task registers a wait with the API server and parks in the ``awaiting_input`` state, which holds no
-worker slot, no pool slot and no trigger, so no triggerer has to run. The first delivery to the webhook
-that matches the wait resumes the task, and the task returns that delivery as its XCom.
+Use :class:`~airflow.providers.standard.operators.webhooks.WaitForWebhookOperator`, or the
+``@task.webhook_wait`` decorator, to pause a Dag run until a service, such as GitHub, sends a matching
+delivery to one of Airflow's inbound webhooks. The task registers a wait with the API server and parks
+in the ``awaiting_input`` state, which holds no worker slot, no pool slot and no trigger, so no
+triggerer has to run. The first delivery to the webhook that matches the wait resumes the task, and the
+task returns that delivery as its XCom.
 
 Requirements
 ------------
 
-The operator needs Airflow 3.5 or later. On an earlier version, importing
-``airflow.providers.standard.operators.webhooks`` raises ``AirflowOptionalProviderFeatureException``.
+The operator and the decorator need Airflow 3.5 or later. On an earlier version, importing
+``airflow.providers.standard.operators.webhooks`` or using ``@task.webhook_wait`` raises
+``AirflowOptionalProviderFeatureException``.
 
 The webhook must be served: it is listed in the ``[webhooks] names`` option, its ``webhook_<name>``
 connection exists, and its sender delivers to an API server started with ``webhooks`` in its
@@ -55,8 +57,9 @@ of which one must match, and the delivery must match every name in it. Values co
 ``4242`` and ``"4242"`` match the same deliveries. The GitHub source type's attributes are, for
 example, ``event``, ``action``, ``repository``, ``organization``, ``label``, ``branch`` and ``number``.
 
-``webhook``, ``events`` and ``match`` are templated: Jinja templates and XComArgs in them are resolved
-when the task runs, and an XComArg in them makes its task upstream of the wait.
+The operator's ``webhook``, ``events`` and ``match`` are templated: Jinja templates and XComArgs in them
+are resolved when the task runs, and an XComArg in them makes its task upstream of the wait. The
+decorator builds the match in a function instead, as the next section describes.
 
 Within a webhook, only one running or parked task instance can wait with the same ``events`` and
 ``match``. The API server refuses a second such wait with 409, and its task fails. A Dag that needs the
@@ -68,6 +71,24 @@ topic or asset route events. Its outcome is then ``early``, and a wait that matc
 within ``[webhooks] early_delivery_ttl`` of its receipt takes it: the task resumes as soon as it parks. A
 delivery that recorded topic or asset route events for a Dag is not kept, so a wait registered after it
 never gets it. :ref:`apache-airflow:inbound-webhooks-outcomes` describes the outcomes.
+
+.. _howto/decorator:webhook_wait:
+
+The ``@task.webhook_wait`` decorator
+------------------------------------
+
+``@task.webhook_wait`` turns a function that returns the match into a task that waits as the operator
+does. The decorator takes the operator's ``webhook``, ``events`` and ``timeout``, and the arguments
+every operator takes, such as ``retries``. It refuses ``match`` with ``TypeError``, because the function
+returns the match, as a dict. The function runs on the worker once in each try, before the task parks,
+so it can build the match from its arguments. Returning anything other than a dict fails the task with
+``TypeError`` before it registers a wait.
+
+The function's arguments can be XComArgs, which make their tasks upstream of the wait, and Jinja
+templates, and both are resolved before the function runs. ``webhook`` and ``events`` are templated too.
+
+The task's XCom is the delivery that resumes it, not the function's return value, and the function does
+not run again when the task resumes. A retry runs it again and registers a new wait.
 
 Timeout
 -------
@@ -123,49 +144,95 @@ This Dag opens a pull request, waits up to three days for it to be closed, and a
 if the pull request was merged. It needs the ``github`` webhook connected to the repository with
 "Pull requests" events, and a ``github_default`` connection that can open pull requests.
 
-.. code-block:: python
+.. tab-set::
 
-    from datetime import timedelta
+    .. tab-item:: @task.webhook_wait
+        :sync: taskflow
 
-    from airflow.providers.standard.operators.webhooks import WaitForWebhookOperator
-    from airflow.sdk import dag, task
+        .. code-block:: python
 
-    REPOSITORY = "my-org/configs"
+            from datetime import timedelta
 
+            from airflow.sdk import dag, task
 
-    @dag(schedule=None)
-    def merge_gate():
-        @task
-        def open_pr() -> int:
-            from airflow.providers.github.hooks.github import GithubHook
-
-            repo = GithubHook().get_conn().get_repo(REPOSITORY)
-            pull_request = repo.create_pull(
-                base="main", head="update-configs", title="Update configs", body="Opened by Airflow"
-            )
-            return pull_request.number
-
-        wait_for_merge = WaitForWebhookOperator(
-            task_id="wait_for_merge",
-            webhook="github",
-            events=["pull_request"],
-            match={"repository": REPOSITORY, "number": open_pr(), "action": "closed"},
-            timeout=timedelta(days=3),
-        )
-
-        @task
-        def apply(delivery: dict) -> str:
-            pull_request = delivery["payload"]["pull_request"]
-            if not pull_request["merged"]:
-                raise RuntimeError(f"Pull request {pull_request['number']} was closed without merging")
-            return pull_request["merge_commit_sha"]
-
-        apply(wait_for_merge.output)
+            REPOSITORY = "my-org/configs"
 
 
-    merge_gate()
+            @dag(schedule=None)
+            def merge_gate():
+                @task
+                def open_pr() -> int:
+                    from airflow.providers.github.hooks.github import GithubHook
 
-``open_pr()`` in ``match`` makes ``open_pr`` upstream of ``wait_for_merge``, and its pull request number
-is resolved when ``wait_for_merge`` runs. GitHub sends ``closed`` both when a pull request is merged and
-when it is closed without merging, so ``apply`` reads ``merged`` from the payload, which the webhook's
+                    repo = GithubHook().get_conn().get_repo(REPOSITORY)
+                    pull_request = repo.create_pull(
+                        base="main", head="update-configs", title="Update configs", body="Opened by Airflow"
+                    )
+                    return pull_request.number
+
+                @task.webhook_wait(webhook="github", events=["pull_request"], timeout=timedelta(days=3))
+                def wait_for_merge(number: int) -> dict:
+                    return {"repository": REPOSITORY, "number": number, "action": "closed"}
+
+                @task
+                def apply(delivery: dict) -> str:
+                    pull_request = delivery["payload"]["pull_request"]
+                    if not pull_request["merged"]:
+                        raise RuntimeError(f"Pull request {pull_request['number']} was closed without merging")
+                    return pull_request["merge_commit_sha"]
+
+                apply(wait_for_merge(open_pr()))
+
+
+            merge_gate()
+
+    .. tab-item:: WaitForWebhookOperator
+        :sync: operator
+
+        .. code-block:: python
+
+            from datetime import timedelta
+
+            from airflow.providers.standard.operators.webhooks import WaitForWebhookOperator
+            from airflow.sdk import dag, task
+
+            REPOSITORY = "my-org/configs"
+
+
+            @dag(schedule=None)
+            def merge_gate():
+                @task
+                def open_pr() -> int:
+                    from airflow.providers.github.hooks.github import GithubHook
+
+                    repo = GithubHook().get_conn().get_repo(REPOSITORY)
+                    pull_request = repo.create_pull(
+                        base="main", head="update-configs", title="Update configs", body="Opened by Airflow"
+                    )
+                    return pull_request.number
+
+                wait_for_merge = WaitForWebhookOperator(
+                    task_id="wait_for_merge",
+                    webhook="github",
+                    events=["pull_request"],
+                    match={"repository": REPOSITORY, "number": open_pr(), "action": "closed"},
+                    timeout=timedelta(days=3),
+                )
+
+                @task
+                def apply(delivery: dict) -> str:
+                    pull_request = delivery["payload"]["pull_request"]
+                    if not pull_request["merged"]:
+                        raise RuntimeError(f"Pull request {pull_request['number']} was closed without merging")
+                    return pull_request["merge_commit_sha"]
+
+                apply(wait_for_merge.output)
+
+
+            merge_gate()
+
+Passing ``open_pr()`` to the decorated function, or putting it in the operator's ``match``, makes
+``open_pr`` upstream of ``wait_for_merge``, and its pull request number is resolved when
+``wait_for_merge`` runs. GitHub sends ``closed`` both when a pull request is merged and when it is
+closed without merging, so ``apply`` reads ``merged`` from the payload, which the webhook's
 ``store_payload`` must keep: ``full`` and the GitHub source type's ``summary`` both do.

@@ -275,5 +275,9 @@ def get_provider_info():
                 "name": "short_circuit",
             },
             {"class-name": "airflow.providers.standard.decorators.stub.stub", "name": "stub"},
+            {
+                "class-name": "airflow.providers.standard.decorators.webhook_wait.webhook_wait_task",
+                "name": "webhook_wait",
+            },
         ],
     }
