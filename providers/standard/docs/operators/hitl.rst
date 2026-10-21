@@ -73,6 +73,15 @@ Things to know:
   and keep anything expensive, such as an agent framework's saved run state, in
   ``task_state_store``. A callable that can ask more than one question should also save which one
   it asked, because the answer does not say.
+* A side effect between two questions, such as issuing a refund before asking whether to email the
+  customer, runs again when the task resumes after the second answer. Record it in
+  ``task_state_store`` and skip it when the record is there:
+
+  .. code-block:: python
+
+      if task_state_store.get("refund_id") is None:
+          task_state_store.set("refund_id", issue_refund(order_id))
+
 * ``task_state_store`` keeps its values across retries. A retry starts with
   ``get_input_response()`` returning ``None`` but still sees values the failed try saved, so delete
   them when you no longer need them.
