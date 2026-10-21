@@ -17295,6 +17295,7 @@ components:
         name:
           type: string
           maxLength: 256
+          pattern: \S
           title: Name
         slots:
           type: integer
@@ -18913,6 +18914,7 @@ components:
         key:
           type: string
           maxLength: 250
+          pattern: \S
           title: Key
         value:
           $ref: '#/components/schemas/JsonValue'
