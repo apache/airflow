@@ -7124,6 +7124,7 @@ export const $PoolBody = {
         name: {
             type: 'string',
             maxLength: 256,
+            pattern: '\\S',
             title: 'Name'
         },
         slots: {
@@ -9614,6 +9615,7 @@ export const $VariableBody = {
         key: {
             type: 'string',
             maxLength: 250,
+            pattern: '\\S',
             title: 'Key'
         },
         value: {
