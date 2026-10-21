@@ -21,8 +21,11 @@ import importlib.util
 import json
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 import sqlalchemy as sa
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 
 from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 
@@ -119,5 +122,85 @@ def test_backfill_dagrun_id_from_legacy_callback_data():
     assert dagrun_id_by_callback_id[plain_id] == 2
     assert dagrun_id_by_callback_id[deadline_id] == 1
     assert dagrun_id_by_callback_id[invalid_id] is None
+    missing_dagrun_id = uuid.uuid4().hex
+    with engine.begin() as conn:
+        _insert_callback(conn, missing_dagrun_id, {"dag_run_id": 999})
+        _migration._backfill_dagrun_id(conn, batch_size=2)
+        assert (
+            conn.scalar(sa.text("SELECT dagrun_id FROM callback WHERE id = :id"), {"id": missing_dagrun_id})
+            is None
+        )
     assert dagrun_id_by_callback_id[triggerer_id] is None
     assert dagrun_id_by_callback_id[malformed_id] is None
+
+
+def test_restore_legacy_dagrun_id_for_downgrade():
+    engine = _make_engine()
+    wrapped_id = uuid.uuid4().hex
+    plain_id = uuid.uuid4().hex
+
+    with engine.begin() as conn:
+        _create_tables(conn)
+        _insert_callback(conn, wrapped_id, {"__var": {"path": "callback.path"}, "__type": "dict"})
+        _insert_callback(conn, plain_id, {"path": "callback.path"})
+        conn.execute(
+            sa.text("UPDATE callback SET dagrun_id = CASE id WHEN :wrapped_id THEN 1 ELSE 2 END"),
+            {"wrapped_id": wrapped_id},
+        )
+
+        _migration._restore_legacy_dagrun_id(conn, batch_size=1)
+        rows = conn.execute(sa.text("SELECT id, data FROM callback")).mappings().all()
+
+    data_by_callback_id = {row["id"]: json.loads(row["data"]) for row in rows}
+    assert data_by_callback_id[wrapped_id]["__var"]["dag_run_id"] == "1"
+    assert data_by_callback_id[plain_id]["dag_run_id"] == "2"
+
+
+def test_sqlite_upgrade_and_downgrade_preserve_deadline_callback():
+    engine = _make_engine()
+    callback_id = uuid.uuid4()
+    deadline_id = uuid.uuid4()
+
+    with engine.connect() as conn:
+        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
+        conn.execute(sa.text("CREATE TABLE dag_run (id INTEGER PRIMARY KEY)"))
+        conn.execute(
+            sa.text("CREATE TABLE callback (id TEXT PRIMARY KEY, type TEXT NOT NULL, data TEXT NOT NULL)")
+        )
+        conn.execute(
+            sa.text(
+                "CREATE TABLE deadline ("
+                "id TEXT PRIMARY KEY, "
+                "callback_id TEXT NOT NULL REFERENCES callback(id) ON DELETE CASCADE, "
+                "dagrun_id INTEGER"
+                ")"
+            )
+        )
+        conn.execute(sa.text("INSERT INTO dag_run (id) VALUES (1)"))
+        conn.execute(
+            sa.text("INSERT INTO callback (id, type, data) VALUES (:id, :type, :data)"),
+            {"id": str(callback_id), "type": "executor", "data": json.dumps({"dag_run_id": "1"})},
+        )
+        conn.execute(
+            sa.text("INSERT INTO deadline (id, callback_id, dagrun_id) VALUES (:id, :callback_id, 1)"),
+            {"id": str(deadline_id), "callback_id": str(callback_id)},
+        )
+        conn.commit()
+
+        operations = Operations(MigrationContext.configure(conn))
+        with (
+            patch.object(_migration, "op", operations),
+            patch.object(_migration.context, "is_offline_mode", return_value=False),
+        ):
+            _migration.upgrade()
+            assert (
+                conn.scalar(sa.text("SELECT COUNT(*) FROM deadline WHERE id = :id"), {"id": str(deadline_id)})
+                == 1
+            )
+
+            _migration.downgrade()
+
+        assert (
+            conn.scalar(sa.text("SELECT COUNT(*) FROM deadline WHERE id = :id"), {"id": str(deadline_id)})
+            == 1
+        )
