@@ -368,7 +368,7 @@ In the above example, task ``convert_to_yaml`` is expanded into two task instanc
 Mapping over a task group with Object Oriented Programming
 ----------------------------------------------------------
 
-To map a group of classic operators, use ``MappedTaskGroup.expand`` (or ``MappedTaskGroup.expand_kwargs``) as a context manager. Mapped values are passed as a dict, and any other keyword arguments are forwarded to ``TaskGroup``. Inside the group, ``get_mapped_argument`` returns a reference that is resolved for each expanded instance when it is passed to a templated field:
+To map a group of classic operators, call ``expand`` (or ``expand_kwargs``) on a ``TaskGroup`` and use the returned group as a context manager. Inside the group, ``get_mapped_argument`` returns a reference that is resolved for each expanded instance when it is passed to a templated field:
 
 .. code-block:: python
 
@@ -376,7 +376,7 @@ To map a group of classic operators, use ``MappedTaskGroup.expand`` (or ``Mapped
 
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.python import PythonOperator
-    from airflow.sdk import MappedTaskGroup
+    from airflow.sdk import TaskGroup
 
 
     def wait(duration):
@@ -385,16 +385,16 @@ To map a group of classic operators, use ``MappedTaskGroup.expand`` (or ``Mapped
 
     first_task = PythonOperator(task_id="first", python_callable=lambda: ["1", "2", "3"])
 
-    with MappedTaskGroup.expand({"duration": first_task.output}, group_id="process") as mtg:
+    with TaskGroup(group_id="process").expand(duration=first_task.output) as tg:
         a = PythonOperator(
             task_id="a",
             python_callable=wait,
-            op_kwargs={"duration": mtg.get_mapped_argument("duration")},
+            op_kwargs={"duration": tg.get_mapped_argument("duration")},
         )
         b = BashOperator(
             task_id="b",
             bash_command="sleep $DURATION",
-            env={"DURATION": mtg.get_mapped_argument("duration")},
+            env={"DURATION": tg.get_mapped_argument("duration")},
         )
         a >> b
 

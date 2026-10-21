@@ -64,7 +64,6 @@ __all__ = [
     "IdentityMapper",
     "Label",
     "LoopDecision",
-    "MappedTaskGroup",
     "Metadata",
     "MinimumCount",
     "MonthWindow",
@@ -209,7 +208,7 @@ if TYPE_CHECKING:
         RetryPolicy,
         RetryRule,
     )
-    from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+    from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
         AssetAndTimeSchedule,
@@ -283,7 +282,6 @@ __lazy_imports: dict[str, str] = {
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
     "LoopDecision": ".definitions.loop",
-    "MappedTaskGroup": ".definitions.taskgroup",
     "Metadata": ".definitions.asset.metadata",
     "MinimumCount": ".definitions.partition_mappers.wait_policy",
     "MonthWindow": ".definitions.partition_mappers.window",

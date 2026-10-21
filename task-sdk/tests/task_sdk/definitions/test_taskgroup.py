@@ -1121,15 +1121,75 @@ def test_topological_sort_padded_reverse_chain_uses_pass_numbering(monkeypatch):
     _assert_valid_topological_order(dag.task_group, order)
 
 
+def test_expand_replaces_task_group_with_mapped_task_group():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE) as dag:
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
+        with TaskGroup(group_id="outer"):
+            with TaskGroup(group_id="g", tooltip="tip").expand(value=upstream.output) as tg:
+                task = EmptyOperator(task_id="t")
+
+    assert isinstance(tg, MappedTaskGroup)
+    assert dag.task_group_dict["outer.g"] is tg
+    assert tg.tooltip == "tip"
+    assert task.task_group is tg
+    assert task.task_id == "outer.g.t"
+    assert task.upstream_task_ids == {"upstream"}
+
+
+def test_expand_without_arguments():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with pytest.raises(TypeError, match="no arguments to expand against"):
+            TaskGroup(group_id="g").expand()
+
+
+def _build_non_empty_task_group(dag):
+    with TaskGroup(group_id="g") as tg:
+        EmptyOperator(task_id="t")
+    return tg
+
+
+@pytest.mark.parametrize(
+    ("build_group", "match"),
+    [
+        pytest.param(lambda dag: dag.task_group, "root task group", id="root"),
+        pytest.param(
+            lambda dag: TaskGroup(group_id="g").expand(value=[1]),
+            "not supported on MappedTaskGroup",
+            id="already-mapped",
+        ),
+        pytest.param(_build_non_empty_task_group, "before adding tasks", id="non-empty"),
+    ],
+)
+def test_expand_unsupported_task_group(build_group, match):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE) as dag:
+        tg = build_group(dag)
+        with pytest.raises(TypeError, match=match):
+            tg.expand(value=[1])
+
+
+@pytest.mark.parametrize("value", [{"a": 1}, [1]])
+def test_expand_kwargs_invalid(value):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with pytest.raises(TypeError, match="expected XComArg or list"):
+            TaskGroup(group_id="g").expand_kwargs(value)
+
+
+def test_get_mapped_argument_unknown_key():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with TaskGroup(group_id="g").expand(value=[1]) as tg:
+            with pytest.raises(KeyError, match="'other' is not a mapped argument"):
+                tg.get_mapped_argument("other")
+
+
 @pytest.mark.parametrize(("map_index", "expected"), [(0, "a"), (1, "b")])
 def test_get_mapped_argument_expand(create_runtime_ti, mock_supervisor_comms, map_index, expected):
     with DAG("test", schedule=None, start_date=DEFAULT_DATE):
         upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
-        with MappedTaskGroup.expand({"value": upstream.output}, group_id="g") as mtg:
+        with TaskGroup(group_id="g").expand(value=upstream.output) as tg:
             task = PythonOperator(
                 task_id="t",
                 python_callable=lambda **kwargs: None,
-                op_kwargs={"value": mtg.get_mapped_argument("value")},
+                op_kwargs={"value": tg.get_mapped_argument("value")},
             )
 
     mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=["a", "b"])
@@ -1146,12 +1206,12 @@ def test_get_mapped_argument_expand_kwargs(create_runtime_ti, mock_supervisor_co
     ]
     with DAG("test", schedule=None, start_date=DEFAULT_DATE):
         upstream = PythonOperator(task_id="upstream", python_callable=lambda: mapped_kwargs)
-        with MappedTaskGroup.expand_kwargs(upstream.output, group_id="process") as mtg:
+        with TaskGroup(group_id="process").expand_kwargs(upstream.output) as tg:
             task = PythonOperator(
                 task_id="t",
                 python_callable=lambda **kwargs: None,
-                op_kwargs=mtg.get_mapped_argument("op_kwargs"),
-                templates_dict=mtg.get_mapped_argument("templates_dict"),
+                op_kwargs=tg.get_mapped_argument("op_kwargs"),
+                templates_dict=tg.get_mapped_argument("templates_dict"),
             )
 
     mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=mapped_kwargs)
