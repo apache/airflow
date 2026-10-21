@@ -2261,6 +2261,7 @@ def test_excluded_providers():
                         "apache.cassandra",  # Enable when the next release after 3.29.3 is available
                         "apache.tinkerpop",
                     ],
+                    "3.16": ["snowflake"],
                 }
             ),
         },
