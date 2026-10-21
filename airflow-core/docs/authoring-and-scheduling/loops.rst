@@ -440,10 +440,9 @@ Reruns and trajectories
 
 Clearing later iterations starts a new execution of the loop that replaces the previous ones from the
 iteration after the rerun gate. Each execution is a trajectory, identified by ``loop.region_id`` and
-numbered by ``loop.trajectory``: 1 for the first one, growing by one with each rerun. The rerun gate, and whatever you clear in its
-iteration, run again in the trajectory that iteration belongs to, with their next try. The
-replacement iterations run in the new trajectory, from ``loop.resumes_from_index``, and their tries
-count from the start again. In the
-example above, iteration 2 stays in trajectory 1, while replacement iterations 3 and 4 run in
-trajectory 2, with ``loop.resumes_from_index`` 3. Task log paths show the trajectory after the
-iteration, as in ``pass=3.2``.
+numbered by ``loop.trajectory``: 1 for the first one, growing by one with each rerun. The rerun gate, and
+whatever you clear in its iteration, run again in the trajectory that iteration belongs to, with their
+next try. The replacement iterations run in the new trajectory, from ``loop.resumes_from_index``, and their
+tries count from 1 again for each task. In the example above, iteration 2 stays in trajectory 1, while
+replacement iterations 3 and 4 run in trajectory 2, with ``loop.resumes_from_index`` 3. Task log paths show
+the trajectory after the iteration, as in ``pass=3.2``.

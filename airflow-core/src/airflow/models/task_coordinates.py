@@ -23,6 +23,7 @@ from uuid import UUID
 import attrs
 from sqlalchemy import FromClause, case, func, or_, select, tuple_
 
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import LoopContext
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
@@ -69,26 +70,6 @@ class _ProducerRequest:
     region_id: UUID | None
     region_index: int | None
     loop_node_id: str | None = None
-
-
-@attrs.frozen(kw_only=True)
-class LoopPosition:
-    """
-    The iteration of the innermost loop a task instance runs in.
-
-    ``region_id`` is the loop region that holds the iteration, also for a mapped task, whose own ``region_id``
-    is its expansion's, and identifies the trajectory. A clear that reruns later iterations forks the newest
-    loop region: ``trajectory`` numbers the regions of that chain from 1, ``forked_from_region_id`` is the
-    previous region of the chain and ``resumes_from_index`` the first iteration the fork holds. Both are
-    ``None`` for the original region.
-    """
-
-    group: SerializedLoopTaskGroup
-    index: int
-    region_id: UUID
-    trajectory: int
-    forked_from_region_id: UUID | None
-    resumes_from_index: int | None
 
 
 class TaskCoordinate(Protocol):
@@ -253,18 +234,26 @@ class TaskCoordinateResolver:
     def loop_context(
         self, ti: TaskCoordinate, *, task: SerializedOperator | None = None
     ) -> tuple[SerializedLoopTaskGroup, int] | None:
-        if (position := self.get_loop_position(ti, task=task)) is None:
+        if ti.region_id == SENTINEL_REGION_ID:
             return None
-        return position.group, position.index
+        if task is None:
+            task = self.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+        group = enclosing_loop(task)
+        if group is None:
+            return None
+        position = loop_position(self._load_ancestry(ti), ti.region_id, ti.region_index, group.node_id)
+        if position is None:
+            raise ValueError("Task coordinates do not belong to the pinned loop")
+        return group, position[1]
 
-    def get_loop_position(
+    def get_loop_context(
         self, ti: TaskCoordinate, *, task: SerializedOperator | None = None
-    ) -> LoopPosition | None:
+    ) -> LoopContext | None:
         """
-        Return the iteration of the innermost loop ``ti`` runs in, or None outside any loop.
+        Return the loop context a worker gets in ``TIRunContext.loop``, or None outside any loop.
 
-        This is what a worker gets as ``TIRunContext.loop``. Server-side consumers such as listeners get the
-        same from a resolver built with :meth:`for_dag` for the Dag they hold.
+        Server-side consumers such as listeners get the same from a resolver built with :meth:`for_dag` for
+        the Dag they hold.
         """
         if ti.region_id == SENTINEL_REGION_ID:
             return None
@@ -273,11 +262,7 @@ class TaskCoordinateResolver:
         group = enclosing_loop(task)
         if group is None:
             return None
-        regions = self._regions.setdefault((ti.dag_id, ti.run_id), {})
-        if ti.region_id not in regions:
-            regions.update(
-                load_region_ancestry([ti.region_id], dag_id=ti.dag_id, run_id=ti.run_id, session=self.session)
-            )
+        regions = self._load_ancestry(ti)
         coordinate = DynamicRegion.find_physical_coordinate(
             ti.region_id, ti.region_index, group.node_id, regions
         )
@@ -285,15 +270,31 @@ class TaskCoordinateResolver:
             raise ValueError("Task coordinates do not belong to the pinned loop")
         region_id, index = coordinate
         region = regions[region_id]
-        is_fork = region.forked_from_region_id is not None
-        return LoopPosition(
-            group=group,
+        terminal = self.get_task(
+            ti.dag_id, ti.run_id, group.terminal_task_id, dag_version_id=ti.dag_version_id
+        )
+        context = LoopContext(
+            node_id=group.node_id,
             index=index,
+            max_iterations=group.max_iterations,
+            terminal_task_id=group.terminal_task_id,
+            terminal_is_mapped=terminal.get_needs_expansion(),
             region_id=region_id,
             trajectory=get_trajectory(region, regions),
-            forked_from_region_id=region.forked_from_region_id,
-            resumes_from_index=region.resumes_from_index if is_fork else None,
         )
+        # Set only for a fork, as the Execution API leaves out unset fields
+        if region.forked_from_region_id is not None:
+            context.forked_from_region_id = region.forked_from_region_id
+            context.resumes_from_index = region.resumes_from_index
+        return context
+
+    def _load_ancestry(self, ti: TaskCoordinate) -> dict[UUID, DynamicRegion]:
+        regions = self._regions.setdefault((ti.dag_id, ti.run_id), {})
+        if ti.region_id not in regions:
+            regions.update(
+                load_region_ancestry([ti.region_id], dag_id=ti.dag_id, run_id=ti.run_id, session=self.session)
+            )
+        return regions
 
     def get_expanded_ti_count(
         self, ti: TaskCoordinate, *, task: SerializedOperator | None = None

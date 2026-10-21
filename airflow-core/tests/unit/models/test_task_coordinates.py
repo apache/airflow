@@ -105,9 +105,9 @@ def test_mapped_task_loop_iteration_is_separate_from_map_index(dag_maker, sessio
 
     assert resolver.loop_iterations(ti) == [("body", 3)]
     assert resolver.public_map_index(ti) == 1
-    position = resolver.get_loop_position(ti)
-    assert position is not None
-    assert (position.index, position.region_id, position.trajectory) == (3, loop_region.id, 1)
+    loop = resolver.get_loop_context(ti)
+    assert loop is not None
+    assert (loop.index, loop.region_id, loop.trajectory) == (3, loop_region.id, 1)
 
 
 @pytest.mark.parametrize("run_count", [1, 3])
@@ -168,28 +168,35 @@ def test_loop_context_reuses_ancestry_loaded_by_loop_iterations(loop_coordinates
     assert (group.group_id, index) == ("body", 1)
 
 
-def test_loop_position_describes_the_region_holding_the_iteration(forked_loop_coordinates, session):
+def test_loop_context_describes_the_region_holding_the_iteration(forked_loop_coordinates, session):
     _, producer, consumer, _, outside = forked_loop_coordinates
     resolver = TaskCoordinateResolver(DBDagBag(), session)
+    common = {
+        "node_id": "body",
+        "index": 2,
+        "max_iterations": 3,
+        "terminal_task_id": "body.consumer",
+        "terminal_is_mapped": False,
+    }
 
-    original = resolver.get_loop_position(producer)
-    fork = resolver.get_loop_position(consumer)
+    original = resolver.get_loop_context(producer)
+    fork = resolver.get_loop_context(consumer)
 
     assert original is not None
     assert fork is not None
-    assert (original.region_id, original.trajectory, original.forked_from_region_id) == (
-        producer.region_id,
-        1,
-        None,
-    )
-    assert original.resumes_from_index is None
-    assert (fork.region_id, fork.trajectory, fork.forked_from_region_id) == (
-        consumer.region_id,
-        2,
-        producer.region_id,
-    )
-    assert fork.resumes_from_index == 2
-    assert resolver.get_loop_position(outside) is None
+    assert original.model_dump(exclude_unset=True) == {
+        **common,
+        "region_id": producer.region_id,
+        "trajectory": 1,
+    }
+    assert fork.model_dump(exclude_unset=True) == {
+        **common,
+        "region_id": consumer.region_id,
+        "trajectory": 2,
+        "forked_from_region_id": producer.region_id,
+        "resumes_from_index": 2,
+    }
+    assert resolver.get_loop_context(outside) is None
 
 
 def test_expanded_ti_count_counts_live_instances_of_the_expansion(loop_coordinates, dag_maker, session):

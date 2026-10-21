@@ -32,8 +32,9 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
-from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex, _drop_null_default
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
@@ -473,7 +474,9 @@ class LoopContext(BaseModel):
     ``resumes_from_index`` on run again in the fork.
     """
 
-    forked_from_region_id: uuid.UUID | None = None
+    forked_from_region_id: Annotated[
+        SkipJsonSchema[None] | uuid.UUID, Field(json_schema_extra=_drop_null_default)
+    ] = None
     """
     The region ``region_id`` was forked from, the previous one in the chain. Absent for the original region.
 
@@ -481,7 +484,10 @@ class LoopContext(BaseModel):
     the chain too.
     """
 
-    resumes_from_index: int | None = None
+    resumes_from_index: Annotated[
+        SkipJsonSchema[None] | int,
+        Field(json_schema_extra=_drop_null_default),
+    ] = None
     """The first iteration ``region_id`` holds. Absent for the original region, which holds them from 0."""
 
 
@@ -493,7 +499,10 @@ class TIRunContext(BaseModel):
 
     loop: LoopContext | None = None
 
-    expanded_ti_count: int | None = None
+    expanded_ti_count: Annotated[
+        SkipJsonSchema[None] | int,
+        Field(json_schema_extra=_drop_null_default),
+    ] = None
     """
     Number of live, non-removed instances in the mapped task's expansion this instance belongs to.
 

@@ -59,7 +59,6 @@ from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_ar
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
-    LoopContext,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
@@ -376,23 +375,8 @@ def ti_run(
             task = resolver.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
             if (expanded_ti_count := resolver.get_expanded_ti_count(ti, task=task)) is not None:
                 context.expanded_ti_count = expanded_ti_count
-            if (loop := resolver.get_loop_position(ti, task=task)) is not None:
-                terminal = resolver.get_task(
-                    ti.dag_id, ti.run_id, loop.group.terminal_task_id, dag_version_id=ti.dag_version_id
-                )
-                context.loop = LoopContext(
-                    node_id=loop.group.node_id,
-                    index=loop.index,
-                    max_iterations=loop.group.max_iterations,
-                    terminal_task_id=loop.group.terminal_task_id,
-                    terminal_is_mapped=terminal.get_needs_expansion(),
-                    region_id=loop.region_id,
-                    trajectory=loop.trajectory,
-                )
-                # Set only for a fork, as the route leaves out unset fields
-                if loop.forked_from_region_id is not None:
-                    context.loop.forked_from_region_id = loop.forked_from_region_id
-                    context.loop.resumes_from_index = loop.resumes_from_index
+            if (loop := resolver.get_loop_context(ti, task=task)) is not None:
+                context.loop = loop
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
