@@ -93,7 +93,7 @@ def connector_before_5():
         yield
 
 
-def _get_conn_connect_kwargs(extra: dict) -> dict:
+def _get_conn_connect_kwargs(extra: dict[str, Any]) -> dict[str, Any]:
     """Return the kwargs ``SnowflakeHook.get_conn`` passes to ``snowflake.connector.connect``."""
     connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
     connection_kwargs["extra"].update(extra)
@@ -104,7 +104,7 @@ def _get_conn_connect_kwargs(extra: dict) -> dict:
     ):
         SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
 
-    return mock_connect.call_args.kwargs
+    return dict(mock_connect.call_args.kwargs)
 
 
 @pytest.fixture
