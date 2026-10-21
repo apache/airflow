@@ -320,9 +320,10 @@ connection-types:
             - summary
             - none
         description: >-
-          What asset events and the delivery record keep of each delivery's payload: full, the payload as
-          parsed from the body; summary, the parts the source type keeps, or the whole payload if it keeps
-          no summary; or none. Defaults to the source type's default, or else to the [webhooks]
+          What the delivery record, its asset events and the event that a webhook wait resumes its task
+          with, which becomes the task's XCom, keep of each delivery's payload: full, the payload as parsed
+          from the body; summary, the parts the source type keeps, or the whole payload if it keeps no
+          summary; or none. Defaults to the source type's default, or else to the [webhooks]
           store_payload option, which is what hmac_json and token_header use. Whatever this says, the
           delivery record keeps the attributes, including those from Attribute paths, the correlation key,
           which the extra of its events also carries, and the partition keys that Asset routes read, which

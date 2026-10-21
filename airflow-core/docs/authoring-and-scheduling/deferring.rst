@@ -59,9 +59,11 @@ Airflow automatically handles and implements the deferral processes for you.
 
 .. note::
 
-    :doc:`Human-in-the-loop <../tutorial/hitl>` operators do **not** use deferral or the triggerer.
+    :doc:`Human-in-the-loop <../tutorial/hitl>` operators, and tasks that
+    :doc:`wait for an inbound webhook <webhook-waits>`, do **not** use deferral or the triggerer.
     They wait in the scheduler-managed ``awaiting_input`` task state, so a deployment that waits only
-    on human input rather than deferrable operators does not need a running triggerer.
+    on human input or webhook deliveries rather than deferrable operators does not need a running
+    triggerer.
 
 If you're upgrading existing Dags to use deferrable operators, Airflow contains API-compatible sensor variants. Add these variants into your Dag to use deferrable operators with no other changes required.
 

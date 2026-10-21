@@ -187,7 +187,7 @@ Task Instance Events
 - ``queued``: Task instance is queued for execution
 - ``scheduled``: Task instance is scheduled
 - ``deferred``: Task instance is deferred (waiting for trigger)
-- ``awaiting_input``: Task instance is waiting for human input (Human-in-the-loop)
+- ``awaiting_input``: Task instance is waiting for input: a human response (Human-in-the-loop) or a delivery to an inbound webhook (webhook wait)
 - ``restarting``: Task instance is restarting
 - ``removed``: Task instance was removed
 
@@ -208,6 +208,14 @@ Task Instance Events
 - ``action_set_skipped``: User set task instance as skipped
 - ``action_set_running``: User set task instance as running
 - ``action_clear``: User cleared task instance state
+
+Webhook Events
+~~~~~~~~~~~~~~
+
+- ``webhook_delivery``: A delivery to an :doc:`inbound webhook </administration-and-deployment/webhooks>`
+  recorded topic or asset route events, as an entry without a Dag, or went to a task's
+  :doc:`webhook wait </authoring-and-scheduling/webhook-waits>`, as an entry of that task instance. Its
+  owner is ``webhook:<name>``.
 
 User Action Events
 ~~~~~~~~~~~~~~~~~~

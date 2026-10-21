@@ -110,6 +110,11 @@ database. It needs neither the JWT signing key (``[api_auth] jwt_secret`` or
 ``[api_auth] jwt_private_key_path``) nor ``[api] secret_key``, and does not warn when they are unset;
 see :doc:`/security/security_model`.
 
+Tasks register their webhook waits with the Execution API Server, which checks each wait against its own
+``[webhooks]`` options and reads the webhook's ``webhook_<name>`` connection, so give it the same
+``[webhooks]`` options as the webhooks process, access to those connections, and the providers that ship
+the webhooks' source types (see :doc:`webhooks`).
+
 ``webhooks`` can also be combined with other apps, for example ``--apps core,webhooks`` in development.
 Deliveries then also pass through the Core API's middlewares, including those of the auth manager and
 of plugins.

@@ -1206,8 +1206,9 @@ such as their configuration, routes and responses, between releases.
 The design leaves the following residual risks, which are not vulnerabilities:
 
 * **A leaked shared secret.** Whoever holds a webhook's shared secret can send deliveries that pass as
-  the sender's, for any event, until the secret is rotated by editing the ``webhook_<name>``
-  connection.
+  the sender's, for any event and with any attributes, until the secret is rotated by editing the
+  ``webhook_<name>`` connection. Such deliveries start the Dags that subscribe to their topics or that are
+  scheduled on the assets their asset routes name, and resume the tasks whose webhook waits they match.
 * **A delivery replayed under a new id.** A delivery is recognized as a repeat by its delivery id
   together with a digest of its body. Some senders, such as GitHub and Jira, sign only the body, others
   send a token that covers nothing, and the delivery id travels in a header, so a captured delivery can

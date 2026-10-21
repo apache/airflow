@@ -29,7 +29,8 @@ Use :class:`~airflow.providers.standard.operators.webhooks.WaitForWebhookOperato
 delivery to one of Airflow's inbound webhooks. The task registers a wait with the API server and parks
 in the ``awaiting_input`` state, which holds no worker slot, no pool slot and no trigger, so no
 triggerer has to run. The first delivery to the webhook that matches the wait resumes the task, and the
-task returns that delivery as its XCom.
+task returns that delivery as its XCom. :ref:`apache-airflow:webhook-waits` describes webhook waits in
+full, including what happens to them when a task is retried or cleared.
 
 Requirements
 ------------
