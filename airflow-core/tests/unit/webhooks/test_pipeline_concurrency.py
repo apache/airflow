@@ -64,7 +64,7 @@ pytestmark = pytest.mark.db_test
 SECRET = "s3cret"
 BODY = b'{"path": "my-org/web"}'
 REGISTRY = WebhookRegistry(
-    names=frozenset({"fake"}),
+    names=frozenset({"fake", "routed"}),
     source_type_owners={},
     connection_cache_ttl=60,
     max_body_bytes=1024,
@@ -73,11 +73,28 @@ REGISTRY = WebhookRegistry(
     store_payload="full",
     max_event_payload_bytes=65536,
 )
+#: The data asset that webhook routed's asset route records an event on.
+ORDERS = Asset(name="orders", uri="s3://warehouse/orders")
 CONNECTION = {
     "AIRFLOW_CONN_WEBHOOK_FAKE": json.dumps({"conn_type": "inbound_webhook", "password": SECRET}),
+    "AIRFLOW_CONN_WEBHOOK_ROUTED": json.dumps(
+        {
+            "conn_type": "inbound_webhook",
+            "password": SECRET,
+            "extra": {
+                "source_type": "fake",
+                "asset_routes": [
+                    {"topic": build_topic_name("routed", "my-org/web", "push"), "asset": ORDERS.uri}
+                ],
+            },
+        }
+    ),
 }
-#: The topic that push deliveries of BODY offer.
+#: The topic that push deliveries of BODY to webhook fake offer.
 TOPIC = Asset(name=build_topic_name("fake", "my-org/web", "push"))
+#: The webhook whose deliveries a Dag subscribes to through TOPIC, or through the webhook's asset route.
+SUBSCRIBED_WEBHOOKS = {"topic": "fake", "asset_route": "routed"}
+SUBSCRIPTIONS = pytest.mark.parametrize("through", list(SUBSCRIBED_WEBHOOKS))
 
 
 @pytest.fixture(autouse=True)
@@ -99,10 +116,11 @@ def clean_db():
     clear_db_logs()
 
 
-@pytest.fixture
-def subscriber(dag_maker):
-    with dag_maker("subscriber", schedule=TOPIC):
+def subscribe(dag_maker, through: str) -> str:
+    """Have Dag subscriber subscribe ``through`` a topic or an asset route, and return the webhook's name."""
+    with dag_maker("subscriber", schedule=TOPIC if through == "topic" else ORDERS):
         pass
+    return SUBSCRIBED_WEBHOOKS[through]
 
 
 @pytest.fixture
@@ -110,17 +128,17 @@ def client() -> TestClient:
     return TestClient(create_webhooks_app(REGISTRY), raise_server_exceptions=False)
 
 
-def post(client: TestClient) -> Response:
+def post(client: TestClient, name: str = "fake") -> Response:
     headers = {
         "content-type": "application/json",
         EVENT_HEADER: "push",
         DELIVERY_ID_HEADER: "delivery-1",
         SIGNATURE_HEADER: compute_fake_signature(BODY, SECRET),
     }
-    return client.post("/fake", content=BODY, headers=headers)
+    return client.post(f"/{name}", content=BODY, headers=headers)
 
 
-def post_copies(client: TestClient, copies: int) -> list[int]:
+def post_copies(client: TestClient, copies: int, name: str = "fake") -> list[int]:
     """Post copies of one delivery at once, each looking it up before any of them has recorded it."""
     barrier = threading.Barrier(copies)
     lookups = itertools.count()
@@ -139,7 +157,7 @@ def post_copies(client: TestClient, copies: int) -> list[int]:
         ),
         ThreadPoolExecutor(copies) as executor,
     ):
-        responses = list(executor.map(lambda _: post(client), range(copies)))
+        responses = list(executor.map(lambda _: post(client, name), range(copies)))
     return [response.status_code for response in responses]
 
 
@@ -148,7 +166,7 @@ def count_deliveries(session: Session) -> int:
 
 
 def count_actions(session: Session) -> tuple[int, ...]:
-    """Count the topic events, the audit log entries and the queued Dag runs that deliveries made."""
+    """Count the asset events, the audit log entries and the queued Dag runs that deliveries made."""
     return tuple(
         session.execute(select(func.count()).select_from(table)).scalar_one()
         for table in (AssetEvent, Log, AssetDagRunQueue)
@@ -166,10 +184,10 @@ def test_concurrent_copies_of_a_delivery_are_recorded_once(client, session, copi
 
 
 @pytest.mark.backend("postgres", "mysql")
-@pytest.mark.usefixtures("subscriber")
+@SUBSCRIPTIONS
 @mock.patch.dict(os.environ, CONNECTION)
-def test_concurrent_copies_of_a_subscribed_delivery_act_once(client, session):
-    statuses = post_copies(client, 2)
+def test_concurrent_copies_of_a_subscribed_delivery_act_once(client, session, dag_maker, through):
+    statuses = post_copies(client, 2, subscribe(dag_maker, through))
 
     assert sorted(statuses) == [HTTPStatus.OK, HTTPStatus.ACCEPTED]
     assert count_deliveries(session) == 1
@@ -177,13 +195,14 @@ def test_concurrent_copies_of_a_subscribed_delivery_act_once(client, session):
 
 
 @pytest.mark.backend("postgres", "mysql")
+@SUBSCRIPTIONS
 @mock.patch.dict(os.environ, CONNECTION)
-def test_concurrent_redeliveries_after_a_dag_subscribes_act_once(client, session, dag_maker):
-    assert post(client).json()["outcome"] == "no_subscribers"
-    with dag_maker("subscriber", schedule=TOPIC):
-        pass
+def test_concurrent_redeliveries_after_a_dag_subscribes_act_once(client, session, dag_maker, through):
+    name = SUBSCRIBED_WEBHOOKS[through]
+    assert post(client, name).json()["outcome"] == "no_subscribers"
+    subscribe(dag_maker, through)
 
-    statuses = post_copies(client, 2)
+    statuses = post_copies(client, 2, name)
 
     assert sorted(statuses) == [HTTPStatus.OK, HTTPStatus.ACCEPTED]
     assert count_deliveries(session) == 1
@@ -203,10 +222,12 @@ def test_concurrent_copies_of_a_delivery_are_not_answered_as_errors_on_sqlite(cl
 
 
 @pytest.mark.backend("sqlite")
-@pytest.mark.usefixtures("subscriber")
+@SUBSCRIPTIONS
 @mock.patch.dict(os.environ, CONNECTION)
-def test_concurrent_copies_of_a_subscribed_delivery_act_at_most_once_on_sqlite(client, session):
-    statuses = post_copies(client, 2)
+def test_concurrent_copies_of_a_subscribed_delivery_act_at_most_once_on_sqlite(
+    client, session, dag_maker, through
+):
+    statuses = post_copies(client, 2, subscribe(dag_maker, through))
 
     assert set(statuses) <= {HTTPStatus.ACCEPTED, HTTPStatus.OK, HTTPStatus.SERVICE_UNAVAILABLE}
     recorded = statuses.count(HTTPStatus.ACCEPTED)
@@ -215,19 +236,21 @@ def test_concurrent_copies_of_a_subscribed_delivery_act_at_most_once_on_sqlite(c
     assert count_actions(session) == (recorded, recorded, recorded)
 
 
-@pytest.mark.usefixtures("subscriber")
+@SUBSCRIPTIONS
 @mock.patch.dict(os.environ, CONNECTION)
 @mock.patch.object(AssetManager, "nofity_asset_event_emitted", autospec=True)
 def test_delivery_whose_commit_fails_records_nothing_and_notifies_no_listener(
-    mock_notify_event_emitted, client, session
+    mock_notify_event_emitted, client, session, dag_maker, through
 ):
+    name = subscribe(dag_maker, through)
+
     def fail_to_commit_a_delivery(session: Session) -> None:
         if any(isinstance(instance, InboundDelivery) for instance in session.new):
             raise OperationalError("COMMIT", {}, Exception("database is locked"))
 
     event.listen(settings.NonScopedSession, "before_commit", fail_to_commit_a_delivery)
     try:
-        response = post(client)
+        response = post(client, name)
     finally:
         event.remove(settings.NonScopedSession, "before_commit", fail_to_commit_a_delivery)
 

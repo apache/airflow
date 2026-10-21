@@ -116,7 +116,9 @@ A topic receives events only from its webhook, so:
 * a task that declares it in its inlets or outlets makes the Dag fail to import, and a ``@task`` that
   returns one, or that receives one as an argument, fails when it runs;
 * a ``PartitionedAssetTimetable`` cannot schedule on it, because topic events have no partition key, or
-  the Dag fails to import.
+  the Dag fails to import;
+* an asset route, which a Deployment Manager sets on a webhook's connection to record events on a data
+  asset, records none on it (see :ref:`inbound-webhooks-asset-routes`).
 
 It accepts ``access_control`` like any asset.
 
@@ -137,7 +139,9 @@ receives it.
   ``Asset``, never runs for a delivery.
 * A Dag that schedules on an ``AssetAlias`` never receives topic events.
 * An asset whose URI is not its name, such as ``Asset(name="github/my-org/web/issues", uri="s3://...")``,
-  never receives topic events, even if its name is one of a delivery's names.
+  never receives topic events, even if its name is one of a delivery's names. A Deployment Manager can
+  have deliveries record events on such an asset with an asset route instead, as described in
+  :ref:`inbound-webhooks-asset-routes`.
 * Webhooks have no team in Airflow 3.5, so with multi-team on, their topic events queue only Dags that
   have no team.
 
@@ -177,6 +181,9 @@ Each topic event's ``extra`` describes its delivery:
        :ref:`[webhooks] max_event_payload_bytes <config:webhooks>` (64 KiB by default) as compact JSON.
    * - ``payload_truncated``
      - ``true``, present only when the payload was left out for its size.
+
+An event that an asset route records on a data asset has the same extra, and a partition key if the route
+reads one.
 
 Read it from ``triggering_asset_events``, and check for a missing payload:
 

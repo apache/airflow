@@ -38,7 +38,8 @@ hold Airflow credentials. Instead, it signs each delivery with a secret it share
 the secret with it, and the webhook's *source type* checks that before it describes the delivery.
 Airflow records every delivery that passes in the metadata database and, in the same transaction,
 records an asset event on each of the delivery's *topic names* that a Dag schedules on, so the scheduler
-starts a run of each such Dag.
+starts a run of each such Dag. An *asset route* in the webhook's connection can also have a delivery
+record an event on a data asset, such as a table that the sender has loaded (see `Asset routes`_).
 
 This page is for Deployment Managers. Dag authors subscribe to deliveries as described in
 :doc:`/authoring-and-scheduling/webhook-topics`, and provider authors write source types as described in
@@ -206,11 +207,13 @@ or the metadata database:
 * ``max_body_bytes`` in its extra replaces ``[webhooks] max_body_bytes`` for this webhook, higher or
   lower. Anyone who may edit the connection can therefore raise the limit.
 * ``store_payload`` in its extra sets what is kept of its payloads (see `Stored payloads`_).
+* ``asset_routes`` in its extra has its deliveries record events on data assets (see `Asset routes`_).
 * The rest of its extra holds the options that the source type documents, such as ``signature_header``
   for ``hmac_json``.
 
 Whoever may edit ``webhook_<name>`` administers the webhook: they can change its secret and its source
-type, and so decide which deliveries Airflow accepts as coming from that sender.
+type, and so decide which deliveries Airflow accepts as coming from that sender, and its asset routes, and
+so decide which assets its deliveries record events on.
 
 Each process caches a webhook's connection for ``[webhooks] connection_cache_ttl`` seconds, including the
 failure to find or use it, so a changed connection can take that long to apply. A changed secret applies
@@ -222,7 +225,8 @@ until the cached connection is read again or expires. A failure to read a secret
 
 Webhooks have no team in Airflow 3.5. ``[webhooks] names`` refuses a name qualified with a team, such as
 ``team:name``, the connection is looked up without a team, so a connection that belongs to a team is not
-found, and when :ref:`config:core__multi_team` is on, topic events queue only Dags that have no team.
+found, and when :ref:`config:core__multi_team` is on, topic events queue only Dags that have no team and
+an asset route records nothing for an asset that a Dag of a team schedules on.
 
 Source types
 ------------
@@ -268,7 +272,8 @@ refuses it:
    source type returns. Nothing is recorded, and it does not count against the rate limit.
 6. The delivery must be within ``[webhooks] rate_limit_per_minute``.
 7. The source type parses the delivery.
-8. One transaction records the delivery, its topic events and, if it recorded any, an audit log entry.
+8. One transaction records the delivery, its topic events, the events of its asset routes and, if it
+   recorded any event, an audit log entry.
 9. The response is sent once that transaction has committed.
 
 The status codes and response bodies are:
@@ -330,11 +335,11 @@ before sending the whole body. Every request under ``/webhooks`` other than ``/w
 an access log line, refused or not, so the access log grows with every request that reaches the process.
 
 The delivery contract follows from this order. A 202 means that the delivery's record, and whatever topic
-events and audit log entry it recorded, committed before the answer was sent; a 200 ``duplicate`` means
-that an earlier copy's did; a 200 handshake records nothing. Asset listeners and metrics run after the
-commit. A 5xx records nothing, so a sender that retries can deliver again once the cause is fixed. Some
-senders, such as Jira Cloud, retry on their own, but GitHub does not, so a GitHub delivery refused during
-an outage has to be sent again from the webhook's **Recent Deliveries** page in GitHub. Delivery is at
+events, asset route events and audit log entry it recorded, committed before the answer was sent; a 200
+``duplicate`` means that an earlier copy's did; a 200 handshake records nothing. Asset listeners and metrics
+run after the commit. A 5xx records nothing, so a sender that retries can deliver again once the cause is
+fixed. Some senders, such as Jira Cloud, retry on their own, but GitHub does not, so a GitHub delivery refused
+during an outage has to be sent again from the webhook's **Recent Deliveries** page in GitHub. Delivery is at
 least once and unordered.
 
 Outcomes and repeated deliveries
@@ -342,19 +347,20 @@ Outcomes and repeated deliveries
 
 A recorded delivery has one of these outcomes:
 
-* ``accepted``: it recorded topic events, for at least one Dag that is not paused.
-* ``dag_paused``: only Dags that are paused or draining schedule on its names, so it recorded nothing.
-  Unpausing a Dag does not replay it.
-* ``no_subscribers``: no Dag schedules on its names, so it recorded nothing.
+* ``accepted``: it recorded topic events or asset route events, for at least one Dag that is not paused.
+* ``dag_paused``: only Dags that are paused or draining schedule on its names or on its routes' assets,
+  so it recorded nothing. Unpausing a Dag does not replay it.
+* ``no_subscribers``: no Dag that an event could start schedules on its names, and none of its asset
+  routes could record an event, so it recorded nothing. Its record says why each route recorded nothing.
 
 ``duplicate`` is only ever answered, never recorded. A delivery repeats a recorded one when it is sent to
 the same webhook with the same delivery id and the same body; the body counts, because senders send the
 delivery id in a header that their signature does not cover. A repeat of an ``accepted`` delivery is
 answered 200 ``duplicate`` and records nothing. A repeat of a delivery that recorded nothing, with outcome
 ``no_subscribers`` or ``dag_paused``, is processed again, without a second record, so that a Dag that
-subscribed or was unpaused since then receives it. If two copies of a delivery arrive at once, at most one
-of them acts. A delivery without a delivery id, or with an empty one, cannot be recognized as a repeat,
-so each copy of it acts.
+subscribed or was unpaused since then receives it, and the record then says what the repeat did. If two
+copies of a delivery arrive at once, at most one of them acts. A delivery without a delivery id, or with an
+empty one, cannot be recognized as a repeat, so each copy of it acts.
 
 The generic sources read the delivery id from the header or field that the connection's
 ``delivery_id_header`` or ``delivery_id_field`` names, and other source types from where their sender puts
@@ -362,6 +368,90 @@ it, such as ``X-GitHub-Delivery``. The ``hmac_json`` signature covers the body o
 delivery can send it again under a new id in ``delivery_id_header``, and it acts again. If the sender puts
 its delivery id in the signed body, use ``delivery_id_field`` instead: a copy sent again then always
 repeats the delivery, as long as its record is kept.
+
+.. _inbound-webhooks-asset-routes:
+
+Asset routes
+------------
+
+A delivery is sometimes about a data asset rather than a topic, as when an ETL service reports that it has
+loaded a table. An *asset route* has the webhook's deliveries record an event on such an asset, so that
+the Dags scheduled on it run. Each route, in ``asset_routes`` in the extra of the webhook's connection,
+names one of the webhook's topic names and an asset: a delivery that offers the topic name also records
+an event on the asset, in the same transaction as its record and its topic events. For example, with this
+extra on ``webhook_etl``:
+
+.. code-block:: json
+
+    {
+        "source_type": "hmac_json",
+        "signature_header": "X-Signature",
+        "event_field": "event",
+        "path_field": "table",
+        "asset_routes": [
+            {
+                "topic": "etl/orders/load.completed",
+                "asset": "s3://warehouse/orders",
+                "partition_key_field": "data.date"
+            }
+        ]
+    }
+
+a delivery of ``{"event": "load.completed", "table": "orders", "data": {"date": "2026-10-19"}}`` records
+an event on the asset whose URI is ``s3://warehouse/orders``, with the partition key ``2026-10-19``.
+
+``asset_routes`` is a list of objects with these keys, or that list as JSON text, as in a connection given
+as a URI:
+
+* ``topic`` (required): one of the names that the webhook's deliveries offer, as described in
+  :doc:`/authoring-and-scheduling/webhook-topics`, such as ``etl/orders/load.completed`` or
+  ``etl/*/load.completed``. A route whose topic a delivery does not offer does nothing for it.
+* ``asset`` (required): the asset's URI, or else its name: a route looks for an active asset with this
+  URI first, and then for one with this name, comparing each exactly with what Airflow stores. Airflow,
+  and the provider that handles the URI's scheme, normalize a URI when a Dag declares the asset, so the
+  stored URI can differ from the one in the Dag's code: with the Postgres provider,
+  ``Asset(name="orders", uri="postgres://db/analytics/public/orders")`` is stored with the URI
+  ``postgres://db:5432/analytics/public/orders``, which a route must then use, or else the name
+  ``orders``. The asset's page in the UI shows both. On MySQL, where asset names and URIs are ASCII, a
+  route whose ``asset`` is not finds no asset.
+* ``partition_key_field``: a dotted path into the delivery's payload, such as ``data.date``, to the
+  event's partition key. Without it, the event has no partition key. The partition key is kept whatever
+  ``store_payload`` says (see `Stored payloads`_), so do not point it at personal data.
+
+Any other shape, or any other key, leaves the connection misconfigured: its deliveries are answered 503,
+and ``airflow webhooks check`` says what is wrong.
+
+As a topic does, a route records an event only for a Dag that can run:
+
+* The asset must be active, that is, declared by a Dag. Deliveries never create assets.
+* The asset must not be a webhook topic, that is, an asset in the ``webhook`` group, such as a
+  ``WebhookTopic``: a topic receives events only from its own webhook. A plain ``Asset`` named like a
+  topic has no such guard.
+* A Dag that is not paused, draining or stale must schedule on the asset, directly or through
+  ``Asset.ref``, and be one that the event can start. A keyed event, one with a partition key, queues only
+  partition-aware Dags: with ``partition_key_field``, only a Dag with a partitioned timetable runs for the
+  event, and a Dag scheduled on the asset without one does not. Without ``partition_key_field``, only the
+  Dags without a partitioned timetable can.
+* The partition key is the value at ``partition_key_field``, read with no template engine and no access
+  to Airflow's context, connections or variables. It must be a non-blank string of at most 250
+  characters, without U+0000, an unpaired surrogate, or a character outside the Basic Multilingual Plane,
+  such as an emoji, which some databases cannot store; any other value, or no value, skips the route.
+* Webhooks have no team in Airflow 3.5, so when :ref:`config:core__multi_team` is on, a route records
+  nothing for an asset that any Dag of a team schedules on, paused or not, even if Dags without a team
+  schedule on it too.
+
+A route that a delivery offers the topic of but that records nothing is listed in the delivery's record,
+with why (see `Why a Dag did not run`_). Each route that matches records its own event, so two routes to
+one asset that a delivery both matches record two events on it. The events carry the same extra as topic
+events, described in :doc:`/authoring-and-scheduling/webhook-topics`, so Dags read the delivery from them
+in the same way, and ``store_payload`` and ``[webhooks] max_event_payload_bytes`` apply to their payloads
+as they do to those of topic events. A delivery that acts through a route alone is ``accepted``, writes an
+audit log entry, and is recognized as a repeat like any other (see `Outcomes and repeated deliveries`_).
+
+A route needs only edit rights on ``webhook_<name>``, while ``POST /api/v2/assets/events`` requires
+permission to create events on the asset. So whoever may edit the connection can have its deliveries record
+events on any active asset other than a webhook topic, and start the Dags scheduled on it. Give edit rights
+on webhook connections only to users who may also record events on the assets that a route could name.
 
 Stored payloads
 ---------------
@@ -377,14 +467,17 @@ source type's default if it has one, or else by :ref:`[webhooks] store_payload <
 * ``none`` keeps nothing.
 
 Only ``accepted`` deliveries keep a payload, in their record and in the extra of each of their topic
-events, so a sender that sends every event does not fill the database. Each topic event carries its own
-copy, and the copy is left out of a topic event, with ``payload`` null and ``payload_truncated`` true, when
-it is larger than :ref:`[webhooks] max_event_payload_bytes <config:webhooks>` as compact JSON; the
-delivery's record keeps it all the same.
+events and asset route events, so a sender that sends every event does not fill the database. Each event
+carries its own copy, and the copy is left out of an event, with ``payload`` null and ``payload_truncated``
+true, when it is larger than :ref:`[webhooks] max_event_payload_bytes <config:webhooks>` as compact JSON;
+the delivery's record keeps it all the same.
 
-Every user allowed to read asset events can read their extra, and every Dag scheduled on a topic receives
-it. When the payloads must not keep personal or otherwise sensitive data, set ``store_payload`` to
-``none``, or to ``summary`` once you have checked what the source type's summary keeps.
+Every user allowed to read asset events can read their extra, and every Dag scheduled on a topic, or on an
+asset that an asset route names, receives it. When the payloads must not keep personal or otherwise sensitive
+data, set ``store_payload`` to ``none``, or to ``summary`` once you have checked what the source type's
+summary keeps. ``store_payload`` does not cover the partition key that an asset route reads from the
+payload: it is kept in the asset event, in the delivery's record, in the Dag run it starts and in the
+records that queue that run, so point ``partition_key_field`` only at data that may be kept.
 
 Retention
 ---------
@@ -414,7 +507,8 @@ Viewing deliveries
 
 The record of each delivery can be read in the UI and through the REST API: when the delivery was
 received, its webhook, source type, delivery id, correlation key and attributes, its outcome, the topic
-names it offered and the topic events it recorded. Neither shows its payload.
+names it offered, the topic events and asset route events it recorded and the asset routes it skipped.
+Neither shows its payload.
 
 In the UI
 ~~~~~~~~~
@@ -435,10 +529,12 @@ the metadata database.
 
 The **Show Details** button of a delivery opens a panel with its details: its id, webhook, delivery
 id, time of receipt, source type and correlation key; its outcome, with a sentence on what it means; its
-attributes; the topic names it offered, each with a button that copies it; and the topic events it
-recorded, each linked to its asset's page. ``?id=<id>`` in the address opens the panel of the delivery with
-that id, as in ``/webhook_deliveries/demo?id=<id>``. Wherever the UI lists asset events, the source of a
-topic event reads **Webhook** and links there.
+attributes; the topic names it offered, each with a button that copies it; the topic events it
+recorded, each linked to its asset's page; the events its asset routes recorded, each linked to its
+asset's page with the route's topic and the partition key; and the asset routes it skipped, each with
+why. ``?id=<id>`` in the address opens the panel of the delivery with that id, as in
+``/webhook_deliveries/demo?id=<id>``. Wherever the UI lists asset events, the source of an event that a
+delivery recorded reads **Webhook** and links there.
 
 Who can read deliveries
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -508,9 +604,19 @@ fields:
    * - ``candidates``
      - The topic names that the delivery offered.
    * - ``actions``
-     - Null unless the outcome is ``accepted``. Then the topic events that the delivery recorded, sorted by
-       asset name, each with the asset's name, the asset's id and the asset event's id, as in
-       ``{"asset_events": [{"asset": "demo/billing/deploy_finished", "asset_id": 12, "event_id": 345}]}``.
+     - What the delivery did, or null if it recorded nothing and skipped no asset route. Each of these
+       keys is present only when its list is not empty:
+
+       * ``asset_events``: the topic events that the delivery recorded, sorted by asset name, each with the
+         asset's name, the asset's id and the asset event's id, as in
+         ``{"asset": "demo/billing/deploy_finished", "asset_id": 12, "event_id": 345}``;
+       * ``asset_routes``: the events that its asset routes recorded, in the order of the routes, each with
+         the route's ``topic`` and ``asset``, the asset's id, the asset event's id and the partition key, or
+         null, as in ``{"topic": "etl/orders/load.completed", "asset": "s3://warehouse/orders",
+         "asset_id": 7, "event_id": 346, "partition_key": "2026-10-19"}``;
+       * ``skipped_asset_routes``: the asset routes whose topic it offered that recorded nothing, in the
+         order of the routes, each with the route's ``topic``, ``asset`` and ``partition_key_field``, or
+         null, and the ``reason``, one of those listed in `Why a Dag did not run`_.
    * - ``team_name``
      - Null: webhooks have no team in Airflow 3.5.
 
@@ -566,21 +672,40 @@ A webhook's deliveries say why a delivery started no run:
   **Webhooks** tab shows whether the webhook is listed, and whether its connection and source type can be
   served.
 * ``no_subscribers``: no Dag schedules on any of the topic names that the delivery offered, in a way that
-  receives topic events (see :doc:`/authoring-and-scheduling/webhook-topics`). Compare those names with
-  the name of the Dag's topic.
+  receives topic events (see :doc:`/authoring-and-scheduling/webhook-topics`), and no asset route recorded
+  an event (see below). Compare those names with the name of the Dag's topic.
 * ``dag_paused``: only paused or draining Dags schedule on its names. Unpausing a Dag does not replay the
   delivery, but the sender can deliver it again.
-* ``accepted``: it recorded the topic events that its details link to, which queue the Dags scheduled on
-  their assets. A Dag that has no run yet may be waiting for an event on another asset, as with ``a & b``,
+* ``accepted``: it recorded the topic events and asset route events that its details link to, which queue
+  the Dags scheduled on their assets. A Dag that has no run yet may be waiting for an event on another
+  asset, as with ``a & b``, or, with a partitioned timetable, for the same partition of its other assets,
   or for one of its ``max_active_runs`` to finish.
+
+When a Dag scheduled on the asset of an asset route did not run, the delivery's ``skipped_asset_routes``,
+which the details panel lists as **Skipped Asset Routes**, says why, unless the delivery did not offer the
+route's topic, which its topic names show:
+
+* ``asset_not_active``: no Dag declares an asset with the route's ``asset`` as its name, or as its URI
+  as Airflow stores it, which can differ from the URI in the Dag's code (see `Asset routes`_).
+* ``asset_is_topic``: the asset is a webhook topic, which receives events only from its own webhook.
+* ``dag_has_team``: :ref:`config:core__multi_team` is on, and a Dag of a team schedules on the asset.
+* ``partition_key_missing``: the payload has no value, or null, at the route's ``partition_key_field``.
+* ``partition_key_invalid``: the value there is not a non-blank string of at most 250 characters, or has
+  U+0000, an unpaired surrogate, or a character outside the Basic Multilingual Plane.
+* ``dag_paused``: only paused or draining Dags that the event could start schedule on the asset.
+* ``no_subscribers``: no Dag that the event could start schedules on the asset, as when a route with a
+  ``partition_key_field`` names an asset that no Dag with a partitioned timetable schedules on, or one
+  without names an asset that only such Dags schedule on.
 
 Audit log
 ~~~~~~~~~
 
-A delivery that records topic events also writes an audit log entry, in the same transaction, with the
-event ``webhook_delivery``, the owner ``webhook:<name>``, and the delivery id, the topic names it recorded
-events on and its outcome in its extra. The entry has no Dag, so only users allowed to read audit log
-entries that belong to no Dag see it, such as the **admin** role of the Simple auth manager.
+A delivery that records topic events or asset route events also writes an audit log entry, in the same
+transaction, with the event ``webhook_delivery``, the owner ``webhook:<name>``, and in its extra the
+delivery id, the topic names it recorded events on as ``names``, its outcome and, if its asset routes
+recorded events, the ``topic`` and ``asset`` of each such route as ``asset_routes``. The entry has no Dag,
+so only users allowed to read audit log entries that belong to no Dag see it, such as the **admin** role of
+the Simple auth manager.
 
 Metrics
 -------
@@ -664,12 +789,17 @@ The webhooks process answers anyone who can reach it, so give it only what it ne
   * on MySQL, ``UPDATE`` on ``asset_dag_run_queue``, which is written with
     ``INSERT ... ON DUPLICATE KEY UPDATE``;
   * when :ref:`config:core__multi_team` is on, ``SELECT`` on ``dag_bundle``, ``dag_bundle_team`` and
-    ``team``, which the team filter reads.
+    ``team``, which the team filter reads;
+  * for asset routes with a ``partition_key_field``, ``SELECT`` on ``serialized_dag`` and
+    ``dag_version``, ``SELECT`` and ``INSERT`` on ``asset_partition_dag_run`` and
+    ``partitioned_asset_key_log``, which queue the partition-aware Dags; ``UPDATE`` on ``asset``, which
+    PostgreSQL and MySQL need for the row lock taken on the asset; and on PostgreSQL, ``USAGE`` on the
+    sequences ``asset_partition_dag_run_id_seq`` and ``partitioned_asset_key_log_id_seq``.
 
-  Airflow's tests pin which tables a delivery reads and writes when ``multi_team`` is off, but not these
-  privileges. A delivery that needs a privilege the process lacks is answered 500 or 503, depending on the
-  database, and the error is logged.
-* Only the plugins it needs. The first delivery that records topic events imports every plugin installed
+  Airflow's tests pin which tables a delivery reads and writes when ``multi_team`` is off, for topic events
+  and for asset routes with a partition key, but not these privileges. A delivery that needs a privilege the
+  process lacks is answered 500 or 503, depending on the database, and the error is logged.
+* Only the plugins it needs. The first delivery that records an event imports every plugin installed
   where the process runs, from the plugins folder and from entry points, to find listeners, and the
   ``on_asset_changed`` and ``on_asset_event_emitted`` hooks of listener plugins then run after each such
   delivery, with whatever network access and credentials they use.
@@ -685,8 +815,8 @@ Turning webhooks off
 * To stop one webhook, remove its name from ``[webhooks] names`` and restart the process; its deliveries
   are then answered 404, which some senders count as failures. Its records stay readable.
 * To keep a webhook's deliveries from starting runs while still recording them, pause every Dag that
-  schedules on its topics. Their deliveries are recorded as ``dag_paused``, and a sender's redelivery
-  after unpausing is processed again.
+  schedules on its topics or on the assets that its asset routes name. Their deliveries are recorded as
+  ``dag_paused``, and a sender's redelivery after unpausing is processed again.
 
 Migrating from airflow-provider-inbound-webhooks
 ------------------------------------------------

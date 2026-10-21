@@ -35,6 +35,7 @@ from airflow.providers_manager import ProviderInfo, ProvidersManager
 from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.webhooks.connections import (
+    AssetRoute,
     ConfiguredWebhook,
     ResolutionFailure,
     UnresolvedWebhook,
@@ -258,6 +259,41 @@ class TestResolveWebhook:
         assert isinstance(resolution, ConfiguredWebhook)
         assert resolution.store_payload == expected_store_payload
 
+    @pytest.mark.parametrize(
+        ("extra", "expected_routes"),
+        [
+            pytest.param({}, (), id="none"),
+            # As the connection form saves a field left empty.
+            pytest.param({"asset_routes": None}, (), id="empty-field"),
+            pytest.param(
+                {
+                    "asset_routes": [
+                        {"topic": "github/my-org/web/push", "asset": "s3://exports/web"},
+                        {"topic": "github/*/push", "asset": "pushes", "partition_key_field": "ref"},
+                    ]
+                },
+                (
+                    AssetRoute(topic="github/my-org/web/push", asset="s3://exports/web"),
+                    AssetRoute(topic="github/*/push", asset="pushes", partition_key_field="ref"),
+                ),
+                id="list",
+            ),
+            # As in a connection given as a URI.
+            pytest.param(
+                {"asset_routes": '[{"topic": "github/*/push", "asset": "pushes"}]'},
+                (AssetRoute(topic="github/*/push", asset="pushes"),),
+                id="json",
+            ),
+        ],
+    )
+    def test_asset_routes_are_read_from_the_extra(self, backend, extra, expected_routes):
+        backend.connections[CONN_ID] = build_connection(**extra)
+
+        resolution = resolve_github()
+
+        assert isinstance(resolution, ConfiguredWebhook)
+        assert resolution.asset_routes == expected_routes
+
     @mock.patch("airflow.webhooks.connections.mask_secret", autospec=True)
     def test_extra_is_registered_with_the_secrets_masker(self, mock_mask_secret, backend):
         backend.connections[CONN_ID] = build_connection(api_token="t0ken", region=None)
@@ -355,6 +391,52 @@ class TestResolveWebhook:
         resolution = resolve_github()
 
         assert resolution == expected
+
+    @pytest.mark.parametrize(
+        ("asset_routes", "reason"),
+        [
+            pytest.param(
+                {"topic": "github/*/push", "asset": "pushes"}, "asset_routes must be a list", id="object"
+            ),
+            pytest.param("github/*/push", "asset_routes must be a JSON list", id="not-json"),
+            pytest.param('{"topic": "github/*/push"}', "asset_routes must be a list", id="json-object"),
+            pytest.param(["github/*/push"], "asset_routes[0] must be an object", id="route-not-an-object"),
+            pytest.param(
+                [{"topic": "github/*/push", "asset": "pushes", "partition_key": "ref"}],
+                "asset_routes[0] has unknown keys: partition_key",
+                id="unknown-key",
+            ),
+            pytest.param(
+                [{"asset": "pushes"}], "asset_routes[0] topic must be a non-empty string", id="no-topic"
+            ),
+            pytest.param(
+                [{"topic": "github/*/push", "asset": "pushes"}, {"topic": "github/*/push", "asset": ""}],
+                "asset_routes[1] asset must be a non-empty string",
+                id="empty-asset",
+            ),
+            pytest.param(
+                [{"topic": "github/*/push", "asset": 7}],
+                "asset_routes[0] asset must be a non-empty string",
+                id="non-string-asset",
+            ),
+            pytest.param(
+                [{"topic": "github/*/push", "asset": "pushes", "partition_key_field": None}],
+                "asset_routes[0] partition_key_field must be a non-empty string",
+                id="null-partition-key-field",
+            ),
+            pytest.param(
+                [{"topic": "github/*/push", "asset": "pushes", "partition_key_field": ["ref"]}],
+                "asset_routes[0] partition_key_field must be a non-empty string",
+                id="non-string-partition-key-field",
+            ),
+        ],
+    )
+    def test_asset_routes_of_any_other_shape_are_misconfigured(self, backend, asset_routes, reason):
+        backend.connections[CONN_ID] = build_connection(asset_routes=asset_routes)
+
+        resolution = resolve_github()
+
+        assert resolution == build_misconfiguration(reason, "github", WebhookSourceTypeStatus.OK)
 
     @pytest.mark.parametrize(
         "source_type_owners",

@@ -483,14 +483,16 @@ in ``airflow.webhooks.naming``, which are public too.
 The rest of the inbound webhooks interface is public and experimental too, and is described in
 :doc:`administration-and-deployment/webhooks` and :doc:`authoring-and-scheduling/webhook-topics`: the
 routes ``POST /webhooks/<name>`` and ``GET /webhooks/_health`` with their status codes and the body of a
-202, the topic name grammar, the keys of the extra of topic events, the ``[webhooks]`` options,
+202, the topic name grammar, the keys of the extra of topic events, which asset routes record events on
+and the reasons they skip, the ``[webhooks]`` options,
 ``GET /api/v2/webhooks``, ``GET /api/v2/webhooks/{webhook_name}/deliveries`` with ``~`` for every webhook
 and the shape of a delivery's ``actions``, the ``airflow webhooks`` commands, the webhook metrics and their
 tags, and the owner of the audit log entries. :class:`~airflow.sdk.WebhookTopic` is part of the
 Task SDK. Each source type's name, the ``source_type`` key that selects it in a connection's extra, its own
 connection extra options, its attributes and the fields its topic names are built from are the public
 interface of the provider that ships it. The ``inbound_webhook`` connection type and its extra keys
-``max_body_bytes`` and ``store_payload`` are the public interface of the standard provider.
+``max_body_bytes``, ``store_payload`` and ``asset_routes``, with a route's keys ``topic``, ``asset`` and
+``partition_key_field``, are the public interface of the standard provider.
 
 You can read more about writing webhook source types in the Webhook Sources page of the providers
 documentation.

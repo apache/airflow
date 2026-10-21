@@ -1230,6 +1230,11 @@ The design leaves the following residual risks, which are not vulnerabilities:
   ``[webhooks] rate_limit_per_minute`` counts only verified deliveries, so that unsigned requests cannot
   use up a sender's limit; shedding a flood of unsigned or slow requests, by buffering bodies, timing
   them out and limiting requests per address, is the job of the proxy in front of the process.
+* **Asset routes need only edit rights on the connection.** Whoever may edit a ``webhook_<name>``
+  connection can add an asset route to it, so that the webhook's deliveries record events on any active
+  asset that the route names, other than a webhook topic, and start the Dags scheduled on it, while
+  ``POST /api/v2/assets/events`` requires permission to create events on the asset. Edit rights on a
+  webhook connection are therefore also rights to record asset events.
 * **Credentials held by an exposed process.** The process that serves inbound webhooks holds the
   metadata database credentials, the credentials of any secrets backend it reads, and the Fernet key
   unless it is withheld because no ``webhook_<name>`` connection is stored in the metadata database,

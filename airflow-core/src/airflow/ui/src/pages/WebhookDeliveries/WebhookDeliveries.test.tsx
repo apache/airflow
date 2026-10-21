@@ -21,7 +21,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { WebhookDeliveryResponse, WebhookResponse } from "openapi/requests/types.gen";
 
@@ -417,6 +417,127 @@ describe("WebhookDeliveries", () => {
       { normalizeWhitespace: false },
     );
     expect(within(panel).queryByTestId("delivery-asset-events")).not.toBeInTheDocument();
+  });
+
+  it("links each asset route event to its asset, and lists each skipped route with its reason", async () => {
+    serveDeliveries(
+      [],
+      [
+        buildDeliveryRow({
+          actions: {
+            asset_routes: [
+              {
+                asset: "s3://warehouse/orders",
+                asset_id: 5,
+                event_id: 9,
+                partition_key: "2026-10-19",
+                topic: "demo/orders/load.completed",
+              },
+              {
+                asset: "invoices",
+                asset_id: 6,
+                event_id: 10,
+                partition_key: null,
+                topic: "demo/*/load.completed",
+              },
+            ],
+            skipped_asset_routes: [
+              {
+                asset: "s3://warehouse/refunds",
+                partition_key_field: null,
+                reason: "asset_not_active",
+                topic: "demo/*/load.completed",
+              },
+              {
+                asset: "s3://warehouse/returns",
+                partition_key_field: null,
+                reason: "renamed_later",
+                topic: "demo/*/load.completed",
+              },
+            ],
+          },
+          id: deliveryRecordId,
+          outcome: "accepted",
+        }),
+      ],
+    );
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
+
+    const panel = await screen.findByTestId("delivery-details");
+    const routeEvents = await within(panel).findByTestId("delivery-asset-route-events");
+    const [keyed, unkeyed] = within(routeEvents).getAllByRole("listitem") as [HTMLElement, HTMLElement];
+
+    expect(
+      within(routeEvents)
+        .getAllByRole("link")
+        .map((link) => [link.textContent, link.getAttribute("href")]),
+    ).toEqual([
+      ["s3://warehouse/orders", "/assets/5"],
+      ["invoices", "/assets/6"],
+    ]);
+    expect(within(keyed).getByText("demo/orders/load.completed")).toBeInTheDocument();
+    expect(within(keyed).getByText("2026-10-19")).toBeInTheDocument();
+    expect(within(unkeyed).getByText("demo/*/load.completed")).toBeInTheDocument();
+    expect(within(unkeyed).queryByText("dagRun.partitionKey")).not.toBeInTheDocument();
+
+    const skippedRoutes = within(panel).getByTestId("delivery-skipped-asset-routes");
+    const [notActive, unknownReason] = within(skippedRoutes).getAllByRole("listitem") as [
+      HTMLElement,
+      HTMLElement,
+    ];
+
+    expect(within(skippedRoutes).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(notActive).getByText("s3://warehouse/refunds")).toBeInTheDocument();
+    expect(within(notActive).getByText("webhookDeliveries.skipReasons.asset_not_active")).toBeInTheDocument();
+    expect(within(unknownReason).getByText("webhookDeliveries.skipReasons.unknown")).toBeInTheDocument();
+    expect(within(panel).queryByTestId("monaco-editor")).not.toBeInTheDocument();
+  });
+
+  it("lists each skipped route with its partition key field, even routes that are alike", async () => {
+    const consoleError = vi.spyOn(console, "error");
+
+    onTestFinished(() => consoleError.mockRestore());
+    const route = { asset: "invoices", partition_key_field: null, reason: "dag_paused", topic: "demo/x" };
+    const actions = { skipped_asset_routes: [{ ...route, partition_key_field: "data.date" }, route, route] };
+
+    serveDeliveries([], [buildDeliveryRow({ actions, id: deliveryRecordId })]);
+    render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
+
+    const skippedRoutes = await screen.findByTestId("delivery-skipped-asset-routes");
+    const [keyed, ...alike] = within(skippedRoutes).getAllByRole("listitem");
+    const fieldLabel = "webhookDeliveries.details.partitionKeyField";
+
+    expect(within(keyed as HTMLElement).getByText("data.date")).toBeInTheDocument();
+    expect(alike.map((item) => within(item).queryByText(fieldLabel))).toEqual([null, null]);
+    expect(consoleError.mock.calls.flat().join(" ")).not.toContain("same key");
+  });
+
+  it.each([
+    {
+      actions: { asset_routes: [{ asset: "invoices", asset_id: 6, event_id: 10 }] },
+      shape: "route events without a topic",
+    },
+    { actions: { skipped_asset_routes: ["invoices"] }, shape: "skipped routes that are not objects" },
+    {
+      actions: {
+        skipped_asset_routes: [{ asset: "invoices", reason: "dag_paused", topic: "demo/invoices" }],
+      },
+      shape: "skipped routes without a partition key field",
+    },
+  ])("shows $shape as recorded", async ({ actions }) => {
+    serveDeliveries([], [buildDeliveryRow({ actions, id: deliveryRecordId })]);
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
+
+    const panel = await screen.findByTestId("delivery-details");
+
+    expect(await within(panel).findByTestId("monaco-editor")).toHaveTextContent(
+      JSON.stringify(actions, undefined, 2),
+      { normalizeWhitespace: false },
+    );
+    expect(within(panel).queryByTestId("delivery-asset-route-events")).not.toBeInTheDocument();
+    expect(within(panel).queryByTestId("delivery-skipped-asset-routes")).not.toBeInTheDocument();
   });
 
   it.each([

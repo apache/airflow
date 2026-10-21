@@ -49,6 +49,54 @@ CONN_TYPE = "inbound_webhook"
 # that first declares webhook-sources, so it must be checked against that release when it is cut.
 _STANDARD_SOURCE_TYPES = frozenset({"hmac_json", "token_header"})
 _MIN_STANDARD_PROVIDER_VERSION = "1.21.0"
+_ASSET_ROUTE_KEYS = ("topic", "asset", "partition_key_field")
+
+
+@dataclass(frozen=True, kw_only=True)
+class AssetRoute:
+    """
+    A rule that has each delivery offered ``topic`` also record an event on a data asset.
+
+    :param topic: One of the webhook's topic names, as ``build_candidate_names`` builds them.
+    :param asset: The asset's URI, or else its name.
+    :param partition_key_field: A dotted path into the delivery's payload to the event's partition key,
+        or None for events without one.
+    """
+
+    topic: str
+    asset: str
+    partition_key_field: str | None = None
+
+
+def parse_asset_routes(value: Any) -> tuple[AssetRoute, ...]:
+    """
+    Return the routes that ``asset_routes`` in a webhook connection's extra configures.
+
+    :param value: A list of objects with a ``topic``, an ``asset`` and optionally a
+        ``partition_key_field``, each a non-empty string; or that list as JSON, as in a connection given
+        as a URI.
+    :raises ValueError: if ``value`` has any other shape.
+    """
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            raise ValueError("asset_routes must be a JSON list") from None
+    if not isinstance(value, list):
+        raise ValueError("asset_routes must be a list")
+    routes = []
+    for index, route in enumerate(value):
+        if not isinstance(route, dict):
+            raise ValueError(f"asset_routes[{index}] must be an object")
+        if unknown := sorted(set(route) - set(_ASSET_ROUTE_KEYS)):
+            raise ValueError(f"asset_routes[{index}] has unknown keys: {', '.join(unknown)}")
+        for key in _ASSET_ROUTE_KEYS:
+            if key == "partition_key_field" and key not in route:
+                continue
+            if not isinstance(route.get(key), str) or not route[key]:
+                raise ValueError(f"asset_routes[{index}] {key} must be a non-empty string")
+        routes.append(AssetRoute(**route))
+    return tuple(routes)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -64,6 +112,7 @@ class ConfiguredWebhook:
         or else ``[webhooks] max_body_bytes``.
     :param store_payload: What is kept of a delivery's payload: ``store_payload`` from the connection's
         extra, or else the source type's ``default_store_payload``, or else ``[webhooks] store_payload``.
+    :param asset_routes: The routes that ``asset_routes`` in the connection's extra configures, in order.
     """
 
     name: str
@@ -72,6 +121,7 @@ class ConfiguredWebhook:
     secret: str = field(repr=False)
     max_body_bytes: int
     store_payload: StorePayload
+    asset_routes: tuple[AssetRoute, ...] = ()
 
     def select_payload(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         """Return what ``store_payload`` keeps of a delivery's payload."""
@@ -221,6 +271,7 @@ def _configure_webhook(
             secret=conn.password,
             max_body_bytes=int(max_body_bytes),
             store_payload=store_payload,
+            asset_routes=parse_asset_routes(extra.get("asset_routes", [])),
         )
     except ValueError as e:
         reason = str(e)
@@ -253,8 +304,8 @@ def resolve_webhook(
     Resolve webhook ``name`` from connection ``webhook_<name>``, without a cache.
 
     The connection must have the type ``inbound_webhook``, and its password is the shared secret. Its
-    extra may set ``source_type``, which defaults to ``name``, ``max_body_bytes``, ``store_payload``, and
-    the options the source type documents.
+    extra may set ``source_type``, which defaults to ``name``, ``max_body_bytes``, ``store_payload``,
+    ``asset_routes``, and the options the source type documents.
 
     :param name: The webhook's name.
     :param source_type_owners: The package that serves each source type listed, as in

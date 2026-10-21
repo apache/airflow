@@ -31,3 +31,16 @@ export const getOutcomeLabel = (translate: TFunction, outcome: string): string =
 
 export const getOutcomeExplanation = (translate: TFunction, outcome: string): string =>
   translate(findOutcome(outcome)?.explanation ?? "browse:webhookDeliveries.outcomeExplanations.unknown");
+
+const skipReasonExplanations: Record<string, string> = {
+  asset_is_topic: "browse:webhookDeliveries.skipReasons.asset_is_topic",
+  asset_not_active: "browse:webhookDeliveries.skipReasons.asset_not_active",
+  dag_has_team: "browse:webhookDeliveries.skipReasons.dag_has_team",
+  dag_paused: "browse:webhookDeliveries.skipReasons.dag_paused",
+  no_subscribers: "browse:webhookDeliveries.skipReasons.no_subscribers",
+  partition_key_invalid: "browse:webhookDeliveries.skipReasons.partition_key_invalid",
+  partition_key_missing: "browse:webhookDeliveries.skipReasons.partition_key_missing",
+};
+
+export const getSkipReasonExplanation = (translate: TFunction, reason: string): string =>
+  translate(skipReasonExplanations[reason] ?? "browse:webhookDeliveries.skipReasons.unknown");

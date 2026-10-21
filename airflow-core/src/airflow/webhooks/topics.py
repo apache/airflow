@@ -47,11 +47,54 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
     from uuid import UUID
 
-    from sqlalchemy import Row
+    from sqlalchemy import CTE, Exists, Row, Select
     from sqlalchemy.orm import Session
 
     from airflow.webhooks.base import WebhookDelivery
     from airflow.webhooks.connections import ConfiguredWebhook
+
+
+def build_dag_has_team_clause() -> Exists:
+    """Return a clause that holds for a Dag whose bundle belongs to a team."""
+    bundle_team = dag_bundle_team_association_table.c
+    return exists().where(bundle_team.dag_bundle_name == DagModel.bundle_name)
+
+
+def select_scheduling_dags(assets: CTE) -> Select[Any]:
+    """
+    Select each Dag that is not stale and schedules on one of ``assets``.
+
+    A Dag schedules on an asset directly, or through ``Asset.ref(name=...)`` or ``Asset.ref(uri=...)``,
+    which ``register_asset_change`` queues as well. Stale Dags are left out, since the scheduler never
+    runs them, though ``register_asset_change`` would queue them.
+
+    :param assets: The assets, as rows with a ``name`` and a ``uri``.
+    :return: A query for one row per asset and Dag, with the asset's ``name`` and ``uri``, and the Dag's
+        ``dag_id``, ``is_paused``, ``is_draining`` and ``timetable_partitioned``.
+    """
+    references = union_all(
+        select(assets.c.name, assets.c.uri, DagScheduleAssetReference.dag_id)
+        .join(AssetModel, and_(AssetModel.name == assets.c.name, AssetModel.uri == assets.c.uri))
+        .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id),
+        select(assets.c.name, assets.c.uri, DagScheduleAssetNameReference.dag_id).join(
+            DagScheduleAssetNameReference, DagScheduleAssetNameReference.name == assets.c.name
+        ),
+        select(assets.c.name, assets.c.uri, DagScheduleAssetUriReference.dag_id).join(
+            DagScheduleAssetUriReference, DagScheduleAssetUriReference.uri == assets.c.uri
+        ),
+    ).subquery()
+    return (
+        select(
+            references.c.name,
+            references.c.uri,
+            DagModel.dag_id,
+            DagModel.is_paused,
+            DagModel.is_draining,
+            DagModel.timetable_partitioned,
+        )
+        .join(DagModel, DagModel.dag_id == references.c.dag_id)
+        .where(~DagModel.is_stale)
+    )
 
 
 def find_subscriptions(
@@ -64,50 +107,21 @@ def find_subscriptions(
     only a name, so that a delivery records no event on an asset that names some data, such as
     ``Asset(name="github/my-org/web/issues", uri="s3://exports/issues")``.
 
-    A Dag schedules on an asset directly, or through ``Asset.ref(name=...)`` or ``Asset.ref(uri=...)``,
-    which ``register_asset_change`` queues as well. A reference subscribes only once some Dag declares
-    the asset, since an event can only be recorded on an active asset. Stale Dags are left out, since
-    the scheduler never runs them, though ``register_asset_change`` would queue them. Under multi-team,
-    Dags of a team are left out too: topic events come from a webhook without a team, and such events
-    queue only Dags without one.
+    A Dag schedules on an asset as ``select_scheduling_dags`` finds it. A reference subscribes only once
+    some Dag declares the asset, since an event can only be recorded on an active asset. Under
+    multi-team, Dags of a team are left out: topic events come from a webhook without a team, and such
+    events queue only Dags without one.
 
-    :return: One row per asset and Dag, with the asset's ``name`` and ``uri``, and the Dag's ``dag_id``,
-        ``is_paused``, ``is_draining`` and ``timetable_partitioned``.
+    :return: One row per asset and Dag, as ``select_scheduling_dags`` returns them.
     """
     candidate_assets = (
         select(AssetActive.name, AssetActive.uri)
         .where(AssetActive.name.in_(candidates), AssetActive.uri == AssetActive.name)
         .cte("candidate_asset")
     )
-    references = union_all(
-        select(candidate_assets.c.name, candidate_assets.c.uri, DagScheduleAssetReference.dag_id)
-        .join(
-            AssetModel,
-            and_(AssetModel.name == candidate_assets.c.name, AssetModel.uri == candidate_assets.c.uri),
-        )
-        .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id),
-        select(candidate_assets.c.name, candidate_assets.c.uri, DagScheduleAssetNameReference.dag_id).join(
-            DagScheduleAssetNameReference, DagScheduleAssetNameReference.name == candidate_assets.c.name
-        ),
-        select(candidate_assets.c.name, candidate_assets.c.uri, DagScheduleAssetUriReference.dag_id).join(
-            DagScheduleAssetUriReference, DagScheduleAssetUriReference.uri == candidate_assets.c.uri
-        ),
-    ).subquery()
-    query = (
-        select(
-            references.c.name,
-            references.c.uri,
-            DagModel.dag_id,
-            DagModel.is_paused,
-            DagModel.is_draining,
-            DagModel.timetable_partitioned,
-        )
-        .join(DagModel, DagModel.dag_id == references.c.dag_id)
-        .where(~DagModel.is_stale)
-    )
+    query = select_scheduling_dags(candidate_assets)
     if multi_team:
-        bundle_team = dag_bundle_team_association_table.c
-        query = query.where(~exists().where(bundle_team.dag_bundle_name == DagModel.bundle_name))
+        query = query.where(~build_dag_has_team_clause())
     return session.execute(query).all()
 
 
