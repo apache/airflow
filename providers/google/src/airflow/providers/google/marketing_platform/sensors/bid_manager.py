@@ -21,8 +21,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowFailException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowFailException, BaseSensorOperator
 from airflow.providers.google.marketing_platform.hooks.bid_manager import GoogleBidManagerHook
 
 if TYPE_CHECKING:

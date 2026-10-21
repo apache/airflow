@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+from googleapiclient.http import HttpRequest
+
 from airflow.providers.google.marketing_platform.hooks.bid_manager import GoogleBidManagerHook
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -95,8 +97,8 @@ class TestGoogleBidManagerHook:
     def test_list_queries(self, get_conn_mock):
         queries_page1 = [{"queryId": "q1"}]
         queries_page2 = [{"queryId": "q2"}]
-        mock_request = mock.MagicMock()
-        mock_next_request = mock.MagicMock()
+        mock_request = mock.MagicMock(spec=HttpRequest)
+        mock_next_request = mock.MagicMock(spec=HttpRequest)
         get_conn_mock.return_value.queries.return_value.list.return_value = mock_request
         mock_request.execute.return_value = {"queries": queries_page1}
         mock_next_request.execute.return_value = {"queries": queries_page2}
@@ -143,8 +145,8 @@ class TestGoogleBidManagerHook:
         query_id = "QUERY_ID"
         reports_page1 = [{"key": {"reportId": "r1"}}]
         reports_page2 = [{"key": {"reportId": "r2"}}]
-        mock_request = mock.MagicMock()
-        mock_next_request = mock.MagicMock()
+        mock_request = mock.MagicMock(spec=HttpRequest)
+        mock_next_request = mock.MagicMock(spec=HttpRequest)
         get_conn_mock.return_value.queries.return_value.reports.return_value.list.return_value = mock_request
         mock_request.execute.return_value = {"reports": reports_page1}
         mock_next_request.execute.return_value = {"reports": reports_page2}
@@ -159,4 +161,4 @@ class TestGoogleBidManagerHook:
             queryId=query_id
         )
         assert get_conn_mock.return_value.queries.return_value.reports.return_value.list_next.call_count == 2
-        assert result == reports_page1 + reports_page2
+        assert result == {"reports": reports_page1 + reports_page2}

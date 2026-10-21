@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowFailException
+from airflow.providers.common.compat.sdk import AirflowFailException
 from airflow.providers.google.marketing_platform.sensors.bid_manager import (
     GoogleBidManagerRunQuerySensor,
 )
@@ -32,13 +32,26 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleBidManagerRunQuerySensor:
+    @pytest.mark.parametrize(
+        ("state", "expected_result", "expected_exception"),
+        [
+            ("DONE", True, None),
+            ("RUNNING", False, None),
+            ("FAILED", None, AirflowFailException),
+        ],
+    )
     @mock.patch(f"{MODULE_NAME}.GoogleBidManagerHook")
-    def test_poke_done(self, hook_mock):
+    def test_poke(self, hook_mock, state, expected_result, expected_exception):
         query_id = "QUERY_ID"
         report_id = "REPORT_ID"
-        hook_mock.return_value.get_report.return_value = {"metadata": {"status": {"state": "DONE"}}}
+        hook_mock.return_value.get_report.return_value = {"metadata": {"status": {"state": state}}}
         op = GoogleBidManagerRunQuerySensor(query_id=query_id, report_id=report_id, task_id="test_task")
-        result = op.poke(context=None)
+        if expected_exception:
+            with pytest.raises(expected_exception, match="failed execution"):
+                op.poke(context=None)
+        else:
+            result = op.poke(context=None)
+            assert result is expected_result
 
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -46,23 +59,3 @@ class TestGoogleBidManagerRunQuerySensor:
             impersonation_chain=None,
         )
         hook_mock.return_value.get_report.assert_called_once_with(query_id=query_id, report_id=report_id)
-        assert result is True
-
-    @mock.patch(f"{MODULE_NAME}.GoogleBidManagerHook")
-    def test_poke_running(self, hook_mock):
-        query_id = "QUERY_ID"
-        report_id = "REPORT_ID"
-        hook_mock.return_value.get_report.return_value = {"metadata": {"status": {"state": "RUNNING"}}}
-        op = GoogleBidManagerRunQuerySensor(query_id=query_id, report_id=report_id, task_id="test_task")
-        result = op.poke(context=None)
-
-        assert result is False
-
-    @mock.patch(f"{MODULE_NAME}.GoogleBidManagerHook")
-    def test_poke_failed_raises(self, hook_mock):
-        query_id = "QUERY_ID"
-        report_id = "REPORT_ID"
-        hook_mock.return_value.get_report.return_value = {"metadata": {"status": {"state": "FAILED"}}}
-        op = GoogleBidManagerRunQuerySensor(query_id=query_id, report_id=report_id, task_id="test_task")
-        with pytest.raises(AirflowFailException, match="failed execution"):
-            op.poke(context=None)

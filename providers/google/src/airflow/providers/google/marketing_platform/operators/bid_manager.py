@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse, urlsplit
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowFailException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.bid_manager import GoogleBidManagerHook
 from airflow.providers.google.version_compat import BaseOperator
@@ -448,7 +449,7 @@ class GoogleBidManagerListReportsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: Context) -> list[dict]:
+    def execute(self, context: Context) -> dict:
         hook = GoogleBidManagerHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -545,8 +546,10 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
 
         resource = hook.get_report(query_id=self.query_id, report_id=self.report_id)
         status = resource.get("metadata", {}).get("status", {}).get("state")
+        if status == "FAILED":
+            raise AirflowFailException(f"Report {self.report_id} for query {self.query_id} failed execution.")
         if status != "DONE":
-            raise AirflowException(
+            raise ValueError(
                 f"Report {self.report_id} for query {self.query_id} is in state '{status}'. Expected 'DONE'."
             )
 

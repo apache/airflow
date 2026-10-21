@@ -122,7 +122,7 @@ class GoogleBidManagerHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
 
-    def list_reports(self, query_id: str) -> list[dict]:
+    def list_reports(self, query_id: str) -> dict:
         """
         Retrieve a list of reports.
 
@@ -135,4 +135,4 @@ class GoogleBidManagerHook(GoogleBaseHook):
             response = request.execute(num_retries=self.num_retries)
             reports.extend(response.get("reports", []))
             request = conn.queries().reports().list_next(previous_request=request, previous_response=response)
-        return reports
+        return {"reports": reports}
