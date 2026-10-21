@@ -303,6 +303,20 @@ export const UseExperimentalServiceWaitDagRunUntilFinishedKeyFn = ({ dagId, dagR
   interval: number;
   result?: string[];
 }, queryKey?: Array<unknown>) => [useExperimentalServiceWaitDagRunUntilFinishedKey, ...(queryKey ?? [{ dagId, dagRunId, interval, result }])];
+export type ExperimentalServiceGetWebhookWaitsDefaultResponse = Awaited<ReturnType<typeof ExperimentalService.getWebhookWaits>>;
+export type ExperimentalServiceGetWebhookWaitsQueryResult<TData = ExperimentalServiceGetWebhookWaitsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useExperimentalServiceGetWebhookWaitsKey = "ExperimentalServiceGetWebhookWaits";
+export const UseExperimentalServiceGetWebhookWaitsKeyFn = ({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  mapIndex?: number;
+  offset?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId: string;
+  tryNumber?: number;
+}, queryKey?: Array<unknown>) => [useExperimentalServiceGetWebhookWaitsKey, ...(queryKey ?? [{ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }])];
 export type ExperimentalServiceGetWebhooksDefaultResponse = Awaited<ReturnType<typeof ExperimentalService.getWebhooks>>;
 export type ExperimentalServiceGetWebhooksQueryResult<TData = ExperimentalServiceGetWebhooksDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useExperimentalServiceGetWebhooksKey = "ExperimentalServiceGetWebhooks";
@@ -588,6 +602,20 @@ export const UseTaskInstanceServiceGetExtraLinksKeyFn = ({ dagId, dagRunId, mapI
   taskId: string;
   tryNumber?: number;
 }, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetExtraLinksKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }])];
+export type TaskInstanceServiceGetWebhookWaitsDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getWebhookWaits>>;
+export type TaskInstanceServiceGetWebhookWaitsQueryResult<TData = TaskInstanceServiceGetWebhookWaitsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetWebhookWaitsKey = "TaskInstanceServiceGetWebhookWaits";
+export const UseTaskInstanceServiceGetWebhookWaitsKeyFn = ({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  mapIndex?: number;
+  offset?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId: string;
+  tryNumber?: number;
+}, queryKey?: Array<unknown>) => [useTaskInstanceServiceGetWebhookWaitsKey, ...(queryKey ?? [{ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }])];
 export type TaskInstanceServiceGetTaskInstanceDefaultResponse = Awaited<ReturnType<typeof TaskInstanceService.getTaskInstance>>;
 export type TaskInstanceServiceGetTaskInstanceQueryResult<TData = TaskInstanceServiceGetTaskInstanceDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTaskInstanceServiceGetTaskInstanceKey = "TaskInstanceServiceGetTaskInstance";

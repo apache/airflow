@@ -419,6 +419,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``DAG.TASK_INSTANCE``
      - ``GET``
    * - ``GET``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/webhookWaits``
+     - ``DAG.TASK_INSTANCE``
+     - ``GET``
+   * - ``GET``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries``
      - ``DAG.XCOM``
      - ``GET``

@@ -590,6 +590,35 @@ export const prefetchUseExperimentalServiceWaitDagRunUntilFinished = (queryClien
   result?: string[];
 }) => queryClient.prefetchQuery({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
 /**
+* Experimental: List a task instance's webhook waits.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the webhook waits that a try of a task instance registered, by default its current try, newest first. A try has at most one open wait, its newest, with the status `registered` or `received`. A wait never shows the payload of the delivery it received.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.tryNumber
+* @param data.limit
+* @param data.offset
+* @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
+* @returns WebhookWaitCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseExperimentalServiceGetWebhookWaits = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  mapIndex?: number;
+  offset?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId: string;
+  tryNumber?: number;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseExperimentalServiceGetWebhookWaitsKeyFn({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }), queryFn: () => ExperimentalService.getWebhookWaits({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }) });
+/**
 * Experimental: List webhooks and whether they can be served.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.
 *
@@ -1183,6 +1212,35 @@ export const prefetchUseTaskInstanceServiceGetExtraLinks = (queryClient: QueryCl
   taskId: string;
   tryNumber?: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, tryNumber }) });
+/**
+* Experimental: List a task instance's webhook waits.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the webhook waits that a try of a task instance registered, by default its current try, newest first. A try has at most one open wait, its newest, with the status `registered` or `received`. A wait never shows the payload of the delivery it received.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.tryNumber
+* @param data.limit
+* @param data.offset
+* @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
+* @returns WebhookWaitCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseTaskInstanceServiceGetWebhookWaits = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }: {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  mapIndex?: number;
+  offset?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId: string;
+  tryNumber?: number;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseTaskInstanceServiceGetWebhookWaitsKeyFn({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }), queryFn: () => TaskInstanceService.getWebhookWaits({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId, tryNumber }) });
 /**
 * Get Task Instance
 * Get task instance.

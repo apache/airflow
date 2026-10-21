@@ -162,7 +162,7 @@ def _hand_over(
     if parked:
         submit_resume_event(ti, webhook=record.webhook, delivery=record, session=session)
     session.add(build_wait_audit_log(record.webhook, candidate.id, ti, delivery_id=record.delivery_id))
-    return build_wait_action(candidate.id, ti)
+    return build_wait_action(candidate.id, ti, session=session)
 
 
 def hand_to_waits(

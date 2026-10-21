@@ -1567,6 +1567,18 @@ class VersionInfo(BaseModel):
     git_version: Annotated[str | None, Field(title="Git Version")]
 
 
+class WaitStatus(str, Enum):
+    """
+    Where a webhook wait is, as ``InboundWait.status`` stores it.
+    """
+
+    REGISTERED = "registered"
+    RECEIVED = "received"
+    RESUMED = "resumed"
+    ENDED = "ended"
+    TIMED_OUT = "timed_out"
+
+
 class WebhookConnectionStatus(str, Enum):
     """
     Whether a webhook's ``webhook_<name>`` connection configures a webhook that can be served.
@@ -1623,6 +1635,45 @@ class WebhookSourceTypeStatus(str, Enum):
     OK = "ok"
     UNKNOWN = "unknown"
     CONFLICT = "conflict"
+
+
+class WebhookWaitResponse(BaseModel):
+    """
+    A task instance's wait for a delivery to an inbound webhook, without the delivery's payload.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    webhook: Annotated[str, Field(title="Webhook")]
+    events: Annotated[
+        list[str | int] | None,
+        Field(description="The delivery events the wait accepts, or null for any event.", title="Events"),
+    ]
+    match: Annotated[
+        dict[str, str | int | list[str | int]],
+        Field(
+            description="The delivery attributes the wait requires, each a value, or a list of values of which one must match.",
+            title="Match",
+        ),
+    ]
+    status: Annotated[
+        WaitStatus,
+        Field(
+            description="`registered` until a matching delivery arrives; `received` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery `early`; the task resumes with it once it parks; `resumed` once a delivery resumed the task; `timed_out` if none arrived before the deadline; `ended` if the task registered another wait, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps `registered` or `received` until then."
+        ),
+    ]
+    deadline: Annotated[
+        datetime,
+        Field(description="When the wait times out if no matching delivery has arrived.", title="Deadline"),
+    ]
+    created_at: Annotated[datetime, Field(title="Created At")]
+    ended_at: Annotated[datetime | None, Field(title="Ended At")]
+    inbound_delivery_id: Annotated[
+        UUID | None,
+        Field(
+            description="The `id` of the delivery record that the wait received, as the webhook's deliveries list it, or null if it has received none.",
+            title="Inbound Delivery Id",
+        ),
+    ]
 
 
 class RegionIndex(RootModel[int]):
@@ -2911,6 +2962,15 @@ class WebhookResponse(BaseModel):
         str | None,
         Field(description="What Airflow did with the last recorded delivery.", title="Last Outcome"),
     ]
+
+
+class WebhookWaitCollectionResponse(BaseModel):
+    """
+    Webhook wait collection response.
+    """
+
+    webhook_waits: Annotated[list[WebhookWaitResponse], Field(title="Webhook Waits")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
 
 
 class XComCollectionResponse(BaseModel):

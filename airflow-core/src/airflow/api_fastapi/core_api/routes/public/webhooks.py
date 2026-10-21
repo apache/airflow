@@ -41,17 +41,30 @@ from airflow.api_fastapi.core_api.datamodels.webhooks import (
     WebhookCollectionResponse,
     WebhookDeliveryCollectionResponse,
     WebhookResponse,
+    WebhookWaitCollectionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_webhook
+from airflow.api_fastapi.core_api.security import (
+    DagAccessEntity,
+    GetUserDep,
+    requires_access_dag,
+    requires_access_webhook,
+)
+from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskScopeDep
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.inbound_delivery import InboundDelivery
+from airflow.models.inbound_wait import InboundWait
+from airflow.models.taskinstance import TaskInstance
 from airflow.webhooks.connections import CONN_ID_PREFIX
 from airflow.webhooks.registry import WEBHOOK_NAME_PATTERN, WebhookRegistry, parse_webhook_names
 from airflow.webhooks.status import get_webhook_status
 
 webhooks_router = AirflowRouter(tags=["Webhook"], prefix="/webhooks")
+webhook_waits_router = AirflowRouter(
+    tags=["Task Instance"],
+    prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/webhookWaits",
+)
 
 
 def _get_listed_webhook_names() -> frozenset[str]:
@@ -232,5 +245,59 @@ def get_webhook_deliveries(
 
     return WebhookDeliveryCollectionResponse(
         deliveries=session.scalars(deliveries_select),
+        total_entries=total_entries,
+    )
+
+
+@webhook_waits_router.get(
+    "",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    tags=["experimental"],
+    summary="Experimental: List a task instance's webhook waits.",
+    description=(
+        "🚧 This is an experimental endpoint and may change or be removed without notice.\n\n"
+        "Lists the webhook waits that a try of a task instance registered, by default its current try, "
+        "newest first. A try has at most one open wait, its newest, with the status `registered` or "
+        "`received`. A wait never shows the payload of the delivery it received."
+    ),
+)
+def get_webhook_waits(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    scope: TaskScopeDep,
+    session: SessionDep,
+    try_number: int | None = None,
+) -> WebhookWaitCollectionResponse:
+    ti_query = select(TaskInstance.id).where(
+        TaskInstance.dag_id == dag_id,
+        TaskInstance.run_id == dag_run_id,
+        TaskInstance.task_id == task_id,
+        TaskInstance.region_id == scope.region_id,
+        TaskInstance.region_index == scope.region_index,
+    )
+    if try_number is not None:
+        ti_query = ti_query.where(TaskInstance.try_number == try_number).execution_options(
+            include_all_attempts=True
+        )
+    ti_id = session.scalar(ti_query)
+    if ti_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "TaskInstance not found")
+
+    waits_select, total_entries = paginated_select(
+        statement=select(InboundWait)
+        .where(InboundWait.ti_id == ti_id)
+        .order_by(InboundWait.created_at.desc(), InboundWait.id.desc()),
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+    return WebhookWaitCollectionResponse(
+        webhook_waits=session.scalars(waits_select),
         total_entries=total_entries,
     )

@@ -81,18 +81,26 @@
       "show": "Show Details",
       "skippedAssetRoutes": "Skipped Asset Routes",
       "title": "Delivery Details",
-      "topic": "Topic"
+      "topic": "Topic",
+      "waitId": "Wait ID",
+      "waits": "Webhook Waits"
     },
     "outcomeExplanations": {
       "accepted": "Airflow recorded an event on each of this delivery's topic names, and on each asset that its asset routes name, that an unpaused Dag schedules on, so those Dags can run.",
       "dag_paused": "The only Dags that schedule on this delivery's topic names, or on the assets that its asset routes name, are paused, so Airflow recorded no event and unpausing one will not replay it.",
+      "early": "Nothing has acted on this delivery yet: Airflow recorded no event and no webhook wait took it. Because it has a correlation key, Airflow keeps it, with what the webhook's store_payload setting keeps of its payload, for a matching webhook wait that a task registers within [webhooks] early_delivery_ttl of its receipt. If the sender delivers it again, Airflow processes it again in full, so a Dag unpaused or subscribed since then receives it.",
+      "expired": "This delivery was early until its webhook kept [webhooks] early_delivery_max_per_webhook later early deliveries. Airflow dropped its payload, and no webhook wait registered since then gets it, unless the sender delivers it again: Airflow then processes it again in full.",
       "no_subscribers": "Airflow recorded no event: no Dag that an event could start schedules on this delivery's topic names, and none of its asset routes could record one. Skipped Asset Routes, when shown, says why for each route.",
+      "resumed_wait": "This delivery went to the webhook waits listed under Webhook Waits, each a task waiting for a delivery that matches it. It resumes each task at once if the task is parked, or as soon as it parks. The events it recorded, if any, are listed too.",
       "unknown": "This version of the UI has no description of this outcome."
     },
     "outcomes": {
       "accepted": "Accepted",
       "dag_paused": "Dag Paused",
-      "no_subscribers": "No Subscribers"
+      "early": "Early",
+      "expired": "Expired",
+      "no_subscribers": "No Subscribers",
+      "resumed_wait": "Resumed Wait"
     },
     "skipReasons": {
       "asset_is_topic": "This asset is a webhook topic, which receives events only from its own webhook.",

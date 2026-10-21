@@ -504,7 +504,35 @@
       "latestHeartbeat": "Latest triggerer heartbeat",
       "title": "Triggerer Info"
     },
-    "unixname": "Unix Name"
+    "unixname": "Unix Name",
+    "webhookWait": {
+      "anyEvent": "Any event",
+      "anyMatch": "Any attributes",
+      "createdAt": "Registered At",
+      "deadline": "Deadline",
+      "endedAt": "Ended At",
+      "events": "Events",
+      "match": "Match",
+      "oneOf": "One of {{values}}",
+      "status": "Status",
+      "statusExplanations": {
+        "ended": "The task registered another wait, or this try stopped running or waiting, before a matching delivery resumed it.",
+        "received": "A matching delivery arrived before the task started waiting: while the task was running, or before it registered this wait, in which case Airflow had kept it as an early delivery. The task resumes with it as soon as it starts waiting.",
+        "registered": "No matching delivery has arrived yet.",
+        "resumed": "A matching delivery resumed the task.",
+        "timed_out": "No matching delivery arrived before the deadline, so the task resumed with a timeout."
+      },
+      "statuses": {
+        "ended": "Ended",
+        "received": "Received",
+        "registered": "Registered",
+        "resumed": "Resumed",
+        "timed_out": "Timed Out"
+      },
+      "title": "Webhook Wait",
+      "tryStopped": "This try is no longer running or waiting, so no delivery will resume it.",
+      "viewDelivery": "View Delivery"
+    }
   },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",

@@ -35,9 +35,11 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from airflow._shared.timezones import timezone
+from airflow.models.dynamic_region import SENTINEL_REGION_ID
 from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.models.log import Log
+from airflow.models.task_coordinates import get_public_map_index
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
 from airflow.webhooks.waits import compute_key_digest, compute_match_digest, evaluate
@@ -84,16 +86,24 @@ class WaitKeyTaken(WaitRegistrationRefused):
     """A running or parked task instance has an open wait on the webhook with the same events and match."""
 
 
-def build_wait_action(wait_id: UUID, ti: TaskInstance) -> dict[str, Any]:
-    """Return what a delivery's ``actions["waits"]`` records of a wait that the delivery went to."""
-    return {
+def build_wait_action(wait_id: UUID, ti: TaskInstance, *, session: Session) -> dict[str, Any]:
+    """
+    Return what a delivery's ``actions["waits"]`` records of a wait that the delivery went to.
+
+    The task instance is recorded by the coordinates the public API and the UI address it with: its public
+    map index, and its region and index within the region if it is in a dynamic region, such as a loop.
+    """
+    action: dict[str, Any] = {
         "wait_id": str(wait_id),
         "ti_id": str(ti.id),
         "dag_id": ti.dag_id,
         "run_id": ti.run_id,
         "task_id": ti.task_id,
-        "map_index": ti.map_index,
+        "map_index": get_public_map_index(ti, session=session),
     }
+    if ti.region_id != SENTINEL_REGION_ID:
+        action.update(region_id=str(ti.region_id), region_index=ti.region_index)
+    return action
 
 
 def build_wait_audit_log(webhook: str, wait_id: UUID, ti: TaskInstance, *, delivery_id: str | None) -> Log:
@@ -302,10 +312,11 @@ def _claim_first(
     session: Session,
 ) -> UUID | None:
     """Claim the first of ``candidates`` that is still early for ``wait``, and return its record's id."""
+    if not candidates:
+        return None
+    wait_actions = [build_wait_action(wait.id, ti, session=session)]
     for candidate in candidates:
-        if claim_early_delivery(
-            candidate.id, [build_wait_action(wait.id, ti)], cutoff=cutoff, session=session
-        ):
+        if claim_early_delivery(candidate.id, wait_actions, cutoff=cutoff, session=session):
             session.add(build_wait_audit_log(wait.webhook, wait.id, ti, delivery_id=candidate.delivery_id))
             return candidate.id
     return None

@@ -9742,6 +9742,13 @@ export const $VersionInfo = {
     description: 'Version information serializer for responses.'
 } as const;
 
+export const $WaitStatus = {
+    type: 'string',
+    enum: ['registered', 'received', 'resumed', 'ended', 'timed_out'],
+    title: 'WaitStatus',
+    description: 'Where a webhook wait is, as ``InboundWait.status`` stores it.'
+} as const;
+
 export const $WebhookCollectionResponse = {
     properties: {
         webhooks: {
@@ -9983,6 +9990,134 @@ export const $WebhookSourceTypeStatus = {
     enum: ['ok', 'unknown', 'conflict'],
     title: 'WebhookSourceTypeStatus',
     description: "Whether an installed provider serves the source type that a webhook's connection names."
+} as const;
+
+export const $WebhookWaitCollectionResponse = {
+    properties: {
+        webhook_waits: {
+            items: {
+                '$ref': '#/components/schemas/WebhookWaitResponse'
+            },
+            type: 'array',
+            title: 'Webhook Waits'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['webhook_waits', 'total_entries'],
+    title: 'WebhookWaitCollectionResponse',
+    description: 'Webhook wait collection response.'
+} as const;
+
+export const $WebhookWaitResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        webhook: {
+            type: 'string',
+            title: 'Webhook'
+        },
+        events: {
+            anyOf: [
+                {
+                    items: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'integer'
+                            }
+                        ]
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Events',
+            description: 'The delivery events the wait accepts, or null for any event.'
+        },
+        match: {
+            additionalProperties: {
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        type: 'integer'
+                    },
+                    {
+                        items: {
+                            anyOf: [
+                                {
+                                    type: 'string'
+                                },
+                                {
+                                    type: 'integer'
+                                }
+                            ]
+                        },
+                        type: 'array'
+                    }
+                ]
+            },
+            type: 'object',
+            title: 'Match',
+            description: 'The delivery attributes the wait requires, each a value, or a list of values of which one must match.'
+        },
+        status: {
+            '$ref': '#/components/schemas/WaitStatus',
+            description: `\`registered\` until a matching delivery arrives; \`received\` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery \`early\`; the task resumes with it once it parks; \`resumed\` once a delivery resumed the task; \`timed_out\` if none arrived before the deadline; \`ended\` if the task registered another wait, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps \`registered\` or \`received\` until then.`
+        },
+        deadline: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Deadline',
+            description: 'When the wait times out if no matching delivery has arrived.'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        ended_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ended At'
+        },
+        inbound_delivery_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Inbound Delivery Id',
+            description: "The `id` of the delivery record that the wait received, as the webhook's deliveries list it, or null if it has received none."
+        }
+    },
+    type: 'object',
+    required: ['id', 'webhook', 'events', 'match', 'status', 'deadline', 'created_at', 'ended_at', 'inbound_delivery_id'],
+    title: 'WebhookWaitResponse',
+    description: "A task instance's wait for a delivery to an inbound webhook, without the delivery's payload."
 } as const;
 
 export const $XComCollectionResponse = {

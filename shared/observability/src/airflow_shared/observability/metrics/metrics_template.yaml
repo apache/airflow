@@ -638,6 +638,14 @@ metrics:
     legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
+  - name: "webhooks.open_waits"
+    description: "Number of open inbound webhook waits whose task is running or parked, which a matching
+    delivery resumes. Emitted by the scheduler every ``[scheduler] ti_metrics_interval``. Metric with
+    webhook tagging."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ol.event.size"
     description: "Size in bytes of an OpenLineage event by event type and operator."
     type: "gauge"

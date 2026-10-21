@@ -2516,6 +2516,11 @@ export type VersionInfo = {
 };
 
 /**
+ * Where a webhook wait is, as ``InboundWait.status`` stores it.
+ */
+export type WaitStatus = 'registered' | 'received' | 'resumed' | 'ended' | 'timed_out';
+
+/**
  * Webhook collection response.
  */
 export type WebhookCollectionResponse = {
@@ -2610,6 +2615,46 @@ export type WebhookResponse = {
  * Whether an installed provider serves the source type that a webhook's connection names.
  */
 export type WebhookSourceTypeStatus = 'ok' | 'unknown' | 'conflict';
+
+/**
+ * Webhook wait collection response.
+ */
+export type WebhookWaitCollectionResponse = {
+    webhook_waits: Array<WebhookWaitResponse>;
+    total_entries: number;
+};
+
+/**
+ * A task instance's wait for a delivery to an inbound webhook, without the delivery's payload.
+ */
+export type WebhookWaitResponse = {
+    id: string;
+    webhook: string;
+    /**
+     * The delivery events the wait accepts, or null for any event.
+     */
+    events: Array<(string | number)> | null;
+    /**
+     * The delivery attributes the wait requires, each a value, or a list of values of which one must match.
+     */
+    match: {
+        [key: string]: (string | number | Array<(string | number)>);
+    };
+    /**
+     * `registered` until a matching delivery arrives; `received` if one arrived before the task parked: while the task was running, or before the wait was registered, when Airflow kept the delivery `early`; the task resumes with it once it parks; `resumed` once a delivery resumed the task; `timed_out` if none arrived before the deadline; `ended` if the task registered another wait, or if a matching delivery, or a wait registered on the same events and match, found the wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps `registered` or `received` until then.
+     */
+    status: WaitStatus;
+    /**
+     * When the wait times out if no matching delivery has arrived.
+     */
+    deadline: string;
+    created_at: string;
+    ended_at: string | null;
+    /**
+     * The `id` of the delivery record that the wait received, as the webhook's deliveries list it, or null if it has received none.
+     */
+    inbound_delivery_id: string | null;
+};
 
 /**
  * XCom Collection serializer for responses.
@@ -4122,6 +4167,20 @@ export type GetExecutionData = {
 };
 
 export type GetExecutionResponse = ExecutionCollectionResponse;
+
+export type GetWebhookWaitsData = {
+    dagId: string;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
+    taskId: string;
+    tryNumber?: number | null;
+};
+
+export type GetWebhookWaitsResponse = WebhookWaitCollectionResponse;
 
 export type GetWebhooksData = {
     limit?: number;
@@ -7075,6 +7134,41 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/webhookWaits': {
+        get: {
+            req: GetWebhookWaitsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: WebhookWaitCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

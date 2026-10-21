@@ -5278,6 +5278,132 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/webhookWaits:
+    get:
+      tags:
+      - Task Instance
+      - experimental
+      summary: 'Experimental: List a task instance''s webhook waits.'
+      description: "\U0001F6A7 This is an experimental endpoint and may change or\
+        \ be removed without notice.\n\nLists the webhook waits that a try of a task\
+        \ instance registered, by default its current try, newest first. A try has\
+        \ at most one open wait, its newest, with the status `registered` or `received`.\
+        \ A wait never shows the payload of the delivery it received."
+      operationId: get_webhook_waits
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookWaitCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/importErrors/{import_error_id}:
     get:
       tags:
@@ -19237,6 +19363,16 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
+    WaitStatus:
+      type: string
+      enum:
+      - registered
+      - received
+      - resumed
+      - ended
+      - timed_out
+      title: WaitStatus
+      description: Where a webhook wait is, as ``InboundWait.status`` stores it.
     WebhookCollectionResponse:
       properties:
         webhooks:
@@ -19422,6 +19558,103 @@ components:
       title: WebhookSourceTypeStatus
       description: Whether an installed provider serves the source type that a webhook's
         connection names.
+    WebhookWaitCollectionResponse:
+      properties:
+        webhook_waits:
+          items:
+            $ref: '#/components/schemas/WebhookWaitResponse'
+          type: array
+          title: Webhook Waits
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - webhook_waits
+      - total_entries
+      title: WebhookWaitCollectionResponse
+      description: Webhook wait collection response.
+    WebhookWaitResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        webhook:
+          type: string
+          title: Webhook
+        events:
+          anyOf:
+          - items:
+              anyOf:
+              - type: string
+              - type: integer
+            type: array
+          - type: 'null'
+          title: Events
+          description: The delivery events the wait accepts, or null for any event.
+        match:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - type: integer
+            - items:
+                anyOf:
+                - type: string
+                - type: integer
+              type: array
+          type: object
+          title: Match
+          description: The delivery attributes the wait requires, each a value, or
+            a list of values of which one must match.
+        status:
+          $ref: '#/components/schemas/WaitStatus'
+          description: '`registered` until a matching delivery arrives; `received`
+            if one arrived before the task parked: while the task was running, or
+            before the wait was registered, when Airflow kept the delivery `early`;
+            the task resumes with it once it parks; `resumed` once a delivery resumed
+            the task; `timed_out` if none arrived before the deadline; `ended` if
+            the task registered another wait, or if a matching delivery, or a wait
+            registered on the same events and match, found the wait''s try no longer
+            running or parked. Nothing else ends a wait whose try stopped, so it keeps
+            `registered` or `received` until then.'
+        deadline:
+          type: string
+          format: date-time
+          title: Deadline
+          description: When the wait times out if no matching delivery has arrived.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        ended_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Ended At
+        inbound_delivery_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Inbound Delivery Id
+          description: The `id` of the delivery record that the wait received, as
+            the webhook's deliveries list it, or null if it has received none.
+      type: object
+      required:
+      - id
+      - webhook
+      - events
+      - match
+      - status
+      - deadline
+      - created_at
+      - ended_at
+      - inbound_delivery_id
+      title: WebhookWaitResponse
+      description: A task instance's wait for a delivery to an inbound webhook, without
+        the delivery's payload.
     XComCollectionResponse:
       properties:
         xcom_entries:

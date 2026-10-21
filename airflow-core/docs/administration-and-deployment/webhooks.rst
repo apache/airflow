@@ -571,10 +571,11 @@ The **Show Details** button of a delivery opens a panel with its details: its id
 id, time of receipt, source type and correlation key; its outcome, with a sentence on what it means; its
 attributes; the topic names it offered, each with a button that copies it; the topic events it
 recorded, each linked to its asset's page; the events its asset routes recorded, each linked to its
-asset's page with the route's topic and the partition key; and the asset routes it skipped, each with
-why. ``?id=<id>`` in the address opens the panel of the delivery with that id, as in
-``/webhook_deliveries/demo?id=<id>``. Wherever the UI lists asset events, the source of an event that a
-delivery recorded reads **Webhook** and links there.
+asset's page with the route's topic and the partition key; the asset routes it skipped, each with
+why; and the webhook waits it went to, each linked to the page of the task instance that registered it,
+with its Dag id, run id and the wait's id. ``?id=<id>`` in the address opens the panel of the delivery
+with that id, as in ``/webhook_deliveries/demo?id=<id>``. Wherever the UI lists asset events, the source
+of an event that a delivery recorded reads **Webhook** and links there.
 
 Who can read deliveries
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -661,7 +662,8 @@ fields:
        * ``waits``: the webhook waits that the delivery went to, each with the wait's id, and the id, Dag
          id, run id, task id and map index of the task instance that registered it, as in
          ``{"wait_id": "0199...", "ti_id": "0199...", "dag_id": "deploy", "run_id": "manual__2026-10-20",
-         "task_id": "wait_for_merge", "map_index": -1}``.
+         "task_id": "wait_for_merge", "map_index": -1}``, plus its ``region_id`` and ``region_index`` if
+         the task instance is in a dynamic region, such as a mapped task's expansion or a loop.
    * - ``team_name``
      - Null: webhooks have no team in Airflow 3.5.
 
@@ -705,6 +707,53 @@ to show what the webhooks process serves. It reads the connection of each webhoo
 secrets backends at every call, without a cache. It never returns what a connection holds or why a secrets
 backend failed, and answers 500 if its ``[webhooks]`` options are invalid: ``airflow webhooks check`` says
 why.
+
+A task's webhook waits
+~~~~~~~~~~~~~~~~~~~~~~
+
+The **Details** tab of a task instance shows the newest webhook wait of the selected try, which is the
+try's open wait while it has one: its webhook, linked to the webhook's deliveries; its status, with a
+sentence on what it means; the events and the match that it accepts; its deadline; when it was registered
+and, once it closed, when it ended; and, once a delivery matched it, a link that opens that delivery's
+details. A try has at most one open wait, since registering a wait ends the try's earlier waits that no
+delivery has resumed. If the try is no longer running or parked while its wait is still ``registered`` or
+``received``, the panel says that no delivery will resume it.
+
+``GET /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/webhookWaits`` lists the waits
+of the current try of a task instance, newest first, or those of the try that ``try_number`` names. It
+also takes ``map_index``, ``region_id`` and ``region_index``, which address the task instance as the task
+instance routes do, and ``limit`` and ``offset``. It requires permission to read the task instance, not
+the webhook's connection, and never returns the payload of a delivery. Each wait has these fields:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Field
+     - Value
+   * - ``id``
+     - The wait's id, which the ``waits`` of a delivery's ``actions`` name as ``wait_id``.
+   * - ``webhook``
+     - The webhook's name.
+   * - ``events`` and ``match``
+     - The delivery events and attributes that the wait accepts, as the task gave them; ``events`` is null
+       for any event.
+   * - ``status``
+     - ``registered`` until a matching delivery arrives; ``received`` if one arrived before the task
+       parked: while the task was running, or before the wait was registered, when Airflow kept the
+       delivery ``early``; the task resumes with it once it parks; ``resumed`` once a delivery resumed the
+       task; ``timed_out`` if none arrived before the deadline; ``ended`` if the task registered another
+       wait, or if a matching delivery, or a wait registered on the same events and match, found the
+       wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps
+       ``registered`` or ``received`` until then.
+   * - ``deadline``
+     - When the wait times out if no matching delivery has arrived.
+   * - ``created_at`` and ``ended_at``
+     - When the wait was registered, and when it closed, or null while it is open.
+   * - ``inbound_delivery_id``
+     - The ``id`` of the delivery record that the wait received, or null. The delivery's details open at
+       ``/webhook_deliveries/<webhook>?id=<inbound_delivery_id>`` for users who may read the webhook's
+       deliveries.
 
 Why a Dag did not run
 ~~~~~~~~~~~~~~~~~~~~~
@@ -764,7 +813,8 @@ registered writes the same entry. Users allowed to read the audit log of the tas
 Metrics
 -------
 
-The webhooks process emits these metrics when :doc:`metrics <logging-monitoring/metrics>` are enabled:
+When :doc:`metrics <logging-monitoring/metrics>` are enabled, the webhooks process emits the first three of
+these metrics, and the scheduler ``webhooks.open_waits``:
 
 .. list-table::
    :header-rows: 1
@@ -785,6 +835,11 @@ The webhooks process emits these metrics when :doc:`metrics <logging-monitoring/
      - timer
      - Milliseconds taken to record a verified delivery, tagged ``webhook``. Recordings that fail are not
        timed.
+   * - ``webhooks.open_waits``
+     - gauge
+     - Open webhook waits whose task is running or parked, tagged ``webhook``, every
+       :ref:`[scheduler] ti_metrics_interval <config:scheduler__ti_metrics_interval>`. A webhook left with
+       none reports 0 once, and nothing more until it has one again.
 
 The tags reach OpenTelemetry, and StatsD only with a tagged format such as InfluxDB or DogStatsD; see
 :doc:`logging-monitoring/metrics`. Requests under ``/webhooks`` are also counted in the API server's HTTP

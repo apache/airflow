@@ -111,6 +111,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, regional_expression
+from airflow.models.inbound_wait import InboundWait
 from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
@@ -140,6 +141,7 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.webhooks.wait_registration import LIVE_STATES as WEBHOOK_WAIT_LIVE_STATES
 from airflow.webhooks.wait_resumption import (
     find_received_delivery,
     lock_current_waits,
@@ -3668,6 +3670,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
 
             self.previous_ti_metrics[state] = ti_metrics
+
+        self._emit_open_webhook_waits_metric(session=session)
+
+    previous_open_webhook_waits: dict[str, int] = {}
+
+    def _emit_open_webhook_waits_metric(self, *, session: Session) -> None:
+        # A wait stays open after its task stops running or parking, until a delivery or a registration on
+        # its key ends it, so only the waits of task instances that a delivery can still resume count.
+        stmt = (
+            select(InboundWait.webhook, func.count(InboundWait.id))
+            .join(TaskInstance, TaskInstance.id == InboundWait.ti_id)
+            .where(InboundWait.open == expression.true(), TaskInstance.state.in_(WEBHOOK_WAIT_LIVE_STATES))
+            .group_by(InboundWait.webhook)
+        )
+        open_waits: dict[str, int] = {webhook: count for webhook, count in session.execute(stmt)}
+        for webhook in self.previous_open_webhook_waits.keys() - open_waits.keys():
+            stats.gauge("webhooks.open_waits", 0, tags={"webhook": webhook})
+        for webhook, count in open_waits.items():
+            stats.gauge("webhooks.open_waits", float(count), tags={"webhook": webhook})
+        self.previous_open_webhook_waits = open_waits
 
     @provide_session
     def _emit_dag_runs_metric(self, *, session: Session = NEW_SESSION) -> None:
