@@ -47,6 +47,9 @@ const taskInstance: LightGridTaskInstanceSummary = {
 
 const SELECTED_RUN_ID = "manual__2026-04-21T00:00:00+00:00";
 
+const buildStackShadow = (backCardState: string) =>
+  `0.5px 0.5px 0 0 var(--chakra-colors-bg), 2.5px 2.5px 0 0 var(--chakra-colors-${backCardState}-solid)`;
+
 type RenderGridTIOptions = {
   readonly hasNote?: boolean;
   readonly instance?: LightGridTaskInstanceSummary;
@@ -116,25 +119,37 @@ describe("GridTI", () => {
         isMapped: true,
       });
 
-      expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(
-        `2px 2px 0 0 var(--chakra-colors-${secondaryState}-solid)`,
-      );
+      expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(buildStackShadow(secondaryState));
     },
   );
 
   it.each<{
     childStates: Record<string, number> | null;
-    isMapped: boolean;
+    primaryState: LightGridTaskInstanceSummary["state"];
   }>([
-    { childStates: null, isMapped: true },
-    { childStates: {}, isMapped: true },
-    { childStates: { success: 3 }, isMapped: true },
-    { childStates: { skipped: 0, success: 3 }, isMapped: true },
-    { childStates: { skipped: 2, success: 1 }, isMapped: false },
-  ])("shows a single card when there are no mixed mapped states", ({ childStates, isMapped }) => {
+    { childStates: null, primaryState: "success" },
+    { childStates: {}, primaryState: "success" },
+    { childStates: { success: 3 }, primaryState: "success" },
+    { childStates: { skipped: 0, success: 3 }, primaryState: "success" },
+    { childStates: { none: 2 }, primaryState: null },
+  ])(
+    "colors the back card with the primary state when mapped instances share one state",
+    ({ childStates, primaryState }) => {
+      renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
+        instance: { ...taskInstance, child_states: childStates, state: primaryState },
+        isMapped: true,
+      });
+
+      expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(
+        buildStackShadow(primaryState ?? "none"),
+      );
+    },
+  );
+
+  it("shows a single card for unmapped tasks", () => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
-      instance: { ...taskInstance, child_states: childStates },
-      isMapped,
+      instance: { ...taskInstance, child_states: { skipped: 2, success: 1 } },
+      isMapped: false,
     });
 
     expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe("");
@@ -150,7 +165,7 @@ describe("GridTI", () => {
     expect(screen.getByTestId("task-state-badge")).toHaveAttribute("data-selected", "true");
     expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe(NOTE_GRADIENT);
     expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(
-      isMapped ? "2px 2px 0 0 var(--chakra-colors-skipped-solid)" : "",
+      isMapped ? buildStackShadow("skipped") : "",
     );
   });
 
