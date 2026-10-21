@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
@@ -462,6 +463,67 @@ class PydanticAIHook(BaseHook):
             return infer_model(model_name, provider_factory=_provider_factory)
 
         return infer_model(model_name)
+
+    def ensure_model_ready(self, *, timeout: float = 300.0, poll_interval: float = 2.0) -> None:
+        """
+        Block until this connection's local model is loaded, asking the server to load it if needed.
+
+        Only Ollama is supported. Only this hook's own connection is checked -- connections in
+        ``fallback_conn_ids`` are not, so a fallback model is never loaded ahead of need.
+
+        Polling uses ``time.sleep`` and holds the worker slot for the whole wait.
+
+        :param timeout: Seconds to wait in total for the model to become ready.
+        :param poll_interval: Seconds between readiness checks after the load request.
+        :raises ValueError: If *timeout* or *poll_interval* is not positive, no model is
+            configured, or the connection has no host.
+        :raises NotImplementedError: If the model's provider prefix is not ``ollama``.
+        :raises TimeoutError: If the model is not ready within *timeout*.
+        """
+        if timeout <= 0 or poll_interval <= 0:
+            raise ValueError(
+                f"timeout and poll_interval must be positive, got timeout={timeout}, "
+                f"poll_interval={poll_interval}."
+            )
+        configured_name = self._get_configured_model_name()
+        if not configured_name:
+            raise ValueError(
+                f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
+                "hook or the Model field on the connection."
+            )
+        model_name = self._qualify_model_name(configured_name)
+        prefix, _, ollama_model = model_name.partition(":")
+        if prefix != "ollama":
+            raise NotImplementedError(
+                f"ensure_model_ready only supports Ollama models, got '{model_name}' on connection "
+                f"'{self.llm_conn_id}'."
+            )
+        conn, _ = self._get_conn_and_extra()
+        if not conn.host:
+            raise ValueError(f"Connection '{self.llm_conn_id}' needs a host to check model readiness.")
+
+        # httpx is not a core common.ai dependency; only Ollama readiness checks need it.
+        from airflow.providers.common.ai.hooks.local_model_backends import OllamaBackend
+
+        backend = OllamaBackend(conn.host, ollama_model)
+        deadline = time.monotonic() + timeout
+        if backend.is_ready():
+            return
+        self._raise_if_deadline_passed(deadline, model_name, timeout)
+        backend.load(timeout=deadline - time.monotonic())
+        while True:
+            remaining = self._raise_if_deadline_passed(deadline, model_name, timeout)
+            if backend.is_ready():
+                return
+            time.sleep(min(poll_interval, remaining))
+
+    @staticmethod
+    def _raise_if_deadline_passed(deadline: float, model_name: str, timeout: float) -> float:
+        """Return the seconds left until *deadline*, raising ``TimeoutError`` when none are left."""
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f"Model '{model_name}' was not ready after {timeout} seconds.")
+        return remaining
 
     def _get_fallback_conn_ids(self) -> list[str]:
         """

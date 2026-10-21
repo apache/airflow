@@ -20,6 +20,7 @@ import contextlib
 import json
 import logging
 import re
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
@@ -1609,6 +1610,222 @@ class TestPydanticAIHookTestConnection:
 
         assert success is False
         assert "No model specified" in message
+
+
+class TestPydanticAIHookEnsureModelReady:
+    _HOOK_MODULE = "airflow.providers.common.ai.hooks.pydantic_ai"
+    _BACKENDS_MODULE = "airflow.providers.common.ai.hooks.local_model_backends"
+
+    @staticmethod
+    def _build_hook(
+        *,
+        model_id: str | None = "ollama:llama3",
+        host: str | None = "http://ollama:11434/v1",
+        **hook_kwargs,
+    ) -> tuple[PydanticAIHook, Connection]:
+        hook = PydanticAIHook(llm_conn_id="local_conn", model_id=model_id, **hook_kwargs)
+        conn = Connection(conn_id="local_conn", conn_type="pydanticai", host=host)
+        return hook, conn
+
+    @staticmethod
+    def _install_fake_clock(module: str):
+        """Return a patch of the hook module's ``time`` onto a clock that only ``sleep`` advances.
+
+        ``time_machine`` does not move ``time.monotonic``, which the hook uses for its deadline.
+        Returns ``(patcher, now)``; ``now[0]`` is the fake clock and may be advanced by tests.
+        """
+        now = [0.0]
+        patcher = patch(f"{module}.time", autospec=True)
+        return patcher, now
+
+    @staticmethod
+    def _wire_fake_clock(mock_time, now):
+        mock_time.monotonic.side_effect = lambda: now[0]
+        mock_time.sleep.side_effect = lambda seconds: now.__setitem__(0, now[0] + seconds)
+
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_builds_backend_from_host_and_unprefixed_model_name(self, mock_backend_cls):
+        mock_backend_cls.return_value.is_ready.return_value = True
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_returns_without_loading_when_already_ready(self, mock_backend_cls):
+        backend = mock_backend_cls.return_value
+        backend.is_ready.return_value = True
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        backend.load.assert_not_called()
+
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_loads_once_then_polls_until_ready(self, mock_backend_cls):
+        backend = mock_backend_cls.return_value
+        backend.is_ready.side_effect = [False, False, False, True]
+        hook, conn = self._build_hook()
+        clock, now = self._install_fake_clock(self._HOOK_MODULE)
+
+        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
+            self._wire_fake_clock(mock_time, now)
+            hook.ensure_model_ready(timeout=60.0, poll_interval=2.0)
+
+        backend.load.assert_called_once_with(timeout=60.0)
+        assert backend.is_ready.call_count == 4
+        assert mock_time.sleep.call_args_list == [call(2.0), call(2.0)]
+
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_load_receives_the_time_left_not_the_full_timeout(self, mock_backend_cls):
+        backend = mock_backend_cls.return_value
+        hook, conn = self._build_hook()
+        clock, now = self._install_fake_clock(self._HOOK_MODULE)
+
+        results = iter([False, True])
+
+        def is_ready_taking_ten_seconds_once():
+            result = next(results)
+            if not result:
+                now[0] += 10.0
+            return result
+
+        backend.is_ready.side_effect = is_ready_taking_ten_seconds_once
+
+        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
+            self._wire_fake_clock(mock_time, now)
+            hook.ensure_model_ready(timeout=60.0, poll_interval=2.0)
+
+        backend.load.assert_called_once_with(timeout=50.0)
+
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_load_using_up_the_time_raises_without_polling_again(self, mock_backend_cls):
+        backend = mock_backend_cls.return_value
+        backend.is_ready.return_value = False
+        hook, conn = self._build_hook()
+        clock, now = self._install_fake_clock(self._HOOK_MODULE)
+        backend.load.side_effect = lambda *, timeout: now.__setitem__(0, now[0] + timeout)
+
+        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
+            self._wire_fake_clock(mock_time, now)
+            with pytest.raises(TimeoutError, match=r"ollama:llama3.*30\.0 seconds"):
+                hook.ensure_model_ready(timeout=30.0, poll_interval=2.0)
+
+        backend.is_ready.assert_called_once_with()
+        mock_time.sleep.assert_not_called()
+
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_deadline_passed_before_load_raises_without_loading(self, mock_backend_cls):
+        backend = mock_backend_cls.return_value
+        hook, conn = self._build_hook()
+        clock, now = self._install_fake_clock(self._HOOK_MODULE)
+
+        def is_ready_using_up_the_time():
+            now[0] += 30.0
+            return False
+
+        backend.is_ready.side_effect = is_ready_using_up_the_time
+
+        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
+            self._wire_fake_clock(mock_time, now)
+            with pytest.raises(TimeoutError, match=r"ollama:llama3.*30\.0 seconds"):
+                hook.ensure_model_ready(timeout=30.0, poll_interval=2.0)
+
+        backend.load.assert_not_called()
+
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_raises_timeout_error_naming_model_when_never_ready(self, mock_backend_cls):
+        backend = mock_backend_cls.return_value
+        backend.is_ready.return_value = False
+        hook, conn = self._build_hook()
+        clock, now = self._install_fake_clock(self._HOOK_MODULE)
+
+        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
+            self._wire_fake_clock(mock_time, now)
+            with pytest.raises(TimeoutError, match=r"ollama:llama3.*5\.0 seconds"):
+                hook.ensure_model_ready(timeout=5.0, poll_interval=2.0)
+
+        backend.load.assert_called_once_with(timeout=5.0)
+        # The last sleep is clipped to the time left instead of overshooting the deadline.
+        assert mock_time.sleep.call_args_list == [call(2.0), call(2.0), call(1.0)]
+
+    @pytest.mark.parametrize("model_id", ["openai:gpt-5", "anthropic:claude-opus-4-6"])
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_non_ollama_prefix_raises_not_implemented(self, mock_backend_cls, model_id):
+        hook, conn = self._build_hook(model_id=model_id)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(NotImplementedError, match="Ollama"):
+                hook.ensure_model_ready()
+
+        mock_backend_cls.assert_not_called()
+
+    @pytest.mark.parametrize("host", [None, ""])
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_missing_host_raises_value_error(self, mock_backend_cls, host):
+        hook, conn = self._build_hook(host=host)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="host"):
+                hook.ensure_model_ready()
+
+        mock_backend_cls.assert_not_called()
+
+    def test_missing_model_raises_value_error(self):
+        hook, conn = self._build_hook(model_id=None)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="No model specified"):
+                hook.ensure_model_ready()
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"timeout": 0}, r"timeout=0,"),
+            ({"timeout": -1.0}, r"timeout=-1\.0,"),
+            ({"poll_interval": 0}, r"poll_interval=0\."),
+            ({"poll_interval": -2.0}, r"poll_interval=-2\.0\."),
+        ],
+    )
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_non_positive_arguments_raise_value_error(self, mock_backend_cls, kwargs, match):
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match=match):
+                hook.ensure_model_ready(**kwargs)
+
+        mock_backend_cls.assert_not_called()
+
+    @patch(f"{_BACKENDS_MODULE}.OllamaBackend", autospec=True)
+    def test_only_the_primary_connection_is_read_when_fallbacks_are_configured(self, mock_backend_cls):
+        mock_backend_cls.return_value.is_ready.return_value = True
+        hook, conn = self._build_hook(fallback_conn_ids=["fallback_conn"])
+
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn) as mock_get_connection:
+            hook.ensure_model_ready()
+
+        mock_get_connection.assert_called_once_with("local_conn")
+
+    def test_importing_the_hook_module_does_not_import_httpx(self):
+        script = (
+            "import importlib.abc, sys\n"
+            "class _BlockHttpx(importlib.abc.MetaPathFinder):\n"
+            "    def find_spec(self, name, path=None, target=None):\n"
+            "        if name == 'httpx' or name.startswith('httpx.'):\n"
+            "            raise ImportError('httpx is blocked')\n"
+            "sys.meta_path.insert(0, _BlockHttpx())\n"
+            f"import {self._HOOK_MODULE}\n"
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-I", "-c", script], capture_output=True, text=True, check=False
+        )
+
+        assert result.returncode == 0, result.stderr
 
 
 # ---------------------------------------------------------------------------

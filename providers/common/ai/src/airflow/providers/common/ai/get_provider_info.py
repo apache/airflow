@@ -92,7 +92,10 @@ def get_provider_info():
         "hooks": [
             {
                 "integration-name": "Pydantic AI",
-                "python-modules": ["airflow.providers.common.ai.hooks.pydantic_ai"],
+                "python-modules": [
+                    "airflow.providers.common.ai.hooks.pydantic_ai",
+                    "airflow.providers.common.ai.hooks.local_model_backends",
+                ],
             },
             {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},
             {
