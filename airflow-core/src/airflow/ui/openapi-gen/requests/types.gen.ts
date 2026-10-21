@@ -5613,7 +5613,15 @@ export type GetLoopHistoryResponse = LoopHistoryResponse;
 
 export type GetGanttDataData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runId: string;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGanttDataResponse = GanttResponse;
