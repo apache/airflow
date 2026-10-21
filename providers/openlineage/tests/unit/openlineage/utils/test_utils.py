@@ -3268,6 +3268,7 @@ def test_taskinstance_info_af3():
     runtime_ti.bundle_instance = bundle_instance
 
     assert dict(TaskInstanceInfo(runtime_ti)) == {
+        "duration": 12.345,
         "log_url": runtime_ti.log_url,
         "map_index": 2,
         "note": None,
@@ -5333,6 +5334,109 @@ def test_convert_to_json_safe_list_returns_none_on_failure(mock_log):
         "Unable to serialize task `%s` to a JSON list: %s", "outlets", mock.ANY
     )
     assert str(mock_log.warning.call_args.args[2]) == "Circular reference detected"
+
+
+_DURATION_START = datetime.datetime(2024, 6, 1, 12, 0, 0, tzinfo=datetime.UTC)
+
+
+@pytest.mark.parametrize(
+    ("ti_attrs", "end_date", "expected_duration"),
+    [
+        pytest.param({"duration": 3.5}, None, 3.5, id="stored_duration"),
+        pytest.param(
+            {"duration": 3.5, "start_date": _DURATION_START},
+            _DURATION_START + datetime.timedelta(seconds=10),
+            10.0,
+            id="passed_end_date_wins_over_stored_duration",
+        ),
+        pytest.param(
+            {"duration": None, "start_date": _DURATION_START},
+            _DURATION_START + datetime.timedelta(seconds=10, milliseconds=500),
+            10.5,
+            id="passed_end_date_when_stored_duration_is_none",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START},
+            _DURATION_START + datetime.timedelta(minutes=2),
+            120.0,
+            id="passed_end_date_when_task_instance_has_none_yet",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START, "end_date": _DURATION_START + datetime.timedelta(seconds=7)},
+            None,
+            7.0,
+            id="end_date_of_task_instance",
+        ),
+        pytest.param(
+            {
+                "duration": None,
+                "start_date": _DURATION_START,
+                "end_date": _DURATION_START + datetime.timedelta(seconds=7),
+            },
+            None,
+            7.0,
+            id="end_date_of_task_instance_when_stored_duration_is_none",
+        ),
+        pytest.param(
+            {"start_date": _DURATION_START, "end_date": _DURATION_START + datetime.timedelta(seconds=7)},
+            _DURATION_START + datetime.timedelta(seconds=9),
+            9.0,
+            id="passed_end_date_wins_over_end_date_of_task_instance",
+        ),
+        pytest.param({"start_date": _DURATION_START}, None, None, id="running_task_instance"),
+        pytest.param({}, None, None, id="no_dates"),
+        pytest.param(
+            {},
+            _DURATION_START + datetime.timedelta(seconds=10),
+            None,
+            id="passed_end_date_without_start_date",
+        ),
+        pytest.param(
+            {"start_date": None, "end_date": _DURATION_START},
+            None,
+            None,
+            id="start_date_is_none",
+        ),
+        pytest.param(
+            {"start_date": "2024-06-01T12:00:00+00:00", "end_date": "2024-06-01T12:00:07+00:00"},
+            None,
+            None,
+            id="dates_are_not_datetimes",
+        ),
+        pytest.param(
+            {"start_date": datetime.datetime(2024, 6, 1, 12, 0, 0)},
+            _DURATION_START + datetime.timedelta(seconds=10),
+            None,
+            id="naive_start_date_and_aware_end_date",
+        ),
+    ],
+)
+def test_task_instance_info_duration(ti_attrs, end_date, expected_duration):
+    ti = SimpleNamespace(id=uuid7(), map_index=-1, **ti_attrs)
+
+    info = dict(TaskInstanceInfo(ti, end_date=end_date))
+
+    if expected_duration is None:
+        assert "duration" not in info
+    else:
+        assert info["duration"] == expected_duration
+
+
+@patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets", return_value=[])
+def test_get_airflow_run_facet_passes_end_date_to_task_instance_facet(mock_get_runtime):
+    task = BashOperator(task_id="t", bash_command="echo 1")
+    ti = SimpleNamespace(id=uuid7(), map_index=-1, start_date=_DURATION_START)
+
+    facet = get_airflow_run_facet(
+        MagicMock(),
+        MagicMock(),
+        ti,
+        task,
+        "task_uuid",
+        end_date=_DURATION_START + datetime.timedelta(seconds=4),
+    )["airflow"]
+
+    assert facet.taskInstance["duration"] == 4.0
 
 
 @patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets")
