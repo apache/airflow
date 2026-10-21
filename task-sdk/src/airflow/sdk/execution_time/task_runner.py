@@ -2322,6 +2322,8 @@ def _run_execute_callable(
     context: Context,
     execute: Callable[..., Any] | functools.partial[Any],
     task: BaseOperator,
+    *,
+    ti: RuntimeTaskInstance | None = None,
 ) -> Any:
     """
     Run the task's execute callable, applying the execution timeout if one is set.
@@ -2337,8 +2339,7 @@ def _run_execute_callable(
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
 
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
+        timeout_seconds = _remaining_execution_timeout_seconds(task.execution_timeout, ti)
         try:
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
@@ -2353,6 +2354,24 @@ def _run_execute_callable(
     else:
         result = ctx.run(execute, context=context)
     return result
+
+
+def _remaining_execution_timeout_seconds(
+    execution_timeout: timedelta, ti: RuntimeTaskInstance | None
+) -> float:
+    """
+    Return how many seconds of ``execution_timeout`` this attempt may still use.
+
+    A resumed task keeps the original ``start_date``: the server puts it on
+    ``TIRunContext`` only when ``next_method`` is set, and the supervisor copies
+    that onto the runtime task. Count that elapsed time against the timeout.
+    A fresh run's ``start_date`` is this attempt, so leave its timeout untouched.
+    """
+    timeout_seconds = execution_timeout.total_seconds()
+    if ti is None or not (ti._ti_context_from_server and ti._ti_context_from_server.next_method):
+        return timeout_seconds
+    elapsed = (datetime.now(tz=UTC) - ti.start_date).total_seconds()
+    return timeout_seconds - max(elapsed, 0.0)
 
 
 @detail_span("_execute_task")
@@ -2393,7 +2412,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    result = _run_execute_callable(context, execute, task)
+    result = _run_execute_callable(context, execute, task, ti=ti)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
