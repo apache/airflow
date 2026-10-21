@@ -53,7 +53,11 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockRaGOperator,
     BedrockUpdateGuardrailOperator,
 )
-from airflow.providers.amazon.aws.triggers.bedrock import BedrockAgentRuntimeDeletedTrigger
+from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockAgentRuntimeDeletedTrigger,
+    BedrockBatchInferenceCompletedTrigger,
+    BedrockBatchInferenceScheduledTrigger,
+)
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -1093,8 +1097,8 @@ class TestBedrockBatchInferenceOperator:
             hook = BedrockHook(aws_conn_id="aws_default")
             yield hook
 
-    def setup_method(self):
-        self.operator = BedrockBatchInferenceOperator(
+    def _create_operator(self, **kwargs):
+        operator = BedrockBatchInferenceOperator(
             task_id="test_task",
             job_name=self.JOB_NAME,
             role_arn=self.ROLE_ARN,
@@ -1102,8 +1106,13 @@ class TestBedrockBatchInferenceOperator:
             input_uri=self.INPUT_URI,
             output_uri=self.OUTPUT_URI,
             invoke_kwargs=self.INVOKE_KWARGS,
+            **kwargs,
         )
-        self.operator.defer = mock.MagicMock()
+        operator.defer = mock.MagicMock()
+        return operator
+
+    def setup_method(self):
+        self.operator = self._create_operator()
 
     @pytest.mark.parametrize(
         ("wait_for_completion", "deferrable"),
@@ -1125,6 +1134,37 @@ class TestBedrockBatchInferenceOperator:
         assert response == self.JOB_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
+
+    @pytest.mark.parametrize(
+        ("success_state", "waiter_name"),
+        [
+            pytest.param("completed", "batch_inference_complete", id="completed"),
+            pytest.param("scheduled", "batch_inference_scheduled", id="scheduled"),
+        ],
+    )
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
+    def test_wait_for_success_state(self, mock_get_waiter, success_state, waiter_name, mock_conn):
+        self._create_operator(success_state=success_state).execute({})
+
+        assert mock_get_waiter.call_args.kwargs["waiter_name"] == waiter_name
+
+    @pytest.mark.parametrize(
+        ("success_state", "trigger_class"),
+        [
+            pytest.param("completed", BedrockBatchInferenceCompletedTrigger, id="completed"),
+            pytest.param("scheduled", BedrockBatchInferenceScheduledTrigger, id="scheduled"),
+        ],
+    )
+    def test_defer_for_success_state(self, success_state, trigger_class, mock_conn):
+        operator = self._create_operator(success_state=success_state, deferrable=True)
+
+        operator.execute({})
+
+        assert isinstance(operator.defer.call_args.kwargs["trigger"], trigger_class)
+
+    def test_invalid_success_state(self):
+        with pytest.raises(ValueError, match="success_state must be one of"):
+            self._create_operator(success_state="running")
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
