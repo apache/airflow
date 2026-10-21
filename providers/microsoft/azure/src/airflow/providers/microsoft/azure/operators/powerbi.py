@@ -89,7 +89,8 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
     :param deferrable: This parameter is deprecated and no longer has any effect. The operator now always
         uses deferrable execution.
     :param durable: Reconnect to the refresh started by an earlier try instead of starting a new one
-        (default is True). Needs Airflow 3.3 or later.
+        (default is True). A durable refresh is not cancelled when polling it fails, so that the retry can
+        reconnect to it. Needs Airflow 3.3 or later.
     """
 
     external_id_key = "powerbi_dataset_refresh_id"
@@ -165,19 +166,24 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         return _REFRESH_NOT_IN_HISTORY
 
     def is_job_active(self, status: str) -> bool:
-        return status == PowerBIDatasetRefreshStatus.IN_PROGRESS
+        # Without wait_for_completion a retry does not wait for a refresh in progress either:
+        # is_job_succeeded counts it as done.
+        return self.wait_for_completion and status == PowerBIDatasetRefreshStatus.IN_PROGRESS
 
     def is_job_succeeded(self, status: str) -> bool:
-        return status == PowerBIDatasetRefreshStatus.COMPLETED
+        if status == PowerBIDatasetRefreshStatus.COMPLETED:
+            return True
+        # Without wait_for_completion the task only has to start the refresh.
+        return not self.wait_for_completion and status == PowerBIDatasetRefreshStatus.IN_PROGRESS
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         dataset_refresh_id = str(external_id)
-        self._push_refresh_xcom(context, dataset_refresh_id)
-
         if not self.wait_for_completion:
+            # get_job_result pushes the refresh id, the mixin calls it next.
             self.log.info("Triggered dataset refresh %s (fire-and-forget)", dataset_refresh_id)
             return
 
+        self._push_refresh_xcom(context, dataset_refresh_id)
         self.defer(
             trigger=PowerBITrigger(
                 conn_id=self.conn_id,
@@ -195,7 +201,8 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         )
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> None:
-        # With wait_for_completion the mixin only gets here for a refresh an earlier try saw complete.
+        # With wait_for_completion the mixin only gets here for a refresh an earlier try saw complete,
+        # otherwise poll_until_complete defers and execute_complete pushes the id and the status.
         self._push_refresh_xcom(
             context,
             str(external_id),
