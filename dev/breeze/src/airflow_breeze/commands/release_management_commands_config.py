@@ -593,6 +593,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--execution-api",
                 "--supervisor",
+                "--dag",
                 "--destination-location",
                 "--overwrite",
                 "--dry-run",

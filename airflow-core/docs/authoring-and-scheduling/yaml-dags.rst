@@ -102,8 +102,8 @@ The shape of a document
     parsed with. ``$schema`` is also how Airflow recognizes that a file contains
     Dags. By default (see :ref:`config:core__dag_discovery_safe_mode`), a file
     that does not carry the canonical ``$schema`` URL is skipped, so a mistyped
-    URL makes the file disappear the same way. Editors that understand
-    ``$schema`` will offer validation and completion with no extra setup.
+    URL makes the file disappear the same way. An editor that understands
+    ``$schema`` can offer validation and completion from it.
 
 Dag-level keys
     Dag attributes sit at the top level, such as ``dag_id``, ``schedule``,
