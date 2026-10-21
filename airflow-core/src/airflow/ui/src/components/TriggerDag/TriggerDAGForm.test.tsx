@@ -178,16 +178,23 @@ describe("TriggerDAGForm", () => {
 
   it.each([
     {
+      dates: { end_date: null, start_date: "2000-01-01T00:00:00Z" },
+      scenario: "within the Dag's dates",
+      text: "components:triggerDag.dagStartEndDate.start",
+    },
+    {
       dates: { end_date: null, start_date: "2999-01-01T00:00:00Z" },
-      warning: "components:triggerDag.logicalDateBeforeStartDate",
+      scenario: "before the Dag's start date",
+      text: "components:triggerDag.dagStartEndDate.noTaskWillRun components:triggerDag.dagStartEndDate.start",
     },
     {
       dates: { end_date: "2000-01-01T00:00:00Z", start_date: "1999-01-01T00:00:00Z" },
-      warning: "components:triggerDag.logicalDateAfterEndDate",
+      scenario: "after the Dag's end date",
+      text: "components:triggerDag.dagStartEndDate.noTaskWillRun components:triggerDag.dagStartEndDate.both",
     },
   ])(
-    "shows $warning when the default logical date is outside the Dag's dates",
-    async ({ dates, warning }) => {
+    "shows the Dag start and end dates when the default logical date is $scenario",
+    async ({ dates, text }) => {
       server.use(
         http.get("/api/v2/dags/dated_dag/details", () =>
           HttpResponse.json({ ...MOCK_DAG, ...dates, dag_id: "dated_dag" }),
@@ -208,7 +215,7 @@ describe("TriggerDAGForm", () => {
         { wrapper: Wrapper },
       );
 
-      expect(await screen.findByText(warning)).toBeInTheDocument();
+      expect(await screen.findByText(text)).toBeInTheDocument();
     },
   );
 
