@@ -20,12 +20,13 @@ from __future__ import annotations
 import concurrent.futures
 import itertools
 import logging
+import threading
 from collections import Counter
 from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import event, func, insert, select
 from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.orm import Session
 
@@ -43,6 +44,7 @@ from airflow.models.asset import (
     DagScheduleAssetNameReference,
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
+    PartitionedAssetKeyLog,
 )
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbundle import DagBundleModel
@@ -54,6 +56,7 @@ from airflow.partition_mappers.window import WeekWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+from airflow.utils.session import create_session
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
@@ -417,9 +420,8 @@ class TestAssetManager:
 
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
     def test_get_or_create_apdr_race_condition(self, session, caplog):
-        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
-        session.add_all([asm, testing_dag])
+        session.add(testing_dag)
         session.commit()
         session.flush()
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
@@ -439,7 +441,6 @@ class TestAssetManager:
                     target_partition_date=None,
                     target_dag=testing_dag,
                     rollup_fingerprint=rollup_fingerprint,
-                    asset_id=asm.id,
                     allow_reuse=True,
                     session=_session,
                 ).id
@@ -452,13 +453,67 @@ class TestAssetManager:
             with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as pool:
                 ids = pool.map(lambda _: _get_or_create_apdr(), [None] * thread_count)
 
-        assert Counter(r.msg for r in caplog.records) == {
-            "Existing APDR found for key test_partition_key dag_id testing_dag": thread_count - 1,
-            "No existing APDR found. Create APDR for key test_partition_key dag_id testing_dag": 1,
-        }
+        # A thread either finds the row with its lookup, or loses the INSERT to the unique
+        # constraint and reuses the winner's row; which one happens is a timing detail.
+        msg_counts = Counter(r.msg for r in caplog.records)
+        create_msg = "No existing APDR found. Create APDR for key test_partition_key dag_id testing_dag"
+        found_msg = "Existing APDR found for key test_partition_key dag_id testing_dag"
+        lost_race_msg = (
+            "Another process created the APDR for key test_partition_key dag_id testing_dag first; reusing it"
+        )
+        assert msg_counts[create_msg] == 1
+        assert msg_counts[found_msg] + msg_counts[lost_race_msg] == thread_count - 1
 
         assert len(set(ids)) == 1
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_reuses_winner_after_losing_insert_and_keeps_unflushed_rows(self, session):
+        """An APDR INSERT that loses to the unique constraint reuses the row that won.
+
+        Rolling back the savepoint must not expunge rows the caller added before and has not
+        flushed, such as the ``Log`` rows ``_queue_partitioned_dags`` adds between APDRs.
+        """
+        testing_dag = DagModel(dag_id="testing_dag_lost_race", is_stale=False, bundle_name="testing")
+        session.add(testing_dag)
+        session.commit()
+        log_row = Log(event="added before the savepoint")
+        session.add(log_row)
+        real_lookup = AssetManager._get_latest_pending_apdr
+
+        def lookup_misses_concurrent_insert(*, target_key, target_dag_id, session):
+            # Another writer inserts the row right after this lookup, so the INSERT that
+            # follows collides with it on the unique constraint.
+            lookup.side_effect = real_lookup
+            session.execute(
+                insert(AssetPartitionDagRun).values(
+                    target_dag_id=target_dag_id, partition_key=target_key, pending_partition_key=target_key
+                )
+            )
+            return None
+
+        with mock.patch.object(
+            AssetManager,
+            "_get_latest_pending_apdr",
+            autospec=True,
+            side_effect=lookup_misses_concurrent_insert,
+        ) as lookup:
+            apdr = AssetManager._get_or_create_apdr(
+                target_key="2026-05-20",
+                target_partition_date=None,
+                target_dag=testing_dag,
+                rollup_fingerprint={},
+                allow_reuse=True,
+                session=session,
+            )
+
+        assert lookup.call_count == 2
+        assert apdr.pending_partition_key == "2026-05-20"
+        assert session.scalars(
+            select(AssetPartitionDagRun.id).where(AssetPartitionDagRun.target_dag_id == testing_dag.dag_id)
+        ).all() == [apdr.id]
+        session.flush()
+        assert session.scalar(select(Log.event).where(Log.id == log_row.id)) == "added before the savepoint"
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_or_create_apdr_suppresses_conflicting_partition_date(self, session):
@@ -467,9 +522,8 @@ class TestAssetManager:
         Rather than an order-dependent first-event-wins, conflicting carried dates produce a
         deterministic ``None`` so the consumer DagRun is not stamped with a wrong, unstable date.
         """
-        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag_pd_conflict", is_stale=False, bundle_name="testing")
-        session.add_all([asm, testing_dag])
+        session.add(testing_dag)
         session.commit()
         fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
 
@@ -478,7 +532,6 @@ class TestAssetManager:
             target_partition_date=timezone.parse("2026-05-20T00:00:00"),
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             allow_reuse=True,
             session=session,
         )
@@ -490,7 +543,6 @@ class TestAssetManager:
             target_partition_date=timezone.parse("2026-05-21T00:00:00"),
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             allow_reuse=True,
             session=session,
         )
@@ -500,9 +552,8 @@ class TestAssetManager:
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_or_create_apdr_keeps_agreeing_partition_date(self, session):
         """A later event carrying the same (or no) date does not trip the conflict suppression."""
-        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag_pd_agree", is_stale=False, bundle_name="testing")
-        session.add_all([asm, testing_dag])
+        session.add(testing_dag)
         session.commit()
         fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
         source_date = timezone.parse("2026-05-20T00:00:00")
@@ -511,7 +562,6 @@ class TestAssetManager:
             target_key="2026-05-20",
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             allow_reuse=True,
             session=session,
         )
@@ -529,9 +579,8 @@ class TestAssetManager:
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_or_create_apdr_adopts_date_when_existing_is_none(self, session):
         """An APDR created with no date adopts a later event's carried date (not dropped)."""
-        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag_pd_adopt", is_stale=False, bundle_name="testing")
-        session.add_all([asm, testing_dag])
+        session.add(testing_dag)
         session.commit()
         fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
         source_date = timezone.parse("2026-05-20T00:00:00")
@@ -540,7 +589,6 @@ class TestAssetManager:
             target_key="2026-05-20",
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             allow_reuse=True,
             session=session,
         )
@@ -555,9 +603,8 @@ class TestAssetManager:
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_or_create_apdr_recovers_after_conflict(self, session):
         """Once a conflict has suppressed the date to None, a later event re-adopts a date."""
-        asm = AssetModel(uri="test://asset1/", name="partition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag_pd_recover", is_stale=False, bundle_name="testing")
-        session.add_all([asm, testing_dag])
+        session.add(testing_dag)
         session.commit()
         fp = {"asset-1|test://asset1/": {"__type": "IdentityMapper", "__var": {}}}
         date_1 = timezone.parse("2026-05-20T00:00:00")
@@ -567,7 +614,6 @@ class TestAssetManager:
             target_key="2026-05-20",
             target_dag=testing_dag,
             rollup_fingerprint=fp,
-            asset_id=asm.id,
             allow_reuse=True,
             session=session,
         )
@@ -628,9 +674,8 @@ class TestAssetManager:
     def test_get_or_create_apdr_allow_reuse(self, session, allow_reuse):
         clear_db_apdr()
         clear_db_pakl()
-        asset = AssetModel(uri="test://reuse/", name="reuse_asset", group="asset")
         dag = DagModel(dag_id="reuse_test_dag", is_stale=False, bundle_name="testing")
-        session.add_all([asset, dag])
+        session.add(dag)
         session.flush()
 
         with capture_orm_selects("asset_partition_dag_run") as lookups:
@@ -640,7 +685,6 @@ class TestAssetManager:
                     target_partition_date=None,
                     target_dag=dag,
                     rollup_fingerprint={},
-                    asset_id=asset.id,
                     allow_reuse=allow_reuse,
                     session=session,
                 )
@@ -652,6 +696,76 @@ class TestAssetManager:
         assert len({apdr.id for apdr in apdrs}) == expected_count
         assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == expected_count
         assert all(apdr.created_dag_run_id is None for apdr in apdrs)
+        # Only a reusable row takes part in the one-pending-row-per-key constraint.
+        assert {apdr.pending_partition_key for apdr in apdrs} == {"key-1" if allow_reuse else None}
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_concurrent_events_from_different_assets_share_one_pending_apdr(self, dag_maker, session):
+        """Events from two producer assets racing on one partition key accumulate on one APDR.
+
+        The second writer looks the key up while the first writer's APDR is still uncommitted,
+        so it finds nothing and inserts its own. Two pending APDRs holding one event each can
+        never satisfy ``asset_a & asset_b``, and the consumer Dag never runs.
+        """
+        _clear_partition_db()
+        asset_a = Asset(name="race-asset-a")
+        asset_b = Asset(name="race-asset-b")
+        with dag_maker(
+            dag_id="race-consumer",
+            schedule=PartitionedAssetTimetable(
+                assets=asset_a & asset_b, default_partition_mapper=IdentityMapper()
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="hi")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        test_thread = threading.get_ident()
+        second_writer_inserting_apdr = threading.Event()
+
+        def on_execute(conn, cursor, statement, parameters, context, executemany):
+            if threading.get_ident() != test_thread and statement.startswith(
+                "INSERT INTO asset_partition_dag_run "
+            ):
+                second_writer_inserting_apdr.set()
+
+        def second_writer():
+            with create_session(scoped=False) as second:
+                AssetManager.register_asset_change(asset=asset_b, partition_key="day-1", session=second)
+
+        event.listen(settings.engine, "before_cursor_execute", on_execute)
+        try:
+            with create_session(scoped=False) as first:
+                AssetManager.register_asset_change(asset=asset_a, partition_key="day-1", session=first)
+                first.flush()
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    second_done = pool.submit(second_writer)
+                    assert second_writer_inserting_apdr.wait(timeout=30)
+                    first.commit()
+                    second_done.result(timeout=30)
+        finally:
+            event.remove(settings.engine, "before_cursor_execute", on_execute)
+
+        pending = session.scalars(
+            select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == "race-consumer")
+        ).all()
+        assert len(pending) == 1
+        logged_events = session.scalar(
+            select(func.count())
+            .select_from(PartitionedAssetKeyLog)
+            .where(PartitionedAssetKeyLog.asset_partition_dag_run_id == pending[0].id)
+        )
+        assert logged_events == 2
+        _clear_partition_db()
+
+    def test_assigning_created_dag_run_id_clears_pending_partition_key(self):
+        apdr = AssetPartitionDagRun(target_dag_id="d", partition_key="k", pending_partition_key="k")
+
+        apdr.created_dag_run_id = 123
+
+        assert apdr.pending_partition_key is None
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.usefixtures("testing_dag_bundle")
