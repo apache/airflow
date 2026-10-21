@@ -22,7 +22,10 @@ Inbound webhook source types for services configured entirely from the connectio
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+import re
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -46,7 +49,25 @@ if TYPE_CHECKING:
 
 SignatureEncoding = Literal["hex", "base64"]
 SIGNATURE_ENCODINGS = ("hex", "base64")
-_DELIVERY_OPTIONS = ("event_field", "event_header", "path_field", "delivery_id_field", "delivery_id_header")
+_DELIVERY_OPTIONS = (
+    "event_field",
+    "event_header",
+    "path_field",
+    "delivery_id_field",
+    "delivery_id_header",
+    "correlation_key_field",
+)
+#: The attributes these source types set themselves, which ``attribute_paths`` cannot set.
+_OWN_ATTRIBUTES = ("event", "path")
+# Core has no rule for attribute names; this one is strict, so it can be relaxed without breaking a
+# connection.
+_ATTRIBUTE_NAME_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,63}")
+# Attributes are stored in a JSON column, and MySQL keeps an integer outside the signed 64-bit range as
+# a double, or refuses the record when the integer is too large for a double.
+_MIN_INTEGER_ATTRIBUTE = -(2**63)
+_MAX_INTEGER_ATTRIBUTE = 2**63 - 1
+#: The longest correlation key that ``WebhookDelivery`` allows.
+_MAX_CORRELATION_KEY_LENGTH = 255
 
 
 def _read_text_option(extra: dict[str, Any], key: str, *, source_type: str) -> str | None:
@@ -65,6 +86,59 @@ def _read_text_option(extra: dict[str, Any], key: str, *, source_type: str) -> s
     return value
 
 
+def _read_attribute_paths(extra: dict[str, Any], *, source_type: str) -> dict[str, str]:
+    """
+    Return the connection extra's ``attribute_paths``, or an empty mapping if it is not set.
+
+    Raise ``ValueError`` unless it is a JSON object, or that object as JSON text as in a connection given
+    as a URI, that maps attribute names, of at most 64 lowercase letters, digits and underscores starting
+    with a letter, other than ``event`` and ``path``, to non-empty dotted paths.
+    """
+    attribute_paths = extra.get("attribute_paths")
+    if attribute_paths is None or attribute_paths == "":
+        return {}
+    if isinstance(attribute_paths, str):
+        try:
+            attribute_paths = json.loads(attribute_paths)
+        except ValueError:
+            raise ValueError(
+                f"{source_type} attribute_paths must be a JSON object of attribute names and dotted paths"
+            ) from None
+    if not isinstance(attribute_paths, dict):
+        raise ValueError(
+            f"{source_type} attribute_paths must be a JSON object of attribute names and dotted paths, "
+            f"not {type(attribute_paths).__name__}"
+        )
+    for name, dotted_path in attribute_paths.items():
+        if name in _OWN_ATTRIBUTES:
+            raise ValueError(f"{source_type} attribute_paths cannot set {name!r}, which the source type sets")
+        if not _ATTRIBUTE_NAME_PATTERN.fullmatch(name):
+            raise ValueError(
+                f"{source_type} attribute_paths has the attribute name {name!r}, which does not match "
+                f"{_ATTRIBUTE_NAME_PATTERN.pattern!r}"
+            )
+        if not isinstance(dotted_path, str) or not dotted_path:
+            raise ValueError(f"{source_type} attribute_paths must map {name!r} to a dotted path")
+    return dict(attribute_paths)
+
+
+def _get_text_or_integer(payload: dict[str, Any], dotted_path: str) -> str | int | None:
+    """Return the value at ``dotted_path`` if it is a non-empty string or an integer, and None otherwise."""
+    value = get_field(payload, dotted_path)
+    # bool is an int, but a sender writes it as true or false rather than as a number.
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return value if isinstance(value, str) and value else None
+
+
+def _get_attribute_value(payload: dict[str, Any], dotted_path: str) -> str | int | None:
+    """Return the value at ``dotted_path`` if it is a non-empty string or a signed 64-bit integer."""
+    value = _get_text_or_integer(payload, dotted_path)
+    if isinstance(value, int) and not _MIN_INTEGER_ATTRIBUTE <= value <= _MAX_INTEGER_ATTRIBUTE:
+        return None
+    return value
+
+
 @dataclass(frozen=True, kw_only=True)
 class ConfiguredJsonSource(WebhookSource):
     """
@@ -72,8 +146,11 @@ class ConfiguredJsonSource(WebhookSource):
 
     The event name comes from ``event_header`` or ``event_field``, the optional path from
     ``path_field``, and the optional delivery ID from ``delivery_id_header`` or ``delivery_id_field``.
-    Fields are dotted paths into the payload (``data.type``). The attributes are ``event``, and
-    ``path`` when the delivery has one.
+    Fields are dotted paths into the payload (``data.type``). The attributes are ``event``, ``path``
+    when the delivery has one, and each attribute that ``attribute_paths`` names, from the field it maps
+    the name to, when that field is a non-empty string or a signed 64-bit integer. The optional
+    correlation key is the value of ``correlation_key_field`` as a string, if that field is a non-empty
+    string or an integer of any size and the string has at most 255 characters.
     """
 
     event_field: str | None = None
@@ -81,15 +158,20 @@ class ConfiguredJsonSource(WebhookSource):
     path_field: str | None = None
     delivery_id_field: str | None = None
     delivery_id_header: str | None = None
+    attribute_paths: Mapping[str, str] = field(default_factory=dict)
+    correlation_key_field: str | None = None
 
     @staticmethod
-    def read_delivery_options(source_type: str, extra: dict[str, Any]) -> dict[str, str | None]:
-        """Read the options that say where a delivery names its event, path and ID."""
-        options = {key: _read_text_option(extra, key, source_type=source_type) for key in _DELIVERY_OPTIONS}
+    def read_delivery_options(source_type: str, extra: dict[str, Any]) -> dict[str, Any]:
+        """Read the options that say where a delivery names its event, path, ID, attributes and key."""
+        options: dict[str, Any] = {
+            key: _read_text_option(extra, key, source_type=source_type) for key in _DELIVERY_OPTIONS
+        }
         if (options["event_field"] is None) == (options["event_header"] is None):
             raise ValueError(f"{source_type} needs exactly one of event_field or event_header")
         if options["delivery_id_field"] is not None and options["delivery_id_header"] is not None:
             raise ValueError(f"{source_type} takes at most one of delivery_id_field or delivery_id_header")
+        options["attribute_paths"] = _read_attribute_paths(extra, source_type=source_type)
         return options
 
     def parse(self, request: WebhookRequest) -> WebhookDelivery:
@@ -106,12 +188,16 @@ class ConfiguredJsonSource(WebhookSource):
         attributes: dict[str, str | int] = {"event": event}
         if path:
             attributes["path"] = path
+        for name, dotted_path in self.attribute_paths.items():
+            if (value := _get_attribute_value(payload, dotted_path)) is not None:
+                attributes[name] = value
         return WebhookDelivery(
             path=path or None,
             kinds=[(event,)],
             attributes=attributes,
             delivery_id=self.read_delivery_id(request, payload),
             payload=payload,
+            correlation_key=self.find_correlation_key(payload),
         )
 
     def read_delivery_id(self, request: WebhookRequest, payload: dict[str, Any]) -> str | None:
@@ -127,6 +213,17 @@ class ConfiguredJsonSource(WebhookSource):
         if delivery_id is not None and not isinstance(delivery_id, str):
             raise ValueError(f"{self.delivery_id_field!r} is not a string or an integer")
         return delivery_id
+
+    def find_correlation_key(self, payload: dict[str, Any]) -> str | None:
+        """Return the value of ``correlation_key_field`` as a string, or None if it cannot be a key."""
+        if not self.correlation_key_field:
+            return None
+        value = _get_text_or_integer(payload, self.correlation_key_field)
+        if value is None:
+            return None
+        key = str(value)
+        # Core answers a longer key with a 500; a delivery is better served without a key than refused.
+        return key if len(key) <= _MAX_CORRELATION_KEY_LENGTH else None
 
 
 @dataclass(frozen=True, kw_only=True)
