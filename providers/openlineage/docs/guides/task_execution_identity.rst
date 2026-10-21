@@ -223,7 +223,9 @@ that never started has no START for them, and a gate's event has no ``loop.decis
 
 * The scheduler failing a task instance, e.g. when the executor reports a failure the worker couldn't send.
   The FAIL event has the same ``airflow`` run facet as a worker's, ``loop`` and ``expanded_ti_count``
-  included on Airflow 3.4+.
+  included on Airflow 3.4+. When the task instance runs another Dag version than the one the scheduler
+  holds, it has no ``expanded_ti_count`` and its ``loop`` only has ``group_id``, ``index`` and
+  ``max_iterations``.
 * Marking a task instance successful, failed or skipped in the UI or the API. The API server holds the task
   instance without its task, so the event has its ``runId`` (the attempt's UUID inside a loop, as a worker's
   event of that attempt), ``job.name`` and ``ParentRunFacet``, but no ``airflow`` run facet: none of

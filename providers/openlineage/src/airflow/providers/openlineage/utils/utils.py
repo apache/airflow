@@ -1679,8 +1679,11 @@ def _get_core_task_instance_position(
     region_id = task_instance.region_id
     if not isinstance(region_id, UUID) or region_id.int == 0:
         return None
-    # Reusing the Dag the task instance holds spares deserializing it again, unless it pins another version
     if (dag := getattr(getattr(task_instance, "task", None), "dag", None)) is None:
+        return None
+    # The resolver would load and deserialize any other pinned version again, for every task instance, in the
+    # scheduler or API server process
+    if getattr(dag, "dag_version_id", None) != task_instance.dag_version_id:
         return None
     from airflow.models.task_coordinates import TaskCoordinateResolver
 

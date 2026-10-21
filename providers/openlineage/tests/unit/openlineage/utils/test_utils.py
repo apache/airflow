@@ -4078,6 +4078,8 @@ def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(dag_
         PythonOperator.partial(task_id="outside", python_callable=list).expand(op_kwargs=[{}, {}, {}])
     run = dag_maker.create_dagrun()
     tis = {(ti.task_id, ti.region_index): ti for ti in run.task_instances}
+    # As the scheduler's Dag bag sets it on the Dag it loads for the run
+    tis["body.plain", 1].task.dag.dag_version_id = tis["body.plain", 1].dag_version_id
     loop_region = session.get(DynamicRegion, tis["body.plain", 1].region_id)
     fork = DynamicRegion.fork_family(loop_region.id, 2, {loop_region.id: loop_region}, session=session)
     session.flush()
@@ -4125,10 +4127,17 @@ def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(dag_
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop iteration requires Airflow 3.4")
+@pytest.mark.parametrize(
+    "pins_another_version",
+    [
+        pytest.param(False, id="airflow_fails"),
+        pytest.param(True, id="pins_another_version"),
+    ],
+)
 @mock.patch(
     "airflow.models.task_coordinates.TaskCoordinateResolver.for_dag", side_effect=ValueError("Dag not found")
 )
-def test_stored_task_instance_is_placed_from_its_rows_when_airflow_fails_to(mock_for_dag):
+def test_stored_task_instance_is_placed_from_its_rows_without_airflow(mock_for_dag, pins_another_version):
     from airflow.sdk import task_group
     from airflow.sdk.definitions._internal.loop import create_loop
 
@@ -4142,12 +4151,16 @@ def test_stored_task_instance_is_placed_from_its_rows_when_airflow_fails_to(mock
     ti = TaskInstance(task=dag.get_task("body.work"), dag_version_id=uuid7())
     ti.region_id = uuid4()
     ti.region_index = 1
+    dag.dag_version_id = uuid7() if pins_another_version else ti.dag_version_id
     session = MagicMock(spec=Session)
 
     assert get_stored_task_instance_position(ti, session=session) == TaskInstancePosition(
         in_loop=True, map_index=-1, loop_index=1, loop_max_iterations=3, loop_group_id="body"
     )
-    mock_for_dag.assert_called_once_with(dag, session)
+    if pins_another_version:
+        mock_for_dag.assert_not_called()
+    else:
+        mock_for_dag.assert_called_once_with(dag, session)
     session.execute.assert_not_called()
 
 

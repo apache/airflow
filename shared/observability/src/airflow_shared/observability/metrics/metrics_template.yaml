@@ -911,12 +911,6 @@ metrics:
     legacy_name: "ol.extract.{event_type}.{operator_name}"
     name_variables: ["event_type", "operator_name"]
 
-  - name: "ol.manual_state_change.place_task_instance"
-    description: "Milliseconds taken to place a task instance in a manual OpenLineage state change event."
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
   - name: "airflow.io.load_filesystems"
     description: "Milliseconds taken to load filesystem implementations from providers"
     type: "timer"
