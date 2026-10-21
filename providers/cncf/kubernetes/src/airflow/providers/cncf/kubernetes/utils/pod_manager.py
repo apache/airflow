@@ -444,16 +444,25 @@ class PodManager(LoggingMixin):
         return self.run_pod_async(pod)
 
     async def watch_pod_events(self, pod: V1Pod, check_interval: float = 10) -> None:
-        """Read pod events and write into log."""
+        """
+        Read pod events and write into log.
+
+        Best-effort: any error logs one warning and stops the watch, so a struggling API server
+        is not polled again for this pod.
+        """
         resource_version = None
         seen_events: set[str] = set()
         while not self.stop_watching_events:
-            events = self.read_pod_events(pod, resource_version)
-            if events.metadata and events.metadata.resource_version:
-                resource_version = events.metadata.resource_version
-            for event in events.items:
-                log_pod_event(self, event, seen_events)
-                resource_version = event.metadata.resource_version
+            try:
+                events = self.read_pod_events(pod, resource_version)
+                if events.metadata and events.metadata.resource_version:
+                    resource_version = events.metadata.resource_version
+                for event in events.items:
+                    log_pod_event(self, event, seen_events)
+                    resource_version = event.metadata.resource_version
+            except Exception as e:
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
+                return
             await asyncio.sleep(check_interval)
 
     async def await_pod_start(
@@ -1192,19 +1201,28 @@ class AsyncPodManager(LoggingMixin):
         )
 
     async def watch_pod_events(self, pod: V1Pod, startup_check_interval: float = 30) -> None:
-        """Watch pod events and write to log."""
+        """
+        Watch pod events and write to log.
+
+        Best-effort: any error logs one warning and stops the watch, so a struggling API server
+        is not polled again for this pod.
+        """
         seen_events: set[str] = set()
         resource_version = None
         while not self.stop_watching_events:
-            async for event in self._hook.watch_pod_events(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                resource_version=resource_version,
-                timeout_seconds=startup_check_interval,
-            ):
-                if event:
-                    log_pod_event(self, event, seen_events)
-                    resource_version = event.metadata.resource_version
+            try:
+                async for event in self._hook.watch_pod_events(
+                    name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    resource_version=resource_version,
+                    timeout_seconds=startup_check_interval,
+                ):
+                    if event:
+                        log_pod_event(self, event, seen_events)
+                        resource_version = event.metadata.resource_version
+            except Exception as e:
+                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
+                return
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1

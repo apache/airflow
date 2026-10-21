@@ -120,7 +120,7 @@ PIP package                                 Version required
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
 ``azure-datalake-store``                    ``>=1.0.1``
 ``azure-identity``                          ``>=1.25.3``
-``azure-keyvault-secrets``                  ``>=4.10.0``
+``azure-keyvault-secrets``                  ``>=4.11.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
 ``azure-mgmt-resource``                     ``>=25.0.0``
 ``azure-search-documents``                  ``>=11.6.0,!=12.0.0``

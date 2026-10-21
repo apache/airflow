@@ -1833,6 +1833,9 @@ export type LastAssetEventResponse = {
  */
 export type LoopIterationResponse = {
     loop_id: string;
+    /**
+     * Position in the enclosing loop, counting from one.
+     */
     iteration: number;
 };
 
@@ -4164,7 +4167,7 @@ export type GetDagsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
@@ -4309,7 +4312,7 @@ export type GetDagsUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date, last_run_run_after`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
@@ -4657,7 +4660,7 @@ export type GetTaskInstancesData = {
     endDateLte?: string | null;
     executor?: Array<(string)>;
     /**
-     * Narrow ``loop_id`` to a single pass of that loop.
+     * Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
      */
     iteration?: number | null;
     limit?: number;
@@ -5610,7 +5613,15 @@ export type GetLoopHistoryResponse = LoopHistoryResponse;
 
 export type GetGanttDataData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runId: string;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGanttDataResponse = GanttResponse;
