@@ -1641,8 +1641,15 @@ apache-airflow-task-sdk-integration-tests = false
 # Remove once the rolling window advances past 2026-08-12.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 
-# We need 0.13.4 for trust store fixeds. Remove this `exclude-newer-package` after 2026-10-24, when that release has been out for 4 days
-uv = "2026-10-21T00:00:00Z"
+# Package managers bypass the cooldown so a fix (e.g. a security or trust-store fix) can be
+# picked up as soon as it is released; keep in sync with `[tool.uv.pip.exclude-newer-package]`
+# and dev/breeze/pyproject.toml.
+pip = false
+uv = false
+
+# certifi 2026.10.19 removes the compromised "emSign ECC Root CA - G3" root. Remove this
+# `exclude-newer-package` after 2026-10-25, when that release has been out for 4 days.
+certifi = "2026-10-21T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
@@ -1828,6 +1835,11 @@ apache-airflow-task-sdk-integration-tests = false
 # `[tool.uv.exclude-newer-package]` above for rationale.
 # Temporary: see the google-cloud-aiplatform note in `[tool.uv.exclude-newer-package]`.
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
+# Package managers bypass the cooldown — see `[tool.uv.exclude-newer-package]`.
+pip = false
+uv = false
+# Temporary: see the certifi note in `[tool.uv.exclude-newer-package]`.
+certifi = "2026-10-21T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
