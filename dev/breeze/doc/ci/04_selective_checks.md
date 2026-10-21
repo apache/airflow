@@ -694,8 +694,9 @@ RunsOn (see below). The `runner-type` output is decided as follows, first match 
    vouch for every later push: a new push sends the PR back to public runners until the head commit is
    approved again, and so does a dismissed approval if no other committer's approval of the head commit
    remains. A committer's request for changes keeps the PR on public runners across pushes, as it blocks
-   a merge on GitHub, until that committer reviews again or the review is dismissed. If the reviews
-   cannot be read, the label is ignored as well.
+   a merge on GitHub, until that committer reviews again or the review is dismissed. The label must
+   also still be on the PR: a re-run reuses the labels of its original event, so they are checked
+   against the PR's current ones. If the PR or its reviews cannot be read, the label is ignored as well.
 7. PRs with the `non committer build` label use public runners.
 8. PRs opened by a bot (Dependabot and the like), or from a `dependabot/` branch, use public runners:
    they carry code nobody has reviewed yet.

@@ -2178,7 +2178,7 @@ class SelectiveChecks:
             return True
         if self._github_event != GithubEvents.PULL_REQUEST:
             return False
-        if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels and self._head_approved_by_committer():
+        if USE_SELF_HOSTED_RUNNERS_LABEL in self._pr_labels and self._is_self_hosted_label_approved():
             return True
         if NON_COMMITTER_BUILD_LABEL in self._pr_labels:
             return False
@@ -2193,13 +2193,13 @@ class SelectiveChecks:
         head_repo = (pull_request.get("head", {}).get("repo") or {}).get("full_name")
         return head_repo == APACHE_AIRFLOW_GITHUB_REPOSITORY
 
-    def _head_approved_by_committer(self) -> bool:
-        """Whether a committer approved the PR's current head commit and no committer's request for changes stands.
+    def _is_self_hosted_label_approved(self) -> bool:
+        """Whether the PR still has the label, a committer approved its head commit and no committer's veto stands.
 
-        The ``use self-hosted runners`` label outlives the commit it was added for, so on its own
-        it would vouch for every later push. A request for changes stays in force across pushes,
-        as on GitHub, until that committer reviews again or it is dismissed. Any failure to tell
-        counts as "no".
+        A re-run reuses the labels of its original event, so a later removal only shows in the PR
+        itself. The label outlives the commit it was added for, so on its own it would vouch for
+        every later push. A request for changes stays in force across pushes, as on GitHub, until
+        that committer reviews again or it is dismissed. Any failure to tell counts as "no".
         """
         # Lazy: breeze keeps its top-level imports minimal (check-breeze-top-dependencies-limited).
         import requests
@@ -2208,9 +2208,8 @@ class SelectiveChecks:
         head_sha = pull_request.get("head", {}).get("sha")
         if not head_sha:
             return False
-        url: str | None = (
+        pull_request_url = (
             f"https://api.github.com/repos/{self._github_repository}/pulls/{pull_request.get('number')}"
-            "/reviews?per_page=100"
         )
         headers = {"Accept": "application/vnd.github+json"}
         if token := os.environ.get("GITHUB_TOKEN"):
@@ -2220,6 +2219,14 @@ class SelectiveChecks:
         latest_on_head: dict[str, str] = {}
         latest_overall: dict[str, str] = {}
         try:
+            response = requests.get(pull_request_url, headers=headers, timeout=30)
+            response.raise_for_status()
+            if USE_SELF_HOSTED_RUNNERS_LABEL not in {label["name"] for label in response.json()["labels"]}:
+                console_print(
+                    f"[warning]Ignoring the {USE_SELF_HOSTED_RUNNERS_LABEL!r} label: the PR no longer has it"
+                )
+                return False
+            url: str | None = f"{pull_request_url}/reviews?per_page=100"
             while url:
                 response = requests.get(url, headers=headers, timeout=30)
                 response.raise_for_status()
@@ -2231,9 +2238,9 @@ class SelectiveChecks:
                     if review.get("commit_id") == head_sha:
                         latest_on_head[login] = review["state"]
                 url = response.links.get("next", {}).get("url")
-        # AttributeError / TypeError: a 200 whose body is not the expected list of reviews.
-        except (requests.RequestException, AttributeError, TypeError) as e:
-            console_print(f"[warning]Could not read the reviews of the PR's head commit: {e}")
+        # AttributeError / KeyError / TypeError: a 200 whose body is not the expected PR or list of reviews.
+        except (requests.RequestException, AttributeError, KeyError, TypeError) as e:
+            console_print(f"[warning]Could not read the labels and reviews of the PR: {e}")
             return False
         committers = {committer.casefold() for committer in COMMITTERS}
         approved = any(latest_on_head.get(committer) == "APPROVED" for committer in committers)

@@ -4984,9 +4984,9 @@ def _pull_request_context(head_repo: str | None, author_type: str = "User") -> d
         ),
     ],
 )
-@patch.object(SelectiveChecks, "_head_approved_by_committer", autospec=True, return_value=True)
+@patch.object(SelectiveChecks, "_is_self_hosted_label_approved", autospec=True, return_value=True)
 def test_runner_type(
-    _mock_head_approved_by_committer,
+    _mock_is_self_hosted_label_approved,
     github_event: GithubEvents,
     github_repository: str,
     github_context_dict: dict[str, Any],
@@ -5021,9 +5021,9 @@ def test_use_public_runners_variable(monkeypatch, value: str, expected: str):
     assert selective_checks.runner_type == expected
 
 
-@patch.object(SelectiveChecks, "_head_approved_by_committer", autospec=True, return_value=True)
+@patch.object(SelectiveChecks, "_is_self_hosted_label_approved", autospec=True, return_value=True)
 def test_use_public_runners_variable_beats_the_self_hosted_label(
-    _mock_head_approved_by_committer, monkeypatch
+    _mock_is_self_hosted_label_approved, monkeypatch
 ):
     monkeypatch.setenv("USE_PUBLIC_RUNNERS", "true")
     selective_checks = SelectiveChecks(
@@ -5115,8 +5115,10 @@ def _review(login: str, state: str, commit_id: str = HEAD_SHA) -> dict[str, Any]
     ],
 )
 @patch("requests.get", autospec=True)
-def test_head_approved_by_committer(mock_get, pages: list[list[dict[str, Any]]], expected: bool):
-    responses = []
+def test_is_self_hosted_label_approved(mock_get, pages: list[list[dict[str, Any]]], expected: bool):
+    pull_request = Mock(spec=requests.Response)
+    pull_request.json.return_value = {"labels": [{"name": "use self-hosted runners"}]}
+    responses = [pull_request]
     for index, page in enumerate(pages):
         response = Mock(spec=requests.Response)
         response.json.return_value = page
@@ -5127,14 +5129,36 @@ def test_head_approved_by_committer(mock_get, pages: list[list[dict[str, Any]]],
         github_context_dict=_pull_request_context("someone/airflow"),
         pr_labels=("use self-hosted runners",),
     )
-    assert selective_checks._head_approved_by_committer() is expected
-    assert mock_get.call_args_list[0].args[0] == (
-        "https://api.github.com/repos/apache/airflow/pulls/7/reviews?per_page=100"
+    assert selective_checks._is_self_hosted_label_approved() is expected
+    assert [call.args[0] for call in mock_get.call_args_list[:2]] == [
+        "https://api.github.com/repos/apache/airflow/pulls/7",
+        "https://api.github.com/repos/apache/airflow/pulls/7/reviews?per_page=100",
+    ]
+
+
+@pytest.mark.parametrize(
+    "pull_request_body",
+    [
+        pytest.param({"labels": [{"name": "full tests needed"}]}, id="label removed since the event"),
+        pytest.param({"message": "Not Found"}, id="error object instead of the PR"),
+    ],
+)
+@patch("requests.get", autospec=True)
+def test_is_self_hosted_label_approved_needs_the_current_label(mock_get, pull_request_body: dict[str, Any]):
+    # A re-run reuses the labels of its original event, so the label is still in pr_labels.
+    response = Mock(spec=requests.Response)
+    response.json.return_value = pull_request_body
+    mock_get.return_value = response
+    selective_checks = SelectiveChecks(
+        github_context_dict=_pull_request_context("someone/airflow"),
+        pr_labels=("use self-hosted runners",),
     )
+    assert selective_checks._is_self_hosted_label_approved() is False
+    mock_get.assert_called_once()
 
 
 @patch("requests.get", autospec=True)
-def test_head_approved_by_committer_without_head_sha(mock_get):
+def test_is_self_hosted_label_approved_without_head_sha(mock_get):
     # A review whose commit_id is missing must not match a missing head sha.
     response = Mock(spec=requests.Response)
     response.json.return_value = [{"user": {"login": COMMITTERS[0]}, "state": "APPROVED"}]
@@ -5143,7 +5167,7 @@ def test_head_approved_by_committer_without_head_sha(mock_get):
     context = _pull_request_context("someone/airflow")
     del context["event"]["pull_request"]["head"]["sha"]
     selective_checks = SelectiveChecks(github_context_dict=context, pr_labels=("use self-hosted runners",))
-    assert selective_checks._head_approved_by_committer() is False
+    assert selective_checks._is_self_hosted_label_approved() is False
     mock_get.assert_not_called()
 
 
