@@ -25,6 +25,7 @@ import time
 import warnings
 from collections import defaultdict
 from configparser import ConfigParser
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -798,10 +799,10 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
-    def get_bundle_config(self, name: str) -> _ExternalBundleConfig:
-        """Get the accepted configuration without refreshing or constructing the bundle."""
+    def get_bundle_importers_config(self, name: str) -> Any:
+        """Return accepted importer settings without refreshing bundle configuration."""
         try:
-            return self._snapshot.configs[name].model_copy(deep=True)
+            return deepcopy(self._snapshot.configs[name].importers)
         except KeyError:
             raise ValueError(f"Requested bundle '{name}' is not configured.") from None
 

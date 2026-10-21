@@ -2295,7 +2295,7 @@ def test_bundle_configuration_preserves_importer_settings_without_validating_the
     dynamic_bundle_config.write_text(json.dumps([config]))
     manager = DagBundlesManager()
     assert manager.get_all_bundle_names() == ["my-test-bundle"]
-    assert manager.get_bundle_config(config["name"]).importers == config["importers"]
+    assert manager.get_bundle_importers_config(config["name"]) == config["importers"]
 
 
 def test_bundle_enumeration_refreshes_existing_manager(dynamic_bundle_config):
@@ -2306,15 +2306,23 @@ def test_bundle_enumeration_refreshes_existing_manager(dynamic_bundle_config):
 
 
 @mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
-def test_get_bundle_config_retains_accepted_data_without_refresh(mock_command, dynamic_bundle_config):
-    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+@pytest.mark.parametrize(
+    "importers", [None, [], [{"classpath": "airflow.sdk.importers.PythonDagImporter", "kwargs": {}}]]
+)
+def test_get_bundle_importers_config_retains_accepted_data_without_refresh(
+    mock_command, dynamic_bundle_config, importers
+):
+    mock_command.return_value = json.dumps([{**BASIC_BUNDLE_CONFIG[0], "importers": importers}])
     manager = DagBundlesManager()
     mock_command.side_effect = OSError("configuration source unavailable")
 
-    config = manager.get_bundle_config("my-test-bundle")
-    assert config.name == "my-test-bundle"
-    config.kwargs["path"] = "changed by caller"
-    assert manager.get_bundle_config("my-test-bundle").kwargs == BASIC_BUNDLE_CONFIG[0]["kwargs"]
+    accepted_importers = manager.get_bundle_importers_config("my-test-bundle")
+    assert accepted_importers == importers
+    if isinstance(accepted_importers, list):
+        if accepted_importers:
+            accepted_importers[0]["kwargs"]["changed_by_caller"] = True
+        accepted_importers.append({"classpath": "changed.by.caller"})
+    assert manager.get_bundle_importers_config("my-test-bundle") == importers
     with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured"):
-        manager.get_bundle_config("missing")
+        manager.get_bundle_importers_config("missing")
     mock_command.assert_called_once()
