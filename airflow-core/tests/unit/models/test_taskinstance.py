@@ -128,6 +128,7 @@ from tests_common.test_utils.attempt_ownership import (
     ownership_session as ownership_session,
 )
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mapping import expand_mapped_task_instances
 from tests_common.test_utils.mock_operators import MockOperator
@@ -4295,6 +4296,42 @@ class TestMappedTaskInstanceReceiveValue:
             session.flush()
 
         assert sorted(received) == [10, 20, 30]
+
+    def test_iterate_in_a_loop_is_read_from_outside_the_loop_and_by_the_next_pass(self, session):
+        """
+        An iterated task's result names the loop pass that pushed it: a task outside the loop reads the
+        items of every pass, and the next pass reads the previous one's through ``loop.previous``.
+        """
+        seen: dict[str, list] = {}
+
+        @task_group
+        def body():
+            @task
+            def inputs(**context):
+                return [context["loop"].index * 10 + 1, context["loop"].index * 10 + 2]
+
+            @task
+            def remember_previous(**context):
+                previous = context["loop"].previous
+                seen.setdefault("previous", []).append(None if previous is None else list(previous))
+
+            @task
+            def double(x):
+                return x * 2
+
+            remember_previous() >> double.iterate(x=inputs())
+
+        @task
+        def outside(results):
+            seen["outside"] = [list(result) for result in results]
+
+        with DAG("iterate_in_a_loop", schedule=None) as dag:
+            loop = create_loop(body, max_iterations=2)
+            outside(loop["double"].output)
+        sync_dag_to_db(dag)
+
+        assert dag.test().state == DagRunState.SUCCESS
+        assert seen == {"previous": [None, [2, 4]], "outside": [[2, 4], [22, 24]]}
 
     @pytest.mark.parametrize(
         ("with_policy", "expected_state"),

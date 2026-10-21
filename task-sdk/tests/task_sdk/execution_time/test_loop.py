@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 
 import pytest
 
@@ -263,17 +264,29 @@ def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(
 async def test_iterated_terminal_keeps_iteration_across_item_reads(
     loop_ti, mock_supervisor_comms, previous_iteration
 ):
-    """An iterated terminal's result is an XComIterable; its items are read in the same iteration."""
+    """
+    An iterated terminal's result is an XComIterable that names the pass it was pushed in, so its items
+    are read from that pass: the current one for ``loop.result``, the one before for ``loop.previous``.
+    """
     from airflow.sdk.bases.xcom import XComIterable
     from airflow.sdk.serde import serialize
 
     ti = loop_ti(index=1)
+    pushed_in = 0 if previous_iteration else 1
+    region_id = uuid.UUID(int=5)
     sent = []
 
     def respond(message):
         sent.append(message)
         if message.key == "return_value":
-            result = XComIterable(task_id="body.terminal", dag_id="loop_runtime", run_id=ti.run_id, length=2)
+            result = XComIterable(
+                task_id="body.terminal",
+                dag_id="loop_runtime",
+                run_id=ti.run_id,
+                length=2,
+                region_id=region_id,
+                region_index=pushed_in,
+            )
             return XComResult(key=message.key, value=serialize(result))
         return XComResult(key=message.key, value=message.key)
 
@@ -288,10 +301,12 @@ async def test_iterated_terminal_keeps_iteration_across_item_reads(
     assert isinstance(result, XComIterable)
     assert result[0] == "return_value_0"
     assert await result.aget(1) == "return_value_1"
-    assert [(message.key, message.previous_iteration) for message in sent] == [
-        ("return_value", previous_iteration),
-        ("return_value_0", previous_iteration),
-        ("return_value_1", previous_iteration),
+    assert [
+        (message.key, message.previous_iteration, message.region_id, message.region_index) for message in sent
+    ] == [
+        ("return_value", previous_iteration, None, None),
+        ("return_value_0", False, region_id, pushed_in),
+        ("return_value_1", False, region_id, pushed_in),
     ]
 
 

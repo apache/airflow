@@ -119,3 +119,19 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
     )
+
+
+class AddRegionToGetXCom(VersionChange):
+    """
+    Add ``region_id`` and ``region_index`` to ``GetXCom``, naming the producer's region and pass.
+
+    The supervisor-schema mirror of the execution API's ``AddRegionToXComFilterParams``: an iterated
+    task's result reads its items from the pass that pushed them, whoever reads it.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXCom).field("region_id").didnt_exist,
+        schema(GetXCom).field("region_index").didnt_exist,
+    )

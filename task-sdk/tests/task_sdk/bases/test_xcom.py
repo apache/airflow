@@ -325,46 +325,49 @@ class TestXComIterable:
             "skipped": [],
         }
 
-    def test_an_iterable_read_through_loop_previous_is_refused_when_pushed(self):
-        """
-        "Previous" is relative to the reader: pushed on, the iterable would point a later reader at
-        another iteration's items, so serializing it, as a push or a checkpoint does, is refused.
-        """
-        iterable = XComIterable(task_id="task", dag_id="dag", run_id="run", length=2, previous_iteration=True)
+    def test_an_iterable_in_a_loop_keeps_the_pass_it_was_pushed_in_through_serialization(self):
+        """A reader outside the loop, or in a later pass, gets the pointer with the producer's pass."""
+        region_id = uuid.UUID(int=3)
+        iterable = XComIterable(
+            task_id="task", dag_id="dag", run_id="run", length=2, region_id=region_id, region_index=1
+        )
 
-        with pytest.raises(TypeError, match="read through loop.previous cannot be pushed as is"):
-            iterable.serialize()
-        with pytest.raises(TypeError, match="read through loop.previous cannot be pushed as is"):
-            BaseXCom.serialize_value(iterable)
+        restored = XComIterable.deserialize(iterable.serialize(), version=1)
 
-    @pytest.mark.parametrize("previous_iteration", [False, True])
-    @pytest.mark.parametrize("use_async", [False, True])
+        assert (restored.region_id, restored.region_index) == (region_id, 1)
+        assert self.make_iterable(length=2).serialize().keys() == {
+            "task_id",
+            "dag_id",
+            "run_id",
+            "map_index",
+            "length",
+            "skipped",
+        }
+
+    @pytest.mark.parametrize("in_a_loop", [False, True])
     @pytest.mark.asyncio
-    async def test_an_iterable_read_from_the_previous_iteration_reads_its_items_from_it(
-        self, previous_iteration, use_async, mock_supervisor_comms
+    @patch.object(XCom, "get_one")
+    @patch.object(XCom, "aget_one", new_callable=AsyncMock)
+    async def test_item_reads_name_the_pass_the_items_were_pushed_in(
+        self, mock_aget_one, mock_get_one, in_a_loop
     ):
-        """The XCom read that loads the pointer tells it which iteration it was read from."""
-        response = XComResult(
-            key="return_value", value=BaseXCom.serialize_value(self.make_iterable(length=2))
-        )
-        coordinates = dict(key="return_value", dag_id="dag", task_id="task", run_id="run")
+        """Only an iterable pushed in a loop scopes its reads, so a backend outside one gets the old arguments."""
+        region = {"region_id": uuid.UUID(int=3), "region_index": 1} if in_a_loop else {}
+        iterable = XComIterable(task_id="task", dag_id="dag", run_id="run", length=2, **region)
 
-        if use_async:
-            mock_supervisor_comms.asend = AsyncMock(return_value=response)
-            result = await XCom.aget_one(**coordinates, _previous_iteration=previous_iteration)
-        else:
-            mock_supervisor_comms.send.return_value = response
-            result = XCom.get_one(**coordinates, _previous_iteration=previous_iteration)
+        iterable[0]
+        await iterable.aget(1)
 
-        assert isinstance(result, XComIterable)
-        assert result.previous_iteration is previous_iteration
-        # The flag lives for the load only: the next read starts from the current iteration again.
-        assert (
-            XComIterable.deserialize(
-                {"task_id": "t", "dag_id": "d", "run_id": "r"}, version=1
-            ).previous_iteration
-            is False
-        )
+        scope = {f"_{name}": value for name, value in region.items()}
+        assert mock_get_one.call_args.kwargs == {
+            "key": "return_value_0",
+            "dag_id": "dag",
+            "task_id": "task",
+            "run_id": "run",
+            "map_index": None,
+            **scope,
+        }
+        assert mock_aget_one.call_args.kwargs == {**mock_get_one.call_args.kwargs, "key": "return_value_1"}
 
     def test_deserialize_restores_fields(self):
         data = {"task_id": "task", "dag_id": "dag", "run_id": "run", "map_index": 2, "length": 5}

@@ -1028,6 +1028,9 @@ class GetXCom(BaseModel):
     task_id: str
     map_index: int | None = None
     include_prior_dates: bool = False
+    # The producer's region and pass, named explicitly instead of resolved from the reader's.
+    region_id: UUID | None = None
+    region_index: int | None = None
     type: Literal["GetXCom"] = "GetXCom"
 
 

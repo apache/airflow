@@ -24,6 +24,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -1985,6 +1986,23 @@ class TestIterableOperator:
                 assert list(result) == [1, None, 4]
                 assert store["_iterable_1"]["status"] == "success"
                 assert "result" not in store["_iterable_1"]
+
+    @pytest.mark.parametrize("in_a_loop", [False, True])
+    def test_the_result_names_the_loop_pass_it_was_pushed_in(self, in_a_loop):
+        """Inside a loop the result records its task instance's region and pass; outside one it names none."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}]), task_id="in_a_loop"
+            )
+
+            with mock_context(task=iterable_op) as context:
+                region_id = uuid.UUID(int=9)
+                if in_a_loop:
+                    context["ti"].region_id = region_id
+                    context["ti"].region_index = 2
+                result = iterable_op.execute(context=context)
+
+        assert (result.region_id, result.region_index) == ((region_id, 2) if in_a_loop else (None, None))
 
     def test_skipped_iteration_is_left_out_of_the_result(self):
         """As a skipped mapped task instance, a skipped iteration is not among the values downstream reads."""

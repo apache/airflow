@@ -2874,6 +2874,31 @@
           "title": "Include Prior Dates",
           "type": "boolean"
         },
+        "region_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Id"
+        },
+        "region_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Index"
+        },
         "type": {
           "const": "GetXCom",
           "default": "GetXCom",

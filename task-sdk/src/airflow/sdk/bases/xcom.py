@@ -143,12 +143,6 @@ _current_trigger_ti: contextvars.ContextVar[_OwnTaskInstance | None] = contextva
     "airflow_current_trigger_ti", default=None
 )
 
-# Whether the XCom value being loaded was read from the iteration before the reader's, so a value that points
-# at other XComs reads them from that iteration too; see ``XComIterable.deserialize``.
-_loading_previous_iteration: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    "airflow_loading_previous_iteration", default=False
-)
-
 
 class TIKeyProtocol(Protocol):
     dag_id: str
@@ -491,6 +485,8 @@ class BaseXCom:
         map_index: int | None = None,
         include_prior_dates: bool = False,
         _previous_iteration: bool = False,
+        _region_id: UUID | None = None,
+        _region_index: int | None = None,
     ) -> Any | None:
         """
         Retrieve an XCom value, optionally meeting certain criteria.
@@ -526,6 +522,8 @@ class BaseXCom:
                 map_index=map_index,
                 include_prior_dates=include_prior_dates,
                 previous_iteration=_previous_iteration,
+                region_id=_region_id,
+                region_index=_region_index,
             ),
         )
 
@@ -533,7 +531,7 @@ class BaseXCom:
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
         if msg.value is not None:
-            return cls._load(msg, previous_iteration=_previous_iteration)
+            return cls._load(msg)
         log.debug(
             "No XCom value found; defaulting to None.",
             key=key,
@@ -555,6 +553,8 @@ class BaseXCom:
         map_index: int | None = None,
         include_prior_dates: bool = False,
         _previous_iteration: bool = False,
+        _region_id: UUID | None = None,
+        _region_index: int | None = None,
     ) -> Any | None:
         """
         Retrieve an XCom value asynchronously, optionally meeting certain criteria.
@@ -590,6 +590,8 @@ class BaseXCom:
                 map_index=map_index,
                 include_prior_dates=include_prior_dates,
                 previous_iteration=_previous_iteration,
+                region_id=_region_id,
+                region_index=_region_index,
             ),
         )
 
@@ -597,7 +599,7 @@ class BaseXCom:
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
         if msg.value is not None:
-            return await asyncio.to_thread(cls._load, msg, previous_iteration=_previous_iteration)
+            return await asyncio.to_thread(cls._load, msg)
         log.debug(
             "No XCom value found; defaulting to None.",
             key=key,
@@ -749,14 +751,7 @@ class BaseXCom:
         return [cls._load(_XComValueWrapper(value)) for value in values]
 
     @classmethod
-    def _load(cls, result: Any, *, previous_iteration: bool = False) -> Any:
-        if previous_iteration:
-            # The flag cannot travel through deserialize_value, whose signature backends implement.
-            token = _loading_previous_iteration.set(True)
-            try:
-                return cls._load(result)
-            finally:
-                _loading_previous_iteration.reset(token)
+    def _load(cls, result: Any) -> Any:
         # Legacy backends keep receiving the result object deserialize_value has always been given.
         if _is_preferred_over(cls, "load_value", "deserialize_value"):
             return cls.load_value(result.value)
@@ -841,10 +836,10 @@ class XComIterable(Sequence):
     iterating and slicing: N elements are N requests. Reading several in one request needs an
     Execution API endpoint that takes a list of keys, which does not exist yet.
 
-    An iterable read from the previous iteration (``loop.previous`` inside a loop) is built with
-    ``previous_iteration`` set (see :meth:`deserialize`), so its elements are read from that
-    iteration too and not from the current one. "Previous" is relative to whoever reads, so
-    such an iterable cannot be pushed on: :meth:`serialize` refuses it (see there).
+    Inside a loop, the iterable records the region and pass of the task instance that pushed it
+    (``region_id``, ``region_index``), and its element reads name them: a reader outside the loop,
+    one in a later pass (``loop.previous``) and one in the same pass all read the items of the pass
+    that produced them. Outside any loop both are None and the reads carry no scope.
     """
 
     def __init__(
@@ -855,7 +850,8 @@ class XComIterable(Sequence):
         map_index: int | None = None,
         length: int | None = None,
         skipped: Sequence[int] = (),
-        previous_iteration: bool = False,
+        region_id: UUID | str | None = None,
+        region_index: int | None = None,
     ):
         self.task_id = task_id
         self.dag_id = dag_id
@@ -863,7 +859,9 @@ class XComIterable(Sequence):
         self.map_index = map_index
         self.length = length or 0
         self.skipped: list[int] = sorted(skipped)
-        self.previous_iteration = previous_iteration
+        # A serialized iterable carries the region id as a string.
+        self.region_id = UUID(str(region_id)) if region_id is not None else None
+        self.region_index = region_index
 
     def _index_of(self, position: int) -> int:
         """Map ``position`` in the sequence to its input index, stepping over the skipped indices."""
@@ -920,7 +918,7 @@ class XComIterable(Sequence):
         """
         Build the arguments of the XCom read for the item at ``position``.
 
-        The previous-iteration flag is passed only when set, so a read outside a loop calls the
+        The producer's region and pass are passed only when set, so a read outside a loop calls the
         XCom backend's ``get_one``/``aget_one`` with the same arguments as before.
         """
         query: dict[str, Any] = {
@@ -930,25 +928,13 @@ class XComIterable(Sequence):
             "run_id": self.run_id,
             "map_index": self.map_index,
         }
-        if self.previous_iteration:
-            query["_previous_iteration"] = True
+        if self.region_id is not None:
+            query["_region_id"] = self.region_id
+            query["_region_index"] = self.region_index
         return query
 
     def serialize(self) -> dict:
-        """
-        Ensure the object is JSON serializable.
-
-        An iterable read through ``loop.previous`` is refused: its items are read from the
-        iteration before the reader's, so pushed as a return value or an XCom, or checkpointed,
-        it would point at another iteration's items for every later reader. Push the values the
-        task needs instead, ``list(loop.previous)`` for all of them.
-        """
-        if self.previous_iteration:
-            raise TypeError(
-                f"The result of {self.task_id!r} read through loop.previous cannot be pushed as is: "
-                "it reads the iteration before its reader's, so a later reader would get other items. "
-                "Push the values you need instead, for example list(loop.previous)."
-            )
+        """Ensure the object is JSON serializable."""
         data = {
             "task_id": self.task_id,
             "dag_id": self.dag_id,
@@ -957,17 +943,15 @@ class XComIterable(Sequence):
             "length": self.length,
             "skipped": self.skipped,
         }
+        if self.region_id is not None:
+            data["region_id"] = str(self.region_id)
+            data["region_index"] = self.region_index
         return data
 
     @classmethod
     def deserialize(cls, data: dict, version: int):
-        """
-        Ensure the object is JSON deserializable.
-
-        The iterable is a pointer whose item reads resolve to the reader's iteration, so one loaded by a
-        read from the previous iteration reads its items from that iteration as well.
-        """
-        return cls(**data, previous_iteration=_loading_previous_iteration.get())
+        """Ensure the object is JSON deserializable."""
+        return cls(**data)
 
 
 class _AsyncXComIterator:

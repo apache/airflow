@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from airflow.sdk import BaseXCom, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
-from airflow.sdk.bases.xcom import XComIterable
+from airflow.sdk.bases.xcom import XComIterable, _own_coordinate
 from airflow.sdk.definitions._internal.fingerprint import InputFingerprint
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
@@ -964,17 +964,20 @@ class IterationRun:
     def run(self) -> tuple[XComIterable | None, list[int]]:
         """Run every index to completion; return the task's result and the skipped indices."""
         skipped = self._run_indexed_tasks()
-        result = (
-            XComIterable(
-                task_id=self._operator.task_id,
-                dag_id=self._operator.dag_id,
-                run_id=self.context["run_id"],
-                length=self.length,
-                map_index=self.context["ti"].map_index,
-                skipped=skipped,
-            )
-            if self.unmapper.do_xcom_push and self.resolved
-            else None
+        if not (self.unmapper.do_xcom_push and self.resolved):
+            return None, skipped
+        ti = self.context["ti"]
+        # Where the items were pushed: inside a loop, every reader then reads this pass's items.
+        own = _own_coordinate(ti)
+        result = XComIterable(
+            task_id=self._operator.task_id,
+            dag_id=self._operator.dag_id,
+            run_id=self.context["run_id"],
+            length=self.length,
+            map_index=ti.map_index,
+            skipped=skipped,
+            region_id=own.region_id,
+            region_index=own.region_index,
         )
         return result, skipped
 
