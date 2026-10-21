@@ -5495,3 +5495,41 @@ class TestNextQueryCounterFromContext:
         assert len(second) == 8
         assert first != second  # random per call
         assert "OpenLineage encountered an error when retrieving query counter from context" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("prefix", "get_information"),
+    [
+        pytest.param("parent", get_parent_information_from_dagrun_conf, id="parent"),
+        pytest.param("rootParent", get_root_information_from_dagrun_conf, id="root"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("job_type", "expected"),
+    [
+        pytest.param(
+            {"processingType": "STREAMING", "integration": "CUSTOM", "jobType": "PIPELINE"},
+            {"processingType": "STREAMING", "integration": "CUSTOM", "jobType": "PIPELINE"},
+            id="full",
+        ),
+        pytest.param({"jobType": "JOB"}, {"jobType": "JOB"}, id="partial"),
+        pytest.param(None, None, id="missing"),
+        pytest.param("invalid", None, id="not-a-dict"),
+        pytest.param({}, None, id="empty"),
+        pytest.param({"jobType": 1}, None, id="non-string-value"),
+        pytest.param({"jobType": "JOB", "other": "x"}, None, id="unknown-field"),
+    ],
+)
+def test_get_information_from_dagrun_conf_job_type(prefix, get_information, job_type, expected):
+    ol_conf = {
+        f"{prefix}RunId": "11111111-1111-1111-1111-111111111111",
+        f"{prefix}JobNamespace": "ns",
+        f"{prefix}JobName": "jobX",
+    }
+    if job_type is not None:
+        ol_conf[f"{prefix}JobType"] = job_type
+    result = get_information({"openlineage": ol_conf})
+    key = "parent_job_type" if prefix == "parent" else "root_parent_job_type"
+    assert result.get(key) == expected
+    if expected is not None:
+        assert result[key] is not job_type

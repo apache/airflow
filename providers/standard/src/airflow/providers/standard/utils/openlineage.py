@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
@@ -80,13 +79,15 @@ def _get_openlineage_parent_info(ti: TaskInstance | RuntimeTI) -> dict[str, Any]
         "rootParentJobName": lineage_root_job_name(ti),
         "rootParentJobNamespace": lineage_root_job_namespace(ti),
     }
-    dag_run = getattr(ti, "dag_run", None)
-    if dag_run is None:
-        dag_run = ti.get_template_context()["dag_run"]
-    if isinstance(dag_run.conf, dict):
-        ol_conf = dag_run.conf.get("openlineage")
-        if isinstance(ol_conf, dict) and isinstance(root_job_type := ol_conf.get("rootParentJobType"), dict):
-            parent_info["rootParentJobType"] = deepcopy(root_job_type)
+
+    try:
+        from airflow.providers.openlineage.plugins.macros import lineage_job_type, lineage_root_job_type
+    except ImportError:  # Job type macros are missing in older versions of the OpenLineage provider
+        return parent_info
+
+    parent_info["parentJobType"] = lineage_job_type()
+    if (root_job_type := lineage_root_job_type(ti)) is not None:
+        parent_info["rootParentJobType"] = root_job_type
     return parent_info
 
 

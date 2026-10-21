@@ -441,7 +441,29 @@ def _get_openlineage_data_from_dagrun_conf(dr_conf: dict | None) -> dict:
     return ol_data if isinstance(ol_data, dict) else {}
 
 
-def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+def _get_job_type_from_ol_data(ol_data: dict, key: str) -> dict[str, str] | None:
+    """Return a copy of the job type facet fields stored under ``key`` if they are valid, otherwise None."""
+    job_type = ol_data.get(key)
+    if job_type is None:
+        return None
+    allowed_fields = ("processingType", "integration", "jobType")
+    if (
+        not isinstance(job_type, dict)
+        or not job_type
+        or not all(field in allowed_fields and isinstance(value, str) for field, value in job_type.items())
+    ):
+        log.warning(
+            "Invalid OpenLineage %s '%s' in DAG run config - expected a dictionary with "
+            "string values for any of: %s.",
+            key,
+            job_type,
+            ", ".join(allowed_fields),
+        )
+        return None
+    return dict(job_type)
+
+
+def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, Any]:
     """Extract root parent run and job information from a DAG run config."""
     ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
     if not ol_data:
@@ -483,14 +505,17 @@ def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str
         root_parent_job_namespace,
         root_parent_job_name,
     )
-    return {
+    root_info: dict[str, Any] = {
         "root_parent_run_id": root_parent_run_id,
         "root_parent_job_namespace": root_parent_job_namespace,
         "root_parent_job_name": root_parent_job_name,
     }
+    if root_parent_job_type := _get_job_type_from_ol_data(ol_data, "rootParentJobType"):
+        root_info["root_parent_job_type"] = root_parent_job_type
+    return root_info
 
 
-def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, Any]:
     """Extract parent run and job information from a DAG run config."""
     ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
     if not ol_data:
@@ -533,11 +558,14 @@ def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, s
         parent_job_name,
     )
 
-    return {
+    parent_info: dict[str, Any] = {
         "parent_run_id": parent_run_id,
         "parent_job_namespace": parent_job_namespace,
         "parent_job_name": parent_job_name,
     }
+    if parent_job_type := _get_job_type_from_ol_data(ol_data, "parentJobType"):
+        parent_info["parent_job_type"] = parent_job_type
+    return parent_info
 
 
 def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.ParentRunFacet]:

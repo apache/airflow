@@ -320,6 +320,7 @@ These macros:
 
   * ``lineage_job_namespace()`` - Returns OpenLineage namespace for a given task_instance
   * ``lineage_job_name(task_instance)`` - Returns OpenLineage job name for a given task_instance
+  * ``lineage_job_type()`` - Returns OpenLineage job type facet fields (``processingType``, ``integration``, ``jobType``) of an Airflow task
   * ``lineage_run_id(task_instance)`` - Returns the generated OpenLineage run id for a given task_instance
 
 describe the Airflow task and should be used as **parent** information when configuring child jobs. From the child job's perspective,
@@ -367,6 +368,9 @@ These macros:
   * ``lineage_root_job_namespace(task_instance)`` - Returns OpenLineage namespace of root job of a given task_instance
   * ``lineage_root_job_name(task_instance)`` - Returns OpenLineage job name of root job of a given task_instance
   * ``lineage_root_run_id(task_instance)`` - Returns OpenLineage run ID of root run of a given task_instance
+  * ``lineage_root_job_type(task_instance)`` - Returns OpenLineage job type facet fields (``processingType``, ``integration``,
+    ``jobType``) of root job of a given task_instance, or ``None`` if the root comes from the DagRun conf and its job type
+    is missing or invalid
 
 forward the Airflow task's root information into the child job and should be used as **root** information when configuring child jobs.
 This allows the child job to maintain the complete job hierarchy, especially in scenarios where tasks are executed as part of a larger workflow.
