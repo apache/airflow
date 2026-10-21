@@ -49,7 +49,9 @@ from sqlalchemy.orm import Session
 from airflow import DAG, settings
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
+from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.callback import ExecutorCallback
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
@@ -59,7 +61,7 @@ from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
@@ -80,6 +82,7 @@ from airflow.utils.db_cleanup import (
 )
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import CompactUUID
+from airflow.utils.state import CallbackState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.attempt_ownership import (
@@ -102,6 +105,10 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
+
+
+def execute_cleanup_callback():
+    pass
 
 
 @pytest.fixture(autouse=True)
@@ -454,7 +461,7 @@ class TestDBCleanup:
         [
             (
                 "dag_run",
-                {"dag_run", "task_instance"},  # Only these are populated
+                {"callback", "dag_run", "task_instance"},  # Only these are populated
             ),
         ],
     )
@@ -475,6 +482,16 @@ class TestDBCleanup:
         clean_before_date = base_date.add(days=10)
 
         with create_session() as session:
+            dag_run = session.scalar(select(DagRun).order_by(DagRun.id).limit(1))
+            callback = ExecutorCallback(
+                SyncCallback(execute_cleanup_callback), fetch_method=CallbackFetchMethod.IMPORT_PATH
+            )
+            callback.created_at = base_date
+            callback.dagrun_id = dag_run.id
+            callback.state = CallbackState.SUCCESS
+            session.add(callback)
+            session.flush()
+
             run_cleanup(
                 clean_before_timestamp=clean_before_date,
                 table_names=[table_name],
@@ -493,6 +510,10 @@ class TestDBCleanup:
             assert expected_archived <= actual_archived, (
                 f"Expected archive tables not found: {expected_archived - actual_archived}"
             )
+            callback_archive = next(
+                name for name in archive_tables if name.startswith(f"{ARCHIVE_TABLE_PREFIX}callback__")
+            )
+            assert session.scalar(text(f"SELECT COUNT(*) FROM {callback_archive}")) == 1
 
     @pytest.mark.parametrize(
         ("dag_ids", "exclude_dag_ids", "expected_remaining_dag_ids"),

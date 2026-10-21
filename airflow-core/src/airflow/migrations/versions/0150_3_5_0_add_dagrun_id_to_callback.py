@@ -32,6 +32,7 @@ import sqlalchemy as sa
 from alembic import context, op
 
 from airflow.configuration import conf
+from airflow.migrations.utils import disable_sqlite_fkeys
 
 # revision identifiers, used by Alembic.
 revision = "0f4c9a2b8e1d"
@@ -141,27 +142,78 @@ def _backfill_dagrun_id(conn, batch_size: int) -> None:
         last_id = rows[-1].id
 
 
+def _restore_legacy_dagrun_id(conn, batch_size: int) -> None:
+    callback = sa.table(
+        "callback",
+        sa.column("id", sa.Uuid()),
+        sa.column("type", sa.String(20)),
+        sa.column("data", sa.Text()),
+        sa.column("dagrun_id", sa.Integer()),
+    )
+
+    last_id = None
+    while True:
+        query = (
+            sa.select(callback.c.id, callback.c.data, callback.c.dagrun_id)
+            .where(callback.c.type == "executor", callback.c.dagrun_id.is_not(None))
+            .order_by(callback.c.id)
+            .limit(batch_size)
+        )
+        if last_id is not None:
+            query = query.where(callback.c.id > last_id)
+
+        rows = conn.execute(query).fetchall()
+        if not rows:
+            return
+
+        for callback_id, data, dagrun_id in rows:
+            if isinstance(data, str):
+                try:
+                    serialized_data = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+            elif isinstance(data, dict):
+                serialized_data = data
+            else:
+                continue
+
+            callback_data = serialized_data.get("__var", serialized_data)
+            if not isinstance(callback_data, dict):
+                continue
+            callback_data["dag_run_id"] = str(dagrun_id)
+            conn.execute(
+                callback.update().where(callback.c.id == callback_id).values(data=json.dumps(serialized_data))
+            )
+
+        last_id = rows[-1].id
+
+
 def upgrade():
     """Add callback.dagrun_id and backfill it from legacy callback.data."""
-    with op.batch_alter_table("callback") as batch_op:
-        batch_op.add_column(sa.Column("dagrun_id", sa.Integer(), nullable=True))
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("callback") as batch_op:
+            batch_op.add_column(sa.Column("dagrun_id", sa.Integer(), nullable=True))
 
-    if not context.is_offline_mode():
-        conn = op.get_bind()
-        batch_size = conf.getint("database", "migration_batch_size")
-        _backfill_dagrun_id_from_deadline(conn, batch_size)
-        _backfill_dagrun_id(conn, batch_size)
+        if not context.is_offline_mode():
+            conn = op.get_bind()
+            batch_size = conf.getint("database", "migration_batch_size")
+            _backfill_dagrun_id_from_deadline(conn, batch_size)
+            _backfill_dagrun_id(conn, batch_size)
 
-    with op.batch_alter_table("callback") as batch_op:
-        batch_op.create_index("callback_dagrun_id_idx", ["dagrun_id"], unique=False)
-        batch_op.create_foreign_key(
-            batch_op.f("callback_dagrun_id_fkey"), "dag_run", ["dagrun_id"], ["id"], ondelete="CASCADE"
-        )
+        with op.batch_alter_table("callback") as batch_op:
+            batch_op.create_index("callback_dagrun_id_idx", ["dagrun_id"], unique=False)
+            batch_op.create_foreign_key(
+                batch_op.f("callback_dagrun_id_fkey"), "dag_run", ["dagrun_id"], ["id"], ondelete="CASCADE"
+            )
 
 
 def downgrade():
-    """Remove callback.dagrun_id."""
-    with op.batch_alter_table("callback") as batch_op:
-        batch_op.drop_constraint(batch_op.f("callback_dagrun_id_fkey"), type_="foreignkey")
-        batch_op.drop_index("callback_dagrun_id_idx")
-        batch_op.drop_column("dagrun_id")
+    """Restore legacy callback data and remove callback.dagrun_id."""
+    with disable_sqlite_fkeys(op):
+        if not context.is_offline_mode():
+            _restore_legacy_dagrun_id(op.get_bind(), conf.getint("database", "migration_batch_size"))
+
+        with op.batch_alter_table("callback") as batch_op:
+            batch_op.drop_constraint(batch_op.f("callback_dagrun_id_fkey"), type_="foreignkey")
+            batch_op.drop_index("callback_dagrun_id_idx")
+            batch_op.drop_column("dagrun_id")
