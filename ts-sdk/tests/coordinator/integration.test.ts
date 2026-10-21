@@ -1013,8 +1013,8 @@ describe("coordinator runtime integration", () => {
         conf: { source: "ts" },
         reset_dag_run: false,
         note: "from ts",
-        run_after: null,
       });
+      expect(sent).not.toHaveProperty("run_after");
       expect(requestsOf(result, "SetXCom")).toEqual([
         expect.objectContaining({
           key: "_link_TriggerDagRunLink",
@@ -1038,6 +1038,81 @@ describe("coordinator runtime integration", () => {
       expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
         value: "https://airflow.example.com/sub/dags/downstream/runs/given",
       });
+    });
+
+    it.each([
+      {
+        name: "logicalDate and runAfter",
+        logicalDate: new Date("2026-10-01T00:00:00.000Z"),
+        runAfter: new Date("2026-10-01T06:00:00.000Z"),
+        expectedLogicalDate: "2026-10-01T00:00:00.000Z",
+        expectedRunAfter: "2026-10-01T06:00:00.000Z",
+        expectedRunId: "manual__2026-10-01T06:00:00+00:00",
+      },
+      {
+        name: "logicalDate without runAfter",
+        logicalDate: new Date("2026-10-01T00:00:00.000Z"),
+        expectedLogicalDate: "2026-10-01T00:00:00.000Z",
+        expectedRunId: "manual__2026-10-01T00:00:00+00:00",
+      },
+      {
+        name: "null logicalDate without runAfter",
+        logicalDate: null,
+        expectedLogicalDate: null,
+        expectedRunIdPattern:
+          /^manual__\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{6})?\+00:00_[A-Za-z0-9]{8}$/,
+      },
+      {
+        name: "null logicalDate and runAfter",
+        logicalDate: null,
+        runAfter: new Date("2026-10-01T06:00:00.000Z"),
+        expectedLogicalDate: null,
+        expectedRunAfter: "2026-10-01T06:00:00.000Z",
+        expectedRunIdPattern: /^manual__2026-10-01T06:00:00\+00:00_[A-Za-z0-9]{8}$/,
+      },
+      {
+        name: "omitted logicalDate and runAfter",
+        expectedLogicalDatePattern: /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/,
+        expectedRunIdPattern: /^manual__\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{6})?\+00:00$/,
+      },
+      {
+        name: "omitted logicalDate with runAfter",
+        runAfter: new Date("2026-10-01T06:00:00.000Z"),
+        expectedLogicalDate: null,
+        expectedRunAfter: "2026-10-01T06:00:00.000Z",
+        expectedRunIdPattern: /^manual__2026-10-01T06:00:00\+00:00_[A-Za-z0-9]{8}$/,
+      },
+    ])("$name", async (testCase) => {
+      testDag.task(
+        triggerDagRun({
+          dagId: "downstream",
+          ...(testCase.logicalDate === undefined ? {} : { logicalDate: testCase.logicalDate }),
+          ...(testCase.runAfter === undefined ? {} : { runAfter: testCase.runAfter }),
+        }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+      const request = requestsOf(result, "TriggerDagRun")[0]!;
+
+      if (testCase.expectedLogicalDatePattern !== undefined) {
+        expect(request["logical_date"]).toMatch(testCase.expectedLogicalDatePattern);
+      } else {
+        expect(request["logical_date"]).toBe(testCase.expectedLogicalDate);
+      }
+      if (testCase.expectedRunAfter === undefined) {
+        expect(request).not.toHaveProperty("run_after");
+      } else {
+        expect(request["run_after"]).toBe(testCase.expectedRunAfter);
+      }
+      if (testCase.expectedRunIdPattern !== undefined) {
+        expect(request["run_id"]).toMatch(testCase.expectedRunIdPattern);
+      } else {
+        expect(request["run_id"]).toBe(testCase.expectedRunId);
+      }
     });
 
     it.each([

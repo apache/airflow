@@ -65,6 +65,23 @@ A Dag also has order-only dependencies (`before` and `after`), task groups, bran
 [guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/typescript.html)
 for all of them.
 
+To trigger another Dag with a specific logical date and earliest start time:
+
+```ts
+import { triggerDagRun } from "apache-airflow-ts-sdk";
+
+dag.task(
+  triggerDagRun({
+    dagId: "report",
+    logicalDate: new Date("2026-10-01T00:00:00Z"),
+    runAfter: new Date("2026-10-01T06:00:00Z"),
+  }),
+  { taskId: "trigger_report" },
+)();
+```
+
+When neither date is supplied, `logicalDate` defaults to the current time. Supplying only `runAfter`, or setting `logicalDate`: `null`, creates a run without a logical date. Dates are serialized as UTC ISO timestamps. If `runAfter` is omitted, Airflow defaults it to the current time. Jinja templates are not evaluated.
+
 ## Implementing stub tasks of a Python Dag
 
 The Python Dag declares the tasks and their dependencies:
