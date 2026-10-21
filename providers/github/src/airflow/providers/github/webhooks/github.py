@@ -50,6 +50,9 @@ _NAMED_OBJECTS = {
     "pull_request.base.repo": "full_name",
 }
 
+#: The longest correlation key that ``WebhookDelivery`` allows.
+_MAX_CORRELATION_KEY_LENGTH = 255
+
 #: Where events other than push, create and delete name their branch.
 _BRANCH_FIELDS = {
     "check_run": "check_run.check_suite.head_branch",
@@ -79,6 +82,9 @@ class GitHubWebhookSource(WebhookSource):
     a commit of the repository itself, the ``ref`` of a ``create`` or ``delete`` whose ``ref_type`` is
     ``branch``, and otherwise the branch that a ``ref`` of the form ``refs/heads/<branch>`` names, as in
     ``push`` and ``workflow_dispatch``.
+
+    A delivery about a pull request or issue has the correlation key ``<repository>#<number>``, such as
+    ``my-org/web#7``; pull requests and issues share one sequence of numbers per repository.
 
     The ``ping`` GitHub sends when a webhook is created is a handshake, answered without recording
     anything.
@@ -111,6 +117,7 @@ class GitHubWebhookSource(WebhookSource):
             attributes={key: value for key, value in found_attributes.items() if value is not None},
             delivery_id=request.headers.get("X-GitHub-Delivery"),
             payload=payload,
+            correlation_key=self.find_correlation_key(payload),
         )
 
     def is_handshake(self, request: WebhookRequest) -> bool:
@@ -200,3 +207,15 @@ class GitHubWebhookSource(WebhookSource):
             if isinstance(number, int) and not isinstance(number, bool):
                 return number
         return None
+
+    @classmethod
+    def find_correlation_key(cls, payload: dict[str, Any]) -> str | None:
+        """Return ``<repository>#<number>`` for a delivery about a pull request or issue, or None."""
+        repository = get_text(payload, "repository.full_name")
+        number = cls.find_number(payload)
+        if repository is None or number is None:
+            return None
+        key = f"{repository}#{number}"
+        # GitHub's keys are far shorter: an owner has at most 39 characters and a repository 100. Core
+        # answers a longer key with a 500, so a delivery that GitHub cannot have sent goes without one.
+        return key if len(key) <= _MAX_CORRELATION_KEY_LENGTH else None
