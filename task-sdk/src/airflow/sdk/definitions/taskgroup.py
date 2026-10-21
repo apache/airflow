@@ -226,7 +226,7 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         Map this task group over each keyword argument.
 
         Use the returned group in place of this one; inside it,
-        :meth:`MappedTaskGroup.get_mapped_argument` references the value of an
+        :attr:`MappedTaskGroup.mapped_args` references the value of an
         argument for each expanded instance.
 
         .. code-block:: python
@@ -235,7 +235,7 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                 a = PythonOperator(
                     task_id="a",
                     python_callable=work,
-                    op_kwargs={"duration": tg.get_mapped_argument("duration")},
+                    op_kwargs={"duration": tg.mapped_args.duration},
                 )
         """
         from airflow.sdk.definitions.mappedoperator import ensure_xcomarg_return_value
@@ -817,6 +817,36 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                     )
 
 
+@attrs.define(frozen=True)
+class MappedArgs:
+    """
+    Arguments of a mapped task group, each resolved for every expanded instance of the group.
+
+    Access an argument as an attribute (``mapped_args.duration``) or by key (``mapped_args["duration"]``).
+    """
+
+    _expand_input: DictOfListsExpandInput | ListOfDictsExpandInput = attrs.field(alias="expand_input")
+    _group_id: str | None = attrs.field(alias="group_id")
+
+    def __getitem__(self, key: str) -> MappedArgument:
+        if isinstance(self._expand_input, DictOfListsExpandInput) and key not in self._expand_input.value:
+            raise KeyError(
+                f"{key!r} is not a mapped argument of task group {self._group_id!r}; "
+                f"available: {sorted(self._expand_input.value)}"
+            )
+        return MappedArgument(input=self._expand_input, key=key)
+
+    def __getattr__(self, key: str) -> MappedArgument:
+        # Keys of expand_kwargs() are only known at run time, so without this guard dunder
+        # lookups such as copy's ``__deepcopy__`` would get a MappedArgument back.
+        if key.startswith("_"):
+            raise AttributeError(key)
+        try:
+            return self[key]
+        except KeyError as e:
+            raise AttributeError(*e.args) from e
+
+
 @attrs.define(kw_only=True, repr=False)
 class MappedTaskGroup(TaskGroup):
     """
@@ -831,18 +861,10 @@ class MappedTaskGroup(TaskGroup):
 
     _expand_input: DictOfListsExpandInput | ListOfDictsExpandInput = attrs.field(alias="expand_input")
 
-    def get_mapped_argument(self, key: str) -> MappedArgument:
-        """
-        Return a reference to the value of *key* for each expanded instance of this group.
-
-        :param key: Name of the mapped argument.
-        """
-        if isinstance(self._expand_input, DictOfListsExpandInput) and key not in self._expand_input.value:
-            raise KeyError(
-                f"{key!r} is not a mapped argument of task group {self.group_id!r}; "
-                f"available: {sorted(self._expand_input.value)}"
-            )
-        return MappedArgument(input=self._expand_input, key=key)
+    @property
+    def mapped_args(self) -> MappedArgs:
+        """References to the arguments this group is mapped over, e.g. ``tg.mapped_args.duration``."""
+        return MappedArgs(expand_input=self._expand_input, group_id=self.group_id)
 
     def __iter__(self):
         for child in self.children.values():

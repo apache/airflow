@@ -368,7 +368,7 @@ In the above example, task ``convert_to_yaml`` is expanded into two task instanc
 Mapping over a task group with Object Oriented Programming
 ----------------------------------------------------------
 
-To map a group of classic operators, call ``expand`` (or ``expand_kwargs``) on a ``TaskGroup`` and use the returned group as a context manager. Inside the group, ``get_mapped_argument`` returns a reference that is resolved for each expanded instance when it is passed to a templated field:
+To map a group of classic operators, call ``expand`` (or ``expand_kwargs``) on a ``TaskGroup`` and use the returned group as a context manager. Inside the group, ``mapped_args`` gives a reference to each mapped argument, as an attribute (``tg.mapped_args.duration``) or by key (``tg.mapped_args["duration"]``). The reference is resolved for each expanded instance when it is passed to a templated field:
 
 .. code-block:: python
 
@@ -389,12 +389,12 @@ To map a group of classic operators, call ``expand`` (or ``expand_kwargs``) on a
         a = PythonOperator(
             task_id="a",
             python_callable=wait,
-            op_kwargs={"duration": tg.get_mapped_argument("duration")},
+            op_kwargs={"duration": tg.mapped_args.duration},
         )
         b = BashOperator(
             task_id="b",
             bash_command="sleep $DURATION",
-            env={"DURATION": tg.get_mapped_argument("duration")},
+            env={"DURATION": tg.mapped_args.duration},
         )
         a >> b
 

@@ -1174,22 +1174,35 @@ def test_expand_kwargs_invalid(value):
             TaskGroup(group_id="g").expand_kwargs(value)
 
 
-def test_get_mapped_argument_unknown_key():
+@pytest.mark.parametrize(
+    ("get_argument", "exc_type"),
+    [
+        pytest.param(lambda mapped_args: mapped_args["other"], KeyError, id="key"),
+        pytest.param(lambda mapped_args: mapped_args.other, AttributeError, id="attribute"),
+    ],
+)
+def test_mapped_args_unknown_argument(get_argument, exc_type):
     with DAG("test", schedule=None, start_date=DEFAULT_DATE):
         with TaskGroup(group_id="g").expand(value=[1]) as tg:
-            with pytest.raises(KeyError, match="'other' is not a mapped argument"):
-                tg.get_mapped_argument("other")
+            with pytest.raises(exc_type, match="'other' is not a mapped argument"):
+                get_argument(tg.mapped_args)
+
+
+def test_mapped_args_private_attribute():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with TaskGroup(group_id="g").expand_kwargs([{"value": 1}]) as tg:
+            assert not hasattr(tg.mapped_args, "__deepcopy__")
 
 
 @pytest.mark.parametrize(("map_index", "expected"), [(0, "a"), (1, "b")])
-def test_get_mapped_argument_expand(create_runtime_ti, mock_supervisor_comms, map_index, expected):
+def test_mapped_args_expand(create_runtime_ti, mock_supervisor_comms, map_index, expected):
     with DAG("test", schedule=None, start_date=DEFAULT_DATE):
         upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
         with TaskGroup(group_id="g").expand(value=upstream.output) as tg:
             task = PythonOperator(
                 task_id="t",
                 python_callable=lambda **kwargs: None,
-                op_kwargs={"value": tg.get_mapped_argument("value")},
+                op_kwargs={"value": tg.mapped_args.value},
             )
 
     mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=["a", "b"])
@@ -1199,7 +1212,7 @@ def test_get_mapped_argument_expand(create_runtime_ti, mock_supervisor_comms, ma
 
 
 @pytest.mark.parametrize("map_index", [0, 1])
-def test_get_mapped_argument_expand_kwargs(create_runtime_ti, mock_supervisor_comms, map_index):
+def test_mapped_args_expand_kwargs(create_runtime_ti, mock_supervisor_comms, map_index):
     mapped_kwargs = [
         {"op_kwargs": {"x": 1, "y": 2}, "templates_dict": {"a": "1"}},
         {"op_kwargs": {"x": 3, "y": 4}, "templates_dict": {"a": "2"}},
@@ -1210,8 +1223,8 @@ def test_get_mapped_argument_expand_kwargs(create_runtime_ti, mock_supervisor_co
             task = PythonOperator(
                 task_id="t",
                 python_callable=lambda **kwargs: None,
-                op_kwargs=tg.get_mapped_argument("op_kwargs"),
-                templates_dict=tg.get_mapped_argument("templates_dict"),
+                op_kwargs=tg.mapped_args.op_kwargs,
+                templates_dict=tg.mapped_args["templates_dict"],
             )
 
     mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=mapped_kwargs)
