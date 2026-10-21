@@ -338,7 +338,7 @@ class LoopContext(BaseModel):
     """
 
     node_id: Annotated[str, Field(title="Node Id")]
-    index: Annotated[int, Field(ge=0, title="Index")]
+    index: Annotated[int, Field(ge=1, title="Index")]
     max_iterations: Annotated[int, Field(gt=0, title="Max Iterations")]
     terminal_task_id: Annotated[str, Field(title="Terminal Task Id")]
     terminal_is_mapped: Annotated[bool, Field(title="Terminal Is Mapped")]

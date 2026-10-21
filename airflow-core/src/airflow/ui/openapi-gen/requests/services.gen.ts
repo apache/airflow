@@ -3136,7 +3136,7 @@ export class TaskInstanceService {
      * @param data.regionId
      * @param data.regionIndex
      * @param data.loopId Task group id of a loop; matches every instance it produced.
-     * @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
+     * @param data.iteration Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.taskId
      * @param data.runAfterGte
@@ -5844,6 +5844,14 @@ export class GanttService {
      * @param data The data for the request.
      * @param data.dagId
      * @param data.runId
+     * @param data.startDateGte
+     * @param data.startDateGt
+     * @param data.startDateLte
+     * @param data.startDateLt
+     * @param data.endDateGte
+     * @param data.endDateGt
+     * @param data.endDateLte
+     * @param data.endDateLt
      * @returns GanttResponse Successful Response
      * @throws ApiError
      */
@@ -5854,6 +5862,16 @@ export class GanttService {
             path: {
                 dag_id: data.dagId,
                 run_id: data.runId
+            },
+            query: {
+                start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
+                start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
+                end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
+                end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt
             },
             errors: {
                 404: 'Not Found',

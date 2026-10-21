@@ -1098,7 +1098,9 @@ class LoopIterationResponse(BaseModel):
     """
 
     loop_id: Annotated[str, Field(title="Loop Id")]
-    iteration: Annotated[int, Field(title="Iteration")]
+    iteration: Annotated[
+        int, Field(description="Position in the enclosing loop, counting from one.", ge=1, title="Iteration")
+    ]
 
 
 class MaterializeAssetBody(BaseModel):
@@ -1168,7 +1170,7 @@ class PoolBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    name: Annotated[str, Field(max_length=256, title="Name")]
+    name: Annotated[str, Field(max_length=256, pattern="\\S", title="Name")]
     slots: Annotated[int, Field(description="Number of slots. Use -1 for unlimited.", ge=-1, title="Slots")]
     description: Annotated[str | None, Field(title="Description")] = None
     include_deferred: Annotated[bool | None, Field(title="Include Deferred")] = False
@@ -1540,7 +1542,7 @@ class VariableBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    key: Annotated[str, Field(max_length=250, title="Key")]
+    key: Annotated[str, Field(max_length=250, pattern="\\S", title="Key")]
     value: JsonValue
     description: Annotated[str | None, Field(title="Description")] = None
     team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
