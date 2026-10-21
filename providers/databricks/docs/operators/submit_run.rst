@@ -251,8 +251,8 @@ It allows to utilize Airflow workers more effectively using `new functionality i
 Explicit assets
 ---------------
 
-``DatabricksSubmitRunOperator`` does not infer Databricks table assets produced
-by a submitted job. Declare known outputs explicitly using ``outlets``::
+Use ``outlets`` to declare the Unity Catalog tables that the submitted run writes to,
+using :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity`::
 
     from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 

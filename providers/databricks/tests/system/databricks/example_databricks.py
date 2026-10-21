@@ -168,7 +168,7 @@ with DAG(
     sql_statement = DatabricksSQLStatementsOperator(
         task_id="sql_statement",
         databricks_conn_id="databricks_default",
-        statement="insert into default.my_airflow_table values (3, 'test 3')",
+        statement="select * from default.my_airflow_table",
         warehouse_id=WAREHOUSE_ID,
         outlets=[UNITY_TABLE.to_asset()],
         # deferrable=True, # For using the operator in deferrable mode

@@ -1404,8 +1404,8 @@ class TestDatabricksSubmitRunOperator:
         )
 
         assert (
-            "outlets are set with wait_for_termination=False. The asset event will mean the "
-            "Databricks run was submitted, not that the table was refreshed."
+            "`outlets` are set with `wait_for_termination=False`. This means that an Asset event "
+            "will be emitted when the Databricks run is submitted, not when the table is refreshed."
         ) in caplog.text
 
     def test_empty_outlets_do_not_warn(self, caplog):
@@ -1417,7 +1417,7 @@ class TestDatabricksSubmitRunOperator:
         )
 
         assert op.outlets == []
-        assert "outlets are set with wait_for_termination=False" not in caplog.text
+        assert "`outlets` are set with `wait_for_termination=False`" not in caplog.text
 
     def test_outlets_do_not_warn_when_waiting(self, caplog):
         DatabricksSubmitRunOperator(
@@ -1427,7 +1427,7 @@ class TestDatabricksSubmitRunOperator:
             wait_for_termination=True,
         )
 
-        assert "outlets are set with wait_for_termination=False" not in caplog.text
+        assert "`outlets` are set with `wait_for_termination=False`" not in caplog.text
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_execute_task_deferred(self, db_mock_class):
@@ -2882,8 +2882,8 @@ class TestDatabricksRunNowOperator:
         )
 
         assert (
-            "outlets are set with wait_for_termination=False. The asset event will mean the "
-            "Databricks run was submitted, not that the table was refreshed."
+            "`outlets` are set with `wait_for_termination=False`. This means that an Asset event "
+            "will be emitted when the Databricks run is submitted, not when the table is refreshed."
         ) in caplog.text
 
     def test_empty_outlets_do_not_warn(self, caplog):
@@ -2895,7 +2895,7 @@ class TestDatabricksRunNowOperator:
         )
 
         assert op.outlets == []
-        assert "outlets are set with wait_for_termination=False" not in caplog.text
+        assert "`outlets` are set with `wait_for_termination=False`" not in caplog.text
 
     def test_outlets_do_not_warn_when_waiting(self, caplog):
         DatabricksRunNowOperator(
@@ -2905,7 +2905,7 @@ class TestDatabricksRunNowOperator:
             wait_for_termination=True,
         )
 
-        assert "outlets are set with wait_for_termination=False" not in caplog.text
+        assert "`outlets` are set with `wait_for_termination=False`" not in caplog.text
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_init_exception_with_job_name_and_job_id(self, db_mock_class):
@@ -3843,8 +3843,8 @@ class TestDatabricksSQLStatementsOperator:
         )
 
         assert (
-            "outlets are set with wait_for_termination=False. The asset event will mean the "
-            "SQL statement was submitted, not that the table was refreshed."
+            "`outlets` are set with `wait_for_termination=False`. This means that an Asset event "
+            "will be emitted when the Databricks run is submitted, not when the table is refreshed."
         ) in caplog.text
 
     def test_empty_outlets_do_not_warn(self, caplog):
@@ -3857,7 +3857,7 @@ class TestDatabricksSQLStatementsOperator:
         )
 
         assert op.outlets == []
-        assert "outlets are set with wait_for_termination=False" not in caplog.text
+        assert "`outlets` are set with `wait_for_termination=False`" not in caplog.text
 
     def test_outlets_do_not_warn_when_waiting(self, caplog):
         DatabricksSQLStatementsOperator(
@@ -3868,7 +3868,7 @@ class TestDatabricksSQLStatementsOperator:
             wait_for_termination=True,
         )
 
-        assert "outlets are set with wait_for_termination=False" not in caplog.text
+        assert "`outlets` are set with `wait_for_termination=False`" not in caplog.text
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_no_wait_for_termination(self, db_mock_class):

@@ -894,8 +894,8 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         self.wait_for_termination = wait_for_termination
         if self.outlets and not self.wait_for_termination:
             self.log.warning(
-                "outlets are set with wait_for_termination=False. The asset event will mean the "
-                "Databricks run was submitted, not that the table was refreshed."
+                "`outlets` are set with `wait_for_termination=False`. This means that an Asset event "
+                "will be emitted when the Databricks run is submitted, not when the table is refreshed."
             )
 
         self.deferrable = deferrable
@@ -1410,8 +1410,8 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         self.wait_for_termination = wait_for_termination
         if self.outlets and not self.wait_for_termination:
             self.log.warning(
-                "outlets are set with wait_for_termination=False. The asset event will mean the "
-                "Databricks run was submitted, not that the table was refreshed."
+                "`outlets` are set with `wait_for_termination=False`. This means that an Asset event "
+                "will be emitted when the Databricks run is submitted, not when the table is refreshed."
             )
         self.deferrable = deferrable
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
@@ -1726,8 +1726,8 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         self.wait_for_termination = wait_for_termination
         if self.outlets and not self.wait_for_termination:
             self.log.warning(
-                "outlets are set with wait_for_termination=False. The asset event will mean the "
-                "SQL statement was submitted, not that the table was refreshed."
+                "`outlets` are set with `wait_for_termination=False`. This means that an Asset event "
+                "will be emitted when the SQL statement is submitted, not when the table is refreshed."
             )
         self.deferrable = deferrable
         self.query_tags = query_tags or {}
