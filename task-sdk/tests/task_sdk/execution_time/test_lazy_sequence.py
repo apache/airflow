@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import threading
 from unittest.mock import AsyncMock, Mock, call
 
 import pytest
@@ -230,6 +231,25 @@ async def test_aget_loads_through_load_value(monkeypatch, mock_supervisor_comms,
     monkeypatch.setattr(airflow.sdk.execution_time.xcom, "XCom", LoadValueXCom)
 
     assert await lazy_sequence.aget(4) == "loaded ref-4"
+
+
+@pytest.mark.asyncio
+async def test_aget_loads_off_the_event_loop_thread(monkeypatch, mock_supervisor_comms, lazy_sequence):
+    """The backend may download the value, so the load must not hold the loop the other reads share."""
+    loaded_on = []
+
+    class RecordingXCom(BaseXCom):
+        @classmethod
+        def load_value(cls, stored):
+            loaded_on.append(threading.current_thread())
+            return stored
+
+    mock_supervisor_comms.asend = AsyncMock(return_value=XComSequenceIndexResult(root="ref-4"))
+    monkeypatch.setattr(airflow.sdk.execution_time.xcom, "XCom", RecordingXCom)
+
+    assert await lazy_sequence.aget(4) == "ref-4"
+    assert loaded_on
+    assert loaded_on[0] is not threading.current_thread()
 
 
 @pytest.mark.parametrize("previous_iteration", [False, True])

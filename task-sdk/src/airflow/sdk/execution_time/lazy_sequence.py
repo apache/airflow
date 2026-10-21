@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import collections
 import itertools
 from collections.abc import AsyncIterator, Iterator, Sequence
@@ -141,7 +142,11 @@ class LazyXComSequence(Sequence[T]):
             raise IndexError(index)
         if not isinstance(msg, XComSequenceIndexResult):
             raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg!r}")
-        return XCom._load(_XComWrapper(msg.root), previous_iteration=self._previous_iteration)
+        # The backend may download the value (object storage), and the loop serves the other indexed
+        # tasks in flight: load in a thread, as XCom.aget_one does.
+        return await asyncio.to_thread(
+            XCom._load, _XComWrapper(msg.root), previous_iteration=self._previous_iteration
+        )
 
     def __len__(self) -> int:
         if self._len is None:
