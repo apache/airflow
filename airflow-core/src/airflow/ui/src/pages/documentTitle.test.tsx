@@ -45,6 +45,7 @@ describe("document title", () => {
     ["/connections", "admin.Connections"],
     ["/webhook_deliveries", "browse.webhookDeliveries"],
     ["/webhook_deliveries/demo", "webhookDeliveries.title"],
+    ["/webhook_overview", "webhooks.title"],
     ["/variables", "admin.Variables"],
     ["/pools", "admin.Pools"],
     ["/providers", "admin.Providers"],

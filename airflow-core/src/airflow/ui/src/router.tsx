@@ -24,6 +24,7 @@ import { ConfigService } from "openapi/requests/services.gen";
 
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+import { WebhookDeliveriesLayout } from "src/layouts/WebhookDeliveriesLayout";
 
 import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
@@ -74,7 +75,7 @@ import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { TaskStateStore } from "src/pages/TaskStateStore";
 import { Variables } from "src/pages/Variables";
-import { WebhookDeliveries } from "src/pages/WebhookDeliveries";
+import { WebhookDeliveries, Webhooks } from "src/pages/WebhookDeliveries";
 import { XCom } from "src/pages/XCom";
 
 import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
@@ -204,12 +205,24 @@ export const routerConfig = [
       // Never under /webhooks, where the API server serves inbound webhooks: a reload there would
       // never reach the UI.
       {
-        element: <WebhookDeliveries />,
+        element: (
+          <WebhookDeliveriesLayout>
+            <WebhookDeliveries />
+          </WebhookDeliveriesLayout>
+        ),
         path: "webhook_deliveries",
       },
       {
         element: <WebhookDeliveries />,
         path: "webhook_deliveries/:webhookName",
+      },
+      {
+        element: (
+          <WebhookDeliveriesLayout>
+            <Webhooks />
+          </WebhookDeliveriesLayout>
+        ),
+        path: "webhook_overview",
       },
       {
         element: <Jobs />,

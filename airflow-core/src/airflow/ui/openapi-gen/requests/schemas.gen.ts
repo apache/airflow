@@ -9742,6 +9742,33 @@ export const $VersionInfo = {
     description: 'Version information serializer for responses.'
 } as const;
 
+export const $WebhookCollectionResponse = {
+    properties: {
+        webhooks: {
+            items: {
+                '$ref': '#/components/schemas/WebhookResponse'
+            },
+            type: 'array',
+            title: 'Webhooks'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['webhooks', 'total_entries'],
+    title: 'WebhookCollectionResponse',
+    description: 'Webhook collection response.'
+} as const;
+
+export const $WebhookConnectionStatus = {
+    type: 'string',
+    enum: ['ok', 'not_found', 'wrong_type', 'misconfigured', 'unavailable'],
+    title: 'WebhookConnectionStatus',
+    description: "Whether a webhook's ``webhook_<name>`` connection configures a webhook that can be served."
+} as const;
+
 export const $WebhookDeliveryCollectionResponse = {
     properties: {
         deliveries: {
@@ -9879,6 +9906,83 @@ export const $WebhookDeliveryResponse = {
     required: ['id', 'webhook', 'delivery_id', 'received_at', 'source_type', 'attributes', 'correlation_key', 'outcome', 'candidates', 'actions', 'team_name'],
     title: 'WebhookDeliveryResponse',
     description: 'A delivery an inbound webhook received, without its payload.'
+} as const;
+
+export const $WebhookResponse = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        listed: {
+            type: 'boolean',
+            title: 'Listed',
+            description: 'Whether `[webhooks] names` lists the webhook, which it must to be served.'
+        },
+        connection_status: {
+            '$ref': '#/components/schemas/WebhookConnectionStatus',
+            description: "Whether the webhook's `webhook_<name>` connection configures a webhook that can be served: `ok`; `not_found` if no secrets backend has it; `wrong_type` if its type is not `inbound_webhook`; `misconfigured` if it cannot be used as it is, and `airflow webhooks check` says why; `unavailable` if a secrets backend failed."
+        },
+        source_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Source Type',
+            description: 'The source type the connection names, or null if the connection was not read that far.'
+        },
+        source_type_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/WebhookSourceTypeStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Whether an installed provider serves the source type: `ok`; `unknown` if none does; `conflict` if several declare it and `[webhooks] source_type_owners` names none of them. Null when `source_type` is.'
+        },
+        last_received_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Received At',
+            description: 'When the last recorded delivery was received.'
+        },
+        last_outcome: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Outcome',
+            description: 'What Airflow did with the last recorded delivery.'
+        }
+    },
+    type: 'object',
+    required: ['name', 'listed', 'connection_status', 'source_type', 'source_type_status', 'last_received_at', 'last_outcome'],
+    title: 'WebhookResponse',
+    description: 'A webhook, whether it can be served, and the last delivery it received.'
+} as const;
+
+export const $WebhookSourceTypeStatus = {
+    type: 'string',
+    enum: ['ok', 'unknown', 'conflict'],
+    title: 'WebhookSourceTypeStatus',
+    description: "Whether an installed provider serves the source type that a webhook's connection names."
 } as const;
 
 export const $XComCollectionResponse = {

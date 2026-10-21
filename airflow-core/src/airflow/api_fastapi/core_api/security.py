@@ -901,12 +901,17 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
     return inner
 
 
-def requires_access_webhook(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
+def requires_access_webhook(
+    method: ResourceMethod, *, lists_webhooks: bool = False
+) -> Callable[[Request, BaseUser], None]:
     """
     Authorize the caller on the connection of the webhook in the path, which holds its secret.
 
-    The ``~`` wildcard is not checked here: a route given it lists only the webhooks whose connection
-    the caller may read, so a caller who may read none gets an empty list rather than a 403.
+    A route that lists webhooks, or one given the ``~`` wildcard, is not checked here: it lists only the
+    webhooks whose connection the caller may read, so a caller who may read none gets an empty list
+    rather than a 403.
+
+    :param lists_webhooks: Whether the route lists webhooks rather than naming one in its path.
     """
 
     def inner(
@@ -914,7 +919,7 @@ def requires_access_webhook(method: ResourceMethod) -> Callable[[Request, BaseUs
         user: GetUserDep,
     ) -> None:
         webhook_name: str | None = request.path_params.get("webhook_name")
-        if webhook_name == "~":
+        if lists_webhooks or webhook_name == "~":
             return
         # Webhook names cannot name a team yet, and only a connection without a team serves one.
         details = ConnectionDetails(conn_id=f"{CONN_ID_PREFIX}{webhook_name}", team_name=None)

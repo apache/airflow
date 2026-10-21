@@ -16,13 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren } from "react";
+
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { Wrapper } from "src/utils/Wrapper";
+import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { BrowseButton } from "./BrowseButton";
+
+const WebhooksTabWrapper = ({ children }: PropsWithChildren) => (
+  <BaseWrapper>
+    <MemoryRouter initialEntries={["/webhook_overview"]}>{children}</MemoryRouter>
+  </BaseWrapper>
+);
 
 describe("BrowseButton", () => {
   it("links to the webhook deliveries when the menu item is authorized", async () => {
@@ -39,5 +48,13 @@ describe("BrowseButton", () => {
       "/webhook_deliveries",
     ]);
     expect(screen.getByRole("menuitem", { name: "browse.webhookDeliveries" })).toBeInTheDocument();
+  });
+
+  it("is highlighted on the Webhooks tab of the webhook deliveries", () => {
+    render(<BrowseButton authorizedMenuItems={["Webhook Deliveries"]} externalViews={[]} />, {
+      wrapper: WebhooksTabWrapper,
+    });
+
+    expect(screen.getByRole("button", { name: "nav.browse" })).toHaveAttribute("aria-current", "page");
   });
 });

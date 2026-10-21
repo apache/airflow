@@ -11098,6 +11098,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/webhooks:
+    get:
+      tags:
+      - Webhook
+      - experimental
+      summary: 'Experimental: List webhooks and whether they can be served.'
+      description: "\U0001F6A7 This is an experimental endpoint and may change or\
+        \ be removed without notice.\n\nLists the webhooks whose connection you may\
+        \ read, by name: those that `[webhooks] names` lists and those with recorded\
+        \ deliveries. Each says whether its connection and source type let it be served,\
+        \ and when it last received a delivery. A caller who may read no webhook gets\
+        \ an empty list.\n\nEach call reads the connections of the webhooks it returns\
+        \ from the secrets backends. It never returns what a connection holds or why\
+        \ a secrets backend failed: `airflow webhooks check` says that."
+      operationId: get_webhooks
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '500':
+          description: The `[webhooks]` configuration is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/webhooks/{webhook_name}/deliveries:
     get:
       tags:
@@ -19171,6 +19237,33 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
+    WebhookCollectionResponse:
+      properties:
+        webhooks:
+          items:
+            $ref: '#/components/schemas/WebhookResponse'
+          type: array
+          title: Webhooks
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - webhooks
+      - total_entries
+      title: WebhookCollectionResponse
+      description: Webhook collection response.
+    WebhookConnectionStatus:
+      type: string
+      enum:
+      - ok
+      - not_found
+      - wrong_type
+      - misconfigured
+      - unavailable
+      title: WebhookConnectionStatus
+      description: Whether a webhook's ``webhook_<name>`` connection configures a
+        webhook that can be served.
     WebhookDeliveryCollectionResponse:
       properties:
         deliveries:
@@ -19265,6 +19358,70 @@ components:
       - team_name
       title: WebhookDeliveryResponse
       description: A delivery an inbound webhook received, without its payload.
+    WebhookResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        listed:
+          type: boolean
+          title: Listed
+          description: Whether `[webhooks] names` lists the webhook, which it must
+            to be served.
+        connection_status:
+          $ref: '#/components/schemas/WebhookConnectionStatus'
+          description: 'Whether the webhook''s `webhook_<name>` connection configures
+            a webhook that can be served: `ok`; `not_found` if no secrets backend
+            has it; `wrong_type` if its type is not `inbound_webhook`; `misconfigured`
+            if it cannot be used as it is, and `airflow webhooks check` says why;
+            `unavailable` if a secrets backend failed.'
+        source_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Type
+          description: The source type the connection names, or null if the connection
+            was not read that far.
+        source_type_status:
+          anyOf:
+          - $ref: '#/components/schemas/WebhookSourceTypeStatus'
+          - type: 'null'
+          description: 'Whether an installed provider serves the source type: `ok`;
+            `unknown` if none does; `conflict` if several declare it and `[webhooks]
+            source_type_owners` names none of them. Null when `source_type` is.'
+        last_received_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Received At
+          description: When the last recorded delivery was received.
+        last_outcome:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Outcome
+          description: What Airflow did with the last recorded delivery.
+      type: object
+      required:
+      - name
+      - listed
+      - connection_status
+      - source_type
+      - source_type_status
+      - last_received_at
+      - last_outcome
+      title: WebhookResponse
+      description: A webhook, whether it can be served, and the last delivery it received.
+    WebhookSourceTypeStatus:
+      type: string
+      enum:
+      - ok
+      - unknown
+      - conflict
+      title: WebhookSourceTypeStatus
+      description: Whether an installed provider serves the source type that a webhook's
+        connection names.
     XComCollectionResponse:
       properties:
         xcom_entries:

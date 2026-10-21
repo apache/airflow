@@ -87,8 +87,23 @@ class ResolutionFailure(enum.Enum):
     NOT_FOUND = "not_found"
     #: A secrets backend failed, so the connection may exist. This is never cached.
     UNAVAILABLE = "unavailable"
-    #: The connection does not configure a webhook that can be served.
+    #: The connection's type is not ``inbound_webhook``.
+    WRONG_TYPE = "wrong_type"
+    #: The connection does not configure a webhook that can be served for another reason.
     MISCONFIGURED = "misconfigured"
+
+
+class WebhookSourceTypeStatus(str, enum.Enum):
+    """Whether an installed provider serves the source type that a webhook's connection names."""
+
+    #: One package serves it: the only one that declares it, or the one ``[webhooks] source_type_owners``
+    #: names.
+    OK = "ok"
+    #: No package serves it: none declares it, the one ``source_type_owners`` names does not, or the
+    #: declared class cannot be imported or is not a ``WebhookSource``.
+    UNKNOWN = "unknown"
+    #: Several packages declare it and ``source_type_owners`` names none of them, so none serves it.
+    CONFLICT = "conflict"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -98,10 +113,58 @@ class UnresolvedWebhook:
 
     :param failure: What kind of failure it is.
     :param reason: What is wrong, for the log and the Deployment Manager; never for the sender.
+    :param source_type: The source type the connection names, or None if the connection was not read
+        that far.
+    :param source_type_status: Whether an installed provider serves ``source_type``, or None if it was
+        not looked up.
     """
 
     failure: ResolutionFailure
     reason: str
+    source_type: str | None = None
+    source_type_status: WebhookSourceTypeStatus | None = None
+
+
+#: The failures that come from what the connection says, rather than from finding it.
+MISCONFIGURATIONS = frozenset({ResolutionFailure.WRONG_TYPE, ResolutionFailure.MISCONFIGURED})
+
+
+def _find_unserved_source_type_problem(
+    source_type: str, owner: str | None, source_class: type | None
+) -> tuple[WebhookSourceTypeStatus, str]:
+    """Return why no package serves ``source_type``, given the class ``ProvidersManager`` returned for it."""
+    if source_class is not None:
+        return (
+            WebhookSourceTypeStatus.UNKNOWN,
+            f"source type {source_type!r} is not a subclass of WebhookSource",
+        )
+    providers_manager = ProvidersManager()
+    declarations = providers_manager.webhook_source_conflicts.get(source_type)
+    if owner is None and declarations:
+        packages = ", ".join(info.package_name for info in declarations)
+        return (
+            WebhookSourceTypeStatus.CONFLICT,
+            f"source type {source_type!r} is declared by {packages}; set [webhooks] source_type_owners to the "
+            "package that serves it",
+        )
+    declared = [
+        info
+        for info in providers_manager.webhook_sources
+        if info.source_type == source_type and (owner is None or info.package_name == owner)
+    ]
+    if len(declared) == 1:
+        return (
+            WebhookSourceTypeStatus.UNKNOWN,
+            f"{declared[0].package_name} declares source type {source_type!r}, but its class "
+            f"{declared[0].classpath} could not be imported or is not a class",
+        )
+    if owner:
+        hint = f" ([webhooks] source_type_owners names {owner})"
+    elif source_type in _STANDARD_SOURCE_TYPES:
+        hint = f"; it needs apache-airflow-providers-standard {_MIN_STANDARD_PROVIDER_VERSION} or later"
+    else:
+        hint = ""
+    return WebhookSourceTypeStatus.UNKNOWN, f"no installed provider serves source type {source_type!r}{hint}"
 
 
 def _configure_webhook(
@@ -112,9 +175,14 @@ def _configure_webhook(
     default_max_body_bytes: int,
     default_store_payload: StorePayload,
 ) -> ConfiguredWebhook | UnresolvedWebhook:
+    if conn.conn_type != CONN_TYPE:
+        return UnresolvedWebhook(
+            failure=ResolutionFailure.WRONG_TYPE, reason=f"its type is {conn.conn_type!r}, not {CONN_TYPE!r}"
+        )
+    # Set as they are found, so that a failure found after them still reports them.
+    source_type: str | None = None
+    source_type_status: WebhookSourceTypeStatus | None = None
     try:
-        if conn.conn_type != CONN_TYPE:
-            raise ValueError(f"its type is {conn.conn_type!r}, not {CONN_TYPE!r}")
         extra_json = conn.extra
         extra = json.loads(extra_json) if extra_json else {}
         mask_secret(extra)
@@ -122,42 +190,21 @@ def _configure_webhook(
         extra = {key: value for key, value in extra.items() if value not in (None, "")}
         if not conn.password:
             raise ValueError("its password, which holds the shared secret, is empty")
-        source_type = extra.get("source_type", name)
-        if not isinstance(source_type, str):
+        configured_source_type = extra.get("source_type", name)
+        if not isinstance(configured_source_type, str):
             raise ValueError("source_type must be a string")
+        source_type = configured_source_type
         owner = source_type_owners.get(source_type)
-        providers_manager = ProvidersManager()
-        source_class = providers_manager.get_webhook_source_class(source_type, package_name=owner)
-        if source_class is None:
-            declarations = providers_manager.webhook_source_conflicts.get(source_type)
-            if owner is None and declarations:
-                packages = ", ".join(info.package_name for info in declarations)
-                return UnresolvedWebhook(
-                    failure=ResolutionFailure.MISCONFIGURED,
-                    reason=f"source type {source_type!r} is declared by {packages}; set [webhooks] "
-                    "source_type_owners to the package that serves it",
-                )
-            declared = [
-                info
-                for info in providers_manager.webhook_sources
-                if info.source_type == source_type and (owner is None or info.package_name == owner)
-            ]
-            if len(declared) == 1:
-                raise ValueError(
-                    f"{declared[0].package_name} declares source type {source_type!r}, but its class "
-                    f"{declared[0].classpath} could not be imported or is not a class"
-                )
-            if owner:
-                hint = f" ([webhooks] source_type_owners names {owner})"
-            elif source_type in _STANDARD_SOURCE_TYPES:
-                hint = (
-                    f"; it needs apache-airflow-providers-standard {_MIN_STANDARD_PROVIDER_VERSION} or later"
-                )
-            else:
-                hint = ""
-            raise ValueError(f"no installed provider serves source type {source_type!r}{hint}")
+        source_class = ProvidersManager().get_webhook_source_class(source_type, package_name=owner)
         if not (isinstance(source_class, type) and issubclass(source_class, WebhookSource)):
-            raise ValueError(f"source type {source_type!r} is not a subclass of WebhookSource")
+            source_type_status, reason = _find_unserved_source_type_problem(source_type, owner, source_class)
+            return UnresolvedWebhook(
+                failure=ResolutionFailure.MISCONFIGURED,
+                reason=reason,
+                source_type=source_type,
+                source_type_status=source_type_status,
+            )
+        source_type_status = WebhookSourceTypeStatus.OK
         # A connection given as a URI has string values in its extra.
         max_body_bytes = str(extra.get("max_body_bytes", default_max_body_bytes))
         if not max_body_bytes.isdecimal() or int(max_body_bytes) < 1:
@@ -176,7 +223,7 @@ def _configure_webhook(
             store_payload=store_payload,
         )
     except ValueError as e:
-        return UnresolvedWebhook(failure=ResolutionFailure.MISCONFIGURED, reason=str(e))
+        reason = str(e)
     except Exception as e:
         # Such as a password encrypted with another Fernet key, or a source type's from_extra failing
         # unexpectedly. Retrying cannot help until the connection or the deployment changes, so this is
@@ -186,9 +233,13 @@ def _configure_webhook(
             conn_id=f"{CONN_ID_PREFIX}{name}",
             exc_info=True,
         )
-        return UnresolvedWebhook(
-            failure=ResolutionFailure.MISCONFIGURED, reason=f"the connection could not be used: {e!r}"
-        )
+        reason = f"the connection could not be used: {e!r}"
+    return UnresolvedWebhook(
+        failure=ResolutionFailure.MISCONFIGURED,
+        reason=reason,
+        source_type=source_type,
+        source_type_status=source_type_status,
+    )
 
 
 def resolve_webhook(
@@ -295,7 +346,7 @@ class WebhookConnectionCache:
         self._lookups[name] = (count + 1, resolution)
         if (
             isinstance(resolution, UnresolvedWebhook)
-            and resolution.failure is ResolutionFailure.MISCONFIGURED
+            and resolution.failure in MISCONFIGURATIONS
             and resolution != previous
         ):
             # Once until it changes, not once per lookup: with a TTL of 0 there is a lookup per request.

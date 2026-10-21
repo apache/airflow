@@ -20,6 +20,7 @@ import { useEffect, useRef } from "react";
 
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { CreatableSelect, Select as ReactSelect, type SelectInstance } from "chakra-react-select";
+import { useTranslation } from "react-i18next";
 
 import { MatchModeToggle } from "src/components/MatchModeToggle";
 
@@ -37,6 +38,7 @@ const PILL_WIDTH = "460px";
 const PILL_WIDTH_WITH_MATCH_MODE = "620px";
 
 type Props = FilterPluginProps & {
+  readonly isLoading?: boolean;
   readonly noOptionsMessage: string;
   readonly onInputChange?: (value: string) => void;
   readonly onMenuScrollToBottom?: () => void;
@@ -51,6 +53,7 @@ type Props = FilterPluginProps & {
  */
 export const MultiSelectPill = ({
   filter,
+  isLoading,
   noOptionsMessage,
   onChange,
   onInputChange,
@@ -59,6 +62,7 @@ export const MultiSelectPill = ({
   onRemove,
   options,
 }: Props) => {
+  const { t: translate } = useTranslation();
   const { mode, setMode } = useMatchMode(filter.config.matchModeKey);
   const values = Array.isArray(filter.value) ? filter.value : [];
   const SelectComponent = filter.config.isCreatable === true ? CreatableSelect : ReactSelect;
@@ -152,7 +156,9 @@ export const MultiSelectPill = ({
               closeMenuOnSelect={false}
               defaultMenuIsOpen={values.length === 0}
               isClearable
+              isLoading={isLoading}
               isMulti
+              loadingMessage={() => translate("loading")}
               // The pill clips its own corners, and the table header it sits in scrolls, so an
               // inline menu is hidden by one of those ancestors. Portal it out to the body.
               menuPortalTarget={document.body}

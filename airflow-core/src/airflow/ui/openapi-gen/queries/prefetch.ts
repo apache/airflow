@@ -590,6 +590,23 @@ export const prefetchUseExperimentalServiceWaitDagRunUntilFinished = (queryClien
   result?: string[];
 }) => queryClient.prefetchQuery({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) });
 /**
+* Experimental: List webhooks and whether they can be served.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the webhooks whose connection you may read, by name: those that `[webhooks] names` lists and those with recorded deliveries. Each says whether its connection and source type let it be served, and when it last received a delivery. A caller who may read no webhook gets an empty list.
+*
+* Each call reads the connections of the webhooks it returns from the secrets backends. It never returns what a connection holds or why a secrets backend failed: `airflow webhooks check` says that.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @returns WebhookCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseExperimentalServiceGetWebhooks = (queryClient: QueryClient, { limit, offset }: {
+  limit?: number;
+  offset?: number;
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseExperimentalServiceGetWebhooksKeyFn({ limit, offset }), queryFn: () => ExperimentalService.getWebhooks({ limit, offset }) });
+/**
 * Experimental: List the deliveries a webhook received.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.
 *
@@ -2111,6 +2128,23 @@ export const prefetchUseVariableServiceGetVariables = (queryClient: QueryClient,
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }) });
+/**
+* Experimental: List webhooks and whether they can be served.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the webhooks whose connection you may read, by name: those that `[webhooks] names` lists and those with recorded deliveries. Each says whether its connection and source type let it be served, and when it last received a delivery. A caller who may read no webhook gets an empty list.
+*
+* Each call reads the connections of the webhooks it returns from the secrets backends. It never returns what a connection holds or why a secrets backend failed: `airflow webhooks check` says that.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @returns WebhookCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseWebhookServiceGetWebhooks = (queryClient: QueryClient, { limit, offset }: {
+  limit?: number;
+  offset?: number;
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseWebhookServiceGetWebhooksKeyFn({ limit, offset }), queryFn: () => WebhookService.getWebhooks({ limit, offset }) });
 /**
 * Experimental: List the deliveries a webhook received.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.

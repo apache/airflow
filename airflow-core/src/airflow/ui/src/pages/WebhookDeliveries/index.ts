@@ -17,3 +17,4 @@
  * under the License.
  */
 export { WebhookDeliveries } from "./WebhookDeliveries";
+export { Webhooks } from "./Webhooks";

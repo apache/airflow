@@ -27,12 +27,14 @@ from airflow.api_fastapi.auth.managers.models.resource_details import Connection
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models.inbound_delivery import InboundDelivery
+from airflow.providers_manager import ProviderInfo, ProvidersManager
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_inbound_deliveries
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
+from tests_common.test_utils.webhooks import FakeHmacSource, FakeSecretsBackend, build_webhook_connection
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -323,3 +325,191 @@ class TestGetDeliveriesOfAllWebhooks:
 
         assert response.status_code == 200
         assert [delivery["webhook"] for delivery in response.json()["deliveries"]] == expected_webhooks
+
+
+OVERVIEW_URL = "/webhooks"
+
+
+def _build_overview_row(
+    name: str,
+    *,
+    listed: bool = True,
+    connection_status: str = "not_found",
+    source_type: str | None = None,
+    source_type_status: str | None = None,
+    last_received_at: datetime | None = None,
+    last_outcome: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "name": name,
+        "listed": listed,
+        "connection_status": connection_status,
+        "source_type": source_type,
+        "source_type_status": source_type_status,
+        "last_received_at": None
+        if last_received_at is None
+        else from_datetime_to_zulu_without_ms(last_received_at),
+        "last_outcome": last_outcome,
+    }
+
+
+class TestGetWebhooks:
+    @pytest.fixture(autouse=True)
+    def providers(self, cleanup_providers_manager):
+        fake_source = {"source-type": "fake", "classpath": f"{FakeHmacSource.__module__}.FakeHmacSource"}
+        ProvidersManager()._provider_dict = {
+            "fake-webhooks": ProviderInfo(version="0.0.1", data={"webhook-sources": [fake_source]}),
+        }
+
+    @pytest.fixture(autouse=True)
+    def secrets_backend(self) -> Generator[FakeSecretsBackend, None, None]:
+        backend = FakeSecretsBackend()
+        with mock.patch(
+            "airflow.webhooks.connections.ensure_secrets_loaded", autospec=True, return_value=[backend]
+        ):
+            yield backend
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        assert unauthenticated_test_client.get(OVERVIEW_URL).status_code == 401
+
+    @conf_vars({("webhooks", "names"): "github,jira"})
+    def test_lists_each_readable_webhook_with_its_last_delivery(self, test_client):
+        response = test_client.get(OVERVIEW_URL)
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "webhooks": [
+                _build_overview_row(
+                    "github",
+                    last_received_at=RECEIVED_AT + timedelta(minutes=2),
+                    last_outcome="no_subscribers",
+                ),
+                # No longer listed, but its deliveries are still recorded.
+                _build_overview_row(
+                    "gitlab",
+                    listed=False,
+                    last_received_at=RECEIVED_AT + timedelta(seconds=30),
+                    last_outcome="no_subscribers",
+                ),
+                _build_overview_row("jira"),
+            ],
+            "total_entries": 3,
+        }
+
+    @conf_vars({("webhooks", "names"): "jira"})
+    @mock.patch.object(SimpleAuthManager, "filter_authorized_connections", autospec=True)
+    def test_last_delivery_of_two_received_at_once_is_the_one_with_the_larger_id(
+        self, mock_filter, test_client, session
+    ):
+        mock_filter.side_effect = _allow_reading("webhook_jira")
+        received_at = RECEIVED_AT + timedelta(hours=1)
+        session.add_all(
+            [
+                _build_delivery(
+                    "j-2",
+                    received_at,
+                    webhook="jira",
+                    id=UUID("01990000-0000-7000-8000-000000000012"),
+                    outcome="accepted",
+                ),
+                _build_delivery(
+                    "j-1", received_at, webhook="jira", id=UUID("01990000-0000-7000-8000-000000000011")
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get(OVERVIEW_URL)
+
+        assert response.status_code == 200
+        assert response.json()["webhooks"] == [
+            _build_overview_row("jira", last_received_at=received_at, last_outcome="accepted")
+        ]
+
+    # The statuses themselves are tested in tests/unit/webhooks/test_status.py.
+    @pytest.mark.parametrize(
+        ("connection", "expected_statuses"),
+        [
+            pytest.param(
+                build_webhook_connection("jira", source_type="fake", api_token="t0ken"),
+                {"connection_status": "ok", "source_type": "fake", "source_type_status": "ok"},
+                id="ok",
+            ),
+            # The secrets backend's error names a host and a token.
+            pytest.param("failing", {"connection_status": "unavailable"}, id="unavailable"),
+        ],
+    )
+    @conf_vars({("webhooks", "names"): "jira"})
+    @mock.patch.object(SimpleAuthManager, "filter_authorized_connections", autospec=True)
+    def test_reports_the_status_without_what_the_connection_or_its_backend_holds(
+        self, mock_filter, test_client, secrets_backend, connection, expected_statuses
+    ):
+        mock_filter.side_effect = _allow_reading("webhook_jira")
+        if connection == "failing":
+            secrets_backend.failing.add("webhook_jira")
+        else:
+            secrets_backend.connections["webhook_jira"] = connection
+
+        response = test_client.get(OVERVIEW_URL)
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "webhooks": [_build_overview_row("jira", **expected_statuses)],
+            "total_entries": 1,
+        }
+
+    @pytest.mark.parametrize(
+        ("readable_conn_ids", "expected_names"),
+        [
+            pytest.param(
+                ("webhook_github", "webhook_gitlab", "webhook_jira"), ["github", "gitlab", "jira"], id="all"
+            ),
+            pytest.param(("webhook_gitlab",), ["gitlab"], id="no-longer-listed"),
+            pytest.param((), [], id="none"),
+        ],
+    )
+    @conf_vars({("webhooks", "names"): "github,jira"})
+    @mock.patch.object(SimpleAuthManager, "filter_authorized_connections", autospec=True)
+    def test_lists_only_readable_webhooks(self, mock_filter, test_client, readable_conn_ids, expected_names):
+        mock_filter.side_effect = _allow_reading(*readable_conn_ids)
+
+        response = test_client.get(OVERVIEW_URL)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [webhook["name"] for webhook in body["webhooks"]] == expected_names
+        assert body["total_entries"] == len(expected_names)
+        mock_filter.assert_called_once_with(
+            mock.ANY,
+            conn_ids={"webhook_github", "webhook_gitlab", "webhook_jira"},
+            user=mock.ANY,
+            method="GET",
+        )
+
+    @pytest.mark.parametrize(("role", "expected_names"), [("viewer", []), ("op", ["github", "gitlab"])])
+    def test_lists_nothing_rather_than_403_without_read_access(self, test_client, role, expected_names):
+        response = test_client.get(OVERVIEW_URL, headers=_get_auth_headers(test_client, role))
+
+        assert response.status_code == 200
+        assert [webhook["name"] for webhook in response.json()["webhooks"]] == expected_names
+
+    @conf_vars({("webhooks", "names"): "github,jira"})
+    def test_reads_the_connections_of_the_page_only(self, test_client, secrets_backend):
+        response = test_client.get(OVERVIEW_URL, params={"limit": 1, "offset": 1})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [webhook["name"] for webhook in body["webhooks"]] == ["gitlab"]
+        assert body["total_entries"] == 3
+        assert secrets_backend.lookups == 1
+
+    @conf_vars({("webhooks", "names"): "*"})
+    def test_should_respond_500_for_an_invalid_webhooks_configuration(self, test_client, secrets_backend):
+        response = test_client.get(OVERVIEW_URL)
+
+        assert response.status_code == 500
+        assert response.json() == {
+            "detail": "The [webhooks] configuration is invalid, so no webhook can be served: run airflow "
+            "webhooks check to see why"
+        }
+        assert secrets_backend.lookups == 0

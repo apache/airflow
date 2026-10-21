@@ -39,6 +39,7 @@ from airflow.webhooks.connections import (
     ResolutionFailure,
     UnresolvedWebhook,
     WebhookConnectionCache,
+    WebhookSourceTypeStatus,
     resolve_webhook,
 )
 from airflow.webhooks.registry import WebhookRegistry
@@ -121,6 +122,17 @@ def build_connection(
     *, conn_type: str = "inbound_webhook", password: str | None = SECRET, **extra
 ) -> Connection:
     return Connection(conn_id=CONN_ID, conn_type=conn_type, password=password, extra=extra or None)
+
+
+def build_misconfiguration(
+    reason: str, source_type: str | None = None, source_type_status: WebhookSourceTypeStatus | None = None
+) -> UnresolvedWebhook:
+    return UnresolvedWebhook(
+        failure=ResolutionFailure.MISCONFIGURED,
+        reason=reason,
+        source_type=source_type,
+        source_type_status=source_type_status,
+    )
 
 
 def build_backend_failure() -> OperationalError:
@@ -261,51 +273,88 @@ class TestResolveWebhook:
         assert_configured(resolve_github(), max_body_bytes=2048)
 
     @pytest.mark.parametrize(
-        ("connection", "reason"),
+        ("connection", "expected"),
         [
-            pytest.param({"conn_type": "generic"}, "its type is 'generic', not 'inbound_webhook'", id="type"),
             pytest.param(
-                {"password": None}, "its password, which holds the shared secret, is empty", id="password"
+                {"conn_type": "generic"},
+                UnresolvedWebhook(
+                    failure=ResolutionFailure.WRONG_TYPE,
+                    reason="its type is 'generic', not 'inbound_webhook'",
+                ),
+                id="type",
             ),
-            pytest.param({"source_type": 1}, "source_type must be a string", id="non-string-source-type"),
+            pytest.param(
+                {"password": None},
+                build_misconfiguration("its password, which holds the shared secret, is empty"),
+                id="password",
+            ),
+            pytest.param(
+                {"source_type": 1},
+                build_misconfiguration("source_type must be a string"),
+                id="non-string-source-type",
+            ),
             pytest.param(
                 {"source_type": "bitbucket"},
-                "no installed provider serves source type 'bitbucket'",
+                build_misconfiguration(
+                    "no installed provider serves source type 'bitbucket'",
+                    "bitbucket",
+                    WebhookSourceTypeStatus.UNKNOWN,
+                ),
                 id="unknown-source-type",
             ),
             pytest.param(
                 {"source_type": "hmac_json"},
-                "no installed provider serves source type 'hmac_json'; it needs "
-                "apache-airflow-providers-standard 1.21.0 or later",
+                build_misconfiguration(
+                    "no installed provider serves source type 'hmac_json'; it needs "
+                    "apache-airflow-providers-standard 1.21.0 or later",
+                    "hmac_json",
+                    WebhookSourceTypeStatus.UNKNOWN,
+                ),
                 id="standard-source-type",
             ),
             pytest.param(
                 {"source_type": "not_a_source"},
-                "source type 'not_a_source' is not a subclass of WebhookSource",
+                build_misconfiguration(
+                    "source type 'not_a_source' is not a subclass of WebhookSource",
+                    "not_a_source",
+                    WebhookSourceTypeStatus.UNKNOWN,
+                ),
                 id="not-a-webhook-source",
             ),
-            pytest.param({"source_type": "refusing"}, "region is required", id="refused-by-source"),
             pytest.param(
-                {"max_body_bytes": 0}, "max_body_bytes must be a positive integer", id="zero-max-body-bytes"
+                {"source_type": "refusing"},
+                build_misconfiguration("region is required", "refusing", WebhookSourceTypeStatus.OK),
+                id="refused-by-source",
+            ),
+            pytest.param(
+                {"max_body_bytes": 0},
+                build_misconfiguration(
+                    "max_body_bytes must be a positive integer", "github", WebhookSourceTypeStatus.OK
+                ),
+                id="zero-max-body-bytes",
             ),
             pytest.param(
                 {"max_body_bytes": "lots"},
-                "max_body_bytes must be a positive integer",
+                build_misconfiguration(
+                    "max_body_bytes must be a positive integer", "github", WebhookSourceTypeStatus.OK
+                ),
                 id="non-integer-max-body-bytes",
             ),
             pytest.param(
                 {"store_payload": "some"},
-                "store_payload must be one of full, summary, none",
+                build_misconfiguration(
+                    "store_payload must be one of full, summary, none", "github", WebhookSourceTypeStatus.OK
+                ),
                 id="unknown-store-payload",
             ),
         ],
     )
-    def test_misconfigured_connection(self, backend, connection, reason):
+    def test_misconfigured_connection(self, backend, connection, expected):
         backend.connections[CONN_ID] = build_connection(**connection)
 
         resolution = resolve_github()
 
-        assert resolution == UnresolvedWebhook(failure=ResolutionFailure.MISCONFIGURED, reason=reason)
+        assert resolution == expected
 
     @pytest.mark.parametrize(
         "source_type_owners",
@@ -322,10 +371,11 @@ class TestResolveWebhook:
 
         resolution = resolve_github(source_type_owners=source_type_owners)
 
-        assert resolution == UnresolvedWebhook(
-            failure=ResolutionFailure.MISCONFIGURED,
-            reason=f"fake-webhooks-broken declares source type 'hmac_json', but its class {__name__}."
-            "MissingSource could not be imported or is not a class",
+        assert resolution == build_misconfiguration(
+            f"fake-webhooks-broken declares source type 'hmac_json', but its class {__name__}.MissingSource "
+            "could not be imported or is not a class",
+            "hmac_json",
+            WebhookSourceTypeStatus.UNKNOWN,
         )
 
     def test_malformed_extra_is_misconfigured(self, backend):
@@ -344,20 +394,22 @@ class TestResolveWebhook:
         [
             pytest.param(
                 {},
-                UnresolvedWebhook(
-                    failure=ResolutionFailure.MISCONFIGURED,
-                    reason="source type 'dup' is declared by fake-webhooks-first, fake-webhooks-second; set "
+                build_misconfiguration(
+                    "source type 'dup' is declared by fake-webhooks-first, fake-webhooks-second; set "
                     "[webhooks] source_type_owners to the package that serves it",
+                    "dup",
+                    WebhookSourceTypeStatus.CONFLICT,
                 ),
                 id="no-owner",
             ),
             pytest.param({"dup": "fake-webhooks-second"}, None, id="owner"),
             pytest.param(
                 {"dup": "fake-webhooks"},
-                UnresolvedWebhook(
-                    failure=ResolutionFailure.MISCONFIGURED,
-                    reason="no installed provider serves source type 'dup' "
+                build_misconfiguration(
+                    "no installed provider serves source type 'dup' "
                     "([webhooks] source_type_owners names fake-webhooks)",
+                    "dup",
+                    WebhookSourceTypeStatus.UNKNOWN,
                 ),
                 id="owner-that-does-not-declare-it",
             ),
@@ -459,14 +511,29 @@ class TestWebhookConnectionCache:
 
     @pytest.mark.usefixtures("fernet_key")
     @pytest.mark.parametrize(
-        ("source_type", "encrypt_with_another_key", "reason"),
+        ("source_type", "encrypt_with_another_key", "expected"),
         [
-            pytest.param("github", True, "InvalidToken()", id="password-encrypted-with-another-key"),
-            pytest.param("crashing", False, "TypeError('unexpected extra')", id="source-type-error"),
+            pytest.param(
+                "github",
+                True,
+                # The password is read before the source type.
+                build_misconfiguration("the connection could not be used: InvalidToken()"),
+                id="password-encrypted-with-another-key",
+            ),
+            pytest.param(
+                "crashing",
+                False,
+                build_misconfiguration(
+                    "the connection could not be used: TypeError('unexpected extra')",
+                    "crashing",
+                    WebhookSourceTypeStatus.OK,
+                ),
+                id="source-type-error",
+            ),
         ],
     )
     def test_unexpected_error_is_cached_as_misconfigured(
-        self, mock_monotonic, backend, source_type, encrypt_with_another_key, reason
+        self, mock_monotonic, backend, source_type, encrypt_with_another_key, expected
     ):
         conn = build_connection(source_type=source_type)
         if encrypt_with_another_key:
@@ -477,11 +544,7 @@ class TestWebhookConnectionCache:
 
         resolutions = [cache.get("github") for _ in range(2)]
 
-        assert resolutions == 2 * [
-            UnresolvedWebhook(
-                failure=ResolutionFailure.MISCONFIGURED, reason=f"the connection could not be used: {reason}"
-            )
-        ]
+        assert resolutions == 2 * [expected]
         assert backend.lookups == 1
 
     def test_misconfiguration_is_logged_once_until_it_changes(self, mock_monotonic, backend, caplog):

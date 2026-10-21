@@ -48,6 +48,7 @@ import { LoopFilter } from "src/components/FilterBar/filters/LoopFilter";
 import { RunStateFilter } from "src/components/FilterBar/filters/RunStateFilter";
 import { TagsFilter } from "src/components/FilterBar/filters/TagsFilter";
 import { TimetableTypeFilter } from "src/components/FilterBar/filters/TimetableTypeFilter";
+import { WebhookNameFilter } from "src/components/FilterBar/filters/WebhookNameFilter";
 import { loopFromSearchParams, loopToSearchParams } from "src/components/FilterBar/filters/loopParams";
 import {
   pausedStateFromSearchParams,
@@ -610,10 +611,12 @@ export const useFilterConfigs = () => {
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.WEBHOOK_NAME]: {
-      hotkeyDisabled: true,
+      EditorComponent: WebhookNameFilter,
       icon: <FiInbox />,
+      // Lets a webhook be named when the list of webhooks cannot be loaded.
+      isCreatable: true,
       label: translate("browse:webhookDeliveries.columns.webhook"),
-      type: FilterTypes.TEXT,
+      type: FilterTypes.MULTISELECT,
     },
   };
 

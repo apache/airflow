@@ -2516,6 +2516,19 @@ export type VersionInfo = {
 };
 
 /**
+ * Webhook collection response.
+ */
+export type WebhookCollectionResponse = {
+    webhooks: Array<WebhookResponse>;
+    total_entries: number;
+};
+
+/**
+ * Whether a webhook's ``webhook_<name>`` connection configures a webhook that can be served.
+ */
+export type WebhookConnectionStatus = 'ok' | 'not_found' | 'wrong_type' | 'misconfigured' | 'unavailable';
+
+/**
  * Webhook delivery collection response.
  */
 export type WebhookDeliveryCollectionResponse = {
@@ -2561,6 +2574,42 @@ export type WebhookDeliveryResponse = {
 } | null;
     team_name: string | null;
 };
+
+/**
+ * A webhook, whether it can be served, and the last delivery it received.
+ */
+export type WebhookResponse = {
+    name: string;
+    /**
+     * Whether `[webhooks] names` lists the webhook, which it must to be served.
+     */
+    listed: boolean;
+    /**
+     * Whether the webhook's `webhook_<name>` connection configures a webhook that can be served: `ok`; `not_found` if no secrets backend has it; `wrong_type` if its type is not `inbound_webhook`; `misconfigured` if it cannot be used as it is, and `airflow webhooks check` says why; `unavailable` if a secrets backend failed.
+     */
+    connection_status: WebhookConnectionStatus;
+    /**
+     * The source type the connection names, or null if the connection was not read that far.
+     */
+    source_type: string | null;
+    /**
+     * Whether an installed provider serves the source type: `ok`; `unknown` if none does; `conflict` if several declare it and `[webhooks] source_type_owners` names none of them. Null when `source_type` is.
+     */
+    source_type_status: WebhookSourceTypeStatus | null;
+    /**
+     * When the last recorded delivery was received.
+     */
+    last_received_at: string | null;
+    /**
+     * What Airflow did with the last recorded delivery.
+     */
+    last_outcome: string | null;
+};
+
+/**
+ * Whether an installed provider serves the source type that a webhook's connection names.
+ */
+export type WebhookSourceTypeStatus = 'ok' | 'unknown' | 'conflict';
 
 /**
  * XCom Collection serializer for responses.
@@ -4073,6 +4122,13 @@ export type GetExecutionData = {
 };
 
 export type GetExecutionResponse = ExecutionCollectionResponse;
+
+export type GetWebhooksData = {
+    limit?: number;
+    offset?: number;
+};
+
+export type GetWebhooksResponse = WebhookCollectionResponse;
 
 export type GetWebhookDeliveriesData = {
     correlationKey?: string | null;
@@ -7023,6 +7079,33 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/webhooks': {
+        get: {
+            req: GetWebhooksData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: WebhookCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+                /**
+                 * The `[webhooks]` configuration is invalid.
+                 */
+                500: HTTPExceptionResponse;
             };
         };
     };
