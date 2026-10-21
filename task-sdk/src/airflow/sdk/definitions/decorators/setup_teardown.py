@@ -58,14 +58,20 @@ def setup_task(func: Callable) -> Callable:
     return func
 
 
-def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False, on_success_succeed_dagrun: bool = True,) -> Callable:
+def teardown_task(
+    _func=None,
+    *,
+    on_failure_fail_dagrun: bool = False,
+    on_success_succeed_dagrun: bool = True,
+) -> Callable:
     """
     Decorate a function to mark it as a teardown task.
 
     A teardown task runs after all main tasks in its Dag or TaskGroup context.
     If ``on_failure_fail_dagrun=True``, a failure in teardown will mark the Dag run as failed.
     If ``on_success_succeed_dagrun=True``, a successful teardown can mark the Dag run as successful
-    even if another task failed.
+    even if another task failed. This option only has an effect when
+    ``on_failure_fail_dagrun=True``.
     Example::
 
         @teardown(on_failure_fail_dagrun=True)

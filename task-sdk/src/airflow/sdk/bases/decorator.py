@@ -521,7 +521,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     is_teardown: bool = False
     returns_dag_result: bool = False
     on_failure_fail_dagrun: bool = False
-    on_success_succeed_dagrun: bool = True
+    on_success_succeed_dagrun: bool = False
     # This is set in __attrs_post_init__ by update_wrapper. Provided here for type hints.
     __wrapped__: Callable[FParams, FReturn] = attr.ib(init=False)
 

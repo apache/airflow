@@ -1,0 +1,3 @@
+Add the ``on_success_succeed_dagrun`` option to teardown tasks. When paired with
+``on_failure_fail_dagrun=True``, this option controls whether a successful teardown task can mark the
+DagRun successful when another task has failed.

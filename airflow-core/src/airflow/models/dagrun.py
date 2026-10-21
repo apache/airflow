@@ -1210,7 +1210,11 @@ class DagRun(Base, LoggingMixin):
                         and down_task.on_success_succeed_dagrun
                     )
                 ):
+                    # A downstream task that can determine the terminal DagRun state
+                    # means this task is not an effective leaf.
                     return False
+            # A teardown task itself only drives a failed DagRun when configured to do so.
+            # Its success can suppress upstream task states only when both flags are enabled.
             return not task.is_teardown or task.on_failure_fail_dagrun
         leaf_task_ids = {x.task_id for x in dag.tasks if is_effective_leaf(x)}
         if not leaf_task_ids:
