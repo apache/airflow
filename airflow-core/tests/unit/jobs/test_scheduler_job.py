@@ -348,12 +348,18 @@ def _clean_db():
 
 
 def _add_webhook_wait(
-    session: Session, ti_id: UUID, *, number: int, deadline: datetime.datetime, **overrides: Any
+    session: Session,
+    ti_id: UUID,
+    *,
+    number: int,
+    deadline: datetime.datetime,
+    webhook: str = "github",
+    **overrides: Any,
 ) -> InboundWait:
     match = {"repository": "my-org/configs", "number": number}
     wait = InboundWait(
         ti_id=ti_id,
-        webhook="github",
+        webhook=webhook,
         events=["pull_request"],
         match=match,
         key_digest=compute_key_digest(match),
@@ -3804,6 +3810,59 @@ class TestSchedulerJob:
             self.job_runner._emit_ti_metrics(session=session)
 
         mock_stats.gauge.assert_any_call("ti.running", mock.ANY, tags=expected_tags)
+
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_emit_ti_metrics_counts_open_webhook_waits_of_running_or_parked_tasks(
+        self, mock_get_backend, dag_maker, session
+    ):
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+        task_states = {
+            "parked": State.AWAITING_INPUT,
+            "running": State.RUNNING,
+            "parked_on_gitlab": State.AWAITING_INPUT,
+            "failed_before_parking": State.FAILED,
+            "resumed": State.RUNNING,
+        }
+        with dag_maker(dag_id="webhook_wait_gauge", session=session):
+            for task_id in task_states:
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        for task_id, state in task_states.items():
+            tis[task_id].state = state
+        deadline = timezone.utcnow() + timedelta(hours=1)
+        _add_webhook_wait(session, tis["parked"].id, number=1, deadline=deadline)
+        _add_webhook_wait(session, tis["running"].id, number=2, deadline=deadline)
+        gitlab_wait = _add_webhook_wait(
+            session, tis["parked_on_gitlab"].id, number=3, deadline=deadline, webhook="gitlab"
+        )
+        _add_webhook_wait(session, tis["failed_before_parking"].id, number=4, deadline=deadline)
+        resumed_wait = _add_webhook_wait(
+            session, tis["resumed"].id, number=5, deadline=deadline, status=WaitStatus.RESUMED
+        )
+        resumed_wait.open = None
+        session.flush()
+
+        job_runner = SchedulerJobRunner(job=Job())
+
+        def emit_open_waits() -> dict[str, float]:
+            mock_stats.gauge.reset_mock()
+            with assert_queries_count(2, session=session):
+                job_runner._emit_ti_metrics(session=session)
+            return {
+                call.kwargs["tags"]["webhook"]: call.args[1]
+                for call in mock_stats.gauge.call_args_list
+                if call.args[0] == "webhooks.open_waits"
+            }
+
+        assert emit_open_waits() == {"github": 2, "gitlab": 1}
+
+        gitlab_wait.open, gitlab_wait.status = None, WaitStatus.TIMED_OUT
+        session.flush()
+
+        assert emit_open_waits() == {"github": 2, "gitlab": 0}
+        assert emit_open_waits() == {"github": 2}
 
     def test_enqueue_task_instances_with_queued_state(self, dag_maker, session):
         dag_id = "SchedulerJobTest.test_enqueue_task_instances_with_queued_state"

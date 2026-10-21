@@ -233,6 +233,18 @@ describe("WebhookDeliveries", () => {
     expect(screen.getByTestId("source_type-pill")).toHaveTextContent("github");
   });
 
+  it.each(["early", "expired", "resumed_wait"])("filters by the %s outcome", async (outcome) => {
+    const requests = serveDeliveries([buildDeliveryRow({ delivery_id: "gh-2", outcome })]);
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries?outcome=${outcome}`]} />);
+
+    const row = await screen.findByRole("row", { name: /gh-2/u });
+
+    expect(filterListRequests(requests).at(-1)?.searchParams.get("outcome")).toBe(outcome);
+    expect(screen.getByTestId("outcome-pill")).toHaveTextContent(`webhookDeliveries.outcomes.${outcome}`);
+    expect(within(row).getByText(`webhookDeliveries.outcomes.${outcome}`)).toBeInTheDocument();
+  });
+
   it("is the Deliveries tab next to the Webhooks tab", async () => {
     serveDeliveries([]);
 
@@ -543,7 +555,10 @@ describe("WebhookDeliveries", () => {
   it.each([
     { explanation: "webhookDeliveries.outcomeExplanations.accepted", outcome: "accepted" },
     { explanation: "webhookDeliveries.outcomeExplanations.dag_paused", outcome: "dag_paused" },
+    { explanation: "webhookDeliveries.outcomeExplanations.early", outcome: "early" },
+    { explanation: "webhookDeliveries.outcomeExplanations.expired", outcome: "expired" },
     { explanation: "webhookDeliveries.outcomeExplanations.no_subscribers", outcome: "no_subscribers" },
+    { explanation: "webhookDeliveries.outcomeExplanations.resumed_wait", outcome: "resumed_wait" },
     { explanation: "webhookDeliveries.outcomeExplanations.unknown", outcome: "dropped" },
   ])("explains the $outcome outcome", async ({ explanation, outcome }) => {
     serveDeliveries([], [buildDeliveryRow({ id: deliveryRecordId, outcome })]);

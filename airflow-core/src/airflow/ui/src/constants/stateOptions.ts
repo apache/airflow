@@ -97,9 +97,24 @@ export const webhookDeliveryOutcomeOptions = createListCollection({
       value: "dag_paused",
     },
     {
+      explanation: "browse:webhookDeliveries.outcomeExplanations.early",
+      label: "browse:webhookDeliveries.outcomes.early",
+      value: "early",
+    },
+    {
+      explanation: "browse:webhookDeliveries.outcomeExplanations.expired",
+      label: "browse:webhookDeliveries.outcomes.expired",
+      value: "expired",
+    },
+    {
       explanation: "browse:webhookDeliveries.outcomeExplanations.no_subscribers",
       label: "browse:webhookDeliveries.outcomes.no_subscribers",
       value: "no_subscribers",
+    },
+    {
+      explanation: "browse:webhookDeliveries.outcomeExplanations.resumed_wait",
+      label: "browse:webhookDeliveries.outcomes.resumed_wait",
+      value: "resumed_wait",
     },
   ],
 });

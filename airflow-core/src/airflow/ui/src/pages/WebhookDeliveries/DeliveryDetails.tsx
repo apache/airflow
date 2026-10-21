@@ -29,6 +29,8 @@ import { ClipboardIconButton, ClipboardRoot } from "src/system-components";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 
+import { getTaskInstanceLink } from "src/utils/links";
+
 import { getOutcomeExplanation, getOutcomeLabel, getSkipReasonExplanation } from "./outcomes";
 
 type RecordedAssetEvent = {
@@ -47,6 +49,17 @@ type SkippedAssetRoute = {
   partition_key_field: string | null;
   reason: string;
   topic: string;
+};
+
+type RecordedWait = {
+  dag_id: string;
+  map_index: number;
+  region_id?: string;
+  region_index?: number;
+  run_id: string;
+  task_id: string;
+  ti_id: string;
+  wait_id: string;
 };
 
 const isRecordedAssetEvent = (value: unknown): value is RecordedAssetEvent =>
@@ -70,19 +83,34 @@ const isSkippedAssetRoute = (value: unknown): value is SkippedAssetRoute =>
   ((value as { partition_key_field?: unknown }).partition_key_field === null ||
     typeof (value as { partition_key_field?: unknown }).partition_key_field === "string");
 
+const isRecordedWait = (value: unknown): value is RecordedWait =>
+  typeof value === "object" &&
+  value !== null &&
+  ["dag_id", "run_id", "task_id", "ti_id", "wait_id"].every(
+    (key) => typeof (value as Record<string, unknown>)[key] === "string",
+  ) &&
+  typeof (value as { map_index?: unknown }).map_index === "number" &&
+  // A task instance in a dynamic region is recorded with both, any other with neither.
+  ((typeof (value as { region_id?: unknown }).region_id === "string" &&
+    typeof (value as { region_index?: unknown }).region_index === "number") ||
+    ((value as { region_id?: unknown }).region_id === undefined &&
+      (value as { region_index?: unknown }).region_index === undefined));
+
 const findList = <T,>(value: unknown, isItem: (item: unknown) => item is T): Array<T> | undefined =>
   Array.isArray(value) && value.every(isItem) ? value : undefined;
 
-// Topic events, asset route events and skipped asset routes are each recorded as a list of objects.
-// Every other key, and those lists in any other shape, are shown as recorded.
+// Topic events, asset route events, skipped asset routes and webhook waits are each recorded as a list of
+// objects. Every other key, and those lists in any other shape, are shown as recorded.
 const splitActions = (actions: NonNullable<WebhookDeliveryResponse["actions"]>) => {
   const assetEvents = findList(actions.asset_events, isRecordedAssetEvent);
   const routeEvents = findList(actions.asset_routes, isRecordedRouteEvent);
   const skippedRoutes = findList(actions.skipped_asset_routes, isSkippedAssetRoute);
+  const waits = findList(actions.waits, isRecordedWait);
   const shownKeys = new Set([
     ...(assetEvents ? ["asset_events"] : []),
     ...(routeEvents ? ["asset_routes"] : []),
     ...(skippedRoutes ? ["skipped_asset_routes"] : []),
+    ...(waits ? ["waits"] : []),
   ]);
 
   return {
@@ -90,6 +118,7 @@ const splitActions = (actions: NonNullable<WebhookDeliveryResponse["actions"]>) 
     otherActions: Object.fromEntries(Object.entries(actions).filter(([key]) => !shownKeys.has(key))),
     routeEvents: routeEvents ?? [],
     skippedRoutes: skippedRoutes ?? [],
+    waits: waits ?? [],
   };
 };
 
@@ -120,7 +149,9 @@ const DetailRow = ({ children, label }: { readonly children?: ReactNode; readonl
 
 export const DeliveryDetails = ({ delivery }: { readonly delivery: WebhookDeliveryResponse }) => {
   const { t: translate } = useTranslation(["browse", "common"]);
-  const { assetEvents, otherActions, routeEvents, skippedRoutes } = splitActions(delivery.actions ?? {});
+  const { assetEvents, otherActions, routeEvents, skippedRoutes, waits } = splitActions(
+    delivery.actions ?? {},
+  );
 
   return (
     <Table.Root size="sm" striped>
@@ -174,6 +205,39 @@ export const DeliveryDetails = ({ delivery }: { readonly delivery: WebhookDelive
         </DetailRow>
         <DetailRow label={translate("webhookDeliveries.details.actions")}>
           <VStack alignItems="start" gap={2}>
+            {waits.length > 0 ? (
+              <VStack alignItems="start" gap={1}>
+                <Text fontWeight="medium">{translate("webhookDeliveries.details.waits")}</Text>
+                <List.Root data-testid="delivery-waits" ps={4}>
+                  {waits.map((wait) => (
+                    <List.Item key={wait.wait_id}>
+                      <VStack alignItems="start" gap={0}>
+                        <Link asChild color="fg.info">
+                          <RouterLink
+                            to={getTaskInstanceLink({
+                              dag_id: wait.dag_id,
+                              dag_run_id: wait.run_id,
+                              map_index: wait.map_index,
+                              region_id: wait.region_id,
+                              region_index: wait.region_index,
+                              task_id: wait.task_id,
+                            })}
+                          >
+                            {wait.map_index >= 0 ? `${wait.task_id} [${wait.map_index}]` : wait.task_id}
+                          </RouterLink>
+                        </Link>
+                        <LabeledText label={translate("common:dagId")} value={wait.dag_id} />
+                        <LabeledText label={translate("common:runId")} value={wait.run_id} />
+                        <LabeledText
+                          label={translate("webhookDeliveries.details.waitId")}
+                          value={wait.wait_id}
+                        />
+                      </VStack>
+                    </List.Item>
+                  ))}
+                </List.Root>
+              </VStack>
+            ) : undefined}
             {assetEvents.length > 0 ? (
               <VStack alignItems="start" gap={1}>
                 <Text fontWeight="medium">{translate("webhookDeliveries.details.assetEvents")}</Text>

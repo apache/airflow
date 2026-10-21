@@ -51,7 +51,7 @@ from airflow.api_fastapi.core_api.routes.public.task_state_store import task_sta
 from airflow.api_fastapi.core_api.routes.public.tasks import tasks_router
 from airflow.api_fastapi.core_api.routes.public.variables import variables_router
 from airflow.api_fastapi.core_api.routes.public.version import version_router
-from airflow.api_fastapi.core_api.routes.public.webhooks import webhooks_router
+from airflow.api_fastapi.core_api.routes.public.webhooks import webhook_waits_router, webhooks_router
 from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
 from airflow.api_fastapi.core_api.security import get_user
 
@@ -80,6 +80,8 @@ authenticated_router.include_router(dag_warning_router)
 authenticated_router.include_router(dags_router)
 authenticated_router.include_router(event_logs_router)
 authenticated_router.include_router(extra_links_router)
+# Before task_instances_router, whose /taskInstances/{task_id}/{map_index} would take /webhookWaits.
+authenticated_router.include_router(webhook_waits_router)
 authenticated_router.include_router(import_error_router)
 authenticated_router.include_router(job_router)
 authenticated_router.include_router(plugins_router)

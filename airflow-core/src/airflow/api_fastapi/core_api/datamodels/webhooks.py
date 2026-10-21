@@ -24,6 +24,7 @@ from uuid import UUID
 from pydantic import Field, JsonValue
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.models.inbound_wait import WaitStatus
 from airflow.webhooks.connections import WebhookSourceTypeStatus
 from airflow.webhooks.status import WebhookConnectionStatus
 
@@ -88,4 +89,48 @@ class WebhookCollectionResponse(BaseModel):
     """Webhook collection response."""
 
     webhooks: Iterable[WebhookResponse]
+    total_entries: int
+
+
+class WebhookWaitResponse(BaseModel):
+    """A task instance's wait for a delivery to an inbound webhook, without the delivery's payload."""
+
+    id: UUID
+    webhook: str
+    events: list[str | int] | None = Field(
+        description="The delivery events the wait accepts, or null for any event."
+    )
+    match: dict[str, str | int | list[str | int]] = Field(
+        description=(
+            "The delivery attributes the wait requires, each a value, or a list of values of which one must "
+            "match."
+        )
+    )
+    status: WaitStatus = Field(
+        description=(
+            "`registered` until a matching delivery arrives; `received` if one arrived before the task "
+            "parked: while the task was running, or before the wait was registered, when Airflow kept the "
+            "delivery `early`; the task resumes with it once it parks; `resumed` once a delivery resumed the "
+            "task; `timed_out` if none arrived before the deadline; `ended` if the task registered another "
+            "wait, or if a matching delivery, or a wait registered on the same events and match, found the "
+            "wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps "
+            "`registered` or `received` until then."
+        )
+    )
+    deadline: datetime = Field(description="When the wait times out if no matching delivery has arrived.")
+    created_at: datetime
+    ended_at: datetime | None
+    inbound_delivery_id: UUID | None = Field(
+        validation_alias="delivery_id",
+        description=(
+            "The `id` of the delivery record that the wait received, as the webhook's deliveries list it, "
+            "or null if it has received none."
+        ),
+    )
+
+
+class WebhookWaitCollectionResponse(BaseModel):
+    """Webhook wait collection response."""
+
+    webhook_waits: Iterable[WebhookWaitResponse]
     total_entries: int

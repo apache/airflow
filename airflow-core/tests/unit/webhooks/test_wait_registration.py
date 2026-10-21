@@ -19,24 +19,31 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from unittest import mock
+from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select, update
 
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
 from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.webhooks import wait_registration
-from airflow.webhooks.wait_registration import WaitKeyTaken, claim_early_delivery_after_commit, register_wait
+from airflow.webhooks.wait_registration import (
+    WaitKeyTaken,
+    build_wait_action,
+    claim_early_delivery_after_commit,
+    register_wait,
+)
 from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.db import clear_db_inbound_deliveries, clear_db_logs, clear_db_runs
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
@@ -119,6 +126,45 @@ def assert_claimed_by_another_wait(session: Session, record_id: UUID) -> None:
     record = session.get_one(InboundDelivery, record_id)
     assert (record.outcome, record.actions) == (DeliveryOutcome.RESUMED_WAIT, OTHER_WAIT_ACTIONS)
     assert session.scalar(select(func.count()).select_from(Log).where(Log.event == "webhook_delivery")) == 0
+
+
+@pytest.mark.parametrize("kind", ["plain", "mapped", "loop"])
+def test_build_wait_action_records_the_coordinates_that_address_the_task_instance(dag_maker, session, kind):
+    """A task instance in a dynamic region is recorded with its public map index, region and region index."""
+    with dag_maker("wait-coordinates", serialized=True):
+        if kind == "mapped":
+            PythonOperator.partial(task_id="wait", python_callable=list).expand(op_kwargs=[{}, {}, {}])
+        else:
+            EmptyOperator(task_id="wait")
+    dr = dag_maker.create_dagrun()
+    ti = max(dr.task_instances, key=lambda ti: ti.region_index)
+    if kind == "loop":
+        region = DynamicRegion(dag_id=dr.dag_id, run_id=dr.run_id, node_id="loop")
+        session.add(region)
+        session.flush()
+        ti.region_id = region.id
+        ti.region_index = 2
+    session.flush()
+    wait_id = UUID("0199f8a0-0000-7000-8000-0000000000c1")
+
+    action = build_wait_action(wait_id, ti, session=session)
+
+    expected = {
+        "wait_id": str(wait_id),
+        "ti_id": str(ti.id),
+        "dag_id": "wait-coordinates",
+        "run_id": dr.run_id,
+        "task_id": "wait",
+    }
+    if kind == "plain":
+        assert action == {**expected, "map_index": -1}
+    else:
+        assert action == {
+            **expected,
+            "map_index": 2 if kind == "mapped" else -1,
+            "region_id": str(ti.region_id),
+            "region_index": 2,
+        }
 
 
 @mock.patch.object(wait_registration, "_end_wait_of_attempt_no_longer_live", autospec=True)

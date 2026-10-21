@@ -42,6 +42,7 @@ import { isStatePending, useAutoRefresh, useDurationFormat } from "src/utils";
 import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
+import { WebhookWait } from "./WebhookWait";
 import { stateReasonDisplay } from "./stateReason";
 
 export const Details = () => {
@@ -160,6 +161,11 @@ export const Details = () => {
       {taskInstance !== undefined && (taskInstance.trigger ?? taskInstance.triggerer_job) ? (
         <TriggererInfo taskInstance={taskInstance} />
       ) : undefined}
+      <WebhookWait
+        refetchInterval={isStatePending(tryInstance?.state) && refetchInterval}
+        tryNumber={tryNumber}
+        tryState={tryInstance?.state}
+      />
       <Table.Root striped>
         <Table.Body>
           <Table.Row>

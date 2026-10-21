@@ -486,8 +486,10 @@ routes ``POST /webhooks/<name>`` and ``GET /webhooks/_health`` with their status
 202, the topic name grammar, the keys of the extra of topic events, which asset routes record events on
 and the reasons they skip, the ``[webhooks]`` options,
 ``GET /api/v2/webhooks``, ``GET /api/v2/webhooks/{webhook_name}/deliveries`` with ``~`` for every webhook
-and the shape of a delivery's ``actions``, the ``airflow webhooks`` commands, the webhook metrics and their
-tags, and the owner of the audit log entries. :class:`~airflow.sdk.WebhookTopic` is part of the
+and the shape of a delivery's ``actions``,
+``GET /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/webhookWaits`` and the statuses of a
+webhook wait, the ``airflow webhooks`` commands, the webhook metrics and their tags, and the owner of the
+audit log entries. :class:`~airflow.sdk.WebhookTopic` is part of the
 Task SDK. Each source type's name, the ``source_type`` key that selects it in a connection's extra, its own
 connection extra options, its attributes and the fields its topic names are built from are the public
 interface of the provider that ships it. The ``inbound_webhook`` connection type and its extra keys

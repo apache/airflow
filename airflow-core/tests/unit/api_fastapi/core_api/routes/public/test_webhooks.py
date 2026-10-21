@@ -27,17 +27,24 @@ from airflow.api_fastapi.auth.managers.models.resource_details import Connection
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models.inbound_delivery import InboundDelivery
+from airflow.models.inbound_wait import InboundWait, WaitStatus
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers_manager import ProviderInfo, ProvidersManager
 from airflow.utils.session import create_session
+from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_inbound_deliveries
+from tests_common.test_utils.db import clear_db_dags, clear_db_inbound_deliveries, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.webhooks import FakeHmacSource, FakeSecretsBackend, build_webhook_connection
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models.taskinstance import TaskInstance
 
 pytestmark = pytest.mark.db_test
 
@@ -513,3 +520,170 @@ class TestGetWebhooks:
             "webhooks check to see why"
         }
         assert secrets_backend.lookups == 0
+
+
+WAITS_DAG_ID = "merge_gate"
+WAITS_RUN_ID = "manual_run"
+WAITS_TASK_ID = "wait_for_merge"
+WAITS_URL = f"/dags/{WAITS_DAG_ID}/dagRuns/{WAITS_RUN_ID}/taskInstances/{WAITS_TASK_ID}/webhookWaits"
+RESUMING_DELIVERY_ID = UUID("01990000-0000-7000-8000-0000000000aa")
+
+
+def _add_wait(
+    session: Session,
+    ti_id: UUID,
+    *,
+    number: int,
+    created_at: datetime,
+    status: WaitStatus = WaitStatus.REGISTERED,
+    **overrides: Any,
+) -> InboundWait:
+    match = {"repository": "octo/repo", "number": number}
+    wait = InboundWait(
+        ti_id=ti_id,
+        webhook=WEBHOOK,
+        events=["pull_request"],
+        match=match,
+        key_digest=compute_key_digest(match),
+        match_digest=compute_match_digest(["pull_request"], match),
+        status=status,
+        deadline=created_at + timedelta(days=3),
+        created_at=created_at,
+        **overrides,
+    )
+    session.add(wait)
+    session.flush()
+    if status not in (WaitStatus.REGISTERED, WaitStatus.RECEIVED):
+        # Set after the insert: the ORM inserts the column's default in place of None.
+        wait.open = None
+    session.commit()
+    return wait
+
+
+class TestGetWebhookWaits:
+    @pytest.fixture(autouse=True)
+    def clean_db(self) -> Generator[None, None, None]:
+        clear_db_runs()
+        clear_db_dags()
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    @pytest.fixture
+    def task_instance(self, dag_maker, session) -> TaskInstance:
+        with dag_maker(WAITS_DAG_ID, serialized=True, session=session):
+            EmptyOperator(task_id=WAITS_TASK_ID)
+            EmptyOperator(task_id="apply")
+        dag_run = dag_maker.create_dagrun(run_id=WAITS_RUN_ID)
+        session.commit()
+        return dag_run.get_task_instance(WAITS_TASK_ID, session=session)
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        assert unauthenticated_test_client.get(WAITS_URL).status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        assert unauthorized_test_client.get(WAITS_URL).status_code == 403
+
+    def test_needs_read_access_to_the_task_instance_only(self, test_client, task_instance):
+        # The viewer role may read task instances but no connection, so no webhook's deliveries.
+        response = test_client.get(WAITS_URL, headers=_get_auth_headers(test_client, "viewer"))
+
+        assert response.status_code == 200
+
+    def test_lists_the_waits_of_the_current_try_newest_first(self, test_client, task_instance, session):
+        resumed = _add_wait(
+            session,
+            task_instance.id,
+            number=7,
+            created_at=RECEIVED_AT,
+            status=WaitStatus.RESUMED,
+            delivery_id=RESUMING_DELIVERY_ID,
+            ended_at=RECEIVED_AT + timedelta(hours=1),
+        )
+        registered = _add_wait(
+            session, task_instance.id, number=8, created_at=RECEIVED_AT + timedelta(hours=2)
+        )
+        other_task = task_instance.dag_run.get_task_instance("apply", session=session)
+        _add_wait(session, other_task.id, number=9, created_at=RECEIVED_AT + timedelta(hours=3))
+
+        response = test_client.get(WAITS_URL)
+
+        assert response.status_code == 200, response.text
+        assert response.json() == {
+            "webhook_waits": [
+                {
+                    "id": str(registered.id),
+                    "webhook": WEBHOOK,
+                    "events": ["pull_request"],
+                    "match": {"repository": "octo/repo", "number": 8},
+                    "status": "registered",
+                    "deadline": from_datetime_to_zulu_without_ms(RECEIVED_AT + timedelta(days=3, hours=2)),
+                    "created_at": from_datetime_to_zulu_without_ms(RECEIVED_AT + timedelta(hours=2)),
+                    "ended_at": None,
+                    "inbound_delivery_id": None,
+                },
+                {
+                    "id": str(resumed.id),
+                    "webhook": WEBHOOK,
+                    "events": ["pull_request"],
+                    "match": {"repository": "octo/repo", "number": 7},
+                    "status": "resumed",
+                    "deadline": from_datetime_to_zulu_without_ms(RECEIVED_AT + timedelta(days=3)),
+                    "created_at": from_datetime_to_zulu_without_ms(RECEIVED_AT),
+                    "ended_at": from_datetime_to_zulu_without_ms(RECEIVED_AT + timedelta(hours=1)),
+                    "inbound_delivery_id": str(RESUMING_DELIVERY_ID),
+                },
+            ],
+            "total_entries": 2,
+        }
+
+    @pytest.mark.parametrize(("try_number", "expected_number"), [(None, 2), (1, 1), (2, 2)])
+    def test_lists_the_waits_of_the_selected_try(
+        self, test_client, task_instance, session, try_number, expected_number
+    ):
+        _add_wait(session, task_instance.id, number=1, created_at=RECEIVED_AT, status=WaitStatus.TIMED_OUT)
+        task_instance.try_number, task_instance.state = 1, "failed"
+        second_try = task_instance.prepare_db_for_next_try(session)
+        session.commit()
+        _add_wait(session, second_try.id, number=2, created_at=RECEIVED_AT + timedelta(hours=1))
+
+        response = test_client.get(WAITS_URL, params={} if try_number is None else {"try_number": try_number})
+
+        assert response.status_code == 200, response.text
+        assert [wait["match"]["number"] for wait in response.json()["webhook_waits"]] == [expected_number]
+
+    def test_paginates(self, test_client, task_instance, session):
+        for number in range(3):
+            _add_wait(
+                session,
+                task_instance.id,
+                number=number,
+                created_at=RECEIVED_AT + timedelta(hours=number),
+                status=WaitStatus.ENDED,
+            )
+
+        response = test_client.get(WAITS_URL, params={"limit": 1, "offset": 1})
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert [wait["match"]["number"] for wait in body["webhook_waits"]] == [1]
+        assert body["total_entries"] == 3
+
+    def test_task_instance_without_waits_has_an_empty_list(self, test_client, task_instance):
+        response = test_client.get(WAITS_URL)
+
+        assert response.status_code == 200, response.text
+        assert response.json() == {"webhook_waits": [], "total_entries": 0}
+
+    @pytest.mark.parametrize(
+        ("url", "params"),
+        [
+            pytest.param(WAITS_URL.replace(WAITS_TASK_ID, "unknown"), {}, id="unknown-task"),
+            pytest.param(WAITS_URL, {"try_number": 2}, id="unknown-try"),
+            pytest.param(WAITS_URL, {"map_index": 0}, id="unknown-map-index"),
+        ],
+    )
+    def test_should_respond_404_for_an_unknown_task_instance(self, test_client, task_instance, url, params):
+        response = test_client.get(url, params=params)
+
+        assert response.status_code == 404

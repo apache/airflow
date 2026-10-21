@@ -18,20 +18,31 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import { TimezoneProvider } from "src/context/timezone";
 import i18n from "src/i18n/config";
-import { Wrapper } from "src/utils/Wrapper";
+import { BaseWrapper } from "src/utils/Wrapper";
 
 import commonLocale from "../../../public/i18n/locales/en/common.json";
 import { Details } from "./Details";
+
+const { mockWebhookWait } = vi.hoisted(() => ({ mockWebhookWait: vi.fn<(props: unknown) => void>() }));
 
 // Sibling panels each fetch their own data and are unrelated to the row under test.
 vi.mock("./BlockingDeps", () => ({ BlockingDeps: () => undefined }));
 vi.mock("./ExtraLinks", () => ({ ExtraLinks: () => undefined }));
 vi.mock("./TriggererInfo", () => ({ TriggererInfo: () => undefined }));
+vi.mock("./WebhookWait", () => ({
+  WebhookWait: (props: unknown) => {
+    mockWebhookWait(props);
+
+    return undefined;
+  },
+}));
 vi.mock("src/components/DagVersionDetails", () => ({ DagVersionDetails: () => undefined }));
 vi.mock("src/components/TaskTrySelect", () => ({ TaskTrySelect: () => undefined }));
 vi.mock("src/components/TeamName", () => ({ TeamName: () => undefined }));
@@ -83,6 +94,7 @@ const buildTaskInstance = (overrides: Partial<TaskInstanceResponse>): TaskInstan
 const renderDetails = (
   taskInstance: TaskInstanceResponse,
   tryInstance: Partial<TaskInstanceHistoryResponse> = {},
+  path = "/",
 ) => {
   mockTaskInstance.mockReturnValue(taskInstance);
   mockTryInstance.mockReturnValue({
@@ -90,7 +102,15 @@ const renderDetails = (
     ...tryInstance,
   });
 
-  return render(<Details />, { wrapper: Wrapper });
+  return render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={[path]}>
+        <TimezoneProvider>
+          <Details />
+        </TimezoneProvider>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
 };
 
 describe("Details state reason row", () => {
@@ -150,5 +170,18 @@ describe("Details loop context", () => {
 
     expect(within(iterationRow).getByText("2")).toBeInTheDocument();
     expect(screen.getByText(i18n.t("common:mapIndex"))).toBeInTheDocument();
+  });
+});
+
+describe("Details webhook wait", () => {
+  it.each([
+    { path: "/", tryNumber: 3 },
+    { path: "/?try_number=2", tryNumber: 2 },
+  ])("shows the wait of the selected try for $path", ({ path, tryNumber }) => {
+    renderDetails(buildTaskInstance({ state: "running", try_number: 3 }), { state: "failed" }, path);
+
+    expect(mockWebhookWait).toHaveBeenLastCalledWith(
+      expect.objectContaining({ tryNumber, tryState: "failed" }),
+    );
   });
 });

@@ -592,6 +592,10 @@ Stable API Permissions
      - GET
      - DAGs.can_read, DAG Runs.can_read, Task Instances.can_read
      - Viewer
+   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/webhookWaits``
+     - GET
+     - DAGs.can_read, DAG Runs.can_read, Task Instances.can_read
+     - Viewer
    * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries``
      - GET
      - DAGs.can_read, XComs.can_read
