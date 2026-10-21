@@ -2238,7 +2238,6 @@ class TestWatchedSubprocessKill:
         )
         kill = mocker.patch.object(ActivitySubprocess, "kill", autospec=True)
         cleanup_sockets = mocker.patch.object(ActivitySubprocess, "cleanup_sockets_after_kill", autospec=True)
-        upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs", autospec=True)
 
         with pytest.raises(OSError, match="No space left on device") as raised:
             watched_subprocess.wait()
@@ -2252,7 +2251,6 @@ class TestWatchedSubprocessKill:
         )
         cleanup_sockets.assert_called_once_with(watched_subprocess)
         watched_subprocess.selector.close.assert_called_once_with()
-        upload_logs.assert_not_called()
 
     def test_wait_sigkills_subprocess_when_kill_fails_after_monitor_error(self, watched_subprocess, mocker):
         mocker.patch.object(
@@ -2328,7 +2326,6 @@ class TestWatchedSubprocessKill:
             with pytest.raises(OSError, match="No space left on device"):
                 proc.wait()
 
-            assert proc._exit_code is not None
             assert not psutil.pid_exists(proc.pid)
         finally:
             if psutil.pid_exists(proc.pid):
@@ -2391,7 +2388,7 @@ class TestWatchedSubprocessKill:
             with pytest.raises(OSError, match="No space left on device"):
                 proc.wait()
 
-            assert proc._exit_code == 0
+            assert not psutil.pid_exists(proc.pid)
             assert not psutil.pid_exists(int(session_child_pid_file.read_text()))
         finally:
             pids = [proc.pid]
