@@ -243,3 +243,20 @@ def get_child_list_for_non_root(span_dict: dict, span_name: str):
             child_span_list.append(span)
 
     return child_span_list
+
+
+def process_collector_metrics(collector_metrics: str, service_name: str) -> dict[str, list[float]]:
+    """
+    Parse the metrics the collector exposes for ``service_name`` into ``{metric_name: [values]}``.
+
+    Names are kept exactly as the collector renders them, so a histogram's ``_count``, ``_sum``
+    and ``_bucket`` are separate names.
+    """
+    values: dict[str, list[float]] = defaultdict(list)
+    for line in collector_metrics.splitlines():
+        name, _, rest = line.strip().partition("{")
+        # The collector renders the service name as the ``job`` attribute.
+        if not rest or f'job="{service_name}"' not in rest:
+            continue
+        values[name].append(float(rest.rsplit(" ", 1)[1]))
+    return values
