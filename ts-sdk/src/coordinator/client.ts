@@ -272,9 +272,6 @@ export function createCoordinatorClient(
       ) {
         throw new TypeError("task state store value must not be null, NaN, or Infinity");
       }
-      // TODO: warn when the serialized value exceeds the deployment's
-      // [state_store] max_value_storage_bytes, as Python's task store setter
-      // does, once the coordinator passes that setting to the runtime.
       const msg: SetTaskStateStore = {
         type: "SetTaskStateStore",
         ti_id: tiId,

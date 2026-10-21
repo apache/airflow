@@ -821,6 +821,10 @@
         "9.37.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-09-29T06:59:11Z"
+        },
+        "9.38.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-10-17T18:14:07Z"
         }
     },
     "anthropic": {
@@ -4965,6 +4969,10 @@
         "0.10.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-09-29T06:59:11Z"
+        },
+        "1.0.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-10-19T11:09:33Z"
         }
     },
     "common.compat": {
@@ -5103,6 +5111,10 @@
         "1.21.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-10-13T11:25:00Z"
+        },
+        "1.22.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-10-17T18:14:08Z"
         }
     },
     "common.io": {
@@ -6275,6 +6287,10 @@
         "4.10.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-09-29T06:59:11Z"
+        },
+        "4.11.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-10-17T18:14:09Z"
         }
     },
     "dingding": {
@@ -8653,6 +8669,10 @@
         "22.6.0": {
             "associated_airflow_version": "3.3.2",
             "date_released": "2026-09-29T06:59:11Z"
+        },
+        "22.7.0": {
+            "associated_airflow_version": "3.3.2",
+            "date_released": "2026-10-17T18:14:10Z"
         }
     },
     "grpc": {

@@ -24,6 +24,7 @@ import itertools
 import json
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterator, Sequence
+from datetime import datetime
 from typing import Annotated, Any, NoReturn, cast
 from uuid import UUID
 
@@ -58,7 +59,6 @@ from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_ar
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
-    LoopContext,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
@@ -339,13 +339,15 @@ def ti_run(
                 },
             )
 
-        # Send the keys to the SDK so that the client requests to clear those XComs from the server.
-        # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
-        # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
-        # can issue the purge.
+        # Send the keys to the worker, which deletes those XComs. The server cannot delete them itself,
+        # because for a Python task the task runner also purges them from a custom XCom backend, and only
+        # workers can reach that backend. For a language SDK task (Java, Go, TypeScript), the supervisor
+        # deletes these XComs before the runtime starts the task and does not purge them, because those
+        # runtimes push their XComs straight to the API server, so the XCom values never pass through the
+        # backend.
 
         # However, do not clear it for deferral
-        xcom_keys = []
+        xcom_keys: list[str] = []
         if not ti.next_method:
             read = build_xcom_read_query(producer_ids=select(TI.id).where(TI.id == task_instance_id))
             entity = xcom_entity(read)
@@ -368,19 +370,13 @@ def ti_run(
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
             multi_team=conf.getboolean("core", "multi_team"),
         )
-        resolver = TaskCoordinateResolver(dag_bag, session)
-        if loop_context := resolver.loop_context(ti):
-            group, index = loop_context
-            terminal = resolver.get_task(
-                ti.dag_id, ti.run_id, group.terminal_task_id, dag_version_id=ti.dag_version_id
-            )
-            context.loop = LoopContext(
-                node_id=group.node_id,
-                index=index,
-                max_iterations=group.max_iterations,
-                terminal_task_id=group.terminal_task_id,
-                terminal_is_mapped=terminal.get_needs_expansion(),
-            )
+        if ti.region_id != SENTINEL_REGION_ID:
+            resolver = TaskCoordinateResolver(dag_bag, session)
+            task = resolver.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
+            if (expanded_ti_count := resolver.get_expanded_ti_count(ti, task=task)) is not None:
+                context.expanded_ti_count = expanded_ti_count
+            if (loop := resolver.get_loop_context(ti, task=task)) is not None:
+                context.loop = loop
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
@@ -567,6 +563,19 @@ def ti_update_state(
         .with_for_update(of=TI)
         .execution_options(include_all_attempts=True)
     )
+    # A 12-column select exceeds SQLAlchemy's typed ``select()`` overloads, so the row is untyped.
+    previous_state: str | None
+    try_number: int
+    max_tries: int
+    dag_id: str
+    task_id: str
+    run_id: str
+    region_index: int
+    region_id: UUID
+    hostname: str | None
+    logical_date: datetime | None
+    owners: str | None
+    working_set: bool | None
     try:
         (
             previous_state,
@@ -581,7 +590,7 @@ def ti_update_state(
             logical_date,
             owners,
             working_set,
-        ) = session.execute(old).one()
+        ) = tuple(session.execute(old).one())
         log.debug(
             "Retrieved current task instance state",
             previous_state=previous_state,
@@ -638,9 +647,15 @@ def ti_update_state(
         and loop_group is not None
         and isinstance(ti_patch_payload, TISuccessStatePayload)
     ):
+        decision = ti_patch_payload.loop_decision
         try:
             loop_gate.dag_run.complete_loop_gate(
-                loop_gate, loop_group, TaskInstanceState.SUCCESS, session=session
+                loop_gate,
+                loop_group,
+                TaskInstanceState.SUCCESS,
+                stop=decision.stop if decision is not None else None,
+                reason=decision.reason if decision is not None else None,
+                session=session,
             )
             gate_completed = True
         except InvalidLoopDecision as error:
@@ -653,7 +668,7 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(
-        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason"},
+        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason", "loop_decision"},
         exclude_unset=True,
     )
     if "rendered_map_index" in data:
@@ -727,7 +742,17 @@ def ti_update_state(
         raise
 
     if loop_gate is not None and loop_group is not None and not gate_completed:
-        loop_gate.dag_run.complete_loop_gate(loop_gate, loop_group, updated_state, session=session)
+        decision = (
+            ti_patch_payload.loop_decision if isinstance(ti_patch_payload, TITerminalStatePayload) else None
+        )
+        loop_gate.dag_run.complete_loop_gate(
+            loop_gate,
+            loop_group,
+            updated_state,
+            stop=None,
+            reason=decision.reason if decision is not None else None,
+            session=session,
+        )
 
     if updated_state == TaskInstanceState.SUCCESS:
         if conf.getboolean("state_store", "clear_on_success"):
@@ -1104,7 +1129,7 @@ def ti_skip_downstream(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
     if not selects:
         return
-    selected_ids = set(session.scalars(union(*selects)))
+    selected_ids: set[UUID] = set(session.scalars(union(*selects)))
 
     # Don't overwrite tasks that are already executing or finished.
     # See: https://github.com/apache/airflow/issues/59378

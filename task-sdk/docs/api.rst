@@ -94,6 +94,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
+.. autoapiclass:: airflow.sdk.bases.xcom.XComCoordinate
+
 .. autoapiclass:: airflow.sdk.BranchMixIn
 
 .. autoapiclass:: airflow.sdk.PokeReturnValue
@@ -129,6 +131,8 @@ Connections & Variables
 Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
+
+.. autoapiclass:: airflow.sdk.LoopDecision
 
 .. autoclass:: airflow.sdk.TaskInstance
 

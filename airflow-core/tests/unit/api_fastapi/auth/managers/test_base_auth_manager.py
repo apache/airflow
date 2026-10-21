@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 import warnings
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, create_autospec, patch
@@ -38,6 +39,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import RemovedInAirflow4Warning
+from airflow.models.pool import Pool
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -333,6 +335,33 @@ class TestBaseAuthManager:
             await auth_manager.get_user_from_token(token)
 
         mock_is_revoked.assert_called_once_with("some-jti")
+
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @patch.object(EmptyAuthManager, "deserialize_user")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_checks_revocation_off_the_event_loop(
+        self, mock_deserialize_user, mock__get_token_validator, auth_manager
+    ):
+        """The revocation lookup is a synchronous DB query, so it must not block the event loop."""
+        signer = AsyncMock(spec=JWTValidator)
+        signer.avalidated_claims.return_value = {"jti": "some-jti"}
+        mock__get_token_validator.return_value = signer
+        lookup_threads = []
+
+        def is_revoked(jti):
+            lookup_threads.append(threading.get_ident())
+            return False
+
+        with patch(
+            "airflow.models.revoked_token.RevokedToken.is_revoked", autospec=True, side_effect=is_revoked
+        ):
+            await auth_manager.get_user_from_token("token")
+
+        assert lookup_threads
+        assert lookup_threads != [threading.get_ident()]
 
     @patch(
         "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
@@ -798,6 +827,22 @@ class TestBaseAuthManager:
         session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_pools(user=user, session=session)
         assert result == expected
+
+    @pytest.mark.db_test
+    def test_get_authorized_pools_skips_null_names(self, auth_manager, session):
+        session.add_all(
+            [
+                Pool(pool=None, slots=1, include_deferred=False),
+                Pool(pool="authorized_pool", slots=1, include_deferred=False),
+            ]
+        )
+        session.flush()
+        auth_manager.is_authorized_pool = create_autospec(auth_manager.is_authorized_pool, return_value=True)
+
+        result = auth_manager.get_authorized_pools(user=Mock(spec=BaseAuthManagerUserTest), session=session)
+
+        assert None not in result
+        assert "authorized_pool" in result
 
     @pytest.mark.parametrize(
         ("authorized_uri_prefix", "rows", "expected"),

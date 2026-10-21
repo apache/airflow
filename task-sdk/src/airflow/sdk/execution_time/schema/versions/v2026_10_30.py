@@ -29,7 +29,12 @@ from __future__ import annotations
 from cadwyn import VersionChange, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
-from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstance, TIRunContext
+from airflow.sdk.api.datamodels._generated import (
+    PreviousTIResponse,
+    TaskInstance,
+    TIRunContext,
+    TISuccessStatePayload,
+)
 from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComCount,
@@ -40,7 +45,7 @@ from airflow.sdk.execution_time.comms import (
 
 
 class AddLoopRuntime(VersionChange):
-    """Carry loop context and previous-iteration reads."""
+    """Carry loop context, previous-iteration reads and loop gate decisions."""
 
     description = __doc__
     instructions_to_migrate_to_previous_version = (
@@ -49,6 +54,9 @@ class AddLoopRuntime(VersionChange):
         schema(GetXComCount).field("previous_iteration").didnt_exist,
         schema(GetXComSequenceItem).field("previous_iteration").didnt_exist,
         schema(GetXComSequenceSlice).field("previous_iteration").didnt_exist,
+        schema(TaskState).field("loop_decision").didnt_exist,
+        # SucceedTask inherits loop_decision, and Cadwyn only removes a field from the class that declares it.
+        schema(TISuccessStatePayload).field("loop_decision").didnt_exist,
     )
 
 
@@ -110,4 +118,18 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
+
+
+class AddExpandedTICountToSupervisorTIRunContext(VersionChange):
+    """
+    Add ``expanded_ti_count``, the size of the mapped expansion a task instance belongs to.
+
+    The supervisor-schema mirror of the execution API's ``AddExpandedTICountToTIRunContext``.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("expanded_ti_count").didnt_exist,
     )

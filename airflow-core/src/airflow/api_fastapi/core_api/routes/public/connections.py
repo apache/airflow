@@ -452,7 +452,8 @@ def enqueue_connection_test(
     else:
         effective_team = test_body.team_name
 
-    auth_method: ResourceMethod = "PUT" if existing is not None and test_body.commit_on_success else "POST"
+    commit_allows_update = existing is not None and test_body.commit_on_success
+    auth_method: ResourceMethod = "PUT" if commit_allows_update else "POST"
     if not get_auth_manager().is_authorized_connection(
         method=auth_method,
         details=ConnectionDetails(conn_id=test_body.connection_id, team_name=effective_team),
@@ -473,6 +474,7 @@ def enqueue_connection_test(
         port=test_body.port,
         extra=test_body.extra,
         commit_on_success=test_body.commit_on_success,
+        commit_allows_update=commit_allows_update,
         executor=test_body.executor,
         queue=test_body.queue,
         team_name=effective_team,

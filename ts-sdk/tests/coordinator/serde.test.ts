@@ -27,6 +27,7 @@ import {
 } from "../../src/coordinator/serde.js";
 import {
   Dag,
+  label,
   type DagSpec,
   type TaskGroupRef,
   type TaskRef,
@@ -483,6 +484,24 @@ describe("serializeDag", () => {
         "cleanup",
         "transform",
       ]);
+    });
+
+    it("writes edge labels keyed by the group join nodes at a group end", () => {
+      const dag = new Dag("d");
+      const extracted = place(dag, "extract");
+      const transformed = place(dag, "transform", [extracted]);
+      const staging = dag.taskGroup("staging");
+      place(staging, "stage");
+      const loaded = place(dag, "load");
+      extracted.before(label(transformed, "rows"));
+      transformed.before(label(staging, "staged"));
+      staging.before(label(loaded, "ready"));
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        extract: { transform: { label: "rows" } },
+        transform: { "staging.upstream_join_id": { label: "staged" } },
+        "staging.downstream_join_id": { load: { label: "ready" } },
+      });
     });
 
     it("counts one edge when the wiring already drew it", () => {

@@ -1039,7 +1039,7 @@ jobs:
           run_install: false
       # keep this in sync with the Node version in ts-sdk-release.yml
       - name: Setup node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: "24.19.0"
           cache: 'pnpm'
@@ -1073,7 +1073,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Java
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1107,7 +1107,7 @@ jobs:
       - name: "Build Java SDK Javadoc"
         run: breeze build-docs --sdk-docs-only --sdk=java
       - name: "Upload Javadoc artifact"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: java-sdk-docs
           path: generated/_build/docs/java-sdk/
@@ -1139,7 +1139,7 @@ jobs:
       - name: "Build TypeScript SDK API reference"
         run: breeze build-docs --sdk-docs-only --sdk=typescript
       - name: "Upload TypeScript SDK docs artifact"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: ts-sdk-docs
           path: generated/_build/docs/ts-sdk/
@@ -1290,7 +1290,7 @@ jobs:
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "slack-state-tests-${{ github.ref_name }}-arm"
           path: ./slack-state/
@@ -1377,7 +1377,7 @@ jobs:
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
       - name: "Download all test warning artifacts from the current build"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           path: ./artifacts
           pattern: test-warnings-*
@@ -1391,7 +1391,7 @@ jobs:
             --pattern "**/warnings-*.txt" \
             --output ./files
       - name: "Upload artifact for summarized warnings"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "test-summarized-warnings"
           path: ./files/warn-summary-*.txt

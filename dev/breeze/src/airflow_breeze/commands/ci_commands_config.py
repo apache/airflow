@@ -80,6 +80,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--switch-to-base",
                 "--airflow-site",
                 "--force-k8s-schema-sync",
+                "--latest-package-managers",
                 "--github-token",
             ],
         },

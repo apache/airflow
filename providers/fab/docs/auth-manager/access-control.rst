@@ -209,7 +209,7 @@ Stable API Permissions
 .. BEGIN GENERATED PERMISSIONS TABLE
 
 .. THE TABLE BELOW IS AUTO-GENERATED. DO NOT EDIT IT MANUALLY.
-   Regenerate with:  python scripts/ci/prek/fab_permissions_doc.py
+   Regenerate with:  uv run scripts/ci/prek/fab_permissions_doc.py
    Trigger:          prek run generate-fab-permissions-doc --all-files
 
 .. list-table:: Stable REST API permissions (FAB auth manager)
@@ -261,10 +261,6 @@ Stable API Permissions
      - Assets.can_delete
      - Op
    * - ``/api/v2/assets/{asset_id}/queuedEvents``
-     - DELETE
-     - DAGs.can_edit
-     - User
-   * - ``/api/v2/assets/{asset_id}/queuedEvents``
      - GET
      - Assets.can_read
      - Viewer
@@ -276,15 +272,15 @@ Stable API Permissions
      - GET
      - Assets.can_read
      - Viewer
-   * - ``/api/v2/assets/{asset_id}/state-store/{key:path}``
+   * - ``/api/v2/assets/{asset_id}/state-store/{key}``
      - DELETE
      - Assets.can_delete
      - Op
-   * - ``/api/v2/assets/{asset_id}/state-store/{key:path}``
+   * - ``/api/v2/assets/{asset_id}/state-store/{key}``
      - GET
      - Assets.can_read
      - Viewer
-   * - ``/api/v2/assets/{asset_id}/state-store/{key:path}``
+   * - ``/api/v2/assets/{asset_id}/state-store/{key}``
      - PUT
      - Assets.can_edit
      - Op
@@ -304,7 +300,27 @@ Stable API Permissions
      - POST
      - DAGs.can_edit, DAG Runs.can_create
      - User
-   * - ``/api/v2/backfills``
+   * - ``/api/v2/backfills/dry_run``
+     - POST
+     - DAGs.can_edit, DAG Runs.can_create
+     - User
+   * - ``/api/v2/backfills/{backfill_id}``
+     - GET
+     - DAGs.can_read, DAG Runs.can_read
+     - Viewer
+   * - ``/api/v2/backfills/{backfill_id}/cancel``
+     - PUT
+     - DAGs.can_edit, DAG Runs.can_edit
+     - User
+   * - ``/api/v2/backfills/{backfill_id}/dag_runs``
+     - GET
+     - DAGs.can_read, DAG Runs.can_read
+     - Viewer
+   * - ``/api/v2/backfills/{backfill_id}/pause``
+     - PUT
+     - DAGs.can_edit, DAG Runs.can_edit
+     - User
+   * - ``/api/v2/backfills/{backfill_id}/unpause``
      - PUT
      - DAGs.can_edit, DAG Runs.can_edit
      - User
@@ -552,19 +568,19 @@ Stable API Permissions
      - GET
      - DAGs.can_read, DAG Runs.can_read, Task Instances.can_read
      - Viewer
-   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key:path}``
+   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}``
      - DELETE
      - DAGs.can_edit, DAG Runs.can_delete, Task Instances.can_delete
      - User
-   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key:path}``
+   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}``
      - GET
      - DAGs.can_read, DAG Runs.can_read, Task Instances.can_read
      - Viewer
-   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key:path}``
+   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}``
      - PATCH
      - DAGs.can_edit, DAG Runs.can_edit, Task Instances.can_edit
      - User
-   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key:path}``
+   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}``
      - PUT
      - DAGs.can_edit, DAG Runs.can_edit, Task Instances.can_edit
      - User
@@ -584,15 +600,15 @@ Stable API Permissions
      - POST
      - DAGs.can_edit, XComs.can_create
      - Op
-   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
+   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}``
      - DELETE
      - DAGs.can_edit, XComs.can_delete
      - Op
-   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
+   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}``
      - GET
      - DAGs.can_read, XComs.can_read
      - Viewer
-   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key:path}``
+   * - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}``
      - PATCH
      - DAGs.can_edit, XComs.can_edit
      - Op
@@ -724,15 +740,15 @@ Stable API Permissions
      - POST
      - Pools.can_create
      - Op
-   * - ``/api/v2/pools/{pool_name:path}``
+   * - ``/api/v2/pools/{pool_name}``
      - DELETE
      - Pools.can_delete
      - Op
-   * - ``/api/v2/pools/{pool_name:path}``
+   * - ``/api/v2/pools/{pool_name}``
      - GET
      - Pools.can_read
      - Viewer
-   * - ``/api/v2/pools/{pool_name:path}``
+   * - ``/api/v2/pools/{pool_name}``
      - PATCH
      - Pools.can_edit
      - Op
@@ -756,15 +772,15 @@ Stable API Permissions
      - POST
      - Variables.can_create
      - Op
-   * - ``/api/v2/variables/{variable_key:path}``
+   * - ``/api/v2/variables/{variable_key}``
      - DELETE
      - Variables.can_delete
      - Op
-   * - ``/api/v2/variables/{variable_key:path}``
+   * - ``/api/v2/variables/{variable_key}``
      - GET
      - Variables.can_read
      - Op
-   * - ``/api/v2/variables/{variable_key:path}``
+   * - ``/api/v2/variables/{variable_key}``
      - PATCH
      - Variables.can_edit
      - Op

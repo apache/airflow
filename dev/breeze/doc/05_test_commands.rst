@@ -703,7 +703,7 @@ The runner is overlay-agnostic. For every overlay it:
 
 * renders the overlay and substitutes ``RELEASE-NAME`` / ``NAMESPACE``,
 * **auto-preloads every ``image:`` referenced by the rendered manifest**
-  into the kind nodes via ``docker pull`` (with retry on Docker Hub
+  into the kind node via ``docker pull`` (with retry on Docker Hub
   rate limits) + ``kind load docker-image``, so the test does not flake
   on registry availability,
 * applies the overlay,

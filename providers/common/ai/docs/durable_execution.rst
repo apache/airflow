@@ -30,7 +30,8 @@ them again. Only the steps the failed attempt never finished run live.
 Durable execution only helps a task that has retries. To decide *whether* a failure is
 worth retrying, see :doc:`retry_policies`; a retried ``LLMBatchOperator`` re-attaches to
 its running batch instead (:ref:`llm-batch-reattach`). To resume a Strands Agents agent on a
-retry, see :ref:`howto/frameworks:strands-durable`.
+retry, see :ref:`howto/frameworks:strands-durable`; for an OpenAI Agents SDK agent, see
+:ref:`howto/frameworks:openai-agents-durable`.
 
 Turn it on
 ----------
@@ -80,6 +81,9 @@ the id on the toolset itself:
 .. code-block:: text
 
     ValueError: durable=True needs a unique id on every FunctionToolset, such as FunctionToolset(..., id='orders'): durable replay records each tool call under it. Set it on the toolset itself, and pass a function that builds a toolset as DynamicToolset(function, id=...); the id of a Toolset capability around a toolset does not reach it.
+
+It also refuses two different toolsets with the same id, which would file their calls
+under one name; passing one toolset object in two places is fine.
 
 Keep an id stable once tasks run with it: a retry finds its recorded tool calls by it.
 The provider's own toolsets (``SQLToolset``, ``HookToolset`` and the rest) and tools
