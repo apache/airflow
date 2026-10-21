@@ -3537,6 +3537,56 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    def test_find_executable_task_instances_skips_dag_that_cannot_be_deserialized(
+        self, dag_maker, caplog, session
+    ):
+        bad_dag_id = (
+            "SchedulerJobTest.test_find_executable_task_instances_skips_dag_that_cannot_be_deserialized-bad"
+        )
+        good_dag_id = (
+            "SchedulerJobTest.test_find_executable_task_instances_skips_dag_that_cannot_be_deserialized-good"
+        )
+
+        with dag_maker(dag_id=bad_dag_id):
+            bad_task = EmptyOperator(task_id="bad_task", priority_weight=2, max_active_tis_per_dag=1)
+        bad_run_1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        bad_run_2 = dag_maker.create_dagrun_after(bad_run_1, run_type=DagRunType.SCHEDULED)
+
+        with dag_maker(dag_id=good_dag_id):
+            good_task = EmptyOperator(task_id="good_task", priority_weight=1)
+        good_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        bad_running_ti = bad_run_1.get_task_instance(bad_task.task_id, session=session)
+        bad_scheduled_ti = bad_run_2.get_task_instance(bad_task.task_id, session=session)
+        good_scheduled_ti = good_run.get_task_instance(good_task.task_id, session=session)
+        bad_running_ti.state = TaskInstanceState.RUNNING
+        bad_scheduled_ti.state = TaskInstanceState.SCHEDULED
+        good_scheduled_ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+
+        def fail_for_bad_dag(dag_run, session):
+            if dag_run.dag_id == bad_dag_id:
+                raise DeserializationError(bad_dag_id) from RuntimeError("Variable not found")
+            return get_dag_for_run(dag_run=dag_run, session=session)
+
+        caplog.clear()
+        with (
+            caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
+            patch.object(self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_bad_dag),
+        ):
+            result = self.job_runner._select_task_instances_to_queue(
+                1, make_pool_stats(), set(), session=session
+            )
+
+        assert [ti.key for ti in result] == [good_scheduled_ti.key]
+        assert bad_scheduled_ti.state == TaskInstanceState.SCHEDULED
+        assert any(bad_dag_id in record.getMessage() for record in caplog.records)
+
+        session.rollback()
+
     def test_find_executable_task_instances_task_concurrency_per_dagrun_for_first(self, dag_maker):
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
