@@ -130,7 +130,7 @@ Install them when installing from PyPI. For example:
 ==========  ===================================
 Extra       Dependencies
 ==========  ===================================
-``boto3``   ``boto3>=1.42.94``
+``boto3``   ``boto3>=1.42.95``
 ``google``  ``apache-airflow-providers-google``
 ==========  ===================================
 
