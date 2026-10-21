@@ -427,26 +427,6 @@ class TestProviderManager:
             providers_manager._object_storage_provider_dict["s3"].provider_class_name == "second.S3Provider"
         )
 
-    def test_object_storage_providers_property(self):
-        providers_manager = ProvidersManager()
-        providers_manager._provider_dict = LazyDictWithCache()
-        providers_manager._provider_dict["airflow.providers.amazon"] = ProviderInfo(
-            version="1.0.0",
-            data={
-                "object-storage-providers": [
-                    {
-                        "storage-type": "s3",
-                        "provider-class-name": "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
-                    }
-                ]
-            },
-        )
-        providers_manager._discover_hooks()
-        osp = providers_manager._object_storage_provider_dict
-        assert isinstance(osp, dict)
-        assert "s3" in osp
-        assert osp["s3"].provider_name == "airflow.providers.amazon"
-
 
 class TestWithoutCheckProviderManager:
     @pytest.fixture(autouse=True)

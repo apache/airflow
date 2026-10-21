@@ -36,8 +36,10 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
         return StorageType.S3
 
     def _credentials_from_connection(self, conn_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Derive S3 credentials and endpoint settings from an Airflow connection."""
+        """Derive S3 credentials and endpoint settings from an Airflow connection; only ``aws`` connections are resolved."""
         conn = BaseHook.get_connection(conn_id)
+        if conn.conn_type != "aws":
+            return {}, {}
         aws_hook: AwsGenericHook = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
         creds = aws_hook.get_credentials()
 
@@ -61,7 +63,7 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
         override the ``region`` / ``endpoint`` derived from the connection.
         """
         if connection_config is None:
-            raise ValueError(f"connection_config must be provided for {self.get_storage_type}")
+            raise ValueError(f"connection_config must be provided for {self.get_storage_type.value}")
 
         try:
             credentials = connection_config.credentials
