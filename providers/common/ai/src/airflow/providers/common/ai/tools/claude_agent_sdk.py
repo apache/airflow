@@ -70,8 +70,14 @@ _MAX_INLINE_RESULT_CHARS = 500_000
 _MAX_BUFFER_BYTES = 16 * 1024 * 1024
 
 
+def _count_utf16_units(text: str) -> int:
+    return len(text.encode("utf-16-le", errors="surrogatepass")) // 2
+
+
 def _truncate_result_text(text: str) -> str:
-    if len(text) <= _MAX_INLINE_RESULT_CHARS:
+    # The CLI measures the ceiling in UTF-16 code units, so a code point outside the BMP (most
+    # emoji) counts twice; ``len(text)`` would let such a result through and the CLI would spill it.
+    if _count_utf16_units(text) <= _MAX_INLINE_RESULT_CHARS:
         return text
     notice = (
         f"\n\n[Truncated: this result had {len(text)} characters and only the beginning is shown. "
@@ -80,7 +86,12 @@ def _truncate_result_text(text: str) -> str:
     )
     # The notice counts toward the ceiling: text kept up to the ceiling plus the notice would
     # still be spilled by the CLI.
-    return text[: _MAX_INLINE_RESULT_CHARS - len(notice)] + notice
+    keep_units = _MAX_INLINE_RESULT_CHARS - _count_utf16_units(notice)
+    units = text.encode("utf-16-le", errors="surrogatepass")[: keep_units * 2]
+    # A cut that lands between the two halves of a surrogate pair would leave a lone high surrogate.
+    if units and 0xD8 <= units[-1] <= 0xDB:
+        units = units[:-2]
+    return units.decode("utf-16-le", errors="surrogatepass") + notice
 
 
 def _bound_detail(text: str) -> str:

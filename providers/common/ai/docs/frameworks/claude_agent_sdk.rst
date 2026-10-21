@@ -99,7 +99,8 @@ exception; give the SDK the MCP server directly instead. Each tool:
   :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`. Because the
   built-in tools are off, the model cannot open a result the SDK writes to a file, so each
   tool is marked with 500,000 characters as the size the SDK should keep inline. The bundled
-  CLI caps that value at 500,000 (observed on CLI 2.1.286). A single result longer than that
+  CLI caps that value at 500,000 (observed on CLI 2.1.286) and counts it in UTF-16 code units,
+  so an emoji counts as two. A single result longer than that
   is truncated to fit and ends with a notice asking the model to narrow the request; the
   model still reads it as a normal result, not an error. Without the truncation the CLI would
   spill the result to a file the model cannot read. The CLI also writes each result to stdout
