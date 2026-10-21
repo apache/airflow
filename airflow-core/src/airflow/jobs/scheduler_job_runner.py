@@ -1557,14 +1557,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # The QUEUED/RUNNING check above reads an ORM snapshot, and the supervisor can report a
             # terminal state through the API before this write lands. Repeating it here stops a
             # terminal row moving.
-            updated = session.execute(
-                update(Callback)
-                .where(
-                    Callback.id == callback_uuid,
-                    Callback.state.in_((CallbackState.QUEUED, CallbackState.RUNNING)),
-                )
-                .values(**new_values)
-                .execution_options(synchronize_session=False)
+            updated = cast(
+                "CursorResult",
+                session.execute(
+                    update(Callback)
+                    .where(
+                        Callback.id == callback_uuid,
+                        Callback.state.in_((CallbackState.QUEUED, CallbackState.RUNNING)),
+                    )
+                    .values(**new_values)
+                    .execution_options(synchronize_session=False)
+                ),
             )
             # The row moved under us, so the ORM copy is stale either way.
             session.expire(callback)
