@@ -664,6 +664,18 @@ class VariableResponse(BaseModel):
     value: Annotated[str | None, Field(title="Value")]
 
 
+class WaitStatus(str, Enum):
+    """
+    Where a webhook wait is, as ``InboundWait.status`` stores it.
+    """
+
+    REGISTERED = "registered"
+    RECEIVED = "received"
+    RESUMED = "resumed"
+    ENDED = "ended"
+    TIMED_OUT = "timed_out"
+
+
 class XComResponse(BaseModel):
     """
     XCom schema for responses with fields that are needed for Runtime.
@@ -852,6 +864,30 @@ class HITLDetailResponse(BaseModel):
 
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class InboundWaitRequest(BaseModel):
+    """
+    Schema for registering a task instance's wait for a delivery to an inbound webhook.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    webhook: Annotated[str, Field(title="Webhook")]
+    events: Annotated[list[JsonValue | None] | None, Field(title="Events")] = None
+    match: Annotated[dict[str, JsonValue | None] | None, Field(title="Match")] = None
+    timeout: Annotated[timedelta | None, Field(title="Timeout")] = None
+
+
+class InboundWaitResponse(BaseModel):
+    """
+    Schema for a registered webhook wait.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    status: WaitStatus
+    deadline: Annotated[AwareDatetime, Field(title="Deadline")]
 
 
 class JobCompleteBody(BaseModel):

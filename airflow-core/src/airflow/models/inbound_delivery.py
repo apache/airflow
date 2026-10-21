@@ -43,6 +43,11 @@ class DeliveryOutcome(str, Enum):
     #: No Dag that an event could start subscribes to the delivery, and none of its asset routes could
     #: record an event, so nothing acted on it.
     NO_SUBSCRIBERS = "no_subscribers"
+    #: The delivery has a correlation key, went to no open webhook wait and recorded no events, so a wait
+    #: registered later may still claim it.
+    EARLY = "early"
+    #: The delivery resumes a webhook wait's task, or will once the task parks.
+    RESUMED_WAIT = "resumed_wait"
 
     def __str__(self) -> str:
         return self.value

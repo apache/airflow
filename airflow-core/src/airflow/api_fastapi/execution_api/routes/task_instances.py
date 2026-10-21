@@ -104,6 +104,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun as DR, InvalidLoopDecision
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerError, regional_expression
 from airflow.models.hitl import HITLDetail
+from airflow.models.inbound_wait import InboundWait
 from airflow.models.log import Log
 from airflow.models.task_coordinates import (
     LOOP_GATE_OPERATOR,
@@ -121,6 +122,7 @@ from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
+from airflow.webhooks.wait_resumption import find_received_delivery, lock_current_wait, resume_wait
 
 router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
 
@@ -895,6 +897,43 @@ def _validate_outlet_event_partition_keys(outlet_events: list[dict[str, Any]]) -
             )
 
 
+def _park_on_webhook_wait(
+    ti_patch_payload: TIAwaitingInputStatePayload,
+    *,
+    task_instance_id: UUID,
+    ti: TI | None,
+    wait: InboundWait,
+    session: Session,
+) -> tuple[Update, TaskInstanceState]:
+    """
+    Park a task on its webhook wait until the wait's deadline, or resume it with the delivery it received.
+
+    A delivery that matched the wait while the task was still running marked the wait ``received``,
+    since only a parked task can be resumed, so the task resumes now instead of parking. The caller
+    holds the locks of the task instance and then the wait.
+    """
+    if ti is not None and (delivery := find_received_delivery(wait, session=session)) is not None:
+        # The resume dispatches to next_method, so the park's next_method and next_kwargs go onto the
+        # task instance before handle_event_submit adds the event to next_kwargs.
+        ti.next_method = ti_patch_payload.next_method
+        ti.next_kwargs = ti_patch_payload.next_kwargs
+        resume_wait(ti, wait, delivery, session=session)
+        query = update(TI).where(TI.id == task_instance_id).values(state=TaskInstanceState.SCHEDULED)
+        return query, TaskInstanceState.SCHEDULED
+    query = (
+        update(TI)
+        .where(TI.id == task_instance_id)
+        .values(
+            state=TaskInstanceState.AWAITING_INPUT,
+            trigger_id=None,
+            next_method=ti_patch_payload.next_method,
+            next_kwargs=ti_patch_payload.next_kwargs,
+            trigger_timeout=wait.deadline,
+        )
+    )
+    return query, TaskInstanceState.AWAITING_INPUT
+
+
 def _create_ti_state_update_query_and_update_state(
     *,
     ti_patch_payload: TIStateUpdate,
@@ -980,9 +1019,11 @@ def _create_ti_state_update_query_and_update_state(
         )
         updated_state = TaskInstanceState.DEFERRED
     elif isinstance(ti_patch_payload, TIAwaitingInputStatePayload):
-        # Park the task waiting for human input (Human-in-the-loop). No trigger / triggerer is
-        # created: the task is resumed by the Core API response handler or the scheduler timeout
-        # sweep. The optional response deadline is stored on the existing trigger_timeout column.
+        # Park the task waiting for human input (Human-in-the-loop) or for a webhook delivery. No
+        # trigger / triggerer is created. A Human-in-the-loop park is resumed by the Core API response
+        # handler or the scheduler timeout sweep, and stores its optional response deadline on the
+        # existing trigger_timeout column. A webhook park stores its wait's deadline there instead,
+        # and is resumed at park time or by the timeout sweep (see _park_on_webhook_wait).
         #
         # Fixed lock order (TaskInstance -> HITLDetail), matching the Core API response path, so a
         # human response racing this park transition cannot deadlock.
@@ -992,7 +1033,16 @@ def _create_ti_state_update_query_and_update_state(
         hitl_detail = session.scalar(
             select(HITLDetail).where(HITLDetail.ti_id == task_instance_id).with_for_update(of=HITLDetail)
         )
-        if ti is not None and hitl_detail is not None and hitl_detail.response_received:
+        # Locked after the task instance, as a wait registration and a delivery that resumes a wait do.
+        inbound_wait = lock_current_wait(task_instance_id, session=session)
+        if inbound_wait is not None:
+            # An open wait is one the task registered in this try and has not resumed from, so the task
+            # parks for it. It is checked first because a Human-in-the-loop response stays recorded
+            # after it resumed the task, and so would resume a later park of the same try.
+            query, updated_state = _park_on_webhook_wait(
+                ti_patch_payload, task_instance_id=task_instance_id, ti=ti, wait=inbound_wait, session=session
+            )
+        elif ti is not None and hitl_detail is not None and hitl_detail.response_received:
             # The human responded in the window between the operator writing the HITL request and
             # the worker parking the task. Resume straight to execute_complete instead of parking,
             # which would otherwise strand an already-responded task (no trigger/sweep would fire).

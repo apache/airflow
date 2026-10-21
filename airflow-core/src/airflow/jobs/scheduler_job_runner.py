@@ -140,6 +140,12 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.webhooks.wait_resumption import (
+    find_received_delivery,
+    lock_current_waits,
+    resume_wait,
+    time_out_wait,
+)
 
 if TYPE_CHECKING:
     from types import FrameType
@@ -3849,12 +3855,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
         """
-        Resolve Human-in-the-loop tasks parked in AWAITING_INPUT whose response deadline has passed.
+        Resolve Human-in-the-loop and webhook-wait tasks parked in AWAITING_INPUT past their deadline.
 
         This is the scheduler-side liveness guarantee for HITL and runs independently of the
         triggerer. For each timed-out task instance: if a response arrived just before the deadline,
         resume with it; otherwise, if the request defines defaults, write the defaults as the
         response and resume to success; otherwise fail the task (mirroring ``check_trigger_timeouts``).
+
+        A task parked on a webhook wait resumes with the delivery its wait has received, which marks
+        the wait ``resumed``, and otherwise with the webhook timeout event, which marks it
+        ``timed_out``. The sweep deletes no wait; ``airflow db clean`` removes them.
         """
         for attempt in run_with_db_retries(max_retries, logger=self.log):
             with attempt:
@@ -3877,6 +3887,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 timed_out_tis = session.scalars(query).all()
                 if not timed_out_tis:
                     return
+                inbound_waits = lock_current_waits([ti.id for ti in timed_out_tis], session=session)
 
                 num_resolved = 0
                 num_failed = 0
@@ -3884,7 +3895,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 for ti in timed_out_tis:
                     hitl_detail = ti.hitl_detail
                     resuming = True
-                    if hitl_detail is not None and hitl_detail.responded_at is not None:
+                    # An open wait comes first, as at park time: a Human-in-the-loop response stays
+                    # recorded after it resumed the task, so it does not tell why the task parked.
+                    if (inbound_wait := inbound_waits.get(ti.id)) is not None:
+                        if (delivery := find_received_delivery(inbound_wait, session=session)) is not None:
+                            resume_wait(ti, inbound_wait, delivery, session=session)
+                        else:
+                            time_out_wait(ti, inbound_wait, session=session)
+                            resuming = False
+                    elif hitl_detail is not None and hitl_detail.responded_at is not None:
                         # A response landed just before the deadline; resume with it.
                         handle_event_submit(
                             TriggerEvent(hitl_detail.as_resume_event_payload(timedout=False)),
@@ -3939,8 +3958,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 session.flush()
                 if num_resolved or num_failed or num_unresumable:
                     self.log.info(
-                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults), %i failed, "
-                        "%i could not be resumed",
+                        "AWAITING_INPUT timeout sweep: %i resolved (response/defaults/webhook delivery), "
+                        "%i failed, %i could not be resumed",
                         num_resolved,
                         num_failed,
                         num_unresumable,
