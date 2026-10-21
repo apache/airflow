@@ -1196,6 +1196,7 @@ class DagRun(Base, LoggingMixin):
     def _tis_for_dagrun_state(self, *, dag, tis):
         """
         Return the collection of tasks that should be considered for evaluation
+
         of terminal dag run state.
         """
 
@@ -1203,12 +1204,8 @@ class DagRun(Base, LoggingMixin):
             for down_task_id in task.downstream_task_ids:
                 down_task = dag.get_task(down_task_id)
 
-                if (
-                    not down_task.is_teardown
-                    or (
-                        down_task.on_failure_fail_dagrun
-                        and down_task.on_success_succeed_dagrun
-                    )
+                if not down_task.is_teardown or (
+                    down_task.on_failure_fail_dagrun and down_task.on_success_succeed_dagrun
                 ):
                     # A downstream task that can determine the terminal DagRun state
                     # means this task is not an effective leaf.
@@ -1219,11 +1216,7 @@ class DagRun(Base, LoggingMixin):
         leaf_task_ids = {x.task_id for x in dag.tasks if is_effective_leaf(x)}
         if not leaf_task_ids:
             leaf_task_ids = {x.task_id for x in dag.tasks if not x.downstream_list}
-        leaf_tis = {
-            ti
-            for ti in tis
-            if ti.task_id in leaf_task_ids and ti.state != TaskInstanceState.REMOVED
-        }
+        leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids and ti.state != TaskInstanceState.REMOVED}
         return leaf_tis
 
     def _emit_dagrun_span(self, state: DagRunState):

@@ -566,7 +566,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         on_failure_fail_dagrun = self.kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
-        on_success_succeed_dagrun = self.kwargs.pop("on_success_succeed_dagrun", self.on_success_succeed_dagrun)
+        on_success_succeed_dagrun = self.kwargs.pop(
+            "on_success_succeed_dagrun", self.on_success_succeed_dagrun
+        )
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,

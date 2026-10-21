@@ -4821,9 +4821,8 @@ def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session
     dr = session.scalar(select(DagRun))
     assert dr.state == DagRunState.FAILED
 
-def test_work_task_failure_when_teardown_succeeds_and_on_success_is_false(
-    dag_maker, session
-):
+
+def test_work_task_failure_when_teardown_succeeds_and_on_success_is_false(dag_maker, session):
     with dag_maker():
 
         @teardown(
@@ -4941,9 +4940,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
         elif task_id.startswith("w"):
             factory = work_task
         elif task_id.endswith("__"):
-            factory = teardown_task.override(
-                on_failure_fail_dagrun=True, on_success_succeed_dagrun=False
-            )
+            factory = teardown_task.override(on_failure_fail_dagrun=True, on_success_succeed_dagrun=False)
         elif task_id.endswith("_"):
             factory = teardown_task.override(on_failure_fail_dagrun=True)
         else:
