@@ -24,13 +24,7 @@ import datetime
 from airflow.providers.standard.operators.hitl import get_input_response, request_input
 from airflow.sdk import DAG, Param, task
 
-with DAG(
-    dag_id="example_hitl_request_input",
-    start_date=datetime.datetime(2021, 1, 1),
-    schedule=None,
-    catchup=False,
-    tags=["example", "HITL"],
-):
+with DAG(dag_id="example_hitl_request_input", tags=["example", "HITL"]):
     # [START howto_hitl_request_input]
     @task
     def refund(order_id: str, task_state_store=None) -> str:
