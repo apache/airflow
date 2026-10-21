@@ -161,10 +161,10 @@ def is_bundle_config_reload_enabled() -> bool:
 
 
 @functools.cache
-def _load_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfigSnapshot:
-    """Read the initial bundle snapshot, shared by managers in this process."""
+def _get_cached_bundle_config_snapshot(*, metadata_only: bool = False) -> _BundleConfigSnapshot:
+    """Return the cached bundle snapshot, reading configuration on first use."""
     if metadata_only:
-        return replace(_load_bundle_config_snapshot())
+        return replace(_get_cached_bundle_config_snapshot())
     return _create_bundle_config_snapshot(_read_bundle_config_list())
 
 
@@ -172,7 +172,9 @@ def _refresh_bundle_config_snapshot(
     *, force: bool = False, metadata_only: bool = False
 ) -> _BundleConfigSnapshot:
     snapshot = (
-        _load_bundle_config_snapshot(metadata_only=True) if metadata_only else _load_bundle_config_snapshot()
+        _get_cached_bundle_config_snapshot(metadata_only=True)
+        if metadata_only
+        else _get_cached_bundle_config_snapshot()
     )
     if not is_bundle_config_reload_enabled():
         return snapshot
@@ -423,7 +425,7 @@ class DagBundlesManager(LoggingMixin):
 
         :meta private:
         """
-        snapshot = _load_bundle_config_snapshot()
+        snapshot = _get_cached_bundle_config_snapshot()
         self._snapshot = replace(snapshot)
         if self._bundle_config.keys() == snapshot.names:
             return
@@ -824,7 +826,7 @@ class DagBundlesManager(LoggingMixin):
         :return: The DAG bundle.
         """
         if name not in self._bundle_config:
-            if name not in _load_bundle_config_snapshot().names:
+            if name not in _get_cached_bundle_config_snapshot().names:
                 _refresh_bundle_config_snapshot(force=True)
             self.parse_config()
         cfg_bundle = self._bundle_config.get(name)
