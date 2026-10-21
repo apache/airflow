@@ -3185,6 +3185,26 @@ class TestIndexedTaskInstance:
 
         assert (ti.region_id, ti.region_index) == (parent.region_id, 1)
 
+    def test_create_indexed_task_takes_every_field_of_the_parent_but_its_own(self, create_runtime_ti):
+        """
+        The operator's ``context["ti"]`` is the indexed task, so it holds what the parent holds: the
+        virtualenv operators read its bundle. Walks the model's fields, so a field added later is checked too.
+        """
+        parent = create_runtime_ti(task=BaseOperator(task_id="iterated"))
+        parent.bundle_instance = mock.sentinel.bundle
+        parent.hostname = "worker-1"
+        parent.context_carrier = {"traceparent": "00-trace-span-01"}
+        context = parent.get_template_context()
+
+        ti = IndexedTaskInstance.create_indexed_task(context=context, index=0, operator=parent.task)
+
+        own = {"dag_id", "state", "end_date", "rendered_map_index", "is_mapped", "task"}
+        inherited = [name for name in RuntimeTaskInstance.model_fields if name not in own]
+        assert {name: getattr(ti, name) for name in inherited} == {
+            name: getattr(parent, name) for name in inherited
+        }
+        assert ti.bundle_instance is mock.sentinel.bundle
+
     def test_create_indexed_task_sees_the_parents_state_store_through_its_index(self):
         """User code in an iteration gets the parent's store with suffixed keys; the checkpoints do not."""
         context, operator = self._parent_context_and_operator()

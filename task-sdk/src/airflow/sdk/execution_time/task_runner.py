@@ -1178,24 +1178,28 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         if index < 0:
             raise ValueError(f"IndexedTaskInstance requires index >= 0, got {index}")
         parent = context["ti"]
+        # Every field the parent holds: its identity (an iteration's XComs and state belong to the task
+        # instance that runs it), and whatever a field added to the task instance later carries, such as
+        # the bundle the virtualenv operators put on the path. Only what an iteration has of its own
+        # is set here.
+        inherited: dict[str, Any] = {
+            name: value
+            for name in RuntimeTaskInstance.model_fields
+            if (value := getattr(parent, name, NOTSET)) is not NOTSET
+        }
+        own: dict[str, Any] = {
+            "parent_task_state_store": context["task_state_store"],
+            "dag_id": operator.dag_id,
+            "index": index,
+            "input_fingerprint": input_fingerprint,
+            "state": TaskInstanceState.SCHEDULED.value,
+            "end_date": None,
+            "rendered_map_index": None,
+            "is_mapped": True,
+            "task": operator,
+        }
         return cls.model_construct(
-            id=parent.id,
-            parent_task_state_store=context["task_state_store"],
-            # The parent's: an iteration's XComs and state belong to the task instance that runs it.
-            task_id=parent.task_id,
-            dag_id=operator.dag_id,
-            run_id=parent.run_id,
-            map_index=parent.map_index,
-            region_id=getattr(parent, "region_id", None),
-            region_index=getattr(parent, "region_index", None),
-            index=index,
-            input_fingerprint=input_fingerprint,
-            max_tries=parent.max_tries,
-            start_date=parent.start_date,
-            state=TaskInstanceState.SCHEDULED.value,
-            is_mapped=True,
-            task=operator,
-            try_number=parent.try_number,
+            **(inherited | own),
             # The dag run, logical date and the rest the server sent for the task instance that
             # runs this iteration: its template context, get_previous_ti() and the like read them.
             _ti_context_from_server=getattr(parent, "_ti_context_from_server", None),
