@@ -2231,48 +2231,64 @@ class TestWatchedSubprocessKill:
         expected_logs.extend(({"event": "Process exited", "logger": "supervisor"},))
         assert logs == expected_logs
 
-    def test_wait_terminates_subprocess_when_monitor_raises(self, watched_subprocess, mock_process, mocker):
+    def test_wait_terminates_subprocess_when_monitor_raises(self, watched_subprocess, mocker):
         monitor_error = OSError(28, "No space left on device")
         mocker.patch.object(
             ActivitySubprocess, "_monitor_subprocess", autospec=True, side_effect=monitor_error
         )
+        kill = mocker.patch.object(ActivitySubprocess, "kill", autospec=True)
         cleanup_sockets = mocker.patch.object(ActivitySubprocess, "cleanup_sockets_after_kill", autospec=True)
-        signal_subprocess = mocker.patch.object(ActivitySubprocess, "_signal_subprocess", autospec=True)
         upload_logs = mocker.patch.object(ActivitySubprocess, "_upload_logs", autospec=True)
-        mock_process.wait.return_value = -signal.SIGTERM
 
         with pytest.raises(OSError, match="No space left on device") as raised:
             watched_subprocess.wait()
 
         assert raised.value is monitor_error
+        kill.assert_called_once_with(
+            watched_subprocess,
+            signal.SIGTERM,
+            force=True,
+            escalation_delay=supervisor.KILLED_TASK_CLEANUP_TIME,
+        )
         cleanup_sockets.assert_called_once_with(watched_subprocess)
-        signal_subprocess.assert_called_once_with(watched_subprocess, signal.SIGTERM)
-        mock_process.wait.assert_called_once_with(timeout=supervisor.KILLED_TASK_CLEANUP_TIME)
         watched_subprocess.selector.close.assert_called_once_with()
         upload_logs.assert_not_called()
 
-    def test_wait_escalates_subprocess_after_monitor_error(self, watched_subprocess, mock_process, mocker):
+    def test_wait_sigkills_subprocess_when_kill_fails_after_monitor_error(self, watched_subprocess, mocker):
         mocker.patch.object(
             ActivitySubprocess, "_monitor_subprocess", autospec=True, side_effect=RuntimeError("boom")
         )
+        mocker.patch.object(ActivitySubprocess, "kill", autospec=True, side_effect=OSError("kill failed"))
         signal_subprocess = mocker.patch.object(ActivitySubprocess, "_signal_subprocess", autospec=True)
-        mock_process.wait.side_effect = [
-            psutil.TimeoutExpired(pid=watched_subprocess.pid, seconds=0),
-            -signal.SIGKILL,
-        ]
 
         with pytest.raises(RuntimeError, match="boom"):
             watched_subprocess.wait()
 
-        assert signal_subprocess.call_args_list == [
-            mocker.call(watched_subprocess, signal.SIGTERM),
-            mocker.call(watched_subprocess, signal.SIGKILL),
-        ]
-        assert mock_process.wait.call_args_list == [
-            mocker.call(timeout=supervisor.KILLED_TASK_CLEANUP_TIME),
-            mocker.call(timeout=supervisor.KILLED_TASK_CLEANUP_TIME),
-        ]
-        assert watched_subprocess._exit_code == -signal.SIGKILL
+        signal_subprocess.assert_called_once_with(watched_subprocess, signal.SIGKILL)
+
+    @pytest.mark.parametrize(
+        "handler_behaviour",
+        [
+            pytest.param({"side_effect": OSError(28, "No space left on device")}, id="handler-raises"),
+            pytest.param({"return_value": False}, id="handler-stops"),
+        ],
+    )
+    def test_discard_after_failure_reads_socket_until_eof(self, handler_behaviour):
+        handler = mock.Mock(**handler_behaviour)
+        read_end, write_end = socket.socketpair()
+        try:
+            cb = supervisor._discard_after_failure(handler)
+            write_end.sendall(b"line\n")
+
+            assert cb(read_end) is True
+            assert cb(read_end) is True
+            handler.assert_called_once_with(read_end)
+
+            write_end.close()
+            assert cb(read_end) is False
+        finally:
+            read_end.close()
+            write_end.close()
 
     def test_monitor_log_write_error_does_not_leave_subprocess_running(
         self, monkeypatch, client_with_ti_start
@@ -2319,6 +2335,73 @@ class TestWatchedSubprocessKill:
                 child = psutil.Process(proc.pid)
                 child.kill()
                 child.wait(timeout=2)
+
+    def test_monitor_error_lets_on_kill_log_and_stop_session_child(
+        self, monkeypatch, client_with_ti_start, tmp_path
+    ):
+        """Like SubprocessHook.send_sigterm, the task's SIGTERM handler logs before stopping its child."""
+        session_child_pid_file = tmp_path / "session_child.pid"
+
+        def subprocess_main():
+            CommsDecoder()._get_response()
+            session_child = subprocess.Popen(["sleep", "60"], start_new_session=True)
+
+            def on_term(signum, frame):
+                print("Sending SIGTERM signal to process group", flush=True)
+                os.killpg(os.getpgid(session_child.pid), signal.SIGTERM)
+                session_child.wait()
+                os._exit(0)
+
+            signal.signal(signal.SIGTERM, on_term)
+            session_child_pid_file.write_text(str(session_child.pid))
+            print("fill log", flush=True)
+            while True:
+                sleep(0.1)
+
+        def fake_reconfigure(logger, *args, **kwargs):
+            return logger
+
+        def log_line(level, msg, **kwargs):
+            if msg == "fill log":
+                raise OSError(28, "No space left on device")
+
+        monkeypatch.setattr(supervisor, "KILLED_TASK_CLEANUP_TIME", 5.0)
+        monkeypatch.setattr(supervisor, "reconfigure_logger", fake_reconfigure)
+        logger = mock.Mock(spec=FilteringBoundLogger)
+        logger.log.side_effect = log_line
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=client_with_ti_start,
+            logger=logger,
+            target=subprocess_main,
+        )
+
+        try:
+            with pytest.raises(OSError, match="No space left on device"):
+                proc.wait()
+
+            assert proc._exit_code == 0
+            assert not psutil.pid_exists(int(session_child_pid_file.read_text()))
+        finally:
+            pids = [proc.pid]
+            if session_child_pid_file.exists():
+                pids.append(int(session_child_pid_file.read_text()))
+            for pid in pids:
+                if psutil.pid_exists(pid):
+                    leftover = psutil.Process(pid)
+                    leftover.kill()
+                    leftover.wait(timeout=2)
 
     def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
         """Test `_service_subprocess` processes selector events and handles subprocess exit."""

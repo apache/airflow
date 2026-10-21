@@ -1486,32 +1486,31 @@ class WatchedSubprocess:
         return self._exit_code
 
     def _terminate_subprocess_after_monitor_error(self) -> None:
+        """
+        Stop the subprocess after the supervisor loop failed, so it is not left running unsupervised.
+
+        Output from the subprocess keeps being read while it shuts down, so that its own cleanup (such as
+        ``on_kill``) can still log, but is dropped once forwarding it fails, as that may be what failed.
+        """
         if self._exit_code is not None:
             return
 
         try:
-            self.cleanup_sockets_after_kill()
+            for sock, socket_type in self._open_sockets.items():
+                if socket_type != "requests":
+                    key = self.selector.get_key(sock)
+                    socket_handler, on_close = key.data
+                    self.selector.modify(sock, key.events, (_discard_after_failure(socket_handler), on_close))
+
+            self.kill(signal.SIGTERM, force=True, escalation_delay=KILLED_TASK_CLEANUP_TIME)
         except Exception:
-            log.exception("Failed to clean up subprocess sockets after supervisor loop error", pid=self.pid)
-
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try:
-                self._signal_subprocess(sig)
-                self._exit_code = self._process.wait(timeout=KILLED_TASK_CLEANUP_TIME)
-                self._process_exit_monotonic = time.monotonic()
-                log.info("Process exited", pid=self.pid, exit_code=self._exit_code, signal_sent=sig.name)
-                return
-            except self._process.TimeoutExpired:
-                msg = "Process did not terminate in time"
-                if sig != signal.SIGKILL:
-                    msg += "; escalating"
-                log.warning(msg, pid=self.pid, signal=sig.name)
-            except self._process.ProcessNotFound:
-                log.debug("Process already terminated", pid=self.pid)
-                self._exit_code = -1
-                return
-
-        log.error("Failed to terminate process after supervisor loop error", pid=self.pid)
+            if self._exit_code is None:
+                with suppress(Exception):
+                    self._signal_subprocess(signal.SIGKILL)
+            log.exception("Failed to terminate process after supervisor loop error", pid=self.pid)
+        finally:
+            with suppress(Exception):
+                self.cleanup_sockets_after_kill()
 
 
 _REMOTE_LOGGING_CONN_CACHE: dict[str, Connection | None] = {}
@@ -2855,6 +2854,29 @@ def make_buffered_socket_reader(
         return True
 
     return cb, on_close
+
+
+def _discard_after_failure(socket_handler: Callable[[socket], bool]) -> Callable[[socket], bool]:
+    """
+    Wrap a socket handler so the socket is read to EOF, discarding data, once the handler fails or stops.
+
+    This keeps the socket open for the writer, which would otherwise block on a full buffer or get
+    ``BrokenPipeError``.
+    """
+    forwarding = True
+
+    def cb(sock: socket) -> bool:
+        nonlocal forwarding
+        if forwarding:
+            with suppress(Exception):
+                if socket_handler(sock):
+                    return True
+            # The handler hit EOF or can no longer process data; the next read tells which.
+            forwarding = False
+            return True
+        return bool(sock.recv(4096))
+
+    return cb
 
 
 def length_prefixed_frame_reader(
