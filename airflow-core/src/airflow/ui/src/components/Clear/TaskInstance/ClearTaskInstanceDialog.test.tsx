@@ -18,6 +18,7 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,6 +52,7 @@ const taskInstance: TaskInstanceResponse = {
   executor_config: "{}",
   hostname: null,
   id: "test_task_instance",
+  ignore_upstream_deps: false,
   in_loop: false,
   logical_date: "2025-01-01T00:00:00Z",
   map_index: -1,
@@ -623,5 +625,57 @@ describe("ClearTaskInstanceDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /clear\.button/iu }));
 
     expect(await screen.findByRole("button", { name: /options\.laterIterations/iu })).toBeVisible();
+  });
+
+  it("renders the force run checkbox unticked by default", () => {
+    render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={taskInstance} />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.getByRole("checkbox", { name: /options\.forceRun/iu })).not.toBeChecked();
+    expect(screen.queryByText(/forceRunWarning/iu)).not.toBeInTheDocument();
+  });
+
+  it("omits ignore_upstream_deps from the request body when force run is left unticked", async () => {
+    render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={taskInstance} />, {
+      wrapper: Wrapper,
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalled());
+
+    const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: Record<string, unknown> }];
+
+    expect(requestBody).not.toHaveProperty("ignore_upstream_deps");
+  });
+
+  it("sends ignore_upstream_deps and only_failed=false when force run is ticked", async () => {
+    const user = userEvent.setup();
+
+    render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={taskInstance} />, {
+      wrapper: Wrapper,
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: /options\.forceRun/iu }));
+
+    expect(screen.getByRole("checkbox", { name: /options\.forceRun/iu })).toBeChecked();
+    expect(screen.getByText(/forceRunWarning/iu)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /options\.upstream/iu })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /options\.downstream/iu })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /options\.onlyFailed/iu })).toBeDisabled();
+
+    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalled());
+
+    const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: Record<string, unknown> }];
+
+    expect(requestBody).toMatchObject({
+      ignore_upstream_deps: true,
+      include_downstream: false,
+      include_upstream: false,
+      only_failed: false,
+    });
   });
 });

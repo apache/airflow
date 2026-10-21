@@ -1805,7 +1805,14 @@ class DagRun(Base, LoggingMixin):
                         schedulable,
                         session=session,
                     )
-                    ready_tis.extend(revised_tis)
+                    if schedulable.ignore_upstream_deps:
+                        # Indexes added here are normally waved through on the strength of the
+                        # sibling that just passed its dependency check. A forced instance passed
+                        # by skipping that check, so it cannot vouch for indexes the user never
+                        # selected: queue them for this loop's own evaluation instead.
+                        additional_tis.extend(revised_tis)
+                    else:
+                        ready_tis.extend(revised_tis)
                     revised_expansion_keys.add(expansion_key)
                     if revised_tis:
                         # Revising a mapped task can add new instances, growing its instance count

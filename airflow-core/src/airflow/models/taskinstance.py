@@ -123,7 +123,7 @@ from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS, get_upstream_state_deps
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.db import exists_query
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -437,6 +437,7 @@ def clear_task_instances(
     *,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
     superseded_ti_ids: Collection[UUID] = (),
+    ignore_upstream_deps: bool = False,
 ) -> list[TaskInstance]:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -458,6 +459,8 @@ def clear_task_instances(
         mapped expansion of such a task is archived and regenerated in a new region.
     :param superseded_ti_ids: executions whose generated work is replaced rather than retried; they
         are archived in place instead of receiving a successor.
+    :param ignore_upstream_deps: re-run the instances even if their dependencies on other task
+        instances are not met; stays set until the instance is cleared again.
 
     :meta private:
     """
@@ -515,6 +518,7 @@ def clear_task_instances(
                 # Prevents the task from re-running and clearing when prevent_running_task from the frontend and the tas is running is True.
 
             ti.state = TaskInstanceState.RESTARTING
+            ti.ignore_upstream_deps = ignore_upstream_deps
         # If a task is cleared when running and the prevent_running_task is false,
         # set its state to RESTARTING so that
         # the task is terminated and becomes eligible for retry.
@@ -564,6 +568,8 @@ def clear_task_instances(
                 # One without a version is never enqueued, and the run keeps its own, so it can
                 # only go there.
                 ti.dag_version_id = dr.created_dag_version_id
+            # After prepare_db_for_next_try, so the archived attempt keeps the finished try's own flag.
+            ti.ignore_upstream_deps = ignore_upstream_deps
             session.merge(ti)
         cleared.append(ti)
 
@@ -916,6 +922,7 @@ def apply_loop_clear_scope(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    ignore_upstream_deps: bool = False,
 ) -> list[TaskInstance]:
     """Apply a planned clear while the caller holds its DagRun lock."""
     from airflow.exceptions import AirflowClearRunningTaskException
@@ -968,6 +975,7 @@ def apply_loop_clear_scope(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        ignore_upstream_deps=ignore_upstream_deps,
     )
 
 
@@ -1181,6 +1189,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     # Cleared on task start (ti_run).  Read by next_retry_datetime().
     retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    ignore_upstream_deps: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1963,6 +1975,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             assert self.task is not None
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
+            if self.ignore_upstream_deps and isinstance(dep, get_upstream_state_deps()):
+                continue
             for dep_status in dep.get_dep_statuses(self, dep_context, session=session):
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
@@ -3342,6 +3356,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             )
             ti.try_number = last_tries.get(index, -1) + 1
             ti.max_tries += ti.try_number
+            if unmapped_ti is not None:
+                # unmapped_ti can be None here when indexes are added to an already-expanded
+                # task (e.g. the mapped length grew); there is no single source row to copy from.
+                ti.ignore_upstream_deps = unmapped_ti.ignore_upstream_deps
             task.log.debug("Expanding TIs upserted %s", ti)
             _add_and_prime_mapped_ti(
                 ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)

@@ -623,6 +623,31 @@ class TestClearTasks:
             assert successor.state is None
             assert successor.external_executor_id is None
 
+    @pytest.mark.parametrize("ignore_upstream_deps", [True, False])
+    def test_clear_task_instances_sets_ignore_upstream_deps(self, dag_maker, ignore_upstream_deps):
+        with dag_maker(
+            "test_clear_task_instances_sets_ignore_upstream_deps",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        ) as dag:
+            EmptyOperator(task_id="task0")
+
+        ti0 = dag_maker.create_dagrun().task_instances[0]
+        ti0.state = State.SUCCESS
+        # Preset True so the ``False`` case proves clear_task_instances resets the flag.
+        ti0.ignore_upstream_deps = True
+
+        with create_session() as session:
+            session.add(ti0)
+            session.commit()
+
+            qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id)).all()
+            (successor,) = clear_task_instances(qry, session, ignore_upstream_deps=ignore_upstream_deps)
+            session.flush()
+            session.refresh(successor)
+
+            assert successor.ignore_upstream_deps is ignore_upstream_deps
+
     def test_clear_task_instances_next_method(self, dag_maker, session):
         with dag_maker(
             "test_clear_task_instances_next_method",
@@ -1062,6 +1087,43 @@ class TestClearTasks:
         ).all()
 
         assert ti_history == ([str(state_recorded)] * 2 if state_recorded else [])
+
+    def test_archived_attempts_record_ignore_upstream_deps(self, dag_maker):
+        """Each archived attempt keeps the flag it ran with.
+
+        ``prepare_db_for_next_try`` archives the finished attempt *before* the new clear's flag
+        is applied to its successor, so the forced attempt is only archived as forced once it
+        completes and is cleared again.
+        """
+        with dag_maker(
+            "test_archived_attempts_record_ignore_upstream_deps",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            catchup=True,
+        ):
+            EmptyOperator(task_id="0")
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING, run_type=DagRunType.SCHEDULED)
+        (ti0,) = dr.task_instances
+        ti0.state = TaskInstanceState.SUCCESS
+        session = dag_maker.session
+        session.flush()
+
+        (forced,) = clear_task_instances([ti0], session, ignore_upstream_deps=True)
+        session.flush()
+
+        # Simulate the forced try running and finishing, then being cleared again.
+        forced.state = TaskInstanceState.SUCCESS
+        session.flush()
+        clear_task_instances([forced], session)
+        session.flush()
+
+        flags = session.execute(
+            select(TI.working_set, TI.ignore_upstream_deps)
+            .where(TI.dag_id == dr.dag_id)
+            .order_by(TI.try_number)
+            .execution_options(include_all_attempts=True)
+        ).all()
+        assert flags == [(None, False), (None, True), (True, False)]
 
     def test_dag_clear(self, dag_maker, session):
         with dag_maker("test_dag_clear") as dag:

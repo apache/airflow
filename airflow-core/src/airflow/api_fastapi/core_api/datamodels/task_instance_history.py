@@ -72,6 +72,7 @@ class TaskInstanceHistoryResponse(OmitsMissingRegion, BaseModel):
     executor_config: Annotated[str, BeforeValidator(str)]
     dag_version: DagVersionResponse | None
     note: str | None = None
+    ignore_upstream_deps: bool
     state_reason: str | None = Field(
         default=None,
         validation_alias="retry_reason",
