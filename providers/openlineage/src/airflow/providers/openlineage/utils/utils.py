@@ -1739,8 +1739,10 @@ def _get_core_task_instance_position(
     task_instance: TaskInstance, *, session: Session | None
 ) -> TaskInstancePosition | None:
     """Place a stored task instance in a region as Airflow places it for the worker, from Airflow 3.4.0 on."""
+    if session is None or not AIRFLOW_V_3_4_PLUS:
+        return None
     region_id = task_instance.region_id
-    if session is None or not AIRFLOW_V_3_4_PLUS or not isinstance(region_id, UUID) or region_id.int == 0:
+    if not isinstance(region_id, UUID) or region_id.int == 0:
         return None
     # Reusing the Dag the task instance holds spares deserializing it again, unless it pins another version
     if (dag := getattr(getattr(task_instance, "task", None), "dag", None)) is None:
