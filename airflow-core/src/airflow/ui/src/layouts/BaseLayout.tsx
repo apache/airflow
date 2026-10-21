@@ -29,6 +29,7 @@ import { ReactPlugin } from "src/pages/ReactPlugin";
 
 import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
 
+import { GridSelectionProvider } from "src/context/gridSelection";
 import { useConfig } from "src/queries/useConfig";
 import { DocumentTitleProvider } from "src/utils";
 
@@ -126,7 +127,7 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
             {baseReactPlugins.map((plugin) => (
               <ReactPlugin key={plugin.name} reactApp={plugin} />
             ))}
-            {children ?? <Outlet />}
+            <GridSelectionProvider>{children ?? <Outlet />}</GridSelectionProvider>
           </Box>
         </Box>
       </DocumentTitleProvider>

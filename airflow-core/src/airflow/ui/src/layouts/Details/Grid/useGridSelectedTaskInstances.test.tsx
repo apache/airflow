@@ -23,10 +23,11 @@ import { TaskInstanceService } from "openapi/requests";
 import { CancelablePromise } from "openapi/requests/core/CancelablePromise";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
+import type { GridCell } from "src/context/gridSelection";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { useGridSelectedTaskInstances } from "./useGridSelectedTaskInstances";
-import { getCellKey, type GridCell } from "./useGridSelection";
+import { getCellKey } from "./useGridSelection";
 
 afterEach(() => vi.restoreAllMocks());
 

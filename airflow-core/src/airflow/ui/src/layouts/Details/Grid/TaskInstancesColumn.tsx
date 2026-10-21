@@ -26,11 +26,12 @@ import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import type { GridCell, GridSelection } from "src/context/gridSelection";
 
 import { GridTI } from "./GridTI";
 import { DagVersionIndicator } from "./VersionIndicator";
 import { ROW_HEIGHT } from "./constants";
-import { getCellKey, type GridCell, type GridSelection } from "./useGridSelection";
+import { getCellKey } from "./useGridSelection";
 import type { GridTask } from "./utils";
 
 type Props = {
