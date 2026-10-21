@@ -25,7 +25,8 @@ import pendulum
 import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, event, select
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import cached_app
@@ -76,6 +77,35 @@ def test_task_uuid_isolates_state_in_different_regions(client, create_task_insta
     assert client.delete(_api_url(second.id, None if clear_all else "key")).status_code == 204
     assert client.get(_api_url(second.id, "key")).status_code == 404
     assert client.get(_api_url(first.id, "key")).json() == {"value": "first"}
+
+
+@pytest.mark.parametrize(
+    ("method", "key", "kwargs", "expected_status"),
+    [
+        pytest.param("get", "job_id", {}, 200, id="get"),
+        pytest.param("put", "job_id", {"json": {"value": "new"}}, 204, id="put"),
+        pytest.param("delete", "job_id", {}, 204, id="delete"),
+        pytest.param("delete", None, {}, 204, id="clear"),
+    ],
+)
+def test_routes_select_columns_without_loading_entities(
+    client, create_task_instance, method, key, kwargs, expected_status
+):
+    ti = create_task_instance()
+    assert client.put(_api_url(ti.id, "job_id"), json={"value": "stored"}).status_code == 204
+    loaded = []
+
+    def record(_, instance):
+        loaded.append(type(instance).__name__)
+
+    event.listen(Session, "loaded_as_persistent", record)
+    try:
+        response = getattr(client, method)(_api_url(ti.id, key), **kwargs)
+    finally:
+        event.remove(Session, "loaded_as_persistent", record)
+
+    assert response.status_code == expected_status
+    assert loaded == []
 
 
 class TestGetTaskState:
