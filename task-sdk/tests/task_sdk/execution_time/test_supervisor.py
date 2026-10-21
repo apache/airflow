@@ -5549,6 +5549,30 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
 
 
 @pytest.mark.parametrize(
+    "bad_timestamp",
+    [
+        pytest.param(1697190085, id="epoch-number"),
+        pytest.param("2026-10-13T17:41", id="no-seconds"),
+        # msgspec raises a plain DecodeError (not a ValidationError) for the newline, so this case
+        # fails if the except clause only catches ValidationError.
+        pytest.param("2026-10-13\n17:41:25", id="newline"),
+    ],
+)
+def test_process_log_messages_keeps_line_with_invalid_timestamp(bad_timestamp, caplog, time_machine):
+    time_machine.move_to(timezone.datetime(2026, 10, 15, 8, 0), tick=False)
+
+    gen = process_log_messages_from_subprocess(loggers=(structlog.get_logger(),))
+    next(gen)
+
+    gen.send(
+        msgspec.json.encode({"level": "info", "event": "Batch done", "timestamp": bad_timestamp}) + b"\n"
+    )
+
+    assert caplog.messages == ["Batch done"]
+    assert {"timestamp": "2026-10-15T08:00:00Z", "invalid_timestamp": bad_timestamp} in caplog
+
+
+@pytest.mark.parametrize(
     "error_message",
     ["write to closed file", "I/O operation on closed file"],
 )

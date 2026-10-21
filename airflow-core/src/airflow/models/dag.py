@@ -83,6 +83,7 @@ if TYPE_CHECKING:
 
     from dateutil.relativedelta import relativedelta
     from sqlalchemy.orm.state import InstanceState
+    from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.sdk import Context
     from airflow.serialization.definitions.assets import (
@@ -650,15 +651,15 @@ class DagModel(Base):
         return self._dag_display_property_value or self.dag_id
 
     @dag_display_name.expression  # type: ignore[no-redef]
-    def dag_display_name(self) -> str:
+    def dag_display_name(cls: type[DagModel]) -> ColumnElement[Any]:
         """
         Expression part of the ``dag_display`` name hybrid property.
 
         :meta private:
         """
         return case(
-            (self._dag_display_property_value.is_not(None), self._dag_display_property_value),
-            else_=self.dag_id,
+            (cls._dag_display_property_value.is_not(None), cls._dag_display_property_value),
+            else_=cls.dag_id,
         )
 
     @classmethod

@@ -1833,6 +1833,9 @@ export type LastAssetEventResponse = {
  */
 export type LoopIterationResponse = {
     loop_id: string;
+    /**
+     * Position in the enclosing loop, counting from one.
+     */
     iteration: number;
 };
 
@@ -4657,7 +4660,7 @@ export type GetTaskInstancesData = {
     endDateLte?: string | null;
     executor?: Array<(string)>;
     /**
-     * Narrow ``loop_id`` to a single pass of that loop.
+     * Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
      */
     iteration?: number | null;
     limit?: number;

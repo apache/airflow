@@ -139,6 +139,7 @@
     "all": "All",
     "and": "AND",
     "any": "Any",
+    "hiddenAsset": "Hidden asset",
     "or": "OR"
   },
   "filter": "Filter",
