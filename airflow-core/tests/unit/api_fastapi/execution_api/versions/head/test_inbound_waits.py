@@ -438,7 +438,7 @@ class TestOneKeyOneTask:
         assert [audit.task_instance_id for audit in audits] == [running_ti.id, retry.id]
 
     def test_a_retry_leaves_a_received_delivery_without_correlation_key(self, client, session, running_ti):
-        """Only a delivery with a correlation key is kept early, so one without stays with the earlier try."""
+        """Without the wait it would have recorded nothing, so it keeps the earlier try's wait."""
         record_id = add_early_delivery(session, correlation_key=None)
         assert register(client, running_ti.id).json()["status"] == "received"
         retry = running_ti.prepare_db_for_next_try(session)

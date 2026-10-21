@@ -1216,8 +1216,9 @@ The design leaves the following residual risks, which are not vulnerabilities:
   ``hmac_json`` and ``token_header`` source types, a captured body can also be sent again under any
   event name, and starts the Dags that subscribe to that event rather than to the original one.
   Likewise, a delivery from a sender that sends no delivery id cannot be recognized as a repeat, a
-  captured delivery that recorded nothing acts if it is sent again after a Dag subscribes, and any
-  captured delivery can be sent again once its record is older than ``[webhooks] delivery_retention``.
+  captured delivery that recorded no event and went to no webhook wait acts if it is sent again after a
+  Dag subscribes or a wait that it matches is registered, and any captured delivery can be sent again
+  once its record is older than ``[webhooks] delivery_retention``.
   Rotating the secret ends all of these.
 * **Discoverable webhook names.** A name that ``[webhooks] names`` lists is answered differently from
   one it does not list, so the listed names can be found by probing. The secret, not the name, is the

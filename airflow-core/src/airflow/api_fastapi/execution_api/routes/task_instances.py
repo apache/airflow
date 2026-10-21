@@ -1023,7 +1023,8 @@ def _create_ti_state_update_query_and_update_state(
         # trigger / triggerer is created. A Human-in-the-loop park is resumed by the Core API response
         # handler or the scheduler timeout sweep, and stores its optional response deadline on the
         # existing trigger_timeout column. A webhook park stores its wait's deadline there instead,
-        # and is resumed at park time or by the timeout sweep (see _park_on_webhook_wait).
+        # and is resumed at park time, by a delivery that matches its wait, or by the timeout sweep
+        # (see _park_on_webhook_wait).
         #
         # Fixed lock order (TaskInstance -> HITLDetail), matching the Core API response path, so a
         # human response racing this park transition cannot deadlock.

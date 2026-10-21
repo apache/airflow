@@ -17,9 +17,11 @@
 """
 Register a task instance's webhook wait, and let it claim a delivery that arrived before it.
 
-A registration holds its task instance's row lock while it writes, and takes its wait's row before the
-delivery it claims, in the order a delivery that resumes a wait takes its locks: task instance, wait,
-delivery.
+A registration holds its task instance's row lock while it writes, and takes waits' rows before the
+delivery it claims, in the order a delivery that resumes waits takes its locks: task instances, waits,
+delivery. It also ends the open wait of an earlier attempt on its key without that attempt's task
+instance lock; a delivery locks the task instances of all its waits before it takes any wait's row, so
+the two never wait for each other in a cycle.
 
 .. note:: |experimental|
 """
@@ -82,6 +84,70 @@ class WaitKeyTaken(WaitRegistrationRefused):
     """A running or parked task instance has an open wait on the webhook with the same events and match."""
 
 
+def build_wait_action(wait_id: UUID, ti: TaskInstance) -> dict[str, Any]:
+    """Return what a delivery's ``actions["waits"]`` records of a wait that the delivery went to."""
+    return {
+        "wait_id": str(wait_id),
+        "ti_id": str(ti.id),
+        "dag_id": ti.dag_id,
+        "run_id": ti.run_id,
+        "task_id": ti.task_id,
+        "map_index": ti.map_index,
+    }
+
+
+def build_wait_audit_log(webhook: str, wait_id: UUID, ti: TaskInstance, *, delivery_id: str | None) -> Log:
+    """
+    Return the audit log entry of a delivery that went to a wait, which resumes its task now or once it parks.
+
+    :param delivery_id: The sender's id for the delivery, or None.
+    """
+    return Log(
+        event="webhook_delivery",
+        task_instance=ti,
+        owner=f"webhook:{webhook}",
+        owner_display_name=f"Webhook {webhook}",
+        extra=json.dumps(
+            {"delivery_id": delivery_id, "outcome": DeliveryOutcome.RESUMED_WAIT, "wait_id": str(wait_id)}
+        ),
+        team_name=None,
+    )
+
+
+def claim_early_delivery(
+    record_id: UUID, wait_actions: Sequence[dict[str, Any]], *, cutoff: datetime, session: Session
+) -> bool:
+    """
+    Claim an early delivery received after ``cutoff`` for the waits that ``wait_actions`` record.
+
+    The claim is a compare-and-set on the delivery's outcome, so each early delivery is claimed once,
+    however many registrations and deliveries look at it. The waits are added to the delivery's actions
+    once the claim holds its row, so that the skipped asset routes they list are kept.
+
+    :return: Whether the delivery was claimed.
+    """
+    claimed = session.execute(
+        update(InboundDelivery)
+        .where(
+            InboundDelivery.id == record_id,
+            InboundDelivery.outcome == DeliveryOutcome.EARLY,
+            InboundDelivery.received_at > cutoff,
+        )
+        .values(outcome=DeliveryOutcome.RESUMED_WAIT)
+        .execution_options(synchronize_session=False)
+    )
+    if cast("CursorResult", claimed).rowcount != 1:
+        return False
+    actions = session.scalar(select(InboundDelivery.actions).where(InboundDelivery.id == record_id)) or {}
+    session.execute(
+        update(InboundDelivery)
+        .where(InboundDelivery.id == record_id)
+        .values(actions={**actions, "waits": list(wait_actions)})
+        .execution_options(synchronize_session=False)
+    )
+    return True
+
+
 def lock_registering_task_instance(ti_id: UUID, *, session: Session) -> TaskInstance:
     """
     Lock the task instance that registers a wait, and return it.
@@ -138,9 +204,9 @@ def _end_wait_of_attempt_no_longer_live(
     The holder is read without a lock, so refusing a live holder's key takes none: an attempt that is no
     longer running or parked never becomes so again, since a new try is a new attempt.
 
-    A delivery with a correlation key that the ended wait had received never resumed its task, so it is
-    early again, as if the wait had never existed, and the new wait can claim it. Only the transaction
-    that ends the wait puts its delivery back, so a delivery claimed again since is never put back twice.
+    The delivery that the ended wait had received never resumed its task, so it is taken back from the
+    wait. Only the transaction that ends the wait takes it back, so a delivery claimed again since is
+    never taken back twice.
 
     :raises WaitKeyTaken: if a running or parked task instance holds the key.
     """
@@ -160,16 +226,46 @@ def _end_wait_of_attempt_no_longer_live(
     if cast("CursorResult", ended).rowcount != 1:
         return
     if holder.status == WaitStatus.RECEIVED and holder.delivery_id is not None:
-        session.execute(
-            update(InboundDelivery)
-            .where(
-                InboundDelivery.id == holder.delivery_id,
-                InboundDelivery.outcome == DeliveryOutcome.RESUMED_WAIT,
-                InboundDelivery.correlation_key.is_not(None),
-            )
-            .values(outcome=DeliveryOutcome.EARLY, actions=None)
-            .execution_options(synchronize_session=False)
+        _take_back_delivery(holder.delivery_id, holder.id, session=session)
+
+
+def _take_back_delivery(record_id: UUID, wait_id: UUID, *, session: Session) -> None:
+    """
+    Take an ended wait out of the actions of a delivery that it had received but never resumed with.
+
+    A delivery that other waits hold stays theirs. One that no other wait holds gets the outcome it would
+    have had if the wait had never existed: ``accepted`` if it recorded events, since such a delivery is
+    never kept early, or else ``early`` again if it has a correlation key, so that a new wait can claim
+    it. One that has neither keeps the wait, as its record says nothing of whether it would have been
+    ``no_subscribers`` or ``dag_paused``.
+    """
+    record = session.execute(
+        select(InboundDelivery.actions, InboundDelivery.correlation_key)
+        .where(
+            InboundDelivery.id == record_id,
+            InboundDelivery.outcome == DeliveryOutcome.RESUMED_WAIT,
         )
+        .with_for_update()
+    ).one_or_none()
+    if record is None:
+        return
+    actions = dict(record.actions or {})
+    waits = [entry for entry in actions.pop("waits", []) if entry.get("wait_id") != str(wait_id)]
+    values: dict[str, Any]
+    if waits:
+        values = {"actions": {**actions, "waits": waits}}
+    elif actions.get("asset_events") or actions.get("asset_routes"):
+        values = {"outcome": DeliveryOutcome.ACCEPTED, "actions": actions}
+    elif record.correlation_key is not None:
+        values = {"outcome": DeliveryOutcome.EARLY, "actions": actions or None}
+    else:
+        return
+    session.execute(
+        update(InboundDelivery)
+        .where(InboundDelivery.id == record_id)
+        .values(**values)
+        .execution_options(synchronize_session=False)
+    )
 
 
 def _find_matching_early_deliveries(
@@ -205,54 +301,12 @@ def _claim_first(
     cutoff: datetime,
     session: Session,
 ) -> UUID | None:
-    """
-    Claim the first of ``candidates`` that is still early for ``wait``, and return its record's id.
-
-    A claim is a compare-and-set on the delivery's outcome, so each early delivery is claimed once, by
-    one wait, however many registrations look at it.
-    """
+    """Claim the first of ``candidates`` that is still early for ``wait``, and return its record's id."""
     for candidate in candidates:
-        result = session.execute(
-            update(InboundDelivery)
-            .where(
-                InboundDelivery.id == candidate.id,
-                InboundDelivery.outcome == DeliveryOutcome.EARLY,
-                InboundDelivery.received_at > cutoff,
-            )
-            .values(
-                outcome=DeliveryOutcome.RESUMED_WAIT,
-                actions={
-                    "waits": [
-                        {
-                            "wait_id": str(wait.id),
-                            "ti_id": str(ti.id),
-                            "dag_id": ti.dag_id,
-                            "run_id": ti.run_id,
-                            "task_id": ti.task_id,
-                            "map_index": ti.map_index,
-                        }
-                    ]
-                },
-            )
-            .execution_options(synchronize_session=False)
-        )
-        if cast("CursorResult", result).rowcount == 1:
-            session.add(
-                Log(
-                    event="webhook_delivery",
-                    task_instance=ti,
-                    owner=f"webhook:{wait.webhook}",
-                    owner_display_name=f"Webhook {wait.webhook}",
-                    extra=json.dumps(
-                        {
-                            "delivery_id": candidate.delivery_id,
-                            "outcome": DeliveryOutcome.RESUMED_WAIT,
-                            "wait_id": str(wait.id),
-                        }
-                    ),
-                    team_name=None,
-                )
-            )
+        if claim_early_delivery(
+            candidate.id, [build_wait_action(wait.id, ti)], cutoff=cutoff, session=session
+        ):
+            session.add(build_wait_audit_log(wait.webhook, wait.id, ti, delivery_id=candidate.delivery_id))
             return candidate.id
     return None
 

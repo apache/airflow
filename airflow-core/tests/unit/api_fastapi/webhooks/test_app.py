@@ -109,6 +109,8 @@ REGISTRY = WebhookRegistry(
     rate_limit_per_minute=0,
     store_payload="full",
     max_event_payload_bytes=65536,
+    early_delivery_ttl=timedelta(minutes=10),
+    early_delivery_max_per_webhook=1000,
 )
 UNAVAILABLE = (503, "30", {"detail": "Temporarily unavailable"})
 #: The topic that push deliveries of BODY to webhook fake offer.
@@ -1162,7 +1164,7 @@ class TestReceiveDelivery:
         ] == ["fake", "copy", None, "fake"]
 
     @pytest.mark.usefixtures("stored_connection")
-    def test_delivery_reads_and_writes_only_what_recording_its_topic_events_needs(
+    def test_delivery_reads_and_writes_only_what_recording_its_topic_events_and_finding_its_waits_needs(
         self, client, session, dag_maker
     ):
         with dag_maker(
@@ -1188,11 +1190,12 @@ class TestReceiveDelivery:
             "dag_schedule_asset_uri_reference",
             "asset_event",
             "asset_dag_run_queue",
+            "inbound_wait",
             "log",
         }
 
     @pytest.mark.usefixtures("partition_records")
-    def test_delivery_reads_and_writes_only_what_recording_its_route_events_with_partition_keys_needs(
+    def test_delivery_reads_and_writes_only_what_recording_keyed_route_events_and_finding_its_waits_needs(
         self, client, session, dag_maker
     ):
         schedule_by_day(dag_maker, session)
@@ -1215,6 +1218,7 @@ class TestReceiveDelivery:
             "dag_version",
             "asset_partition_dag_run",
             "partitioned_asset_key_log",
+            "inbound_wait",
             "log",
         }
 

@@ -127,11 +127,13 @@ When a delivery records events
 
 A delivery records an event on one of its names only if a Dag that is not paused, draining or stale
 schedules on that name, directly or through ``Asset.ref``. Otherwise it records nothing, and its outcome is
-``dag_paused`` if only paused or draining Dags schedule on its names, or ``no_subscribers`` if none do.
-Unpausing a Dag does not replay the deliveries received while it was paused. If the sender delivers one of
-them again, the copy is processed again when the delivery recorded nothing, with outcome ``dag_paused``,
-but is answered as a duplicate when the delivery started another Dag's run, so the unpaused Dag never
-receives it.
+``early`` if it has a correlation key, which keeps it for webhook waits, or else ``dag_paused`` if only
+paused or draining Dags schedule on its names, or ``no_subscribers`` if none do (see
+:ref:`inbound-webhooks-outcomes`). Unpausing a Dag does not replay the deliveries received while it was
+paused. If the sender delivers one of them again, the copy is processed again in full when the delivery
+recorded nothing, with outcome ``dag_paused`` or ``early``, so the unpaused Dag receives it. It is answered
+as a duplicate when the delivery started another Dag's run or went to a webhook wait, so in those cases the
+unpaused Dag never receives it.
 
 * ``Asset.ref(name=...)`` and ``Asset.ref(uri=...)`` subscribe only to a topic that some Dag declares,
   because deliveries never create assets and events are recorded only on active assets.

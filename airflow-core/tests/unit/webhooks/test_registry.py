@@ -125,6 +125,8 @@ class TestWebhookRegistry:
             ("webhooks", "rate_limit_per_minute"): "600",
             ("webhooks", "store_payload"): "summary",
             ("webhooks", "max_event_payload_bytes"): "0",
+            ("webhooks", "early_delivery_ttl"): "1",
+            ("webhooks", "early_delivery_max_per_webhook"): "1",
         }
     )
     def test_from_config(self):
@@ -137,6 +139,8 @@ class TestWebhookRegistry:
             rate_limit_per_minute=600,
             store_payload="summary",
             max_event_payload_bytes=0,
+            early_delivery_ttl=timedelta(seconds=1),
+            early_delivery_max_per_webhook=1,
         )
 
     def test_from_config_defaults_to_no_webhooks(self):
@@ -149,6 +153,8 @@ class TestWebhookRegistry:
             rate_limit_per_minute=0,
             store_payload="full",
             max_event_payload_bytes=65536,
+            early_delivery_ttl=timedelta(minutes=10),
+            early_delivery_max_per_webhook=1000,
         )
 
     @pytest.mark.parametrize(
@@ -168,6 +174,15 @@ class TestWebhookRegistry:
                 "-1",
                 "max_event_payload_bytes must be 0 or more",
                 id="max-event-payload-bytes",
+            ),
+            pytest.param(
+                "early_delivery_ttl", "0", "early_delivery_ttl must be 1 or more", id="early-delivery-ttl"
+            ),
+            pytest.param(
+                "early_delivery_max_per_webhook",
+                "0",
+                "early_delivery_max_per_webhook must be 1 or more",
+                id="early-delivery-max-per-webhook",
             ),
         ],
     )

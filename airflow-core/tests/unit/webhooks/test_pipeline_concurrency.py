@@ -72,6 +72,8 @@ REGISTRY = WebhookRegistry(
     rate_limit_per_minute=0,
     store_payload="full",
     max_event_payload_bytes=65536,
+    early_delivery_ttl=timedelta(minutes=10),
+    early_delivery_max_per_webhook=1000,
 )
 #: The data asset that webhook routed's asset route records an event on.
 ORDERS = Asset(name="orders", uri="s3://warehouse/orders")

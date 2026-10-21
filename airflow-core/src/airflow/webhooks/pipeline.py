@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import math
@@ -52,29 +53,43 @@ from airflow.models.inbound_delivery import (
 )
 from airflow.models.log import Log
 from airflow.utils.session import create_session
-from airflow.webhooks.asset_routes import TransactionRolledBack, merge_outcomes, record_route_events
+from airflow.webhooks.asset_routes import (
+    RouteEvents,
+    TransactionRolledBack,
+    merge_outcomes,
+    record_route_events,
+)
 from airflow.webhooks.base import WebhookVerificationError
 from airflow.webhooks.connections import ConfiguredWebhook, ResolutionFailure, WebhookConnectionCache
 from airflow.webhooks.registry import UNLISTED_WEBHOOK_TAG
-from airflow.webhooks.topics import record_topic_events
+from airflow.webhooks.topics import TopicEvents, record_topic_events
+from airflow.webhooks.wait_matching import (
+    EarlyDeliveryClaimedMeanwhile,
+    expire_oldest_early_deliveries,
+    find_matching_waits,
+    hand_to_waits,
+    hand_to_waits_after_commit,
+)
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from uuid import UUID
 
     from sqlalchemy import CursorResult, Row
     from sqlalchemy.orm import Session
 
-    from airflow.webhooks.asset_routes import RouteEvents
     from airflow.webhooks.base import WebhookDelivery, WebhookRequest
     from airflow.webhooks.registry import WebhookRegistry
-    from airflow.webhooks.topics import TopicEvents
 
 log = structlog.get_logger(__name__)
 
 #: The outcome answered to a copy of a delivery that another copy recorded; it is never stored.
 DUPLICATE = "duplicate"
-#: The outcomes of deliveries that recorded nothing, which are processed again when redelivered.
-_REPROCESSED_OUTCOMES = (DeliveryOutcome.NO_SUBSCRIBERS, DeliveryOutcome.DAG_PAUSED)
+#: The outcomes of deliveries that recorded nothing, and keep no payload.
+_RECORDED_NOTHING_OUTCOMES = (DeliveryOutcome.NO_SUBSCRIBERS, DeliveryOutcome.DAG_PAUSED)
+#: The outcomes of deliveries that recorded no events and went to no wait, which are processed again in
+#: full when redelivered: early and expired ones keep a payload for waits, but recorded no events either.
+_REPROCESSED_OUTCOMES = (*_RECORDED_NOTHING_OUTCOMES, DeliveryOutcome.EARLY, DeliveryOutcome.EXPIRED)
 RETRY_AFTER_SECONDS = 30
 # The database is down, unreachable or locked, or the pool has no connection to give. SQLite reports a
 # missing table as an OperationalError too.
@@ -160,9 +175,9 @@ class TokenBucket:
 
 def find_delivery(
     webhook_name: str, delivery_id: str | None, body_digest: str, *, session: Session
-) -> Row[tuple[UUID, str]] | None:
+) -> Row[tuple[UUID, str, datetime, dict[str, Any] | None]] | None:
     """
-    Return the id and outcome of the recorded delivery that a delivery repeats, if any.
+    Return the id, outcome, received time and actions of the recorded delivery that a delivery repeats.
 
     A repeat has the same id and body: senders send the id in a header that no signature covers, so a
     captured body sent again under another delivery's id is not taken for that delivery.
@@ -170,7 +185,12 @@ def find_delivery(
     if delivery_id is None:
         return None
     return session.execute(
-        select(InboundDelivery.id, InboundDelivery.outcome).where(
+        select(
+            InboundDelivery.id,
+            InboundDelivery.outcome,
+            InboundDelivery.received_at,
+            InboundDelivery.actions,
+        ).where(
             InboundDelivery.webhook == webhook_name,
             InboundDelivery.delivery_id == delivery_id,
             InboundDelivery.body_digest == body_digest,
@@ -179,13 +199,18 @@ def find_delivery(
 
 
 def _build_audit_log(
-    webhook_name: str, delivery_id: str | None, topic_events: TopicEvents, route_events: RouteEvents
+    webhook_name: str,
+    delivery_id: str | None,
+    topic_events: TopicEvents,
+    route_events: RouteEvents,
+    *,
+    outcome: DeliveryOutcome,
 ) -> Log:
-    """Return the audit log entry of a delivery that recorded these events."""
+    """Return the audit log entry of a delivery that recorded these events and has ``outcome``."""
     extra: dict[str, Any] = {
         "delivery_id": delivery_id,
         "names": [asset_event["asset"] for asset_event in topic_events.asset_events],
-        "outcome": DeliveryOutcome.ACCEPTED,
+        "outcome": outcome,
     }
     if route_events.asset_routes:
         extra["asset_routes"] = [
@@ -201,14 +226,34 @@ def _build_audit_log(
     )
 
 
-def _build_actions(topic_events: TopicEvents, route_events: RouteEvents) -> dict[str, Any] | None:
-    """Return what a delivery's record lists of what it did, leaving out each key that lists nothing."""
+def _build_actions(topic_events: TopicEvents, route_events: RouteEvents) -> dict[str, Any]:
+    """Return what a delivery's record lists of the events it recorded, leaving out each empty list."""
     actions = {
         "asset_events": topic_events.asset_events,
         "asset_routes": route_events.asset_routes,
         "skipped_asset_routes": route_events.skipped_asset_routes,
     }
-    return {key: value for key, value in actions.items() if value} or None
+    return {key: value for key, value in actions.items() if value}
+
+
+def _decide_outcome(
+    events_outcome: DeliveryOutcome, *, went_to_waits: bool, correlation_key: str | None
+) -> DeliveryOutcome:
+    """
+    Return a delivery's outcome from what it did.
+
+    A delivery that went to a webhook wait has the outcome ``resumed_wait``, whatever events it recorded,
+    which its actions list as well. One that recorded topic events or asset route events, and went to no
+    wait, is ``accepted``: it is never kept early, so a wait registered later cannot claim it. One with a
+    correlation key that did neither is kept early for such a wait.
+
+    :param events_outcome: The outcome of its topic events and asset route events.
+    """
+    if went_to_waits:
+        return DeliveryOutcome.RESUMED_WAIT
+    if events_outcome is DeliveryOutcome.ACCEPTED or correlation_key is None:
+        return events_outcome
+    return DeliveryOutcome.EARLY
 
 
 def record_delivery(
@@ -218,17 +263,29 @@ def record_delivery(
     body_digest: str,
     retention: timedelta,
     max_event_payload_bytes: int,
+    early_delivery_ttl: timedelta,
+    early_delivery_max_per_webhook: int,
 ) -> str:
     """
-    Record a verified delivery, its topic events and its asset routes' events in one transaction.
+    Record a verified delivery, its events and the webhook waits it went to in one transaction.
 
-    A delivery that repeats one that acted is a duplicate. One that repeats a delivery that recorded
-    nothing is processed again, without a second row, so that a Dag that subscribed or was unpaused
-    since receives it, and the row then records what this copy found. A copy that another request
-    recorded or acted on between this one's lookup and its commit is a duplicate, unless no copy has
-    acted though this one could: the record was removed, or the copy that got there first found no Dag
-    to act for. Then this copy is processed again, once, and is answered with 503 if that loses a race
-    too, so that the sender retries.
+    The delivery records its topic events and its asset routes' events, then resumes each open wait it
+    matches whose task is parked, and marks received each whose task is still running, which resumes
+    once it parks. A wait whose task can no longer be resumed by it is ended, and the delivery handled as
+    if the wait did not exist. A delivery with a correlation key that recorded no event and went to no
+    wait is kept early, with its payload, for a wait registered later to claim; once committed, it looks
+    for waits again, since a wait registered meanwhile may have missed it. An error in that second look
+    is raised although the record is kept, so that a sender that retries has the delivery processed
+    again. Any other delivery that acted on nothing keeps no payload.
+
+    A delivery that repeats one that acted is a duplicate. One that repeats a delivery that recorded no
+    events and went to no wait, early and expired ones included, is processed again in full, without a
+    second row, so that a Dag that subscribed or was unpaused since receives it and a wait registered
+    since takes it, and the row then records what this copy found. A copy that another request recorded
+    or acted on between this one's lookup and its commit is a duplicate, unless this copy acted where the
+    copy that got there first left the delivery to be processed again, or the record was removed. Then
+    this copy is processed again, once, and is answered with 503 if that loses a race too, so that the
+    sender retries.
 
     :return: The delivery's outcome.
     """
@@ -241,8 +298,11 @@ def record_delivery(
                 original = find_delivery(webhook.name, delivery.delivery_id, body_digest, session=session)
                 if original is not None and original.outcome not in _REPROCESSED_OUTCOMES:
                     return DUPLICATE
-                # Chosen before the row is written, since every topic event carries it.
+                now = timezone.utcnow()
+                early_cutoff = now - early_delivery_ttl
+                # Chosen before the row is written, since every event and wait carries it.
                 record_id = uuid6.uuid7() if original is None else original.id
+                received_at = now if original is None else original.received_at
                 topic_events = record_topic_events(
                     webhook,
                     delivery,
@@ -261,16 +321,52 @@ def record_delivery(
                     callback_sink=callbacks,
                     session=session,
                 )
-                outcome = merge_outcomes(topic_events.outcome, route_events.outcome)
-                acted = outcome is DeliveryOutcome.ACCEPTED
+                actions = _build_actions(topic_events, route_events)
+                recorded_events = bool(topic_events.asset_events or route_events.asset_routes)
+                matching_waits = find_matching_waits(webhook.name, delivery.attributes, session=session)
+                payload: dict[str, Any] | None = None
+                if topic_events.asset_events:
+                    payload = topic_events.payload
+                elif route_events.asset_routes:
+                    payload = route_events.payload
+                elif matching_waits or delivery.correlation_key is not None:
+                    payload = webhook.select_payload(delivery.payload)
+                # A transient copy of the delivery as its row stores it, which the waits' tasks resume
+                # with: the row is written once the waits are known.
+                record = InboundDelivery(
+                    id=record_id,
+                    webhook=webhook.name,
+                    delivery_id=delivery.delivery_id,
+                    received_at=received_at,
+                    attributes=delivery.attributes,
+                    payload=payload,
+                )
+                if wait_actions := hand_to_waits(matching_waits, record, session=session):
+                    actions["waits"] = wait_actions
+                outcome = _decide_outcome(
+                    merge_outcomes(topic_events.outcome, route_events.outcome),
+                    went_to_waits=bool(wait_actions),
+                    correlation_key=delivery.correlation_key,
+                )
+                acted = recorded_events or bool(wait_actions)
                 recorded: dict[str, Any] = {
                     "candidates": candidates,
-                    "payload": topic_events.payload if topic_events.asset_events else route_events.payload,
+                    "payload": None if outcome in _RECORDED_NOTHING_OUTCOMES else payload,
                     "outcome": outcome,
-                    "actions": _build_actions(topic_events, route_events),
+                    "actions": actions or None,
                 }
+                if (
+                    outcome is DeliveryOutcome.EARLY
+                    and received_at > early_cutoff
+                    and (original is None or original.outcome != DeliveryOutcome.EARLY)
+                ):
+                    expire_oldest_early_deliveries(
+                        webhook.name,
+                        cutoff=early_cutoff,
+                        max_per_webhook=early_delivery_max_per_webhook,
+                        session=session,
+                    )
                 if original is None:
-                    received_at = timezone.utcnow()
                     session.add(
                         InboundDelivery(
                             id=record_id,
@@ -298,9 +394,11 @@ def record_delivery(
                     )
                     if cast("CursorResult", result).rowcount != 1:
                         raise _RecordChangedMeanwhile
-                if acted:
+                if recorded_events:
                     session.add(
-                        _build_audit_log(webhook.name, delivery.delivery_id, topic_events, route_events)
+                        _build_audit_log(
+                            webhook.name, delivery.delivery_id, topic_events, route_events, outcome=outcome
+                        )
                     )
         except (IntegrityError, _RecordChangedMeanwhile) as e:
             # Rolling back undid what this copy recorded.
@@ -310,12 +408,19 @@ def record_delivery(
                 raise
             if original is not None and (original.outcome not in _REPROCESSED_OUTCOMES or not acted):
                 return DUPLICATE
-            # No copy has acted on the delivery: its record was removed, or the copy that got there
-            # first recorded nothing where this one found a Dag to act for.
+            # The record was removed, or the copy that got there first left the delivery to be
+            # processed again, where this one found a Dag or a wait to act for.
             continue
         # Only once committed, so that no listener hears of an event that was rolled back.
         for callback in callbacks:
             callback()
+        if outcome is DeliveryOutcome.EARLY:
+            # If a registering wait claimed the delivery meanwhile, it is answered as recorded: early.
+            with contextlib.suppress(EarlyDeliveryClaimedMeanwhile), create_session(scoped=False) as session:
+                if hand_to_waits_after_commit(
+                    record_id, cutoff=timezone.utcnow() - early_delivery_ttl, session=session
+                ):
+                    return DeliveryOutcome.RESUMED_WAIT
         return outcome
     raise WebhookUnavailable
 
@@ -360,9 +465,9 @@ class DeliveryPipeline:
     Serves deliveries to the webhooks that a registry lists, and keeps this process's state for them.
 
     A request passes, in order: its name, the webhook's connection, the body limit, verification, the
-    handshake, the rate limit, parsing, and one transaction that records the delivery, its topic events
-    and its asset routes' events. Verification is skipped only for a handshake that the source type
-    declares unsigned.
+    handshake, the rate limit, parsing, and one transaction that records the delivery, its topic events,
+    its asset routes' events and the webhook waits it goes to. Verification is skipped only for a
+    handshake that the source type declares unsigned.
     """
 
     def __init__(self, registry: WebhookRegistry) -> None:
@@ -447,6 +552,8 @@ class DeliveryPipeline:
                 body_digest=body_digest,
                 retention=self._registry.delivery_retention,
                 max_event_payload_bytes=self._registry.max_event_payload_bytes,
+                early_delivery_ttl=self._registry.early_delivery_ttl,
+                early_delivery_max_per_webhook=self._registry.early_delivery_max_per_webhook,
             )
         except Exception as e:
             # Not timed: during an outage, recordings fail after as long as the pool or database takes.

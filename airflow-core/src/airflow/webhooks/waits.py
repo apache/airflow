@@ -35,6 +35,7 @@ deliveries. A mapping as a value is refused, as it is reserved for match operato
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -44,6 +45,7 @@ from typing import TYPE_CHECKING, Any
 from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from datetime import datetime
 
 #: The key a failed match names when the delivery's event is not one of the wait's ``events``.
@@ -131,6 +133,22 @@ def compute_key_digest(match: Any) -> str:
     :raises ValueError: if ``match`` does not follow the match grammar.
     """
     return _compute_digest(sorted(_normalize_match(match)))
+
+
+def compute_covered_key_digests(names: Collection[str]) -> list[str]:
+    """
+    Return the key digest of every set of attribute names within ``names``, the empty set included.
+
+    A wait matches only a delivery that has every attribute its ``match`` names, so these are the key
+    digests of the waits that a delivery with attributes ``names`` can match. There are ``2 ** n`` of
+    them for ``n`` names.
+    """
+    ordered = sorted(set(names))
+    return [
+        _compute_digest(list(subset))
+        for size in range(len(ordered) + 1)
+        for subset in itertools.combinations(ordered, size)
+    ]
 
 
 def compute_match_digest(events: Any, match: Any) -> str:

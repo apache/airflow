@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Resume a task instance parked on its webhook wait: with the delivery the wait received, or on timeout.
+Resume a task instance parked on its webhook wait: with a delivery that matches the wait, or on timeout.
 
-The callers hold the task instance's row lock before they take its wait's, in the order a registration
-and a delivery that resumes a wait take them. Nothing here commits, and nothing raises when a row is
-missing, since the park-time check fails the task on any exception.
+A task resumes when it parks with a delivery its wait received while it was still running, when a
+delivery that matches its wait arrives while it is parked, or when the timeout sweep finds it past its
+wait's deadline. The callers hold the task instance's row lock before they take its wait's, in the order
+a registration and a delivery take them. Nothing here commits, and nothing raises when a row is missing,
+since the park-time check fails the task on any exception.
 
 .. note:: |experimental|
 """
@@ -95,17 +97,17 @@ def _close_wait(wait: InboundWait, status: WaitStatus) -> None:
     wait.ended_at = timezone.utcnow()
 
 
-def resume_wait(ti: TaskInstance, wait: InboundWait, delivery: InboundDelivery, *, session: Session) -> None:
+def submit_resume_event(
+    ti: TaskInstance, *, webhook: str, delivery: InboundDelivery, session: Session
+) -> None:
     """
-    Resume ``ti`` with ``delivery``, the delivery that matched its wait, and mark the wait ``resumed``.
+    Schedule ``ti`` to run its ``next_method`` with the resume event of ``delivery`` to ``webhook``.
 
-    ``handle_event_submit`` schedules ``ti`` to run its ``next_method`` with the resume event, or routes
-    it to fail if its stored ``next_kwargs`` cannot be read. The caller holds the locks of ``ti`` and then
-    ``wait``.
+    ``handle_event_submit`` routes ``ti`` to fail instead if its stored ``next_kwargs`` cannot be read. The
+    caller holds the lock of ``ti`` and closes its wait.
     """
-    _close_wait(wait, WaitStatus.RESUMED)
     resume_event = build_resume_event(
-        webhook=wait.webhook,
+        webhook=webhook,
         event=(delivery.attributes or {}).get(EVENT_ATTRIBUTE),
         delivery_id=delivery.delivery_id,
         received_at=delivery.received_at,
@@ -113,6 +115,16 @@ def resume_wait(ti: TaskInstance, wait: InboundWait, delivery: InboundDelivery, 
         payload=delivery.payload,
     )
     handle_event_submit(TriggerEvent(resume_event), task_instance=ti, session=session)
+
+
+def resume_wait(ti: TaskInstance, wait: InboundWait, delivery: InboundDelivery, *, session: Session) -> None:
+    """
+    Resume ``ti`` with ``delivery``, the delivery that matched its wait, and mark the wait ``resumed``.
+
+    The caller holds the locks of ``ti`` and then ``wait``.
+    """
+    _close_wait(wait, WaitStatus.RESUMED)
+    submit_resume_event(ti, webhook=wait.webhook, delivery=delivery, session=session)
 
 
 def time_out_wait(ti: TaskInstance, wait: InboundWait, *, session: Session) -> None:

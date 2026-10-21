@@ -182,6 +182,12 @@ The :ref:`[webhooks] <config:webhooks>` section of the configuration reference d
    * - ``max_event_payload_bytes``
      - ``65536``
      - Largest payload copied into a topic event's extra; ``0`` copies every payload.
+   * - ``early_delivery_ttl``
+     - ``600``
+     - Seconds after its receipt that an ``early`` delivery can still go to a webhook wait registered later.
+   * - ``early_delivery_max_per_webhook``
+     - ``1000``
+     - Most ``early`` deliveries within ``early_delivery_ttl`` that a webhook keeps; older ones expire.
 
 Webhooks and their connections
 ------------------------------
@@ -273,7 +279,8 @@ refuses it:
 6. The delivery must be within ``[webhooks] rate_limit_per_minute``.
 7. The source type parses the delivery.
 8. One transaction records the delivery, its topic events, the events of its asset routes and, if it
-   recorded any event, an audit log entry.
+   recorded any event, an audit log entry, and hands the delivery to the webhook waits that it matches,
+   with an audit log entry for each (see `Outcomes and repeated deliveries`_).
 9. The response is sent once that transaction has committed.
 
 The status codes and response bodies are:
@@ -334,33 +341,60 @@ are not listed, requests to a path or with a method that it does not serve, or a
 before sending the whole body. Every request under ``/webhooks`` other than ``/webhooks/_health`` gets
 an access log line, refused or not, so the access log grows with every request that reaches the process.
 
-The delivery contract follows from this order. A 202 means that the delivery's record, and whatever topic
-events, asset route events and audit log entry it recorded, committed before the answer was sent; a 200
-``duplicate`` means that an earlier copy's did; a 200 handshake records nothing. Asset listeners and metrics
-run after the commit. A 5xx records nothing, so a sender that retries can deliver again once the cause is
-fixed. Some senders, such as Jira Cloud, retry on their own, but GitHub does not, so a GitHub delivery refused
-during an outage has to be sent again from the webhook's **Recent Deliveries** page in GitHub. Delivery is at
-least once and unordered.
+The delivery contract follows from this order. A 202 means that the delivery's record, whatever topic
+events, asset route events and audit log entries it recorded, and what it did for webhook waits,
+committed before the answer was sent; a 200 ``duplicate`` means that an earlier copy's did; a 200
+handshake records nothing. Asset listeners and metrics run after the commit. A 5xx records nothing, so a
+sender that retries can deliver again once the cause is fixed. The one exception is an ``early`` delivery,
+which looks for webhook waits once more after its record has committed: if that second look fails, the
+delivery is answered 5xx but its record is kept, and a retry is processed again in full, as a repeat of
+an ``early`` delivery is (see `Outcomes and repeated deliveries`_). Some senders, such as Jira Cloud, retry
+on their own, but GitHub does not, so a GitHub delivery refused during an outage has to be sent again from
+the webhook's **Recent Deliveries** page in GitHub. Delivery is at least once and unordered.
+
+.. _inbound-webhooks-outcomes:
 
 Outcomes and repeated deliveries
 --------------------------------
 
-A recorded delivery has one of these outcomes:
+A recorded delivery has the first of these outcomes that applies to it:
 
-* ``accepted``: it recorded topic events or asset route events, for at least one Dag that is not paused.
-* ``dag_paused``: only Dags that are paused or draining schedule on its names or on its routes' assets,
-  so it recorded nothing. Unpausing a Dag does not replay it.
-* ``no_subscribers``: no Dag that an event could start schedules on its names, and none of its asset
-  routes could record an event, so it recorded nothing. Its record says why each route recorded nothing.
+* ``resumed_wait``: it went to at least one webhook wait, a task waiting for a delivery that matches it.
+  A wait whose task is parked resumes the task at once, and one whose task is still running resumes it
+  once it parks. Its record lists the waits, and the topic events and asset route events that it
+  recorded as well, if any.
+* ``accepted``: it recorded topic events or asset route events, for at least one Dag that is not paused,
+  and went to no wait. It is not kept for a wait, even if it has a correlation key, so a wait registered
+  after it never gets it.
+* ``early``: it has a correlation key, recorded no event and went to no wait. It is kept, with its
+  payload, for a wait that matches it and is registered within
+  :ref:`[webhooks] early_delivery_ttl <config:webhooks>` seconds of its receipt. Such a wait gets it as
+  soon as it is registered, and resumes its task once the task parks; the delivery's outcome then becomes
+  ``resumed_wait``. Once that time has passed, it keeps its outcome and its payload until its record is
+  removed (see `Retention`_), but no wait gets it. Unpausing a Dag does not replay it, but a repeat of it
+  is processed again in full.
+* ``expired``: it was ``early`` until its webhook kept
+  :ref:`[webhooks] early_delivery_max_per_webhook <config:webhooks>` later early deliveries received
+  within ``early_delivery_ttl``. Its payload is dropped, and no wait registered after then gets it unless
+  the delivery is repeated.
+* ``dag_paused``: it has no correlation key, and only Dags that are paused or draining schedule on its
+  names or on its routes' assets, so it recorded nothing. Unpausing a Dag does not replay it.
+* ``no_subscribers``: it has no correlation key, no Dag that an event could start schedules on its names,
+  and none of its asset routes could record an event, so it recorded nothing.
+
+The record of a delivery says why each of its asset routes recorded nothing, whatever its outcome.
 
 ``duplicate`` is only ever answered, never recorded. A delivery repeats a recorded one when it is sent to
 the same webhook with the same delivery id and the same body; the body counts, because senders send the
-delivery id in a header that their signature does not cover. A repeat of an ``accepted`` delivery is
-answered 200 ``duplicate`` and records nothing. A repeat of a delivery that recorded nothing, with outcome
-``no_subscribers`` or ``dag_paused``, is processed again, without a second record, so that a Dag that
-subscribed or was unpaused since then receives it, and the record then says what the repeat did. If two
-copies of a delivery arrive at once, at most one of them acts. A delivery without a delivery id, or with an
-empty one, cannot be recognized as a repeat, so each copy of it acts.
+delivery id in a header that their signature does not cover. A repeat of an ``accepted`` or
+``resumed_wait`` delivery is answered 200 ``duplicate`` and records nothing. A repeat of a delivery that
+recorded no event and went to no wait, with outcome ``early``, ``expired``, ``dag_paused`` or
+``no_subscribers``, is processed again in full, as a first delivery is, without a second record: a Dag
+that subscribed or was unpaused since then receives it, a webhook wait registered since then gets it, and
+the record then says what the repeat did. The delivery recorded no event before, so no event is recorded
+twice. A repeat that is ``early`` again is early for ``early_delivery_ttl`` from when the delivery was
+first received. If two copies of a delivery arrive at once, at most one of them acts. A delivery without
+a delivery id, or with an empty one, cannot be recognized as a repeat, so each copy of it acts.
 
 The generic sources read the delivery id from the header or field that the connection's
 ``delivery_id_header`` or ``delivery_id_field`` names, and other source types from where their sender puts
@@ -466,11 +500,17 @@ source type's default if it has one, or else by :ref:`[webhooks] store_payload <
   text such as commit messages and pull request bodies;
 * ``none`` keeps nothing.
 
-Only ``accepted`` deliveries keep a payload, in their record and in the extra of each of their topic
-events and asset route events, so a sender that sends every event does not fill the database. Each event
-carries its own copy, and the copy is left out of an event, with ``payload`` null and ``payload_truncated``
-true, when it is larger than :ref:`[webhooks] max_event_payload_bytes <config:webhooks>` as compact JSON;
-the delivery's record keeps it all the same.
+A delivery that acts keeps a payload: an ``accepted``, ``resumed_wait`` or ``early`` delivery keeps one
+in its record, in the extra of each of its topic events and asset route events, and in the event that a
+webhook wait resumes its task with. Deliveries that act on nothing, ``no_subscribers`` and
+``dag_paused``, keep none, so a sender that sends every event does not fill the database, and an
+``expired`` delivery drops its payload. An ``early`` delivery keeps its payload until its record is
+removed, also once ``early_delivery_ttl`` has passed, so every delivery with a correlation key that no Dag
+subscribes to, such as each ``github`` delivery about a pull request or an issue, keeps its payload for
+``delivery_retention`` days. Each event carries its own copy, and the copy is left out of an event, with
+``payload`` null and ``payload_truncated`` true, when it is larger than
+:ref:`[webhooks] max_event_payload_bytes <config:webhooks>` as compact JSON; the delivery's record, and the
+event that a wait resumes its task with, keep it all the same.
 
 Every user allowed to read asset events can read their extra, and every Dag scheduled on a topic, or on an
 asset that an asset route names, receives it. When the payloads must not keep personal or otherwise sensitive
@@ -507,8 +547,8 @@ Viewing deliveries
 
 The record of each delivery can be read in the UI and through the REST API: when the delivery was
 received, its webhook, source type, delivery id, correlation key and attributes, its outcome, the topic
-names it offered, the topic events and asset route events it recorded and the asset routes it skipped.
-Neither shows its payload.
+names it offered, the topic events and asset route events it recorded, the asset routes it skipped and
+the webhook waits it went to. Neither shows its payload.
 
 In the UI
 ~~~~~~~~~
@@ -600,12 +640,13 @@ fields:
    * - ``correlation_key``
      - What the delivery is about, if its source type says, or null.
    * - ``outcome``
-     - ``accepted``, ``dag_paused`` or ``no_subscribers`` (see `Outcomes and repeated deliveries`_).
+     - ``resumed_wait``, ``accepted``, ``early``, ``expired``, ``dag_paused`` or ``no_subscribers`` (see
+       `Outcomes and repeated deliveries`_).
    * - ``candidates``
      - The topic names that the delivery offered.
    * - ``actions``
-     - What the delivery did, or null if it recorded nothing and skipped no asset route. Each of these
-       keys is present only when its list is not empty:
+     - What the delivery did, or null if it recorded nothing, skipped no asset route and went to no
+       webhook wait. Each of these keys is present only when its list is not empty:
 
        * ``asset_events``: the topic events that the delivery recorded, sorted by asset name, each with the
          asset's name, the asset's id and the asset event's id, as in
@@ -616,7 +657,11 @@ fields:
          "asset_id": 7, "event_id": 346, "partition_key": "2026-10-19"}``;
        * ``skipped_asset_routes``: the asset routes whose topic it offered that recorded nothing, in the
          order of the routes, each with the route's ``topic``, ``asset`` and ``partition_key_field``, or
-         null, and the ``reason``, one of those listed in `Why a Dag did not run`_.
+         null, and the ``reason``, one of those listed in `Why a Dag did not run`_;
+       * ``waits``: the webhook waits that the delivery went to, each with the wait's id, and the id, Dag
+         id, run id, task id and map index of the task instance that registered it, as in
+         ``{"wait_id": "0199...", "ti_id": "0199...", "dag_id": "deploy", "run_id": "manual__2026-10-20",
+         "task_id": "wait_for_merge", "map_index": -1}``.
    * - ``team_name``
      - Null: webhooks have no team in Airflow 3.5.
 
@@ -676,10 +721,14 @@ A webhook's deliveries say why a delivery started no run:
   an event (see below). Compare those names with the name of the Dag's topic.
 * ``dag_paused``: only paused or draining Dags schedule on its names. Unpausing a Dag does not replay the
   delivery, but the sender can deliver it again.
-* ``accepted``: it recorded the topic events and asset route events that its details link to, which queue
-  the Dags scheduled on their assets. A Dag that has no run yet may be waiting for an event on another
-  asset, as with ``a & b``, or, with a partitioned timetable, for the same partition of its other assets,
-  or for one of its ``max_active_runs`` to finish.
+* ``early`` or ``expired``: the delivery has a correlation key and recorded no event: no Dag that an event
+  could start schedules on its names, or only paused or draining ones do, and no asset route recorded an
+  event. Unpausing a Dag does not replay the delivery, but the sender can deliver it again, and the repeat
+  is processed again in full, unless a webhook wait has taken the delivery since.
+* ``accepted``, or ``resumed_wait`` with events: it recorded the topic events and asset route events that
+  its details link to, which queue the Dags scheduled on their assets. A Dag that has no run yet may be
+  waiting for an event on another asset, as with ``a & b``, or, with a partitioned timetable, for the same
+  partition of its other assets, or for one of its ``max_active_runs`` to finish.
 
 When a Dag scheduled on the asset of an asset route did not run, the delivery's ``skipped_asset_routes``,
 which the details panel lists as **Skipped Asset Routes**, says why, unless the delivery did not offer the
@@ -702,10 +751,15 @@ Audit log
 
 A delivery that records topic events or asset route events also writes an audit log entry, in the same
 transaction, with the event ``webhook_delivery``, the owner ``webhook:<name>``, and in its extra the
-delivery id, the topic names it recorded events on as ``names``, its outcome and, if its asset routes
-recorded events, the ``topic`` and ``asset`` of each such route as ``asset_routes``. The entry has no Dag,
-so only users allowed to read audit log entries that belong to no Dag see it, such as the **admin** role of
-the Simple auth manager.
+delivery id, the topic names it recorded events on as ``names``, its outcome, ``accepted`` or
+``resumed_wait``, and, if its asset routes recorded events, the ``topic`` and ``asset`` of each such route
+as ``asset_routes``. The entry has no Dag, so only users allowed to read audit log entries that belong to
+no Dag see it, such as the **admin** role of the Simple auth manager.
+
+A delivery that goes to webhook waits writes one more entry for each wait, with the same event and owner,
+the task instance that registered the wait, and in its extra the delivery id, the outcome
+``resumed_wait`` and the wait's id as ``wait_id``. A wait that gets an ``early`` delivery when it is
+registered writes the same entry. Users allowed to read the audit log of the task's Dag see it.
 
 Metrics
 -------
@@ -815,8 +869,11 @@ Turning webhooks off
 * To stop one webhook, remove its name from ``[webhooks] names`` and restart the process; its deliveries
   are then answered 404, which some senders count as failures. Its records stay readable.
 * To keep a webhook's deliveries from starting runs while still recording them, pause every Dag that
-  schedules on its topics or on the assets that its asset routes name. Their deliveries are recorded as
-  ``dag_paused``, and a sender's redelivery after unpausing is processed again.
+  schedules on its topics or on the assets that its asset routes name. Its deliveries are then recorded
+  as ``dag_paused``, or as ``early`` if they have a correlation key, such as each ``github`` delivery about
+  a pull request or an issue, and a sender's redelivery of one after unpausing is processed again, so the
+  unpaused Dags receive it. A delivery that a webhook wait took, at once or while it was ``early``, is
+  ``resumed_wait`` instead, and a redelivery of it is a duplicate (see :ref:`inbound-webhooks-outcomes`).
 
 Migrating from airflow-provider-inbound-webhooks
 ------------------------------------------------
