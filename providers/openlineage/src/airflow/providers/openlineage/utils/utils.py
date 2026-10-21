@@ -1127,9 +1127,8 @@ class TaskInstanceInfo(InfoJsonEncodable):
     Encode a task instance as ``run.facets.airflow.taskInstance``, which tells which execution sent an event.
 
     Adds to the included fields, each left out when it doesn't apply: ``id``, ``map_index``,
-    ``rendered_map_index``, ``expanded_ti_count``, ``region_id``, ``region_index`` and ``loop``. The provider's
-    "Identifying task executions in events" guide (``guides/task_execution_identity.rst``) explains how
-    consumers read them, and ``AirflowRunFacet.json`` describes each one.
+    ``rendered_map_index``, ``expanded_ti_count``, ``region_id``, ``region_index`` and ``loop``.
+    ``AirflowRunFacet.json`` describes each one for consumers.
     """
 
     includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "try_number"]
