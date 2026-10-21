@@ -45,13 +45,14 @@ from airflow import settings
 from airflow._shared.webhook_naming import MAX_PATH_SEGMENTS
 from airflow.api_fastapi.webhooks.app import create_webhooks_app
 from airflow.assets.manager import AssetManager
-from airflow.models.asset import AssetEvent
+from airflow.models.asset import AssetEvent, AssetModel, AssetPartitionDagRun
 from airflow.models.base import Base
 from airflow.models.connection import Connection
 from airflow.models.inbound_delivery import InboundDelivery
 from airflow.models.log import Log
+from airflow.providers.standard.webhooks.generic import HmacJsonSource
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk import Asset
+from airflow.sdk import Asset, PartitionedAssetTimetable
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.webhooks import pipeline
 from airflow.webhooks.base import WebhookDelivery, WebhookRequest
@@ -60,12 +61,15 @@ from airflow.webhooks.pipeline import DeliveryPipeline
 from airflow.webhooks.registry import WebhookRegistry
 
 from tests_common.test_utils.db import (
+    clear_db_apdr,
     clear_db_assets,
     clear_db_connections,
     clear_db_inbound_deliveries,
     clear_db_logs,
+    clear_db_pakl,
 )
 from tests_common.test_utils.webhooks import (
+    DELIVERY_ID_HEADER,
     EVENT_HEADER,
     FAKE_BODY as BODY,
     FAKE_SECRET as SECRET,
@@ -95,6 +99,7 @@ REGISTRY = WebhookRegistry(
             "nowhere",
             "elsewhere",
             "misconfigured",
+            "etl",
         }
     ),
     source_type_owners={},
@@ -108,6 +113,12 @@ REGISTRY = WebhookRegistry(
 UNAVAILABLE = (503, "30", {"detail": "Temporarily unavailable"})
 #: The topic that push deliveries of BODY to webhook fake offer.
 TOPIC = Asset(name=build_topic_name("fake", "my-org/web", "push"))
+#: What a service that loads tables sends webhook etl, which uses hmac_json, when it has loaded one.
+ETL_PAYLOAD = {"event": "load.completed", "table": "orders", "data": {"date": "2026-10-19"}}
+ETL_BODY = json.dumps(ETL_PAYLOAD).encode()
+ETL_TOPIC = Asset(name=build_topic_name("etl", "orders", "load.completed"))
+#: The data asset that webhook etl's asset route records an event on, for each day loaded.
+ORDERS = Asset(name="orders", uri="s3://warehouse/orders")
 
 
 class UnsignedHandshakeSource(FakeHmacSource):
@@ -132,6 +143,7 @@ class BrokenHandshakeCheckSource(UnsignedHandshakeSource):
 
 SOURCE_CLASSES = {
     "fake": FakeHmacSource,
+    "hmac_json": HmacJsonSource,
     "unsigned": UnsignedHandshakeSource,
     "unflat": UnflatAttributesSource,
     "overlong": OverlongCorrelationKeySource,
@@ -147,6 +159,16 @@ CONNECTIONS = {
     **build_conn_env("overlong"),
     **build_conn_env("broken"),
     **build_conn_env("misconfigured", conn_type="generic"),
+    **build_conn_env(
+        "etl",
+        source_type="hmac_json",
+        signature_header=SIGNATURE_HEADER,
+        signature_prefix="sha256=",
+        event_field="event",
+        path_field="table",
+        delivery_id_header=DELIVERY_ID_HEADER,
+        asset_routes=[{"topic": ETL_TOPIC.name, "asset": ORDERS.uri, "partition_key_field": "data.date"}],
+    ),
 }
 
 
@@ -196,6 +218,33 @@ def build_topic_actions(asset_event: AssetEvent) -> dict[str, Any]:
     return {
         "asset_events": [{"asset": TOPIC.name, "asset_id": asset_event.asset_id, "event_id": asset_event.id}]
     }
+
+
+def build_route_event(asset_event: AssetEvent) -> dict[str, Any]:
+    """Return how the actions of a delivery to webhook etl list ``asset_event``, recorded on ORDERS."""
+    return {
+        "topic": ETL_TOPIC.name,
+        "asset": ORDERS.uri,
+        "asset_id": asset_event.asset_id,
+        "event_id": asset_event.id,
+        "partition_key": "2026-10-19",
+    }
+
+
+def build_skipped_route(reason: str) -> dict[str, Any]:
+    """Return how the actions of a delivery to webhook etl list its route, skipped for ``reason``."""
+    return {
+        "topic": ETL_TOPIC.name,
+        "asset": ORDERS.uri,
+        "partition_key_field": "data.date",
+        "reason": reason,
+    }
+
+
+def schedule_by_day(dag_maker, session: Session) -> None:
+    """Have Dag orders_by_day schedule on the days of ORDERS, so that webhook etl's route records events."""
+    with dag_maker("orders_by_day", schedule=PartitionedAssetTimetable(assets=ORDERS), session=session):
+        pass
 
 
 def subscribe(dag_maker, session: Session, **dag_state: bool) -> None:
@@ -404,6 +453,160 @@ class TestReceiveDelivery:
             None,
             {"delivery_id": "delivery-1", "names": [TOPIC.name], "outcome": "accepted"},
         )
+
+    @pytest.fixture
+    def partition_records(self):
+        """Remove the records that events with a partition key leave for the Dags they queue."""
+        yield
+        clear_db_apdr()
+        clear_db_pakl()
+
+    @pytest.mark.usefixtures("partition_records")
+    def test_delivery_through_an_asset_route_records_an_event_on_its_asset_and_an_audit_entry(
+        self, client, session, dag_maker
+    ):
+        schedule_by_day(dag_maker, session)
+
+        response = post(client, name="etl", body=ETL_BODY)
+
+        assert (response.status_code, response.json()) == (
+            202,
+            {"delivery_id": "delivery-1", "outcome": "accepted"},
+        )
+        (delivery,) = get_deliveries(session)
+        (asset_event,) = session.scalars(select(AssetEvent))
+        assert asset_event.asset_id == session.scalar(
+            select(AssetModel.id).where(AssetModel.uri == ORDERS.uri)
+        )
+        assert (asset_event.partition_key, asset_event.extra["inbound_delivery_id"]) == (
+            "2026-10-19",
+            str(delivery.id),
+        )
+        assert (delivery.outcome, delivery.payload, delivery.actions) == (
+            "accepted",
+            ETL_PAYLOAD,
+            {"asset_routes": [build_route_event(asset_event)]},
+        )
+        assert session.execute(
+            select(AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.partition_key)
+        ).all() == [("orders_by_day", "2026-10-19")]
+        (audit_log,) = get_audit_logs(session)
+        assert (audit_log.owner, json.loads(audit_log.extra)) == (
+            "webhook:etl",
+            {
+                "delivery_id": "delivery-1",
+                "names": [],
+                "outcome": "accepted",
+                "asset_routes": [{"topic": ETL_TOPIC.name, "asset": ORDERS.uri}],
+            },
+        )
+
+    @pytest.mark.usefixtures("partition_records")
+    def test_delivery_that_records_topic_and_route_events_lists_both(self, client, session, dag_maker):
+        with dag_maker("on_load", schedule=ETL_TOPIC, session=session):
+            pass
+        schedule_by_day(dag_maker, session)
+
+        assert post(client, name="etl", body=ETL_BODY).json()["outcome"] == "accepted"
+
+        (delivery,) = get_deliveries(session)
+        asset_events = {
+            asset_event.partition_key: asset_event for asset_event in session.scalars(select(AssetEvent))
+        }
+        assert delivery.actions == {
+            "asset_events": [
+                {
+                    "asset": ETL_TOPIC.name,
+                    "asset_id": asset_events[None].asset_id,
+                    "event_id": asset_events[None].id,
+                }
+            ],
+            "asset_routes": [build_route_event(asset_events["2026-10-19"])],
+        }
+        (audit_log,) = get_audit_logs(session)
+        assert json.loads(audit_log.extra) == {
+            "delivery_id": "delivery-1",
+            "names": [ETL_TOPIC.name],
+            "outcome": "accepted",
+            "asset_routes": [{"topic": ETL_TOPIC.name, "asset": ORDERS.uri}],
+        }
+
+    @pytest.mark.usefixtures("partition_records")
+    def test_delivery_that_acts_only_through_a_route_acts_once_redelivered_after_a_dag_schedules_on_its_asset(
+        self, client, session, dag_maker
+    ):
+        responses = [post(client, name="etl", body=ETL_BODY)]
+        (delivery,) = get_deliveries(session)
+        actions_before = delivery.actions
+        schedule_by_day(dag_maker, session)
+        responses.extend(post(client, name="etl", body=ETL_BODY) for _ in range(2))
+
+        assert [(response.status_code, response.json()["outcome"]) for response in responses] == [
+            (202, "no_subscribers"),
+            (202, "accepted"),
+            (200, "duplicate"),
+        ]
+        assert actions_before == {"skipped_asset_routes": [build_skipped_route("asset_not_active")]}
+        session.expire_all()
+        (delivery,) = get_deliveries(session)
+        (asset_event,) = session.scalars(select(AssetEvent))
+        assert (delivery.outcome, delivery.payload, delivery.actions) == (
+            "accepted",
+            ETL_PAYLOAD,
+            {"asset_routes": [build_route_event(asset_event)]},
+        )
+        assert len(get_audit_logs(session)) == 1
+
+    def test_redelivery_that_still_records_nothing_through_a_route_records_why_it_now_skips_it(
+        self, client, session, dag_maker
+    ):
+        responses = [post(client, name="etl", body=ETL_BODY)]
+        # The route reads a partition key, so the asset is active now, but its event cannot start this Dag.
+        with dag_maker("whole_table", schedule=ORDERS, session=session):
+            pass
+        responses.append(post(client, name="etl", body=ETL_BODY))
+
+        assert [(response.status_code, response.json()["outcome"]) for response in responses] == [
+            (202, "no_subscribers"),
+            (202, "no_subscribers"),
+        ]
+        session.expire_all()
+        (delivery,) = get_deliveries(session)
+        assert (delivery.outcome, delivery.payload, delivery.actions) == (
+            "no_subscribers",
+            None,
+            {"skipped_asset_routes": [build_skipped_route("no_subscribers")]},
+        )
+
+    @pytest.mark.backend("sqlite")
+    @pytest.mark.usefixtures("partition_records")
+    def test_delivery_whose_transaction_sqlite_lock_contention_rolls_back_records_nothing(
+        self, client, session, dag_maker
+    ):
+        with dag_maker("on_load", schedule=ETL_TOPIC, session=session):
+            pass
+        schedule_by_day(dag_maker, session)
+        locked = []
+
+        def fail_once_while_locked(connection, cursor, statement, parameters, context, executemany) -> None:
+            # The asset manager rolls back the transaction, which holds the topic event, takes the lock
+            # in a new one and records the route's event there.
+            if statement.startswith("UPDATE asset SET id=asset.id") and not locked:
+                locked.append(statement)
+                raise OperationalError(statement, parameters, Exception("database is locked"))
+
+        event.listen(settings.get_engine(), "before_cursor_execute", fail_once_while_locked)
+        try:
+            response = post(client, name="etl", body=ETL_BODY)
+        finally:
+            event.remove(settings.get_engine(), "before_cursor_execute", fail_once_while_locked)
+
+        assert locked
+        assert (response.status_code, response.headers.get("Retry-After"), response.json()) == UNAVAILABLE
+        assert count_deliveries(session) == 0
+        assert session.scalars(select(AssetEvent)).all() == []
+        assert session.scalars(select(AssetPartitionDagRun)).all() == []
+        assert get_audit_logs(session) == []
 
     @pytest.mark.parametrize(
         ("connection_store_payload", "default_store_payload", "expected_payload"),
@@ -985,6 +1188,33 @@ class TestReceiveDelivery:
             "dag_schedule_asset_uri_reference",
             "asset_event",
             "asset_dag_run_queue",
+            "log",
+        }
+
+    @pytest.mark.usefixtures("partition_records")
+    def test_delivery_reads_and_writes_only_what_recording_its_route_events_with_partition_keys_needs(
+        self, client, session, dag_maker
+    ):
+        schedule_by_day(dag_maker, session)
+
+        with record_tables() as tables:
+            assert post(client, name="etl", body=ETL_BODY).status_code == 202
+
+        assert tables == {
+            "inbound_delivery",
+            "asset",
+            "asset_active",
+            "asset_alias",
+            "asset_alias_asset",
+            "dag",
+            "dag_schedule_asset_reference",
+            "dag_schedule_asset_name_reference",
+            "dag_schedule_asset_uri_reference",
+            "asset_event",
+            "serialized_dag",
+            "dag_version",
+            "asset_partition_dag_run",
+            "partitioned_asset_key_log",
             "log",
         }
 

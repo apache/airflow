@@ -2562,15 +2562,15 @@ webhooks:
       description: |
         .. note:: |experimental|
 
-        What is kept of the payload of a delivery that records topic events, in its delivery record and
-        in the extra of its topic events: ``full``, the payload as parsed from the body; ``summary``, the
-        parts its source type keeps; or ``none``. A webhook uses ``store_payload`` from its connection's
-        extra if set, or else its source type's default if the source type has one, or else this option.
-        Deliveries that record nothing keep no payload.
+        What is kept of the payload of a delivery that records events, in its delivery record and in the
+        extra of the topic events and asset route events it records: ``full``, the payload as parsed from
+        the body; ``summary``, the parts its source type keeps; or ``none``. A webhook uses
+        ``store_payload`` from its connection's extra if set, or else its source type's default if the
+        source type has one, or else this option. Deliveries that record nothing keep no payload.
 
-        The extra of a topic event, payload included, can be read by every user allowed to read assets
-        and by every Dag scheduled on the topic, so use ``summary`` or ``none`` for senders whose payloads
-        carry sensitive data, such as personal data.
+        The extra of these events, payload included, can be read by every user allowed to read assets
+        and by every Dag scheduled on their assets, so use ``summary`` or ``none`` for senders whose
+        payloads carry sensitive data, such as personal data.
       version_added: 3.5.0
       type: string
       example: "summary"
@@ -2580,9 +2580,9 @@ webhooks:
         .. note:: |experimental|
 
         Largest payload, in bytes of compact JSON encoded as UTF-8, that is copied into the extra of a
-        topic event. The events of a delivery with a larger payload have ``payload`` null and
-        ``payload_truncated`` true in their extra instead, while its delivery record keeps the payload as
-        ``store_payload`` says. 0 copies every payload.
+        topic event or an asset route event. The events of a delivery with a larger payload have
+        ``payload`` null and ``payload_truncated`` true in their extra instead, while its delivery record
+        keeps the payload as ``store_payload`` says. 0 copies every payload.
       version_added: 3.5.0
       type: integer
       example: "1048576"

@@ -35,11 +35,13 @@ MAX_CORRELATION_KEY_LENGTH = 255
 class DeliveryOutcome(str, Enum):
     """What Airflow did with a recorded delivery, as ``InboundDelivery.outcome`` stores it."""
 
-    #: The delivery recorded topic events for the Dags that subscribe to it.
+    #: The delivery recorded topic events, or events through asset routes, for Dags that can run.
     ACCEPTED = "accepted"
-    #: Only paused or draining Dags subscribe to the delivery, so nothing acted on it.
+    #: Only paused or draining Dags subscribe to the delivery or to its asset routes' assets, so nothing
+    #: acted on it.
     DAG_PAUSED = "dag_paused"
-    #: No Dag subscribes to the delivery, so nothing acted on it.
+    #: No Dag that an event could start subscribes to the delivery, and none of its asset routes could
+    #: record an event, so nothing acted on it.
     NO_SUBSCRIBERS = "no_subscribers"
 
     def __str__(self) -> str:

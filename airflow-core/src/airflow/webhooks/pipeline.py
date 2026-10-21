@@ -52,6 +52,7 @@ from airflow.models.inbound_delivery import (
 )
 from airflow.models.log import Log
 from airflow.utils.session import create_session
+from airflow.webhooks.asset_routes import TransactionRolledBack, merge_outcomes, record_route_events
 from airflow.webhooks.base import WebhookVerificationError
 from airflow.webhooks.connections import ConfiguredWebhook, ResolutionFailure, WebhookConnectionCache
 from airflow.webhooks.registry import UNLISTED_WEBHOOK_TAG
@@ -63,8 +64,10 @@ if TYPE_CHECKING:
     from sqlalchemy import CursorResult, Row
     from sqlalchemy.orm import Session
 
+    from airflow.webhooks.asset_routes import RouteEvents
     from airflow.webhooks.base import WebhookDelivery, WebhookRequest
     from airflow.webhooks.registry import WebhookRegistry
+    from airflow.webhooks.topics import TopicEvents
 
 log = structlog.get_logger(__name__)
 
@@ -75,7 +78,7 @@ _REPROCESSED_OUTCOMES = (DeliveryOutcome.NO_SUBSCRIBERS, DeliveryOutcome.DAG_PAU
 RETRY_AFTER_SECONDS = 30
 # The database is down, unreachable or locked, or the pool has no connection to give. SQLite reports a
 # missing table as an OperationalError too.
-_UNAVAILABLE_STORAGE_ERRORS = (OperationalError, InterfaceError, PoolTimeoutError)
+_UNAVAILABLE_STORAGE_ERRORS = (OperationalError, InterfaceError, PoolTimeoutError, TransactionRolledBack)
 
 
 class _RecordChangedMeanwhile(Exception):
@@ -175,15 +178,37 @@ def find_delivery(
     ).one_or_none()
 
 
-def _build_audit_log(webhook_name: str, delivery_id: str | None, names: list[str]) -> Log:
-    """Return the audit log entry of a delivery that recorded topic events on ``names``."""
+def _build_audit_log(
+    webhook_name: str, delivery_id: str | None, topic_events: TopicEvents, route_events: RouteEvents
+) -> Log:
+    """Return the audit log entry of a delivery that recorded these events."""
+    extra: dict[str, Any] = {
+        "delivery_id": delivery_id,
+        "names": [asset_event["asset"] for asset_event in topic_events.asset_events],
+        "outcome": DeliveryOutcome.ACCEPTED,
+    }
+    if route_events.asset_routes:
+        extra["asset_routes"] = [
+            {"topic": route_event["topic"], "asset": route_event["asset"]}
+            for route_event in route_events.asset_routes
+        ]
     return Log(
         event="webhook_delivery",
         owner=f"webhook:{webhook_name}",
         owner_display_name=f"Webhook {webhook_name}",
-        extra=json.dumps({"delivery_id": delivery_id, "names": names, "outcome": DeliveryOutcome.ACCEPTED}),
+        extra=json.dumps(extra),
         team_name=None,
     )
+
+
+def _build_actions(topic_events: TopicEvents, route_events: RouteEvents) -> dict[str, Any] | None:
+    """Return what a delivery's record lists of what it did, leaving out each key that lists nothing."""
+    actions = {
+        "asset_events": topic_events.asset_events,
+        "asset_routes": route_events.asset_routes,
+        "skipped_asset_routes": route_events.skipped_asset_routes,
+    }
+    return {key: value for key, value in actions.items() if value} or None
 
 
 def record_delivery(
@@ -195,14 +220,17 @@ def record_delivery(
     max_event_payload_bytes: int,
 ) -> str:
     """
-    Record a verified delivery and its topic events in one transaction, and return its outcome.
+    Record a verified delivery, its topic events and its asset routes' events in one transaction.
 
     A delivery that repeats one that acted is a duplicate. One that repeats a delivery that recorded
     nothing is processed again, without a second row, so that a Dag that subscribed or was unpaused
-    since receives it. A copy that another request recorded or acted on between this one's lookup and
-    its commit is a duplicate, unless no copy has acted though this one could: the record was removed,
-    or the copy that got there first found no Dag to act for. Then this copy is processed again, once,
-    and is answered with 503 if that loses a race too, so that the sender retries.
+    since receives it, and the row then records what this copy found. A copy that another request
+    recorded or acted on between this one's lookup and its commit is a duplicate, unless no copy has
+    acted though this one could: the record was removed, or the copy that got there first found no Dag
+    to act for. Then this copy is processed again, once, and is answered with 503 if that loses a race
+    too, so that the sender retries.
+
+    :return: The delivery's outcome.
     """
     candidates = build_candidate_names(webhook.name, delivery.path, delivery.kinds)
     for _ in range(2):
@@ -224,12 +252,22 @@ def record_delivery(
                     callback_sink=callbacks,
                     session=session,
                 )
-                acted = topic_events.outcome is DeliveryOutcome.ACCEPTED
+                route_events = record_route_events(
+                    webhook,
+                    delivery,
+                    candidates=candidates,
+                    inbound_delivery_id=record_id,
+                    max_event_payload_bytes=max_event_payload_bytes,
+                    callback_sink=callbacks,
+                    session=session,
+                )
+                outcome = merge_outcomes(topic_events.outcome, route_events.outcome)
+                acted = outcome is DeliveryOutcome.ACCEPTED
                 recorded: dict[str, Any] = {
                     "candidates": candidates,
-                    "payload": topic_events.payload,
-                    "outcome": topic_events.outcome,
-                    "actions": {"asset_events": topic_events.asset_events} if acted else None,
+                    "payload": topic_events.payload if topic_events.asset_events else route_events.payload,
+                    "outcome": outcome,
+                    "actions": _build_actions(topic_events, route_events),
                 }
                 if original is None:
                     received_at = timezone.utcnow()
@@ -247,7 +285,8 @@ def record_delivery(
                             **recorded,
                         )
                     )
-                elif topic_events.outcome != original.outcome:
+                else:
+                    # Also when the outcome is unchanged, as skipped asset routes may give new reasons.
                     # Matches nothing if another copy has acted on the row, once that copy has committed.
                     result = session.execute(
                         update(InboundDelivery)
@@ -260,8 +299,9 @@ def record_delivery(
                     if cast("CursorResult", result).rowcount != 1:
                         raise _RecordChangedMeanwhile
                 if acted:
-                    names = [asset_event["asset"] for asset_event in topic_events.asset_events]
-                    session.add(_build_audit_log(webhook.name, delivery.delivery_id, names))
+                    session.add(
+                        _build_audit_log(webhook.name, delivery.delivery_id, topic_events, route_events)
+                    )
         except (IntegrityError, _RecordChangedMeanwhile) as e:
             # Rolling back undid what this copy recorded.
             with create_session(scoped=False) as session:
@@ -276,7 +316,7 @@ def record_delivery(
         # Only once committed, so that no listener hears of an event that was rolled back.
         for callback in callbacks:
             callback()
-        return topic_events.outcome
+        return outcome
     raise WebhookUnavailable
 
 
@@ -320,8 +360,9 @@ class DeliveryPipeline:
     Serves deliveries to the webhooks that a registry lists, and keeps this process's state for them.
 
     A request passes, in order: its name, the webhook's connection, the body limit, verification, the
-    handshake, the rate limit, parsing, and one transaction that records the delivery and its topic
-    events. Verification is skipped only for a handshake that the source type declares unsigned.
+    handshake, the rate limit, parsing, and one transaction that records the delivery, its topic events
+    and its asset routes' events. Verification is skipped only for a handshake that the source type
+    declares unsigned.
     """
 
     def __init__(self, registry: WebhookRegistry) -> None:
