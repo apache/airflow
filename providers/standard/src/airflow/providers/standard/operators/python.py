@@ -62,8 +62,9 @@ from airflow.providers.common.compat.standard.operators import (
 )
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.hitl import (
+    AnswerLog,
     InputResponse,
-    input_response_var,
+    answer_log_var,
     params_from_serialized,
     raise_for_error_event,
     validate_chosen_options,
@@ -248,34 +249,38 @@ class PythonOperator(BaseAsyncOperator):
         self,
         context: Context,
         event: dict[str, Any],
+        key: str,
         options: list[str],
         params: dict[str, dict[str, Any]],
+        answered: list[list[Any]],
     ) -> Any:
         """
         Run the task again once the input it asked for with ``request_input()`` arrives.
 
-        The callable runs from the top, and
-        :func:`~airflow.providers.standard.operators.hitl.get_input_response` returns the answer
-        while it runs. A request that timed out without defaults raises
+        The callable runs from the top. Each ``request_input()`` call that was answered, in this or
+        an earlier pause, returns its answer instead of asking again, and the run fails if it never
+        reads the answer it resumed with. A request that timed out without defaults raises
         :class:`~airflow.providers.standard.exceptions.HITLTimeoutError`.
         """
         if "error" in event:
             raise_for_error_event(event)
         validate_chosen_options(event["chosen_options"], options)
         validate_params_input(event["params_input"], params_from_serialized(params))
-        token = input_response_var.set(
-            InputResponse(
-                chosen_options=event["chosen_options"],
-                params_input=event["params_input"],
-                responded_at=event["responded_at"],
-                responded_by_user=event["responded_by_user"],
-                timedout=event["timedout"],
-            )
+        answer = InputResponse(
+            chosen_options=event["chosen_options"],
+            params_input=event["params_input"],
+            responded_at=event["responded_at"],
+            responded_by_user=event["responded_by_user"],
+            timedout=event["timedout"],
         )
+        answer_log = AnswerLog({**dict(answered), key: answer}, latest=key)
+        token = answer_log_var.set(answer_log)
         try:
-            return self.execute(context)
+            result = self.execute(context)
+            answer_log.check_latest_read()
+            return result
         finally:
-            input_response_var.reset(token)
+            answer_log_var.reset(token)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()

@@ -21,29 +21,21 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.providers.standard.operators.hitl import get_input_response, request_input
+from airflow.providers.standard.operators.hitl import request_input
 from airflow.sdk import DAG, Param, task
 
 with DAG(dag_id="example_hitl_request_input", tags=["example", "HITL"]):
     # [START howto_hitl_request_input]
     @task
-    def refund(order_id: str, task_state_store=None) -> str:
-        answer = get_input_response()
-        if answer is None:
-            # First run: do the expensive part once and keep what the second run needs.
-            amount = 42.5
-            task_state_store.set("amount", amount)
-            request_input(
-                subject=f"Refund {amount} for order {order_id}?",
-                options=["Approve", "Reject"],
-                params={"reason": Param("", type=["string", "null"])},
-                timeout=datetime.timedelta(hours=4),
-            )
-        # Second run, after the reviewer answered: the callable starts again from the top.
-        amount = task_state_store.get("amount")
-        task_state_store.delete("amount")
+    def refund(order_id: str) -> str:
+        answer = request_input(
+            subject=f"Refund order {order_id}?",
+            options=["Approve", "Reject"],
+            params={"reason": Param("", type=["string", "null"])},
+            timeout=datetime.timedelta(hours=4),
+        )
         if answer["chosen_options"] == ["Approve"]:
-            return f"Refunded {amount} for {order_id}"
+            return f"Refunded order {order_id}"
         return f"Refund for {order_id} rejected: {answer['params_input'].get('reason')}"
 
     # [END howto_hitl_request_input]

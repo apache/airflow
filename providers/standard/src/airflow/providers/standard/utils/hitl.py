@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Human-in-the-loop checks shared by ``HITLOperator`` and ``request_input()``, and the answer a resumed task reads.
+Human-in-the-loop checks shared by ``HITLOperator`` and ``request_input()``, and the answers a resumed task replays.
 
 Kept apart from :mod:`airflow.providers.standard.operators.hitl`, which cannot be imported before
 Airflow 3.1, so that ``PythonOperator`` can import it on every supported Airflow version.
@@ -55,7 +55,46 @@ class InputResponse(TypedDict):
     timedout: bool
 
 
-input_response_var: ContextVar[InputResponse | None] = ContextVar("input_response", default=None)
+class AnswerLog:
+    """
+    The answers a resumed task has received in this try, by the key of the request each one answered.
+
+    Each key is asked at most once per try, so an answer can never be handed to a later question that
+    happens to share its key. The run that resumed with an answer (``latest``) must read it before it
+    asks anything new or finishes; otherwise the key changed between runs, and asking again would
+    never end.
+    """
+
+    def __init__(self, answers: dict[str, InputResponse], latest: str) -> None:
+        self.answers = answers
+        self.latest = latest
+        self._read: set[str] = set()
+
+    def take(self, key: str) -> InputResponse | None:
+        """Return the answer to ``key``, or ``None`` when ``key`` has not been asked yet."""
+        if key in self._read:
+            raise ValueError(
+                f"request_input() was called again with the key {key!r} after its answer was read. Each "
+                "question gets one answer per try, so pass a key that is unique to each question, for "
+                "example an agent's tool call id."
+            )
+        answer = self.answers.get(key)
+        if answer is not None:
+            self._read.add(key)
+            return answer
+        self.check_latest_read()
+        return None
+
+    def check_latest_read(self) -> None:
+        """Refuse to go on when the answer this run resumed with was never read."""
+        if self.latest not in self._read:
+            raise RuntimeError(
+                f"The answer to {self.latest!r} was never read: no request_input() call with that key "
+                "ran after the task resumed. If the subject changes between runs, pass a fixed key=."
+            )
+
+
+answer_log_var: ContextVar[AnswerLog | None] = ContextVar("hitl_answer_log", default=None)
 
 
 def validate_options(options: list[str]) -> None:

@@ -46,7 +46,7 @@ from airflow.providers.standard.operators.python import PythonOperator, _BasePyt
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.hitl import (
     InputResponse,
-    input_response_var,
+    answer_log_var,
     raise_for_error_event,
     validate_chosen_options,
     validate_defaults,
@@ -139,19 +139,21 @@ def request_input(
     notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
     assigned_users: HITLUser | list[HITLUser] | None = None,
     timeout: timedelta | None = None,
-) -> NoReturn:
+    key: str | None = None,
+) -> InputResponse:
     """
-    Ask a person for input from inside a running Python task, and stop the task until they answer.
+    Ask a person for input from inside a running Python task, and return their answer.
 
-    The request appears on the Required Actions page, the same as one from :class:`HITLOperator`.
-    The task waits in the ``awaiting_input`` state without holding a worker slot. Once the request is
-    answered, the task runs again from the start of its callable, and
-    :func:`get_input_response` returns the answer. Save anything the second run needs (for example an
-    agent framework's run state) to ``task_state_store`` before calling this.
+    The first time a question is asked, the request appears on the Required Actions page, the same
+    as one from :class:`HITLOperator`, and the task stops there: it waits in the ``awaiting_input``
+    state without holding a worker slot. Once the request is answered, the task runs again from the
+    start of its callable, and this call returns the answer instead of asking again. Save anything
+    the second run should not redo (for example an agent framework's run state) to
+    ``task_state_store`` before calling this.
 
-    This function never returns. It works in ``@task`` and ``PythonOperator`` callables (sync or async),
-    including ``@task.branch`` and ``@task.short_circuit``, but not in tasks that run their callable in
-    another process, such as ``@task.virtualenv``, ``@task.external_python`` or ``@task.docker``.
+    It works in ``@task`` and ``PythonOperator`` callables (sync or async), including ``@task.branch``
+    and ``@task.short_circuit``, but not in tasks that run their callable in another process, such as
+    ``@task.virtualenv``, ``@task.external_python`` or ``@task.docker``.
 
     Needs Airflow 3.4+. Earlier versions keep the first request's subject, body and options when a
     task asks again, after a resume or on a retry, so the reviewer would answer a question they were
@@ -167,6 +169,10 @@ def request_input(
     :param notifiers: Notifiers called with the task context once the request is written.
     :param assigned_users: Users allowed to answer. Anyone with access can answer if not set.
     :param timeout: How long to wait for an answer. Waits indefinitely if not set.
+    :param key: Which question this is, so a resumed task gets each answer back at the right call.
+        Defaults to ``subject``. Each key is asked at most once per try. Set it when the subject can
+        change between runs, or when the task can ask the same subject more than once, for example
+        one approval per agent tool call (use the call's id).
     """
     if not AIRFLOW_V_3_4_PLUS:
         raise AirflowOptionalProviderFeatureException("request_input() needs Airflow 3.4+.")
@@ -183,7 +189,14 @@ def request_input(
     validate_options(options)
     validate_params(params)
     validate_defaults(defaults, options, multiple)
-    serialized_params = {key: params.get_param(key).serialize() for key in params}
+    key = subject if key is None else key
+    answer_log = answer_log_var.get()
+    if answer_log is not None and (answer := answer_log.take(key)) is not None:
+        # The code may have changed since the reviewer answered; never hand back an option it no
+        # longer offers.
+        validate_chosen_options(answer["chosen_options"], options)
+        return answer
+    serialized_params = {name: params.get_param(name).serialize() for name in params}
 
     _request_input_and_wait(
         task,
@@ -199,18 +212,17 @@ def request_input(
         timeout=timeout,
         timeout_datetime=None,
         method_name="resume_with_input",
-        # What the resume checks the answer against.
-        kwargs={"options": options, "params": serialized_params},
+        kwargs={
+            "key": key,
+            # What the resume checks the answer against.
+            "options": options,
+            "params": serialized_params,
+            # Earlier answers travel with the task so each run can replay every one of them.
+            "answered": [[answered_key, earlier] for answered_key, earlier in answer_log.answers.items()]
+            if answer_log is not None
+            else [],
+        },
     )
-
-
-def get_input_response() -> InputResponse | None:
-    """
-    Return the answer this run of the task resumed with.
-
-    ``None`` unless the task is running again after a :func:`request_input` call was answered.
-    """
-    return input_response_var.get()
 
 
 class HITLOperator(BaseOperator):
