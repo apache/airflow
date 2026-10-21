@@ -289,7 +289,7 @@ jobs:
           breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        uses: apache/infrastructure-actions/stash/save@f1a487181effd0b216892001abdfb524442bb24d  # save/v1.0.1
+        uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
         with:
           key: prod-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
