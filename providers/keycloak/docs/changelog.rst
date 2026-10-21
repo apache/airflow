@@ -25,6 +25,27 @@
 Changelog
 ---------
 
+.. note::
+
+    Non-team provisioning now generates resource-specific read/write permissions and
+    ``DefaultMenuAccess`` instead of the four broad ``ReadOnly``, ``User``, ``Op``, and ``Admin``
+    permission definitions. Re-run ``airflow keycloak-auth-manager create-all`` to provision
+    the required scopes, resources, and permissions. Legacy permissions and extra policy
+    attachments are not automatically removed in non-team mode and can still affect access.
+    Non-team to multi-team client migration is not supported by the provisioning commands.
+    Provision a separate client for multi-team configuration. See
+    :doc:`auth-manager/manage/permissions` for the current grants and provisioning guidance.
+
+.. note::
+
+    The Keycloak provisioning commands ``create-all``, ``create-permissions``,
+    and ``create-team`` now explicitly configure the resource-server decision
+    strategy as ``AFFIRMATIVE`` and report strategy changes. This client-wide
+    setting also affects existing custom permissions. A permitting permission
+    can authorize access despite another permission's denial. Review custom
+    authorization rules that depend on ``UNANIMOUS`` before provisioning an
+    existing client. ``--dry-run`` reports the proposed change without applying it.
+
 0.13.0
 ......
 
@@ -85,27 +106,6 @@ Bug Fixes
 
 0.11.1
 ......
-
-.. note::
-
-    Non-team provisioning now generates resource-specific read/write permissions and
-    ``DefaultMenuAccess`` instead of the four broad ``ReadOnly``, ``User``, ``Op``, and ``Admin``
-    permission definitions. Re-run ``airflow keycloak-auth-manager create-all`` to provision
-    the required scopes, resources, and permissions. Legacy permissions and extra policy
-    attachments are not automatically removed in non-team mode and can still affect access.
-    Non-team to multi-team client migration is not supported by the provisioning commands.
-    Provision a separate client for multi-team configuration. See
-    :doc:`auth-manager/manage/permissions` for the current grants and provisioning guidance.
-
-.. note::
-
-    The Keycloak provisioning commands ``create-all``, ``create-permissions``,
-    and ``create-team`` now explicitly configure the resource-server decision
-    strategy as ``AFFIRMATIVE`` and report strategy changes. This client-wide
-    setting also affects existing custom permissions. A permitting permission
-    can authorize access despite another permission's denial. Review custom
-    authorization rules that depend on ``UNANIMOUS`` before provisioning an
-    existing client. ``--dry-run`` reports the proposed change without applying it.
 
 .. note::
     In multi-team mode, the views covering records that are not tied to a Dag or a team -- audit log
