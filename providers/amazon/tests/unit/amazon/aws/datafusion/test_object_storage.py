@@ -199,11 +199,36 @@ class TestS3ObjectStorageProvider:
         )
         assert store == mock_s3.return_value
 
+    @patch(
+        "airflow.providers.amazon.aws.datafusion.object_storage.AmazonS3",
+        autospec=True,
+    )
+    @patch(
+        "airflow.providers.amazon.aws.datafusion.object_storage.AwsGenericHook",
+        autospec=True,
+    )
+    def test_s3_provider_ignores_non_aws_connection(
+        self, mock_hook_cls, mock_s3, create_connection_without_db
+    ):
+        from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
+
+        create_connection_without_db(
+            Connection(conn_id="http_default", conn_type="http", login="user", password="pw")
+        )
+
+        provider = S3ObjectStorageProvider()
+        config = ConnectionConfig(conn_id="http_default")
+
+        provider.create_object_store("s3://demo-data/path", connection_config=config)
+
+        mock_hook_cls.assert_not_called()
+        mock_s3.assert_called_once_with(bucket_name="demo-data")
+
     def test_s3_provider_missing_connection_config(self):
         from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
 
         provider = S3ObjectStorageProvider()
-        with pytest.raises(ValueError, match="connection_config must be provided"):
+        with pytest.raises(ValueError, match="connection_config must be provided for s3"):
             provider.create_object_store("s3://bucket/path", connection_config=None)
 
     @patch(

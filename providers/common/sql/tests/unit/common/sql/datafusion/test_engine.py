@@ -339,19 +339,16 @@ class TestDataFusionEngine:
         assert engine.registered_tables == {"test_table": "s3://bucket/path/"}
 
     def test_get_connection_config_delegates_provider_owned_storage(self):
-        """A storage type owned by a provider package gets a bare ConnectionConfig to resolve itself."""
+        """A storage type owned by a provider package gets a bare ConnectionConfig without fetching the connection."""
         engine = DataFusionEngine()
-        mock_conn = MagicMock()
-        mock_conn.conn_id = "aws_default"
-        mock_conn.conn_type = "aws"
-        mock_conn.extra_dejson = {"region": "us-east-1"}
 
         with patch(
             "airflow.providers.common.sql.datafusion.engine.BaseHook.get_connection",
-            return_value=mock_conn,
-        ):
+            autospec=True,
+        ) as mock_get_connection:
             result = engine._get_connection_config("aws_default", StorageType.S3)
 
+        mock_get_connection.assert_not_called()
         assert result.conn_id == "aws_default"
         assert result.credentials == {}
         assert result.extra_config == {}
