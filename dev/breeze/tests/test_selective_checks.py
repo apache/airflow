@@ -1843,13 +1843,37 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             (".github/workflows/openlineage-e2e-compat-tests.yml",),
             {
-                # The compat workflow matches ENVIRONMENT_FILES, so it forces the full matrix.
-                # The compat therefore runs via full_tests_needed, not via OPENLINEAGE_E2E_COMPAT_FILES.
                 "run-openlineage-e2e-tests": "true",
                 "run-openlineage-e2e-compat-tests": "true",
                 "full-tests-needed": "true",
             },
-            id="Compat workflow change forces the full matrix (compat runs via full_tests_needed)",
+            id="Run OpenLineage e2e compat tests when the compat workflow changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/docker/openlineage-compat-db.yml",),
+            {
+                "run-openlineage-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
+                "full-tests-needed": "false",
+                "prod-image-build": "true",
+            },
+            id="Run OpenLineage e2e compat tests when the compat database override changes",
+        ),
+        pytest.param(
+            ("scripts/ci/docker-compose/base.yml",),
+            {
+                "run-openlineage-e2e-compat-tests": "false",
+                "full-tests-needed": "true",
+            },
+            id="Do not run OpenLineage e2e compat tests when an environment file forces full tests",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml",),
+            {
+                "run-openlineage-e2e-compat-tests": "false",
+                "full-tests-needed": "true",
+            },
+            id="Do not run OpenLineage e2e compat tests when the API contract forces full tests",
         ),
         (
             pytest.param(
@@ -2896,6 +2920,7 @@ def test_expected_output_pull_request_v2_7(
                 "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
                 "run-mypy-providers": "true",
                 "run-ui-e2e-tests": "false",
+                "run-openlineage-e2e-compat-tests": "true",
             },
             id="All tests run on push if core file changed",
         ),
