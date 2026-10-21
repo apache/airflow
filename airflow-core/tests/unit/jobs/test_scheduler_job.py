@@ -30,7 +30,7 @@ from contextlib import ExitStack, contextmanager
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
@@ -101,6 +101,8 @@ from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.hitl import HITLDetail
+from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
+from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
 from airflow.models.serialized_dag import SerializedDagModel
@@ -164,6 +166,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
@@ -178,6 +181,7 @@ from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_deadline,
     clear_db_import_errors,
+    clear_db_inbound_deliveries,
     clear_db_jobs,
     clear_db_pakl,
     clear_db_pools,
@@ -340,6 +344,26 @@ def _clean_db():
     clear_db_deadline()
     clear_db_callbacks()
     clear_db_triggers()
+    clear_db_inbound_deliveries()
+
+
+def _add_webhook_wait(
+    session: Session, ti_id: UUID, *, number: int, deadline: datetime.datetime, **overrides: Any
+) -> InboundWait:
+    match = {"repository": "my-org/configs", "number": number}
+    wait = InboundWait(
+        ti_id=ti_id,
+        webhook="github",
+        events=["pull_request"],
+        match=match,
+        key_digest=compute_key_digest(match),
+        match_digest=compute_match_digest(["pull_request"], match),
+        deadline=deadline,
+        **overrides,
+    )
+    session.add(wait)
+    session.flush()
+    return wait
 
 
 def make_pool_stats(
@@ -9283,6 +9307,189 @@ class TestSchedulerJob:
         assert ti_good.next_kwargs["event"]["chosen_options"] == ["Approve"]
         # The one it could not resume is reported as such rather than counted as resolved.
         assert mock_log.info.call_args.args[1:] == (1, 0, 1)
+
+    def test_awaiting_input_timeout_resumes_webhook_waits(self, dag_maker, time_machine):
+        """
+        A task parked on a webhook wait resumes with the delivery its wait received, and otherwise with
+        the webhook timeout event; the sweep closes each wait and deletes no row.
+        """
+        now = timezone.datetime(2026, 10, 20, 12, 0)
+        time_machine.move_to(now, tick=False)
+        deadline = now - datetime.timedelta(minutes=1)
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_webhook_waits",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        record = InboundDelivery(
+            webhook="github",
+            delivery_id="delivery-1",
+            body_digest="0" * 64,
+            received_at=deadline - datetime.timedelta(seconds=5),
+            retain_until=now + datetime.timedelta(days=7),
+            source_type="github",
+            attributes={"event": "pull_request", "repository": "my-org/configs", "number": 42},
+            payload={"pull_request": {"merged": True}},
+            outcome=DeliveryOutcome.RESUMED_WAIT,
+        )
+        session.add(record)
+        session.flush()
+        wait_states: dict[str, dict[str, Any]] = {
+            "received": {"status": WaitStatus.RECEIVED, "delivery_id": record.id},
+            "registered": {},
+            "record_removed": {"status": WaitStatus.RECEIVED, "delivery_id": uuid4()},
+        }
+        tis = {}
+        waits = {}
+        for number, (run_id, wait_state) in enumerate(wait_states.items(), start=42):
+            dr = dag_maker.create_dagrun(
+                run_id=run_id, logical_date=DEFAULT_DATE + datetime.timedelta(days=number)
+            )
+            ti = dr.get_task_instance("dummy1", session=session)
+            ti.state = State.AWAITING_INPUT
+            ti.trigger_timeout = deadline
+            ti.next_method = "execute_complete"
+            ti.next_kwargs = {}
+            tis[run_id] = ti
+            waits[run_id] = _add_webhook_wait(session, ti.id, number=number, deadline=deadline, **wait_state)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        mock_log = mock.MagicMock(spec=logging.Logger)
+        with mock.patch.object(SchedulerJobRunner, "log", mock_log):
+            self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.expire_all()
+        timeout_event = {
+            "error": "No matching delivery arrived before 2026-10-20T11:59:00+00:00",
+            "error_type": "timeout",
+        }
+        expected = {
+            "received": (
+                {
+                    "webhook": "github",
+                    "event": "pull_request",
+                    "delivery_id": "delivery-1",
+                    "received_at": "2026-10-20T11:58:55+00:00",
+                    "attributes": {"event": "pull_request", "repository": "my-org/configs", "number": 42},
+                    "payload": {"pull_request": {"merged": True}},
+                },
+                WaitStatus.RESUMED,
+            ),
+            "registered": (timeout_event, WaitStatus.TIMED_OUT),
+            "record_removed": (timeout_event, WaitStatus.TIMED_OUT),
+        }
+        for run_id, (event, wait_status) in expected.items():
+            ti = session.get_one(TaskInstance, tis[run_id].id)
+            assert (ti.state, ti.next_method, ti.next_kwargs) == (
+                State.SCHEDULED,
+                "execute_complete",
+                {"event": event},
+            ), run_id
+            wait = session.get_one(InboundWait, waits[run_id].id)
+            assert (wait.open, wait.status, wait.ended_at) == (None, wait_status, now), run_id
+        assert session.get(InboundDelivery, record.id) is not None
+        assert mock_log.info.call_args.args[1:] == (1, 2, 0)
+
+    def test_awaiting_input_timeout_of_a_webhook_wait_ignores_an_earlier_response(
+        self, dag_maker, time_machine
+    ):
+        """A Human-in-the-loop response that resumed an earlier park of the try does not resume this one."""
+        now = timezone.datetime(2026, 10, 20, 12, 0)
+        time_machine.move_to(now, tick=False)
+        deadline = now - datetime.timedelta(minutes=1)
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_awaiting_input_webhook_wait_after_response",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+        ti = dag_maker.create_dagrun().get_task_instance("dummy1", session=session)
+        ti.state = State.AWAITING_INPUT
+        ti.trigger_timeout = deadline
+        ti.next_method = "execute_complete"
+        ti.next_kwargs = {}
+        session.add(
+            HITLDetail(
+                ti_id=ti.id,
+                options=["Approve", "Reject"],
+                subject="approve?",
+                multiple=False,
+                params={},
+                chosen_options=["Approve"],
+                responded_at=deadline - datetime.timedelta(hours=1),
+            )
+        )
+        wait = _add_webhook_wait(session, ti.id, number=42, deadline=deadline)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        session.expire_all()
+        ti = session.get_one(TaskInstance, ti.id)
+        assert (ti.state, ti.next_kwargs) == (
+            State.SCHEDULED,
+            {
+                "event": {
+                    "error": "No matching delivery arrived before 2026-10-20T11:59:00+00:00",
+                    "error_type": "timeout",
+                }
+            },
+        )
+        assert session.get_one(InboundWait, wait.id).status == WaitStatus.TIMED_OUT
+
+    @pytest.mark.parametrize(
+        ("with_waits", "expected_queries"),
+        [
+            # The batch, its open waits, then one UPDATE per task instance.
+            pytest.param(False, 5, id="hitl-without-waits"),
+            # As above, plus one UPDATE per wait the sweep times out.
+            pytest.param(True, 8, id="webhook-waits"),
+        ],
+    )
+    def test_awaiting_input_timeout_query_count(self, dag_maker, with_waits, expected_queries):
+        """The sweep looks up the open waits of its whole batch in one query."""
+        session = settings.Session()
+        deadline = timezone.utcnow() - datetime.timedelta(minutes=1)
+        with dag_maker(
+            dag_id="test_awaiting_input_timeout_query_count",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            for task_number in range(3):
+                EmptyOperator(task_id=f"parked_{task_number}")
+        tis = dag_maker.create_dagrun().get_task_instances(session=session)
+        for number, ti in enumerate(tis, start=42):
+            ti.state = State.AWAITING_INPUT
+            ti.trigger_timeout = deadline
+            ti.next_method = "execute_complete"
+            ti.next_kwargs = {}
+            if with_waits:
+                _add_webhook_wait(session, ti.id, number=number, deadline=deadline)
+            else:
+                session.add(
+                    HITLDetail(
+                        ti_id=ti.id,
+                        options=["Approve", "Reject"],
+                        subject="approve?",
+                        multiple=False,
+                        params={},
+                    )
+                )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        with assert_queries_count(expected_queries):
+            self.job_runner.check_awaiting_input_timeouts(session=session)
+
+        assert {ti.state for ti in tis} == {State.SCHEDULED}
 
     def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, testing_dag_bundle, session):
         """

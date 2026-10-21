@@ -66,6 +66,9 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import LOOP_DECISION_REASON_KEY, DynamicRegion
+from airflow.models.hitl import HITLDetail
+from airflow.models.inbound_delivery import DeliveryOutcome, InboundDelivery
+from airflow.models.inbound_wait import InboundWait, WaitStatus
 from airflow.models.log import Log
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
@@ -77,12 +80,14 @@ from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
+from airflow.webhooks.waits import compute_key_digest, compute_match_digest
 
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
+    clear_db_inbound_deliveries,
     clear_db_logs,
     clear_db_runs,
     clear_db_serialized_dags,
@@ -4755,6 +4760,259 @@ class TestTIUpdateState:
         assert session.scalars(
             select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == ti.task_id)
         ).all()
+
+
+class TestTIUpdateStateToAwaitingInput:
+    """Parking a task in awaiting_input, or resuming it at once when its input arrived before it parked."""
+
+    NOW = timezone.parse("2026-10-20T12:00:00Z")
+    WAIT_DEADLINE = NOW + timedelta(days=3)
+
+    def setup_method(self):
+        clear_db_logs()
+        clear_db_runs()
+        clear_db_inbound_deliveries()
+
+    def teardown_method(self):
+        clear_db_logs()
+        clear_db_runs()
+        clear_db_inbound_deliveries()
+
+    @pytest.fixture(autouse=True)
+    def frozen_time(self, time_machine):
+        time_machine.move_to(self.NOW, tick=False)
+
+    @pytest.fixture
+    def running_ti(self, create_task_instance, session) -> TaskInstance:
+        ti = create_task_instance(task_id="awaiting", state=State.RUNNING, session=session)
+        session.commit()
+        return ti
+
+    @staticmethod
+    def park(client, ti_id: UUID, **overrides):
+        payload = {
+            "state": "awaiting_input",
+            "next_method": "execute_complete",
+            "next_kwargs": {"stored": "value"},
+            "timeout": "PT1H",
+        }
+        return client.patch(f"/execution/task-instances/{ti_id}/state", json=payload | overrides)
+
+    @staticmethod
+    def add_hitl_request(session, ti_id: UUID, *, responded: bool) -> None:
+        hitl_detail = HITLDetail(ti_id=ti_id, options=["Approve", "Reject"], subject="Approve?", params={})
+        if responded:
+            hitl_detail.chosen_options = ["Approve"]
+            hitl_detail.params_input = {"note": "fine"}
+            hitl_detail.responded_at = timezone.parse("2026-10-20T11:59:00Z")
+            hitl_detail.responded_by = {"id": "1", "name": "reviewer"}
+        session.add(hitl_detail)
+        session.commit()
+
+    @staticmethod
+    def read_ti(session, ti_id: UUID) -> TaskInstance:
+        session.expire_all()
+        return session.get_one(TaskInstance, ti_id)
+
+    @classmethod
+    def add_wait(
+        cls, session, ti_id: UUID, *, number: int = 42, is_open: bool = True, **overrides
+    ) -> InboundWait:
+        match = {"repository": "my-org/configs", "number": number}
+        wait = InboundWait(
+            ti_id=ti_id,
+            webhook="github",
+            events=["pull_request"],
+            match=match,
+            key_digest=compute_key_digest(match),
+            match_digest=compute_match_digest(["pull_request"], match),
+            **({"deadline": cls.WAIT_DEADLINE, "created_at": cls.NOW - timedelta(minutes=1)} | overrides),
+        )
+        session.add(wait)
+        session.flush()
+        # Set after the insert: the ORM inserts a column's default in place of None.
+        wait.open = True if is_open else None
+        session.commit()
+        return wait
+
+    @classmethod
+    def add_delivery(cls, session) -> UUID:
+        record = InboundDelivery(
+            webhook="github",
+            delivery_id="delivery-1",
+            body_digest="0" * 64,
+            received_at=cls.NOW - timedelta(seconds=30),
+            retain_until=cls.NOW + timedelta(days=7),
+            source_type="github",
+            attributes={"event": "pull_request", "repository": "my-org/configs", "number": 42},
+            correlation_key="my-org/configs#42",
+            payload={"pull_request": {"merged": True}},
+            outcome=DeliveryOutcome.RESUMED_WAIT,
+        )
+        session.add(record)
+        session.commit()
+        return record.id
+
+    @staticmethod
+    def read_wait(session, wait_id: UUID) -> InboundWait:
+        session.expire_all()
+        return session.get_one(InboundWait, wait_id)
+
+    @pytest.mark.parametrize(
+        ("timeout", "trigger_timeout"),
+        [
+            pytest.param("PT1H", NOW + timedelta(hours=1), id="with-timeout"),
+            pytest.param(None, None, id="without-timeout"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "hitl_request", [False, True], ids=["no-hitl-request", "unanswered-hitl-request"]
+    )
+    def test_parks_the_task(self, client, session, running_ti, timeout, trigger_timeout, hitl_request):
+        if hitl_request:
+            self.add_hitl_request(session, running_ti.id, responded=False)
+
+        response = self.park(client, running_ti.id, timeout=timeout)
+
+        assert response.status_code == 204, response.text
+        ti = self.read_ti(session, running_ti.id)
+        assert (ti.state, ti.trigger_id, ti.trigger_timeout) == (
+            TaskInstanceState.AWAITING_INPUT,
+            None,
+            trigger_timeout,
+        )
+        assert (ti.next_method, ti.next_kwargs) == ("execute_complete", {"stored": "value"})
+        assert session.scalars(select(Trigger)).all() == []
+
+    def test_a_response_recorded_before_the_park_resumes_the_task(self, client, session, running_ti):
+        self.add_hitl_request(session, running_ti.id, responded=True)
+
+        response = self.park(client, running_ti.id)
+
+        assert response.status_code == 204, response.text
+        ti = self.read_ti(session, running_ti.id)
+        assert (ti.state, ti.trigger_id, ti.trigger_timeout) == (TaskInstanceState.SCHEDULED, None, None)
+        assert ti.next_method == "execute_complete"
+        assert ti.next_kwargs["stored"] == "value"
+        event = ti.next_kwargs["event"]
+        assert (event["chosen_options"], event["params_input"], event["timedout"]) == (
+            ["Approve"],
+            {"note": "fine"},
+            False,
+        )
+
+    def test_a_delivery_received_before_the_park_resumes_the_task(self, client, session, running_ti):
+        record_id = self.add_delivery(session)
+        wait = self.add_wait(session, running_ti.id, status=WaitStatus.RECEIVED, delivery_id=record_id)
+
+        response = self.park(client, running_ti.id)
+
+        assert response.status_code == 204, response.text
+        ti = self.read_ti(session, running_ti.id)
+        assert (ti.state, ti.trigger_id, ti.trigger_timeout) == (TaskInstanceState.SCHEDULED, None, None)
+        assert ti.next_method == "execute_complete"
+        assert ti.next_kwargs == {
+            "stored": "value",
+            "event": {
+                "webhook": "github",
+                "event": "pull_request",
+                "delivery_id": "delivery-1",
+                "received_at": "2026-10-20T11:59:30+00:00",
+                "attributes": {"event": "pull_request", "repository": "my-org/configs", "number": 42},
+                "payload": {"pull_request": {"merged": True}},
+            },
+        }
+        wait = self.read_wait(session, wait.id)
+        assert (wait.open, wait.status, wait.delivery_id, wait.ended_at) == (
+            None,
+            WaitStatus.RESUMED,
+            record_id,
+            self.NOW,
+        )
+
+    @pytest.mark.parametrize(
+        "wait_state",
+        [
+            pytest.param({}, id="registered"),
+            pytest.param(
+                {"status": WaitStatus.RECEIVED, "delivery_id": uuid4()}, id="delivery-record-removed"
+            ),
+        ],
+    )
+    def test_parks_until_the_deadline_of_its_wait(self, client, session, running_ti, wait_state):
+        wait = self.add_wait(session, running_ti.id, **wait_state)
+
+        response = self.park(client, running_ti.id)
+
+        assert response.status_code == 204, response.text
+        ti = self.read_ti(session, running_ti.id)
+        assert (ti.state, ti.trigger_id, ti.trigger_timeout) == (
+            TaskInstanceState.AWAITING_INPUT,
+            None,
+            self.WAIT_DEADLINE,
+        )
+        assert (ti.next_method, ti.next_kwargs) == ("execute_complete", {"stored": "value"})
+        wait = self.read_wait(session, wait.id)
+        assert (wait.open, wait.status) == (True, wait_state.get("status", WaitStatus.REGISTERED))
+
+    @pytest.mark.parametrize("first_status", [WaitStatus.ENDED, WaitStatus.RESUMED])
+    def test_a_second_park_in_the_same_try_does_not_replay_the_first_delivery(
+        self, client, session, running_ti, first_status
+    ):
+        record_id = self.add_delivery(session)
+        first = self.add_wait(
+            session,
+            running_ti.id,
+            is_open=False,
+            status=first_status,
+            delivery_id=record_id,
+            ended_at=self.NOW - timedelta(seconds=40),
+        )
+        second = self.add_wait(
+            session,
+            running_ti.id,
+            number=43,
+            created_at=self.NOW - timedelta(seconds=30),
+            deadline=self.NOW + timedelta(hours=2),
+        )
+
+        response = self.park(client, running_ti.id)
+
+        assert response.status_code == 204, response.text
+        ti = self.read_ti(session, running_ti.id)
+        assert (ti.state, ti.trigger_timeout) == (
+            TaskInstanceState.AWAITING_INPUT,
+            self.NOW + timedelta(hours=2),
+        )
+        assert ti.next_kwargs == {"stored": "value"}
+        assert self.read_wait(session, first.id).status == first_status
+        assert self.read_wait(session, second.id).status == WaitStatus.REGISTERED
+
+    def test_an_open_wait_decides_the_park_over_an_earlier_response(self, client, session, running_ti):
+        """A Human-in-the-loop response that resumed an earlier park of the try does not resume this one."""
+        self.add_hitl_request(session, running_ti.id, responded=True)
+        self.add_wait(session, running_ti.id)
+
+        response = self.park(client, running_ti.id)
+
+        assert response.status_code == 204, response.text
+        ti = self.read_ti(session, running_ti.id)
+        assert (ti.state, ti.trigger_timeout) == (TaskInstanceState.AWAITING_INPUT, self.WAIT_DEADLINE)
+        assert ti.next_kwargs == {"stored": "value"}
+
+    @pytest.mark.parametrize("parks_on", ["hitl_request", "webhook_wait"], ids=["hitl-park", "webhook-park"])
+    def test_park_query_count(self, client, session, running_ti, parks_on):
+        """A park looks up the open wait in one query, whether it parks for a response or a delivery."""
+        if parks_on == "hitl_request":
+            self.add_hitl_request(session, running_ti.id, responded=False)
+        else:
+            self.add_wait(session, running_ti.id)
+
+        with assert_queries_count(7):
+            response = self.park(client, running_ti.id)
+
+        assert response.status_code == 204, response.text
+        assert self.read_ti(session, running_ti.id).state == TaskInstanceState.AWAITING_INPUT
 
 
 class TestTISkipDownstream:
