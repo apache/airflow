@@ -32,6 +32,8 @@ import re
 import traceback
 from typing import TYPE_CHECKING
 
+import structlog
+
 from airflow.sdk.importers.base import (
     AbstractDagImporter,
     DagImportError,
@@ -117,6 +119,29 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
 
         dags: dict[str, DAG] = {}
         build_errors: list[Exception] = []
+        for document in documents:
+            for task in document.tasks:
+                if task.run is None:
+                    continue
+                try:
+                    from airflow.sdk.api.datamodels._generated import BundleInfo
+                    from airflow.sdk.execution_time.coordinator import (
+                        PythonCoordinator,
+                        get_coordinator_manager,
+                    )
+
+                    coordinator = get_coordinator_manager().for_queue(
+                        (task.model_extra or {}).get("queue", "default")
+                    )
+                    if isinstance(coordinator, PythonCoordinator):
+                        coordinator.load_task_handlers(
+                            BundleInfo(name=bundle.name), structlog.get_logger("coordinators.python")
+                        )
+                except Exception:
+                    # Handler discovery is advisory during Dag parsing; execution reports missing handlers.
+                    log.exception(
+                        "Could not inspect Python task handlers", dag_id=document.dag_id, task_id=task.id_
+                    )
         with definition.import_context():
             for document in documents:
                 try:

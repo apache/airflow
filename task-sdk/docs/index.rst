@@ -183,3 +183,4 @@ For the full public API reference, see the :doc:`api` page.
   lang-sdk
   executable-bundle-spec
   ts-bundle-spec
+  python-task-handlers

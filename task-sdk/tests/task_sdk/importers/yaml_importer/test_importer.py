@@ -29,6 +29,7 @@ from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import BaseOperator, XComArg
 from airflow.sdk.definitions._internal.templater import LiteralValue
+from airflow.sdk.definitions.task_handler import task_handler, task_handler_registry
 from airflow.sdk.definitions.timetables.simple import OnceTimetable
 from airflow.sdk.importers import ZipMemberDagDefinition
 from airflow.sdk.importers.base import FilesystemDagDefinition
@@ -532,6 +533,24 @@ def test_import_code_task_builds_stub_operator(mock_bundle):
     # The stub is fed a callable whose ordered parameters are the run argument names, so core
     # serialization can build the handler arg-binding spec (AIP-108) from a real signature.
     assert list(inspect.signature(b.python_callable).parameters) == ["value", "label"]
+
+
+def test_import_code_task_validates_registered_handler_signature(mock_bundle):
+    task_handler_registry.clear()
+
+    @task_handler(dag_id="d", task_id="b")
+    def handler(value: str):
+        return value
+
+    definition = _def(mock_bundle, "dag.yaml", _doc("- {id: b, run: {other: value}}"))
+    try:
+        result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    finally:
+        task_handler_registry.clear()
+
+    assert not result.success
+    assert "run arguments do not match" in result.errors[0].message
+    assert task_handler_registry.get("d", "b") is None
 
 
 def test_import_mixed_container_keeps_literal_siblings_literal(mock_bundle):

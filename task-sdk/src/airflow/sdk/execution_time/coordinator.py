@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import inspect
 import os
 import signal
 from typing import TYPE_CHECKING, Any
@@ -208,6 +209,47 @@ class _PythonCoordinator(BaseCoordinator):
             )
             exit_code = process.wait()
             return self.ExecutionResult(exit_code, process.final_state)
+
+
+@attrs.define(kw_only=True)
+class PythonCoordinator(_PythonCoordinator):
+    """
+    Configurable coordinator for Python implementations of stub tasks.
+
+    ``task_handler_bundle_name`` selects the bundle from which Python handler
+    modules are imported. When omitted, handlers are loaded from the task's own
+    Dag bundle.
+    """
+
+    task_handler_bundle_name: str | None = None
+
+    @staticmethod
+    def resolve_task_handler(dag_id: str, task_id: str) -> Any:
+        """Return the registered Python callable for a task, if one is available."""
+        from airflow.sdk.definitions.task_handler import task_handler_registry
+
+        return task_handler_registry.get(dag_id, task_id)
+
+    @staticmethod
+    def describe_task_handler(dag_id: str, task_id: str) -> inspect.Signature | None:
+        """Return a handler's Python signature for parse-time argument validation."""
+        from airflow.sdk.definitions.task_handler import task_handler_registry
+
+        return task_handler_registry.describe(dag_id, task_id)
+
+    def load_task_handlers(self, bundle_info, logger: FilteringBoundLogger) -> None:
+        """Import handlers from their configured bundle in the task activity process."""
+        from airflow.sdk.coordinators._subprocess import _initialize_pinned_bundle
+        from airflow.sdk.definitions.task_handler import task_handler_registry
+
+        if self.task_handler_bundle_name is None:
+            target = bundle_info
+        else:
+            from airflow.sdk.api.datamodels._generated import BundleInfo
+
+            target = BundleInfo(name=self.task_handler_bundle_name)
+        bundle = _initialize_pinned_bundle(target, logger)
+        task_handler_registry.load_from_path(bundle.path, bundle_name=bundle.name)
 
 
 @functools.cache

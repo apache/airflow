@@ -93,8 +93,10 @@ class DagBuilder:
     _bundle: BaseDagBundle
     _operators: dict[str, BaseOperator] = attrs.field(factory=dict, init=False)
     _stub_callables: dict[tuple[str, ...], Callable[..., None]] = attrs.field(factory=dict, init=False)
+    _dag_id: str = attrs.field(init=False)
 
     def build(self, doc: DagDocument) -> DAG:
+        self._dag_id = doc.dag_id
         tasks = {t.id_: t for t in doc.tasks}
         _reject_reserved_extra_keys(doc.model_extra or {})
         extras = _coerce_temporal(doc.model_extra or {}, DAG)
@@ -143,6 +145,15 @@ class DagBuilder:
                         f"not a {type(lowered).__name__}"
                     ) from None
             run_kwargs[name] = lowered
+        from airflow.sdk.execution_time.coordinator import PythonCoordinator
+
+        if (signature := PythonCoordinator.describe_task_handler(self._dag_id, task.id_)) is not None:
+            try:
+                signature.bind(**run_kwargs)
+            except (TypeError, ValueError) as exc:
+                raise YamlDagBuildError(
+                    f"task {task.id_!r}: run arguments do not match the registered Python task handler: {exc}"
+                ) from exc
         decorator = task_decorators.stub(
             task_id=task.id_, **_coerce_temporal(task.model_extra or {}, BaseOperator)
         )

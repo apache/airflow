@@ -26,9 +26,9 @@ Writing Dags in YAML
 
 Airflow can build a Dag from a YAML document. One YAML document describes one
 Dag, and the YAML Dag importer turns it into the same Dag structure that Airflow
-runs like any other source. The tasks can be ordinary Airflow operators,
-or a pointer to a task handler implemented in a Language SDK. (Support for the
-Python Task SDK is planned for a future release.)
+runs like any other source. The tasks can be ordinary Airflow operators, or a
+pointer to a task handler implemented in a language SDK, including the Python
+Task SDK.
 
 A document is declarative. Everything in it is a value, and the shape of each
 value decides what it means.
@@ -428,6 +428,32 @@ coordinator. In practice, a ``run:`` task always needs a task-level ``queue:``
 mapped to a coordinator under ``[sdk] queue_to_coordinator``. See
 :doc:`language-sdks/index` for writing the handler and configuring the
 coordinator.
+
+For a Python handler, decorate a function in a Python module in the handler
+Dag bundle with :func:`airflow.sdk.task_handler`. The decorator matches the
+handler by Dag ID and task ID:
+
+.. code-block:: python
+
+    from airflow.sdk import task_handler
+
+
+    @task_handler(dag_id="daily_report", task_id="transform")
+    def transform(rows: list[dict], factor: int) -> int:
+        return len(rows) * factor
+
+Configure the Python coordinator and route the task's queue to it:
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {"python": {"classpath": "airflow.sdk.coordinators.python.PythonCoordinator"}}
+    queue_to_coordinator = {"python-workers": "python"}
+
+The coordinator imports Python modules from the Dag bundle named by
+``task_handler_bundle_name``. If it is not set, it uses the task's own Dag
+bundle. Handler argument names and required parameters are checked against the
+YAML ``run:`` mapping during Dag parsing when the handler can be imported.
 
 Each argument in ``run:`` is either a JSON-serializable literal, or an upstream
 task's output, in the ``{$x: task}`` form, which also wires the dependency.

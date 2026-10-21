@@ -31,6 +31,7 @@ from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
     CoordinatorManager,
     InvalidCoordinatorError,
+    PythonCoordinator,
     _PythonCoordinator,
     _warm_shutdown_signals,
     get_coordinator_manager,
@@ -155,6 +156,30 @@ class TestCoordinatorManager:
         manager = CoordinatorManager.from_config()
         assert manager._coordinator_specs == {}
         assert manager._queue_to_coordinator == {}
+
+    @mock.patch(
+        "airflow.sdk.execution_time.coordinator.DagBundlesManager.is_bundle_configured",
+        autospec=True,
+        return_value=True,
+    )
+    def test_python_coordinator_can_be_configured_for_a_queue(self, is_bundle_configured, sdk_config):
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "python": {
+                        "classpath": "airflow.sdk.coordinators.python.PythonCoordinator",
+                        "kwargs": {"task_handler_bundle_name": "python-handlers"},
+                    }
+                }
+            ),
+            queue_to_coordinator=json.dumps({"python-workers": "python"}),
+        )
+
+        coordinator = CoordinatorManager.from_config().for_queue("python-workers")
+
+        assert isinstance(coordinator, PythonCoordinator)
+        assert coordinator.task_handler_bundle_name == "python-handlers"
+        is_bundle_configured.assert_called_once_with("python-handlers")
 
     def test_from_config_rejects_invalid_queue_mapping(self, sdk_config):
         sdk_config(

@@ -2360,6 +2360,24 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     task = ti.task
     execute = task.execute
+    if getattr(task, "is_stub", False):
+        from airflow.sdk.execution_time.coordinator import PythonCoordinator
+
+        handler = PythonCoordinator.resolve_task_handler(ti.dag_id, ti.task_id)
+        if handler is None:
+            raise RuntimeError(
+                f"No Python task handler is registered for Dag {ti.dag_id!r}, task {ti.task_id!r}"
+            )
+
+        def execute_handler(*, context: Context) -> Any:
+            python_callable = getattr(task, "python_callable")
+            setattr(task, "python_callable", handler)
+            try:
+                return task.execute(context)
+            finally:
+                setattr(task, "python_callable", python_callable)
+
+        execute = execute_handler
 
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
         from airflow.sdk.serde import deserialize

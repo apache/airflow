@@ -119,6 +119,7 @@ __all__ = [
     "result",
     "setup",
     "task",
+    "task_handler",
     "task_group",
     "teardown",
 ]
@@ -208,6 +209,7 @@ if TYPE_CHECKING:
         RetryPolicy,
         RetryRule,
     )
+    from airflow.sdk.definitions.task_handler import task_handler
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
@@ -338,6 +340,7 @@ __lazy_imports: dict[str, str] = {
     "result": ".definitions.decorators",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
+    "task_handler": ".definitions.task_handler",
     "task_group": ".definitions.decorators",
     "teardown": ".definitions.decorators",
 }

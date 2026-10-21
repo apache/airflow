@@ -95,6 +95,7 @@ from airflow.sdk.definitions.retry_policy import (
     RetryPolicy,
     RetryRule,
 )
+from airflow.sdk.definitions.task_handler import task_handler_registry
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -2113,6 +2114,37 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
 
     with pytest.raises(AirflowTaskTimeout):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+
+
+def test_execute_stub_task_dispatches_to_registered_handler(create_runtime_ti):
+    dag_id = "python_task_handler_dag"
+
+    def original_callable(value):
+        return "stub callable should not run"
+
+    def handler(value):
+        return value * 2
+
+    task = PythonOperator(task_id="transform", python_callable=original_callable, op_kwargs={"value": 3})
+    task.is_stub = True
+    ti = create_runtime_ti(task=task, dag_id=dag_id)
+    task_handler_registry.register(dag_id, task.task_id, handler)
+    try:
+        result = _execute_task(context=ti.get_template_context(), ti=ti, log=structlog.get_logger("task"))
+    finally:
+        task_handler_registry.clear()
+
+    assert result == 6
+    assert task.python_callable is original_callable
+
+
+def test_execute_stub_task_fails_when_handler_is_missing(create_runtime_ti):
+    task = PythonOperator(task_id="transform", python_callable=lambda: None)
+    task.is_stub = True
+    ti = create_runtime_ti(task=task, dag_id="missing_python_task_handler_dag")
+
+    with pytest.raises(RuntimeError, match="No Python task handler is registered"):
+        _execute_task(context=ti.get_template_context(), ti=ti, log=structlog.get_logger("task"))
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
