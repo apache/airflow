@@ -218,34 +218,15 @@
           "description": "Position in a mapped task's expansion. Absent for a task that isn't mapped.",
           "type": "integer"
         },
-        "loop_index": {
-          "description": "Zero-based iteration of the innermost loop the task runs in (Airflow 3.4+). Absent outside a loop.",
+        "expanded_ti_count": {
+          "description": "Number of live instances in the mapped task's expansion (Airflow 3.4+), counted within the loop iteration inside a loop. Absent for a task that isn't mapped.",
           "type": "integer"
         },
-        "loop_max_iterations": {
-          "description": "Maximum number of iterations of the innermost loop the task runs in (Airflow 3.4+). Absent outside a loop.",
-          "type": "integer"
-        },
-        "loop_group_id": {
-          "description": "Group id of the innermost loop the task runs in (Airflow 3.4+), which loop_index counts the iterations of. Absent outside a loop.",
-          "type": "string"
-        },
-        "loop_decision": {
-          "description": "Decision of a loop gate (Airflow 3.4+), on its COMPLETE or FAIL event only. A FAIL with stop false at the last iteration means the loop's until was still false at max_iterations.",
-          "type": "object",
-          "properties": {
-            "stop": {
-              "description": "Whether the gate stopped the loop.",
-              "type": "boolean"
-            },
-            "reason": {
-              "description": "Reason given by until, if any.",
-              "type": "string"
-            }
-          }
+        "loop": {
+          "$ref": "#/$defs/TaskInstanceLoop"
         },
         "region_id": {
-          "description": "Id of the region (one execution of a loop or of a mapped task's expansion) the task instance belongs to (Airflow 3.4+). Shared by the task instances of that region. Clearing a loop forks its region, so a re-run of an iteration gets a new region_id. Region ids are UUIDv7, so a later trajectory has a greater one, which is an implementation detail. Absent for a task that is neither mapped nor in a loop.",
+          "description": "Id of the region (one execution of a loop or of a mapped task's expansion) the task instance belongs to (Airflow 3.4+). Shared by the task instances of that region. For a mapped task it is its expansion's, see loop.region_id for the loop's. Absent for a task that is neither mapped nor in a loop.",
           "type": "string",
           "format": "uuid"
         },
@@ -278,6 +259,59 @@
         "pool",
         "try_number"
       ]
+    },
+    "TaskInstanceLoop": {
+      "description": "Iteration of the innermost loop the task runs in (Airflow 3.4+). Absent outside a loop. Fields that can't be known are left out.",
+      "type": "object",
+      "properties": {
+        "group_id": {
+          "description": "Group id of the loop.",
+          "type": "string"
+        },
+        "index": {
+          "description": "Iteration, counted from 1.",
+          "type": "integer"
+        },
+        "max_iterations": {
+          "description": "Maximum number of iterations of the loop.",
+          "type": "integer"
+        },
+        "region_id": {
+          "description": "Id of the loop region holding the iteration, shared by every task instance of that pass of the loop, mapped ones included.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "trajectory": {
+          "description": "1 for the loop's original region, and one more for each fork of it. Clearing a loop gate with the later iterations forks the loop region, and the higher trajectory is the current one.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "forked_from_region_id": {
+          "description": "Id of the previous loop region of the chain this fork extends. Absent for the original region. The fork replaces the iterations from resumes_from_index on, which earlier regions of the chain can hold too.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "resumes_from_index": {
+          "description": "First iteration the fork holds. Absent for the original region, which holds them from 1.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "decision": {
+          "description": "Decision of a loop gate, on its COMPLETE or FAIL event only. A FAIL with stop false at the last iteration means the loop's until was still false at max_iterations.",
+          "type": "object",
+          "properties": {
+            "stop": {
+              "description": "Whether the gate stopped the loop.",
+              "type": "boolean"
+            },
+            "reason": {
+              "description": "Reason given by until, if any.",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": true
     },
     "DagRun": {
       "type": "object",

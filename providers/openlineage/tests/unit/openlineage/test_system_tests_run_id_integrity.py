@@ -43,11 +43,11 @@ def _event(
         run["runId"] = run_id
     dag_run = {"run_id": dag_run_id, "clear_number": clear_number}
     if job_type == "TASK":
-        task_instance: dict[str, int | str] = {"try_number": try_number}
+        task_instance: dict[str, int | str | dict[str, int]] = {"try_number": try_number}
         if map_index is not None:
             task_instance["map_index"] = map_index
         if loop_index is not None:
-            task_instance["loop_index"] = loop_index
+            task_instance["loop"] = {"index": loop_index}
         if region_id is not None:
             task_instance["region_id"] = region_id
         run["facets"]["airflow"] = {"dagRun": dag_run, "taskInstance": task_instance}

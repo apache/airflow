@@ -39,6 +39,7 @@
     Supported classes <supported_classes>
     Custom Operators <guides/developer>
     Job Hierarchy & Macros <macros>
+    Identifying task executions <guides/task_execution_identity>
     Spark Integration <spark>
     Troubleshooting <troubleshooting>
 
