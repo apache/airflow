@@ -534,9 +534,7 @@ class TestDagFileProcessorManager:
             assert kwargs["importer_registry"] is processor._get_importer_registry("bundle-a")
             if native:
                 assert kwargs["team_name"] == "team-a"
-            assert processor._dag_bundle_manager.get_bundle_config("bundle-a").kwargs["path"] == str(
-                bundle_path
-            )
+            assert processor._dag_bundle_manager.get_bundle("bundle-a").path == bundle_path
             assert "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST" not in os.environ
 
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
