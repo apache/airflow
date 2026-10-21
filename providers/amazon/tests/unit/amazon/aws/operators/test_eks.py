@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any, TypedDict
 from unittest import mock
 
@@ -752,7 +753,11 @@ class TestEksDeleteClusterOperator:
 
         mock_list_nodegroups.assert_not_called()
         mock_delete_cluster.assert_called_once_with(name=self.cluster_name)
-        mock_waiter.assert_called_with(mock.ANY, name=CLUSTER_NAME)
+        mock_waiter.assert_called_with(
+            mock.ANY,
+            name=CLUSTER_NAME,
+            WaiterConfig={"Delay": 30, "MaxAttempts": 40},
+        )
         assert_expected_waiter_type(mock_waiter, "ClusterDeleted")
 
     def test_eks_delete_cluster_operator_with_deferrable(self):
@@ -781,6 +786,72 @@ class TestEksDeleteClusterOperator:
 
         assert mock_delete_cluster.call_count == 3
         mock_delete_cluster.assert_called_with(name=self.cluster_name)
+
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "delete_cluster")
+    def test_delete_cluster_with_waiter_config(self, mock_delete_cluster, mock_waiter):
+        op = EksDeleteClusterOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            wait_for_completion=True,
+            waiter_delay=15,
+            waiter_max_attempts=10,
+        )
+        op.execute({})
+        mock_delete_cluster.assert_called_once_with(name=CLUSTER_NAME)
+        mock_waiter.assert_called_with(
+            mock.ANY,
+            name=CLUSTER_NAME,
+            WaiterConfig={"Delay": 15, "MaxAttempts": 10},
+        )
+        assert_expected_waiter_type(mock_waiter, "ClusterDeleted")
+
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "get_waiter")
+    @mock.patch.object(EksHook, "list_fargate_profiles")
+    @mock.patch.object(EksHook, "list_nodegroups")
+    @mock.patch.object(EksHook, "delete_fargate_profile")
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    @mock.patch.object(EksHook, "delete_cluster")
+    def test_force_delete_compute_with_waiter_config(
+        self,
+        mock_delete_cluster,
+        mock_delete_nodegroup,
+        mock_delete_fargate_profile,
+        mock_list_nodegroups,
+        mock_list_fargate_profiles,
+        mock_get_waiter,
+        mock_waiter,
+    ):
+        mock_list_nodegroups.return_value = [NODEGROUP_NAME]
+        mock_list_fargate_profiles.return_value = [FARGATE_PROFILE_NAME]
+        expected_config = {"Delay": 15, "MaxAttempts": 10}
+
+        op = EksDeleteClusterOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            force_delete_compute=True,
+            wait_for_completion=True,
+            waiter_delay=15,
+            waiter_max_attempts=10,
+        )
+
+        op.execute({})
+
+        mock_get_waiter.assert_called_once_with("all_nodegroups_deleted")
+        mock_get_waiter.return_value.wait.assert_called_once_with(
+            clusterName=CLUSTER_NAME,
+            WaiterConfig=expected_config,
+        )
+        assert mock_waiter.call_args_list == [
+            mock.call(
+                mock.ANY,
+                clusterName=CLUSTER_NAME,
+                fargateProfileName=FARGATE_PROFILE_NAME,
+                WaiterConfig=expected_config,
+            ),
+            mock.call(mock.ANY, name=CLUSTER_NAME, WaiterConfig=expected_config),
+        ]
 
     @mock.patch("time.sleep", return_value=None)
     @mock.patch.object(EksHook, "get_waiter")
@@ -854,7 +925,12 @@ class TestEksDeleteNodegroupOperator:
         mock_delete_nodegroup.assert_called_once_with(
             clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
         )
-        mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
+        mock_waiter.assert_called_with(
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+            WaiterConfig={"Delay": 30, "MaxAttempts": 40},
+        )
         assert_expected_waiter_type(mock_waiter, "NodegroupDeleted")
 
     @mock.patch("time.sleep", return_value=None)
@@ -871,6 +947,30 @@ class TestEksDeleteNodegroupOperator:
         mock_delete_nodegroup.assert_called_with(
             clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
         )
+
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "delete_nodegroup")
+    def test_delete_nodegroup_with_waiter_config(self, mock_delete_nodegroup, mock_waiter):
+        op = EksDeleteNodegroupOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            nodegroup_name=NODEGROUP_NAME,
+            wait_for_completion=True,
+            waiter_delay=15,
+            waiter_max_attempts=10,
+        )
+        op.execute({})
+        mock_delete_nodegroup.assert_called_once_with(
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+        )
+        mock_waiter.assert_called_with(
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+            WaiterConfig={"Delay": 15, "MaxAttempts": 10},
+        )
+        assert_expected_waiter_type(mock_waiter, "NodegroupDeleted")
 
     def test_template_fields(self):
         validate_template_fields(self.delete_nodegroup_operator)
@@ -963,6 +1063,69 @@ class TestEksDeleteFargateProfileOperator:
 
 
 class TestEksPodOperator:
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute", autospec=True
+    )
+    @mock.patch.object(EksHook, "generate_config_file_with_credentials", autospec=True)
+    @pytest.mark.parametrize("fails", [False, True])
+    def test_execute_uses_shared_auth_context(self, generate_config, execute, fails):
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
+        generate_config.return_value = config_context
+        operator = EksPodOperator(
+            task_id="run_pod", cluster_name=CLUSTER_NAME, namespace="workloads", image="test-image"
+        )
+
+        def run_in_context(op, context):
+            assert op.config_file == "/tmp/kubeconfig"
+            assert op._credentials_file_path == "/tmp/credentials"
+            config_context.__exit__.assert_not_called()
+            if fails:
+                raise RuntimeError("parent failed")
+            return "result"
+
+        execute.side_effect = run_in_context
+        with pytest.raises(RuntimeError, match="parent failed") if fails else nullcontext():
+            assert operator.execute({}) == "result"
+
+        generate_config.assert_called_once_with(
+            mock.ANY, eks_cluster_name=CLUSTER_NAME, pod_namespace="workloads"
+        )
+        execute.assert_called_once_with(operator, {})
+        config_context.__exit__.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry", autospec=True
+    )
+    @mock.patch.object(EksHook, "generate_config_file_with_credentials", autospec=True)
+    @pytest.mark.parametrize("fails", [False, True])
+    def test_trigger_reentry_uses_shared_auth_context(self, generate_config, reentry, fails):
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
+        generate_config.return_value = config_context
+        operator = EksPodOperator(
+            task_id="run_pod", cluster_name=CLUSTER_NAME, namespace="workloads", image="test-image"
+        )
+        event = {"eks_cluster_name": "event-cluster", "namespace": "event-namespace"}
+
+        def run_in_context(op, context, event):
+            assert op.config_file == "/tmp/kubeconfig"
+            assert op._credentials_file_path == "/tmp/credentials"
+            config_context.__exit__.assert_not_called()
+            if fails:
+                raise RuntimeError("parent failed")
+            return "result"
+
+        reentry.side_effect = run_in_context
+        with pytest.raises(RuntimeError, match="parent failed") if fails else nullcontext():
+            assert operator.trigger_reentry({}, event) == "result"
+
+        generate_config.assert_called_once_with(
+            mock.ANY, eks_cluster_name="event-cluster", pod_namespace="event-namespace"
+        )
+        reentry.assert_called_once_with(operator, {}, event)
+        config_context.__exit__.assert_called_once()
+
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook._secure_credential_context")

@@ -36,6 +36,8 @@ import {
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
 import { Dag } from "../../src/sdk/dag.js";
+import { triggerDagRun } from "../../src/sdk/trigger-dag-run.js";
+import { approval, hitl } from "../../src/hitl/index.js";
 import { Bundle } from "../../src/sdk/bundle.js";
 import { withArgNames } from "../../src/sdk/arg-names.js";
 import { TaskHandler } from "../../src/sdk/task-handler.js";
@@ -161,6 +163,11 @@ function isFrameWithBodyType(chunk: unknown, type: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** The bodies of the runtime's requests of one type, in the order it sent them. */
+function requestsOf(result: MockResult, type: string): Record<string, unknown>[] {
+  return result.runtimeRequests.filter((r) => r.type === type).map((r) => r.body);
 }
 
 async function driveSupervisor(initialFrame: unknown, responder?: Responder): Promise<MockResult> {
@@ -758,6 +765,29 @@ describe("coordinator runtime integration", () => {
     });
   });
 
+  it("binds GetTaskStateStore's ti_id to the startup TaskInstance id, not the dag version id", async () => {
+    let observed: unknown = "<unset>";
+    testDag.task("state_store_client", async () => {
+      observed = await getClient().taskStateStore.get("k");
+    });
+
+    const responder: Responder = (msgType) => {
+      if (msgType === "GetTaskStateStore") {
+        return { body: { type: "TaskStateStoreResult", value: 1 } };
+      }
+      return null;
+    };
+
+    const result = await driveSupervisor(makeStartupDetails("state_store_client"), responder);
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    expect(observed).toBe(1);
+
+    const getReq = result.runtimeRequests.find((r) => r.type === "GetTaskStateStore")!.body;
+    expect(getReq).toMatchObject({ ti_id: "ti-1", key: "k" });
+    expect(getReq["ti_id"]).not.toBe("dag-version-1");
+  });
+
   it("returns null from getVariable when the supervisor signals NOT_FOUND", async () => {
     let observed: string | null = "<unset>";
     testDag.task("missing_variable", async () => {
@@ -798,18 +828,116 @@ describe("coordinator runtime integration", () => {
     expect(calledSecondDag).toBe(false);
   });
 
-  it("returns empty serialized_dags for DagFileParseRequest", async () => {
+  describe("DagFileParseRequest", () => {
     const parseRequest = {
       type: "DagFileParseRequest",
       file: "/dags/test.mjs",
       bundle_path: "/dags",
     };
 
-    const result = await driveSupervisor(parseRequest);
+    async function parse(): Promise<Record<string, unknown>> {
+      const result = await driveSupervisor(parseRequest);
+      return result.firstResponse!.body as Record<string, unknown>;
+    }
 
-    const body = result.firstResponse!.body as Record<string, unknown>;
-    expect(body.type).toBe("DagFileParsingResult");
-    expect(body.serialized_dags).toEqual([]);
+    it("answers with the Dags the bundle declared in TypeScript", async () => {
+      testDag.task("extract", async () => undefined)();
+      otherDag.task("stage", async () => undefined)();
+
+      const body = await parse();
+
+      expect(body.type).toBe("DagFileParsingResult");
+      expect(body.fileloc).toBe("/dags/test.mjs");
+      const dags = body.serialized_dags as { data: Record<string, unknown> }[];
+      expect(dags.map((entry) => (entry.data.dag as Record<string, unknown>).dag_id)).toEqual([
+        "test_dag",
+        "other_dag",
+      ]);
+      expect(dags[0]!.data.__version).toBe(3);
+      expect((dags[0]!.data.dag as Record<string, unknown>).relative_fileloc).toBe("test.mjs");
+      expect(body.import_errors).toBeUndefined();
+    });
+
+    it("runs no handler body while parsing", async () => {
+      let ran = false;
+      testDag.task("extract", async () => {
+        ran = true;
+      })();
+      otherDag.task("stage", async () => undefined)();
+
+      await parse();
+
+      expect(ran).toBe(false);
+    });
+
+    it("answers with nothing when the bundle only binds handlers to Python Dags", async () => {
+      // A Python Dag's graph belongs to the Python file that declares it, so a
+      // bundle of task handlers has no Dag of its own to serialize.
+      bundle = new Bundle(new TaskHandler("py_dag", "transform", async () => undefined));
+
+      const body = await parse();
+
+      expect(body.serialized_dags).toEqual([]);
+      expect(body.import_errors).toBeUndefined();
+    });
+
+    it("reports an uncalled task as an import error rather than failing the parse", async () => {
+      testDag.task("extract", async () => undefined)();
+      testDag.task("orphan", async () => undefined);
+      otherDag.task("stage", async () => undefined)();
+
+      const body = await parse();
+
+      const dags = body.serialized_dags as { data: Record<string, unknown> }[];
+      expect(dags.map((entry) => (entry.data.dag as Record<string, unknown>).dag_id)).toEqual([
+        "other_dag",
+      ]);
+      // Keyed by the bundle-relative path, which is how Airflow ties the row
+      // to the file it came from.
+      expect(body.import_errors).toEqual({
+        "test.mjs": expect.stringContaining('Task "orphan" of Dag "test_dag" is never called'),
+      });
+    });
+
+    it("merges several failing Dags into the one row Airflow keeps per file", async () => {
+      testDag.task("extract", async () => undefined)();
+      for (const dagId of ["broken_a", "broken_b"]) {
+        const broken = new Dag(dagId, { schedule: "" });
+        broken.task("t", async () => undefined)();
+        bundle.register(broken);
+      }
+
+      const body = await parse();
+
+      const errors = body.import_errors as Record<string, string>;
+      expect(Object.keys(errors)).toEqual(["test.mjs"]);
+      expect(errors["test.mjs"]).toContain('Dag "broken_a"');
+      expect(errors["test.mjs"]).toContain('Dag "broken_b"');
+    });
+
+    it("keeps the Dags it can serialize when one of them cannot be", async () => {
+      testDag.task("extract", async () => undefined)();
+      // An empty schedule is rejected by the serializer, and only that Dag is
+      // lost: the rest of the bundle still parses.
+      const broken = new Dag("broken_dag", { schedule: "" });
+      broken.task("t", async () => undefined)();
+      bundle.register(broken);
+
+      const body = await parse();
+
+      const dags = body.serialized_dags as { data: Record<string, unknown> }[];
+      expect(dags.map((entry) => (entry.data.dag as Record<string, unknown>).dag_id)).toEqual([
+        "test_dag",
+        "other_dag",
+      ]);
+      // One row per file, so the failing Dag is named in the message rather
+      // than appended to the key.
+      expect(body.import_errors).toEqual({
+        "test.mjs": expect.stringContaining(
+          'Dag "broken_dag": schedule for Dag "broken_dag" is empty',
+        ),
+      });
+    });
   });
 
   it("auto-pushes return_value XCom when handler returns a value", async () => {
@@ -843,5 +971,893 @@ describe("coordinator runtime integration", () => {
 
     const setXComReqs = result.runtimeRequests.filter((r) => r.type === "SetXCom");
     expect(setXComReqs).toHaveLength(0);
+  });
+
+  describe("triggerDagRun", () => {
+    const DAG_STATE_TRIGGER = "airflow.providers.standard.triggers.external_task.DagStateTrigger";
+    const OK = { body: { type: "OKResponse", ok: true } };
+
+    function replies(queued: Record<string, { body: unknown }[]>): Responder {
+      return (msgType) => queued[msgType]?.shift() ?? { body: null };
+    }
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("triggers the run, pushes the link and run id, and succeeds", async () => {
+      testDag.task(
+        triggerDagRun({ dagId: "downstream", conf: { source: "ts" }, note: "from ts" }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(result.runtimeRequests.map((r) => r.type)).toEqual([
+        "SetXCom",
+        "TriggerDagRun",
+        "SetXCom",
+      ]);
+      const [sent] = requestsOf(result, "TriggerDagRun");
+      const runId = sent!["run_id"] as string;
+      expect(runId).toMatch(/^manual__\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d{6})?\+00:00$/);
+      expect(new Date(sent!["logical_date"] as string).getTime()).toBe(
+        new Date(runId.slice("manual__".length)).getTime(),
+      );
+      expect(sent).toMatchObject({
+        dag_id: "downstream",
+        conf: { source: "ts" },
+        reset_dag_run: false,
+        note: "from ts",
+        run_after: null,
+      });
+      expect(requestsOf(result, "SetXCom")).toEqual([
+        expect.objectContaining({
+          key: "_link_TriggerDagRunLink",
+          value: `/dags/downstream/runs/${runId}`,
+          task_id: "trigger",
+        }),
+        expect.objectContaining({ key: "trigger_run_id", value: runId, task_id: "trigger" }),
+      ]);
+    });
+
+    it("builds the link on AIRFLOW__API__BASE_URL when the environment sets it", async () => {
+      vi.stubEnv("AIRFLOW__API__BASE_URL", "https://airflow.example.com/sub/");
+      testDag.task(triggerDagRun({ dagId: "downstream", runId: "given" }), { taskId: "trigger" })();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+
+      expect(requestsOf(result, "TriggerDagRun")[0]).toMatchObject({ run_id: "given" });
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        value: "https://airflow.example.com/sub/dags/downstream/runs/given",
+      });
+    });
+
+    it.each([
+      [true, "skipped"],
+      [false, "failed"],
+    ])(
+      "with skipWhenAlreadyExists=%s, ends %s when the run exists, retries or not",
+      async (skip, state) => {
+        testDag.task(triggerDagRun({ dagId: "downstream", skipWhenAlreadyExists: skip }), {
+          taskId: "trigger",
+        })();
+
+        const result = await driveSupervisor(
+          makeStartupDetails("trigger", "test_dag", "r1", { should_retry: true }),
+          replies({
+            TriggerDagRun: [{ body: { type: "ErrorResponse", error: "DAGRUN_ALREADY_EXISTS" } }],
+          }),
+        );
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state });
+        expect(requestsOf(result, "SetXCom").map((b) => b["key"])).toEqual([
+          "_link_TriggerDagRunLink",
+        ]);
+      },
+    );
+
+    it("fails like any task error when the trigger request itself fails", async () => {
+      testDag.task(triggerDagRun({ dagId: "missing" }), { taskId: "trigger" })();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", { should_retry: true }),
+        replies({
+          TriggerDagRun: [
+            {
+              body: {
+                type: "ErrorResponse",
+                error: "API_SERVER_ERROR",
+                detail: { status_code: 404 },
+              },
+            },
+          ],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "TriggerDagRun failed: API_SERVER_ERROR",
+      });
+    });
+
+    it("refuses to trigger a paused Dag when failWhenDagIsPaused is set", async () => {
+      testDag.task(triggerDagRun({ dagId: "downstream", failWhenDagIsPaused: true }), {
+        taskId: "trigger",
+      })();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({
+          GetDag: [{ body: { type: "DagResult", dag_id: "downstream", is_paused: true } }],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(requestsOf(result, "GetDag")).toEqual([{ type: "GetDag", dag_id: "downstream" }]);
+      expect(requestsOf(result, "TriggerDagRun")).toEqual([]);
+    });
+
+    it("polls the run's state until it reaches an allowed state", async () => {
+      testDag.task(
+        triggerDagRun({ dagId: "downstream", waitForCompletion: true, pokeInterval: 0 }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({
+          TriggerDagRun: [OK],
+          GetDagRunState: [
+            { body: { type: "DagRunStateResult", state: "queued" } },
+            { body: { type: "DagRunStateResult", state: "running" } },
+            { body: { type: "DagRunStateResult", state: "success" } },
+          ],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      const runId = requestsOf(result, "TriggerDagRun")[0]!["run_id"];
+      expect(requestsOf(result, "GetDagRunState")).toEqual(
+        Array(3).fill({ type: "GetDagRunState", dag_id: "downstream", run_id: runId }),
+      );
+    });
+
+    it("fails, with retries honoured, when the polled run reaches a failed state", async () => {
+      testDag.task(
+        triggerDagRun({ dagId: "downstream", waitForCompletion: true, pokeInterval: 0 }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", { should_retry: true }),
+        replies({
+          TriggerDagRun: [OK],
+          GetDagRunState: [{ body: { type: "DagRunStateResult", state: "failed" } }],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "downstream failed with failed state failed",
+      });
+    });
+
+    it("defers to DagStateTrigger with the kwargs Python's serializer writes", async () => {
+      testDag.task(
+        triggerDagRun({
+          dagId: "downstream",
+          waitForCompletion: true,
+          deferrable: true,
+          pokeInterval: 5,
+          allowedStates: ["success"],
+          failedStates: ["failed", "queued"],
+        }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+
+      const runId = requestsOf(result, "TriggerDagRun")[0]!["run_id"];
+      expect(result.firstResponse!.body).toEqual({
+        type: "DeferTask",
+        state: "deferred",
+        classpath: DAG_STATE_TRIGGER,
+        trigger_kwargs: {
+          dag_id: "downstream",
+          states: ["success", "failed", "queued"],
+          poll_interval: 5,
+          run_ids: [runId],
+          execution_dates: null,
+        },
+        trigger_timeout: null,
+        queue: null,
+        next_method: "execute_complete",
+        next_kwargs: {},
+      });
+      expect(requestsOf(result, "GetDagRunState")).toEqual([]);
+    });
+
+    it.each([
+      ["False", null],
+      ["True", "default"],
+    ])(
+      "with AIRFLOW__TRIGGERER__QUEUES_ENABLED=%s, hands the trigger the queue %s",
+      async (enabled, queue) => {
+        vi.stubEnv("AIRFLOW__TRIGGERER__QUEUES_ENABLED", enabled);
+        testDag.task(
+          triggerDagRun({ dagId: "downstream", waitForCompletion: true, deferrable: true }),
+          { taskId: "trigger" },
+        )();
+
+        const result = await driveSupervisor(
+          makeStartupDetails("trigger"),
+          replies({ TriggerDagRun: [OK] }),
+        );
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "DeferTask", queue });
+      },
+    );
+
+    it("ignores deferrable without waitForCompletion, as Python does", async () => {
+      testDag.task(triggerDagRun({ dagId: "downstream", deferrable: true }), {
+        taskId: "trigger",
+      })();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger"),
+        replies({ TriggerDagRun: [OK] }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+    });
+
+    function resumedWith(state: string, runId = "manual__2026-09-29T12:00:00+00:00") {
+      return {
+        next_method: "execute_complete",
+        next_kwargs: {
+          event: {
+            __classname__: "builtins.tuple",
+            __version__: 1,
+            __data__: [
+              DAG_STATE_TRIGGER,
+              {
+                dag_id: "downstream",
+                states: ["success", "failed"],
+                poll_interval: 60,
+                run_ids: [runId],
+                execution_dates: null,
+                [runId]: state,
+              },
+            ],
+          },
+        },
+      };
+    }
+
+    it("succeeds on resume when the triggered run finished in an allowed state", async () => {
+      testDag.task(
+        triggerDagRun({ dagId: "downstream", waitForCompletion: true, deferrable: true }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", resumedWith("success")),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("fails on resume when the triggered run finished in a failed state", async () => {
+      testDag.task(
+        triggerDagRun({ dagId: "downstream", waitForCompletion: true, deferrable: true }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", resumedWith("failed")),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    });
+
+    it("fails on resume when the event cannot be read", async () => {
+      testDag.task(
+        triggerDagRun({ dagId: "downstream", waitForCompletion: true, deferrable: true }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", {
+          next_method: "execute_complete",
+          next_kwargs: { event: "garbage" },
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    });
+
+    it("fails on resume through __fail__, when the trigger failed or timed out", async () => {
+      testDag.task(
+        triggerDagRun({ dagId: "downstream", waitForCompletion: true, deferrable: true }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", {
+          should_retry: true,
+          next_method: "__fail__",
+          next_kwargs: { error: "Trigger timeout", traceback: ["Traceback", "TimeoutError"] },
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "Trigger timeout",
+      });
+      expect(
+        result.logRecords.some((r) =>
+          String(r["event"]).includes("Task could not be resumed:\nTraceback"),
+        ),
+      ).toBe(true);
+    });
+  });
+  describe("human-in-the-loop", () => {
+    const CREATED = { body: { type: "HITLDetailRequestResult", ti_id: "ti-1" } };
+    // What `handle_event_submit` stores: what the task parked with, plus the response as `event`,
+    // with `responded_at` in serde's datetime encoding.
+    const RESPONDED_AT = {
+      __classname__: "pendulum.datetime.DateTime",
+      __version__: 2,
+      __data__: {
+        timestamp: 1791462615.123456,
+        tz: {
+          __classname__: "builtins.tuple",
+          __version__: 1,
+          __data__: ["UTC", "pendulum.tz.timezone.Timezone", 1, true],
+        },
+      },
+    };
+
+    function parkedWith(taskId: string, tiContext: Record<string, unknown> = {}) {
+      return driveSupervisor(
+        makeStartupDetails(taskId, "test_dag", "r1", tiContext),
+        (msgType, body) => {
+          if (msgType === "CreateHITLDetailPayload") return CREATED;
+          if (msgType === "GetXCom") {
+            return { body: { type: "XComResult", key: body["key"], value: { version: "1.4" } } };
+          }
+          return null;
+        },
+      );
+    }
+
+    /** The task parks with empty `next_kwargs`, so a resume carries only the response. */
+    function resumedWith(taskId: string, event: unknown, tiContext: Record<string, unknown> = {}) {
+      return driveSupervisor(
+        makeStartupDetails(taskId, "test_dag", "r1", {
+          next_method: "execute_complete",
+          next_kwargs: { event },
+          ...tiContext,
+        }),
+      );
+    }
+
+    function answer(
+      chosen: string[],
+      user: unknown = { id: "1", name: "Ada" },
+      paramsInput: Record<string, unknown> = {},
+    ) {
+      return {
+        chosen_options: chosen,
+        params_input: paramsInput,
+        responded_at: RESPONDED_AT,
+        responded_by_user: user,
+        timedout: user === null,
+      };
+    }
+
+    function requestTypes(result: MockResult) {
+      return result.runtimeRequests.map((r) => r.type);
+    }
+
+    it("writes the request with rendered text and parks in awaiting_input", async () => {
+      const build = testDag.task("build", async () => ({ version: "1.4" }));
+      testDag.task(
+        "sign_off",
+        approval({
+          subject: ({ report }: { report: { version: string } }) => `Ship ${report.version}?`,
+          body: async ({ report }: { report: { version: string } }) => `**${report.version}**`,
+          assignedUsers: [{ id: "ada", name: "Ada" }],
+          responseTimeout: 3600,
+        }),
+      )({ report: build() });
+
+      const result = await parkedWith("sign_off", {
+        arg_bindings: [{ name: "report", kind: "xcom", task_id: "build" }],
+      });
+
+      const [created] = requestsOf(result, "CreateHITLDetailPayload");
+      expect(created).toEqual({
+        type: "CreateHITLDetailPayload",
+        ti_id: "ti-1",
+        options: ["Approve", "Reject"],
+        subject: "Ship 1.4?",
+        body: "**1.4**",
+        defaults: null,
+        multiple: false,
+        params: {},
+        assigned_users: [{ id: "ada", name: "Ada" }],
+      });
+      expect(result.firstResponse!.body).toEqual({
+        type: "AwaitInputTask",
+        state: "awaiting_input",
+        timeout: "PT3600S",
+        next_method: "execute_complete",
+        next_kwargs: {},
+      });
+      expect(requestsOf(result, "SetXCom")).toEqual([]);
+    });
+
+    it("sends its defaults and multiple, with no body and no timeout as null", async () => {
+      testDag.task(
+        "choose",
+        hitl({
+          subject: "Pick",
+          options: ["us", "eu"],
+          defaults: ["us", "eu"],
+          multiple: true,
+        }),
+      )();
+
+      const result = await parkedWith("choose");
+
+      expect(requestsOf(result, "CreateHITLDetailPayload")[0]).toMatchObject({
+        body: null,
+        defaults: ["us", "eu"],
+        multiple: true,
+      });
+      expect(result.firstResponse!.body).toMatchObject({ type: "AwaitInputTask", timeout: null });
+    });
+
+    it("writes its params as Param.serialize does, with the source always task", async () => {
+      testDag.task(
+        "choose",
+        hitl({
+          subject: "Pick",
+          options: ["go"],
+          params: {
+            region: {
+              value: "us",
+              description: "Where to ship",
+              schema: { type: "string", enum: ["us", "eu"] },
+            },
+            retries: { value: 3 },
+          },
+        }),
+      )();
+
+      const result = await parkedWith("choose");
+
+      expect(requestsOf(result, "CreateHITLDetailPayload")[0]).toMatchObject({
+        params: {
+          region: {
+            value: "us",
+            description: "Where to ship",
+            schema: { type: "string", enum: ["us", "eu"] },
+            source: "task",
+          },
+          retries: { value: 3, description: null, schema: {}, source: "task" },
+        },
+      });
+    });
+
+    it("renders the subject and the body with the renames of both", async () => {
+      testDag.task(
+        "choose",
+        hitl({
+          subject: withArgNames(
+            { version: "release_version" },
+            ({ version }: { version: string }) => `Ship ${version}?`,
+          ),
+          body: withArgNames(
+            { notes: "release_notes" },
+            ({ notes }: { notes: string }) => `Notes: ${notes}`,
+          ),
+          options: ["go"],
+        }),
+      )({ version: "1.4", notes: "Faster" });
+
+      const result = await parkedWith("choose", {
+        arg_bindings: [
+          { name: "release_version", kind: "literal", value: "1.4" },
+          { name: "release_notes", kind: "literal", value: "Faster" },
+        ],
+      });
+
+      expect(requestsOf(result, "CreateHITLDetailPayload")[0]).toMatchObject({
+        subject: "Ship 1.4?",
+        body: "Notes: Faster",
+      });
+    });
+
+    it.each<[string, () => unknown, string]>([
+      [
+        "throws",
+        () => {
+          throw new Error("no report");
+        },
+        "no report",
+      ],
+      [
+        "returns an empty string",
+        () => "",
+        'The subject of task "sign_off" has to be a non-empty string',
+      ],
+      ["returns a number", () => 7, 'The subject of task "sign_off" has to be a non-empty string'],
+    ])(
+      "fails without writing the request when its subject function %s",
+      async (_label, subject, reason) => {
+        testDag.task("sign_off", approval({ subject: subject as () => string }))();
+
+        const result = await parkedWith("sign_off", { should_retry: true });
+
+        expect(requestsOf(result, "CreateHITLDetailPayload")).toEqual([]);
+        expect(result.firstResponse!.body).toMatchObject({
+          type: "RetryTask",
+          retry_reason: reason,
+        });
+      },
+    );
+
+    it("fails without writing the request when its body function returns a number", async () => {
+      testDag.task(
+        "sign_off",
+        approval({ subject: "Ship?", body: (() => 7) as unknown as () => string }),
+      )();
+
+      const result = await parkedWith("sign_off", { should_retry: true });
+
+      expect(requestsOf(result, "CreateHITLDetailPayload")).toEqual([]);
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: 'The body of task "sign_off" has to be a string or null',
+      });
+    });
+
+    it("resumes with the response without writing the request again", async () => {
+      let rendered = 0;
+      testDag.task(
+        "choose",
+        hitl({
+          subject: () => `Pick ${++rendered}`,
+          options: ["us", "eu", "apac"],
+          multiple: true,
+        }),
+      )();
+      const parked = await parkedWith("choose");
+      const { next_kwargs } = parked.firstResponse!.body as {
+        next_kwargs: Record<string, unknown>;
+      };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("choose", "test_dag", "r1", {
+          next_method: "execute_complete",
+          next_kwargs: { ...next_kwargs, event: answer(["eu", "apac"]) },
+        }),
+      );
+
+      expect(rendered).toBe(1);
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestTypes(result)).toEqual(["SetXCom"]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        key: "return_value",
+        task_id: "choose",
+        value: {
+          chosenOptions: ["eu", "apac"],
+          paramsInput: {},
+          respondedAt: "2026-10-08T12:30:15.123Z",
+          respondedByUser: { id: "1", name: "Ada" },
+          timedout: false,
+        },
+      });
+    });
+
+    it.each([
+      ["an approval answered Approve", approval({ subject: "Go?" }), "Approve"],
+      [
+        "a generic choice answered Reject",
+        hitl({ subject: "?", options: ["Approve", "Reject"] }),
+        "Reject",
+      ],
+    ])("skips nothing for %s and pushes the response", async (_label, operator, chosen) => {
+      testDag
+        .task("decide", operator)()
+        .before(testDag.task("publish", async () => {})());
+
+      const result = await resumedWith("decide", answer([chosen]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestTypes(result)).toEqual(["SetXCom"]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({ key: "return_value" });
+    });
+
+    it("on Reject skips the tasks directly downstream and, as SkipMixin does, pushes no response", async () => {
+      const decide = testDag.task("decide", approval({ subject: "Go?" }))();
+      const publish = testDag.task("publish", async () => {})();
+      decide.before(publish);
+      publish.before(testDag.task("announce", async () => {})());
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestTypes(result)).toEqual(["SetXCom", "SkipDownstreamTasks"]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        key: "skipmixin_key",
+        value: { skipped: ["publish"] },
+      });
+      expect(requestsOf(result, "SkipDownstreamTasks")[0]).toMatchObject({ tasks: ["publish"] });
+    });
+
+    it("on Reject skips a task group directly downstream by its first tasks", async () => {
+      const decide = testDag.task("decide", approval({ subject: "Go?" }))();
+      const stage = testDag.taskGroup("stage");
+      const publish = stage.task("publish", async () => {})();
+      publish.before(stage.task("announce", async () => {})());
+      decide.before(stage);
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(requestsOf(result, "SkipDownstreamTasks")[0]).toMatchObject({
+        tasks: ["stage.publish"],
+      });
+    });
+
+    it("on Reject with ignoreDownstreamTriggerRules skips every task downstream", async () => {
+      const decide = testDag.task(
+        "decide",
+        approval({ subject: "Go?", ignoreDownstreamTriggerRules: true }),
+      )();
+      const publish = testDag.task("publish", async () => {})();
+      decide.before(publish);
+      publish.before(testDag.task("announce", async () => {})());
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestTypes(result)).toEqual(["SetXCom", "SkipDownstreamTasks"]);
+      expect(requestsOf(result, "SkipDownstreamTasks")[0]).toMatchObject({
+        tasks: ["announce", "publish"],
+      });
+    });
+
+    it("on Reject with nothing downstream pushes the response", async () => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestsOf(result, "SetXCom")).toEqual([
+        expect.objectContaining({
+          key: "return_value",
+          value: expect.objectContaining({ chosenOptions: ["Reject"] }),
+        }),
+      ]);
+    });
+
+    it("on Reject fails with failOnReject, before pushing anything", async () => {
+      testDag.task("decide", approval({ subject: "Go?", failOnReject: true }))();
+
+      const result = await resumedWith("decide", answer(["Reject"]));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("succeeds with the defaults applied on timeout", async () => {
+      testDag.task(
+        "decide",
+        approval({ subject: "Go?", defaults: "Approve", responseTimeout: 60 }),
+      )();
+
+      const result = await resumedWith("decide", answer(["Approve"], null));
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        value: { respondedByUser: null, timedout: true },
+      });
+    });
+
+    it.each([
+      ["retries", true, { type: "RetryTask", retry_reason: "Response timed out: no response" }],
+      ["fails", false, { type: "TaskState", state: "failed" }],
+    ])("%s when the timeout passes without defaults", async (_label, shouldRetry, outcome) => {
+      testDag.task("decide", approval({ subject: "Go?", responseTimeout: 60 }))();
+
+      const result = await resumedWith(
+        "decide",
+        { error: "no response", error_type: "timeout" },
+        { should_retry: shouldRetry },
+      );
+
+      expect(result.firstResponse!.body).toMatchObject(outcome);
+    });
+
+    it("fails with Airflow's own reason when the resume error is not a timeout", async () => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await resumedWith(
+        "decide",
+        { error: "boom", error_type: "unknown" },
+        { should_retry: true },
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "RetryTask", retry_reason: "boom" });
+    });
+
+    it.each<[string, Record<string, unknown>]>([
+      ["an option it never offered", { event: answer(["Maybe"]) }],
+      ["an unreadable response time", { event: { ...answer(["Approve"]), responded_at: "soon" } }],
+      ["an unreadable responder", { event: answer(["Approve"], { id: 1 }) }],
+      ["no event", {}],
+    ])("fails on resume with %s", async (_label, nextKwargs) => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("decide", "test_dag", "r1", {
+          next_method: "execute_complete",
+          next_kwargs: nextKwargs,
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    describe("params input", () => {
+      const withParams = () =>
+        hitl({
+          subject: "Pick",
+          options: ["go"],
+          params: { region: { value: "us" }, retries: { value: 3 } },
+        });
+
+      it("is pushed with the response when it answers every param", async () => {
+        testDag.task("choose", withParams())();
+
+        const result = await resumedWith(
+          "choose",
+          answer(["go"], undefined, { region: "eu", retries: 5 }),
+        );
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+          key: "return_value",
+          value: { chosenOptions: ["go"], paramsInput: { region: "eu", retries: 5 } },
+        });
+      });
+
+      it.each<[string, Record<string, unknown>]>([
+        ["only the timeout defaults", { region: "us", retries: 3 }],
+        ["no answers when the form was not filled in", {}],
+      ])("is accepted with %s", async (_label, paramsInput) => {
+        testDag.task("choose", withParams())();
+
+        const result = await resumedWith("choose", answer(["go"], undefined, paramsInput));
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      });
+
+      it("is not checked for a task that declares no params", async () => {
+        testDag.task("choose", hitl({ subject: "Pick", options: ["go"] }))();
+
+        const result = await resumedWith("choose", answer(["go"], undefined, { region: "eu" }));
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+          value: { paramsInput: { region: "eu" } },
+        });
+      });
+
+      it.each<[string, Record<string, unknown>, string]>([
+        ["a param the task never declared", { region: "eu", other: 1 }, "region,other"],
+        ["only some of the params", { region: "eu" }, "region"],
+        ["other names than the params", { zone: "eu", retries: 5 }, "zone,retries"],
+      ])("fails the task with %s", async (_label, paramsInput, received) => {
+        testDag.task("choose", withParams())();
+
+        const result = await resumedWith("choose", answer(["go"], undefined, paramsInput), {
+          should_retry: true,
+        });
+
+        expect(result.firstResponse!.body).toMatchObject({
+          type: "RetryTask",
+          retry_reason:
+            `params_input ${JSON.stringify(received.split(","))} does not match params ` +
+            '["region","retries"]',
+        });
+        expect(result.runtimeRequests).toEqual([]);
+      });
+    });
+
+    it("fails on resume with a next_method it does not know", async () => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("decide", "test_dag", "r1", {
+          next_method: "something_else",
+          next_kwargs: { event: answer(["Approve"]) },
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("fails on resume through __fail__", async () => {
+      testDag.task("decide", approval({ subject: "Go?" }))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("decide", "test_dag", "r1", {
+          next_method: "__fail__",
+          next_kwargs: { error: "Could not resume the task", traceback: ["Traceback", "Boom"] },
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(
+        result.logRecords.some((r) =>
+          String(r["event"]).includes("Task could not be resumed:\nTraceback\nBoom"),
+        ),
+      ).toBe(true);
+      expect(result.logRecords.some((r) => String(r["event"]).includes("Trigger failed"))).toBe(
+        false,
+      );
+    });
+
+    it("resumes without pulling its inputs again, though the scheduler still binds them", async () => {
+      let rendered = 0;
+      const build = testDag.task("build", async () => ({ version: "1.4" }));
+      testDag.task(
+        "review",
+        approval({
+          subject: ({ report }: { report: { version: string } }) => {
+            rendered += 1;
+            return `Ship ${report.version}?`;
+          },
+          params: { amount: { value: 120 } },
+        }),
+      )({ report: build() });
+      const bindings = [{ name: "report", kind: "xcom", task_id: "build" }];
+      const parked = await parkedWith("review", { arg_bindings: bindings });
+      const { next_kwargs } = parked.firstResponse!.body as {
+        next_kwargs: Record<string, unknown>;
+      };
+
+      const resumed = await driveSupervisor(
+        makeStartupDetails("review", "test_dag", "r1", {
+          arg_bindings: bindings,
+          next_method: "execute_complete",
+          next_kwargs: { ...next_kwargs, event: answer(["Approve"], undefined, { amount: 80 }) },
+        }),
+      );
+
+      expect(rendered).toBe(1);
+      expect(requestTypes(resumed)).toEqual(["SetXCom"]);
+      expect(requestsOf(resumed, "SetXCom")[0]).toMatchObject({
+        value: { chosenOptions: ["Approve"], paramsInput: { amount: 80 } },
+      });
+    });
   });
 });

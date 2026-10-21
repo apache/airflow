@@ -44,7 +44,7 @@ class SortParam(BaseParam[list[str]]):
         self,
         allowed_attrs: list[str],
         model: Base,
-        to_replace: dict[str, str | Column | list[Column]] | None = None,
+        to_replace: dict[str, str | ColumnElement | list[ColumnElement]] | None = None,
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
@@ -78,7 +78,7 @@ class SortParam(BaseParam[list[str]]):
             # it back to the actual row accessor via ``to_replace`` when reading values
             # for cursor encoding.
             attr_name = lstriped_orderby
-            column: Column | None = None
+            column: ColumnElement | None = None
             if self.to_replace:
                 replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
                 if isinstance(replacement, str):
@@ -91,6 +91,8 @@ class SortParam(BaseParam[list[str]]):
                     is_desc = order_by_value.startswith("-")
                     for col in replacement:
                         col_attr_name = col.key
+                        if col_attr_name is None:
+                            raise ValueError("Compound sort expressions must have labels")
                         resolved.append((col_attr_name, col, is_desc))
                     continue
                 else:
@@ -168,7 +170,8 @@ class SortParam(BaseParam[list[str]]):
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""
-        return inspect(self.model).primary_key[0]
+        inspection = inspect(self.model)
+        return inspection.selectable.corresponding_column(inspection.mapper.primary_key[0])
 
     def get_primary_key_string(self) -> str:
         """Get the primary key string of the model of SortParam object."""

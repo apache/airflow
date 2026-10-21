@@ -32,7 +32,9 @@ const MIN_REFETCH_INTERVAL_MS = 10_000;
 export const useDagBundleRefetchInterval = (): number | false => {
   const configuredInterval = useAutoRefresh({});
 
-  return configuredInterval === false || configuredInterval === 0
-    ? false
-    : Math.max(configuredInterval, MIN_REFETCH_INTERVAL_MS);
+  return (
+    configuredInterval !== false &&
+    configuredInterval !== 0 &&
+    Math.max(configuredInterval, MIN_REFETCH_INTERVAL_MS)
+  );
 };

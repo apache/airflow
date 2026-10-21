@@ -18,7 +18,13 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX, DurableStorageProtocol
+from airflow.providers.common.ai.durable.base import (
+    DURABLE_KEY_PREFIX,
+    RUN_ID_KEY,
+    RUNS_KEY,
+    DurableStorageProtocol,
+    build_step_key,
+)
 from airflow.providers.common.ai.durable.storage import DurableStorage
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -30,6 +36,13 @@ def test_key_prefix_is_a_single_path_segment():
     assert "/" not in DURABLE_KEY_PREFIX
 
 
+def test_keys_are_reserved_and_distinct_per_run_and_position():
+    keys = {build_step_key(0, 1), build_step_key(1, 0), build_step_key(0, 10), RUN_ID_KEY, RUNS_KEY}
+
+    assert len(keys) == 5
+    assert all(key.startswith(DURABLE_KEY_PREFIX) and "/" not in key for key in keys)
+
+
 class TestRealBackendsSatisfyProtocol:
     """The two shipped backends must stay in step with the protocol -- ``issubclass``
     on a methods-only ``runtime_checkable`` protocol catches a renamed or dropped method."""
@@ -39,7 +52,7 @@ class TestRealBackendsSatisfyProtocol:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store backend requires Airflow >= 3.3")
     def test_task_state_store_backend_satisfies_protocol(self):
-        # Imported inside the test: this module runs on all cores, but
+        # Imported inside the test: this module runs on all supported Airflow versions, but
         # ``task_state_store`` pulls in ``NEVER_EXPIRE``, which only exists on 3.3+.
         from airflow.providers.common.ai.durable.task_state_store import TaskStateStoreDurableStorage
 

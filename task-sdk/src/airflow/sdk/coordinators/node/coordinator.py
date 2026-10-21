@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Node.js runtime coordinator that launches a Node.js subprocess for task execution."""
+"""Node.js runtime coordinator that launches a Node.js subprocess for task execution and Dag parsing."""
 
 from __future__ import annotations
 
@@ -26,21 +26,19 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
-from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, convert_roots, walk_files
+from airflow.sdk.coordinators._bundle_metadata import ResolvedBundle, walk_files
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.coordinators.node._bundle_reader import read_bundle
+from airflow.sdk.coordinators.node._bundle_reader import BUNDLE_SUFFIX, read_bundle
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Self
 
     from structlog.typing import FilteringBoundLogger
-    from typing_extensions import Self
 
     from airflow.sdk.api.datamodels._generated import TaskInstance
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.node")
-
-BUNDLE_SUFFIX = ".min.mjs"
 
 
 def _is_bundle(path: pathlib.Path) -> bool:
@@ -50,11 +48,11 @@ def _is_bundle(path: pathlib.Path) -> bool:
 @attrs.define
 class _Bundle(ResolvedBundle):
     @classmethod
-    def find(cls, bundles_root: Sequence[pathlib.Path], dag_id: str) -> Self:
+    def find(cls, roots: Sequence[pathlib.Path], dag_id: str) -> Self:
         """Return the first verified configured bundle that declares *dag_id*."""
-        log.debug("Finding TypeScript bundles recursively", roots=bundles_root, dag_id=dag_id)
+        log.debug("Finding TypeScript bundles recursively", roots=roots, dag_id=dag_id)
         rejected: list[tuple[pathlib.Path, str]] = []
-        for candidate in walk_files(bundles_root, match=_is_bundle):
+        for candidate in walk_files(roots, match=_is_bundle):
             try:
                 metadata = read_bundle(candidate)
                 if dag_id not in metadata.dag_ids:
@@ -80,7 +78,7 @@ class _Bundle(ResolvedBundle):
             log.debug("Selected TypeScript bundle", path=candidate, dag_id=dag_id)
             return bundle
 
-        searched = os.pathsep.join(os.fspath(root) for root in bundles_root)
+        searched = os.pathsep.join(os.fspath(root) for root in roots)
         if rejected:
             details = "; ".join(f"{path}: {reason}" for path, reason in rejected)
             raise FileNotFoundError(
@@ -93,7 +91,7 @@ class _Bundle(ResolvedBundle):
 @attrs.define(kw_only=True)
 class NodeCoordinator(SubprocessCoordinator):
     """
-    Coordinator that launches a Node.js subprocess for task execution.
+    Coordinator that launches a Node.js subprocess for task execution and Dag parsing.
 
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
@@ -103,25 +101,42 @@ class NodeCoordinator(SubprocessCoordinator):
                 "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
                 "kwargs": {
                     "node_executable": "node",
-                    "bundles_root": ["/opt/airflow/ts-bundles"],
+                    "task_handler_bundle_name": "ts-task-handlers",
                 },
             }
         }
 
     :param node_executable: Path to the ``node`` binary (defaults to
         ``"node"``, which relies on ``$PATH``).
-    :param bundles_root: Directories searched recursively, in order, for the first verified
-        ``*.min.mjs`` bundle declaring the task instance's Dag.
+    :param task_handler_bundle_name: Name of the Dag bundle searched recursively for the first
+        verified ``*.min.mjs`` bundle declaring the task instance's Dag. It must be registered in
+        ``[dag_processor] dag_bundle_config_list``. If unset, the task's own Dag bundle is used.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
+
+    A task of a native TypeScript Dag runs the ``*.min.mjs`` bundle its Dag was parsed from.
+
+    The coordinator also parses native TypeScript Dags: every packed ``*.min.mjs`` bundle in a
+    Dag bundle is run to list its Dags. With one NodeCoordinator configured, it parses the bundles
+    of every Dag bundle. With several, ``[sdk] dag_bundle_to_coordinator`` picks the one that
+    parses a Dag bundle.
     """
 
     node_executable: str = "node"
-    bundles_root: list[pathlib.Path] = attrs.field(
-        converter=convert_roots,
-        validator=attrs.validators.min_len(1),
-    )
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        bundle = _Bundle.find(self.bundles_root, what.dag_id)
+        roots = self._get_scan_roots()
+        bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
+
+    def _build_bundle_command(self, path: pathlib.Path) -> tuple[list[str], str]:
+        """Return the command that runs the packed bundle at *path*, and its supervisor schema version."""
+        return [self.node_executable, os.fspath(path)], read_bundle(path).supervisor_schema_version
+
+    def _build_dag_file_command(
+        self, *, what: TaskInstance, path: pathlib.Path
+    ) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)
+
+    def _build_parse_dag_command(self, *, path: pathlib.Path) -> tuple[list[str], str | None]:
+        return self._build_bundle_command(path)

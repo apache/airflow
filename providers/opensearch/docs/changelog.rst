@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Look up task logs by task try UUID (#74204)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow OpensearchTaskHandler and OpensearchRemoteLogIO to take empty username and password (#71692)``
+* ``Fix OpenSearch provider log pagination (#73947)``
+* ``Fix Elasticsearch and OpenSearch response wrapper bugs (#73725)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Use Task SDK TaskInstanceState in OpenSearch log handler (#72444)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
 1.13.0
 ......
 

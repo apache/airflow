@@ -20,13 +20,18 @@ Useful tools for various Paths used inside Airflow Sources.
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import hashlib
 import os
 import platform
+import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 from airflow_breeze import NAME
@@ -558,7 +563,7 @@ def create_volume_if_missing(volume_name: str):
     )
     if res_inspect.returncode != 0:
         result = run_command(
-            cmd=["docker", "volume", "create", volume_name],
+            cmd=["docker", "volume", "create", "--label", "org.apache.airflow.breeze=true", volume_name],
             check=False,
             capture_output=True,
         )
@@ -618,6 +623,11 @@ def cleanup_python_generated_files():
                 pass
             except PermissionError:
                 permission_errors.append(Path(dirpath))
+            except OSError as e:
+                # A concurrent breeze process (e.g. parallel prek hooks) can write a fresh .pyc
+                # between rmtree emptying the directory and removing it.
+                if e.errno != errno.ENOTEMPTY:
+                    raise
             dirnames.clear()
     if permission_errors:
         if platform.uname().system.lower() == "linux":
@@ -637,6 +647,77 @@ def cleanup_python_generated_files():
             console_print("You can also remove those files manually using sudo.")
     if get_verbose():
         console_print("[info]Cleaned")
+
+
+WORKTREE_ISOLATION_ENV = "BREEZE_WORKTREE_ISOLATION"
+SUPPRESS_WORKTREE_ISOLATION_FILE = "suppress_worktree_isolation"
+
+
+def get_shared_build_cache_path() -> Path:
+    """Return the ``.build`` directory of the main checkout, shared by all of its worktrees."""
+    main_git_dir = get_main_git_dir_for_worktree()
+    return main_git_dir.parent / ".build" if main_git_dir else BUILD_CACHE_PATH
+
+
+def is_worktree_isolation_enabled() -> bool:
+    value = os.environ.get(WORKTREE_ISOLATION_ENV, "").strip().lower()
+    if value in ("true", "1", "yes", "on"):
+        return True
+    if value in ("false", "0", "no", "off"):
+        return False
+    return not (get_shared_build_cache_path() / SUPPRESS_WORKTREE_ISOLATION_FILE).exists()
+
+
+def get_isolated_worktree_path() -> Path | None:
+    """
+    Return the path of the linked worktree that owns this checkout's Docker resources.
+
+    ``None`` means the resources are shared: the main checkout, or a worktree with isolation disabled.
+    """
+    if get_main_git_dir_for_worktree() is None or not is_worktree_isolation_enabled():
+        return None
+    return AIRFLOW_ROOT_PATH.resolve()
+
+
+def get_default_project_name() -> str:
+    worktree = get_isolated_worktree_path()
+    if worktree is None:
+        return "breeze"
+    name = re.sub(r"[^a-z0-9_-]", "-", worktree.name.lower())
+    # Worktrees with the same directory name in different locations or clones must not share a project.
+    path_hash = hashlib.sha256(str(worktree).encode()).hexdigest()[:6]
+    return f"breeze-{name}-{path_hash}"
+
+
+HOST_ID_PATH = Path.home() / ".config" / "breeze" / "host-id"
+
+
+@clearable_cache
+def get_host_id() -> str:
+    """
+    Identify the machine whose filesystem decides whether a labelled worktree still exists.
+
+    A random id is stored on first use instead of using the host name, because macOS renames the host
+    when another device on the network has the same name, and resources labelled with the old name
+    would never be swept. The host name is the fallback when the home directory is not writable.
+    """
+    try:
+        return HOST_ID_PATH.read_text().strip()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        return socket.gethostname()
+    try:
+        HOST_ID_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", dir=HOST_ID_PATH.parent, prefix=".host-id-") as new_id:
+            new_id.write(uuid.uuid4().hex)
+            new_id.flush()
+            # Linking fails when the file exists, so concurrent first runs all keep the first id.
+            with contextlib.suppress(FileExistsError):
+                os.link(new_id.name, HOST_ID_PATH)
+        return HOST_ID_PATH.read_text().strip()
+    except OSError:
+        return socket.gethostname()
 
 
 def get_main_git_dir_for_worktree() -> Path | None:

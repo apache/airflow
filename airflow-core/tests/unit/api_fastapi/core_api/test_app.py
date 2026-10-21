@@ -22,15 +22,20 @@ import json
 import typing
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.params import Depends as DependsClass
 from fastapi.responses import StreamingResponse
+from fastapi.templating import Jinja2Templates
 from starlette.routing import Mount
 from starlette.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.core_api.app import init_config, init_ui_translation_views
+from airflow.api_fastapi.core_api.app import (
+    base_react_app_bundle_urls,
+    init_config,
+    init_ui_translation_views,
+)
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
 from airflow.api_fastapi.core_api.routes.ui import ui_router
 from airflow.api_fastapi.core_api.security import get_user
@@ -39,6 +44,7 @@ from airflow.plugins_manager import AirflowPlugin
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 
 pytestmark = pytest.mark.db_test
 
@@ -71,6 +77,7 @@ class TestStreamingEndpointSessionScope:
         allowed = {
             "airflow.api_fastapi.core_api.routes.public.log.get_log",
             "airflow.api_fastapi.core_api.routes.public.dag_run.wait_dag_run_until_finished",
+            "airflow.api_fastapi.core_api.routes.ui.deadlines.get_callback_logs",
         }
 
         app = create_app()
@@ -319,3 +326,61 @@ class TestUiTranslationViews:
         response = self._client([TranslationPlugin()], tmp_path).get("/static/i18n/languages.json")
 
         assert response.headers["cache-control"] == "no-cache"
+
+
+class TestBaseReactAppPreload:
+    def test_lists_only_global_base_react_apps(self):
+        class BasePlugin(AirflowPlugin):
+            name = "base_plugin"
+            react_apps = [
+                {"name": "Bar", "bundle_url": "/bar/main.js", "destination": "base"},
+                {"name": "Tab", "bundle_url": "/bar/tab.js", "destination": "dag"},
+            ]
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "team_a"
+            react_apps = [{"name": "TeamBar", "bundle_url": "/team/main.js", "destination": "base"}]
+
+        with mock_plugin_manager(plugins=[BasePlugin(), TeamPlugin()]):
+            assert base_react_app_bundle_urls() == ["/bar/main.js"]
+
+    @staticmethod
+    def _render(template: str, preload_bundle_urls: list[str]) -> str:
+        app = FastAPI()
+        templates = Jinja2Templates(directory=AIRFLOW_CORE_SOURCES_PATH / "airflow/ui")
+
+        @app.get("/")
+        def index(request: Request):
+            return templates.TemplateResponse(
+                request,
+                template,
+                {"backend_server_base_url": "/prefix/", "preload_bundle_urls": preload_bundle_urls},
+            )
+
+        return TestClient(app).get("/").text
+
+    def test_lists_nothing_without_base_react_apps(self):
+        class NavPlugin(AirflowPlugin):
+            name = "nav_plugin"
+            react_apps = [{"name": "Page", "bundle_url": "/page/main.js", "destination": "nav"}]
+
+        with mock_plugin_manager(plugins=[NavPlugin()]):
+            assert base_react_app_bundle_urls() == []
+
+    @pytest.mark.parametrize("template", ["index.html", "dev/index.html"])
+    def test_index_preloads_each_bundle_after_the_base_tag(self, template):
+        html = self._render(template, ["/bar/main.js?a=1&b=2", "https://cdn.example.com/x.js"])
+
+        assert '<link rel="modulepreload" href="/bar/main.js?a=1&amp;b=2" />' in html
+        assert '<link rel="modulepreload" href="https://cdn.example.com/x.js" />' in html
+        assert html.index("<base ") < html.index('rel="modulepreload"')
+
+    @pytest.mark.parametrize("template", ["index.html", "dev/index.html"])
+    def test_index_has_no_preload_without_base_bundles(self, template):
+        assert "modulepreload" not in self._render(template, [])
+
+    def test_index_escapes_a_bundle_url(self):
+        html = self._render("index.html", ['/x.js" onload="alert(1)'])
+
+        assert 'onload="alert(1)"' not in html

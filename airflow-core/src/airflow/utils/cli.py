@@ -31,7 +31,7 @@ import warnings
 from argparse import Namespace
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, Literal, TypeVar, cast, overload
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -44,6 +44,7 @@ from airflow.utils.platform import getuser, is_terminal_support_colors
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.sdk import DAG
     from airflow.serialization.definitions.dag import SerializedDAG
 
@@ -137,6 +138,342 @@ def action_cli(func=None, check_db=True):
     return action_logging
 
 
+MASKED_VALUE = "*" * 8
+
+# Options whose value is a secret on its own, keyed by the destination argparse stores the
+# parsed value under. Masking is driven by what is present in the parsed namespace, so ``-p``
+# is only treated as a password on commands where it parses into ``password`` (``api-server -p``
+# parses into ``port`` and is left alone).
+_SECRET_OPTIONS: dict[str, tuple[str, ...]] = {
+    "password": ("-p", "--password"),
+    "conn_password": ("--conn-password",),
+    "basic_auth": ("-A", "--basic-auth"),
+}
+# Options whose value is JSON that may hold secrets under sensitive keys.
+_JSON_OPTIONS: dict[str, tuple[str, ...]] = {
+    "conn_json": ("--conn-json",),
+    "conn_extra": ("--conn-extra",),
+    "conf": ("-c", "--conf"),
+    "dag_run_conf": ("--dag-run-conf",),
+    "task_params": ("-t", "--task-params"),
+    "env_vars": ("--env-vars",),
+}
+# Options whose value is a URI that may hold secrets in its credentials or query.
+_URI_OPTIONS: dict[str, tuple[str, ...]] = {
+    "conn_uri": ("--conn-uri",),
+    "broker_api": ("-a", "--broker-api"),
+}
+# Short options of the commands that take one of the short options above, as
+# ``(boolean flags, options taking a value)``, so a cluster such as ``-vpVALUE`` is walked the
+# way argparse reads it. Keep in sync with the command definitions in ``cli_config`` and the
+# FAB and Celery providers. Commands missing here are masked conservatively.
+_SHORT_OPTION_ARITY: dict[tuple[str, str], tuple[str, str]] = {
+    ("users", "create"): ("v", "eflpru"),
+    ("users", "reset-password"): ("v", "epu"),
+    ("celery", "flower"): ("Dv", "AHaclpu"),
+    ("dags", "trigger"): ("v", "clor"),
+    ("dags", "test"): ("v", "Bcf"),
+    ("tasks", "test"): ("mv", "Bt"),
+}
+
+
+def _should_hide_key(key) -> bool:
+    from airflow._shared.secrets_masker import _secrets_masker
+
+    return bool(key) and isinstance(key, str) and _secrets_masker().should_hide_value_for_key(key)
+
+
+def _redact_structure(obj):
+    """
+    Redact values whose key looks sensitive, at any depth.
+
+    String values that themselves hold a JSON object or list are parsed and redacted too:
+    ``--conn-json`` accepts ``extra`` as a JSON-encoded string as well as an object.
+    """
+    import json
+
+    if isinstance(obj, dict):
+        return {k: MASKED_VALUE if _should_hide_key(k) else _redact_structure(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_redact_structure(item) for item in obj]
+    if isinstance(obj, str) and obj.lstrip()[:1] in ("{", "["):
+        try:
+            parsed = json.loads(obj)
+        except ValueError:
+            return obj
+        redacted = _redact_structure(parsed)
+        return obj if redacted == parsed else json.dumps(redacted)
+    return obj
+
+
+def _find_option_values(
+    command: list[str],
+    option_strings: tuple[str, ...],
+    *,
+    allow_abbrev: bool,
+    short_option_arity: tuple[str, str] | None = None,
+) -> list[tuple[int, str]]:
+    """
+    Locate every value given for an option in a recorded command, in any accepted spelling.
+
+    argparse accepts ``--option VALUE``, ``--option=VALUE``, unambiguous abbreviations of
+    long options (``--opt VALUE``), and for short options also ``-o VALUE``, ``-o=VALUE`` and
+    ``-oVALUE``. Returns ``(index, prefix)`` pairs: the index of the element holding the
+    value and the prefix to keep when rewriting it (empty for the separated forms).
+
+    Every occurrence is returned: argparse keeps the last one, but all of them were typed.
+    Abbreviations and short options are only matched with ``allow_abbrev``, i.e. when the
+    parsed namespace confirms the command takes this option.
+
+    A short option can also follow grouped flags (``-vpVALUE``, ``-vp VALUE``). With the
+    command's ``short_option_arity`` the cluster is walked as argparse does: boolean flags are
+    skipped and any other option ends the cluster by consuming its rest (``-uapple`` is a
+    username). Without it, every character before the option is taken as a flag, which may
+    mask more than the value but never less.
+    """
+    long_options = [o for o in option_strings if o.startswith("--")]
+    short_options = [o for o in option_strings if not o.startswith("--")] if allow_abbrev else []
+    positions: list[tuple[int, str]] = []
+    for idx, argument in enumerate(command):
+        if argument.startswith("--"):
+            name, eq, _ = argument.partition("=")
+            matches = (
+                any(len(name) > 2 and option.startswith(name) for option in long_options)
+                if allow_abbrev
+                else name in long_options
+            )
+            if not matches:
+                continue
+            if eq:
+                positions.append((idx, f"{name}="))
+            elif idx + 1 < len(command):
+                positions.append((idx + 1, ""))
+        elif argument.startswith("-") and short_options:
+            prefix = _find_short_option_prefix(argument, short_options, short_option_arity)
+            if prefix is None:
+                continue
+            if prefix:
+                positions.append((idx, prefix))
+            elif idx + 1 < len(command):
+                positions.append((idx + 1, ""))
+    return positions
+
+
+def _find_short_option_prefix(
+    argument: str, short_options: list[str], short_option_arity: tuple[str, str] | None
+) -> str | None:
+    """
+    Return the part of a short-option token that precedes the option value.
+
+    ``None`` means the token does not carry the option; an empty string means the value is
+    the next command element.
+    """
+    for pos in range(1, len(argument)):
+        char = argument[pos]
+        if f"-{char}" in short_options:
+            rest = argument[pos + 1 :]
+            if not rest:
+                return ""
+            return argument[: pos + 1] + ("=" if rest.startswith("=") else "")
+        is_flag = char in short_option_arity[0] if short_option_arity else char.isalnum()
+        if not is_flag:
+            return None
+    return None
+
+
+def _redact_json_argument(value: str) -> str:
+    """
+    Redact sensitive entries in a JSON command-line argument.
+
+    Nested structures are walked, because a secret one level down is still a secret:
+    ``--conn-extra '{"nested": {"password": "..."}}'`` records the password otherwise.
+
+    A value that is not JSON we can parse is redacted whole. These options carry
+    connection material, so a value that cannot be inspected is not safe to record.
+    """
+    import json
+
+    try:
+        parsed = json.loads(value)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return MASKED_VALUE
+    return json.dumps(_redact_structure(parsed))
+
+
+_URL_BYTES_TO_REMOVE = str.maketrans("", "", "\t\r\n")
+_C0_CONTROL_OR_SPACE = "".join(chr(i) for i in range(0x21))
+
+
+def _normalize_url_like_urlsplit(value: str) -> str:
+    """Drop the characters ``urlsplit`` ignores, so the inner URI is seen as ``Connection`` sees it."""
+    return value.translate(_URL_BYTES_TO_REMOVE).lstrip(_C0_CONTROL_OR_SPACE)
+
+
+def _redact_uri_argument(value: str) -> str:
+    """
+    Redact the secrets a URI command-line argument can carry.
+
+    That is the password in the credentials, query parameters with a sensitive name
+    (``?api_key=...``) and sensitive entries of the URL-encoded ``__extra__`` JSON that
+    connection URIs accept.
+    """
+    from urllib.parse import parse_qsl, unquote, urlencode, urlparse, urlunparse
+
+    value = _normalize_url_like_urlsplit(value)
+    scheme, separator, rest = value.partition("://")
+    rest = _normalize_url_like_urlsplit(rest)
+    # ``Connection`` accepts a protocol in the host: ``http://https://user:pass@host``. A ``://``
+    # elsewhere (``?next=http://...``) does not make the URI double-scheme.
+    if separator and re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", rest):
+        return f"{scheme}{separator}{_redact_uri_argument(rest)}"
+    try:
+        parsed_uri = urlparse(value)
+        has_password = parsed_uri.password is not None
+    except ValueError:
+        return MASKED_VALUE
+    netloc = parsed_uri.netloc
+    # A ``:`` followed later by ``@`` that the parse did not take as the credentials may still be
+    # one (``u:pa?ss@h`` splits it into the query), so the whole value is masked. This errs on the
+    # side of masking: ``user@host:port`` is kept, anything shaped like ``user:pass@`` is not.
+    after_authority = urlunparse(
+        ("", "", parsed_uri.path, parsed_uri.params, parsed_uri.query, parsed_uri.fragment)
+    )
+    unlocated = after_authority if has_password else rest if separator else value
+    # ``Connection`` decodes query values, so ``u%3Apass%40host`` is a credential too.
+    if any(re.search(r":.*@", text, re.DOTALL) for text in (unlocated, unquote(unlocated))):
+        return MASKED_VALUE
+    query = parsed_uri.query
+    params = parse_qsl(query, keep_blank_values=True) if query else []
+    if has_password:
+        userinfo, _, host = netloc.rpartition("@")
+        netloc = f"{userinfo.partition(':')[0]}:{MASKED_VALUE}@{host}"
+
+    if params:
+        redacted_params = []
+        for key, item in params:
+            if key == "__extra__":
+                redacted_params.append((key, _redact_json_argument(item)))
+            elif _should_hide_key(key):
+                redacted_params.append((key, MASKED_VALUE))
+            else:
+                # ``Connection`` parses every query value as JSON into ``extra``.
+                redacted_params.append((key, _redact_structure(item)))
+        if redacted_params != params:
+            query = urlencode(redacted_params, safe="*")
+
+    return urlunparse(
+        (parsed_uri.scheme, netloc, parsed_uri.path, parsed_uri.params, query, parsed_uri.fragment)
+    )
+
+
+def _mask_value_token(argument: str, value: str, redact) -> str:
+    """
+    Redact a parsed option value where it forms a whole token or ends a short-option cluster.
+
+    A cluster of grouped short flags (``-vpVALUE``) carries the value of its last option, so a
+    single-dash token ending with the value is rewritten too. Other tokens are left alone, so
+    a short value is not masked wherever its text happens to appear.
+    """
+    if argument == value:
+        return redact(value)
+    if argument.startswith("-") and not argument.startswith("--") and argument.endswith(value):
+        return argument[: -len(value)] + redact(value)
+    return argument
+
+
+def _mask_parsed_arguments(full_command: list[str], namespace) -> list[str]:
+    """
+    Mask secrets supplied through any supported argument spelling in the recorded command line.
+
+    The values are taken from the parsed namespace, so the masking does not depend on how
+    the option was spelled on the command line.
+    """
+    parsed = vars(namespace) if isinstance(namespace, Namespace) else {}
+    full_command = list(full_command)
+    short_option_arity = (
+        _SHORT_OPTION_ARITY.get((full_command[1], full_command[2])) if len(full_command) > 2 else None
+    )
+
+    # argparse stores a default for every option of the command, so presence in the namespace,
+    # not the truthiness of the last value, tells whether the command takes the option: a final
+    # empty value (``--password ''``) must not unmask the earlier occurrences.
+    for dest, option_strings in _SECRET_OPTIONS.items():
+        if dest not in parsed:
+            continue
+        value = parsed[dest]
+        for idx, prefix in _find_option_values(
+            full_command,
+            option_strings,
+            allow_abbrev=True,
+            short_option_arity=short_option_arity,
+        ):
+            full_command[idx] = prefix + MASKED_VALUE
+        if isinstance(value, str) and value:
+            full_command = [
+                _mask_value_token(argument, value, lambda _: MASKED_VALUE) for argument in full_command
+            ]
+
+    for options, redact in ((_JSON_OPTIONS, _redact_json_argument), (_URI_OPTIONS, _redact_uri_argument)):
+        for dest, option_strings in options.items():
+            value = parsed.get(dest)
+            for idx, prefix in _find_option_values(
+                full_command,
+                option_strings,
+                allow_abbrev=dest in parsed,
+                short_option_arity=short_option_arity,
+            ):
+                full_command[idx] = prefix + redact(full_command[idx][len(prefix) :])
+            if isinstance(value, str) and value:
+                full_command = [_mask_value_token(argument, value, redact) for argument in full_command]
+
+    return full_command
+
+
+def _mask_full_command(full_command: list[str], namespace) -> list[str]:
+    """Mask the secrets in the command line recorded in the audit log."""
+    from airflow._shared.secrets_masker import _secrets_masker
+
+    sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
+    sub_commands_to_check_for_sensitive_key = {"variables"}
+    sensitive_fields = {"-p", "--password", "--conn-password"}
+    # The long spellings name a password on every subcommand, including ones contributed by
+    # providers (``keycloak-auth-manager ... --password``), so they are masked everywhere. ``-p``
+    # is only a password on the subcommands above; elsewhere it is e.g. ``--port``.
+    always_sensitive_fields = {"--password", "--conn-password"}
+    full_command = list(full_command)
+    sub_command = full_command[1] if len(full_command) > 1 else None
+    # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
+    if sub_command in sub_commands_to_check_for_sensitive_key:
+        # Identify the value from the parsed command rather than from its position in
+        # argv. The key and value are not reliably the last two arguments: any supported
+        # trailing option displaces them (``variables set KEY VALUE --description TEXT``
+        # ends in ``--description TEXT``), which left the value recorded in clear.
+        key = getattr(namespace, "key", None)
+        value = getattr(namespace, "value", None)
+        if key and value and _secrets_masker().should_hide_value_for_key(key):
+            full_command = [MASKED_VALUE if arg == value else arg for arg in full_command]
+    else:
+        fields = (
+            sensitive_fields
+            if sub_command in sub_commands_to_check_for_sensitive_fields
+            else always_sensitive_fields
+        )
+        for idx, command in enumerate(full_command):
+            if command in fields:
+                # For cases when password is passed as "--password xyz" (with space between key and value)
+                if idx + 1 < len(full_command):
+                    full_command[idx + 1] = MASKED_VALUE
+            else:
+                # For cases when password is passed as "--password=xyz" (with '=' between key and value)
+                for sensitive_field in fields:
+                    if command.startswith(f"{sensitive_field}="):
+                        full_command[idx] = f"{sensitive_field}={MASKED_VALUE}"
+
+    # Options carrying secrets (on their own, or inside JSON and URIs) are masked by their
+    # parsed value, whatever spelling was used for them on the command line.
+    return _mask_parsed_arguments(full_command, namespace)
+
+
 def _build_metrics(func_name, namespace):
     """
     Build metrics dict from function args.
@@ -149,64 +486,15 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-    from airflow._shared.secrets_masker import _secrets_masker
-
-    sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
-    sub_commands_to_check_for_sensitive_key = {"variables"}
-    sensitive_fields = {"-p", "--password", "--conn-password"}
-    full_command = list(sys.argv)
-    sub_command = full_command[1] if len(full_command) > 1 else None
-    # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
-    if sub_command in sub_commands_to_check_for_sensitive_key:
-        key = full_command[-2] if len(full_command) > 3 else None
-        if key and _secrets_masker().should_hide_value_for_key(key):
-            # Mask the sensitive value since key contain sensitive keyword
-            full_command[-1] = "*" * 8
-    elif sub_command in sub_commands_to_check_for_sensitive_fields:
-        for idx, command in enumerate(full_command):
-            if command in sensitive_fields:
-                # For cases when password is passed as "--password xyz" (with space between key and value)
-                full_command[idx + 1] = "*" * 8
-            else:
-                # For cases when password is passed as "--password=xyz" (with '=' between key and value)
-                for sensitive_field in sensitive_fields:
-                    if command.startswith(f"{sensitive_field}="):
-                        full_command[idx] = f"{sensitive_field}={'*' * 8}"
-
-    # handle conn-json and conn-uri separately as it requires different handling
-    if "--conn-json" in full_command:
-        import json
-
-        json_index = full_command.index("--conn-json") + 1
-        conn_json = json.loads(full_command[json_index])
-        for k in conn_json:
-            if k and _secrets_masker().should_hide_value_for_key(k):
-                conn_json[k] = "*" * 8
-        full_command[json_index] = json.dumps(conn_json)
-
-    if "--conn-uri" in full_command:
-        from urllib.parse import urlparse, urlunparse
-
-        uri_index = full_command.index("--conn-uri") + 1
-        conn_uri = full_command[uri_index]
-        parsed_uri = urlparse(conn_uri)
-        netloc = parsed_uri.netloc
-        if parsed_uri.password:
-            password = "*" * 8
-            netloc = f"{parsed_uri.username}:{password}@{parsed_uri.hostname}"
-            if parsed_uri.port:
-                netloc += f":{parsed_uri.port}"
-
-        full_command[uri_index] = urlunparse(
-            (
-                parsed_uri.scheme,
-                netloc,
-                parsed_uri.path,
-                parsed_uri.params,
-                parsed_uri.query,
-                parsed_uri.fragment,
-            )
+    try:
+        full_command = _mask_full_command(sys.argv, namespace)
+    except Exception as e:
+        # This runs before the command itself, so a masking bug must not abort the command, and
+        # must not record anything a secret could be in; the error text could quote it too.
+        logger.warning(
+            "Could not mask the command line for the audit log (%s); recording it masked", type(e).__name__
         )
+        full_command = [*sys.argv[:1], MASKED_VALUE]
 
     metrics = {
         "sub_command": func_name,
@@ -281,28 +569,65 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None = None) -> DAG:
+@overload
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: Literal[False] = False,
+) -> DAG: ...
+
+
+@overload
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: bool,
+) -> BaggedDAG: ...
+
+
+def get_bagged_dag(
+    bundle_names: list | None,
+    dag_id: str,
+    dagfile_path: str | None = None,
+    *,
+    allow_lang_sdk_dag: bool = False,
+) -> BaggedDAG:
     """
     Return DAG of a given dag_id.
 
     First we'll try to use the given subdir.  If that doesn't work, we'll try to
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
+
+    :param allow_lang_sdk_dag: when ``True``, also parses native Lang-SDK Dag files with their runtime,
+        and may return such a Dag as a ``LangSDKSerializedDAG``.
     """
-    from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
+    from airflow.dag_processing.dagbag import BundleDagBag, LangSDKSerializedDAG, sync_bag_to_db
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+
+    def check_dag(dag: BaggedDAG) -> BaggedDAG:
+        # TODO: Support running a Lang-SDK Dag directly from the CLI.
+        if not allow_lang_sdk_dag and isinstance(dag, LangSDKSerializedDAG):
+            raise SystemExit(f"Dag {dag_id!r} is a native Lang-SDK Dag, which this command cannot run.")
+        return dag
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
         bundle = manager.get_bundle(bundle_name)
+        bundle.initialize()
         with _airflow_parsing_context_manager(dag_id=dag_id):
             dagbag = BundleDagBag(
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
+                parse_lang_sdk_files=allow_lang_sdk_dag,
             )
         if dag := dagbag.dags.get(dag_id):
-            return dag
+            return check_dag(dag)
 
     manager.sync_bundles_to_db()
     for bundle in manager.get_all_dag_bundles():
@@ -312,12 +637,11 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
+                parse_lang_sdk_files=allow_lang_sdk_dag,
             )
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
         if dag := dagbag.dags.get(dag_id):
-            return dag
-        if dag:
-            break
+            return check_dag(dag)
     raise AirflowException(
         f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
     )
@@ -348,6 +672,7 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
+        bundle.initialize()
         dagbag = BundleDagBag(dag_folder=bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
         return matched_dags

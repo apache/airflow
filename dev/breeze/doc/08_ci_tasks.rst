@@ -47,7 +47,9 @@ root ``pyproject.toml``: a floor is raised to the newest release that is at leas
 old, members of a group share one floor, and packages that are capped anywhere or listed under
 ``exclude`` are never touched. Bumps that make ``uv lock`` fail - with the highest or the lowest-direct
 resolution - are rolled back and listed in the PR description together with everything that was
-raised or skipped. Use ``--no-upgrade-dependency-floors`` to skip the step. The design is recorded in
+raised or skipped. The provider ``README.rst`` and ``docs/index.rst`` requirement tables are then
+regenerated from the changed ``pyproject.toml`` files. Use ``--no-upgrade-dependency-floors`` to skip
+both steps. The design is recorded in
 `ADR 0018 <adr/0018-raise-dependency-floors-automatically.md>`_.
 
 These are all available flags of ``upgrade`` command:

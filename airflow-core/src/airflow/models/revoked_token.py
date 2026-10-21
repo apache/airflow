@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
 
 import structlog
@@ -74,6 +74,6 @@ class RevokedToken(Base):
         if now - cls._last_cleanup_time >= cleanup_interval:
             cls._last_cleanup_time = now
             try:
-                session.execute(delete(cls).where(cls.exp < datetime.now(tz=timezone.utc)))
+                session.execute(delete(cls).where(cls.exp < datetime.now(tz=UTC)))
             except Exception:
                 log.exception("Failed to clean up expired revoked tokens")

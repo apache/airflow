@@ -16,11 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 
 import pytest
 from fastapi import Request
-from jwt import InvalidTokenError
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.core_api import security as core_api_security
@@ -185,10 +185,101 @@ class TestKeycloakJWTMiddleware:
         else:
             assert not hasattr(mock_request.state, "user_authenticated_via")
 
-        auth_manager.get_user_from_token.assert_called_once_with("token", "access_token", "refresh_token")
+        # Once to resolve the user, once more after the endpoint ran to confirm the
+        # token is still accepted before a replacement is issued.
+        assert auth_manager.get_user_from_token.await_args_list == [
+            call("token", "access_token", "refresh_token"),
+            call("token", "access_token", "refresh_token"),
+        ]
         auth_manager.refresh_user.assert_called_once_with(user=mock_user)
         auth_manager.generate_jwt.assert_called_once_with(new_user)
         call_next.assert_awaited_once_with(mock_request)
+
+    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
+    async def test_no_new_token_when_jwt_revoked_during_request(
+        self,
+        mock_get_auth_manager,
+        auth_manager,
+        call_next,
+        mock_request,
+        middleware,
+        mock_user,
+        secure,
+    ):
+        """
+        When the endpoint revokes the token the request came with (the logout route does),
+        a refreshed session must not be turned into a new JWT; the session cookies are cleared.
+        """
+        new_user = Mock(name="user", spec=KeycloakAuthManagerUser)
+        new_user.access_token = "new_access_token"
+        new_user.refresh_token = "new_refresh_token"
+        auth_manager.get_user_from_token = AsyncMock(return_value=mock_user)
+        auth_manager.refresh_user = Mock(return_value=new_user)
+        auth_manager.generate_jwt.return_value = "new_token"
+        mock_get_auth_manager.return_value = auth_manager
+
+        mock_request.cookies = {
+            COOKIE_NAME_JWT_TOKEN: "token",
+            COOKIE_NAME_ACCESS_TOKEN: "access_token",
+            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+        }
+
+        async def logout_endpoint(request):
+            # The endpoint revokes the presented token, so it is rejected from now on.
+            auth_manager.get_user_from_token.side_effect = InvalidTokenError("Token has been revoked")
+            return Mock(name="response")
+
+        call_next.side_effect = logout_endpoint
+
+        response = await middleware.dispatch(mock_request, call_next)
+
+        auth_manager.generate_jwt.assert_not_called()
+        for cookie_name in (COOKIE_NAME_JWT_TOKEN, COOKIE_NAME_ACCESS_TOKEN, COOKIE_NAME_REFRESH_TOKEN):
+            assert any(
+                c.args[0] == cookie_name and c.args[1] == "" and c.kwargs.get("max_age") == 0
+                for c in response.set_cookie.call_args_list
+            ), f"{cookie_name} cookie was not cleared"
+        issued_values = {c.args[1] for c in response.set_cookie.call_args_list if len(c.args) > 1}
+        assert issued_values.isdisjoint({"new_token", "new_access_token", "new_refresh_token"})
+
+    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
+    async def test_new_token_when_jwt_expired_during_request(
+        self,
+        mock_get_auth_manager,
+        auth_manager,
+        call_next,
+        mock_request,
+        middleware,
+        mock_user,
+        secure,
+    ):
+        """A token that merely expired while the request was handled is still replaced."""
+        new_user = Mock(name="user", spec=KeycloakAuthManagerUser)
+        new_user.access_token = "new_access_token"
+        new_user.refresh_token = "new_refresh_token"
+        auth_manager.get_user_from_token = AsyncMock(side_effect=[mock_user, ExpiredSignatureError()])
+        auth_manager.refresh_user = Mock(return_value=new_user)
+        auth_manager.generate_jwt.return_value = "new_token"
+        mock_get_auth_manager.return_value = auth_manager
+
+        mock_request.cookies = {
+            COOKIE_NAME_JWT_TOKEN: "token",
+            COOKIE_NAME_ACCESS_TOKEN: "access_token",
+            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+        }
+
+        response = await middleware.dispatch(mock_request, call_next)
+
+        auth_manager.generate_jwt.assert_called_once_with(new_user)
+        response.set_cookie.assert_any_call(
+            COOKIE_NAME_JWT_TOKEN,
+            "new_token",
+            path="/",
+            secure=secure,
+            samesite="lax",
+            httponly=True,
+            max_age=None,
+        )
 
     @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
     async def test_no_keycloak_token(

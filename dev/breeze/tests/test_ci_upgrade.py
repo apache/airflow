@@ -43,6 +43,15 @@ def test_floor_step_runs_the_manual_hook():
     assert command.endswith("--stage manual upgrade-dependency-floors")
 
 
+def test_provider_requirement_tables_are_regenerated_after_the_floor_step():
+    assert STEP_NAMES.index("upgrade-dependency-floors") < STEP_NAMES.index(
+        "regenerate-provider-requirement-tables"
+    )
+    command = dict(UPGRADE_COMMANDS)["regenerate-provider-requirement-tables"]
+    assert command.startswith("prek --all-files ")
+    assert command.endswith(" update-providers-build-files sync-provider-readme")
+
+
 @pytest.mark.parametrize(
     ("report", "expected_suffix"),
     [
@@ -89,9 +98,12 @@ def test_step_enabled_covers_every_step():
     assert set(get_step_enabled(**ALL_STEPS_ON)) == set(STEP_NAMES)
 
 
-def test_no_upgrade_dependency_floors_disables_only_that_step():
+def test_no_upgrade_dependency_floors_disables_only_the_floor_steps():
     enabled = get_step_enabled(**{**ALL_STEPS_ON, "upgrade_dependency_floors": False})
-    assert [name for name, on in enabled.items() if not on] == ["upgrade-dependency-floors"]
+    assert [name for name, on in enabled.items() if not on] == [
+        "upgrade-dependency-floors",
+        "regenerate-provider-requirement-tables",
+    ]
 
 
 @pytest.mark.parametrize(

@@ -341,7 +341,7 @@ class TestDagCommands:
 
     def test_state_by_logical_date(self, capsys):
         api_client = mock.MagicMock()
-        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC)
         api_client.dag_runs.list.return_value.dag_runs = [
             mock.MagicMock(state="failed", conf={"reason": "[red]test[/red]"})
         ]

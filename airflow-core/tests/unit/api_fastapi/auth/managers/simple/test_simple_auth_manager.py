@@ -24,6 +24,7 @@ from urllib.parse import urlencode
 import pytest
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -35,8 +36,20 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
+from airflow.models.asset import AssetActive, AssetModel
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_assets
+
+ASSET_AUTHORIZATION_MATRIX = [
+    pytest.param("ADMIN", "GET", True, id="admin-get"),
+    pytest.param(None, "GET", False, id="no-role-get"),
+    pytest.param("VIEWER", "GET", True, id="viewer-get"),
+    pytest.param("VIEWER", "POST", False, id="viewer-post"),
+    pytest.param("USER", "GET", True, id="user-get"),
+    pytest.param("USER", "POST", False, id="user-post"),
+    pytest.param("OP", "POST", True, id="op-post"),
+]
 
 
 class TestSimpleAuthManager:
@@ -524,3 +537,64 @@ class TestSimpleAuthManager:
             password = SimpleAuthManager._generate_password()
             assert len(password) == 16
             assert set(password).issubset(alphabet)
+
+    @pytest.fixture
+    def clean_assets(self):
+        clear_db_assets()
+        yield
+        clear_db_assets()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(("role", "method", "expect_authorized"), ASSET_AUTHORIZATION_MATRIX)
+    def test_get_authorized_assets(
+        self, auth_manager, session, clean_assets, role, method, expect_authorized
+    ):
+        """Three assets in the table; one role-level check, not one per asset, is what the override does."""
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(3)]
+        session.add_all(assets)
+        # The third asset has no AssetActive row and must still be returned.
+        session.add_all(AssetActive.for_asset(asset) for asset in assets[:2])
+        session.commit()
+        expected_ids = {asset.id for asset in assets} if expect_authorized else set()
+
+        user = SimpleAuthManagerUser(username="test", role=role)
+        with mock.patch.object(
+            auth_manager,
+            "is_authorized_asset",
+            wraps=auth_manager.is_authorized_asset,
+        ) as mock_is_authorized_asset:
+            result = auth_manager.get_authorized_assets(user=user, method=method, session=session)
+
+        assert result == expected_ids
+        mock_is_authorized_asset.assert_called_once_with(method=method, user=user)
+
+    @pytest.mark.db_test
+    def test_get_authorized_assets_empty_table(self, auth_manager, session, clean_assets):
+        user = SimpleAuthManagerUser(username="test", role="ADMIN")
+        with mock.patch.object(
+            auth_manager,
+            "is_authorized_asset",
+            wraps=auth_manager.is_authorized_asset,
+        ) as mock_is_authorized_asset:
+            result = auth_manager.get_authorized_assets(user=user, session=session)
+
+        assert result == set()
+        mock_is_authorized_asset.assert_called_once_with(method="GET", user=user)
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(("role", "method", "expect_authorized"), ASSET_AUTHORIZATION_MATRIX)
+    def test_get_authorized_assets_matches_base_implementation(
+        self, auth_manager, session, clean_assets, role, method, expect_authorized
+    ):
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(3)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets[:2])
+        session.commit()
+
+        user = SimpleAuthManagerUser(username="test", role=role)
+        result = auth_manager.get_authorized_assets(user=user, method=method, session=session)
+
+        assert result == BaseAuthManager.get_authorized_assets(
+            auth_manager, user=user, method=method, session=session
+        )
+        assert bool(result) is expect_authorized

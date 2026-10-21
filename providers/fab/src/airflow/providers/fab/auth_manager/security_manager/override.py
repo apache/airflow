@@ -163,6 +163,10 @@ class FabException(Exception):
     """Custom exception for FAB security manager."""
 
 
+class DagAccessControlValidationError(FabException, ValueError):
+    """The Dag's access control names an invalid role, resource, or permission."""
+
+
 class AzureTenantResolutionError(FabException):
     """Raised when an Azure AD tenant identifier cannot be resolved to a canonical GUID."""
 
@@ -1129,7 +1133,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         for rolename, resource_actions_raw in access_control.items():
             role = self.find_role(rolename)
             if not role:
-                raise FabException(
+                raise DagAccessControlValidationError(
                     f"The access_control mapping for DAG '{dag_id}' includes a role named "
                     f"'{rolename}', but that role does not exist"
                 )
@@ -1143,7 +1147,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             for resource_name, actions in resource_actions.items():
                 if resource_name not in self.RESOURCE_DETAILS_MAP:
-                    raise FabException(
+                    raise DagAccessControlValidationError(
                         f"The access_control map for DAG '{dag_id}' includes the following invalid "
                         f"resource name: '{resource_name}'; "
                         f"The set of valid resource names is: {self.RESOURCE_DETAILS_MAP.keys()}"
@@ -1155,7 +1159,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 invalid_actions = set(actions) - self.RESOURCE_DETAILS_MAP[resource_name]["actions"]
 
                 if invalid_actions:
-                    raise FabException(
+                    raise DagAccessControlValidationError(
                         f"The access_control map for DAG '{dag_resource_name}' includes "
                         f"the following invalid permissions: {invalid_actions}; "
                         f"The set of valid permissions is: {self.RESOURCE_DETAILS_MAP[resource_name]['actions']}"
@@ -1673,7 +1677,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 new_role_ids = {r.id for r in user.roles}
                 new_group_ids = {grp.id for grp in user.groups}
                 if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
-                    user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
+                    user.changed_on = datetime.datetime.now(tz=datetime.UTC)
             merged_user = self.session.merge(user)
             self.session.commit()
             self._reset_user_permissions_cache(merged_user)

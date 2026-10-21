@@ -25,6 +25,7 @@ from sqlalchemy import (
     String,
     text,
 )
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import Mapped
 
 from airflow.models.base import StringID
@@ -73,9 +74,17 @@ class EdgeJobModel(Base, LoggingMixin):
         Integer, primary_key=True, nullable=False, server_default=text("-1")
     )
     try_number: Mapped[int] = mapped_column(Integer, primary_key=True, default=0)
+    task_instance_id: Mapped[str] = mapped_column(
+        String(36).with_variant(mysql.VARCHAR(36, charset="ascii", collation="ascii_bin"), "mysql"),
+        primary_key=True,
+        nullable=False,
+        default="",
+        server_default="",
+    )
     state: Mapped[str] = mapped_column(String(20))
     queue: Mapped[str] = mapped_column(String(256))
     concurrency_slots: Mapped[int] = mapped_column(Integer)
+    priority_weight: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     command: Mapped[str] = mapped_column(String(2048))
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime)
     edge_worker: Mapped[str | None] = mapped_column(String(64))
@@ -93,10 +102,12 @@ class EdgeJobModel(Base, LoggingMixin):
         queue: str,
         concurrency_slots: int,
         command: str,
+        priority_weight: int = 1,
         queued_dttm: datetime | None = None,
         edge_worker: str | None = None,
         last_update: datetime | None = None,
         team_name: str | None = None,
+        task_instance_id: str = "",
     ):
         self.dag_id = dag_id
         self.task_id = task_id
@@ -107,13 +118,15 @@ class EdgeJobModel(Base, LoggingMixin):
         self.queue = queue
         self.concurrency_slots = concurrency_slots
         self.command = command
+        self.priority_weight = priority_weight
         self.queued_dttm = queued_dttm or timezone.utcnow()
         self.edge_worker = edge_worker
         self.last_update = last_update
         self.team_name = team_name
+        self.task_instance_id = task_instance_id
         super().__init__()
 
-    __table_args__ = (Index("rj_order", state, queued_dttm, queue),)
+    __table_args__ = (Index("rj_order", state, priority_weight.desc(), queued_dttm, queue),)
 
     @property
     def key(self) -> TaskInstanceKey | CallbackKey:

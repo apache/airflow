@@ -17,14 +17,33 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+import sys
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied, Unauthenticated
+from google.cloud.aiplatform_v1 import ReasoningEngineExecutionServiceClient
+from google.cloud.aiplatform_v1.types import QueryReasoningEngineResponse
 
 from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineAsyncHook, AgentEngineHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+
+try:
+    from airflow.providers.common.ai.exceptions import ManagedAgentInvocationError
+    from airflow.providers.common.ai.managed_agents import (
+        ManagedAgentRef,
+        ManagedAgentRequest,
+    )
+except ImportError:
+    HAS_COMMON_AI = False
+else:
+    HAS_COMMON_AI = True
+
+# The managed-agent methods of AgentEngineHook need the optional common.ai extra.
+needs_common_ai = pytest.mark.skipif(not HAS_COMMON_AI, reason="requires apache-airflow-providers-common-ai")
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 AGENT_ENGINE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.agent_engine.{}"
@@ -470,3 +489,129 @@ class TestAgentEngineAsyncHook:
             config=CHECK_QUERY_CONFIG,
         )
         assert result == mock.sentinel.query_job
+
+
+@pytest.fixture
+def execution_client():
+    client = mock.create_autospec(ReasoningEngineExecutionServiceClient, instance=True)
+    client.reasoning_engine_path.side_effect = ReasoningEngineExecutionServiceClient.reasoning_engine_path
+    client.query_reasoning_engine.return_value = QueryReasoningEngineResponse(
+        output={"output": "42", "steps": 3}
+    )
+    with mock.patch.object(
+        AgentEngineHook, "get_reasoning_engine_execution_service_client", autospec=True, return_value=client
+    ):
+        yield client
+
+
+@pytest.fixture
+def hook():
+    with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id):
+        yield AgentEngineHook(gcp_conn_id="google_cloud_default")
+
+
+@needs_common_ai
+class TestAgentEngineHookAgent:
+    def test_resolves_a_full_resource_name(self, hook):
+        assert hook.resolve_agent(AGENT_ENGINE_NAME) == ManagedAgentRef(
+            platform="gcp.vertex_agent_engine", name=AGENT_ENGINE_NAME
+        )
+
+    @pytest.mark.parametrize(
+        "agent", ["123", "projects/p/locations/l/agents/123", AGENT_ENGINE_NAME + "/operations/1"]
+    )
+    def test_rejects_anything_but_a_full_resource_name(self, hook, agent):
+        with pytest.raises(ValueError, match="reasoningEngines"):
+            hook.resolve_agent(agent)
+
+
+@needs_common_ai
+class TestAgentEngineHookInvokeAgent:
+    def test_prompt_goes_to_the_query_method_and_output_is_unwrapped(self, hook, execution_client):
+        response = hook.agent(AGENT_ENGINE_NAME).invoke(ManagedAgentRequest(prompt="Sum?", timeout=12.5))
+        kwargs = execution_client.query_reasoning_engine.call_args.kwargs
+        assert kwargs["request"] == {
+            "name": AGENT_ENGINE_NAME,
+            "class_method": "query",
+            "input": {"input": "Sum?"},
+        }
+        assert kwargs["timeout"] == 12.5
+        assert response.text == "42"
+        assert response.structured == {"output": "42", "steps": 3.0}
+        assert response.raw == {"output": {"output": "42", "steps": 3.0}}
+
+    def test_class_method_and_input_key_are_set_per_request(self, hook, execution_client):
+        options = {"class_method": "ask", "input_key": "question"}
+        hook.agent(AGENT_ENGINE_NAME).invoke(ManagedAgentRequest(prompt="Sum?", vendor_options=options))
+        request = execution_client.query_reasoning_engine.call_args.kwargs["request"]
+        assert request["class_method"] == "ask"
+        assert request["input"] == {"question": "Sum?"}
+
+    def test_messages_are_sent_as_messages(self, hook, execution_client):
+        messages = [{"role": "user", "content": "hi"}]
+        hook.agent(AGENT_ENGINE_NAME).invoke(ManagedAgentRequest(messages=messages))
+        assert execution_client.query_reasoning_engine.call_args.kwargs["request"]["input"] == {
+            "messages": messages
+        }
+
+    def test_a_plain_string_output_is_the_text(self, hook, execution_client):
+        execution_client.query_reasoning_engine.return_value = QueryReasoningEngineResponse(output="plain")
+        response = hook.agent(AGENT_ENGINE_NAME).invoke(ManagedAgentRequest(prompt="x"))
+        assert response.text == "plain"
+        assert response.structured is None
+
+    @pytest.mark.parametrize("option", ["reasoning_engine_id", "project_id", "output_gcs_uri"])
+    def test_only_the_query_methods_own_options_are_accepted(self, hook, execution_client, option):
+        with pytest.raises(ValueError, match=option):
+            hook.agent(AGENT_ENGINE_NAME).invoke(
+                ManagedAgentRequest(prompt="x", vendor_options={option: "9"})
+            )
+        execution_client.query_reasoning_engine.assert_not_called()
+
+    def test_a_session_is_refused_rather_than_silently_dropped(self, hook, execution_client):
+        # The bound client refuses it first; the hook refuses it too for callers on the raw path.
+        with pytest.raises(ValueError, match="query path keeps no conversation state"):
+            hook.invoke_agent(AGENT_ENGINE_NAME, ManagedAgentRequest(prompt="x", session_id="t"))
+        execution_client.query_reasoning_engine.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("error", "expected"),
+        [
+            (InvalidArgument("bad input"), "class_method='query'"),
+            (NotFound("no such engine"), "no such engine"),
+            (PermissionDenied("denied"), "denied"),
+            (Unauthenticated("expired"), "expired"),
+        ],
+    )
+    def test_api_errors_are_terminal_and_name_the_engine(self, hook, execution_client, error, expected):
+        # INVALID_ARGUMENT is an author-side mistake on Agent Engine, not something a rephrase fixes.
+        execution_client.query_reasoning_engine.side_effect = error
+        with pytest.raises(ManagedAgentInvocationError, match=expected) as excinfo:
+            hook.agent(AGENT_ENGINE_NAME).invoke(ManagedAgentRequest(prompt="x"))
+        assert AGENT_ENGINE_NAME in str(excinfo.value)
+
+    def test_a_bad_agent_name_fails_before_any_client_is_built(self, hook):
+        with mock.patch.object(
+            AgentEngineHook, "get_reasoning_engine_execution_service_client", autospec=True
+        ) as get:
+            with pytest.raises(ValueError, match="reasoningEngines"):
+                hook.agent("123").invoke(ManagedAgentRequest(prompt="x"))
+        get.assert_not_called()
+
+
+def test_the_hook_imports_without_common_ai_and_agent_names_the_missing_extra():
+    """The contract base is optional: without it the module loads and ``agent()`` says what to install."""
+    script = (
+        "import sys\n"
+        "for m in ('airflow.providers.common.ai.exceptions', 'airflow.providers.common.ai.managed_agents.base'):\n"
+        "    sys.modules[m] = None\n"
+        "from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import AgentEngineHook\n"
+        "from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException\n"
+        "try:\n"
+        "    AgentEngineHook.agent(object(), 'projects/p/locations/l/reasoningEngines/1')\n"
+        "except AirflowOptionalProviderFeatureException as e:\n"
+        "    assert 'google[common.ai]' in str(e), e\n"
+        "else:\n"
+        "    raise SystemExit('agent() did not raise')\n"
+    )
+    subprocess.run([sys.executable, "-c", script], check=True)

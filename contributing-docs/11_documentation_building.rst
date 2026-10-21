@@ -89,7 +89,7 @@ You should run ``uv python pin 3.11`` to pin to Python 3.11 in order to build do
 
    .. code-block:: txt
 
-       Could not import extension sphinxcontrib.spelling (exception: The 'enchant' C library was not
+       Could not import extension airflow_spelling (exception: The 'enchant' C library was not
        found and maybe needs to be installed
 
 The easiest way is to find where your enchant library is (usually libenchant-2.dylib)
@@ -229,15 +229,15 @@ and it is independent on the host / local environment including the OS you are u
 fall-back to this method if - for some reason - your local documentation building is failing.
 
 Basic command is ``breeze build-docs`` which except ``--autobuild`` has very similar options
-as the ``uv run build-docs`` command.. You can also specify a number of options like selecting which
-distribution packages you want to build and which kind of build to run (``--doc-only`` or ``--spelling-only``)
-or request to ``--clean`` the build directory before building the documentation.
+as the ``uv run build-docs`` command. Spelling is checked as part of every build. You can also specify a
+number of options like selecting which distribution packages you want to build or request to
+``--clean-build`` the build directory before building the documentation.
 
 For example:
 
 .. code-block:: bash
 
-    breeze build-docs --doc-only --clean fab
+    breeze build-docs --clean-build fab
 
 Will build ``fab`` provider documentation and clean build artifacts before.
 

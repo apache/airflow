@@ -20,7 +20,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar
 
 from pydantic import (
     AwareDatetime,
@@ -29,15 +29,18 @@ from pydantic import (
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    field_validator,
     model_validator,
 )
 
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_MAX_BYTES
 from airflow.utils.state import (
     DagRunState,
     IntermediateTIState,
@@ -45,6 +48,9 @@ from airflow.utils.state import (
     TerminalTIState,
 )
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
 
 AwareDatetimeAdapter = TypeAdapter(AwareDatetime)
 
@@ -67,6 +73,12 @@ class TIEnterRunningPayload(StrictBaseModel):
     """When the task started executing"""
 
 
+class DagRunNoteUpdatePayload(StrictBaseModel):
+    """Schema for updating the DagRun note associated with a task instance."""
+
+    note: str | None = Field(None, max_length=1000)
+
+
 # Create an enum to give a nice name in the generated datamodels
 class TerminalStateNonSuccess(str, Enum):
     """TaskInstance states that can be reported without extra information."""
@@ -76,6 +88,23 @@ class TerminalStateNonSuccess(str, Enum):
     REMOVED = TerminalTIState.REMOVED
     UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED
     SERVER_TERMINATED = "server_terminated"
+
+
+class LoopDecisionPayload(StrictBaseModel):
+    """A loop gate's evaluation of its ``until`` callable."""
+
+    stop: bool
+    reason: str | None = None
+
+    @field_validator("reason")
+    @classmethod
+    def _check_reason(cls, reason: str | None) -> str | None:
+        if reason is not None:
+            if len(reason.encode()) > LOOP_DECISION_REASON_MAX_BYTES:
+                raise ValueError(f"must be at most {LOOP_DECISION_REASON_MAX_BYTES} bytes of UTF-8")
+            if "\x00" in reason:
+                raise ValueError("cannot contain NUL bytes")
+        return reason
 
 
 class TITerminalStatePayload(StrictBaseModel):
@@ -89,6 +118,7 @@ class TITerminalStatePayload(StrictBaseModel):
     retry_reason: str | None = None
     hostname: str | None = None
     pid: int | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -112,6 +142,7 @@ class TISuccessStatePayload(StrictBaseModel):
     task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
     outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
     rendered_map_index: str | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -278,7 +309,7 @@ class TIHeartbeatInfo(StrictBaseModel):
 
 # This model is not used in the API, but it is included in generated OpenAPI schema
 # for use in the client SDKs.
-class TaskInstance(BaseModel):
+class TaskInstance(OmitsMissingRegion, BaseModel):
     """Schema for TaskInstance model with minimal required fields needed for Runtime."""
 
     id: uuid.UUID
@@ -289,12 +320,27 @@ class TaskInstance(BaseModel):
     try_number: int
     dag_version_id: uuid.UUID
     map_index: int = -1
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     hostname: str | None = None
     context_carrier: dict | None = None
     # The supervisor routes tasks to a coordinator by queue. The default keeps
     # hand-built instances (tests, dry runs) valid; the executor workload
     # always sends the real value.
     queue: str = "default"
+
+
+_RuntimeTI = TypeVar("_RuntimeTI", bound=TaskInstance)
+
+
+def task_instance_to_runtime(ti: TaskInstanceModel, *, model: type[_RuntimeTI], map_index: int) -> _RuntimeTI:
+    """Build a runtime identity with a prepared public map index and the region a client sees."""
+    from airflow.models.task_coordinates import get_public_region
+
+    region_id, region_index = get_public_region(ti.region_id, ti.region_index)
+    return model.model_validate(ti, from_attributes=True).model_copy(
+        update={"map_index": map_index, "region_id": region_id, "region_index": region_index}
+    )
 
 
 class AssetReferenceAssetEventDagRun(StrictBaseModel):
@@ -402,14 +448,29 @@ class DagRun(StrictBaseModel):
         return values
 
 
+class LoopContext(BaseModel):
+    """Pinned loop definition and enclosing iteration for a task execution."""
+
+    node_id: str
+    index: int = Field(ge=1)
+    max_iterations: int = Field(gt=0)
+    terminal_task_id: str
+    terminal_is_mapped: bool
+
+
 class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
 
     dag_run: DagRun
     """DAG run information for the task instance."""
 
+    loop: LoopContext | None = None
+
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""
+
+    first_task_reschedule_start_date: UtcDateTime | None = None
+    """The first reschedule start date for the task instance, if it has been rescheduled."""
 
     max_tries: int
     """Maximum number of tries for the task instance (from DB)."""
@@ -472,7 +533,7 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
-class PreviousTIResponse(BaseModel):
+class PreviousTIResponse(OmitsMissingRegion, BaseModel):
     """Schema for response with previous TaskInstance information."""
 
     task_id: str
@@ -484,6 +545,8 @@ class PreviousTIResponse(BaseModel):
     state: str | None = None
     try_number: int
     map_index: int | None = -1
+    region_id: RegionId = None
+    region_index: RegionIndex = None
     duration: float | None = None
 
 

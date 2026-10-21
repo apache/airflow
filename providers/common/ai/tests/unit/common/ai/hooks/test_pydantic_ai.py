@@ -26,7 +26,9 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 from pydantic_ai import Agent
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import FallbackExceptionGroup, ModelAPIError
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
@@ -40,10 +42,14 @@ from airflow.providers.common.ai.hooks.pydantic_ai import (
     PydanticAIBedrockHook,
     PydanticAIHook,
     PydanticAIVertexHook,
+    _get_registered_hooks,
     _has_recognized_provider_prefix,
     _looks_like_unrecognized_provider_prefix,
 )
-from airflow.providers.common.compat.sdk import AirflowNotFoundException
+from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
+from airflow.providers.common.compat.module_loading import import_string, qualname
+from airflow.providers.common.compat.sdk import AirflowNotFoundException, BaseHook
+from airflow.providers_manager import HookInfo
 
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.5-flash".
@@ -287,6 +293,23 @@ class _ConnRegistry:
     def __init__(self) -> None:
         self.conns: dict[str, Connection] = {}
         self.hook_classes: dict[str, type[PydanticAIHook]] = {}
+        # Stands in for the providers manager's connection-type registry, seeded with what
+        # this provider really registers; other providers' types are added per test.
+        self.hooks: dict[str, HookInfo] = {}
+        for connection_type in get_provider_info()["connection-types"]:
+            self.register_hook(connection_type["connection-type"], connection_type["hook-class-name"])
+
+    def register_hook(self, conn_type: str, hook_class_name: str | None) -> None:
+        self.hooks[conn_type] = HookInfo(
+            # ``HookInfo`` types this as ``str``, but the providers manager registers ``None`` for
+            # types like ``generic``.
+            hook_class_name=hook_class_name,  # type: ignore[arg-type]
+            connection_id_attribute_name="llm_conn_id",
+            package_name="apache-airflow-providers-test",
+            hook_name=conn_type,
+            connection_type=conn_type,
+            connection_testable=False,
+        )
 
     def add(
         self,
@@ -333,8 +356,109 @@ def registry():
         # argument -- without it, `conn.get_hook()` calls the mock with zero arguments and
         # `reg.get_hook` would have no way to know which connection dispatched it.
         patch.object(Connection, "get_hook", side_effect=reg.get_hook, autospec=True),
+        patch(
+            "airflow.providers.common.ai.hooks.pydantic_ai._get_registered_hooks",
+            autospec=True,
+            return_value=reg.hooks,
+        ),
     ):
         yield reg
+
+
+class _OtherProviderHook(BaseHook):
+    """Another provider's hook, registered under a type that is easy to confuse with ``pydanticai``."""
+
+    conn_type = "openai"
+
+
+class TestPydanticAIHookGetHook:
+    def test_builds_the_connection_hook_with_hook_params(self, registry):
+        """Airflow 2's ``BaseHook.get_hook`` takes no ``hook_params``; the hook's own override does."""
+        registry.add("llm")
+
+        hook = PydanticAIHook.get_hook(
+            "llm", hook_params={"model_id": "openai:gpt-5", "fallback_conn_ids": []}
+        )
+
+        assert isinstance(hook, PydanticAIHook)
+        assert hook.llm_conn_id == "llm"
+        assert hook.model_id == "openai:gpt-5"
+        assert hook.fallback_conn_ids == []
+
+    def test_registers_the_pydanticai_hook_without_patching_the_registry(self):
+        assert _get_registered_hooks()["pydanticai"].hook_class_name == qualname(PydanticAIHook)
+
+    @pytest.mark.parametrize(
+        ("conn_type", "hook_class_name"),
+        [
+            pytest.param("openai", qualname(_OtherProviderHook), id="other-provider-hook"),
+            pytest.param("generic", None, id="no-hook-class"),
+        ],
+    )
+    def test_rejects_a_connection_of_another_type_before_dispatching(
+        self, registry, conn_type, hook_class_name
+    ):
+        registry.add("llm", conn_type=conn_type)
+        registry.register_hook(conn_type, hook_class_name)
+        expected_types = ["pydanticai", "pydanticai_azure", "pydanticai_bedrock", "pydanticai_vertex"]
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"Connection 'llm' has type {conn_type!r}, but a Pydantic AI hook needs one of {expected_types}"
+            ),
+        ):
+            PydanticAIHook.get_hook("llm", hook_params={"model_id": "openai:gpt-5"})
+
+        Connection.get_hook.assert_not_called()
+
+    def test_accepts_a_subclass_from_a_module_not_imported_yet(self, registry, tmp_path, monkeypatch):
+        """Another provider's subclass (e.g. Snowflake's) is only imported when its type is looked up."""
+        module_name = "pydanticai_subclass_not_imported_yet"
+        (tmp_path / f"{module_name}.py").write_text(
+            "from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook\n\n\n"
+            "class PydanticAIElsewhereHook(PydanticAIHook):\n"
+            "    conn_type = 'snowflake_llm'\n"
+        )
+        monkeypatch.syspath_prepend(tmp_path)
+        registry.add("llm", conn_type="snowflake_llm")
+        registry.register_hook("snowflake_llm", f"{module_name}.PydanticAIElsewhereHook")
+        assert module_name not in sys.modules
+
+        try:
+            PydanticAIHook.get_hook("llm", hook_params={"model_id": "openai:gpt-5"})
+            # The type has no ``pydanticai`` prefix, so only resolving its hook class lets it through.
+            assert module_name in sys.modules
+        finally:
+            sys.modules.pop(module_name, None)
+
+        Connection.get_hook.assert_called_once_with(
+            registry.conns["llm"], hook_params={"model_id": "openai:gpt-5"}
+        )
+
+    def test_leaves_an_unregistered_connection_type_to_connection_get_hook(self, registry):
+        """``Connection.get_hook`` raises for it with a hint about the '-'/'_' spelling."""
+        registry.add("llm", conn_type="pydanticai-azure")
+
+        PydanticAIHook.get_hook("llm")
+
+        Connection.get_hook.assert_called_once_with(registry.conns["llm"], hook_params=None)
+
+    @pytest.mark.parametrize(
+        ("conn_type", "hook_class"),
+        [
+            (connection_type["connection-type"], import_string(connection_type["hook-class-name"]))
+            for connection_type in get_provider_info()["connection-types"]
+            if connection_type["connection-type"].startswith("pydanticai")
+        ],
+    )
+    def test_accepts_every_pydanticai_connection_type(self, registry, conn_type, hook_class):
+        registry.add("llm", conn_type=conn_type, hook_class=hook_class)
+
+        hook = PydanticAIHook.get_hook("llm")
+
+        assert type(hook) is hook_class
+        Connection.get_hook.assert_called_once_with(registry.conns["llm"], hook_params=None)
 
 
 class _InferModelStub:
@@ -862,7 +986,7 @@ class TestPydanticAIHookFallback:
         """``Connection.get_hook`` dispatches on conn_type alone and can return anything."""
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
         registry.add("wrong_type", conn_type="langchain")
-        registry.hook_classes["wrong_type"] = MagicMock  # type: ignore[assignment]
+        registry.hook_classes["wrong_type"] = MagicMock
 
         hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["wrong_type"])
         with pytest.raises(ValueError, match="not a PydanticAIHook"):
@@ -1152,6 +1276,7 @@ class TestPydanticAIHookCreateAgent:
             mock_model,
             output_type=str,
             instructions="You are a helpful assistant.",
+            capabilities=[MaskingCapability()],
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1177,7 +1302,59 @@ class TestPydanticAIHookCreateAgent:
             output_type=dict,
             instructions="Be helpful.",
             retries=3,
+            capabilities=[MaskingCapability()],
         )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent", autospec=True)
+    def test_create_agent_adds_masking_after_the_callers_capabilities(self, mock_agent_cls, mock_infer_model):
+        """Last, so it is innermost among capabilities that also ask to be."""
+        mock_infer_model.return_value = MagicMock(spec=Model)
+        callers = [MagicMock(spec=AbstractCapability)]
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn):
+            hook.create_agent(instructions="hi", capabilities=callers)
+
+        assert mock_agent_cls.call_args.kwargs["capabilities"] == [*callers, MaskingCapability()]
+        assert len(callers) == 1
+
+    @pytest.mark.enable_redact
+    def test_create_agent_masks_what_a_tool_returns(self, registered_secret):
+        """Operators other than AgentOperator pass agent_params tools straight to create_agent."""
+
+        def read_setting() -> str:
+            return f"api key: {registered_secret}"
+
+        def call_then_echo(messages, info):
+            returns = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            if returns:
+                return ModelResponse(parts=[TextPart(content=str(returns[-1].content))])
+            return ModelResponse(parts=[ToolCallPart(tool_name="read_setting", args={}, tool_call_id="c1")])
+
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        with patch.object(hook, "get_conn", autospec=True, return_value=FunctionModel(call_then_echo)):
+            agent = hook.create_agent(instructions="hi", tools=[read_setting])
+
+        assert agent.run_sync("hi").output == "api key: ***"
+
+    def test_agent_run_from_a_coding_agent_shell_prints_no_banner(self, monkeypatch, capsys):
+        """pydantic-ai shows its first-run banner to a coding agent; a task's stderr goes to the task log."""
+        # The banner, and the module holding its once-per-process claim, arrived in pydantic-ai 2.43.
+        pydantic_ai_display = pytest.importorskip("pydantic_ai._display")
+        monkeypatch.setenv("CLAUDECODE", "1")
+        # pydantic-ai suppresses the banner by itself under pytest and in CI.
+        monkeypatch.delenv("PYTEST_VERSION", raising=False)
+        monkeypatch.delenv("CI", raising=False)
+        monkeypatch.delenv("PYDANTIC_AI_NO_BANNER", raising=False)
+        monkeypatch.setattr(pydantic_ai_display, "_banner_displayed", False)
+
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        with patch.object(hook, "get_conn", autospec=True, return_value=TestModel()):
+            agent = hook.create_agent(instructions="hi")
+        agent.run_sync("hi")
+
+        assert capsys.readouterr().err == ""
 
     def test_create_agent_without_instructions_or_spec_file_raises(self):
         hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
@@ -1200,6 +1377,7 @@ class TestPydanticAIHookCreateAgent:
             "/path/to/agent.yaml",
             model=mock_model,
             output_type=str,
+            capabilities=[MaskingCapability()],
         )
         mock_agent_cls.assert_not_called()
 
@@ -1218,6 +1396,7 @@ class TestPydanticAIHookCreateAgent:
         mock_agent_cls.from_file.assert_called_once_with(
             "/path/to/agent.yaml",
             output_type=str,
+            capabilities=[MaskingCapability()],
         )
         mock_agent_cls.assert_not_called()
 
@@ -1256,6 +1435,7 @@ class TestPydanticAIHookCreateAgent:
             spec_path,
             model=mock_model,
             output_type=str,
+            capabilities=[MaskingCapability()],
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1280,6 +1460,7 @@ class TestPydanticAIHookCreateAgent:
             model=mock_model,
             output_type=str,
             instructions="Override instructions.",
+            capabilities=[MaskingCapability()],
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1298,6 +1479,7 @@ class TestPydanticAIHookCreateAgent:
             "/path/to/agent.yaml",
             model=mock_model,
             output_type=dict,
+            capabilities=[MaskingCapability()],
         )
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
@@ -1322,6 +1504,7 @@ class TestPydanticAIHookCreateAgent:
             output_type=str,
             retries=5,
             end_strategy="early",
+            capabilities=[MaskingCapability()],
         )
 
 
@@ -1372,6 +1555,7 @@ class TestPydanticAIHookCreateAgentInstrumentation:
             mock_model,
             output_type=str,
             instructions="hi",
+            capabilities=[MaskingCapability()],
         )
         assert agent.instrument is False
         mock_settings.assert_not_called()
@@ -1437,9 +1621,6 @@ class TestPydanticAIAzureHook:
 
     def test_conn_type(self):
         assert PydanticAIAzureHook.conn_type == "pydanticai_azure"
-
-    def test_hook_name(self):
-        assert "Azure" in PydanticAIAzureHook.hook_name
 
     def test_ui_metadata(self):
         expected_placeholders = {
@@ -1571,9 +1752,6 @@ class TestPydanticAIBedrockHook:
     def test_conn_type(self):
         assert PydanticAIBedrockHook.conn_type == "pydanticai_bedrock"
 
-    def test_hook_name(self):
-        assert "Bedrock" in PydanticAIBedrockHook.hook_name
-
     def test_ui_hides_host_and_password(self):
         behaviour = PydanticAIBedrockHook.get_ui_field_behaviour()
         assert "host" in behaviour["hidden_fields"]
@@ -1700,9 +1878,6 @@ class TestPydanticAIVertexHook:
 
     def test_conn_type(self):
         assert PydanticAIVertexHook.conn_type == "pydanticai_vertex"
-
-    def test_hook_name(self):
-        assert "Vertex" in PydanticAIVertexHook.hook_name
 
     def test_ui_hides_host_and_password(self):
         behaviour = PydanticAIVertexHook.get_ui_field_behaviour()

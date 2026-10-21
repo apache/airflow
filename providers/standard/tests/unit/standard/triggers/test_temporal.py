@@ -40,6 +40,11 @@ def test_input_validation():
         DateTimeTrigger("2012-01-01T03:03:03+00:00")
 
 
+def test_input_exactly_one_time():
+    with pytest.raises(TypeError, match="DateTimeTrigger requires exactly one of 'moment' or 'target_time'"):
+        DateTimeTrigger(moment="2012-01-01T03:03:03+00:00", target_time="2012-01-01T03:03:03+00:00")
+
+
 def test_input_validation_tz():
     """
     Tests that the DateTimeTrigger validates input to moment arg, it shouldn't accept naive datetime.
@@ -48,6 +53,37 @@ def test_input_validation_tz():
     moment = datetime.datetime(2013, 3, 31, 0, 59, 59)
     with pytest.raises(ValueError, match="You cannot pass naive datetimes"):
         DateTimeTrigger(moment)
+
+
+def test_target_time_resolves_to_utc_moment():
+    """
+    Tests that target_time as a naive or aware string or datetime resolves to a UTC moment
+    """
+
+    target_time = datetime.datetime(2020, 1, 1, 0, 0, 0)
+
+    assert DateTimeTrigger(target_time=target_time).moment == datetime.datetime(
+        2020, 1, 1, 0, 0, 0, tzinfo=datetime.UTC
+    )
+
+    tz = datetime.timezone(datetime.timedelta(hours=-2))
+    target_time = datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=tz)
+
+    assert DateTimeTrigger(target_time=target_time).moment == datetime.datetime(
+        2020, 1, 1, 2, 0, 0, tzinfo=datetime.UTC
+    )
+
+    target_time = "2020-01-01T00:00:00"
+
+    assert DateTimeTrigger(target_time=target_time).moment == datetime.datetime(
+        2020, 1, 1, 0, 0, 0, tzinfo=datetime.UTC
+    )
+
+    target_time = "2020-01-01T00:00:00-02:00"
+
+    assert DateTimeTrigger(target_time=target_time).moment == datetime.datetime(
+        2020, 1, 1, 2, 0, 0, tzinfo=datetime.UTC
+    )
 
 
 def test_datetime_trigger_serialization():
@@ -60,6 +96,12 @@ def test_datetime_trigger_serialization():
     classpath, kwargs = trigger.serialize()
     assert classpath == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
     assert kwargs == {"moment": moment, "end_from_trigger": False}
+
+    moment = pendulum.instance(datetime.datetime(2020, 4, 1, 13, 0), pendulum.UTC)
+    trigger = DateTimeTrigger(target_time=moment)
+    classpath, kwargs = trigger.serialize()
+    assert classpath == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
+    assert kwargs == {"target_time": moment, "end_from_trigger": False}
 
 
 def test_timedelta_trigger_serialization():

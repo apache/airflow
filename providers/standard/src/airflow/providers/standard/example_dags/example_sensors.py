@@ -63,20 +63,18 @@ with DAG(
     # [END example_time_delta_sensor_async]
 
     # [START example_time_sensors]
-    t1 = TimeSensor(
-        task_id="fire_immediately", target_time=datetime.datetime.now(tz=datetime.timezone.utc).time()
-    )
+    t1 = TimeSensor(task_id="fire_immediately", target_time=datetime.datetime.now(tz=datetime.UTC).time())
 
     t2 = TimeSensor(
         task_id="timeout_after_second_date_in_the_future",
         timeout=1,
         soft_fail=True,
-        target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
+        target_time=(datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(hours=1)).time(),
     )
 
     t1a = TimeSensor(
         task_id="fire_immediately_async",
-        target_time=datetime.datetime.now(tz=datetime.timezone.utc).time(),
+        target_time=datetime.datetime.now(tz=datetime.UTC).time(),
         deferrable=True,
     )
 
@@ -84,7 +82,7 @@ with DAG(
         task_id="timeout_after_second_date_in_the_future_async",
         timeout=1,
         soft_fail=True,
-        target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
+        target_time=(datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(hours=1)).time(),
         deferrable=True,
     )
     # [END example_time_sensors]

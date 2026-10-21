@@ -120,6 +120,12 @@ The method returns a ``(command, subprocess_schema_version)`` pair:
   subprocess understands, used by the supervisor to negotiate message formats
   across SDK versions. See `Supervisor Schema`_ below.
 
+Call ``self._get_scan_roots()`` to retrieve the artifact directories the base
+class has already resolved: the Dag bundle named by ``task_handler_bundle_name``,
+or the task's own Dag bundle when it is unset, pinned for the whole task.
+Subclasses should scan those directories rather than locating artifacts
+themselves.
+
 Supervisor Schema
 ~~~~~~~~~~~~~~~~~
 
@@ -287,13 +293,21 @@ is a structlog-style event:
 
 .. code-block:: text
 
-    {"event": "Starting extraction", "level": "info", "logger": "com.example.SalesPipeline", "timestamp": "2026-06-22T12:00:00", "rows": 42}
+    {"event": "Starting extraction", "level": "info", "logger": "com.example.SalesPipeline", "timestamp": "2026-06-22T12:00:00Z", "rows": 42}
 
 * ``event`` is the log message.
 * ``level`` is the level **name** in lower case. The following levels are
   supported: ``critical``, ``error``, ``warning``, ``info``, ``debug``, and
   ``notset``. A line carrying any other level is dropped.
-* ``timestamp`` is an ISO-8601 timestamp.
+* ``timestamp`` is an RFC 3339 timestamp with a UTC offset, such as
+  ``2026-06-22T12:00:00Z``. Airflow assumes that a timestamp without an offset
+  is in the time zone set by ``[core] default_timezone``, which is UTC by
+  default. If the worker's time zone differs from that setting, records without
+  an offset show the wrong time and appear out of order in the task log.
+  Include the seconds even when they are zero. The supervisor cannot parse a
+  timestamp without seconds, such as ``2026-06-22T12:00``. It moves that value
+  to an ``invalid_timestamp`` field and uses the time it received the record
+  instead.
 * Any remaining keys are forwarded as structured fields on the log record.
 
 See Python documentation on logging for details on log levels. Since log level

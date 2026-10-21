@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
@@ -36,15 +36,15 @@ def _make_task_instance():
         task_id="task_id",
         try_number=1,
         map_index=-1,
-        logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        logical_date=datetime(2024, 1, 1, tzinfo=UTC),
     )
     dag_run = mock.MagicMock(
-        logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        logical_date=datetime(2024, 1, 1, tzinfo=UTC),
         clear_number=0,
-        run_after=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        run_after=datetime(2024, 1, 1, tzinfo=UTC),
         conf={},
-        data_interval_start=datetime(2024, 1, 1, tzinfo=timezone.utc),
-        data_interval_end=datetime(2024, 1, 2, tzinfo=timezone.utc),
+        data_interval_start=datetime(2024, 1, 1, tzinfo=UTC),
+        data_interval_end=datetime(2024, 1, 2, tzinfo=UTC),
     )
     task = mock.MagicMock(
         owner="alice,bob", doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None
