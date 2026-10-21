@@ -1085,7 +1085,11 @@ def _should_remove_volume(
     # The build cache holds no state, so it outlives the project until it is asked for explicitly.
     # A deleted worktree will never use its cache again.
     return cleanup_build_cache or (
-        not preserve_volumes and _worktree_is_missing(labels.get("org.apache.airflow.breeze.worktree", ""))
+        not preserve_volumes
+        and _belongs_to_deleted_worktree(
+            labels.get("org.apache.airflow.breeze.worktree", ""),
+            labels.get("org.apache.airflow.breeze.host", ""),
+        )
     )
 
 

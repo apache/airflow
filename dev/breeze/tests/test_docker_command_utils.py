@@ -803,6 +803,27 @@ def test_down_keeps_build_cache_volume_until_asked(
     assert removals == ([["docker", "volume", "rm", *expected]] if expected else [])
 
 
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_id", autospec=True, return_value="this-host")
+def test_down_keeps_build_cache_volume_of_another_host(_host_id, docker_resources, tmp_path):
+    resources, run = docker_resources
+    resources["volume"] = [
+        {
+            "Name": "remote-cache",
+            "Labels": {
+                "com.docker.compose.project": "breeze-remote",
+                "com.docker.compose.volume": BUILD_CACHE_VOLUME,
+                "org.apache.airflow.breeze": "true",
+                "org.apache.airflow.breeze.worktree": str(tmp_path / "remote"),
+                "org.apache.airflow.breeze.host": "other-host",
+            },
+        },
+    ]
+
+    docker_command_utils.bring_compose_projects_down(all_worktrees=True)
+
+    assert [c.args[0] for c in run.call_args_list if c.args[0][2] == "rm"] == []
+
+
 @pytest.mark.parametrize("failed_action", ["ls", "inspect", "stop", "rm"])
 def test_startup_cleanup_continues_after_docker_failures(docker_resources, tmp_path, capsys, failed_action):
     resources, run = docker_resources
