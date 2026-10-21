@@ -255,6 +255,11 @@ You can optionally provide a list of tables to perform deletes on with ``--table
   so a ``--clean-before-timestamp`` in the past never removes a delivery inside its retention, while one in
   the future does. A sender's retry of a delivery whose record was removed is processed again.
 
+  The ``inbound_wait`` table, which holds the webhook waits of tasks, is cleaned by its ``deadline`` column,
+  so a wait is kept until its deadline however long ago it was registered. ``--dag-ids`` and
+  ``--exclude-dag-ids`` select waits by the Dag of their task instance. Cleaning ``task_instance`` or
+  ``dag_run`` archives the waits of the task instances it removes.
+
 You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list).
 
 .. warning::

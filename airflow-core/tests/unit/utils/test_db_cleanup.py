@@ -55,6 +55,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.inbound_delivery import InboundDelivery
+from airflow.models.inbound_wait import InboundWait
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskreschedule import TaskReschedule
@@ -2042,6 +2043,95 @@ class TestInboundDeliveryCleanup:
 
         with create_session() as session:
             assert session.scalars(select(InboundDelivery.delivery_id)).all() == ["retained"]
+
+
+class TestInboundWaitCleanup:
+    @staticmethod
+    def add_wait(session, *, webhook: str, deadline) -> None:
+        session.add(
+            InboundWait(
+                ti_id=CURRENT_ID,
+                webhook=webhook,
+                events=None,
+                match={},
+                key_digest="0" * 64,
+                match_digest="0" * 64,
+                deadline=deadline,
+                created_at=NOW - timedelta(days=100),
+            )
+        )
+        session.commit()
+
+    def test_waits_are_kept_until_their_deadline(self, ownership_session):
+        session = ownership_session
+        self.add_wait(session, webhook="expired", deadline=NOW - timedelta(days=1))
+        self.add_wait(session, webhook="waiting", deadline=NOW + timedelta(days=1))
+
+        _cleanup_table(
+            **config_dict["inbound_wait"].__dict__,
+            clean_before_timestamp=NOW,
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+            skip_archive=True,
+            session=session,
+        )
+
+        assert session.scalars(select(InboundWait.webhook)).all() == ["waiting"]
+
+    @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids", "expected_remaining"),
+        [
+            pytest.param(["ownership"], None, [], id="include-its-dag"),
+            pytest.param(["other"], None, ["expired"], id="include-another-dag"),
+            pytest.param(None, ["ownership"], ["expired"], id="exclude-its-dag"),
+        ],
+    )
+    def test_dag_filters_scope_waits_through_their_task_instance(
+        self, ownership_session, dag_ids, exclude_dag_ids, expected_remaining
+    ):
+        session = ownership_session
+        self.add_wait(session, webhook="expired", deadline=NOW - timedelta(days=1))
+
+        _cleanup_table(
+            **config_dict["inbound_wait"].__dict__,
+            clean_before_timestamp=NOW,
+            dag_ids=dag_ids,
+            exclude_dag_ids=exclude_dag_ids,
+            dry_run=False,
+            verbose=False,
+            confirm=False,
+            skip_archive=True,
+            session=session,
+        )
+
+        assert session.scalars(select(InboundWait.webhook)).all() == expected_remaining
+
+    @pytest.mark.parametrize("parent", ["task_instance", "dag_run"])
+    @pytest.mark.execution_timeout(10)
+    def test_cleaning_a_task_instance_archives_its_waits(self, ownership_session, parent):
+        session = ownership_session
+        session.execute(
+            sa.update(TaskInstance).values(start_date=NOW).execution_options(include_all_attempts=True)
+        )
+        self.add_wait(session, webhook="github", deadline=NOW + timedelta(days=30))
+
+        run_cleanup(
+            clean_before_timestamp=NOW + timedelta(days=1),
+            table_names=[parent],
+            confirm=False,
+            session=session,
+            error_on_cleanup_failure=True,
+        )
+
+        assert session.scalar(select(func.count()).select_from(InboundWait)) == 0
+        archived = [
+            row.webhook
+            for archive in _get_archived_table_names([parent], session)
+            if archive.startswith(f"{ARCHIVE_TABLE_PREFIX}inbound_wait__")
+            for row in session.execute(sa.text(f"SELECT webhook FROM {archive}"))
+        ]
+        assert archived == ["github"]
 
 
 class TestCallbackCleanupConfig:
