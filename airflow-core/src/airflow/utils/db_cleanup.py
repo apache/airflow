@@ -233,7 +233,7 @@ config_list: list[_TableConfig] = [
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
-        dependent_tables=["task_instance", "task_state_store", "deadline"],
+        dependent_tables=["task_instance", "task_state_store", "deadline", "callback"],
     ),
     # asset_event has never had a dag_id; the producing Dag is source_dag_id, and it is NULL for
     # events that no task produced (an API-created event, or a watcher).
