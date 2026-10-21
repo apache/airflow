@@ -26,7 +26,7 @@ import { FiPlay } from "react-icons/fi";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
 
-import { Alert, RadioCardItem, RadioCardRoot } from "src/system-components";
+import { RadioCardItem, RadioCardRoot } from "src/system-components";
 
 import { useTimezone } from "src/context/timezone";
 import { useDagParams } from "src/queries/useDagParams";
@@ -226,13 +226,13 @@ const TriggerDAGForm = ({
                   </Stack>
                   <Stack css={{ flexBasis: "70%" }}>
                     <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
+                    {outsideDagDatesWarning === undefined ? undefined : (
+                      <Field.HelperText color="fg.warning">{outsideDagDatesWarning}</Field.HelperText>
+                    )}
                   </Stack>
                 </Field.Root>
               )}
             />
-            {outsideDagDatesWarning === undefined ? undefined : (
-              <Alert status="warning">{outsideDagDatesWarning}</Alert>
-            )}
             <Spacer />
             {hasSchedule ? (
               <Box>
