@@ -129,9 +129,9 @@ data class Context(
   /** Registration of the executing task; resolves wired data inputs. */
   internal var taskDef: TaskDef? = null
 
-  // The value is read once, when the context is made. A context that read Cancellation.running on
-  // every call would stop seeing the stop request once the server sets the field back to null, for
-  // example in a shutdown hook.
+  // The value is read once, when the context is made. The server sets Cancellation.running back to
+  // null once it is done with the task, so a context that read the field on every call would stop
+  // seeing the stop request in code that runs after that, such as a JVM shutdown hook.
   private val cancellation = Cancellation.current()
 
   /**
