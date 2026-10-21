@@ -82,7 +82,6 @@ def start_scheduler(capture_output: bool = False):
         "api-server",
         "--port",
         "8080",
-        "--daemon",
     ]
 
     scheduler_process = subprocess.Popen(
