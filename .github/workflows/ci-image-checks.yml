@@ -312,7 +312,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@f1a487181effd0b216892001abdfb524442bb24d  # save/v1.0.1
+        uses: apache/infrastructure-actions/stash/save@7d3afde57801d8c9a2db9730c28ae4e036cc2ab9  # save/v1.0.2
         with:
           path: ./generated/_inventory_cache/
           key: cache-docs-inventory-v1

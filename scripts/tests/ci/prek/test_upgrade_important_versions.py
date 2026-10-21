@@ -308,7 +308,12 @@ def test_python_patchlevel_exits_when_the_catalog_lists_no_tag(monkeypatch):
         pytest.param("pip", False, "26.2.1", id="pip-default-respects-cooldown"),
         pytest.param("uv", True, "0.14.0", id="uv-latest-package-managers-bypasses-cooldown"),
         pytest.param("uv", False, "0.13.1", id="uv-default-respects-cooldown"),
-        pytest.param("rich", True, "13.6.0", id="non-package-manager-respects-cooldown-even-with-latest-package-managers"),
+        pytest.param(
+            "rich",
+            True,
+            "13.6.0",
+            id="non-package-manager-respects-cooldown-even-with-latest-package-managers",
+        ),
     ],
 )
 def test_get_latest_pypi_version_latest_package_managers(
