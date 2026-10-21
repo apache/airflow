@@ -389,6 +389,12 @@ This allows the child job to maintain the complete job hierarchy, especially in 
         },
     )
 
+The job type macros return a dictionary with the ``processingType``, ``integration`` and ``jobType`` fields of the
+``JobTypeJobFacet``. When a Dag run is triggered with these values in its ``openlineage`` conf (``parentJobType``
+and ``rootParentJobType``, as injected by ``TriggerDagRunOperator``), they are added as the ``jobType`` facet of the
+parent and root jobs in the ``ParentRunFacet``. Only complete job type information is supported - a value
+missing any of the three fields is ignored.
+
 Joined identifiers
 ^^^^^^^^^^^^^^^^^^^
 

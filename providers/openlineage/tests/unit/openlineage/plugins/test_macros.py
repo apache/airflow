@@ -453,6 +453,21 @@ _DAG_TYPE = {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "DA
         ),
         pytest.param({"openlineage": _PARENT_ID}, None, id="parent-as-root-without-type"),
         pytest.param(
+            {"openlineage": {**_ROOT_ID, "rootParentJobType": {"processingType": "STREAMING"}}},
+            None,
+            id="root-with-partial-type",
+        ),
+        pytest.param(
+            {
+                "openlineage": {
+                    **_PARENT_ID,
+                    "parentJobType": {"processingType": "BATCH", "integration": "SPARK"},
+                }
+            },
+            None,
+            id="parent-as-root-with-partial-type",
+        ),
+        pytest.param(
             {
                 "openlineage": {
                     **_ROOT_ID,
