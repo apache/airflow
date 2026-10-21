@@ -12,9 +12,11 @@
       "inFlight": "In flight",
       "unknown": "Unknown"
     },
+    "failedTasksOnly": "Failed Tasks Only",
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
+    "newTasksOnly": "New Tasks Only",
     "notCreatedReason": "Not Created Reason",
     "overrideExistingParams": "Override parameters on existing runs",
     "partitionRange": "Partition Range",
