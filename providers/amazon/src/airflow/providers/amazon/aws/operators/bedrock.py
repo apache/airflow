@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockAgentRuntimeDeletedTrigger,
     BedrockAgentRuntimeReadyTrigger,
     BedrockBatchInferenceCompletedTrigger,
+    BedrockBatchInferenceScheduledTrigger,
     BedrockCustomizeModelCompletedTrigger,
     BedrockIngestionJobTrigger,
     BedrockKnowledgeBaseActiveTrigger,
@@ -47,6 +48,7 @@ from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.triggers.bedrock import BedrockBaseBatchInferenceTrigger
     from airflow.sdk import Context
 
 
@@ -1239,12 +1241,15 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
     :param output_uri: The S3 location of the output data. (templated)
     :param invoke_kwargs: Additional keyword arguments to pass to the  API call. (templated)
 
-    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param wait_for_completion: Whether to wait for the job to reach ``success_state``. (default: True)
         NOTE:  The way batch inference jobs work, your jobs are added to a queue and done "eventually"
         so using deferrable mode is much more practical than using wait_for_completion.
+    :param success_state: The job state to wait for, either ``"completed"`` or ``"scheduled"``. Use
+        ``"scheduled"`` to stop waiting once Bedrock has queued the job. Accepts the
+        ``BedrockBatchInferenceSensor.SuccessState`` values. (default: "completed")
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
-    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
+    :param deferrable: If True, the operator will wait asynchronously for the job to reach ``success_state``.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -1268,6 +1273,10 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         "output_uri",
         "invoke_kwargs",
     )
+    _WAITERS: dict[str, tuple[str, type[BedrockBaseBatchInferenceTrigger]]] = {
+        "completed": ("batch_inference_complete", BedrockBatchInferenceCompletedTrigger),
+        "scheduled": ("batch_inference_scheduled", BedrockBatchInferenceScheduledTrigger),
+    }
 
     def __init__(
         self,
@@ -1278,6 +1287,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         output_uri: str,
         invoke_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
+        success_state: str = "completed",
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -1291,7 +1301,11 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         self.output_uri = output_uri
         self.invoke_kwargs = invoke_kwargs or {}
 
+        if success_state not in self._WAITERS:
+            raise ValueError(f"success_state must be one of {list(self._WAITERS)}, got {success_state!r}.")
+
         self.wait_for_completion = wait_for_completion
+        self.success_state = success_state
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
@@ -1304,7 +1318,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running {self.activity}: {validated_event}")
 
-        self.log.info("%s '%s' complete.", self.activity, validated_event["job_arn"])
+        self.log.info("%s '%s' is %s.", self.activity, validated_event["job_arn"], self.success_state)
 
         return validated_event["job_arn"]
 
@@ -1320,11 +1334,12 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         job_arn = response["jobArn"]
         self.log.info("%s '%s' started with ARN: %s", self.activity, self.job_name, job_arn)
 
-        task_description = f"for {self.activity} '{self.job_name}' to complete."
+        waiter_name, trigger_class = self._WAITERS[self.success_state]
+        task_description = f"for {self.activity} '{self.job_name}' to be {self.success_state}."
         if self.deferrable:
             self.log.info("Deferring %s", task_description)
             self.defer(
-                trigger=BedrockBatchInferenceCompletedTrigger(
+                trigger=trigger_class(
                     job_arn=job_arn,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1337,7 +1352,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
             )
         elif self.wait_for_completion:
             self.log.info("Waiting %s", task_description)
-            self.hook.get_waiter(waiter_name="batch_inference_complete").wait(
+            self.hook.get_waiter(waiter_name=waiter_name).wait(
                 jobIdentifier=job_arn,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )

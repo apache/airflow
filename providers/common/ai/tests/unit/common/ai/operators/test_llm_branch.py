@@ -1217,7 +1217,7 @@ class TestLLMBranchOperatorApproval:
 
         op = LLMBranchOperator(
             task_id="test",
-            prompt=["describe", b"bytes"],  # type: ignore[arg-type]
+            prompt=["describe", b"bytes"],
             llm_conn_id="my_llm",
             require_approval=True,
         )

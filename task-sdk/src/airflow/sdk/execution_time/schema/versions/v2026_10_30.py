@@ -135,3 +135,17 @@ class AddRegionToGetXCom(VersionChange):
         schema(GetXCom).field("region_id").didnt_exist,
         schema(GetXCom).field("region_index").didnt_exist,
     )
+
+
+class AddExpandedTICountToSupervisorTIRunContext(VersionChange):
+    """
+    Add ``expanded_ti_count``, the size of the mapped expansion a task instance belongs to.
+
+    The supervisor-schema mirror of the execution API's ``AddExpandedTICountToTIRunContext``.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRunContext).field("expanded_ti_count").didnt_exist,
+    )

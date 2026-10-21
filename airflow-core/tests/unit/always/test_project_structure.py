@@ -58,8 +58,8 @@ class TestProjectStructure:
         """
         Assert every module in /providers/ has a corresponding test_ file in providers/providers.
         """
-        # The test below had a but for quite a while and we missed a lot of modules to have tess
-        # We should make sure that one goes to 0
+        # A long-standing bug in the test below allowed modules without tests to go undetected.
+        # This list tracks those modules and should shrink to zero as tests are added.
         OVERLOOKED_TESTS = [
             "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
@@ -90,24 +90,8 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/test_security_appless.py",
             "providers/fab/tests/unit/fab/www/test_security_manager.py",
             "providers/fab/tests/unit/fab/www/test_session.py",
-            "providers/google/tests/unit/google/cloud/links/test_bigquery_dts.py",
-            "providers/google/tests/unit/google/cloud/links/test_bigtable.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_build.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
-            "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
-            "providers/google/tests/unit/google/cloud/links/test_compute.py",
-            "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataflow.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataform.py",
-            "providers/google/tests/unit/google/cloud/links/test_datafusion.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataprep.py",
             "providers/google/tests/unit/google/cloud/links/test_dataproc.py",
-            "providers/google/tests/unit/google/cloud/links/test_datastore.py",
             "providers/google/tests/unit/google/cloud/links/test_kubernetes_engine.py",
-            "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
-            "providers/google/tests/unit/google/cloud/links/test_spanner.py",
-            "providers/google/tests/unit/google/cloud/links/test_workflows.py",
             "providers/google/tests/unit/google/cloud/links/test_translate.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_auto_ml.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_batch_prediction_job.py",
@@ -124,6 +108,28 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/utils/test_bigquery_get_data.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
+        ]
+        # Deliberately untested: link modules whose tests would only assert constants.
+        # Remove an entry once its module gains logic worth testing.
+        EXEMPTED_TESTS = [
+            "providers/google/tests/unit/google/cloud/links/test_alloy_db.py",
+            "providers/google/tests/unit/google/cloud/links/test_bigquery_dts.py",
+            "providers/google/tests/unit/google/cloud/links/test_bigtable.py",
+            "providers/google/tests/unit/google/cloud/links/test_cloud_build.py",
+            "providers/google/tests/unit/google/cloud/links/test_cloud_functions.py",
+            "providers/google/tests/unit/google/cloud/links/test_cloud_memorystore.py",
+            "providers/google/tests/unit/google/cloud/links/test_cloud_sql.py",
+            "providers/google/tests/unit/google/cloud/links/test_compute.py",
+            "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
+            "providers/google/tests/unit/google/cloud/links/test_dataflow.py",
+            "providers/google/tests/unit/google/cloud/links/test_dataform.py",
+            "providers/google/tests/unit/google/cloud/links/test_datafusion.py",
+            "providers/google/tests/unit/google/cloud/links/test_dataprep.py",
+            "providers/google/tests/unit/google/cloud/links/test_datastore.py",
+            "providers/google/tests/unit/google/cloud/links/test_managed_kafka.py",
+            "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
+            "providers/google/tests/unit/google/cloud/links/test_spanner.py",
+            "providers/google/tests/unit/google/cloud/links/test_workflows.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")
@@ -170,12 +176,18 @@ class TestProjectStructure:
             ]
         )
         overlooked_test_files = {pathlib.Path(test_file) for test_file in OVERLOOKED_TESTS}
+        exempted_test_files = {pathlib.Path(test_file) for test_file in EXEMPTED_TESTS}
         stale_overlooked_tests = overlooked_test_files - expected_test_files
         assert not stale_overlooked_tests, (
             "Detected stale provider test exemptions without corresponding provider modules - "
             f"please remove them from OVERLOOKED_TESTS: {sorted(stale_overlooked_tests)}"
         )
-        expected_test_files -= overlooked_test_files
+        stale_exempted_tests = exempted_test_files - expected_test_files
+        assert not stale_exempted_tests, (
+            "Detected stale provider test exemptions without corresponding provider modules - "
+            f"please remove them from EXEMPTED_TESTS: {sorted(stale_exempted_tests)}"
+        )
+        expected_test_files -= overlooked_test_files | exempted_test_files
 
         missing_tests_files = [
             file.as_posix()
@@ -188,6 +200,11 @@ class TestProjectStructure:
         assert set() == added_test_files, (
             "Detect added tests in providers module - please remove the tests "
             "from OVERLOOKED_TESTS list above"
+        )
+        added_exempted_test_files = current_test_files.intersection(exempted_test_files)
+        assert set() == added_exempted_test_files, (
+            "Detect added tests in providers module - please remove the tests "
+            f"from EXEMPTED_TESTS list above: {sorted(added_exempted_test_files)}"
         )
 
 
@@ -494,6 +511,8 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
 
     BASE_CLASSES = {
         "airflow.providers.amazon.aws.operators.base_aws.AwsBaseOperator",
+        # Compatibility fallback for EksPodExecOperator, not a standalone Amazon operator.
+        "airflow.providers.amazon.aws.operators.eks.KubernetesPodExecOperator",
         "airflow.providers.amazon.aws.operators.glue_crawler._GlueCrawlerBaseOperator",
         "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",

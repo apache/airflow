@@ -3267,42 +3267,6 @@
       "title": "LazyDeserializedDAG",
       "type": "object"
     },
-    "LoopContext": {
-      "description": "Pinned loop definition and enclosing iteration for a task execution.",
-      "properties": {
-        "node_id": {
-          "title": "Node Id",
-          "type": "string"
-        },
-        "index": {
-          "minimum": 0,
-          "title": "Index",
-          "type": "integer"
-        },
-        "max_iterations": {
-          "exclusiveMinimum": 0,
-          "title": "Max Iterations",
-          "type": "integer"
-        },
-        "terminal_task_id": {
-          "title": "Terminal Task Id",
-          "type": "string"
-        },
-        "terminal_is_mapped": {
-          "title": "Terminal Is Mapped",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "node_id",
-        "index",
-        "max_iterations",
-        "terminal_task_id",
-        "terminal_is_mapped"
-      ],
-      "title": "LoopContext",
-      "type": "object"
-    },
     "LoopDecisionPayload": {
       "additionalProperties": false,
       "description": "A loop gate's evaluation of its ``until`` callable.",
@@ -5278,6 +5242,63 @@
       "title": "DagRun",
       "type": "object"
     },
+    "LoopContext": {
+      "description": "Pinned loop definition and enclosing iteration for a task execution.",
+      "properties": {
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "index": {
+          "minimum": 1,
+          "title": "Index",
+          "type": "integer"
+        },
+        "max_iterations": {
+          "exclusiveMinimum": 0,
+          "title": "Max Iterations",
+          "type": "integer"
+        },
+        "terminal_task_id": {
+          "title": "Terminal Task Id",
+          "type": "string"
+        },
+        "terminal_is_mapped": {
+          "title": "Terminal Is Mapped",
+          "type": "boolean"
+        },
+        "region_id": {
+          "format": "uuid",
+          "title": "Region Id",
+          "type": "string"
+        },
+        "trajectory": {
+          "minimum": 1,
+          "title": "Trajectory",
+          "type": "integer"
+        },
+        "forked_from_region_id": {
+          "format": "uuid",
+          "title": "Forked From Region Id",
+          "type": "string"
+        },
+        "resumes_from_index": {
+          "title": "Resumes From Index",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "node_id",
+        "index",
+        "max_iterations",
+        "terminal_task_id",
+        "terminal_is_mapped",
+        "region_id",
+        "trajectory"
+      ],
+      "title": "LoopContext",
+      "type": "object"
+    },
     "TIRunContext": {
       "description": "Response schema for TaskInstance run context.",
       "properties": {
@@ -5294,6 +5315,10 @@
             }
           ],
           "default": null
+        },
+        "expanded_ti_count": {
+          "title": "Expanded Ti Count",
+          "type": "integer"
         },
         "task_reschedule_count": {
           "default": 0,

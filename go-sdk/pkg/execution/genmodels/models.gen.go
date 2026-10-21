@@ -1326,6 +1326,10 @@ type LogicalDates []time.Time
 
 // Pinned loop definition and enclosing iteration for a task execution.
 type LoopContext struct {
+	// ForkedFromRegionID corresponds to the JSON schema field
+	// "forked_from_region_id".
+	ForkedFromRegionID *string `msgpack:"forked_from_region_id,omitempty"`
+
 	// Index corresponds to the JSON schema field "index".
 	Index int `msgpack:"index"`
 
@@ -1335,11 +1339,20 @@ type LoopContext struct {
 	// NodeID corresponds to the JSON schema field "node_id".
 	NodeID string `msgpack:"node_id"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID string `msgpack:"region_id"`
+
+	// ResumesFromIndex corresponds to the JSON schema field "resumes_from_index".
+	ResumesFromIndex *int `msgpack:"resumes_from_index,omitempty"`
+
 	// TerminalIsMapped corresponds to the JSON schema field "terminal_is_mapped".
 	TerminalIsMapped bool `msgpack:"terminal_is_mapped"`
 
 	// TerminalTaskID corresponds to the JSON schema field "terminal_task_id".
 	TerminalTaskID string `msgpack:"terminal_task_id"`
+
+	// Trajectory corresponds to the JSON schema field "trajectory".
+	Trajectory int `msgpack:"trajectory"`
 }
 
 // A loop gate's evaluation of its “until“ callable.
@@ -1701,6 +1714,9 @@ type TIRunContext struct {
 
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
+
+	// ExpandedTICount corresponds to the JSON schema field "expanded_ti_count".
+	ExpandedTICount *int `msgpack:"expanded_ti_count,omitempty"`
 
 	// FirstTaskRescheduleStartDate corresponds to the JSON schema field
 	// "first_task_reschedule_start_date".

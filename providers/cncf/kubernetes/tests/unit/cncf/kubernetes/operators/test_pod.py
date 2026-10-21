@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 import re
@@ -46,6 +47,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
     PodLaunchTimeoutException,
     PodLoggingStatus,
+    PodManager,
     PodNotFoundException,
     PodPhase,
 )
@@ -227,6 +229,58 @@ class TestKubernetesPodOperator:
         yield
 
         patch.stopall()
+
+    @mock.patch.object(PodManager, "read_pod_events", autospec=True, side_effect=ApiException(status=504))
+    def test_await_pod_start_ignores_failed_event_watcher(self, mock_read_pod_events):
+        self.watch_pod_events.stop()
+
+        async def _await_pod_start(*_, **__):
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+
+        self.await_start_mock.side_effect = _await_pod_start
+        k = KubernetesPodOperator(task_id="task", name="test", namespace="default")
+        k.await_pod_start(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod", namespace="default")))
+
+        mock_read_pod_events.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("log_events_on_startup", "expected_calls"),
+        [(True, 1), (False, 0)],
+    )
+    def test_await_pod_start_watches_events_only_when_enabled(self, log_events_on_startup, expected_calls):
+        k = KubernetesPodOperator(
+            task_id="task",
+            name="test",
+            namespace="default",
+            log_events_on_startup=log_events_on_startup,
+        )
+        k.await_pod_start(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod", namespace="default")))
+
+        assert self.watch_pod_events_mock.call_count == expected_calls
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"), autospec=True)
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection", autospec=True)
+    @patch(f"{TRIGGER_CLASS}.define_pod_container_state", autospec=True, return_value=ContainerState.RUNNING)
+    def test_invoke_defer_method_passes_log_events_on_startup_to_trigger(
+        self, mock_container_state, mocked_get_connection, mocked_convert_config
+    ):
+        mocked_get_connection.side_effect = AirflowNotFoundException("connection not found")
+        k = KubernetesPodOperator(
+            task_id=TEST_TASK_ID,
+            namespace=TEST_NAMESPACE,
+            image=TEST_IMAGE,
+            name=TEST_NAME,
+            in_cluster=True,
+            deferrable=True,
+            log_events_on_startup=False,
+        )
+        k.pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE))
+
+        with pytest.raises(TaskDeferred) as exc:
+            k.invoke_defer_method()
+
+        assert exc.value.trigger.serialize()[1]["log_events_on_startup"] is False
 
     def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesPodOperator"

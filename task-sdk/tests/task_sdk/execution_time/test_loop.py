@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import re
-import uuid
+from uuid import UUID
 
 import pytest
 
@@ -42,10 +42,13 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.loop import LoopMaxIterationsExceeded
 
+LOOP_REGION_ID = UUID("0199a8c0-0000-7000-8000-000000000001")
+FORKED_REGION_ID = UUID("0199a8c0-0000-7000-8000-000000000002")
+
 
 @pytest.fixture
 def loop_ti(create_runtime_ti):
-    def make(*, index=0, max_iterations=3, until=None, map_index=-1):
+    def make(*, index=1, max_iterations=3, until=None, map_index=-1):
         @task_group
         def body():
             BaseOperator(task_id="terminal")
@@ -59,6 +62,8 @@ def loop_ti(create_runtime_ti):
             max_iterations=max_iterations,
             terminal_task_id=group.terminal_task_id,
             terminal_is_mapped=False,
+            region_id=LOOP_REGION_ID,
+            trajectory=1,
         )
         return ti
 
@@ -69,7 +74,7 @@ def test_first_iteration_previous_does_not_read_xcom(loop_ti, mock_supervisor_co
     ti = loop_ti(map_index=7)
     loop = ti.get_template_context()["loop"]
 
-    assert loop.index == 0
+    assert loop.index == 1
     assert loop.max_iterations == 3
     assert loop.previous is None
     assert ti.map_index == 7
@@ -101,14 +106,62 @@ def test_body_callable_receives_loop_context_after_unmapping(create_runtime_ti, 
         max_iterations=4,
         terminal_task_id=group.terminal_task_id,
         terminal_is_mapped=mapped,
+        region_id=LOOP_REGION_ID,
+        trajectory=1,
     )
 
     assert operator.execute(ti.get_template_context()) == (5, 2, 0 if mapped else -1)
 
 
+def test_task_instance_exposes_the_loop_iteration_and_its_trajectory(loop_ti):
+    ti = loop_ti(index=2)
+    ti._ti_context_from_server.loop = ti._ti_context_from_server.loop.model_copy(
+        update={"trajectory": 2, "forked_from_region_id": FORKED_REGION_ID, "resumes_from_index": 2}
+    )
+
+    loop = ti.loop
+
+    assert loop is not None
+    assert (loop.index, loop.max_iterations) == (2, 3)
+    assert (loop.region_id, loop.trajectory) == (LOOP_REGION_ID, 2)
+    assert (loop.forked_from_region_id, loop.resumes_from_index) == (FORKED_REGION_ID, 2)
+
+
+def test_task_instance_outside_a_loop_has_no_loop(create_runtime_ti):
+    ti = create_runtime_ti(task=BaseOperator(task_id="plain"))
+
+    assert ti.loop is None
+    assert ti.loop_decision is None
+
+
+@pytest.mark.parametrize("expanded_ti_count", [None, 4])
+def test_task_instance_exposes_the_size_of_its_expansion(create_runtime_ti, expanded_ti_count):
+    ti = create_runtime_ti(task=BaseOperator(task_id="mapped"))
+    ti._ti_context_from_server.expanded_ti_count = expanded_ti_count
+
+    assert ti.expanded_ti_count == expanded_ti_count
+
+
+@pytest.mark.parametrize(
+    ("index", "until", "expected"),
+    [
+        (1, lambda: LoopDecision(stop=False, reason="not yet"), LoopDecision(stop=False, reason="not yet")),
+        (3, lambda: True, LoopDecision(stop=True)),
+        (3, lambda: False, LoopDecision(stop=False)),
+    ],
+    ids=["continue", "until_met", "cap_reached"],
+)
+def test_gate_exposes_its_decision(loop_ti, mock_supervisor_comms, index, until, expected):
+    ti = loop_ti(index=index, until=until)
+
+    task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
+
+    assert ti.loop_decision == expected
+
+
 @pytest.mark.parametrize("value", [0, False, [], ""])
 def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_supervisor_comms, value):
-    ti = loop_ti(index=1)
+    ti = loop_ti(index=2)
     mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=value)
     loop = ti.get_template_context()["loop"]
 
@@ -124,31 +177,34 @@ def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_superv
 @pytest.mark.parametrize(
     ("index", "until", "expected"),
     [
-        (0, None, LoopDecisionPayload(stop=False)),
-        (2, None, LoopDecisionPayload(stop=True)),
-        (0, lambda: False, LoopDecisionPayload(stop=False)),
-        (0, lambda: True, LoopDecisionPayload(stop=True)),
-        (2, lambda: True, LoopDecisionPayload(stop=True)),
-        (0, lambda: LoopDecision(stop=True), LoopDecisionPayload(stop=True)),
+        (1, None, LoopDecisionPayload(stop=False)),
+        # max_iterations - 1: a zero-based cap check stops here instead, so this pins the base.
+        (2, None, LoopDecisionPayload(stop=False)),
+        (3, None, LoopDecisionPayload(stop=True)),
+        (1, lambda: False, LoopDecisionPayload(stop=False)),
+        (1, lambda: True, LoopDecisionPayload(stop=True)),
+        (3, lambda: True, LoopDecisionPayload(stop=True)),
+        (1, lambda: LoopDecision(stop=True), LoopDecisionPayload(stop=True)),
         (
-            0,
+            1,
             lambda: LoopDecision(stop=False, reason="score 0.7, needs > 0.9"),
             LoopDecisionPayload(stop=False, reason="score 0.7, needs > 0.9"),
         ),
         (
-            0,
+            1,
             lambda: LoopDecision(stop=True, reason="é" * 256),
             LoopDecisionPayload(stop=True, reason="é" * 256),
         ),
-        (0, lambda: LoopDecision(stop=True, reason=""), LoopDecisionPayload(stop=True)),
+        (1, lambda: LoopDecision(stop=True, reason=""), LoopDecisionPayload(stop=True)),
         (
-            0,
+            1,
             lambda: LoopDecision(stop=True, reason="token hunter2 expired"),
             LoopDecisionPayload(stop=True, reason="token *** expired"),
         ),
     ],
     ids=[
         "fixed_continue",
+        "fixed_continue_below_cap",
         "fixed_stop_at_cap",
         "bool_continue",
         "bool_stop",
@@ -222,7 +278,7 @@ def _raise_value_error():
     ],
 )
 def test_gate_fails_without_a_decision(loop_ti, mock_supervisor_comms, until, error, message):
-    ti = loop_ti(index=0, until=until)
+    ti = loop_ti(index=1, until=until)
 
     state, sent, raised = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
 
@@ -231,6 +287,17 @@ def test_gate_fails_without_a_decision(loop_ti, mock_supervisor_comms, until, er
     assert re.search(message, str(raised))
     assert isinstance(sent, TaskState)
     assert sent.loop_decision is None
+
+
+def test_unmet_condition_before_the_cap_continues_instead_of_failing(loop_ti, mock_supervisor_comms):
+    """The pass before the cap has an iteration left, so a false condition just continues."""
+    ti = loop_ti(index=2, until=lambda: False)
+
+    state, message, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
+
+    assert (state, error) == (TaskInstanceState.SUCCESS, None)
+    assert isinstance(message, SucceedTask)
+    assert message.loop_decision == LoopDecisionPayload(stop=False)
 
 
 @pytest.mark.parametrize(
@@ -248,7 +315,7 @@ def test_gate_fails_without_a_decision(loop_ti, mock_supervisor_comms, until, er
 def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(
     loop_ti, mock_supervisor_comms, result, message, reason
 ):
-    ti = loop_ti(index=2, until=lambda: result)
+    ti = loop_ti(index=3, until=lambda: result)
 
     state, sent, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
 
@@ -271,9 +338,9 @@ async def test_iterated_terminal_keeps_iteration_across_item_reads(
     from airflow.sdk.bases.xcom import XComIterable
     from airflow.sdk.serde import serialize
 
-    ti = loop_ti(index=1)
-    pushed_in = 0 if previous_iteration else 1
-    region_id = uuid.UUID(int=5)
+    ti = loop_ti(index=2)
+    pushed_in = 1 if previous_iteration else 2
+    region_id = UUID(int=5)
     sent = []
 
     def respond(message):
@@ -315,7 +382,7 @@ async def test_iterated_terminal_keeps_iteration_across_item_reads(
 def test_mapped_terminal_keeps_iteration_across_lazy_reads(
     loop_ti, mock_supervisor_comms, previous_iteration, values
 ):
-    ti = loop_ti(index=1)
+    ti = loop_ti(index=2)
     ti._ti_context_from_server.loop.terminal_is_mapped = True
 
     def respond(message):
