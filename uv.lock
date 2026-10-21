@@ -7257,7 +7257,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openlineage"
-version = "2.20.3"
+version = "2.21.0"
 source = { editable = "providers/openlineage" }
 dependencies = [
     { name = "apache-airflow" },

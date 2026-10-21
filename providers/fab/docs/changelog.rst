@@ -34,6 +34,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Bump eslint to 10.13.0 and webpack to 5.112.0 (#75234)``
 * ``Support SQLAlchemy 2.1 typing in permission sorting (#75075)``
 * ``Bump prettier to 3.9.10 (#74765)``
 * ``Bump @babel/core, @babel/eslint-parser and @babel/preset-env to 8.0.7 (#74670)``
@@ -49,6 +50,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
    * ``Require Python 3.11+ for permission doc generators and fail on parse errors (#74654)``
 
 3.10.1

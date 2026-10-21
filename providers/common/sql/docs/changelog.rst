@@ -35,6 +35,7 @@ Features
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
 
 2.3.0
 .....

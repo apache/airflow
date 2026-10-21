@@ -30,6 +30,11 @@ Changelog
 10.25.0
 .......
 
+.. note::
+
+    TCP keepalive settings now apply through the Kubernetes client configuration,
+    including with urllib3 2.x. This release requires ``kubernetes>=36.0.1,<37.0.0``.
+
 Features
 ~~~~~~~~
 
@@ -38,6 +43,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix Kubernetes TCP keepalive not being applied with urllib3 2.x (#74921)``
 * ``Fix 'KubernetesExecutor' leaving invalid-config tasks stuck in queued (#74512)``
 
 .. Below changes are excluded from the changelog. Move them to

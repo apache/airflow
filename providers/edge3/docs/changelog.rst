@@ -52,6 +52,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
    * ``Pass runtime values to example Dag shell commands through env (#73787)``
    * ``Run loop gates and advance iterations atomically (#74348)``
 

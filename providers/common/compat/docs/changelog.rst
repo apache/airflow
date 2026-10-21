@@ -41,6 +41,8 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
 
 1.22.0
 ......

@@ -46,6 +46,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Include DMS stop reason in DmsTaskBaseSensor failure message (#75240)``
 * ``Skip or fail ECS tasks correctly when their CloudWatch log stream is missing (#74730)``
 * ``Prevent Dag processor crashes with AWS CloudWatch when its log directory is outside 'base_log_folder' (#74929)``
 * ``Limit Glue retry task UUID scan (#71546)``
@@ -63,6 +64,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
    * ``Stop the EKS executor concurrency test from starving its own builders (#75197)``
    * ``Exclude minimal and ECS Amazon Linux AMIs in get_latest_ami_id (#75171)``
 

@@ -49,6 +49,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix Kubernetes TCP keepalive not being applied with urllib3 2.x (#74921)``
 * ``Keep the HTTPError when a Dataprep error body is not JSON (#71702)``
 * ``Fix GKEStartPodOperator ignoring execution_timeout when deferrable (#71528)``
 * ``Check hooks before cancelling BigQuery jobs in on_kill (#74946)``

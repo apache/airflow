@@ -103,7 +103,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.14.1``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``sqlparse``                                ``>=0.5.1``
 ``more-itertools``                          ``>=9.0.0``
 ``methodtools``                             ``>=0.4.7``
