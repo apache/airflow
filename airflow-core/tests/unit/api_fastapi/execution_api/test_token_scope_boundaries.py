@@ -71,6 +71,7 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     "HEAD /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}": {"execution", "dag_parse"},
     "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}": {"execution", "dag_parse"},
     "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/slice": {"execution", "dag_parse"},
+    "POST /xcoms/{dag_id}/{run_id}/{task_id}": {"execution", "dag_parse"},
     # The Job lifecycle of a Dag processor session; registration exchanges the session token for a Job token.
     "POST /jobs": {"dag_processor_session"},
     "POST /jobs/{job_id}/heartbeat": {"dag_processor"},
@@ -107,6 +108,7 @@ DAG_PROCESSOR_MESSAGE_ROUTES: dict[str, str | None] = {
     "GetPreviousTI": "GET /task-instances/previous/{dag_id}/{task_id}",
     "GetPreviousDagRun": "GET /dag-runs/previous",
     "GetXCom": "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}",
+    "GetXComByKeys": "POST /xcoms/{dag_id}/{run_id}/{task_id}",
     "GetXComCount": "HEAD /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}",
     "GetXComSequenceItem": "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
     "GetXComSequenceSlice": "GET /xcoms/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
