@@ -81,6 +81,7 @@ from airflow.sdk.importers import (
     get_importer_registry,
 )
 from airflow.sdk.log import init_log_file, logging_processors
+from airflow.serialization.definitions.notset import NOTSET
 from airflow.typing_compat import assert_never
 from airflow.utils.file import find_enclosing_file
 from airflow.utils.helpers import prune_dict
@@ -1563,31 +1564,33 @@ class DagFileProcessorManager(LoggingMixin):
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
         subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
 
+        importer_registry = self._bundle_importer_registries.get(dag_file.bundle_name)
         native = get_claiming_importer(
             dag_file.absolute_path,
             dag_file.bundle_name,
-            registry=self._bundle_importer_registries.get(dag_file.bundle_name),
+            registry=importer_registry,
         )
-        processor_class: type[BaseDagFileProcessorProcess]
-        if native is not None:
-            processor_class = LangSDKDagFileProcessorProcess
-            kwargs: dict[str, Any] = {
-                "importer_registry": self._bundle_importer_registries.get(dag_file.bundle_name)
-            }
-        else:
-            processor_class = DagFileProcessorProcess
-            kwargs = {"callbacks": callback_to_execute_for_file}
-
+        bundle_config = None
         if is_bundle_config_reload_enabled():
-            kwargs["bundle_config"] = {
+            bundle_config = {
                 "importers": self._dag_bundle_manager.get_bundle_importers_config(dag_file.bundle_name),
                 "team_name": self._get_team_name(dag_file.bundle_name),
             }
-            kwargs["importer_registry"] = self._bundle_importer_registries.get(dag_file.bundle_name)
-            if native is not None:
-                kwargs["team_name"] = kwargs["bundle_config"]["team_name"]
 
-        return processor_class.start(
+        start_process: Callable[..., BaseDagFileProcessorProcess]
+        if native is not None:
+            start_process = functools.partial(
+                LangSDKDagFileProcessorProcess.start,
+                team_name=bundle_config["team_name"] if bundle_config is not None else NOTSET,
+            )
+        else:
+            start_process = functools.partial(
+                DagFileProcessorProcess.start, callbacks=callback_to_execute_for_file
+            )
+            if bundle_config is None:
+                importer_registry = None
+
+        return start_process(
             id=id,
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
@@ -1598,7 +1601,8 @@ class DagFileProcessorManager(LoggingMixin):
             logger_filehandle=logger_filehandle,
             subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             client=self.client,
-            **kwargs,
+            bundle_config=bundle_config,
+            importer_registry=importer_registry,
         )
 
     def _start_new_processes(self):
