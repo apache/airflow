@@ -452,7 +452,7 @@ class LoopContext(BaseModel):
     """Pinned loop definition and enclosing iteration for a task execution."""
 
     node_id: str
-    index: int = Field(ge=0)
+    index: int = Field(ge=1)
     max_iterations: int = Field(gt=0)
     terminal_task_id: str
     terminal_is_mapped: bool

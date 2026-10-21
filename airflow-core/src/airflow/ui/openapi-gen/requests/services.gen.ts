@@ -1936,7 +1936,7 @@ export class DagService {
      * @param data.dagRunEndDateLte
      * @param data.dagRunEndDateLt
      * @param data.dagRunState
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date`
      * @param data.isFavorite
      * @param data.timetableType
      * @returns DAGCollectionResponse Successful Response
@@ -2273,7 +2273,7 @@ export class DagService {
      * @param data.bundleName
      * @param data.bundleVersion
      * @param data.relativeFilelocPrefix Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date, last_run_run_after`
      * @param data.isFavorite
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
@@ -3136,7 +3136,7 @@ export class TaskInstanceService {
      * @param data.regionId
      * @param data.regionIndex
      * @param data.loopId Task group id of a loop; matches every instance it produced.
-     * @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
+     * @param data.iteration Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.taskId
      * @param data.runAfterGte
@@ -5844,6 +5844,14 @@ export class GanttService {
      * @param data The data for the request.
      * @param data.dagId
      * @param data.runId
+     * @param data.startDateGte
+     * @param data.startDateGt
+     * @param data.startDateLte
+     * @param data.startDateLt
+     * @param data.endDateGte
+     * @param data.endDateGt
+     * @param data.endDateLte
+     * @param data.endDateLt
      * @returns GanttResponse Successful Response
      * @throws ApiError
      */
@@ -5854,6 +5862,16 @@ export class GanttService {
             path: {
                 dag_id: data.dagId,
                 run_id: data.runId
+            },
+            query: {
+                start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
+                start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
+                end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
+                end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt
             },
             errors: {
                 404: 'Not Found',

@@ -229,6 +229,8 @@ class KubernetesPodOperator(BaseOperator):
     :param full_pod_spec: The complete podSpec
     :param init_containers: init container for the launched Pod
     :param log_events_on_failure: Log the pod's events if a failure occurs
+    :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start. Each poll
+        makes the API server read every event in the namespace; disable on very large clusters.
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
@@ -375,6 +377,7 @@ class KubernetesPodOperator(BaseOperator):
         full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
+        log_events_on_startup: bool = True,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
         pod_template_dict: dict | None = None,
@@ -494,6 +497,7 @@ class KubernetesPodOperator(BaseOperator):
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
         self.log_events_on_failure = log_events_on_failure
+        self.log_events_on_startup = log_events_on_startup
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.pod_template_dict = pod_template_dict
@@ -785,8 +789,12 @@ class KubernetesPodOperator(BaseOperator):
 
             async def _await_pod_start():
                 # Start event stream in background
-                events_task = asyncio.create_task(
-                    self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
+                events_task = (
+                    asyncio.create_task(
+                        self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
+                    )
+                    if self.log_events_on_startup
+                    else None
                 )
 
                 # Await pod start completion
@@ -799,9 +807,10 @@ class KubernetesPodOperator(BaseOperator):
                     )
                 finally:
                     # Stop watching events
-                    events_task.cancel()
-                    with suppress(asyncio.CancelledError):
-                        await events_task
+                    if events_task is not None:
+                        events_task.cancel()
+                        with suppress(asyncio.CancelledError):
+                            await events_task
 
             asyncio.run(_await_pod_start())
         except PodLaunchFailedException:
@@ -1086,6 +1095,7 @@ class KubernetesPodOperator(BaseOperator):
             get_logs=self.get_logs,
             startup_timeout=self.startup_timeout_seconds,
             startup_check_interval=self.startup_check_interval_seconds,
+            log_events_on_startup=self.log_events_on_startup,
             schedule_timeout=self.schedule_timeout_seconds,
             base_container_name=self.base_container_name,
             on_finish_action=self.on_finish_action.value,

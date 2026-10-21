@@ -118,13 +118,13 @@ class TestErrorCategory:
     def test_int_seconds_delay_is_rejected(self):
         """Int seconds was the shape of the removed ``suggested_delay_seconds`` field."""
         with pytest.raises(TypeError, match="must be a timedelta or None, got 60"):
-            ErrorCategory("x", delay=60)  # type: ignore[arg-type]
+            ErrorCategory("x", delay=60)
 
     @pytest.mark.parametrize("retry", ["false", None, 0])
     def test_retry_must_be_a_bool(self, retry):
         """A truthy string here would retry a category the author meant to fail."""
         with pytest.raises(TypeError, match="retry must be True or False"):
-            ErrorCategory("x", retry=retry)  # type: ignore[arg-type]
+            ErrorCategory("x", retry=retry)
 
     def test_negative_delay_is_rejected(self):
         with pytest.raises(ValueError, match="must not be negative"):
@@ -139,14 +139,14 @@ class TestErrorCategory:
         with pytest.raises(ValueError, match="ErrorCategory.min_confidence must be between 0 and 1"):
             ErrorCategory("x", min_confidence=1.5)
         with pytest.raises(TypeError, match="ErrorCategory.min_confidence must be a number"):
-            ErrorCategory("x", min_confidence="0.5")  # type: ignore[arg-type]
+            ErrorCategory("x", min_confidence="0.5")
 
 
 class TestDefaultCategories:
     def test_cannot_be_mutated(self):
         """The default table is shared by every policy instance, so it must be read-only."""
         with pytest.raises(TypeError):
-            DEFAULT_CATEGORIES["auth"] = ErrorCategory("x")  # type: ignore[index]
+            DEFAULT_CATEGORIES["auth"] = ErrorCategory("x")
 
     def test_documented_split(self):
         """Spelled out here on purpose: the docs list this table, so a drift shows up as a test failure."""
@@ -181,7 +181,7 @@ class TestClassifierRetryPolicyConstruction:
 
     def test_categories_must_be_a_mapping(self):
         with pytest.raises(TypeError, match="categories must be a mapping"):
-            ClassifierRetryPolicy(llm_conn_id="test", categories=[ErrorCategory("x")])  # type: ignore[arg-type]
+            ClassifierRetryPolicy(llm_conn_id="test", categories=[ErrorCategory("x")])
 
     @pytest.mark.parametrize("categories", [{}, {"only": ErrorCategory("x")}])
     def test_fewer_than_two_categories_is_rejected(self, categories):
@@ -198,7 +198,7 @@ class TestClassifierRetryPolicyConstruction:
     def test_category_values_must_be_error_categories(self):
         """A bare string is not a description here: retry and delay would have nowhere to live."""
         with pytest.raises(TypeError, match=r"categories\['a'\] must be an ErrorCategory, got str"):
-            ClassifierRetryPolicy(llm_conn_id="test", categories={"a": "flaky", "b": ErrorCategory("y")})  # type: ignore[dict-item]
+            ClassifierRetryPolicy(llm_conn_id="test", categories={"a": "flaky", "b": ErrorCategory("y")})
 
     def test_category_bar_needs_a_policy_bar_to_inherit(self):
         with pytest.raises(
@@ -1082,7 +1082,7 @@ class TestOnUncertain:
 
     def test_fallback_policy_must_be_a_retry_policy(self):
         with pytest.raises(TypeError, match="fallback_policy must be a RetryPolicy"):
-            ClassifierRetryPolicy(llm_conn_id="jev", min_confidence=0.5, fallback_policy="llm")  # type: ignore[arg-type]
+            ClassifierRetryPolicy(llm_conn_id="jev", min_confidence=0.5, fallback_policy="llm")
 
     @patch(HOOK, autospec=True)
     def test_confident_classifier_answer_never_consults_the_llm(self, mock_hook_cls):

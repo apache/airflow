@@ -19,11 +19,23 @@
 
 package org.apache.airflow.sdk.execution
 
+import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.readLine
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import java.time.Instant
+import java.util.TimeZone
+import java.util.concurrent.TimeUnit
 
 class LogTest {
   @AfterEach
@@ -85,5 +97,55 @@ class LogTest {
 
     // "foobar" is not a child of "foo"; it must fall back to the global level.
     assertTrue(Log.isEnabledForLevel(Level.INFO, "foobar"))
+  }
+
+  @Test
+  @DisplayName("Should send the timestamp in UTC when the JVM runs in a non-UTC time zone")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun shouldSendTimestampInUtc() {
+    val defaultZone = TimeZone.getDefault()
+    try {
+      TimeZone.setDefault(TimeZone.getTimeZone("Asia/Taipei"))
+      val before = Instant.now()
+      val message = LogMessage("hello", emptyMap(), "test", Level.INFO)
+      val after = Instant.now()
+
+      val timestamp = sendAndRead(message)["timestamp"]!!.jsonPrimitive.content
+      assertTrue(timestamp.endsWith("Z"), "timestamp should be in UTC with a Z suffix: $timestamp")
+      // The extra second on each side allows for the wall clock being adjusted during the test. A local
+      // time sent as UTC would still be hours off.
+      assertTrue(
+        Instant.parse(timestamp) in before.minusSeconds(1)..after.plusSeconds(1),
+        "timestamp should be when the message was created: $timestamp",
+      )
+    } finally {
+      TimeZone.setDefault(defaultZone)
+    }
+  }
+
+  @Test
+  @DisplayName("Should keep the seconds of a timestamp that falls on a whole minute")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun shouldKeepSecondsOnWholeMinute() {
+    val message = LogMessage("hello", emptyMap(), "test", Level.INFO, Instant.parse("2026-10-13T09:41:00Z"))
+
+    // The supervisor cannot parse a timestamp without seconds, such as 2026-10-13T09:41.
+    assertEquals("2026-10-13T09:41:00Z", sendAndRead(message)["timestamp"]!!.jsonPrimitive.content)
+  }
+
+  /** Sends [message] through [LogSender] and returns the JSON object that [LogSender] writes for the message. */
+  private fun sendAndRead(message: LogMessage): JsonObject {
+    val channel = ByteChannel(autoFlush = true)
+    try {
+      LogSender.reset()
+      LogSender.configure(channel)
+      LogSender.send(message)
+      val line = runBlocking { Json.parseToJsonElement(channel.readLine()!!) }.jsonObject
+      assertEquals(message.event, line["event"]!!.jsonPrimitive.content, "the first line should be the message just sent")
+      return line
+    } finally {
+      // Other test classes read LogSender.messages, which LogSender fills only while it has no channel.
+      LogSender.reset()
+    }
   }
 }

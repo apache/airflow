@@ -358,7 +358,10 @@ class TestLLMOperator:
             op.execute(context=usage_budget_context)
 
         pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
-        assert pushes["usage"]["requests"] == 1
+        # Not `requests`: pydantic-ai >= 2.54 counts only responses the agent acted on, so the
+        # capped response's request is no longer counted, though its tokens and cost still are.
+        assert pushes["usage"]["input_tokens"] == 100
+        assert pushes["usage"]["output_tokens"] == 50
         assert pushes["usage"]["cost"] == str(PRICED_COST)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -1049,7 +1052,7 @@ class TestLLMOperatorConfidenceGate:
         """The multimodal-prompt guard applies to any review path, not only require_approval."""
         op = LLMOperator(
             task_id="t",
-            prompt=[{"type": "text", "text": "p"}],  # type: ignore[arg-type]
+            prompt=[{"type": "text", "text": "p"}],
             llm_conn_id="c",
             decision_policy=DecisionPolicy(min_confidence=0.7),
         )

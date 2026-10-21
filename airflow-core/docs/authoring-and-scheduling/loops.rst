@@ -145,11 +145,11 @@ definition.
    * - Attribute
      - Meaning
    * - ``loop.index``
-     - The current iteration number, starting at zero.
+     - The current iteration number, starting at one.
    * - ``loop.max_iterations``
      - The configured limit on the number of iterations.
    * - ``loop.previous``
-     - The previous iteration's result, or ``None`` in iteration 0.
+     - The previous iteration's result, or ``None`` in iteration 1.
    * - ``loop.result``
      - The terminal body task's result (the XCom pushed under the key ``return_value``) for the current iteration, used by the gate.
 
@@ -159,7 +159,7 @@ task instance's position. Each task instance can have several tries, each with i
 Pass data between iterations
 ============================
 
-Between iterations, use ``loop.previous``. Check ``loop.index == 0`` to handle
+Between iterations, use ``loop.previous``. Check ``loop.index == 1`` to handle
 the first iteration. Do not test ``loop.previous is None``: it is also ``None``
 when the previous terminal task returned nothing, and a previous result of
 ``0``, ``False``, or an empty collection can be valid data.
@@ -240,8 +240,8 @@ The task receives a sequence (``LazyXComSequence``) with one element for each
 iteration the loop ran, in iteration order, so ``results[-1]`` is the last
 iteration's result and ``len(results)`` is the number of iterations. A mapped
 loop task gives one element per mapped instance for each iteration, ordered by
-iteration first and then by map index: all instances of iteration 0, then all
-instances of iteration 1, and so on. ``ti.xcom_pull(task_ids=...)`` and
+iteration first and then by map index: all instances of iteration 1, then all
+instances of iteration 2, and so on. ``ti.xcom_pull(task_ids=...)`` and
 ``{{ ti.xcom_pull(task_ids=...) }}`` in a template return the same sequence.
 
 Only the current executions are included. Iterations that a rerun replaced do
@@ -290,9 +290,10 @@ first iteration, then each previous result plus one.
    :start-after: [START mapped_loop]
    :end-before: [END mapped_loop]
 
-The loop iteration and mapped position are separate "coordinates". In this
-example, each iteration has mapped instances 0 and 1, so mapped instance 1 in
-iteration 0 is distinct from mapped instance 1 in iteration 1.
+The loop iteration and mapped position are separate "coordinates", and they do
+not count from the same number: iterations start at 1 and map indexes start at
+0. In this example iteration 1 has mapped instances 0 and 1, so mapped instance
+1 in iteration 1 is distinct from mapped instance 1 in iteration 2.
 Mapped instances appear within their loop iteration, so you can inspect their
 states, tries, and logs separately.
 
@@ -385,14 +386,14 @@ Suppose each iteration contains this sequence:
 
    prepare → process → consume → gate
 
-The loop has already run iterations 0 through 4. You clear ``process`` in
+The loop has already run iterations 1 through 4. You clear ``process`` in
 iteration 2 with **Clear downstream tasks** and **Clear later loop iterations** both selected:
 
 * ``prepare`` in iteration 2 remains completed.
 * ``process``, ``consume``, and the gate in iteration 2 run again.
 * Later iterations 3 and 4 are cleared. Whether replacement iterations run
   depends on the new gate decisions.
-* Iterations 0 and 1 remain untouched.
+* Iteration 1 remains untouched.
 
 If the gate now stops at iteration 2, replacement iterations 3 and 4 are not
 created.

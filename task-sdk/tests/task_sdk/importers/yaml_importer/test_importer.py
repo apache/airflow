@@ -160,19 +160,50 @@ def test_get_source_code(mock_bundle):
     assert "$schema" in src.source_code
 
 
-def test_might_contain_dag(mock_bundle):
+_DRAFT_SCHEMA = "https://json-schema.org/draft/2020-12/schema"
+
+
+@pytest.mark.parametrize(
+    ("case", "body", "expected"),
+    [
+        # Recognized: $schema declares the canonical Dag URL, in any of its spellings.
+        ("yaml", f"$schema: {HEAD_SCHEMA}\ndag_id: d\ntasks: []\n", True),
+        ("yaml_quoted_value", f'$schema: "{HEAD_SCHEMA}"\n', True),
+        ("yaml_quoted_key", f'"$schema": {HEAD_SCHEMA}\n', True),
+        ("yaml_space_before_colon", f"$schema : {HEAD_SCHEMA}\n", True),
+        ("yaml_not_first_line", f"dag_id: d\n$schema: {HEAD_SCHEMA}\n", True),
+        ("json", f'{{"$schema": "{HEAD_SCHEMA}", "dag_id": "d", "tasks": []}}', True),
+        # Skipped: no $schema declaration naming the canonical Dag URL.
+        ("no_schema", "just: config\n", False),
+        ("other_schema_url", f"$schema: {_DRAFT_SCHEMA}\n", False),
+        ("url_only_no_schema", f"note: see {HEAD_SCHEMA}\n", False),
+        # The URL sits in another field while $schema is something else -- the published snapshot's shape.
+        ("url_in_other_field", f"$schema: {_DRAFT_SCHEMA}\n$id: {HEAD_SCHEMA}\n", False),
+        # The word "$schema" appears in prose, not as a declaration whose value is the URL.
+        ("schema_word_in_prose", f"description: set $schema at {HEAD_SCHEMA}\n", False),
+        # A different key that merely starts with "$schema".
+        ("different_schema_key", f"$schema_version: {HEAD_SCHEMA}\n", False),
+    ],
+)
+def test_might_contain_dag_sniff(mock_bundle, case, body, expected):
     importer = YamlDagImporter()
-    has = _def(mock_bundle, "has.yaml", f"$schema: {HEAD_SCHEMA}\ndag_id: d\ntasks: []\n")
-    nope = _def(mock_bundle, "nope.yaml", "just: config\n")
-    # A $schema that is not the canonical Dag URL (e.g. a JSON-Schema file) must not be picked up.
-    other = _def(mock_bundle, "schema.yaml", "$schema: https://json-schema.org/draft/2020-12/schema\n")
-    # The canonical URL merely mentioned, without a $schema declaration, must not be picked up either.
-    mention = _def(mock_bundle, "mention.yaml", f"note: see {HEAD_SCHEMA}\n")
-    assert importer.might_contain_dag(has, safe_mode=True)
-    assert not importer.might_contain_dag(nope, safe_mode=True)
-    assert not importer.might_contain_dag(other, safe_mode=True)
-    assert not importer.might_contain_dag(mention, safe_mode=True)
-    assert importer.might_contain_dag(nope, safe_mode=False)  # sniff skipped
+    definition = _def(mock_bundle, f"{case}.yaml", body)
+    assert importer.might_contain_dag(definition, safe_mode=True) is expected
+
+
+def test_might_contain_dag_skips_sniff_without_safe_mode(mock_bundle):
+    # Without safe mode the sniff is bypassed and every file is kept; the parser reports non-Dags.
+    importer = YamlDagImporter()
+    definition = _def(mock_bundle, "config.yaml", "just: config\n")
+    assert importer.might_contain_dag(definition, safe_mode=False)
+
+
+def test_might_contain_dag_keeps_unreadable_file(mock_bundle):
+    # A file that cannot be read is kept rather than silently dropped.
+    importer = YamlDagImporter()
+    definition = _def(mock_bundle, "gone.yaml", f"$schema: {HEAD_SCHEMA}\n")
+    definition.path.unlink()
+    assert importer.might_contain_dag(definition, safe_mode=True)
 
 
 def test_list_dag_definitions_skips_non_dag_yaml(mock_bundle):
