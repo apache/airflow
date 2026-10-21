@@ -1097,7 +1097,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         if self.enable_hitl_review:
             self._output_under_review = output
-            self.run_hitl_review(  # type: ignore[misc]
+            self.run_hitl_review(
                 context,
                 output,
                 message_history=result.all_messages(),
