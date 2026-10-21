@@ -525,6 +525,7 @@ class _Serializer:
                 (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
                 for asset, partition_mapper in timetable.partition_mapper_config.items()
             ],
+            "refire_policy": timetable.refire_policy,
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {

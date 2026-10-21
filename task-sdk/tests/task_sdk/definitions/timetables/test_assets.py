@@ -50,6 +50,23 @@ def test_partitioned_timetable_preserves_positional_mapper_arguments(batch_asset
     assert timetable.batch_asset_events is batch_asset_events
 
 
+def test_partitioned_timetable_refire_policy_defaults_to_none():
+    assert PartitionedAssetTimetable(assets=Asset("test")).refire_policy is None
+
+
+@pytest.mark.parametrize("refire_policy", ["rerun", "newrun"])
+def test_partitioned_timetable_refire_policy_is_settable(refire_policy):
+    timetable = PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
+    assert timetable.refire_policy == refire_policy
+
+
+@pytest.mark.parametrize("refire_policy", ["Rerun", "rerun ", "always", ""])
+def test_partitioned_timetable_rejects_invalid_refire_policy(refire_policy):
+    timetable = PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
+    with pytest.raises(AirflowTimetableInvalid, match="refire_policy"):
+        timetable.validate()
+
+
 @pytest.mark.parametrize("configured", [False, True])
 @pytest.mark.parametrize("explicit", [None, False, True])
 @pytest.mark.parametrize(

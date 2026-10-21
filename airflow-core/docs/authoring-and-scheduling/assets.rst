@@ -723,6 +723,37 @@ including ``partition_key`` in the request body):
         "partition_key": "us|2026-03-10T09:00:00"
       }'
 
+Refiring on late or corrected events
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, once a partition has triggered a Dag run, a later asset event for
+the same partition key does not affect that run — it starts a new, independent
+Dag run attempt instead. Set ``refire_policy`` on ``PartitionedAssetTimetable``
+to opt into different behavior for late-arriving or corrected events:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, PartitionedAssetTimetable
+
+    with DAG(
+        dag_id="clean_and_combine_player_stats",
+        schedule=PartitionedAssetTimetable(
+            assets=team_a_player_stats & team_b_player_stats,
+            refire_policy="rerun",
+        ),
+        catchup=False,
+    ):
+        ...
+
+* ``refire_policy=None`` (default) — no behavior change; each satisfied
+  partition triggers exactly one Dag run.
+* ``"rerun"`` — a late event for an already-fired partition clears and
+  re-queues the existing Dag run (its task instances are reset) instead of
+  leaving a duplicate, unsatisfiable Dag run behind.
+* ``"newrun"`` — a late event for an already-fired partition creates a new
+  Dag run, seeded with the prior run's other asset contributions for that
+  partition so the new run reflects the complete, corrected set of inputs.
+
 Rollup mappers
 ~~~~~~~~~~~~~~
 
