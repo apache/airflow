@@ -784,6 +784,10 @@ Stable API Permissions
      - GET
      - None
      - Public
+   * - ``/api/v2/webhooks``
+     - GET
+     - Connections.can_read
+     - Op
    * - ``/api/v2/webhooks/{webhook_name}/deliveries``
      - GET
      - Connections.can_read

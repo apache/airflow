@@ -37,14 +37,19 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.webhooks import WebhookDeliveryCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.webhooks import (
+    WebhookCollectionResponse,
+    WebhookDeliveryCollectionResponse,
+    WebhookResponse,
+)
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_webhook
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.inbound_delivery import InboundDelivery
 from airflow.webhooks.connections import CONN_ID_PREFIX
-from airflow.webhooks.registry import WEBHOOK_NAME_PATTERN, parse_webhook_names
+from airflow.webhooks.registry import WEBHOOK_NAME_PATTERN, WebhookRegistry, parse_webhook_names
+from airflow.webhooks.status import get_webhook_status
 
 webhooks_router = AirflowRouter(tags=["Webhook"], prefix="/webhooks")
 
@@ -70,6 +75,67 @@ def get_readable_webhook_names(*, user: BaseUser, session: Session) -> set[str]:
         conn_ids={f"{CONN_ID_PREFIX}{name}" for name in names}, user=user, method="GET"
     )
     return {name for name in names if f"{CONN_ID_PREFIX}{name}" in readable_conn_ids}
+
+
+@webhooks_router.get(
+    "",
+    responses=create_openapi_http_exception_doc(
+        [(status.HTTP_500_INTERNAL_SERVER_ERROR, "The `[webhooks]` configuration is invalid.")]
+    ),
+    dependencies=[Depends(requires_access_webhook(method="GET", lists_webhooks=True))],
+    tags=["experimental"],
+    summary="Experimental: List webhooks and whether they can be served.",
+    description=(
+        "🚧 This is an experimental endpoint and may change or be removed without notice.\n\n"
+        "Lists the webhooks whose connection you may read, by name: those that `[webhooks] names` lists "
+        "and those with recorded deliveries. Each says whether its connection and source type let it be "
+        "served, and when it last received a delivery. A caller who may read no webhook gets an empty "
+        "list.\n\n"
+        "Each call reads the connections of the webhooks it returns from the secrets backends. It never "
+        "returns what a connection holds or why a secrets backend failed: `airflow webhooks check` "
+        "says that."
+    ),
+)
+def get_webhooks(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    user: GetUserDep,
+    session: SessionDep,
+) -> WebhookCollectionResponse:
+    try:
+        registry = WebhookRegistry.from_config()
+    except AirflowConfigException:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "The [webhooks] configuration is invalid, so no webhook can be served: run airflow webhooks "
+            "check to see why",
+        ) from None
+    names = sorted(get_readable_webhook_names(user=user, session=session))
+    start = offset.value or 0
+    end = None if limit.value is None else start + limit.value
+    webhooks = []
+    for name in names[start:end]:
+        webhook_status = get_webhook_status(name, registry=registry, session=session)
+        # One query per webhook, each answered by the last entry of the (webhook, received_at) index,
+        # rather than one that reads every delivery of the page's webhooks.
+        last_delivery = session.execute(
+            select(InboundDelivery.received_at, InboundDelivery.outcome)
+            .where(InboundDelivery.webhook == name)
+            .order_by(InboundDelivery.received_at.desc(), InboundDelivery.id.desc())
+            .limit(1)
+        ).first()
+        webhooks.append(
+            WebhookResponse(
+                name=name,
+                listed=webhook_status.listed,
+                connection_status=webhook_status.connection_status,
+                source_type=webhook_status.source_type,
+                source_type_status=webhook_status.source_type_status,
+                last_received_at=last_delivery.received_at if last_delivery else None,
+                last_outcome=last_delivery.outcome if last_delivery else None,
+            )
+        )
+    return WebhookCollectionResponse(webhooks=webhooks, total_entries=len(names))
 
 
 @webhooks_router.get(

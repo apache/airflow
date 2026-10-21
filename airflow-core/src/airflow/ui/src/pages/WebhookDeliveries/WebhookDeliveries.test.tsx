@@ -23,7 +23,7 @@ import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { WebhookDeliveryResponse } from "openapi/requests/types.gen";
+import type { WebhookDeliveryResponse, WebhookResponse } from "openapi/requests/types.gen";
 
 import { TimezoneProvider } from "src/context/timezone";
 import { server } from "src/mocks/server";
@@ -93,6 +93,21 @@ const serveDeliveries = (
   return requests;
 };
 
+const webhooksUrl = "/api/v2/webhooks";
+
+const readableWebhooks: Array<WebhookResponse> = ["demo", "other"].map((name) => ({
+  connection_status: "ok",
+  last_outcome: null,
+  last_received_at: null,
+  listed: true,
+  name,
+  source_type: "hmac_json",
+  source_type_status: "ok",
+}));
+
+const readableWebhooksResponse = () =>
+  HttpResponse.json({ total_entries: readableWebhooks.length, webhooks: readableWebhooks });
+
 const filterListRequests = (requests: Array<URL>) => requests.filter((url) => !url.searchParams.has("id"));
 const filterDetailRequests = (requests: Array<URL>) => requests.filter((url) => url.searchParams.has("id"));
 
@@ -116,6 +131,7 @@ const renderWithoutRetries = (initialEntry: string) => {
       <MemoryRouter initialEntries={[initialEntry]}>
         <TimezoneProvider>
           <Routes>
+            <Route element={<WebhookDeliveries />} path="webhook_deliveries" />
             <Route element={<WebhookDeliveries />} path="webhook_deliveries/:webhookName" />
           </Routes>
         </TimezoneProvider>
@@ -217,6 +233,97 @@ describe("WebhookDeliveries", () => {
     expect(screen.getByTestId("source_type-pill")).toHaveTextContent("github");
   });
 
+  it("is the Deliveries tab next to the Webhooks tab", async () => {
+    serveDeliveries([]);
+
+    render(<AppWrapper initialEntries={["/webhook_deliveries"]} />);
+
+    expect(await screen.findByRole("link", { name: "webhookDeliveries.tabs.webhooks" })).toHaveAttribute(
+      "href",
+      "/webhook_overview",
+    );
+    expect(
+      within(screen.getByRole("link", { name: "webhookDeliveries.tabs.deliveries" })).getByText(
+        "webhookDeliveries.tabs.deliveries",
+      ),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("offers the webhooks the user may read in the webhook filter, asking for them only once it is shown", async () => {
+    const requests = serveDeliveries([buildDeliveryRow({ delivery_id: "gh-1" })]);
+    const webhooksRequests: Array<URL> = [];
+
+    server.use(
+      http.get(webhooksUrl, ({ request }) => {
+        webhooksRequests.push(new URL(request.url));
+
+        return readableWebhooksResponse();
+      }),
+    );
+
+    render(<AppWrapper initialEntries={["/webhook_deliveries"]} />);
+
+    await screen.findByRole("row", { name: /gh-1/u });
+    expect(webhooksRequests).toHaveLength(0);
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-webhook_name"));
+
+    expect(await screen.findByRole("option", { name: "demo" })).toBeInTheDocument();
+    expect(webhooksRequests).not.toHaveLength(0);
+    fireEvent.click(screen.getByRole("option", { name: "other" }));
+
+    await waitFor(() =>
+      expect(filterListRequests(requests).at(-1)?.searchParams.getAll("webhook_names")).toEqual(["other"]),
+    );
+  });
+
+  it("says the webhook filter's webhooks are loading", async () => {
+    const release = new AbortController();
+
+    serveDeliveries([]);
+    server.use(http.get(webhooksUrl, () => holdResponseUntil(release.signal, readableWebhooksResponse())));
+
+    render(<AppWrapper initialEntries={["/webhook_deliveries"]} />);
+
+    fireEvent.click(await screen.findByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-webhook_name"));
+
+    expect(await screen.findByText("loading")).toBeInTheDocument();
+    expect(screen.queryByText("table.noResultsFound")).not.toBeInTheDocument();
+
+    release.abort();
+
+    expect(await screen.findByRole("option", { name: "demo" })).toBeInTheDocument();
+  });
+
+  it("says when the webhook filter cannot load the webhooks, and filters by a typed name", async () => {
+    const requests = serveDeliveries([]);
+
+    server.use(
+      http.get(webhooksUrl, () =>
+        HttpResponse.json({ detail: "The [webhooks] configuration is invalid" }, { status: 500 }),
+      ),
+    );
+
+    renderWithoutRetries("/webhook_deliveries");
+
+    fireEvent.click(await screen.findByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-webhook_name"));
+
+    expect(await screen.findByText("webhooks.filterLoadError")).toBeInTheDocument();
+    expect(screen.queryByText("table.noResultsFound")).not.toBeInTheDocument();
+
+    const input = screen.getByRole("combobox", { name: "webhookDeliveries.columns.webhook" });
+
+    fireEvent.change(input, { target: { value: "demo" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(filterListRequests(requests).at(-1)?.searchParams.getAll("webhook_names")).toEqual(["demo"]),
+    );
+  });
+
   it("sorts by delivery ID through the API", async () => {
     const requests = serveDeliveries([buildDeliveryRow({ delivery_id: "gh-1" })]);
 
@@ -264,7 +371,7 @@ describe("WebhookDeliveries", () => {
     await waitFor(() => expect(screen.queryByTestId("delivery-details")).not.toBeInTheDocument());
   });
 
-  it("copies each topic name, and lists asset events by name with other actions as JSON", async () => {
+  it("copies each topic name, links each asset event to its asset, and shows other actions as JSON", async () => {
     serveDeliveries([], [detailedDelivery]);
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
 
@@ -276,8 +383,12 @@ describe("WebhookDeliveries", () => {
     expect(
       within(assetEvents)
         .getAllByRole("listitem")
-        .map((item) => item.textContent),
-    ).toEqual(["demo/pull_request", "demo/pull_request/labeled"]);
+        .map((item) => within(item).getByRole("link"))
+        .map((link) => [link.textContent, link.getAttribute("href")]),
+    ).toEqual([
+      ["demo/pull_request", "/assets/3"],
+      ["demo/pull_request/labeled", "/assets/4"],
+    ]);
     expect(within(panel).getByTestId("monaco-editor")).toHaveTextContent(
       JSON.stringify({ other_action: { count: 1 } }, undefined, 2),
       { normalizeWhitespace: false },
@@ -291,18 +402,18 @@ describe("WebhookDeliveries", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("demo/pull_request/labeled"));
   });
 
-  it("shows asset events in a shape it does not know as recorded", async () => {
-    serveDeliveries(
-      [],
-      [buildDeliveryRow({ actions: { asset_events: { "demo/push": 8 } }, id: deliveryRecordId })],
-    );
+  it.each([
+    { assetEvents: { "demo/push": 8 }, shape: "a map of names to event ids" },
+    { assetEvents: [{ asset: "demo/push", event_id: 8 }], shape: "a list without asset ids" },
+  ])("shows asset events recorded as $shape as recorded", async ({ assetEvents }) => {
+    serveDeliveries([], [buildDeliveryRow({ actions: { asset_events: assetEvents }, id: deliveryRecordId })]);
 
     render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
 
     const panel = await screen.findByTestId("delivery-details");
 
     expect(await within(panel).findByTestId("monaco-editor")).toHaveTextContent(
-      JSON.stringify({ asset_events: { "demo/push": 8 } }, undefined, 2),
+      JSON.stringify({ asset_events: assetEvents }, undefined, 2),
       { normalizeWhitespace: false },
     );
     expect(within(panel).queryByTestId("delivery-asset-events")).not.toBeInTheDocument();

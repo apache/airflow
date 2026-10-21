@@ -1567,6 +1567,18 @@ class VersionInfo(BaseModel):
     git_version: Annotated[str | None, Field(title="Git Version")]
 
 
+class WebhookConnectionStatus(str, Enum):
+    """
+    Whether a webhook's ``webhook_<name>`` connection configures a webhook that can be served.
+    """
+
+    OK = "ok"
+    NOT_FOUND = "not_found"
+    WRONG_TYPE = "wrong_type"
+    MISCONFIGURED = "misconfigured"
+    UNAVAILABLE = "unavailable"
+
+
 class WebhookDeliveryResponse(BaseModel):
     """
     A delivery an inbound webhook received, without its payload.
@@ -1601,6 +1613,16 @@ class WebhookDeliveryResponse(BaseModel):
         Field(description="What the delivery did, such as the topic events it recorded.", title="Actions"),
     ]
     team_name: Annotated[str | None, Field(title="Team Name")]
+
+
+class WebhookSourceTypeStatus(str, Enum):
+    """
+    Whether an installed provider serves the source type that a webhook's connection names.
+    """
+
+    OK = "ok"
+    UNKNOWN = "unknown"
+    CONFLICT = "conflict"
 
 
 class RegionIndex(RootModel[int]):
@@ -2849,6 +2871,48 @@ class WebhookDeliveryCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class WebhookResponse(BaseModel):
+    """
+    A webhook, whether it can be served, and the last delivery it received.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    listed: Annotated[
+        bool,
+        Field(
+            description="Whether `[webhooks] names` lists the webhook, which it must to be served.",
+            title="Listed",
+        ),
+    ]
+    connection_status: Annotated[
+        WebhookConnectionStatus,
+        Field(
+            description="Whether the webhook's `webhook_<name>` connection configures a webhook that can be served: `ok`; `not_found` if no secrets backend has it; `wrong_type` if its type is not `inbound_webhook`; `misconfigured` if it cannot be used as it is, and `airflow webhooks check` says why; `unavailable` if a secrets backend failed."
+        ),
+    ]
+    source_type: Annotated[
+        str | None,
+        Field(
+            description="The source type the connection names, or null if the connection was not read that far.",
+            title="Source Type",
+        ),
+    ]
+    source_type_status: Annotated[
+        WebhookSourceTypeStatus | None,
+        Field(
+            description="Whether an installed provider serves the source type: `ok`; `unknown` if none does; `conflict` if several declare it and `[webhooks] source_type_owners` names none of them. Null when `source_type` is."
+        ),
+    ]
+    last_received_at: Annotated[
+        datetime | None,
+        Field(description="When the last recorded delivery was received.", title="Last Received At"),
+    ]
+    last_outcome: Annotated[
+        str | None,
+        Field(description="What Airflow did with the last recorded delivery.", title="Last Outcome"),
+    ]
+
+
 class XComCollectionResponse(BaseModel):
     """
     XCom Collection serializer for responses.
@@ -3196,6 +3260,15 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
     """
 
     task_instances: Annotated[list[TaskInstanceHistoryResponse], Field(title="Task Instances")]
+    total_entries: Annotated[int, Field(title="Total Entries")]
+
+
+class WebhookCollectionResponse(BaseModel):
+    """
+    Webhook collection response.
+    """
+
+    webhooks: Annotated[list[WebhookResponse], Field(title="Webhooks")]
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 

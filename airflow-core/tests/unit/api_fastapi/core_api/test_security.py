@@ -1147,14 +1147,37 @@ class TestFastApiSecurity:
             method="GET", details=ConnectionDetails(conn_id="webhook_github", team_name=None), user=user
         )
 
+    @pytest.mark.parametrize(
+        ("path_params", "lists_webhooks"),
+        [({"webhook_name": "~"}, False), ({}, True)],
+        ids=["wildcard", "listing-route"],
+    )
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager", autospec=True)
-    def test_requires_access_webhook_leaves_the_wildcard_to_the_route(self, mock_get_auth_manager):
+    def test_requires_access_webhook_leaves_listing_webhooks_to_the_route(
+        self, mock_get_auth_manager, path_params, lists_webhooks
+    ):
         fastapi_request = Mock(spec=Request)
-        fastapi_request.path_params = {"webhook_name": "~"}
+        fastapi_request.path_params = path_params
 
-        requires_access_webhook("GET")(fastapi_request, Mock(spec=BaseUser))
+        requires_access_webhook("GET", lists_webhooks=lists_webhooks)(fastapi_request, Mock(spec=BaseUser))
 
         mock_get_auth_manager.assert_not_called()
+
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager", autospec=True)
+    def test_requires_access_webhook_checks_a_route_that_names_no_webhook_and_lists_none(
+        self, mock_get_auth_manager
+    ):
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_connection.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+        fastapi_request = Mock(spec=Request)
+        fastapi_request.path_params = {}
+
+        with pytest.raises(HTTPException) as exc_info:
+            requires_access_webhook("GET")(fastapi_request, Mock(spec=BaseUser))
+
+        assert exc_info.value.status_code == 403
+        auth_manager.is_authorized_connection.assert_called_once()
 
     @patch.object(Connection, "get_conn_id_to_team_name_mapping")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")

@@ -24,6 +24,8 @@ from uuid import UUID
 from pydantic import Field, JsonValue
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.webhooks.connections import WebhookSourceTypeStatus
+from airflow.webhooks.status import WebhookConnectionStatus
 
 
 class WebhookDeliveryResponse(BaseModel):
@@ -50,4 +52,40 @@ class WebhookDeliveryCollectionResponse(BaseModel):
     """Webhook delivery collection response."""
 
     deliveries: Iterable[WebhookDeliveryResponse]
+    total_entries: int
+
+
+class WebhookResponse(BaseModel):
+    """A webhook, whether it can be served, and the last delivery it received."""
+
+    name: str
+    listed: bool = Field(
+        description="Whether `[webhooks] names` lists the webhook, which it must to be served."
+    )
+    connection_status: WebhookConnectionStatus = Field(
+        description=(
+            "Whether the webhook's `webhook_<name>` connection configures a webhook that can be served: "
+            "`ok`; `not_found` if no secrets backend has it; `wrong_type` if its type is not "
+            "`inbound_webhook`; `misconfigured` if it cannot be used as it is, and `airflow webhooks check` "
+            "says why; `unavailable` if a secrets backend failed."
+        )
+    )
+    source_type: str | None = Field(
+        description="The source type the connection names, or null if the connection was not read that far."
+    )
+    source_type_status: WebhookSourceTypeStatus | None = Field(
+        description=(
+            "Whether an installed provider serves the source type: `ok`; `unknown` if none does; "
+            "`conflict` if several declare it and `[webhooks] source_type_owners` names none of them. "
+            "Null when `source_type` is."
+        )
+    )
+    last_received_at: datetime | None = Field(description="When the last recorded delivery was received.")
+    last_outcome: str | None = Field(description="What Airflow did with the last recorded delivery.")
+
+
+class WebhookCollectionResponse(BaseModel):
+    """Webhook collection response."""
+
+    webhooks: Iterable[WebhookResponse]
     total_entries: int

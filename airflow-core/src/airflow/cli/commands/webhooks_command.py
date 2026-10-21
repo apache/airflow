@@ -34,42 +34,12 @@ from airflow.exceptions import AirflowConfigException, AirflowNotFoundException
 from airflow.models.connection import AirflowSecretsBackendAccessDenied, Connection
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.webhooks.connections import CONN_ID_PREFIX, ConfiguredWebhook, ResolutionFailure, resolve_webhook
+from airflow.webhooks.connections import CONN_ID_PREFIX
 from airflow.webhooks.registry import WebhookRegistry, get_webhook_name_problem
+from airflow.webhooks.status import get_webhook_status
 
 DEFAULT_SIGNATURE_HEADER = "X-Signature"
 MAX_ANSWER_BYTES = 1_048_576
-
-
-def _check_webhook(name: str, registry: WebhookRegistry) -> ConfiguredWebhook | list[str]:
-    """Return webhook ``name`` as the webhooks app would serve it, or what keeps it from being served."""
-    if problem := get_webhook_name_problem(name):
-        return [problem]
-    problems = []
-    if name not in registry.names:
-        problems.append("[webhooks] names does not list it, so its deliveries are answered with 404")
-    resolution = resolve_webhook(
-        name,
-        source_type_owners=registry.source_type_owners,
-        default_max_body_bytes=registry.max_body_bytes,
-        default_store_payload=registry.store_payload,
-    )
-    if isinstance(resolution, ConfiguredWebhook):
-        return problems or resolution
-    conn_id = f"{CONN_ID_PREFIX}{name}"
-    if resolution.failure is ResolutionFailure.MISCONFIGURED:
-        problems.append(f"connection {conn_id} is misconfigured: {resolution.reason}")
-    elif resolution.failure is ResolutionFailure.NOT_FOUND and (
-        team_name := Connection.get_team_name(conn_id)
-    ):
-        # resolve_webhook looks connections up without a team, so it does not find one of a team.
-        problems.append(
-            f"connection {conn_id} belongs to team {team_name}, and this version of Airflow serves only "
-            "webhooks without a team"
-        )
-    else:
-        problems.append(resolution.reason)
-    return problems
 
 
 @suppress_logs_and_warning
@@ -85,16 +55,20 @@ def check(args) -> None:
         raise SystemExit("[webhooks] names lists no webhooks to check")
     failed = False
     for name in names:
-        result = _check_webhook(name, registry)
-        if isinstance(result, ConfiguredWebhook):
-            print(
-                f"Webhook {name} can be served at /webhooks/{name} by airflow api-server --apps webhooks, "
-                f"with source type {result.source_type}, bodies of up to {result.max_body_bytes} bytes "
-                f"and store_payload {result.store_payload}"
-            )
-            continue
+        if problem := get_webhook_name_problem(name):
+            problems: tuple[str, ...] = (problem,)
+        else:
+            status = get_webhook_status(name, registry=registry)
+            if (webhook := status.webhook) is not None and not status.problems:
+                print(
+                    f"Webhook {name} can be served at /webhooks/{name} by airflow api-server --apps "
+                    f"webhooks, with source type {webhook.source_type}, bodies of up to "
+                    f"{webhook.max_body_bytes} bytes and store_payload {webhook.store_payload}"
+                )
+                continue
+            problems = status.problems
         failed = True
-        for problem in result:
+        for problem in problems:
             print(f"Problem with webhook {name}: {problem}", file=sys.stderr)
     if failed:
         raise SystemExit(1)

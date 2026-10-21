@@ -90,8 +90,48 @@
       "dag_paused": "Dag Paused",
       "no_subscribers": "No Subscribers"
     },
+    "tabs": {
+      "deliveries": "Deliveries",
+      "webhooks": "Webhooks"
+    },
     "title": "Deliveries to {{webhookName}}",
     "view": "View $t(webhookDeliveries.delivery_other)"
+  },
+  "webhooks": {
+    "columns": {
+      "connection": "Connection",
+      "lastOutcome": "Last Outcome",
+      "lastReceivedAt": "Last Received At",
+      "listed": "Listed",
+      "name": "Webhook",
+      "sourceType": "Source Type"
+    },
+    "connectionStatusExplanations": {
+      "misconfigured": "The connection cannot be used as it is. Run airflow webhooks check to see why.",
+      "not_found": "No secrets backend has the webhook's connection.",
+      "unavailable": "A secrets backend failed, so whether the connection exists is not known.",
+      "wrong_type": "The connection's type is not inbound_webhook."
+    },
+    "connectionStatuses": {
+      "misconfigured": "Misconfigured",
+      "not_found": "Not Found",
+      "ok": "OK",
+      "unavailable": "Unavailable",
+      "wrong_type": "Wrong Type"
+    },
+    "filterLoadError": "The webhooks could not be loaded. Type a webhook name to filter by it.",
+    "notListed": "[webhooks] names does not list this webhook, so it is not served.",
+    "sourceTypeStatusExplanations": {
+      "conflict": "Several installed providers declare this source type, so none serves it until [webhooks] source_type_owners names one.",
+      "unknown": "No installed provider serves this source type."
+    },
+    "sourceTypeStatuses": {
+      "conflict": "Conflict",
+      "unknown": "Unknown"
+    },
+    "title": "Webhooks",
+    "webhook_one": "Webhook",
+    "webhook_other": "Webhooks"
   },
   "xcom": {
     "add": {

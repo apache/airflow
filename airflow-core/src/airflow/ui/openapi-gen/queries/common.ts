@@ -303,6 +303,13 @@ export const UseExperimentalServiceWaitDagRunUntilFinishedKeyFn = ({ dagId, dagR
   interval: number;
   result?: string[];
 }, queryKey?: Array<unknown>) => [useExperimentalServiceWaitDagRunUntilFinishedKey, ...(queryKey ?? [{ dagId, dagRunId, interval, result }])];
+export type ExperimentalServiceGetWebhooksDefaultResponse = Awaited<ReturnType<typeof ExperimentalService.getWebhooks>>;
+export type ExperimentalServiceGetWebhooksQueryResult<TData = ExperimentalServiceGetWebhooksDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useExperimentalServiceGetWebhooksKey = "ExperimentalServiceGetWebhooks";
+export const UseExperimentalServiceGetWebhooksKeyFn = ({ limit, offset }: {
+  limit?: number;
+  offset?: number;
+} = {}, queryKey?: Array<unknown>) => [useExperimentalServiceGetWebhooksKey, ...(queryKey ?? [{ limit, offset }])];
 export type ExperimentalServiceGetWebhookDeliveriesDefaultResponse = Awaited<ReturnType<typeof ExperimentalService.getWebhookDeliveries>>;
 export type ExperimentalServiceGetWebhookDeliveriesQueryResult<TData = ExperimentalServiceGetWebhookDeliveriesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useExperimentalServiceGetWebhookDeliveriesKey = "ExperimentalServiceGetWebhookDeliveries";
@@ -1060,6 +1067,13 @@ export const UseVariableServiceGetVariablesKeyFn = ({ limit, offset, orderBy, va
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}, queryKey?: Array<unknown>) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }])];
+export type WebhookServiceGetWebhooksDefaultResponse = Awaited<ReturnType<typeof WebhookService.getWebhooks>>;
+export type WebhookServiceGetWebhooksQueryResult<TData = WebhookServiceGetWebhooksDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useWebhookServiceGetWebhooksKey = "WebhookServiceGetWebhooks";
+export const UseWebhookServiceGetWebhooksKeyFn = ({ limit, offset }: {
+  limit?: number;
+  offset?: number;
+} = {}, queryKey?: Array<unknown>) => [useWebhookServiceGetWebhooksKey, ...(queryKey ?? [{ limit, offset }])];
 export type WebhookServiceGetWebhookDeliveriesDefaultResponse = Awaited<ReturnType<typeof WebhookService.getWebhookDeliveries>>;
 export type WebhookServiceGetWebhookDeliveriesQueryResult<TData = WebhookServiceGetWebhookDeliveriesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useWebhookServiceGetWebhookDeliveriesKey = "WebhookServiceGetWebhookDeliveries";

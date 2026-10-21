@@ -55,6 +55,8 @@ const links = [
   {
     href: "/webhook_deliveries",
     key: "webhookDeliveries",
+    // The page's Webhooks tab.
+    matchPaths: ["/webhook_overview"],
     title: "Webhook Deliveries",
   },
   {
@@ -96,7 +98,7 @@ export const BrowseButton = ({
         <NavButton
           icon={FiGlobe}
           title={translate("nav.browse")}
-          to={authorizedLinks.map(({ href }) => href)}
+          to={authorizedLinks.flatMap(({ href, matchPaths }) => [href, ...(matchPaths ?? [])])}
         />
       }
     >

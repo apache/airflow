@@ -24,7 +24,9 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import func, select
 from starlette.datastructures import Headers, QueryParams
 
+from airflow.models.connection import Connection
 from airflow.models.inbound_delivery import InboundDelivery
+from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.webhooks.base import (
     WebhookDelivery,
     WebhookRequest,
@@ -61,6 +63,30 @@ def build_conn_env(
     """Return the environment variable that defines the ``webhook_<name>`` connection."""
     conn = {"conn_type": conn_type, "password": password, "extra": extra}
     return {f"AIRFLOW_CONN_WEBHOOK_{name.upper()}": json.dumps(conn)}
+
+
+def build_webhook_connection(
+    name: str, *, conn_type: str = "inbound_webhook", password: str | None = FAKE_SECRET, **extra: Any
+) -> Connection:
+    """Return the ``webhook_<name>`` connection, with ``extra`` as its extra."""
+    return Connection(
+        conn_id=f"webhook_{name}", conn_type=conn_type, password=password, extra=json.dumps(extra)
+    )
+
+
+class FakeSecretsBackend(BaseSecretsBackend):
+    """Holds connections in memory, fails to read the ones in ``failing``, and counts its lookups."""
+
+    def __init__(self) -> None:
+        self.connections: dict[str, Connection] = {}
+        self.failing: set[str] = set()
+        self.lookups = 0
+
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
+        self.lookups += 1
+        if conn_id in self.failing:
+            raise RuntimeError(f"could not reach https://vault.example.com with token {FAKE_SECRET}")
+        return self.connections.get(conn_id)
 
 
 def post_signed_delivery(

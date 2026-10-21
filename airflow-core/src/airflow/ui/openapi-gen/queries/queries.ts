@@ -590,6 +590,23 @@ export const useExperimentalServiceWaitDagRunUntilFinished = <TData = Common.Exp
   result?: string[];
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceWaitDagRunUntilFinishedKeyFn({ dagId, dagRunId, interval, result }, queryKey), queryFn: () => ExperimentalService.waitDagRunUntilFinished({ dagId, dagRunId, interval, result }) as TData, ...options });
 /**
+* Experimental: List webhooks and whether they can be served.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the webhooks whose connection you may read, by name: those that `[webhooks] names` lists and those with recorded deliveries. Each says whether its connection and source type let it be served, and when it last received a delivery. A caller who may read no webhook gets an empty list.
+*
+* Each call reads the connections of the webhooks it returns from the secrets backends. It never returns what a connection holds or why a secrets backend failed: `airflow webhooks check` says that.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @returns WebhookCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useExperimentalServiceGetWebhooks = <TData = Common.ExperimentalServiceGetWebhooksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset }: {
+  limit?: number;
+  offset?: number;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseExperimentalServiceGetWebhooksKeyFn({ limit, offset }, queryKey), queryFn: () => ExperimentalService.getWebhooks({ limit, offset }) as TData, ...options });
+/**
 * Experimental: List the deliveries a webhook received.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.
 *
@@ -2111,6 +2128,23 @@ export const useVariableServiceGetVariables = <TData = Common.VariableServiceGet
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }, queryKey), queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }) as TData, ...options });
+/**
+* Experimental: List webhooks and whether they can be served.
+* 🚧 This is an experimental endpoint and may change or be removed without notice.
+*
+* Lists the webhooks whose connection you may read, by name: those that `[webhooks] names` lists and those with recorded deliveries. Each says whether its connection and source type let it be served, and when it last received a delivery. A caller who may read no webhook gets an empty list.
+*
+* Each call reads the connections of the webhooks it returns from the secrets backends. It never returns what a connection holds or why a secrets backend failed: `airflow webhooks check` says that.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @returns WebhookCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useWebhookServiceGetWebhooks = <TData = Common.WebhookServiceGetWebhooksDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ limit, offset }: {
+  limit?: number;
+  offset?: number;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseWebhookServiceGetWebhooksKeyFn({ limit, offset }, queryKey), queryFn: () => WebhookService.getWebhooks({ limit, offset }) as TData, ...options });
 /**
 * Experimental: List the deliveries a webhook received.
 * 🚧 This is an experimental endpoint and may change or be removed without notice.

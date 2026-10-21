@@ -29,6 +29,7 @@ export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/pools", () => HttpResponse.json({ pools: [], total_entries: 0 })),
   http.get("/api/v2/providers", () => HttpResponse.json({ providers: [], total_entries: 0 })),
   http.get("/api/v2/variables", () => HttpResponse.json({ total_entries: 0, variables: [] })),
+  http.get("/api/v2/webhooks", () => HttpResponse.json({ total_entries: 0, webhooks: [] })),
   http.get("/api/v2/webhooks/:webhookName/deliveries", () =>
     HttpResponse.json({ deliveries: [], total_entries: 0 }),
   ),

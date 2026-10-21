@@ -17,12 +17,18 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import type { AssetEventResponse } from "openapi/requests/types.gen";
+import type { AssetEventResponse, WebhookDeliveryResponse } from "openapi/requests/types.gen";
 
-import { Wrapper } from "src/utils/Wrapper";
+import { WebhookDeliveries } from "src/pages/WebhookDeliveries";
+
+import { TimezoneProvider } from "src/context/timezone";
+import { server } from "src/mocks/server";
+import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { AssetEvent } from "./AssetEvent";
 
@@ -33,6 +39,11 @@ const baseEvent = {
   source_map_index: -1,
   timestamp: "2025-01-01T00:00:00Z",
 } satisfies Partial<AssetEventResponse> as AssetEventResponse;
+
+const deliveryRecordId = "0199f8a0-0000-7000-8000-000000000001";
+const webhookExtra = { from_webhook: true, inbound_delivery_id: deliveryRecordId, webhook: "demo" };
+const taskSource = { source_dag_id: "producer", source_run_id: "run_1", source_task_id: "emit" };
+const taskPath = "/dags/producer/runs/run_1/tasks/emit";
 
 describe("AssetEvent", () => {
   it("does not render a partition key line when partition_key is null", () => {
@@ -58,5 +69,149 @@ describe("AssetEvent", () => {
 
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(screen.queryByText(/source/u)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { extra: { from_rest_api: true }, label: "sources.api", name: "an API event" },
+    { extra: { from_trigger: true }, label: "sources.trigger", name: "a trigger event" },
+    // The API sets from_rest_api itself, so a caller's extra cannot make its event a delivery's.
+    {
+      extra: { ...webhookExtra, from_rest_api: true },
+      label: "sources.api",
+      name: "an API event that claims a delivery",
+    },
+    {
+      extra: { from_webhook: true, webhook: "demo" },
+      label: "sources.webhook",
+      name: "a webhook event without a delivery",
+    },
+    {
+      extra: { ...webhookExtra, inbound_delivery_id: 7 },
+      label: "sources.webhook",
+      name: "a webhook event with a numeric delivery",
+    },
+    {
+      extra: { ...webhookExtra, webhook: ".." },
+      label: "sources.webhook",
+      name: "a webhook event with an invalid name",
+    },
+  ])("labels $name without a link", ({ extra, label }) => {
+    render(<AssetEvent assetId={1} event={{ ...baseEvent, extra, source_dag_id: null }} />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      description: "a webhook event to its delivery",
+      event: { extra: webhookExtra, source_dag_id: null },
+      href: `/webhook_deliveries/demo?id=${deliveryRecordId}`,
+      name: "sources.webhook",
+    },
+    {
+      description: "a webhook event to its delivery, escaping the delivery id",
+      event: { extra: { ...webhookExtra, inbound_delivery_id: "x&outcome=accepted" }, source_dag_id: null },
+      href: "/webhook_deliveries/demo?id=x%26outcome%3Daccepted",
+      name: "sources.webhook",
+    },
+    {
+      description: "a task event that sets from_webhook to its task",
+      event: { ...taskSource, extra: webhookExtra },
+      href: taskPath,
+      name: "producer",
+    },
+    {
+      description: "a task event that sets from_rest_api to its task",
+      event: { ...taskSource, extra: { from_rest_api: true } },
+      href: taskPath,
+      name: "producer",
+    },
+  ])("links $description", ({ event, href, name }) => {
+    render(<AssetEvent assetId={1} event={{ ...baseEvent, ...event }} />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+  });
+
+  it("opens the details of a webhook event's delivery from its link", async () => {
+    const delivery: WebhookDeliveryResponse = {
+      actions: null,
+      attributes: null,
+      candidates: null,
+      correlation_key: null,
+      delivery_id: "gh-1",
+      id: deliveryRecordId,
+      outcome: "accepted",
+      received_at: "2026-10-18T12:00:00Z",
+      source_type: "github",
+      team_name: null,
+      webhook: "demo",
+    };
+    const detailRequests: Array<URL> = [];
+
+    server.use(
+      http.get("/api/v2/webhooks/:webhookName/deliveries", ({ request }) => {
+        const url = new URL(request.url);
+
+        if (!url.searchParams.has("id")) {
+          return HttpResponse.json({ deliveries: [], total_entries: 0 });
+        }
+        detailRequests.push(url);
+
+        return HttpResponse.json({ deliveries: [delivery], total_entries: 1 });
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <TimezoneProvider>
+          <Routes>
+            <Route
+              element={
+                <AssetEvent assetId={1} event={{ ...baseEvent, extra: webhookExtra, source_dag_id: null }} />
+              }
+              path="/"
+            />
+            <Route element={<WebhookDeliveries />} path="webhook_deliveries/:webhookName" />
+          </Routes>
+        </TimezoneProvider>
+      </MemoryRouter>,
+      { wrapper: BaseWrapper },
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "sources.webhook" }));
+
+    const panel = await screen.findByTestId("delivery-details");
+
+    expect(await within(panel).findByText("gh-1")).toBeInTheDocument();
+    expect(detailRequests.at(-1)?.pathname).toBe("/api/v2/webhooks/demo/deliveries");
+    expect(detailRequests.at(-1)?.searchParams.get("id")).toBe(deliveryRecordId);
+  });
+
+  it.each([
+    {
+      description: "a webhook event",
+      event: { extra: webhookExtra, source_dag_id: null },
+      flag: "from_webhook",
+      verb: "hides",
+    },
+    {
+      description: "a task event that sets from_webhook",
+      event: { ...taskSource, extra: webhookExtra },
+      flag: "from_webhook",
+      verb: "shows",
+    },
+    {
+      description: "a task event that sets from_rest_api",
+      event: { ...taskSource, extra: { from_rest_api: true } },
+      flag: "from_rest_api",
+      verb: "shows",
+    },
+  ])("$verb the $flag flag in the extra of $description", ({ event, flag, verb }) => {
+    render(<AssetEvent assetId={1} event={{ ...baseEvent, ...event }} />, { wrapper: Wrapper });
+
+    expect(screen.queryAllByText(`${flag}:`)).toHaveLength(verb === "shows" ? 1 : 0);
   });
 });
