@@ -752,6 +752,12 @@ def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
     show_default=True,
     help="Sync K8s JSON schemas to airflow-site",
 )
+@click.option(
+    "--latest-package-managers/--no-latest-package-managers",
+    default=False,
+    show_default=True,
+    help="Bypass cooldown when upgrading package managers (pip and uv) to use their latest versions",
+)
 @option_github_token
 @option_answer
 @option_verbose
@@ -769,6 +775,7 @@ def upgrade(
     upgrade_dependency_floors: bool,
     update_uv_lock: bool,
     k8s_schema_sync: bool,
+    latest_package_managers: bool,
     github_token: str | None,
 ):
     # Validate target_branch pattern
@@ -930,6 +937,10 @@ def upgrade(
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
+
+    if latest_package_managers:
+        command_env["LATEST_PACKAGE_MANAGERS"] = "true"
+        command_env["UPGRADE_LATEST_PACKAGE_MANAGERS"] = "true"
 
     if github_token:
         command_env["GITHUB_TOKEN"] = github_token
