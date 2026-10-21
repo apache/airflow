@@ -1188,7 +1188,7 @@ class DagRunInfo(InfoJsonEncodable):
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
 
-    includes = ["duration", "log_url", "max_tries", "pool", "queued_dttm", "state", "try_number"]
+    includes = ["log_url", "max_tries", "pool", "queued_dttm", "state", "try_number"]
     casts = {
         "log_url": lambda ti: getattr(ti, "log_url", None),
         "dag_version_id": lambda ti: (
@@ -1209,7 +1209,12 @@ class TaskInstanceInfo(InfoJsonEncodable):
         return getattr(ti, "rendered_map_index", None)
 
     def __init__(
-        self, obj, position: TaskInstancePosition | None = None, dag: Any = None, dag_run: Any = None
+        self,
+        obj,
+        position: TaskInstancePosition | None = None,
+        dag: Any = None,
+        dag_run: Any = None,
+        end_date: datetime.datetime | None = None,
     ):
         # Pass the position when the caller has already placed the task instance, e.g. from its stored region or
         # with get_task_instance_position; it is then used as is.
@@ -1217,9 +1222,31 @@ class TaskInstanceInfo(InfoJsonEncodable):
         # A stored task instance's bundle comes from these, as the worker's does, without a query
         self._dag = dag
         self._dag_run = dag_run
+        # Pass the end date when the caller emits a terminal event and the task instance doesn't carry the end
+        # date yet, as is the case for a skipped Airflow 3 runtime task instance.
+        self._end_date = end_date
         super().__init__(obj)
 
+    def _get_duration(self) -> float | None:
+        # A runtime task instance has no ``duration`` -- the API server computes it after the listener ran.
+        if self._end_date is not None:
+            end_date = self._end_date
+        elif (duration := getattr(self.obj, "duration", None)) is not None:
+            return duration
+        else:
+            end_date = getattr(self.obj, "end_date", None)
+        start_date = getattr(self.obj, "start_date", None)
+        if not isinstance(end_date, datetime.datetime) or not isinstance(start_date, datetime.datetime):
+            return None
+        try:
+            return (end_date - start_date).total_seconds()
+        except TypeError:  # naive and aware datetimes can't be subtracted
+            return None
+
     def _extend_fields(self) -> None:
+        if (duration := self._get_duration()) is not None:
+            self.duration = duration
+            self._fields.append("duration")
         position = self._position
         if position is None:
             # A stored task instance whose task isn't attached can't be placed without its region, and a facet
@@ -1552,13 +1579,16 @@ def get_airflow_run_facet(
     task_uuid: str,
     include_full_task_info: bool = False,
     ti_position: TaskInstancePosition | None = None,
+    end_date: datetime.datetime | None = None,
 ) -> dict[str, AirflowRunFacet]:
     runtime_assets = get_runtime_outlet_assets(task_instance)
     return {
         "airflow": AirflowRunFacet(
             dag=DagInfo(dag),
             dagRun=DagRunInfo(dag_run),
-            taskInstance=TaskInstanceInfo(task_instance, position=ti_position, dag=dag, dag_run=dag_run),
+            taskInstance=TaskInstanceInfo(
+                task_instance, position=ti_position, dag=dag, dag_run=dag_run, end_date=end_date
+            ),
             task=(
                 TaskInfoComplete(task, runtime_assets=runtime_assets)
                 if include_full_task_info
