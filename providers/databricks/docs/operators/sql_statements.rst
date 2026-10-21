@@ -113,8 +113,8 @@ An example usage of the ``DatabricksSQLStatementsSensor`` is as follows:
 Explicit assets
 ---------------
 
-``DatabricksSQLStatementsOperator`` does not infer which Databricks tables a SQL
-statement writes to. Declare output assets explicitly using ``outlets``::
+Use ``outlets`` to declare the Unity Catalog tables that the SQL statement writes to,
+using :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity`::
 
     from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 

@@ -176,8 +176,8 @@ operator always triggers a fresh run on retry, exactly as before this feature ex
 Explicit assets
 ^^^^^^^^^^^^^^^
 
-``DatabricksRunNowOperator`` does not infer Databricks table assets produced by
-a job. Declare known outputs explicitly using ``outlets``::
+Use ``outlets`` to declare the Unity Catalog tables that the job writes to,
+using :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity`::
 
     from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 
