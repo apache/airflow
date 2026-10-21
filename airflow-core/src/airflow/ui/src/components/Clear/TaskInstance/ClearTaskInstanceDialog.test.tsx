@@ -392,6 +392,32 @@ describe("ClearTaskInstanceDialog", () => {
     expect(requestBody).not.toHaveProperty("task_instance_ids");
   });
 
+  it.each([
+    { ignoreDefaultOptions: true, included: false },
+    { ignoreDefaultOptions: false, included: true },
+  ])(
+    "applies the saved default options unless ignoreDefaultOptions=$ignoreDefaultOptions",
+    async ({ ignoreDefaultOptions, included }) => {
+      localStorage.setItem(CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY, JSON.stringify(["past", "downstream"]));
+      render(
+        <ClearTaskInstanceDialog
+          ignoreDefaultOptions={ignoreDefaultOptions}
+          onClose={vi.fn()}
+          open
+          taskInstances={[taskInstance]}
+        />,
+        { wrapper: Wrapper },
+      );
+
+      fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+
+      await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
+      const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: Record<string, unknown> }];
+
+      expect(requestBody).toMatchObject({ include_downstream: included, include_past: included });
+    },
+  );
+
   it("sends one run-scoped request per run when a selection spans runs", async () => {
     const otherRun = { ...loopMember, dag_run_id: "run_2", id: "other-run-member" };
 

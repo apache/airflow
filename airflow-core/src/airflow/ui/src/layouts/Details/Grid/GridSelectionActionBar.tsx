@@ -25,10 +25,10 @@ import BulkClearTaskInstancesButton from "src/pages/TaskInstances/BulkClearTaskI
 import BulkDeleteTaskInstancesButton from "src/pages/TaskInstances/BulkDeleteTaskInstancesButton";
 import BulkMarkTaskInstancesAsButton from "src/pages/TaskInstances/BulkMarkTaskInstancesAsButton";
 
+import type { GridSelection } from "src/context/gridSelection";
 import { formatNumber } from "src/utils";
 
 import { useGridSelectedTaskInstances } from "./useGridSelectedTaskInstances";
-import type { GridSelection } from "./useGridSelection";
 
 type Props = {
   readonly clearSelection: VoidFunction;
@@ -62,6 +62,7 @@ export const GridSelectionActionBar = ({ clearSelection, dagId, deselectCells, s
             <ActionBar.Separator />
             <BulkClearTaskInstancesButton
               clearSelections={clearSelection}
+              ignoreDefaultOptions
               selectedTaskInstances={selectedTaskInstances}
             />
             <BulkMarkTaskInstancesAsButton

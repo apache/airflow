@@ -38,6 +38,7 @@ import ReactMarkdown from "src/components/ReactMarkdown";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
+import { useHasGridSelection } from "src/context/gridSelection";
 import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useLoopSummary } from "src/queries/useLoopSummary";
@@ -68,6 +69,8 @@ export const HistoryHeader = ({ taskInstance }: { readonly taskInstance: TaskIns
 };
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
+  // The grid's bulk actions replace these while task instances are selected there.
+  const hasGridSelection = useHasGridSelection();
   const { t: translate } = useTranslation();
   const { formatElapsed, renderDuration } = useDurationFormat();
   const pluginActions = usePluginActions("task_instance");
@@ -166,14 +169,23 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       <HeaderCard
         actions={
           <>
-            <ClearTaskInstanceButton
-              bg="bg"
-              isHotkeyEnabled
-              onOpen={() => setClearOpen(true)}
-              taskInstance={taskInstance}
-              variant="outline"
-            />
-            <MarkTaskInstanceAsButton bg="bg" isHotkeyEnabled taskInstance={taskInstance} variant="outline" />
+            {hasGridSelection ? undefined : (
+              <>
+                <ClearTaskInstanceButton
+                  bg="bg"
+                  isHotkeyEnabled
+                  onOpen={() => setClearOpen(true)}
+                  taskInstance={taskInstance}
+                  variant="outline"
+                />
+                <MarkTaskInstanceAsButton
+                  bg="bg"
+                  isHotkeyEnabled
+                  taskInstance={taskInstance}
+                  variant="outline"
+                />
+              </>
+            )}
             <PluginActions
               {...pluginActions}
               buttonProps={{ bg: "bg", variant: "outline" }}

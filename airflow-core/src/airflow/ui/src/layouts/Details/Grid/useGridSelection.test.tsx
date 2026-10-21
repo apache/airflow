@@ -24,6 +24,9 @@ import { describe, expect, it } from "vitest";
 
 import type { GridTISummaries, LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
+import { GridSelectionProvider, useHasGridSelection } from "src/context/gridSelection";
+import { ShortcutRegistryProvider, useShortcutRegistry } from "src/context/keyboardShortcuts";
+
 import { getCellKey, isSelectableCell, useGridSelection } from "./useGridSelection";
 import type { GridTask } from "./utils";
 
@@ -72,15 +75,23 @@ const click = (modifiers: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boo
 
 const renderSelection = (route = "/dags/dag") =>
   renderHook(
-    () => useGridSelection({ flatNodes: FLAT_NODES, runIds: RUN_IDS, summariesByRunId: SUMMARIES }),
+    () => ({
+      ...useGridSelection({ flatNodes: FLAT_NODES, runIds: RUN_IDS, summariesByRunId: SUMMARIES }),
+      hasGridSelection: useHasGridSelection(),
+      shortcuts: useShortcutRegistry().shortcuts,
+    }),
     {
       wrapper: ({ children }: PropsWithChildren) => (
-        <MemoryRouter initialEntries={[route]}>
-          <Routes>
-            <Route element={children} path="/dags/:dagId" />
-            <Route element={children} path="/dags/:dagId/runs/:runId/tasks/:taskId" />
-          </Routes>
-        </MemoryRouter>
+        <ShortcutRegistryProvider>
+          <GridSelectionProvider>
+            <MemoryRouter initialEntries={[route]}>
+              <Routes>
+                <Route element={children} path="/dags/:dagId" />
+                <Route element={children} path="/dags/:dagId/runs/:runId/tasks/:taskId" />
+              </Routes>
+            </MemoryRouter>
+          </GridSelectionProvider>
+        </ShortcutRegistryProvider>
       ),
     },
   );
@@ -116,12 +127,14 @@ describe("useGridSelection", () => {
 
     expect(handled).toBe(true);
     expect(selectedKeys(result)).toEqual([getCellKey("r1", "a")]);
+    expect(result.current.hasGridSelection).toBe(true);
 
     act(() => {
       result.current.handleSelectionClick(click({ metaKey: true }), { runId: "r1", taskId: "a" });
     });
 
     expect(selectedKeys(result)).toEqual([]);
+    expect(result.current.hasGridSelection).toBe(false);
   });
 
   it("starts a selection from the opened task instance", () => {
@@ -207,6 +220,17 @@ describe("useGridSelection", () => {
 
     expect(handled).toBe(false);
     expect(selectedKeys(result)).toEqual([]);
+  });
+
+  it("lists the selection clicks in the keyboard shortcuts help while mounted", () => {
+    const { result, unmount } = renderSelection();
+
+    expect(result.current.shortcuts.map(({ category, keys }) => ({ category, keys }))).toEqual([
+      { category: "dagView", keys: ["mod+Click"] },
+      { category: "dagView", keys: ["shift+Click"] },
+    ]);
+
+    unmount();
   });
 
   it("deselects the given cells", () => {

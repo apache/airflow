@@ -22,7 +22,9 @@ import { useTaskInstanceServiceGetTaskInstancesKey } from "openapi/queries";
 import { TaskInstanceService } from "openapi/requests/services.gen";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-import { getCellKey, type GridSelection } from "./useGridSelection";
+import type { GridSelection } from "src/context/gridSelection";
+
+import { getCellKey } from "./useGridSelection";
 
 const PAGE_LIMIT = 100;
 

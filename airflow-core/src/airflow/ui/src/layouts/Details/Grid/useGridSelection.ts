@@ -17,20 +17,17 @@
  * under the License.
  */
 import type { MouseEvent } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 
+import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import type { GridTISummaries, LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
+import { type GridCell, useGridSelectionState } from "src/context/gridSelection";
+import { SHORTCUTS, useShortcutRegistry } from "src/context/keyboardShortcuts";
+
 import type { GridTask } from "./utils";
-
-export type GridCell = {
-  readonly runId: string;
-  readonly taskId: string;
-};
-
-export type GridSelection = ReadonlyMap<string, GridCell>;
 
 export const getCellKey = (runId: string, taskId: string) => JSON.stringify([runId, taskId]);
 
@@ -80,10 +77,7 @@ export const buildRangeSelection = (data: GridData, from: GridCell, to: GridCell
  */
 export const useGridSelection = (data: GridData) => {
   const { dagId = "", runId: openedRunId, taskId: openedTaskId } = useParams();
-  const [selection, setSelection] = useState<{ cells: GridSelection; dagId: string }>({
-    cells: new Map(),
-    dagId,
-  });
+  const [selection, setSelection] = useGridSelectionState();
   const anchorRef = useRef<GridCell | undefined>(undefined);
   // The click handler is passed to every run column; reading the grid data through a ref keeps it
   // stable while the TI summaries stream in, so a summary update does not re-render every column.
@@ -93,12 +87,40 @@ export const useGridSelection = (data: GridData) => {
     dataRef.current = data;
   });
 
+  const { t: translate } = useTranslation();
+  const { register, unregister } = useShortcutRegistry();
+  const shortcutId = useId();
+  const toggleDescription = translate(SHORTCUTS.dagView.toggleGridCellSelection.descriptionKey);
+  const rangeDescription = translate(SHORTCUTS.dagView.selectGridCellRange.descriptionKey);
+
+  // Modified clicks are not hotkeys, so they are listed in the help modal without going through
+  // `useShortcut`.
+  useEffect(() => {
+    const entries = [
+      {
+        ...SHORTCUTS.dagView.toggleGridCellSelection,
+        description: toggleDescription,
+        id: `${shortcutId}-toggle`,
+      },
+      { ...SHORTCUTS.dagView.selectGridCellRange, description: rangeDescription, id: `${shortcutId}-range` },
+    ];
+
+    entries.forEach(({ category, description, id, keys }) =>
+      register({ category, description, id, keys: [keys] }),
+    );
+
+    return () => entries.forEach(({ id }) => unregister(id));
+  }, [rangeDescription, register, shortcutId, toggleDescription, unregister]);
+
   const cells = selection.dagId === dagId ? selection.cells : new Map<string, GridCell>();
 
   const clearSelection = useCallback(() => {
     anchorRef.current = undefined;
     setSelection({ cells: new Map(), dagId });
-  }, [dagId]);
+  }, [dagId, setSelection]);
+
+  // The selection is only shown, and its bulk actions only offered, while the grid is mounted.
+  useEffect(() => () => setSelection({ cells: new Map(), dagId: "" }), [setSelection]);
 
   const deselectCells = useCallback(
     (keys: Array<string>) =>
@@ -109,7 +131,7 @@ export const useGridSelection = (data: GridData) => {
 
         return { cells: next, dagId: prev.dagId };
       }),
-    [],
+    [setSelection],
   );
 
   // Returns whether the click changed the selection, in which case it must not navigate.
@@ -169,7 +191,7 @@ export const useGridSelection = (data: GridData) => {
 
       return false;
     },
-    [clearSelection, dagId, openedRunId, openedTaskId],
+    [clearSelection, dagId, openedRunId, openedTaskId, setSelection],
   );
 
   return { clearSelection, deselectCells, handleSelectionClick, selection: cells };
