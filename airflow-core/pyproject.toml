@@ -326,7 +326,7 @@ mypy = [
 
 
 [tool.uv]
-required-version = ">=0.13.1"
+required-version = ">=0.13.4"
 
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}
