@@ -3329,6 +3329,8 @@ class TestDagFileProcessorManager:
                     logger_filehandle=mock_filehandle,
                     subprocess_logs_to_stdout=False,
                     client=mock.ANY,
+                    bundle_config=None,
+                    importer_registry=None,
                 ),
                 mock.call(
                     id=mock.ANY,
@@ -3342,6 +3344,8 @@ class TestDagFileProcessorManager:
                     logger_filehandle=mock_filehandle,
                     subprocess_logs_to_stdout=False,
                     client=mock.ANY,
+                    bundle_config=None,
+                    importer_registry=None,
                 ),
             ]
             # And removed from the queue

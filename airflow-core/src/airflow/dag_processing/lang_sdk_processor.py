@@ -197,6 +197,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_name: str,
         dag_file_rel_path: str,
         bundle_config: dict[str, Any] | None = None,
+        team_name: str | None | ArgNotSet = NOTSET,
         importer_registry: DagImporterRegistry | None = None,
         **kwargs,
     ) -> Self:
@@ -219,6 +220,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
                 dag_file_rel_path=dag_file_rel_path,
                 listeners=listeners,
                 parse_request=parse_request,
+                team_name=team_name,
                 importer_registry=importer_registry,
                 **kwargs,
             )
