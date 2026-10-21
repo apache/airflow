@@ -28,7 +28,9 @@ The ``github`` webhook source type lets Dags run on events from GitHub.com and G
 Server, such as a label added to a pull request. It is implemented by
 :class:`~airflow.providers.github.webhooks.github.GitHubWebhookSource`. Airflow verifies each delivery
 with the ``X-Hub-Signature-256`` signature that GitHub computes with the webhook's secret, and records
-an event on each of the delivery's topic names that a Dag schedules on.
+an event on each of the delivery's topic names that a Dag schedules on. A task can also wait for a
+delivery, such as the one that says that a pull request was merged, with a webhook wait, as described in
+:ref:`apache-airflow:webhook-waits`.
 
 Inbound webhooks need Airflow 3.5 or later.
 
@@ -187,6 +189,11 @@ Each delivery record also keeps the delivery's attributes, as far as the deliver
     form ``refs/heads/<branch>`` names. Tags have no branch.
 * ``number``: the number of the pull request or issue.
 
+A webhook wait selects deliveries by these attributes, with ``event`` filtered by its ``events`` and the
+others by its ``match``, as in ``match={"repository": "my-org/web", "number": 7, "action": "closed"}``.
+It compares their values as strings, so ``7`` and ``"7"`` match the same deliveries (see
+:ref:`apache-airflow:webhook-waits-match`).
+
 Correlation key
 ---------------
 
@@ -205,14 +212,25 @@ Deliveries can be filtered by it in the UI, in the **Deliveries** tab of **Brows
 and through the REST API, with the ``#`` written as ``%23``:
 ``GET /api/v2/webhooks/github/deliveries?correlation_key=my-org/web%237``.
 
+Webhook waits use the key to keep deliveries that arrive before the wait that they are for is registered.
+A delivery with a key that records no topic or asset route event and goes to no wait is kept as ``early``
+for ``[webhooks] early_delivery_ttl`` seconds, so that a task that waits for the pull request or issue it
+is about still gets it, as when a merge gate's pull request is merged before the task registers its wait
+(see :ref:`apache-airflow:webhook-waits-early`). A wait does not match on the key itself: its ``match``
+names the ``repository`` and ``number`` attributes instead. A delivery without a key, such as a ``push``,
+that arrives before its wait is not kept.
+
 Stored payload
 --------------
 
-What is kept of a payload, in the delivery record and in the extra of topic events, is set by
-``store_payload`` in the connection's extra, or else by the ``[webhooks] store_payload`` option, whose
-default keeps the whole payload. GitHub payloads carry personal data, such as the name and email
-address of each commit's author in a push, and a kept payload can be read by every user allowed to read
-assets and by every Dag scheduled on the topic.
+What is kept of a payload, in the delivery record, in the extra of topic events and in the event that a
+webhook wait resumes its task with, is set by ``store_payload`` in the connection's extra, or else by the
+``[webhooks] store_payload`` option, whose default keeps the whole payload. GitHub payloads carry personal
+data, such as the name and email address of each commit's author in a push, and a kept payload can be read
+by every user allowed to read assets, by every Dag scheduled on the topic, and by everyone who can read
+the XCom of a task that waited for the delivery. A delivery about a pull request or an issue that nothing
+acts on keeps its payload too, as it is kept for webhook waits, until ``airflow db clean`` removes its
+record after ``[webhooks] delivery_retention`` days.
 
 With ``store_payload`` set to ``summary``:
 
@@ -246,3 +264,7 @@ workflow name, but their other values, and those of ``workflow_job``, ``check_su
 deliveries, can still come from a fork. Before a Dag acts on a delivery, such as by deploying the commit
 it names, check the values it relies on in the payload, such as the run's ``head_repository`` or the
 pull request's ``head.repo``.
+
+The same holds for webhook waits: a wait whose ``match`` names a ``label`` or a ``branch`` can be resumed
+by whoever can set them. Match on values that only users you trust choose, such as the ``repository`` and
+``number`` of a pull request that the Dag opened, and check the payload before the task acts on it.

@@ -344,9 +344,12 @@ Inbound webhooks
 Services such as GitHub can **send webhooks to Airflow** without Airflow credentials: an API server
 started with ``--apps webhooks`` verifies each delivery with a secret shared with the sender and records an
 asset event on each of its topic names that a Dag schedules on. Dags subscribe by scheduling on a
-``WebhookTopic``, and find the delivery in ``triggering_asset_events``.
+``WebhookTopic``, and find the delivery in ``triggering_asset_events``. A Deployment Manager can also have
+deliveries record events on data assets, so that the Dags scheduled on them run, with
+:ref:`asset routes <inbound-webhooks-asset-routes>`.
 
-For details and examples, see :doc:`webhook-topics`.
+For details and examples, see :doc:`webhook-topics`. A task can also wait in a running Dag run for a
+delivery, as described in :doc:`webhook-waits`.
 
 Advanced asset scheduling with conditional expressions
 --------------------------------------------------------

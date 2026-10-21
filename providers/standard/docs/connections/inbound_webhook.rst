@@ -42,12 +42,14 @@ Extra (optional)
     ``webhook_github`` uses the ``github`` source type. ``airflow providers webhook-sources`` lists the
     installed source types.
 
-    ``store_payload``: What is kept of each delivery's payload: ``full``, the payload as parsed from the
-    body; ``summary``, the parts the source type keeps; or ``none``. Defaults to the source type's
-    default, or else to the ``[webhooks] store_payload`` option, which is what ``hmac_json`` and
-    ``token_header`` use. It does not cover the delivery's attributes, including those from
-    ``attribute_paths``, its correlation key, or the partition keys that its asset routes read: the
-    delivery record keeps them whatever it is set to, the extra of each of its events carries the
+    ``store_payload``: What is kept of each delivery's payload, in the delivery record, in the extra of
+    its events and in the event that a webhook wait resumes its task with, which
+    :ref:`WaitForWebhookOperator <howto/operator:WaitForWebhookOperator>` returns as its XCom: ``full``,
+    the payload as parsed from the body; ``summary``, the parts the source type keeps; or ``none``.
+    Defaults to the source type's default, or else to the ``[webhooks] store_payload`` option, which is
+    what ``hmac_json`` and ``token_header`` use. It does not cover the delivery's attributes, including
+    those from ``attribute_paths``, its correlation key, or the partition keys that its asset routes read:
+    the delivery record keeps them whatever it is set to, the extra of each of its events carries the
     correlation key, and each asset route event, and the Dag run it starts, carries its partition key. So
     do not map personal data into ``attribute_paths``, ``correlation_key_field`` or
     ``partition_key_field``.
@@ -115,13 +117,20 @@ Extra (optional)
     Their attributes are ``event``, ``path`` when the delivery has one, and each attribute in
     ``attribute_paths`` whose field holds a non-empty string or an integer in the signed 64-bit range. A
     field that is missing, or holds anything else, such as ``true``, ``1.5``, a larger integer, an object
-    or a list, leaves its attribute out. Each delivery record keeps the delivery's attributes.
+    or a list, leaves its attribute out. Each delivery record keeps the delivery's attributes. A
+    :ref:`webhook wait <apache-airflow:webhook-waits-match>` selects deliveries by these attributes, and
+    compares their values as strings, so an attribute that holds ``42`` matches ``42`` and ``"42"`` alike.
 
     The correlation key is the value of ``correlation_key_field`` as a string, when that field holds a
     non-empty string or an integer of any size and the string has at most 255 characters; otherwise the
     delivery has none. It is kept in the delivery record and in the ``correlation_key`` of the extra of
     each topic event and asset route event. Deliveries can be filtered by it in the UI, in the
-    **Deliveries** tab of **Browse → Webhook Deliveries**, and through the REST API.
+    **Deliveries** tab of **Browse → Webhook Deliveries**, and through the REST API. Webhook waits use it
+    to keep deliveries that arrive before their wait: a delivery with a correlation key that records no
+    topic or asset route event and goes to no wait is kept as ``early`` for
+    ``[webhooks] early_delivery_ttl`` seconds, with its payload, for a wait registered later (see
+    :ref:`apache-airflow:webhook-waits-early`). A wait matches attributes, not the key, so map the same
+    field into ``attribute_paths`` too if waits are to match it.
 
     Prefer the fields when the service puts these values in the body. The ``hmac_json`` signature
     covers the body only, and a token covers nothing, so whoever captures a delivery can send its body

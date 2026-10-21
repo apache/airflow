@@ -35,7 +35,8 @@ GitHub. The Deployment Manager sets up the webhook, as described in
 verifies each delivery and describes it. For each delivery, Airflow builds a list of *topic names*, and
 records an asset event on each of them that a Dag schedules on. A Dag subscribes to deliveries by
 scheduling on a topic, a :class:`~airflow.sdk.WebhookTopic`, and each delivery then starts a run of it,
-with the delivery in ``triggering_asset_events``.
+with the delivery in ``triggering_asset_events``. To have a task of a running Dag run wait for a delivery
+instead, see :doc:`webhook-waits`.
 
 Topic names
 -----------
@@ -126,14 +127,16 @@ When a delivery records events
 ------------------------------
 
 A delivery records an event on one of its names only if a Dag that is not paused, draining or stale
-schedules on that name, directly or through ``Asset.ref``. Otherwise it records nothing, and its outcome is
-``early`` if it has a correlation key, which keeps it for webhook waits, or else ``dag_paused`` if only
-paused or draining Dags schedule on its names, or ``no_subscribers`` if none do (see
-:ref:`inbound-webhooks-outcomes`). Unpausing a Dag does not replay the deliveries received while it was
-paused. If the sender delivers one of them again, the copy is processed again in full when the delivery
-recorded nothing, with outcome ``dag_paused`` or ``early``, so the unpaused Dag receives it. It is answered
-as a duplicate when the delivery started another Dag's run or went to a webhook wait, so in those cases the
-unpaused Dag never receives it.
+schedules on that name, directly or through ``Asset.ref``. Otherwise it records no event on that name. A
+delivery that records no event, on any of its names or through an
+:ref:`asset route <inbound-webhooks-asset-routes>`, and goes to no :doc:`webhook wait <webhook-waits>` has
+the outcome ``early`` if it has a correlation key, which keeps it for webhook waits, or else
+``dag_paused`` if only paused or draining Dags schedule on its names or on its routes' assets, or
+``no_subscribers`` if none do (see :ref:`inbound-webhooks-outcomes`). Unpausing a Dag does not replay the
+deliveries received while it was paused. If the sender delivers one of them again, the copy is processed
+again in full when the delivery recorded nothing, with outcome ``dag_paused`` or ``early``, so the unpaused
+Dag receives it. It is answered as a duplicate when the delivery started another Dag's run or went to a
+webhook wait, so in those cases the unpaused Dag never receives it.
 
 * ``Asset.ref(name=...)`` and ``Asset.ref(uri=...)`` subscribe only to a topic that some Dag declares,
   because deliveries never create assets and events are recorded only on active assets.

@@ -83,7 +83,7 @@ The possible states for a Task Instance are:
 * ``up_for_retry``: The task failed, but has retry attempts left and will be rescheduled.
 * ``up_for_reschedule``: The task is a :doc:`Sensor <sensors>` in ``reschedule`` mode, or its :ref:`retry policy rescheduled it <concepts:retry-policies-reschedule>`, and will run again later
 * ``deferred``: The task has been :doc:`deferred to a trigger <../authoring-and-scheduling/deferring>`
-* ``awaiting_input``: The task is a :doc:`Human-in-the-loop <../tutorial/hitl>` task waiting for a human response. It is managed by the scheduler and uses neither a worker slot nor the triggerer.
+* ``awaiting_input``: The task waits for input from outside Airflow: a :doc:`Human-in-the-loop <../tutorial/hitl>` task for a human response, or a task with a :doc:`webhook wait <../authoring-and-scheduling/webhook-waits>` for a delivery to an inbound webhook. It is managed by the scheduler and uses neither a worker slot nor the triggerer.
 * ``removed``: The task has vanished from the Dag since the run started
 
 .. image:: /img/diagram_task_lifecycle.png

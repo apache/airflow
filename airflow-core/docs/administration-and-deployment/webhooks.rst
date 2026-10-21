@@ -39,11 +39,14 @@ the secret with it, and the webhook's *source type* checks that before it descri
 Airflow records every delivery that passes in the metadata database and, in the same transaction,
 records an asset event on each of the delivery's *topic names* that a Dag schedules on, so the scheduler
 starts a run of each such Dag. An *asset route* in the webhook's connection can also have a delivery
-record an event on a data asset, such as a table that the sender has loaded (see `Asset routes`_).
+record an event on a data asset, such as a table that the sender has loaded (see `Asset routes`_). A task
+can also wait in its Dag run for a delivery that matches it, such as one saying that a pull request it
+opened was merged: the delivery then resumes the task, through the task's *webhook wait*.
 
 This page is for Deployment Managers. Dag authors subscribe to deliveries as described in
-:doc:`/authoring-and-scheduling/webhook-topics`, and provider authors write source types as described in
-the Webhook Sources page of the providers documentation.
+:doc:`/authoring-and-scheduling/webhook-topics`, and wait for them as described in
+:doc:`/authoring-and-scheduling/webhook-waits`. Provider authors write source types as described in the
+Webhook Sources page of the providers documentation.
 
 Setting up a webhook
 --------------------
@@ -188,6 +191,17 @@ The :ref:`[webhooks] <config:webhooks>` section of the configuration reference d
    * - ``early_delivery_max_per_webhook``
      - ``1000``
      - Most ``early`` deliveries within ``early_delivery_ttl`` that a webhook keeps; older ones expire.
+   * - ``default_wait_timeout``
+     - empty
+     - Seconds a webhook wait registered without a timeout lasts, at most 31536000 (365 days). When it is
+       empty, such a wait is refused.
+
+The API servers that serve the Execution API read ``[webhooks]`` too, when a task registers a webhook
+wait: they refuse a wait on a webhook that their ``names`` does not list, or whose connection they cannot
+read or use, and take ``default_wait_timeout`` and ``early_delivery_ttl`` from their own options. Give them
+the same ``[webhooks]`` options as the webhooks process, the same access to the ``webhook_<name>``
+connections, and the providers that ship the source types, or tasks cannot wait on the webhooks (see
+:doc:`/authoring-and-scheduling/webhook-waits`).
 
 Webhooks and their connections
 ------------------------------
@@ -231,8 +245,9 @@ until the cached connection is read again or expires. A failure to read a secret
 
 Webhooks have no team in Airflow 3.5. ``[webhooks] names`` refuses a name qualified with a team, such as
 ``team:name``, the connection is looked up without a team, so a connection that belongs to a team is not
-found, and when :ref:`config:core__multi_team` is on, topic events queue only Dags that have no team and
-an asset route records nothing for an asset that a Dag of a team schedules on.
+found, and when :ref:`config:core__multi_team` is on, topic events queue only Dags that have no team, an
+asset route records nothing for an asset that a Dag of a team schedules on, and a task whose Dag has a
+team cannot register a webhook wait.
 
 Source types
 ------------
@@ -279,8 +294,9 @@ refuses it:
 6. The delivery must be within ``[webhooks] rate_limit_per_minute``.
 7. The source type parses the delivery.
 8. One transaction records the delivery, its topic events, the events of its asset routes and, if it
-   recorded any event, an audit log entry, and hands the delivery to the webhook waits that it matches,
-   with an audit log entry for each (see `Outcomes and repeated deliveries`_).
+   recorded any event, an audit log entry, and hands the delivery to the
+   :doc:`webhook waits </authoring-and-scheduling/webhook-waits>` that it matches, with an audit log entry
+   for each (see `Outcomes and repeated deliveries`_).
 9. The response is sent once that transaction has committed.
 
 The status codes and response bodies are:
@@ -359,10 +375,10 @@ Outcomes and repeated deliveries
 
 A recorded delivery has the first of these outcomes that applies to it:
 
-* ``resumed_wait``: it went to at least one webhook wait, a task waiting for a delivery that matches it.
-  A wait whose task is parked resumes the task at once, and one whose task is still running resumes it
-  once it parks. Its record lists the waits, and the topic events and asset route events that it
-  recorded as well, if any.
+* ``resumed_wait``: it went to at least one :doc:`webhook wait </authoring-and-scheduling/webhook-waits>`,
+  a task waiting for a delivery that matches it. A wait whose task is parked resumes the task at once, and
+  one whose task is still running resumes it once it parks. Its record lists the waits, and the topic
+  events and asset route events that it recorded as well, if any.
 * ``accepted``: it recorded topic events or asset route events, for at least one Dag that is not paused,
   and went to no wait. It is not kept for a wait, even if it has a correlation key, so a wait registered
   after it never gets it.
@@ -540,6 +556,11 @@ Keep ``delivery_retention`` longer than the longest time over which any sender y
 delivery: a retry that arrives after its delivery's record was removed is not recognized as a repeat, and
 acts again. Topic events and audit log entries are removed with their own tables.
 
+``airflow db clean`` removes the webhook waits of tasks, in the ``inbound_wait`` table, by their
+``deadline`` column, so a wait is kept until its deadline however long ago it was registered. A wait that
+received a delivery whose record was removed before its task parked resumes the task at its deadline, with
+the timeout event rather than the delivery.
+
 .. _inbound-webhooks-deliveries:
 
 Viewing deliveries
@@ -708,8 +729,12 @@ secrets backends at every call, without a cache. It never returns what a connect
 backend failed, and answers 500 if its ``[webhooks]`` options are invalid: ``airflow webhooks check`` says
 why.
 
+.. _inbound-webhooks-task-waits:
+
 A task's webhook waits
 ~~~~~~~~~~~~~~~~~~~~~~
+
+:doc:`/authoring-and-scheduling/webhook-waits` describes how tasks wait for deliveries.
 
 The **Details** tab of a task instance shows the newest webhook wait of the selected try, which is the
 try's open wait while it has one: its webhook, linked to the webhook's deliveries; its status, with a
@@ -743,9 +768,10 @@ the webhook's connection, and never returns the payload of a delivery. Each wait
        parked: while the task was running, or before the wait was registered, when Airflow kept the
        delivery ``early``; the task resumes with it once it parks; ``resumed`` once a delivery resumed the
        task; ``timed_out`` if none arrived before the deadline; ``ended`` if the task registered another
-       wait, or if a matching delivery, or a wait registered on the same events and match, found the
-       wait's try no longer running or parked. Nothing else ends a wait whose try stopped, so it keeps
-       ``registered`` or ``received`` until then.
+       wait, or if a wait registered on the same events and match found the wait's try no longer running
+       or parked, or, for a ``registered`` wait, a matching delivery did. Nothing else ends a wait whose
+       try stopped: it keeps ``registered`` until a matching delivery or such a registration ends it, and
+       ``received``, since no other delivery is offered to it, until such a registration does.
    * - ``deadline``
      - When the wait times out if no matching delivery has arrived.
    * - ``created_at`` and ``ended_at``
@@ -810,6 +836,8 @@ the task instance that registered the wait, and in its extra the delivery id, th
 ``resumed_wait`` and the wait's id as ``wait_id``. A wait that gets an ``early`` delivery when it is
 registered writes the same entry. Users allowed to read the audit log of the task's Dag see it.
 
+.. _inbound-webhooks-metrics:
+
 Metrics
 -------
 
@@ -844,6 +872,8 @@ these metrics, and the scheduler ``webhooks.open_waits``:
 The tags reach OpenTelemetry, and StatsD only with a tagged format such as InfluxDB or DogStatsD; see
 :doc:`logging-monitoring/metrics`. Requests under ``/webhooks`` are also counted in the API server's HTTP
 request metrics. A 500 is not counted as a rejection, but is logged.
+
+.. _inbound-webhooks-cli:
 
 Command line
 ------------
@@ -888,15 +918,18 @@ The webhooks process answers anyone who can reach it, so give it only what it ne
 
   * ``SELECT`` on ``inbound_delivery``, ``asset_event``, ``asset_dag_run_queue``, ``log``, ``asset``,
     ``asset_active``, ``asset_alias``, ``asset_alias_asset``, ``dag``, ``dag_schedule_asset_reference``,
-    ``dag_schedule_asset_name_reference`` and ``dag_schedule_asset_uri_reference``, and, only if a
-    ``webhook_<name>`` connection is stored in the metadata database, on ``connection``, which the
-    metadata database secrets backend reads for a connection that no earlier backend in the chain has;
+    ``dag_schedule_asset_name_reference``, ``dag_schedule_asset_uri_reference`` and ``inbound_wait``, and,
+    only if a ``webhook_<name>`` connection is stored in the metadata database, on ``connection``, which
+    the metadata database secrets backend reads for a connection that no earlier backend in the chain has;
   * ``INSERT`` on ``inbound_delivery``, ``asset_event``, ``asset_dag_run_queue`` and ``log``, and
     ``UPDATE`` on ``inbound_delivery``;
   * on PostgreSQL, ``USAGE`` on the sequences ``asset_event_id_seq`` and ``log_id_seq``, which number new
     asset events and log entries;
   * on MySQL, ``UPDATE`` on ``asset_dag_run_queue``, which is written with
     ``INSERT ... ON DUPLICATE KEY UPDATE``;
+  * for deliveries that go to webhook waits, ``SELECT`` on ``task_instance``, ``dag_run`` and
+    ``dynamic_region``, and ``UPDATE`` on ``inbound_wait`` and on ``task_instance``, which a delivery locks
+    and writes to resume a parked task;
   * when :ref:`config:core__multi_team` is on, ``SELECT`` on ``dag_bundle``, ``dag_bundle_team`` and
     ``team``, which the team filter reads;
   * for asset routes with a ``partition_key_field``, ``SELECT`` on ``serialized_dag`` and
@@ -906,8 +939,9 @@ The webhooks process answers anyone who can reach it, so give it only what it ne
     sequences ``asset_partition_dag_run_id_seq`` and ``partitioned_asset_key_log_id_seq``.
 
   Airflow's tests pin which tables a delivery reads and writes when ``multi_team`` is off, for topic events
-  and for asset routes with a partition key, but not these privileges. A delivery that needs a privilege the
-  process lacks is answered 500 or 503, depending on the database, and the error is logged.
+  and for asset routes with a partition key, but not for deliveries that go to webhook waits, and not these
+  privileges. A delivery that needs a privilege the process lacks is answered 500 or 503, depending on the
+  database, and the error is logged.
 * Only the plugins it needs. The first delivery that records an event imports every plugin installed
   where the process runs, from the plugins folder and from entry points, to find listeners, and the
   ``on_asset_changed`` and ``on_asset_event_emitted`` hooks of listener plugins then run after each such
@@ -920,9 +954,10 @@ Turning webhooks off
 
 * To stop receiving every webhook, stop the webhooks process or scale it to zero. Do not empty
   ``[webhooks] names`` for this: the process then fails at startup, and an orchestrator restarts it in a
-  loop.
+  loop. Tasks that wait for a webhook keep waiting meanwhile, until their timeout.
 * To stop one webhook, remove its name from ``[webhooks] names`` and restart the process; its deliveries
-  are then answered 404, which some senders count as failures. Its records stay readable.
+  are then answered 404, which some senders count as failures. Its records stay readable. Removing it
+  from the ``names`` of the API servers that serve the Execution API also refuses new waits on it.
 * To keep a webhook's deliveries from starting runs while still recording them, pause every Dag that
   schedules on its topics or on the assets that its asset routes name. Its deliveries are then recorded
   as ``dag_paused``, or as ``early`` if they have a correlation key, such as each ``github`` delivery about
