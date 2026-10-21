@@ -128,7 +128,9 @@ Custom backends
 
 A custom backend must subclass :class:`~airflow.sdk.state.BaseStoreBackend` and implement its abstract methods: ``get``, ``set``, ``delete``, and ``clear`` for synchronous callers and the ``aget``, ``aset``, ``adelete``, and ``aclear`` async equivalents. Refer to :class:`~airflow.sdk.state.BaseStoreBackend` for the full API.
 
-Values are passed to :meth:`~airflow.sdk.state.BaseStoreBackend.set` and returned from :meth:`~airflow.sdk.state.BaseStoreBackend.get` as JSON encoded strings, and are never the JSON ``null``. The Execution API reads values through :meth:`~airflow.sdk.state.BaseStoreBackend.get_value` (:meth:`~airflow.sdk.state.BaseStoreBackend.aget_value` is the async equivalent); a backend that stores values natively can override them to skip decoding on reads.
+Values are passed to :meth:`~airflow.sdk.state.BaseStoreBackend.set` and returned from :meth:`~airflow.sdk.state.BaseStoreBackend.get` as JSON encoded strings, and are never the JSON ``null``. The same applies to ``aset`` and ``aget``.
+
+The Execution API reads task state through :meth:`~airflow.sdk.state.BaseStoreBackend.aget_value` and asset state through :meth:`~airflow.sdk.state.BaseStoreBackend.get_value`. To return native values without decoding in both paths, override both methods. If your backend already overrides ``get_value``, add an ``aget_value`` override for task state reads.
 
 Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. The union of the two is exported as ``airflow.sdk.state.StoreScope`` for type annotations. Use ``isinstance`` to dispatch:
 

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -291,7 +292,7 @@ class BaseStoreBackend(ABC):
         """Async variant of :meth:`get_value`."""
         if (value := await self.aget(scope, key, session=session)) is None:
             return None
-        return json.loads(value)
+        return await asyncio.to_thread(json.loads, value)
 
     def cleanup(self) -> None:
         """
