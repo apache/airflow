@@ -68,7 +68,7 @@ HO_CLUSTER_CONFIG = {
         "boot_disk_size_gb": 32,
     },
     "worker_flexible_config": {
-        "num_instances": 4,
+        "num_instances": 2,
         "core_count": 2,
         "hardware_class": "STANDARD",
         "boot_disk_size_gb": 32,
@@ -98,7 +98,7 @@ SPARK_PI_JOB = {
 with DAG(
     DAG_ID,
     start_date=datetime(2026, 1, 1),
-    schedule=None,
+    schedule="@once",
     catchup=False,
     tags=["example", "dataproc", "high-obtainability"],
 ) as dag:
@@ -158,4 +158,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

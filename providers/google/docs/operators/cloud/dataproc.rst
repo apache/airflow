@@ -199,7 +199,7 @@ and the `FlexibleInstanceGroupConfig API reference <https://cloud.google.com/dat
 High Obtainability clusters have the following characteristics:
 
 * **Mandatory AutoZone**: HO clusters require AutoZone to dynamically select an optimal zone; do not specify a ``zone``.
-* **Cluster-wide flexible config**: Master and primary workers must both use flexible configurations (or omit
+* **Cluster-wide flexible config**: Primary node (``master_flexible_config``) and primary workers (``worker_flexible_config``) must both use flexible configurations (or omit
   ``worker_flexible_config`` and set ``dataproc:dataproc.allow.zero.workers`` to ``"true"`` in
   ``software_config.properties`` for a single-node cluster).
 * **Mutual exclusivity**: Concrete node group configurations (``master_config``,
