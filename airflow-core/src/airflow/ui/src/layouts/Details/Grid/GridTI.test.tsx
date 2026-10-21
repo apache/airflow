@@ -116,8 +116,8 @@ describe("GridTI", () => {
         isMapped: true,
       });
 
-      expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe(
-        `linear-gradient(45deg, var(--chakra-colors-${secondaryState}-solid) 50%, transparent 50%)`,
+      expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(
+        `2px 2px 0 0 var(--chakra-colors-${secondaryState}-solid)`,
       );
     },
   );
@@ -131,13 +131,13 @@ describe("GridTI", () => {
     { childStates: { success: 3 }, isMapped: true },
     { childStates: { skipped: 0, success: 3 }, isMapped: true },
     { childStates: { skipped: 2, success: 1 }, isMapped: false },
-  ])("uses a solid color when there are no mixed mapped states", ({ childStates, isMapped }) => {
+  ])("shows a single card when there are no mixed mapped states", ({ childStates, isMapped }) => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, {
       instance: { ...taskInstance, child_states: childStates },
       isMapped,
     });
 
-    expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe("");
+    expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe("");
   });
 
   it.each([true, false])("preserves note markers and selection highlighting on task cells", (isMapped) => {
@@ -148,10 +148,9 @@ describe("GridTI", () => {
     });
 
     expect(screen.getByTestId("task-state-badge")).toHaveAttribute("data-selected", "true");
-    expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe(
-      isMapped
-        ? `linear-gradient(45deg, var(--chakra-colors-skipped-solid) 50%, transparent 50%), ${NOTE_GRADIENT}`
-        : NOTE_GRADIENT,
+    expect(screen.getByTestId("task-state-badge").style.backgroundImage).toBe(NOTE_GRADIENT);
+    expect(screen.getByTestId("task-state-badge").style.boxShadow).toBe(
+      isMapped ? "2px 2px 0 0 var(--chakra-colors-skipped-solid)" : "",
     );
   });
 

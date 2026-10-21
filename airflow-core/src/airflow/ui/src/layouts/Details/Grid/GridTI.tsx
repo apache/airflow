@@ -85,14 +85,6 @@ export const GridTI = ({
   const secondaryState = isMapped
     ? sortStateEntries(instance.child_states).find(([state]) => state !== (instance.state ?? "none"))?.[0]
     : undefined;
-  const backgroundImage = [
-    secondaryState === undefined
-      ? undefined
-      : `linear-gradient(45deg, var(--chakra-colors-${secondaryState}-solid) 50%, transparent 50%)`,
-    hasNote ? NOTE_GRADIENT : undefined,
-  ]
-    .filter(Boolean)
-    .join(", ");
 
   return (
     <Flex
@@ -143,7 +135,13 @@ export const GridTI = ({
               outlineStyle={isSelectedTaskInstance ? "solid" : undefined}
               outlineWidth={isSelectedTaskInstance ? "2px" : undefined}
               p={0}
-              style={{ backgroundImage }}
+              style={{
+                background: hasNote ? NOTE_GRADIENT : undefined,
+                boxShadow:
+                  secondaryState === undefined
+                    ? undefined
+                    : `2px 2px 0 0 var(--chakra-colors-${secondaryState}-solid)`,
+              }}
               transition="outline-color 0.2s"
               variant="solid"
               width="14px"
