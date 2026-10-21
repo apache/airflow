@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+.. warning::
+  ``PowerBIDatasetRefreshOperator`` now starts the dataset refresh from the worker instead of the
+  triggerer, so the workers need network access to ``api.powerbi.com``, not only the triggerer. On Airflow
+  3.3 and later it is also durable by default: a retry reconnects to the refresh started by an earlier
+  try, and a refresh whose polling fails is no longer cancelled. Set ``durable=False`` to start a new
+  refresh on every try and cancel it when polling fails, as before.
+
 15.2.1
 ......
 
