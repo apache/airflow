@@ -142,11 +142,10 @@ class DataFusionEngine(LoggingMixin):
 
     def _get_connection_config(self, conn_id: str, storage_type: StorageType | None) -> ConnectionConfig:
         """Build a ConnectionConfig, resolving credentials only for storage types implemented here."""
-        airflow_conn = BaseHook.get_connection(conn_id)
-
         if storage_type not in EMBEDDED_PROVIDERS:
-            return ConnectionConfig(conn_id=airflow_conn.conn_id)
+            return ConnectionConfig(conn_id=conn_id)
 
+        airflow_conn = BaseHook.get_connection(conn_id)
         credentials, extra_config = self._get_credentials(airflow_conn)
 
         return ConnectionConfig(

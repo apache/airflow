@@ -97,7 +97,7 @@ dependencies = [
     "apache-airflow-providers-apache-iceberg"
 ]
 "amazon" = [
-    "apache-airflow-providers-amazon>=9.38.0"
+    "apache-airflow-providers-amazon>=9.38.0"  # use next version
 ]
 
 [dependency-groups]
