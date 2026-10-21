@@ -487,11 +487,13 @@ class TestCli:
             parser.parse_args(["backfill", "create", "--help"])
 
         normalized_help = " ".join(stdout.getvalue().split())
-        assert "--reprocess-behavior {none,failed,completed}" in normalized_help
+        assert "--reprocess-behavior {none,failed,completed,failed_tasks,new_tasks}" in normalized_help
         assert (
             "'none' (Missing Runs), 'failed' (Missing and Errored Runs), or 'completed' (All Runs)"
             in normalized_help
         )
+        assert "'failed_tasks' (Failed Tasks Only)" in normalized_help
+        assert "'new_tasks' (New Tasks Only)" in normalized_help
 
     def test_dag_cli_should_display_help(self):
         parser = cli_parser.get_parser(dag_parser=True)
