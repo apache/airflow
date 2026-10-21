@@ -32,8 +32,8 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
+    _get_cached_bundle_config_snapshot,
     _guess_best_bundle_for_fileloc,
-    _load_bundle_config_snapshot,
     _refresh_bundle_config_snapshot,
     get_configured_bundle_names,
     get_configured_bundle_team_names,
@@ -190,11 +190,11 @@ def test_get_configured_bundle_team_names(load_examples):
     }
 )
 def test_get_configured_bundle_names():
-    _load_bundle_config_snapshot.cache_clear()
+    _get_cached_bundle_config_snapshot.cache_clear()
     try:
         assert get_configured_bundle_names() == {"team-bundle", "unscoped-bundle"}
     finally:
-        _load_bundle_config_snapshot.cache_clear()
+        _get_cached_bundle_config_snapshot.cache_clear()
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
@@ -229,9 +229,9 @@ def test_get_bundle():
 
 @pytest.fixture(autouse=True)
 def _clear_bundle_config_snapshot_cache():
-    _load_bundle_config_snapshot.cache_clear()
+    _get_cached_bundle_config_snapshot.cache_clear()
     yield
-    _load_bundle_config_snapshot.cache_clear()
+    _get_cached_bundle_config_snapshot.cache_clear()
 
 
 def _bundle_config_env(config) -> dict[str, str]:
@@ -1901,8 +1901,8 @@ def dynamic_bundle_config(tmp_path):
 
 
 def _expire_bundle_config_snapshot():
-    _load_bundle_config_snapshot().last_checked = float("-inf")
-    _load_bundle_config_snapshot(metadata_only=True).last_checked = float("-inf")
+    _get_cached_bundle_config_snapshot().last_checked = float("-inf")
+    _get_cached_bundle_config_snapshot(metadata_only=True).last_checked = float("-inf")
 
 
 @pytest.mark.parametrize(
@@ -2028,7 +2028,7 @@ def test_dynamic_list_can_remove_and_restore_all_bundles(
         assert DagBundlesManager().get_all_bundle_names() == []
         assert get_configured_bundle_team_names() == {}
 
-        _load_bundle_config_snapshot.cache_clear()
+        _get_cached_bundle_config_snapshot.cache_clear()
         assert DagBundlesManager().get_all_bundle_names() == []
 
         dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG))
@@ -2198,7 +2198,7 @@ def test_metadata_refresh_does_not_require_bundle_classes(
         mock_import.assert_not_called()
 
         _refresh_bundle_config_snapshot()
-        assert _load_bundle_config_snapshot().names == {"my-test-bundle"}
+        assert _get_cached_bundle_config_snapshot().names == {"my-test-bundle"}
 
 
 @mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
