@@ -23,7 +23,9 @@ classifiers = [
     "Private :: Do Not Upload",
 ]
 
-dependencies = []
+dependencies = [
+    "jinja2>=3.1.5",
+]
 
 [dependency-groups]
 dev = [

@@ -9381,6 +9381,9 @@ mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "d
 name = "apache-airflow-shared-template-rendering"
 version = "0.0"
 source = { editable = "shared/template_rendering" }
+dependencies = [
+    { name = "jinja2" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -9391,6 +9394,7 @@ mypy = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "jinja2", specifier = ">=3.1.5" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
