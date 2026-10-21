@@ -981,6 +981,7 @@ class TestStringifiedDAGs:
                 "is_setup": False,
                 "is_teardown": False,
                 "on_failure_fail_dagrun": False,
+                "on_success_succeed_dagrun": False,
             }
             serialized_partial_kwargs = {
                 **default_partial_kwargs,
