@@ -1326,7 +1326,7 @@ class TestCliDags:
         try:
             from airflow.utils.cli import get_bagged_dag
         except ImportError:  # Prior to Airflow 3.1.0.
-            from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore
+            from airflow.utils.cli import get_dag as get_bagged_dag
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
             # example DAG should not be found since the testing bundle only exposes test_sensor.py

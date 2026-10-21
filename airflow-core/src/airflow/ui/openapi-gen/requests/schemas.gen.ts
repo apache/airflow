@@ -6708,7 +6708,9 @@ export const $LoopIterationResponse = {
         },
         iteration: {
             type: 'integer',
-            title: 'Iteration'
+            minimum: 1,
+            title: 'Iteration',
+            description: 'Position in the enclosing loop, counting from one.'
         }
     },
     type: 'object',
@@ -7122,6 +7124,7 @@ export const $PoolBody = {
         name: {
             type: 'string',
             maxLength: 256,
+            pattern: '\\S',
             title: 'Name'
         },
         slots: {
@@ -9612,6 +9615,7 @@ export const $VariableBody = {
         key: {
             type: 'string',
             maxLength: 250,
+            pattern: '\\S',
             title: 'Key'
         },
         value: {

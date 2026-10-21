@@ -56,7 +56,7 @@ from task_sdk.execution_time import exec_probe_target
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
-from airflow.sdk import DAG, BaseOperator, timezone
+from airflow.sdk import DAG, BaseOperator, task_group, timezone
 from airflow.sdk._shared.secrets_masker import mask_secret
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
@@ -73,6 +73,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
 )
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
@@ -187,6 +188,7 @@ from airflow.sdk.execution_time.supervisor import (
 from airflow.sdk.execution_time.task_runner import run
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -4901,6 +4903,32 @@ class TestSetSupervisorComms:
 
 
 class TestInProcessTestSupervisor:
+    def test_rejects_loop_dag_with_legacy_xcom_backend(self, mocker, monkeypatch):
+        @task_group
+        def body():
+            BaseOperator(task_id="work")
+
+        with DAG(dag_id="loop_dag") as dag:
+            create_loop(body, max_iterations=2)
+        task = dag.task_dict["body.work"]
+        ti = TaskInstance(
+            id=uuid7(),
+            dag_version_id=uuid7(),
+            dag_id="loop_dag",
+            task_id=task.task_id,
+            run_id="test_run",
+            try_number=1,
+            queue="default",
+        )
+        client = mocker.Mock(spec=sdk_client.Client)
+        client.task_instances = mocker.create_autospec(sdk_client.TaskInstanceOperations, instance=True)
+        monkeypatch.setattr(task_runner, "XCom", SerializeValueOnlyXCom)
+
+        with pytest.raises(TypeError, match="uses a loop"):
+            InProcessTestSupervisor.start(what=ti, task=task, client=client)
+
+        client.task_instances.start.assert_not_called()
+
     @pytest.mark.parametrize("callback_error", [None, RuntimeError])
     def test_retry_callback_finishes_before_retry_report(self, make_ti_context, mocker, callback_error):
         client = mocker.Mock(spec=sdk_client.Client)
@@ -5518,6 +5546,30 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
         (None, logging.DEBUG, "A debug"),
         (None, logging.ERROR, "An error"),
     ]
+
+
+@pytest.mark.parametrize(
+    "bad_timestamp",
+    [
+        pytest.param(1697190085, id="epoch-number"),
+        pytest.param("2026-10-13T17:41", id="no-seconds"),
+        # msgspec raises a plain DecodeError (not a ValidationError) for the newline, so this case
+        # fails if the except clause only catches ValidationError.
+        pytest.param("2026-10-13\n17:41:25", id="newline"),
+    ],
+)
+def test_process_log_messages_keeps_line_with_invalid_timestamp(bad_timestamp, caplog, time_machine):
+    time_machine.move_to(timezone.datetime(2026, 10, 15, 8, 0), tick=False)
+
+    gen = process_log_messages_from_subprocess(loggers=(structlog.get_logger(),))
+    next(gen)
+
+    gen.send(
+        msgspec.json.encode({"level": "info", "event": "Batch done", "timestamp": bad_timestamp}) + b"\n"
+    )
+
+    assert caplog.messages == ["Batch done"]
+    assert {"timestamp": "2026-10-15T08:00:00Z", "invalid_timestamp": bad_timestamp} in caplog
 
 
 @pytest.mark.parametrize(

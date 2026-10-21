@@ -28,14 +28,29 @@
   "group": "ग्रुप",
   "health": {
     "dagProcessor": "डैग प्रोसेसर",
+    "degraded": "निम्नीकृत",
+    "degradedHint": {
+      "dagProcessor": "कुछ विन्यस्त डैग बंडल को कोई डैग प्रोसेसर पार्स नहीं कर रहा है।",
+      "triggerer": "कुछ टीमों के लिए स्थगित टास्क चलाने वाला कोई ट्रिगरर नहीं है।"
+    },
+    "down": "डाउन",
     "health": "स्वास्थ्य",
     "healthy": "स्वस्थ",
+    "instances": {
+      "bundles": "बंडल",
+      "hostname": "होस्ट",
+      "team": "टीम",
+      "title_one": "{{title}} — {{status}} ({{count, number}} इंस्टेंस)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} इंस्टेंस)",
+      "unknownHostname": "अज्ञात होस्ट"
+    },
     "lastHeartbeat": "अंतिम हार्टबीट",
     "metaDatabase": "मेटा डेटाबेस",
     "scheduler": "शेड्यूलर",
     "status": "स्थिति",
     "triggerer": "ट्रिगरर",
-    "unhealthy": "अस्वस्थ"
+    "unhealthy": "अस्वस्थ",
+    "unknownStatus": "अज्ञात"
   },
   "history": "इतिहास",
   "importErrors": {

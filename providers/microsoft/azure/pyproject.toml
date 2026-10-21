@@ -59,7 +59,7 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.21.0",
+    "apache-airflow-providers-common-compat>=1.21.0",  # use next version
     "adlfs>=2026.5.0",
     "aiohttp>=3.14.0",
     "azure-batch>=15.0.0",
@@ -69,9 +69,12 @@ dependencies = [
     "azure-mgmt-cosmosdb>=9.9.0",
     "azure-datalake-store>=1.0.1",
     "azure-identity>=1.25.3",
-    "azure-keyvault-secrets>=4.10.0",
+    "azure-keyvault-secrets>=4.11.0",
     "azure-mgmt-datalake-store>=0.5.0",
     "azure-mgmt-resource>=25.0.0",
+    # 12.0.0 is excluded: on a 413 its async client writes the first half of the batch, then retries
+    # the second half with a keyword it does not accept (TypeError). Fixed since 12.1.0b2.
+    "azure-search-documents>=11.6.0,!=12.0.0",
     "azure-storage-blob>=12.28.0",
     "azure-mgmt-storage>=24.0.1",
     "azure-storage-file-share>=12.24.0",

@@ -94,7 +94,7 @@ const expandedForSelection = (
 ): Array<string> => {
   const values: Array<string> = [];
 
-  if (isMultiBundle && bundleName !== undefined) {
+  if (isMultiBundle && bundleName !== undefined && folder !== undefined && folder !== "") {
     values.push(bundleNodeValue(bundleName));
   }
 
@@ -102,7 +102,9 @@ const expandedForSelection = (
     const segments = folder.split("/");
 
     values.push(
-      ...segments.map((_, index) => folderNodeValue(bundleName, segments.slice(0, index + 1).join("/"))),
+      ...segments
+        .slice(0, -1)
+        .map((_, index) => folderNodeValue(bundleName, segments.slice(0, index + 1).join("/"))),
     );
   }
 

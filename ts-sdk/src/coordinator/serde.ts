@@ -41,10 +41,13 @@ import {
 } from "../generated/dag-schema-fields.js";
 import type { JsonValue } from "../sdk/client-types.js";
 import {
+  DOWNSTREAM_JOIN_SUFFIX,
+  getDagOrderEdges,
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
   isTaskRef,
+  UPSTREAM_JOIN_SUFFIX,
   type Dag,
   type RecordedInputs,
   type TaskGroupRecord,
@@ -84,21 +87,32 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  */
 const TASK_LANGUAGE = "typescript";
 
-/** The Dags this one's tasks depend on, for the UI dependency graph. */
-function serializeDagDependencies(dag: Dag): SerializedValue {
-  const dependencies: SerializedValue[] = [];
-  for (const [taskId, record] of getDagTaskRecords(dag)) {
-    for (const dependency of record.operator?.getDagDependencies?.() ?? []) {
-      dependencies.push({
-        source: dag.dagId,
-        target: dependency.target,
-        label: taskId,
-        dependency_type: dependency.dependencyType,
-        dependency_id: taskId,
-      });
-    }
+/** Python's `DAG.edge_info`, keying a group end by its join node as Python does. */
+function serializeEdgeInfo(dag: Dag): SerializedValue {
+  const groups = getDagTaskGroups(dag);
+  const info: Record<string, Record<string, SerializedValue>> = {};
+  for (const { upstream, downstream, label } of getDagOrderEdges(dag)) {
+    if (label === undefined) continue;
+    const from = groups.has(upstream) ? upstream + DOWNSTREAM_JOIN_SUFFIX : upstream;
+    const to = groups.has(downstream) ? downstream + UPSTREAM_JOIN_SUFFIX : downstream;
+    (info[from] ??= {})[to] = { label };
   }
-  return dependencies;
+  return info;
+}
+
+/** The Dags this task depends on, for the UI dependency graph. */
+function serializeDagDependencies(
+  dagId: string,
+  taskId: string,
+  record: TaskRecord,
+): SerializedValue[] {
+  return (record.operator?.getDagDependencies?.() ?? []).map((dependency) => ({
+    source: dagId,
+    target: dependency.target,
+    label: taskId,
+    dependency_type: dependency.dependencyType,
+    dependency_id: taskId,
+  }));
 }
 
 /** How one set of authoring fields is written into a serialized object. */
@@ -148,6 +162,7 @@ export function serializeDag(
 ): Record<string, SerializedValue> {
   const graph = buildDagGraph(dag);
   const inputs = getDagTaskInputs(dag);
+  const dagDependencies: SerializedValue[] = [];
   const data: Record<string, SerializedValue> = {
     dag_id: dag.dagId,
     fileloc,
@@ -158,19 +173,20 @@ export function serializeDag(
     // a native TypeScript Dag's cron is read in UTC.
     timezone: "UTC",
     timetable: serializeTimetable(dag.spec.schedule, dag.dagId),
-    tasks: [...getDagTaskRecords(dag)].map(([taskId, record]) =>
-      serializeTask(
+    tasks: [...getDagTaskRecords(dag)].map(([taskId, record]) => {
+      dagDependencies.push(...serializeDagDependencies(dag.dagId, taskId, record));
+      return serializeTask(
         dag.dagId,
         taskId,
         record,
         graph.downstreamTaskIds.get(taskId),
         inputs.get(taskId),
         dag.spec.queue,
-      ),
-    ),
-    dag_dependencies: serializeDagDependencies(dag),
+      );
+    }),
+    dag_dependencies: dagDependencies,
     task_group: serializeTaskGroups(dag, graph),
-    edge_info: {},
+    edge_info: serializeEdgeInfo(dag),
     params: [],
     // Always written by Python's serializer, so a Dag without either still
     // round-trips to the same object.

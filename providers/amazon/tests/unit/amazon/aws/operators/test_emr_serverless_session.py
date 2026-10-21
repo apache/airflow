@@ -25,8 +25,12 @@ from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessGetSessionEndpointOperator,
     EmrServerlessStartSessionOperator,
+    EmrServerlessStopSessionOperator,
 )
-from airflow.providers.amazon.aws.triggers.emr import EmrServerlessSessionTrigger
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrServerlessSessionTrigger,
+    EmrServerlessStopSessionTrigger,
+)
 
 APP_ID = "app-123"
 SESSION_ID = "sess-abc"
@@ -35,6 +39,17 @@ REGION_NAME = "eu-west-1"
 VERIFY = "/path/to/ca.pem"
 BOTOCORE_CONFIG = {"retries": {"max_attempts": 7}}
 WAIT = "airflow.providers.amazon.aws.operators.emr.wait"
+
+
+@pytest.fixture
+def supported_botocore():
+    # The session operators gate on botocore >= 1.43.0. Pin a supported version so these
+    # tests exercise the boto calls regardless of the botocore installed in CI.
+    with mock.patch(
+        "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
+        return_value=(1, 43, 0),
+    ):
+        yield
 
 
 class TestEmrServerlessStartSessionOperator:
@@ -140,6 +155,7 @@ class TestEmrServerlessStartSessionOperator:
             op.execute_complete({}, {"status": "failure", "session_id": SESSION_ID})
 
 
+@pytest.mark.usefixtures("supported_botocore")
 class TestEmrServerlessGetSessionEndpointOperator:
     RAW_RESPONSE = {
         "applicationId": APP_ID,
@@ -148,16 +164,6 @@ class TestEmrServerlessGetSessionEndpointOperator:
         "authToken": "tok",
         "authTokenExpiresAt": None,
     }
-
-    @pytest.fixture(autouse=True)
-    def _supported_botocore(self):
-        # The operator gates on botocore >= 1.43.0. Pin a supported version so these
-        # tests exercise the boto call regardless of the botocore installed in CI.
-        with mock.patch(
-            "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
-            return_value=(1, 43, 0),
-        ):
-            yield
 
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_returns_transformed_endpoint(self, mock_conn):
@@ -195,3 +201,90 @@ class TestEmrServerlessGetSessionEndpointOperator:
             with pytest.raises(RuntimeError, match="botocore >= 1.43.0"):
                 op.execute({})
         mock_conn.get_session_endpoint.assert_not_called()
+
+
+@pytest.mark.usefixtures("supported_botocore")
+class TestEmrServerlessStopSessionOperator:
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_terminate_and_wait(self, mock_conn, get_waiter, wait_mock):
+        op = EmrServerlessStopSessionOperator(task_id="stop", application_id=APP_ID, session_id=SESSION_ID)
+        op.execute({})
+
+        mock_conn.terminate_session.assert_called_once_with(applicationId=APP_ID, sessionId=SESSION_ID)
+        wait_mock.assert_called_once()
+        get_waiter.assert_called_once_with("serverless_session_terminated")
+
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_terminate_no_wait(self, mock_conn, get_waiter, wait_mock):
+        op = EmrServerlessStopSessionOperator(
+            task_id="stop",
+            application_id=APP_ID,
+            session_id=SESSION_ID,
+            wait_for_completion=False,
+        )
+        op.execute({})
+        wait_mock.assert_not_called()
+
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_deferrable_defers(self, mock_conn, get_waiter, wait_mock):
+        op = EmrServerlessStopSessionOperator(
+            task_id="stop",
+            application_id=APP_ID,
+            session_id=SESSION_ID,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+        with pytest.raises(TaskDeferred) as deferred:
+            op.execute({})
+
+        mock_conn.terminate_session.assert_called_once_with(applicationId=APP_ID, sessionId=SESSION_ID)
+        trigger = deferred.value.trigger
+        assert isinstance(trigger, EmrServerlessStopSessionTrigger)
+        assert trigger.region_name == REGION_NAME
+        assert trigger.verify == VERIFY
+        assert trigger.botocore_config == BOTOCORE_CONFIG
+        wait_mock.assert_not_called()
+
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_wait_for_completion_false_does_not_defer(self, mock_conn, wait_mock):
+        op = EmrServerlessStopSessionOperator(
+            task_id="stop",
+            application_id=APP_ID,
+            session_id=SESSION_ID,
+            wait_for_completion=False,
+            deferrable=True,
+        )
+
+        op.execute({})
+
+        mock_conn.terminate_session.assert_called_once_with(applicationId=APP_ID, sessionId=SESSION_ID)
+        wait_mock.assert_not_called()
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_gates_on_old_botocore(self, mock_conn):
+        op = EmrServerlessStopSessionOperator(task_id="stop", application_id=APP_ID, session_id=SESSION_ID)
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
+            return_value=(1, 41, 0),
+        ):
+            with pytest.raises(RuntimeError, match="botocore >= 1.43.0"):
+                op.execute({})
+        mock_conn.terminate_session.assert_not_called()
+
+    def test_execute_complete_success(self):
+        op = EmrServerlessStopSessionOperator(task_id="stop", application_id=APP_ID, session_id=SESSION_ID)
+        assert op.execute_complete({}, {"status": "success", "session_id": SESSION_ID}) is None
+
+    def test_execute_complete_failure_raises(self):
+        op = EmrServerlessStopSessionOperator(task_id="stop", application_id=APP_ID, session_id=SESSION_ID)
+        with pytest.raises(RuntimeError):
+            op.execute_complete({}, {"status": "failure", "session_id": SESSION_ID})

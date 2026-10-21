@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import datetime
+import enum
 import pathlib
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -33,7 +35,7 @@ from uuid6 import uuid7
 from airflow import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
-from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.assets import Asset, AssetAlias
 from airflow.providers.common.compat.sdk import BaseOperator, TaskGroup, task, timezone
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
@@ -49,6 +51,7 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInstanceInfo,
     TaskInstancePosition,
     _build_labeled_edge_map,
+    _convert_to_json_safe_list,
     _extract_ol_info_from_asset_event,
     _get_ol_job_dependencies_from_asset_events,
     _get_openlineage_data_from_dagrun_conf,
@@ -3400,6 +3403,7 @@ def test_task_info_af3():
         "hitl_summary": "hitl_summary",
         "ignore_first_depends_on_past": False,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}, 'type': 'asset'}]",
+        "inlets_list": [{"uri": "uri1", "extra": {"a": 1}, "type": "asset"}],
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -3410,6 +3414,10 @@ def test_task_info_af3():
         "operator_class_path": get_fully_qualified_class_name(task_10),
         "operator_provider_version": None,  # Custom operator doesn't have provider version
         "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}, 'type': 'asset'}, {'uri': 'uri3', 'extra': {'c': 3}, 'type': 'asset'}]",
+        "outlets_list": [
+            {"uri": "uri2", "extra": {"b": 2}, "type": "asset"},
+            {"uri": "uri3", "extra": {"c": 3}, "type": "asset"},
+        ],
         "owner": "airflow",
         "priority_weight": 1,
         "queue": "default",
@@ -3532,6 +3540,7 @@ def test_task_info_af2():
         "is_teardown": False,
         "sla": None,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}, 'type': 'asset'}]",
+        "inlets_list": [{"uri": "uri1", "extra": {"a": 1}, "type": "asset"}],
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -3541,6 +3550,10 @@ def test_task_info_af2():
         "operator_class_path": get_fully_qualified_class_name(task_10),
         "operator_provider_version": None,  # Custom operator doesn't have provider version
         "outlets": "[{'uri': 'uri2', 'extra': {'b': 2}, 'type': 'asset'}, {'uri': 'uri3', 'extra': {'c': 3}, 'type': 'asset'}]",
+        "outlets_list": [
+            {"uri": "uri2", "extra": {"b": 2}, "type": "asset"},
+            {"uri": "uri3", "extra": {"c": 3}, "type": "asset"},
+        ],
         "owner": "airflow",
         "priority_weight": 1,
         "queue": "default",
@@ -5233,6 +5246,93 @@ class TestTaskInfoRuntimeAssets:
         assert "_runtime_assets" not in result
         # The runtime asset itself should still appear in the outlets list, just not the kwarg.
         assert result["outlets"] == "[{'uri': 's3://x/y.txt', 'extra': {'a': 1}, 'type': 'asset_event'}]"
+
+
+class TestTaskInfoAssetLists:
+    """``inlets_list`` / ``outlets_list`` carry the same assets as ``inlets`` / ``outlets`` as real lists."""
+
+    def test_extra_values_that_break_repr_parsing_stay_valid(self):
+        extra = {"etag": '"0x8D0000000000001"', "owner": "O'Brien", "has_header": True, "note": None}
+        task = BashOperator(
+            task_id="t",
+            bash_command="echo 1",
+            inlets=[Asset(uri="s3://bucket/in.csv", extra={"k": "v"})],
+            outlets=[Asset(uri="s3://bucket/out.csv", extra=extra)],
+        )
+        info = TaskInfo(task)
+        assert info["inlets_list"] == [{"uri": "s3://bucket/in.csv", "extra": {"k": "v"}, "type": "asset"}]
+        assert info["outlets_list"] == [{"uri": "s3://bucket/out.csv", "extra": extra, "type": "asset"}]
+
+    def test_no_assets_gives_empty_lists(self):
+        info = TaskInfo(BashOperator(task_id="t", bash_command="echo 1"))
+        assert info["inlets_list"] == []
+        assert info["outlets_list"] == []
+
+    def test_runtime_assets_included(self):
+        task = BashOperator(task_id="t", bash_command="echo 1", outlets=[])
+        dyn = Asset(
+            uri="s3://bucket/dyn.csv", extra={"size": Decimal("10.5"), "day": datetime.date(2026, 1, 2)}
+        )
+        aliased = Asset(uri="s3://bucket/aliased.csv", extra={"checks": [{"passed": True}]})
+        info = TaskInfo(task, runtime_assets=[(dyn, None), (aliased, AssetAlias("my-alias"))])
+        assert info["outlets_list"] == [
+            {
+                "uri": "s3://bucket/dyn.csv",
+                "extra": {"size": "10.5", "day": "2026-01-02"},
+                "type": "asset_event",
+            },
+            {
+                "uri": "s3://bucket/aliased.csv",
+                "extra": {"checks": [{"passed": True}]},
+                "type": "asset_event_from_alias",
+                "source_alias": "my-alias",
+            },
+        ]
+        assert info["inlets_list"] == []
+
+    def test_task_info_complete_includes_lists(self):
+        task = BashOperator(
+            task_id="t", bash_command="echo 1", outlets=[Asset(uri="s3://bucket/out.csv", extra={"k": "v"})]
+        )
+        assert TaskInfoComplete(task)["outlets_list"] == [
+            {"uri": "s3://bucket/out.csv", "extra": {"k": "v"}, "type": "asset"}
+        ]
+
+
+class _DatasetName(str, enum.Enum):
+    SYNC = "user_sync"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param([], [], id="empty"),
+        pytest.param(
+            [{("tuple", "key"): 1, "uri": "s3://b/o"}], [{"uri": "s3://b/o"}], id="non_str_key_dropped"
+        ),
+        pytest.param([{"uri": _DatasetName.SYNC}], [{"uri": "user_sync"}], id="str_enum_uses_value"),
+        pytest.param([{"n": Decimal("1.5")}], [{"n": "1.5"}], id="decimal"),
+        pytest.param(
+            [{"ts": datetime.datetime(2026, 1, 2, 3, 4, 5)}], [{"ts": "2026-01-02 03:04:05"}], id="datetime"
+        ),
+        pytest.param(
+            [{"nested": {"items": ["a", None, 1.0]}}], [{"nested": {"items": ["a", None, 1.0]}}], id="nested"
+        ),
+    ],
+)
+def test_convert_to_json_safe_list(value, expected):
+    assert _convert_to_json_safe_list(value, "outlets") == expected
+
+
+@patch("airflow.providers.openlineage.utils.utils.log", autospec=True)
+def test_convert_to_json_safe_list_returns_none_on_failure(mock_log):
+    circular: list = []
+    circular.append(circular)
+    assert _convert_to_json_safe_list(circular, "outlets") is None
+    mock_log.warning.assert_called_once_with(
+        "Unable to serialize task `%s` to a JSON list: %s", "outlets", mock.ANY
+    )
+    assert str(mock_log.warning.call_args.args[2]) == "Circular reference detected"
 
 
 @patch("airflow.providers.openlineage.utils.utils.get_runtime_outlet_assets")

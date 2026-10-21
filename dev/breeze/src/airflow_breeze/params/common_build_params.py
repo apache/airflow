@@ -25,10 +25,12 @@ from typing import Any
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BUILD_PROGRESS,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DOCKER_DEFAULT_PLATFORM,
     get_airflow_version,
+    get_hardened_python_base_image,
 )
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -71,7 +73,7 @@ class CommonBuildParams:
     dry_run: bool = False
     version_suffix: str | None = None
     verbose: bool = False
-    debian_version: str = "bookworm"
+    debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
     build_arg_values: list[str] = field(default_factory=list)
 
     @property
@@ -124,7 +126,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f"debian:{self.debian_version}-slim"
+        return get_hardened_python_base_image(self.python, self.debian_version)
 
     @property
     def airflow_image_repository(self):

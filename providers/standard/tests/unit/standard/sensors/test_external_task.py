@@ -81,7 +81,7 @@ def _make_dagbag(dag_folder):
     """
     if AIRFLOW_V_3_3_PLUS:
         return DagBag(dag_folder=dag_folder)
-    return DagBag(dag_folder=dag_folder, include_examples=False)  # type: ignore[call-arg]
+    return DagBag(dag_folder=dag_folder, include_examples=False)
 
 
 if AIRFLOW_V_3_0_PLUS:
@@ -90,7 +90,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 else:
     from airflow.decorators import task as task_deco  # type: ignore[attr-defined,no-redef]
-    from airflow.models import BaseOperator  # type: ignore[assignment,no-redef]
+    from airflow.models import BaseOperator
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import TaskGroup
@@ -100,7 +100,7 @@ else:
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
 else:
-    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
+    from airflow.models.dagbag import DagBag  # type: ignore[no-redef]
 
 
 pytestmark = pytest.mark.db_test
@@ -2019,8 +2019,8 @@ def run_tasks(
                 session=session,
             )
         else:
-            runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[attr-defined,call-arg,union-attr]
-                run_id=dag.timetable.generate_run_id(  # type: ignore[attr-defined,call-arg,union-attr]
+            runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[call-arg,union-attr]
+                run_id=dag.timetable.generate_run_id(  # type: ignore[call-arg,union-attr]
                     run_type=DagRunType.MANUAL,
                     logical_date=logical_date,
                     data_interval=data_interval,
@@ -2238,7 +2238,7 @@ def dag_bag_cyclic():
                 sync_dag_to_db(dag)
                 dag_bag.bag_dag(dag=dag)
             else:
-                dag_bag.bag_dag(dag=dag, root_dag=dag)  # type: ignore[call-arg]
+                dag_bag.bag_dag(dag=dag, root_dag=dag)
 
         return dag_bag
 

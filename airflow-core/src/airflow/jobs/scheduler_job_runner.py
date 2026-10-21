@@ -105,7 +105,7 @@ from airflow.models.connection_test import (
     ConnectionTestState,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion, _resolve_version_data
+from airflow.models.dag_version import DagVersion, _resolve_ti_callback_bundle_info
 from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -166,17 +166,6 @@ DM = DagModel
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
-SCHEDULER_DAG_CACHE_SIZE = 512
-"""
-Max deserialized Dag versions the scheduler keeps in memory.
-
-The scheduler reaches its DagBag through the Dag version of each active Dag run, so an
-unbounded cache retains every version the process has ever seen and grows for the life of
-the process. Sized to sit above the versions-with-runs-in-flight working set of a typical
-deployment, so eviction costs a re-fetch only where that working set is genuinely larger.
-
-:meta private:
-"""
 
 # Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
 # Bounds the per-tick transaction so executor heartbeats and regular scheduling
@@ -209,26 +198,6 @@ def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
         base.selectinload(AssetEvent.asset),
         base.selectinload(AssetEvent.source_aliases),
     )
-
-
-def _resolve_ti_callback_bundle_info(ti: TaskInstance) -> tuple[str, str | None, Any]:
-    """
-    Resolve the bundle name/version/version-data needed to build a TaskCallbackRequest or EmailRequest.
-
-    Used by the heartbeat-timeout purge path. Encapsulates the bundle-pinning semantics: fall back
-    to ``dag_model`` for legacy tasks with no ``dag_version`` (pre-AIP-66 migrations), and leave the
-    bundle version unpinned when the dag run itself wasn't pinned (``disable_bundle_versioning``),
-    so the callback runs against the same code as the task did. ``process_executor_events`` inlines
-    the same resolution for its externally-killed-task path.
-    """
-    bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-    bundle_version = (
-        ti.dag_version.bundle_version
-        if ti.dag_version and ti.dag_run.bundle_version is not None
-        else ti.dag_run.bundle_version
-    )
-    version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
-    return bundle_name, bundle_version, version_data
 
 
 def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logger) -> bool:
@@ -309,6 +278,30 @@ def _is_parent_process() -> bool:
     False if the current process is a child process started by multiprocessing.
     """
     return multiprocessing.current_process().name == "MainProcess"
+
+
+def _create_scheduler_dag_bag() -> CachedDBDagBag:
+    """
+    Build the scheduler's DagBag from the ``[scheduler]`` cache options.
+
+    Defaults to an LRU cache of 512 versions with no TTL. A size limit is the only hard ceiling:
+    each re-check resets an entry's expiry, so a TTL reclaims a version only once its runs finish
+    and it stops being requested, bounding memory by the concurrently active set rather than
+    outright. With both limits disabled, retain loaded Dags without eviction for the process
+    lifetime.
+    """
+    cache_size = conf.getint("scheduler", "dag_cache_size")
+    cache_ttl = conf.getint("scheduler", "dag_cache_ttl")
+    if cache_size < 0:
+        raise ValueError("[scheduler] dag_cache_size must be greater than or equal to 0")
+    if cache_ttl < 0:
+        raise ValueError("[scheduler] dag_cache_ttl must be greater than or equal to 0")
+    return CachedDBDagBag(
+        load_op_links=False,
+        cache_size=cache_size,
+        cache_ttl=cache_ttl,
+        stats_prefix="scheduler.dag_bag",
+    )
 
 
 def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
@@ -393,12 +386,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        self.scheduler_dag_bag = CachedDBDagBag(
-            load_op_links=False,
-            cache_size=SCHEDULER_DAG_CACHE_SIZE,
-            cache_ttl=0,
-            stats_prefix="scheduler.dag_bag",
-        )
+        self.scheduler_dag_bag = _create_scheduler_dag_bag()
 
         # Set of (dag_id, asset_name, asset_uri) tuples for trigger policies that
         # are permanently unreachable for the rollup window's cardinality — the
@@ -1725,18 +1713,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
                     # too, which would lead to double logging
                     cls.logger().error(msg)
-                    # Safely extract bundle info: prefer dag_version when available,
-                    # fall back to dag_model/dag_run for legacy tasks migrated from
-                    # Airflow 2 where dag_version may be None (AIP-66).
-                    _bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
-                    # leave the callback unpinned so it runs against the same code as the task.
-                    _bundle_version = (
-                        ti.dag_version.bundle_version
-                        if ti.dag_version and ti.dag_run.bundle_version is not None
-                        else ti.dag_run.bundle_version
-                    )
-                    _version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+                    _bundle_name, _bundle_version, _version_data = _resolve_ti_callback_bundle_info(ti)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1770,15 +1747,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "Sending email request for task %s to DAG Processor",
                         ti,
                     )
-                    # Safely extract bundle info with fallback for legacy tasks
-                    # (dag_version may be None after Airflow 2 → 3 migration).
-                    _email_bundle_name = (
-                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    _email_bundle_name, _email_bundle_version, _email_version_data = (
+                        _resolve_ti_callback_bundle_info(ti)
                     )
-                    _email_bundle_version = (
-                        ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
-                    )
-                    _email_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -3488,19 +3459,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task.has_on_failure_callback:
                     if inspect(ti).detached:
                         ti = session.merge(ti)
-                    # Safely extract bundle info with fallback for legacy tasks
-                    # (dag_version may be None after Airflow 2 → 3 migration).
-                    _stuck_bundle_name = (
-                        ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+                    _stuck_bundle_name, _stuck_bundle_version, _stuck_version_data = (
+                        _resolve_ti_callback_bundle_info(ti)
                     )
-                    # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
-                    # leave the callback unpinned so it runs against the same code as the task.
-                    _stuck_bundle_version = (
-                        ti.dag_version.bundle_version
-                        if ti.dag_version and ti.dag_run.bundle_version is not None
-                        else ti.dag_run.bundle_version
-                    )
-                    _stuck_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
                     # inside a loop.  If backfilling fails we simply skip the callback.
@@ -3972,6 +3933,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .options(selectinload(TI.dag_model))
             .options(asset_loader)
             .options(alias_loader)
+            .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(selectinload(TI.dag_version))
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)

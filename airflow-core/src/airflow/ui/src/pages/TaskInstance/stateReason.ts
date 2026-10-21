@@ -18,14 +18,14 @@
  */
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 
-type StateReasonDisplay = { status: "error" | "warning"; titleKey: string };
+type StateReasonDisplay = { titleKey: string };
 
-// The header banner and the per-try row both look the state up here, so a state added to one
+// The header stat and the per-try row both look the state up here, so a state added to one
 // surface cannot be forgotten on the other: it has to bring a title with it. Keyed by
 // TaskInstanceState so a misspelt state is a compile error rather than a row that never renders.
 const STATE_REASON_DISPLAY: Partial<Record<TaskInstanceState, StateReasonDisplay>> = {
-  failed: { status: "error", titleKey: "failed" },
-  up_for_retry: { status: "warning", titleKey: "upForRetry" },
+  failed: { titleKey: "failed" },
+  up_for_retry: { titleKey: "upForRetry" },
 };
 
 export const stateReasonDisplay = (state: TaskInstanceState | null | undefined) =>

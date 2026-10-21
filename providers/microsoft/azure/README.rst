@@ -50,9 +50,9 @@ The package supports the following python versions: 3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ===================
+==========================================  =====================
 PIP package                                 Version required
-==========================================  ===================
+==========================================  =====================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.21.0``
 ``adlfs``                                   ``>=2026.5.0``
@@ -63,9 +63,10 @@ PIP package                                 Version required
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
 ``azure-datalake-store``                    ``>=1.0.1``
 ``azure-identity``                          ``>=1.25.3``
-``azure-keyvault-secrets``                  ``>=4.10.0``
+``azure-keyvault-secrets``                  ``>=4.11.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
 ``azure-mgmt-resource``                     ``>=25.0.0``
+``azure-search-documents``                  ``>=11.6.0,!=12.0.0``
 ``azure-storage-blob``                      ``>=12.28.0``
 ``azure-mgmt-storage``                      ``>=24.0.1``
 ``azure-storage-file-share``                ``>=12.24.0``
@@ -86,7 +87,7 @@ PIP package                                 Version required
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
 ``microsoft-kiota-authentication-azure``    ``>=1.9.4,<2.0.0``
 ``msal-extensions``                         ``>=1.3.0``
-==========================================  ===================
+==========================================  =====================
 
 Optional cross provider package dependencies
 --------------------------------------------

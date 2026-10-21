@@ -42,6 +42,15 @@ import org.apache.airflow.sdk.internal.deriveTaskId
  * each edge as Python reads it, so a group's edges can be drawn before its
  * tasks are declared. The edges still resolve in the order they were drawn.
  *
+ * The Airflow UI draws the edges into a group through one join node and the
+ * edges out of it through a second join node. For `staging`, the join nodes
+ * have the IDs `staging.upstream_join_id` and `staging.downstream_join_id`,
+ * and no task or other group in the Dag can take either ID. For example,
+ * `staging.task("upstream_join_id", Stage.class)` fails because the new
+ * task's ID would be `staging.upstream_join_id`. `dag.taskGroup("staging")`
+ * also fails if the Dag already has a task with the ID
+ * `staging.upstream_join_id`.
+ *
  * @property id Group ID, including any enclosing group's prefix.
  */
 class TaskGroupRef internal constructor(
@@ -163,7 +172,9 @@ class TaskGroupRef internal constructor(
    *    underscores, or dashes.
    * @return The nested group.
    * @throws IllegalArgumentException if [id] is not a valid group ID, or the
-   *    Dag already has a task or task group with the resulting ID.
+   *    Dag already has a task or task group with the resulting ID. Also
+   *    thrown if the resulting ID is the ID of a join node of this group, or
+   *    if a task already has the ID of a join node of the nested group.
    */
   fun taskGroup(id: String): TaskGroupRef = dag.addGroup(this, id)
 
