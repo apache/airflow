@@ -197,11 +197,13 @@ connection-types:
       - Nebius
       - Ollama
       - OpenAI
+      - OpenAI Decisions
       - OpenRouter
       - OVHcloud
       - Pydantic AI Gateway
       - SambaNova
       - Snowflake Cortex
+      - System One
       - Together AI
       - TypeSafe
       - Vercel AI Gateway
