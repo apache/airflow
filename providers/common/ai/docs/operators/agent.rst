@@ -451,6 +451,9 @@ Parameters
   When set, the post-run transcript is pushed to XCom under the key
   ``message_history`` for the next run to resume. Default ``None`` (single-turn).
   See :doc:`../message_history`.
+- ``emit_message_history``: Push the post-run transcript to XCom under the key
+  ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
+  otherwise; ``True`` records a single-turn run without seeding it. See :doc:`../message_history`.
 - ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
   ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
   ``model_dump()`` before being pushed to XCom. Default ``False`` -- the

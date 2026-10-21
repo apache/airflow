@@ -81,7 +81,7 @@ class TestSandboxSpec:
         spec = SandboxSpec()
 
         with pytest.raises(AttributeError):
-            spec.block_network = False  # type: ignore[misc]
+            spec.block_network = False
 
 
 class TestSandboxExecResult:
@@ -113,7 +113,7 @@ class TestErrorHierarchy:
 class TestBackendContract:
     def test_cannot_be_instantiated_without_implementing_everything(self):
         with pytest.raises(TypeError):
-            SandboxBackend()  # type: ignore[abstract]
+            SandboxBackend()
 
     def test_only_lifecycle_and_command_are_required(self):
         # A new backend should have to write three methods, not six: the file

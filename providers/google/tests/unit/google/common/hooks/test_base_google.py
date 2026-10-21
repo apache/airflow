@@ -865,6 +865,22 @@ class TestGoogleBaseHook:
 
             assert is_default_universe
 
+    @pytest.mark.parametrize(
+        ("high_value_cookie_domain", "expected_result"),
+        [
+            pytest.param(None, "google.com", id="unset_value"),
+            pytest.param("", "google.com", id="empty_value"),
+            pytest.param("googleapis.cn", "googleapis.cn", id="custom_value"),
+        ],
+    )
+    def test_get_high_value_cookie_domain(self, high_value_cookie_domain, expected_result):
+        env = {}
+        if high_value_cookie_domain is not None:
+            env["GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN"] = high_value_cookie_domain
+
+        with patch.dict(os.environ, env, clear=True):
+            assert self.instance.get_high_value_cookie_domain() == expected_result
+
     def test_get_client_options_default(self):
         with patch.dict(os.environ, {}, clear=True):
             client_options = self.instance.get_client_options()

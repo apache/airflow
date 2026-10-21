@@ -86,7 +86,7 @@ class ModelPanelPlugin(AirflowPlugin):
                 # class name and the decorator's display name, since TaskInstance falls
                 # back to the class name when there's no custom_operator_name.
                 "applies_to": {
-                    "operator_names": [
+                    "operator_name": [
                         "LLMOperator",
                         "AgentOperator",
                         "@task.llm",

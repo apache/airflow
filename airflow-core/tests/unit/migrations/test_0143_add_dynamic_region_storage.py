@@ -90,6 +90,8 @@ dynamic_region = sa.Table(
     sa.Column("dag_id", sa.String(250)),
     sa.Column("run_id", sa.String(250)),
     sa.Column("node_id", sa.String(250)),
+    sa.Column("family_root_id", CompactUUID),
+    sa.Column("path", sa.LargeBinary),
     sa.Column("created_at", UtcDateTime),
 )
 TABLES = (task_instance, task_state_store)
@@ -166,7 +168,13 @@ def _add_region_row(connection, table, **overrides):
     region_id = uuid4()
     connection.execute(
         dynamic_region.insert().values(
-            id=region_id, dag_id=DAG_ID, run_id=RUN_ID, node_id="task", created_at=timezone.utcnow()
+            id=region_id,
+            dag_id=DAG_ID,
+            run_id=RUN_ID,
+            node_id="task",
+            family_root_id=region_id,
+            path=b"",
+            created_at=timezone.utcnow(),
         )
     )
     values = {name: value for name, value in row.items() if name != "id" or table is task_instance}

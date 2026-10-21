@@ -29,6 +29,7 @@ from pydantic import (
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    field_validator,
     model_validator,
 )
 
@@ -39,6 +40,7 @@ from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_MAX_BYTES
 from airflow.utils.state import (
     DagRunState,
     IntermediateTIState,
@@ -88,6 +90,23 @@ class TerminalStateNonSuccess(str, Enum):
     SERVER_TERMINATED = "server_terminated"
 
 
+class LoopDecisionPayload(StrictBaseModel):
+    """A loop gate's evaluation of its ``until`` callable."""
+
+    stop: bool
+    reason: str | None = None
+
+    @field_validator("reason")
+    @classmethod
+    def _check_reason(cls, reason: str | None) -> str | None:
+        if reason is not None:
+            if len(reason.encode()) > LOOP_DECISION_REASON_MAX_BYTES:
+                raise ValueError(f"must be at most {LOOP_DECISION_REASON_MAX_BYTES} bytes of UTF-8")
+            if "\x00" in reason:
+                raise ValueError("cannot contain NUL bytes")
+        return reason
+
+
 class TITerminalStatePayload(StrictBaseModel):
     """Report a terminal outcome other than SUCCESS, or acknowledge server-requested termination."""
 
@@ -99,6 +118,7 @@ class TITerminalStatePayload(StrictBaseModel):
     retry_reason: str | None = None
     hostname: str | None = None
     pid: int | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -122,6 +142,7 @@ class TISuccessStatePayload(StrictBaseModel):
     task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
     outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
     rendered_map_index: str | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -431,7 +452,7 @@ class LoopContext(BaseModel):
     """Pinned loop definition and enclosing iteration for a task execution."""
 
     node_id: str
-    index: int = Field(ge=0)
+    index: int = Field(ge=1)
     max_iterations: int = Field(gt=0)
     terminal_task_id: str
     terminal_is_mapped: bool

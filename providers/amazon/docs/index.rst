@@ -116,8 +116,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.22.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
-``boto3``                                   ``>=1.42.79``
-``botocore``                                ``>=1.42.79``
+``boto3``                                   ``>=1.42.93``
+``botocore``                                ``>=1.42.93``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
@@ -174,9 +174,9 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-amazon[aiobotocore]
 
 
-====================  ============================================================================================================================================================
+====================  ======================================================================================================================================================================
 Extra                 Dependencies
-====================  ============================================================================================================================================================
+====================  ======================================================================================================================================================================
 ``aiobotocore``       ``aiobotocore>=3.0.0``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
 ``s3fs``              ``s3fs>=2023.10.0``
@@ -191,6 +191,7 @@ Extra                 Dependencies
 ``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
 ``mongo``             ``apache-airflow-providers-mongo``
 ``pandas``            ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
+``parquet``           ``pyarrow>=16.1.0; python_version < '3.13'``, ``pyarrow>=18.0.0; python_version >= '3.13' and python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
 ``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
 ``salesforce``        ``apache-airflow-providers-salesforce``
 ``ssh``               ``apache-airflow-providers-ssh``
@@ -199,7 +200,7 @@ Extra                 Dependencies
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``
 ``sqlalchemy``        ``sqlalchemy>=1.4.54,!=2.1.0``
-====================  ============================================================================================================================================================
+====================  ======================================================================================================================================================================
 
 Downloading official packages
 -----------------------------

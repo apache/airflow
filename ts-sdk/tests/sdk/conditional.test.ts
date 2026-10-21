@@ -24,6 +24,7 @@ import {
   getDagOrderEdges,
   getDagTaskInputs,
   getDagTaskRecords,
+  label,
   type TaskRef,
 } from "../../src/sdk/dag.js";
 import { serializeDag } from "../../src/coordinator/serde.js";
@@ -231,7 +232,29 @@ describe("dag.if", () => {
     });
   });
 
+  it("labels a branch edge redrawn from the condition", () => {
+    const { dag, ifReady, gated } = gatedDag();
+    gated.then(ifReady);
+
+    gated.before(label(ifReady, "rows found"));
+
+    expect(getDagOrderEdges(dag)).toContainEqual({
+      upstream: "has_rows",
+      downstream: "load_if_ready",
+      label: "rows found",
+    });
+  });
+
   describe("rejects", () => {
+    it("a labelled branch", () => {
+      const { ifReady, gated } = gatedDag();
+
+      expect(() => gated.then(label(ifReady, "rows found") as never)).toThrowError(
+        'The "then" branch of "has_rows" of Dag "d" was given a label(); label a branch edge ' +
+          'by redrawing it from "has_rows" with before(label(task, "text"))',
+      );
+    });
+
     it("a task group as a branch", () => {
       const { dag, gated } = gatedDag();
       const group = dag.taskGroup("staging");

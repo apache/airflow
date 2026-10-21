@@ -66,7 +66,7 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.21.0",
+    "apache-airflow-providers-common-compat>=1.21.0",  # use next version
     "apache-airflow-providers-standard>=1.20.0",
     # 2.33.0 is the first release that works with anthropic>=1: it moved to httpx2 alongside
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
@@ -136,10 +136,11 @@ dependencies = [
 # the git provider supplies GitHook + GitPython for cloning GitSkills with
 # credentials from a `git` connection. pydantic-ai-harness's Skills capability is not
 # a replacement: it loads only SKILL.md instructions, with no skill resources and no
-# run_skill_script.
+# run_skill_script. pydantic-ai-skills 2.0 removed SkillsToolset, which AgentSkillsToolset
+# wraps, so the extra stays below 2 until the toolset moves to the 2.x capability API.
 "skills" = [
     "apache-airflow-providers-git>=0.4.0",
-    "pydantic-ai-skills>=1.2.0",
+    "pydantic-ai-skills>=1.2.0,<2",
 ]
 # Islo-hosted microVM sandboxes for SandboxToolset: like modal, needs no host-level
 # installation, only ISLO_API_KEY in the worker environment.
@@ -190,7 +191,7 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]>=2.36.0",
-    "pydantic-ai-skills>=1.2.0",
+    "pydantic-ai-skills>=1.2.0,<2",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
     "llama-index-core>=0.14.5",

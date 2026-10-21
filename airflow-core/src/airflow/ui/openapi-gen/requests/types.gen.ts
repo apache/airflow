@@ -1833,6 +1833,9 @@ export type LastAssetEventResponse = {
  */
 export type LoopIterationResponse = {
     loop_id: string;
+    /**
+     * Position in the enclosing loop, counting from one.
+     */
     iteration: number;
 };
 
@@ -2682,6 +2685,11 @@ export type CalendarTimeRangeResponse = {
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
 
 /**
+ * All possible states of callbacks.
+ */
+export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
+
+/**
  * configuration serializer.
  */
 export type ConfigResponse = {
@@ -2942,6 +2950,10 @@ export type DeadlineResponse = {
     alert_id?: string | null;
     alert_name?: string | null;
     team_name?: string | null;
+    callback_id: string;
+    callback_type: string;
+    callback_state?: CallbackState | null;
+    callback_path?: string | null;
 };
 
 /**
@@ -3160,6 +3172,10 @@ export type LoopIterationSummary = {
     state?: TaskInstanceState | null;
     start_date?: string | null;
     end_date?: string | null;
+    /**
+     * Why the loop's gate continued or stopped the loop at this iteration, if its until callable said.
+     */
+    decision_reason?: string;
 };
 
 /**
@@ -4151,7 +4167,7 @@ export type GetDagsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
@@ -4296,7 +4312,7 @@ export type GetDagsUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date, last_run_run_after`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
@@ -4644,7 +4660,7 @@ export type GetTaskInstancesData = {
     endDateLte?: string | null;
     executor?: Array<(string)>;
     /**
-     * Narrow ``loop_id`` to a single pass of that loop.
+     * Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
      */
     iteration?: number | null;
     limit?: number;
@@ -5232,6 +5248,10 @@ export type GetXcomEntriesData = {
     dagDisplayNamePrefixPattern?: string | null;
     dagId: string;
     dagRunId: string;
+    /**
+     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+     */
+    excludeInternalKeys?: boolean;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
@@ -5454,7 +5474,7 @@ export type GetDeadlinesData = {
     missed?: boolean | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state, callback_type`
      */
     orderBy?: Array<(string)>;
     teams?: Array<(string)>;
@@ -5474,6 +5494,15 @@ export type GetDagDeadlineAlertsData = {
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
+
+export type GetCallbackLogsData = {
+    accept?: 'application/json' | 'application/x-ndjson' | '*/*';
+    callbackId: string;
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetCallbackLogsResponse = TaskInstancesLogResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -5584,7 +5613,15 @@ export type GetLoopHistoryResponse = LoopHistoryResponse;
 
 export type GetGanttDataData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runId: string;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGanttDataResponse = GanttResponse;
@@ -9832,6 +9869,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DeadlineAlertCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs': {
+        get: {
+            req: GetCallbackLogsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstancesLogResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
