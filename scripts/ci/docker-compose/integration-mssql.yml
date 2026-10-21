@@ -22,6 +22,7 @@ services:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
       breeze.description: "Integration required for mssql hooks."
     volumes:
       - mssql-db-volume:/var/opt/mssql
@@ -43,3 +44,4 @@ volumes:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"

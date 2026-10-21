@@ -31,7 +31,8 @@ from sqlalchemy import delete, event
 import airflow.settings
 from airflow.models.dag_version import DagVersion
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task, task_group
@@ -74,7 +75,7 @@ def test_outside_dependency_observes_only_latest_live_loop_gate(dag_maker, sessi
         run_id=dr.run_id,
         dag_version_id=previous.dag_version_id,
         region_id=previous.region_id,
-        region_index=1,
+        region_index=2,
         state=latest_state,
     )
     session.add(latest)
@@ -2293,6 +2294,65 @@ def test_setup_constraint_wait_for_past_depends_before_skipping(
                 "Task should be skipped but the past depends are not met" if expect_failure else ""
             ),
         )
+
+
+_PAST_DEPENDS_MET_VALUES = [
+    pytest.param(True, True, True, id="true"),
+    pytest.param(False, True, False, id="false"),
+    pytest.param(
+        '{"__classname__": "builtins.tuple", "__version__": 1, "__data__": [1]}', False, False, id="envelope"
+    ),
+    pytest.param("1", False, False, id="truthy-int"),
+]
+
+
+@pytest.mark.parametrize(("stored", "serialize", "met"), _PAST_DEPENDS_MET_VALUES)
+@pytest.mark.parametrize(
+    ("task_kwargs", "skipped_reason"),
+    [
+        pytest.param(
+            {"trigger_rule": TriggerRule.ALL_SUCCESS, "normal_tasks": ["FakeTaskID", "OtherFakeTaskID"]},
+            "requires all upstream tasks to have succeeded, but found 1",
+            id="trigger-rule",
+        ),
+        pytest.param(
+            {"trigger_rule": TriggerRule.ALL_DONE, "setup_tasks": ["FakeTaskID", "OtherFakeTaskID"]},
+            "",
+            id="setup-constraint",
+        ),
+    ],
+)
+def test_wait_for_past_depends_before_skipping_reads_stored_value(
+    session, get_task_instance, task_kwargs, skipped_reason, stored, serialize, met
+):
+    """Only a stored literal ``True`` lets the task be skipped, and the value is never reconstructed."""
+    ti = get_task_instance(
+        success=1, skipped=1, failed=0, removed=0, upstream_failed=0, done=2, **task_kwargs
+    )
+    XComModel.set(
+        key=PAST_DEPENDS_MET,
+        value=stored,
+        serialize=serialize,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        session=session,
+    )
+    session.flush()
+
+    with mock.patch("airflow.sdk.serde.deserialize", side_effect=AssertionError("must not construct")) as m:
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=True,
+            wait_for_past_depends_before_skipping=True,
+            expected_ti_state=SKIPPED if met else None,
+            expected_reason=(
+                skipped_reason if met else "Task should be skipped but the past depends are not met"
+            ),
+        )
+    m.assert_not_called()
 
 
 @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])

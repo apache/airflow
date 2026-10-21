@@ -16,6 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { setupServer, type SetupServer } from "msw/node";
 
-export { default as BackfillBanner } from "./BackfillBanner";
-export { default as DrainingBanner } from "./DrainingBanner";
+import { handlers } from "src/mocks/handlers";
+
+// The one msw server of each test file, started by testsSetup.ts. Tests add their own handlers with
+// `server.use(...)` instead of starting another server: concurrent servers share msw's request
+// interception, so the first one consulted shadows the other's handlers, and closing either one
+// lets the requests still in flight escape to the network.
+export const server: SetupServer = setupServer(...handlers);

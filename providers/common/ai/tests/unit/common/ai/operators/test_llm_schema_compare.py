@@ -830,7 +830,7 @@ class TestLLMSchemaCompareOperatorApproval:
     def test_execute_rejects_sequence_prompt_with_require_approval(self):
         op = LLMSchemaCompareOperator(
             task_id="test_task",
-            prompt=["describe", b"bytes"],  # type: ignore[arg-type]
+            prompt=["describe", b"bytes"],
             llm_conn_id="llm_conn",
             **self._APPROVAL_KWARGS,
         )

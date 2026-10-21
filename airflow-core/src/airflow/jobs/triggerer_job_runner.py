@@ -139,6 +139,7 @@ from airflow.triggers.shared_stream import SharedStreamManager
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
+from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 
 if TYPE_CHECKING:
@@ -557,7 +558,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return self._exit_code is None
 
     @classmethod
-    def start(  # type: ignore[override]
+    def start(
         cls,
         *,
         job: Job | None = None,
@@ -818,8 +819,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         Trigger.submit_event(trigger_id=trigger_id, event=event)
 
     def clean_unused(self) -> None:
-        """Remove triggers that are no longer needed."""
-        Trigger.clean_unused()
+        """Remove triggers that are no longer needed, retrying database errors in a new transaction."""
+        for attempt in run_with_db_retries():
+            with attempt, create_session() as session:
+                Trigger.clean_unused(session=session)
 
     def handle_failed_triggers(self):
         """
@@ -1515,8 +1518,10 @@ class TriggerRunner:
                 else:
                     trigger_name = f"ID {trigger_id}"
                     trigger_instance = trigger_class(**deserialised_kwargs)
-            except TypeError as err:
-                self.log.error("Trigger failed to inflate", error=err)
+            except Exception as err:
+                # Kwargs are decoded here rather than when queued, so one trigger with undecodable
+                # kwargs (e.g. a class not in allowed_deserialization_classes) must not stop the runner.
+                self.log.error("Trigger failed to inflate", error=err, trigger_id=trigger_id)
                 self.failed_triggers.append((trigger_id, err))
                 continue
             trigger_instance.trigger_id = trigger_id

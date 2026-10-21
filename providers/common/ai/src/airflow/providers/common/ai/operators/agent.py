@@ -406,6 +406,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         object-storage XCom backend or trim old turns. Not supported together with
         ``enable_hitl_review`` (raises) -- the post-review transcript is not yet
         recoverable.
+    :param emit_message_history: Push the post-run transcript to XCom under the key
+        ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
+        otherwise. Set ``True`` to record a single-turn run without seeding it, or ``False``
+        to keep a seeded run from pushing it. Not supported together with
+        ``enable_hitl_review`` (raises).
 
     **HITL Review parameters** (requires the ``hitl_review`` plugin):
 
@@ -507,6 +512,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         durable: bool = False,
         cache_prompt: bool = True,
         message_history: list[ModelMessage] | str | bytes | None = None,
+        emit_message_history: bool | None = None,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
         max_hitl_iterations: int = 5,
@@ -537,6 +543,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
         self.message_history = message_history
+        self.emit_message_history = (
+            message_history is not None if emit_message_history is None else emit_message_history
+        )
 
         self.durable = durable
         self.cache_prompt = cache_prompt
@@ -580,6 +589,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # would silently drop the human-approved turns. Block until HITL can
             # surface the final message history.
             raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
+
+        if emit_message_history and enable_hitl_review:
+            raise ValueError("emit_message_history and enable_hitl_review=True cannot be used together.")
 
         if durable or enable_hitl_review:
             self._reject_sandbox_without_continuity(durable=durable, enable_hitl_review=enable_hitl_review)
@@ -1078,14 +1090,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         if self._usage_budget and (run_usage := self._run_usage) is not None:
             self._log_cumulative_usage(run_usage)
 
-        if self.message_history is not None:
+        if self.emit_message_history:
             self._emit_message_history(context, result)
 
         output = result.output
 
         if self.enable_hitl_review:
             self._output_under_review = output
-            self.run_hitl_review(  # type: ignore[misc]
+            self.run_hitl_review(
                 context,
                 output,
                 message_history=result.all_messages(),
