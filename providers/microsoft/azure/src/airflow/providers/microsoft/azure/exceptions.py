@@ -62,3 +62,7 @@ class AzureBatchRequiredParametersMissingError(AirflowException):
 
 class AzureAISearchIndexingError(AirflowException):
     """Raised when Azure AI Search rejects some documents of a write."""
+
+
+class MSGraphPageNotInTaskStateStoreError(AirflowException):
+    """Raised when a page kept by a durable MSGraphAsyncOperator is no longer in the task state store."""
