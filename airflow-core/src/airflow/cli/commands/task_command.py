@@ -593,6 +593,13 @@ def task_render(args, dag: DAG | None = None) -> None:
 def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
+    task_pattern = None
+    if args.task_regex:
+        try:
+            task_pattern = re.compile(args.task_regex)
+        except re.error as e:
+            raise SystemExit(f"Invalid --task-regex {args.task_regex!r}: {e}")
+
     if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
         dags = [get_db_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)]
     else:
@@ -600,11 +607,7 @@ def task_clear(args) -> None:
         # Reading from_db because clear method still not implemented in Task SDK DAG
         dags = get_dags(args.bundle_name, args.dag_id, use_regex=args.dag_regex, from_db=True)
 
-        if args.task_regex:
-            try:
-                task_pattern = re.compile(args.task_regex)
-            except re.error as e:
-                raise SystemExit(f"Invalid --task-regex {args.task_regex!r}: {e}")
+        if task_pattern:
             for idx, dag in enumerate(dags):
                 dags[idx] = dag.partial_subset(
                     task_ids={task_id for task_id in dag.task_ids if task_pattern.search(task_id)},
