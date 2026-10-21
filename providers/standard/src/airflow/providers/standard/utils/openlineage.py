@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -60,7 +61,7 @@ def _is_openlineage_provider_accessible() -> bool:
 
 
 @require_openlineage_version(provider_min_version=OPENLINEAGE_PROVIDER_MIN_VERSION)
-def _get_openlineage_parent_info(ti: TaskInstance | RuntimeTI) -> dict[str, str]:
+def _get_openlineage_parent_info(ti: TaskInstance | RuntimeTI) -> dict[str, Any]:
     """Get OpenLineage metadata about the parent task."""
     from airflow.providers.openlineage.plugins.macros import (
         lineage_job_name,
@@ -71,7 +72,7 @@ def _get_openlineage_parent_info(ti: TaskInstance | RuntimeTI) -> dict[str, str]
         lineage_run_id,
     )
 
-    return {
+    parent_info: dict[str, Any] = {
         "parentRunId": lineage_run_id(ti),
         "parentJobName": lineage_job_name(ti),
         "parentJobNamespace": lineage_job_namespace(),
@@ -79,10 +80,18 @@ def _get_openlineage_parent_info(ti: TaskInstance | RuntimeTI) -> dict[str, str]
         "rootParentJobName": lineage_root_job_name(ti),
         "rootParentJobNamespace": lineage_root_job_namespace(ti),
     }
+    dag_run = getattr(ti, "dag_run", None)
+    if dag_run is None:
+        dag_run = ti.get_template_context()["dag_run"]
+    if isinstance(dag_run.conf, dict):
+        ol_conf = dag_run.conf.get("openlineage")
+        if isinstance(ol_conf, dict) and isinstance(root_job_type := ol_conf.get("rootParentJobType"), dict):
+            parent_info["rootParentJobType"] = deepcopy(root_job_type)
+    return parent_info
 
 
 def _inject_openlineage_parent_info_to_dagrun_conf(
-    dr_conf: dict | None, ol_parent_info: dict[str, str]
+    dr_conf: dict | None, ol_parent_info: dict[str, Any]
 ) -> dict:
     """
     Safely inject OpenLineage parent and root run metadata into a DAG run configuration.
