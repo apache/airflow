@@ -408,6 +408,23 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         return self
 
+    def _on_child_started(
+        self,
+        *,
+        ti: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        sentry_integration: str,
+    ) -> None:
+        super()._on_child_started(
+            ti=ti,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
+        # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
+        self._arm_execution_timeout()
+
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
@@ -420,9 +437,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         backend's storage.
 
         If an XCom cannot be deleted, this try fails and the task does not run.
-
-        Once the XComs are deleted, this also arms the execution timeout from the run context, since a
-        language SDK runtime does not tell the supervisor when the task starts running.
         """
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
@@ -441,8 +455,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 )
                 self.kill(signal.SIGKILL)
                 return None
-        if ti_context.execution_timeout is not None:
-            self._arm_execution_timeout(ti_context.execution_timeout)
         # The supervisor has already deleted the listed XComs, so it sends the runtime an empty list.
         # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
         # them a second time.
