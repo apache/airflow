@@ -1529,7 +1529,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
-            callback = session.get(Callback, UUID(str(callback_id)))
+            callback_uuid = UUID(str(callback_id))
+            callback = session.get(Callback, callback_uuid)
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
@@ -1549,14 +1550,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            new_values: dict[str, Any] = {"state": state}
+            if state == CallbackState.FAILED:
+                new_values["output"] = str(info) if info else "Execution failed"
+
+            # The QUEUED/RUNNING check above reads an ORM snapshot, and the supervisor can report a
+            # terminal state through the API before this write lands. Repeating it here stops a
+            # terminal row moving.
+            updated = session.execute(
+                update(Callback)
+                .where(
+                    Callback.id == callback_uuid,
+                    Callback.state.in_((CallbackState.QUEUED, CallbackState.RUNNING)),
+                )
+                .values(**new_values)
+                .execution_options(synchronize_session=False)
+            )
+            # The row moved under us, so the ORM copy is stale either way.
+            session.expire(callback)
+
+            if not updated.rowcount:
+                cls.logger().info(
+                    "Callback %s reached a terminal state before its executor event (%s) was handled; "
+                    "keeping the reported result",
+                    callback_id,
+                    state,
+                )
+                continue
+
             if state == CallbackState.SUCCESS:
-                callback.state = CallbackState.SUCCESS
                 cls.logger().info("Callback %s completed successfully", callback_id)
-            elif state == CallbackState.FAILED:
-                callback.state = CallbackState.FAILED
-                callback.output = str(info) if info else "Execution failed"
-                cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
-            session.add(callback)
+            else:
+                cls.logger().error("Callback %s failed: %s", callback_id, new_values["output"])
 
         # Return if no finished tasks
         if not tis_with_right_state:

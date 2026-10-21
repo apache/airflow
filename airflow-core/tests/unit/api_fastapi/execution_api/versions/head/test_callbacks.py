@@ -95,30 +95,32 @@ class TestRunCallback:
 
 
 @pytest.fixture
-def running_callback(session):
-    callback = ExecutorCallback(
-        callback_def=SyncCallback(sync_callback, kwargs={}),
-        fetch_method=CallbackFetchMethod.IMPORT_PATH,
-    )
-    callback.data["dag_id"] = "test_dag"
-    callback.state = CallbackState.RUNNING
-    session.add(callback)
-    session.commit()
-    return callback
+def make_running_callback(session):
+    """Build a callback already in RUNNING, the only state the state endpoint accepts."""
+
+    def _make():
+        callback = ExecutorCallback(
+            callback_def=SyncCallback(sync_callback, kwargs={}),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+        )
+        callback.data["dag_id"] = "test_dag"
+        callback.state = CallbackState.RUNNING
+        session.add(callback)
+        session.commit()
+        return callback
+
+    return _make
 
 
 @pytest.fixture
-def other_callback(session):
+def running_callback(make_running_callback):
+    return make_running_callback()
+
+
+@pytest.fixture
+def other_callback(make_running_callback):
     """A second, unrelated callback, so a token can name a real id that is not this one."""
-    callback = ExecutorCallback(
-        callback_def=SyncCallback(sync_callback, kwargs={}),
-        fetch_method=CallbackFetchMethod.IMPORT_PATH,
-    )
-    callback.data["dag_id"] = "test_dag"
-    callback.state = CallbackState.RUNNING
-    session.add(callback)
-    session.commit()
-    return callback
+    return make_running_callback()
 
 
 class TestUpdateCallbackState:

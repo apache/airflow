@@ -1269,6 +1269,57 @@ class TestSchedulerJob:
         assert stored.state == expected_state
         assert stored.output == expected_output
 
+    def test_process_executor_events_does_not_overwrite_a_concurrent_terminal_report(
+        self, dag_maker, session
+    ):
+        """
+        The supervisor can report through the API between the scheduler's read and its write.
+
+        The in-flight check reads an ORM snapshot, so it cannot see that. Here the row is moved to
+        SUCCESS behind the session's back, leaving the snapshot saying RUNNING while the database
+        says otherwise -- the same divergence a committed `PATCH /callbacks/{id}/state` produces,
+        and the reason the write itself has to carry the in-flight predicate.
+        """
+
+        def test_callback():
+            pass
+
+        with dag_maker(dag_id="test_callback_concurrent_report"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+
+        callback = Deadline(
+            deadline_time=timezone.utcnow(),
+            callback=SyncCallback(test_callback),
+            dagrun_id=dag_run.id,
+            deadline_alert_id=None,
+        ).callback
+        callback.state = CallbackState.RUNNING
+        callback.data["dag_run_id"] = dag_run.id
+        callback.data["dag_id"] = dag_run.dag_id
+        session.add(callback)
+        session.flush()
+
+        session.execute(
+            update(Callback)
+            .where(Callback.id == callback.id)
+            .values(state=CallbackState.SUCCESS, output=PRIOR_OUTPUT)
+            .execution_options(synchronize_session=False)
+        )
+        assert callback.state == CallbackState.RUNNING, "snapshot must still be stale"
+
+        executor = MockExecutor(do_update=False)
+        self.job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        executor.event_buffer[CallbackKey(str(callback.id))] = CallbackState.FAILED, "worker died"
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+
+        session.flush()
+        session.expire_all()
+        stored = session.get(ExecutorCallback, callback.id)
+        assert stored.state == CallbackState.SUCCESS
+        assert stored.output == PRIOR_OUTPUT
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_events_with_callback(
