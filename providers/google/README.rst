@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.7.0``
+Release: ``22.8.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.7.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.8.0/>`_.
 
 Installation
 ------------
@@ -61,7 +61,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.13.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``asgiref``                                 ``>=3.5.2; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
@@ -186,7 +186,7 @@ Optional dependencies
 Extra                 Dependencies
 ====================  =====================================================
 ``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
-``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.22.0``
+``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.25.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
 ``leveldb``           ``plyvel>=1.5.1; python_version < '3.13'``
 ``oracle``            ``apache-airflow-providers-oracle>=3.1.0``
@@ -211,4 +211,4 @@ Extra                 Dependencies
 ====================  =====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.7.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.8.0/changelog.html>`_.

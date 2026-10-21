@@ -284,7 +284,7 @@ class TestManagedAgentToolset:
     def test_something_that_is_not_a_client_is_refused_at_construction(self):
         # Passing the hook instead of hook.agent(...) is the likely mistake; it must not wait for the first call.
         with pytest.raises(TypeError, match="Pass hook.agent"):
-            ManagedAgentToolset(object(), tool_name="ask")  # type: ignore[arg-type]
+            ManagedAgentToolset(object(), tool_name="ask")
 
     @pytest.mark.asyncio
     async def test_vendor_options_travel_on_every_request(self):
