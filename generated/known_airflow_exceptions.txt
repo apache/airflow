@@ -187,7 +187,6 @@ providers/datadog/src/airflow/providers/datadog/hooks/datadog.py::2
 providers/datadog/src/airflow/providers/datadog/sensors/datadog.py::1
 providers/dbt/cloud/src/airflow/providers/dbt/cloud/hooks/dbt.py::3
 providers/dingding/src/airflow/providers/dingding/hooks/dingding.py::2
-providers/discord/src/airflow/providers/discord/operators/discord_webhook.py::1
 providers/docker/src/airflow/providers/docker/decorators/docker.py::1
 providers/docker/src/airflow/providers/docker/hooks/docker.py::3
 providers/docker/src/airflow/providers/docker/operators/docker_swarm.py::2

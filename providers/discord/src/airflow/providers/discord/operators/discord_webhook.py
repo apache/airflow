@@ -20,7 +20,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.providers.http.operators.http import HttpOperator
 
@@ -69,7 +68,7 @@ class DiscordWebhookOperator(HttpOperator):
         super().__init__(endpoint=webhook_endpoint, **kwargs)
 
         if not http_conn_id:
-            raise AirflowException("No valid Discord http_conn_id supplied.")
+            raise ValueError("No valid Discord http_conn_id supplied.")
 
         self.http_conn_id = http_conn_id
         self.webhook_endpoint = webhook_endpoint
