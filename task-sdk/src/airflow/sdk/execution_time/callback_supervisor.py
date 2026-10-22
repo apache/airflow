@@ -100,10 +100,11 @@ def _add_xcom_pull_to_context(callback_kwargs: dict) -> None:
         return
     dag_run = context.get("dag_run")
     if not isinstance(dag_run, dict) or not dag_run.get("dag_id") or not dag_run.get("dag_run_id"):
+        log.warning("Callback context has no Dag run, so xcom_pull is not available")
         return
 
     def xcom_pull(
-        task_ids: str, *, key: str = "return_value", map_indexes: int | None = None, default: Any = None
+        task_id: str, *, key: str = "return_value", map_index: int | None = None, default: Any = None
     ) -> Any:
         from airflow.sdk.execution_time.xcom import XCom
 
@@ -111,8 +112,8 @@ def _add_xcom_pull_to_context(callback_kwargs: dict) -> None:
             key=key,
             dag_id=dag_run["dag_id"],
             run_id=dag_run["dag_run_id"],
-            task_id=task_ids,
-            map_index=map_indexes,
+            task_id=task_id,
+            map_index=map_index,
         )
         return default if value is None else value
 

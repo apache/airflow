@@ -694,15 +694,16 @@ class TestCallbackSubprocessStart:
             base_start_kwargs, {"dag_run": {"dag_id": "dag_a", "dag_run_id": "run_1"}}
         )
 
-        assert context["xcom_pull"]("upstream", key="out", map_indexes=2, default="fallback") == expected
+        assert context["xcom_pull"]("upstream", key="out", map_index=2, default="fallback") == expected
         comms.send.assert_called_once_with(
             GetXCom(key="out", dag_id="dag_a", run_id="run_1", task_id="upstream", map_index=2)
         )
 
-    def test_context_without_dag_run_has_no_xcom_pull(self, base_start_kwargs):
+    def test_context_without_dag_run_has_no_xcom_pull(self, base_start_kwargs, caplog):
         context = self._run_target_with_context(base_start_kwargs, {"deadline": {"id": "x"}})
 
         assert "xcom_pull" not in context
+        assert "Callback context has no Dag run, so xcom_pull is not available" in caplog
 
     @pytest.mark.parametrize("option_value", ["True", "False"])
     def test_start_keeps_bare_fork_regardless_of_exec_option(self, base_start_kwargs, option_value):
