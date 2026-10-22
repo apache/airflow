@@ -33,15 +33,15 @@ if TYPE_CHECKING:
         send_mime_email as send_mime_email,
     )
 
-add_deprecated_classes(
-    {
-        __name__: {
-            "send_email": "airflow.providers.smtp.utils.emailer.send_email",
-            "send_email_smtp": "airflow.providers.smtp.utils.emailer.send_email_smtp",
-            "build_mime_message": "airflow.providers.smtp.utils.emailer.build_mime_message",
-            "send_mime_email": "airflow.providers.smtp.utils.emailer.send_mime_email",
-            "get_email_address_list": "airflow.providers.smtp.utils.emailer.get_email_address_list",
-        },
-    },
-    package=__name__,
-)
+_MOVED_TO_PROVIDER = {
+    "send_email": "airflow.providers.smtp.utils.emailer.send_email",
+    "send_email_smtp": "airflow.providers.smtp.utils.emailer.send_email_smtp",
+    "build_mime_message": "airflow.providers.smtp.utils.emailer.build_mime_message",
+    "send_mime_email": "airflow.providers.smtp.utils.emailer.send_mime_email",
+    "get_email_address_list": "airflow.providers.smtp.utils.emailer.get_email_address_list",
+}
+
+# Keeps "from airflow.utils.email import *" importing the deprecated names.
+__all__ = list(_MOVED_TO_PROVIDER)
+
+add_deprecated_classes({__name__: _MOVED_TO_PROVIDER}, package=__name__)

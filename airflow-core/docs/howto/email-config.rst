@@ -52,6 +52,14 @@ Equivalent environment variables look like:
 
 By default, ``email_backend`` is set to ``airflow.utils.email.send_email_smtp``, which sends email over SMTP.
 
+.. note::
+
+    The functions in ``airflow.utils.email`` are deprecated and now live in
+    ``airflow.providers.smtp.utils.emailer``, so import them from there in your own code. The default
+    ``email_backend`` value above is unchanged. These functions read the ``[email]`` and ``[smtp]``
+    settings from ``airflow.cfg`` or environment variables; values changed at runtime with
+    ``airflow.configuration.conf.set()`` are not seen by them.
+
 To configure SMTP settings, checkout the :ref:`SMTP <config:smtp>` section in the standard configuration.
 If you do not want to store the SMTP credentials in the config or in the environment variables, you can create a
 connection called ``smtp_default`` of ``Email`` type, or choose a custom connection name and set the ``email_conn_id`` with its name in

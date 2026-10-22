@@ -26,14 +26,29 @@ from airflow.providers.smtp.utils import emailer
 from airflow.utils import email
 from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
+DEPRECATED_NAMES = [
+    "send_email",
+    "send_email_smtp",
+    "build_mime_message",
+    "send_mime_email",
+    "get_email_address_list",
+]
 
-@pytest.mark.parametrize(
-    "name",
-    ["send_email", "send_email_smtp", "build_mime_message", "send_mime_email", "get_email_address_list"],
-)
+
+@pytest.mark.parametrize("name", DEPRECATED_NAMES)
 def test_deprecated_names_resolve_to_provider(name):
     with pytest.warns(DeprecatedImportWarning, match=f"airflow.providers.smtp.utils.emailer.{name}"):
         assert getattr(email, name) is getattr(emailer, name)
+
+
+def test_star_import_exposes_deprecated_names():
+    namespace: dict = {}
+    with pytest.warns(DeprecatedImportWarning):
+        exec("from airflow.utils.email import *", namespace)
+
+    assert {name: namespace.get(name) for name in DEPRECATED_NAMES} == {
+        name: getattr(emailer, name) for name in DEPRECATED_NAMES
+    }
 
 
 @pytest.mark.db_test
