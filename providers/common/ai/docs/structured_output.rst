@@ -62,11 +62,7 @@ declares the class as its ``output_type``. A downstream task therefore reads
 
 In a JSON-compatible dict, values such as ``datetime``, ``date``, ``UUID`` and
 ``Decimal`` arrive as strings, tuples and sets arrive as lists, and ``Enum``
-members arrive as their values. In HITL review, the released common.ai 1.0.0
-dumped a top-level model of these output types with plain ``model_dump()``
-after the reviewer approved the model. On Airflow 3.3 and later without
-``serialize_output=True``, the ``datetime`` fields of such a model therefore
-arrive as strings after an upgrade, not as ``datetime`` objects.
+members arrive as their values.
 
 A model at the top level is still dumped with plain ``model_dump()`` when
 ``serialize_output=True`` is set or on Airflow versions before 3.3. Either
@@ -77,6 +73,27 @@ XCom push fails with ``TypeError``. Before Airflow 3.3 the worker registers no
 model class. ``AgentOperator`` and ``@task.agent`` therefore push a model
 inside a list, tuple or dict as a JSON-compatible dict for every
 ``output_type``, not only for the output types listed above.
+
+Upgrading from common.ai 1.0.0 or 1.1.0 can change the type that a downstream
+task receives:
+
+* On Airflow 3.3 and later, common.ai 1.0.0 and 1.1.0 pushed each model in the
+  output as a model instance when ``output_type`` was one of the output types
+  listed above. They dumped a top-level model with plain ``model_dump()`` only
+  when ``serialize_output=True`` was set or in HITL review. A downstream task
+  loaded the instance when the class was listed in
+  ``[core] allowed_deserialization_classes`` or when another task in the same
+  Dag declared the class as its ``output_type``. That downstream task now gets
+  a dict, and ``result.field`` raises ``AttributeError``.
+* In HITL review on Airflow 3.3 and later without ``serialize_output=True``,
+  common.ai 1.0.0 and 1.1.0 dumped a top-level model of these output types with
+  plain ``model_dump()`` after the reviewer approved the model. The
+  ``datetime``, ``date``, ``UUID`` and ``Decimal`` values of that model now
+  arrive as strings, and its tuples and sets arrive as lists.
+* Before Airflow 3.3, common.ai 1.0.0 and 1.1.0 pushed a model inside a list,
+  tuple or dict as a model instance, for every ``output_type``. A downstream
+  task that loaded the instance because the class was listed in
+  ``[core] allowed_deserialization_classes`` now gets a dict.
 
 The Airflow UI's XCom viewer renders Pydantic instances via the
 ``stringify`` path, which produces a representation like

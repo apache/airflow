@@ -1143,6 +1143,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
     def _convert_output_for_xcom(self, output: Any) -> Any:
         """Return the XCom value, with dicts in place of models that a downstream task could not load."""
+        if not self.do_xcom_push:
+            return output
         if self._serialize_model_output and isinstance(output, BaseModel):
             return output.model_dump()
         if not _CORE_WALKER:

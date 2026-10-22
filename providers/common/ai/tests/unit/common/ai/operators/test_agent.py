@@ -32,7 +32,7 @@ from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
 from uuid import UUID
 
 import pytest
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, ConfigDict, HttpUrl
 from pydantic_ai import Agent, DeferredToolRequests, RunContext, Tool, ToolOutput
 from pydantic_ai.capabilities import (
     AbstractCapability,
@@ -155,6 +155,20 @@ class SummaryPair(NamedTuple):
 
 class SummaryList(list):
     pass
+
+
+class Unserializable:
+    pass
+
+
+class UnserializableSummary(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    value: Unserializable
+
+
+class BytesSummary(BaseModel):
+    data: bytes
 
 
 def _make_mock_agent(output, make_mock_run_result, *, cost=None):
@@ -1237,6 +1251,30 @@ class TestAgentOperatorExecute:
         result = op.execute(context=MagicMock())
 
         assert result == [{"text": "ok", "score": 0.0}]
+
+    @pytest.mark.parametrize(
+        "output",
+        [
+            pytest.param(UnserializableSummary(value=Unserializable()), id="arbitrary-type-field"),
+            pytest.param(BytesSummary(data=b"\xff"), id="non-utf-8-bytes"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_returns_the_output_unchanged_when_nothing_is_pushed(
+        self, mock_hook_cls, make_mock_run_result, output
+    ):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            output, make_mock_run_result
+        )
+        op = AgentOperator(
+            task_id="test",
+            prompt="Analyze this",
+            llm_conn_id="my_llm",
+            output_type=[type(output), int],
+            do_xcom_push=False,
+        )
+
+        assert op.execute(context=MagicMock()) is output
 
     def test_declares_output_type_for_deserialization(self):
         """Declares ``output_type`` so the worker-side DAG walk registers it for deserialization."""
