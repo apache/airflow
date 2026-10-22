@@ -45,7 +45,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh, useDocumentTitle } from "src/utils";
-import { getHITLState, isHITLPending } from "src/utils/hitl";
+import { getHITLState, HITL_PENDING_STATES, isHITLPending } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import { HITLFilters } from "./HITLFilters";
@@ -303,7 +303,7 @@ export const HITLTaskInstances = ({
         Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
           ? effectiveResponseReceived === "true"
           : undefined,
-      state: effectiveResponseReceived === "false" ? ["deferred", "awaiting_input"] : undefined,
+      state: effectiveResponseReceived === "false" ? HITL_PENDING_STATES : undefined,
       subjectSearch,
       taskId,
       ...taskIdArg,
@@ -316,7 +316,7 @@ export const HITLTaskInstances = ({
       refetchInterval: (query) => {
         const hasPendingWithoutResponse = Boolean(
           query.state.data?.hitl_details.some(
-            (detail: HITLDetail) => detail.responded_at === null && isHITLPending(detail.task_instance.state),
+            (detail: HITLDetail) => detail.responded_at === null && isHITLPending(detail),
           ),
         );
 

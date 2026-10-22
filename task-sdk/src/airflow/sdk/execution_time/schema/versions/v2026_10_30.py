@@ -22,6 +22,11 @@ A brand-new message body needs no field-level migration instructions here: a lan
 pinned to an older version simply never sends it, so there is nothing to strip on the
 way down. Only *changes* to bodies that already existed at an earlier dated version
 require a ``VersionChange`` entry below.
+
+New bodies in this version:
+
+- ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
+  Human-in-the-loop response.
 """
 
 from __future__ import annotations
