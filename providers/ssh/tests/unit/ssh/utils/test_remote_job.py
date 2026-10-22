@@ -163,7 +163,7 @@ class TestBuildWindowsWrapperCommand:
         encoded_script = wrapper.split("-EncodedCommand ")[1]
         decoded_script = base64.b64decode(encoded_script).decode("utf-16-le")
         assert "New-Item -ItemType Directory" in decoded_script
-        assert "Start-Process" in decoded_script
+        assert "Win32_Process" in decoded_script
 
     def test_with_environment(self):
         """Test Windows wrapper with environment variables."""
