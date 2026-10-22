@@ -5548,7 +5548,12 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
     ]
 
 
-def test_process_log_messages_reserved_kwarg_names_are_forwarded():
+@pytest.mark.parametrize("key", ["target", "msg"])
+@mock.patch(
+    "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+    side_effect=lambda logger, *args, **kwargs: logger,
+)
+def test_process_log_messages_reserved_kwarg_names_are_forwarded(mock_reconfigure, key):
     """
     A log event with a key named ``target`` or ``msg`` must not collide with the
     parameter names of ``_log_to_target``. Spreading such an event raised a
@@ -5557,22 +5562,12 @@ def test_process_log_messages_reserved_kwarg_names_are_forwarded():
     """
     target_logger = mock.Mock(spec=FilteringBoundLogger)
 
-    def fake_reconfigure(logger, *args, **kwargs):
-        return logger
+    gen = process_log_messages_from_subprocess(loggers=(target_logger,))
+    next(gen)
 
-    with mock.patch(
-        "airflow.sdk.execution_time.supervisor.reconfigure_logger",
-        side_effect=fake_reconfigure,
-    ):
-        gen = process_log_messages_from_subprocess(loggers=(target_logger,))
-        next(gen)
+    gen.send(json.dumps({"level": "info", "event": "deploying", key: "prod"}).encode() + b"\n")
 
-        gen.send(b'{"level": "info", "event": "deploying", "target": "prod"}\n')
-        gen.send(b'{"level": "info", "event": "deploying", "msg": "prod"}\n')
-
-    assert target_logger.log.call_count == 2
-    target_logger.log.assert_any_call(logging.INFO, "deploying", target="prod")
-    target_logger.log.assert_any_call(logging.INFO, "deploying", msg="prod")
+    target_logger.log.assert_called_once_with(logging.INFO, "deploying", **{key: "prod"})
 
 
 @pytest.mark.parametrize(
