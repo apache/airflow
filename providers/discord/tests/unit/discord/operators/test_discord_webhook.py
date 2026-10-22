@@ -56,3 +56,5 @@ class TestDiscordWebhookOperator:
     def test_missing_http_conn_id_raises_value_error(self, http_conn_id):
         with pytest.raises(ValueError, match="No valid Discord http_conn_id supplied."):
             DiscordWebhookOperator(task_id="discord_webhook_task", dag=self.dag, http_conn_id=http_conn_id)
+
+        assert "discord_webhook_task" not in self.dag.task_dict

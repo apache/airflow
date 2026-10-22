@@ -65,10 +65,10 @@ class DiscordWebhookOperator(HttpOperator):
         proxy: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(endpoint=webhook_endpoint, **kwargs)
-
         if not http_conn_id:
             raise ValueError("No valid Discord http_conn_id supplied.")
+
+        super().__init__(endpoint=webhook_endpoint, **kwargs)
 
         self.http_conn_id = http_conn_id
         self.webhook_endpoint = webhook_endpoint
