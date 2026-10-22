@@ -78,6 +78,9 @@ Examples:
   go tool airflow-go-pack ./cmd/my-bundle -- -trimpath -tags=prod
   go tool airflow-go-pack --executable ./build/example --source main.go
 
+  # Fail the pack if no Dags or task handlers are registered at pack time.
+  go tool airflow-go-pack --strict ./cmd/my-bundle
+
   # Cross-platform via the build path: cross-build + host introspection.
   go tool airflow-go-pack --goos linux --goarch amd64 ./cmd/my-bundle -- -trimpath
 
@@ -133,6 +136,8 @@ Examples:
 		"",
 		"path to a pre-captured --airflow-metadata manifest (JSON or YAML); skips "+
 			"introspecting the binary")
+	root.Flags().BoolVar(&opts.strict, "strict", false,
+		"fail packing if no Dags or task handlers are registered at pack time")
 	root.Flags().StringVar(&opts.goos, "goos",
 		"",
 		"target GOOS for the bundle (cross-compile); prefer this over the GOOS env "+
