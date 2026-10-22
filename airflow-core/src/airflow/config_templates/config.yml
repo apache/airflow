@@ -2431,7 +2431,8 @@ execution_api:
 
         Requires issuer, HTTPS jwks_url, a dedicated audience, an instance_id_claim path
         (a list of keys into the signed identity claims), and grants mapping exact subjects
-        to allowed Dag bundle names. The optional algorithm defaults to RS256; ES256 and
+        to allowed Dag bundle names. The API server refuses to start if a grant names a Dag
+        bundle it does not have configured. The optional algorithm defaults to RS256; ES256 and
         EdDSA are also supported. Use a signed, per-replica instance claim: a service
         account shared by replicas is not sufficient on its own.
         The JWKS endpoint must accept unauthenticated HTTPS requests and have a certificate

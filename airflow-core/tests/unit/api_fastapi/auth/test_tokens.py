@@ -161,6 +161,40 @@ class TestJWKS:
             assert (await jwks.get_key("new")).key_id == "new"
             assert len(requests) == 3
 
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_slow_unknown_key_refresh_does_not_delay_cached_keys(self, clock, ed25519_private_key):
+        fetching = asyncio.Event()
+        release = asyncio.Event()
+        requests = []
+
+        async def handle(request):
+            requests.append(request)
+            if len(requests) > 1:
+                fetching.set()
+                await release.wait()
+            return httpx.Response(200, json={"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+            jwks = JWKS(url="https://example.com/keys", client=client, refresh_on_unknown_kid=True)
+            known = await jwks.get_key("known")
+            clock.return_value = 111
+            refresh = asyncio.create_task(jwks.get_key("unknown"))
+            # The patched clock also freezes the event loop's, so check progress instead of using timeouts.
+            fetch_started = asyncio.create_task(fetching.wait())
+            await asyncio.wait({refresh, fetch_started}, return_when=asyncio.FIRST_COMPLETED)
+            lookup = asyncio.create_task(jwks.get_key("known"))
+            await asyncio.sleep(0)
+            try:
+                assert fetching.is_set()
+                assert lookup.done()
+                assert lookup.result() is known
+            finally:
+                release.set()
+                fetch_started.cancel()
+            with pytest.raises(KeyError):
+                await refresh
+            assert len(requests) == 2
+
     @pytest.mark.parametrize("private_key", ["rsa_private_key", "ed25519_private_key"], indirect=True)
     async def test_fetch_jwks_success(self, private_key):
         jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "kid")]})

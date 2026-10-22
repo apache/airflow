@@ -196,6 +196,20 @@ def test_issues_only_configured_grants_and_caps_lifetime(
     assert "JWT reissue middleware failed to refresh token" not in caplog
 
 
+@conf_vars(
+    {
+        ("dag_processor", "dag_bundle_config_list"): json.dumps(
+            [
+                {
+                    "name": name,
+                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                    "kwargs": {},
+                }
+                for name in ("dags-folder", "another-bundle")
+            ]
+        )
+    }
+)
 def test_renewal_and_api_restart_keep_session_but_replicas_and_grants_do_not(
     client, verifier, exec_app, identity_token, monkeypatch
 ):
@@ -419,8 +433,10 @@ def test_container_restart_waits_for_previous_job_to_become_stale(make_processor
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
-def test_unknown_bundle_grant_does_not_issue_credentials(client, verifier, identity_token):
-    assert exchange(client, identity_token()).status_code == 503
+def test_identity_grants_must_name_configured_bundles(client, verifier):
+    config = WorkloadIdentityConfig.model_validate(TRUST)
+    with pytest.raises(ValueError, match=r"dag_bundle_config_list: \['dags-folder'\]"):
+        DagProcessorIdentityVerifier(config, client=verifier.validator.jwks.client)
 
 
 def test_older_version_has_no_exchange(client, verifier, identity_token):

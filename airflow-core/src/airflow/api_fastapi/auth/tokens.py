@@ -146,6 +146,9 @@ class JWKS:
         return obj
 
     async def fetch_jwks(self, *, force: bool = False) -> None:
+        # A usable cache skips the lock, so a slow refresh for an unknown key does not delay known keys.
+        if not force and self._jwks and not self._should_fetch_jwks():
+            return
         lock = self._fetch_lock if self.refresh_on_unknown_kid else nullcontext()
         async with lock:
             if not self._should_fetch_jwks(force=force):
