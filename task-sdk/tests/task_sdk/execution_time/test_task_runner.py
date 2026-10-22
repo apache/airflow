@@ -2961,9 +2961,11 @@ class TestIndexedTaskState:
         serialized on the way in and restored on the way out."""
         serialized = IndexedTaskState(status=TaskInstanceState.SUCCESS, result=result).serialize()
 
-        msg = SetTaskStateStore(ti_id=uuid7(), key="_iterable_0", value=serialized, expires_at=None)
+        msg = SetTaskStateStore(
+            ti_id=uuid7(), key="_iterable_batch_0", value={"0": serialized}, expires_at=None
+        )
 
-        assert IndexedTaskState.deserialize(msg.value).result == result
+        assert IndexedTaskState.deserialize(msg.value["0"]).result == result
 
     def test_extra_xcoms_survive_the_state_store_message_and_round_trip(self):
         """Values an indexed task pushed are serialized like its result, since the checkpoint travels as JSON."""
@@ -2974,9 +2976,11 @@ class TestIndexedTaskState:
         }
         serialized = IndexedTaskState(status=TaskInstanceState.SUCCESS, xcoms=xcoms).serialize()
 
-        msg = SetTaskStateStore(ti_id=uuid7(), key="_iterable_0", value=serialized, expires_at=None)
+        msg = SetTaskStateStore(
+            ti_id=uuid7(), key="_iterable_batch_0", value={"0": serialized}, expires_at=None
+        )
 
-        assert IndexedTaskState.deserialize(msg.value).xcoms == xcoms
+        assert IndexedTaskState.deserialize(msg.value["0"]).xcoms == xcoms
 
     def test_a_checkpoint_without_extra_xcoms_leaves_them_out(self):
         serialized = IndexedTaskState(status=TaskInstanceState.SUCCESS).serialize()
@@ -3249,22 +3253,6 @@ class TestIndexedTaskInstance:
 
         assert first.pushed_xcoms == {"foo": "first"}
         assert second.pushed_xcoms == {}
-
-    @pytest.mark.asyncio
-    async def test_checkpoints_go_to_the_parents_store_unsuffixed(self):
-        context, operator = self._parent_context_and_operator()
-        parent_store = context["ti"].task_state_store
-        ti = IndexedTaskInstance.create_indexed_task(context=context, index=4, operator=operator)
-
-        with (
-            mock.patch.object(parent_store, "aset", new_callable=mock.AsyncMock) as aset,
-            mock.patch.object(parent_store, "aget", new_callable=mock.AsyncMock, return_value=None) as aget,
-        ):
-            await ti.aset_state(IndexedTaskState(status=TaskInstanceState.SUCCESS))
-            assert await ti.aget_state() is None
-
-        aset.assert_awaited_once_with("_iterable_4", {"status": "success"})
-        aget.assert_awaited_once_with("_iterable_4")
 
     def test_create_indexed_task_rejects_negative_index(self):
         context, operator = self._parent_context_and_operator()

@@ -3147,11 +3147,13 @@ class TestIndexedTaskStateStoreAccessor:
         assert indexed != parent
         assert indexed == IndexedTaskStateStoreAccessor(parent, index=1)
 
-    @pytest.mark.parametrize("key", ["_iterable", "_iterable_completed", "_iterable_3"])
+    @pytest.mark.parametrize(
+        "key", ["_iterable", "_iterable_batch", "_iterable_completed", "_iterable_batch_3"]
+    )
     @pytest.mark.asyncio
     async def test_keys_of_the_operators_checkpoints_are_refused(self, store, key):
-        """``_iterable`` written from iteration 0 would land on ``_iterable_0``, that index's checkpoint."""
-        indexed = IndexedTaskStateStoreAccessor(store, index=0)
+        """``_iterable_batch`` written from iteration 3 would land on ``_iterable_batch_3``, a checkpoint batch."""
+        indexed = IndexedTaskStateStoreAccessor(store, index=3)
 
         for call in (
             lambda: indexed.get(key),

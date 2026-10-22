@@ -1102,13 +1102,6 @@ class IndexedTaskState:
                     )
                 )
 
-    @staticmethod
-    def build_key(index: int) -> str:
-        # The task state store is already scoped to the parent task instance (dag, run, task and
-        # map index), so the key carries no identity, only a namespace that keeps the operator's own
-        # entries apart from anything user code stores from inside an indexed task.
-        return f"_iterable_{index}"
-
     def serialize(self) -> dict[str, Any]:
         # The checkpoint travels to the supervisor as a JsonValue, which rejects anything that is not
         # plain JSON (tuples, datetimes, models, ...). Serde turns those into JSON-compatible
@@ -1168,8 +1161,8 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     XComs through :meth:`xcom_push`, task state through :attr:`task_state_store`. Reading back
     follows the same rule: :meth:`xcom_pull` of the iteration's own XComs adds the index, a pull
     from another task does not, as the store's accessor adds it to every key of its own. The
-    operator's own checkpoints go to the parent's store unsuffixed, under their
-    ``_iterable_<index>`` keys.
+    operator's own checkpoints go to the parent's store unsuffixed, a round at a time (see
+    ``CheckpointBatches`` in ``airflow.sdk.definitions.iterableoperator``).
     """
 
     index: int
@@ -1340,12 +1333,6 @@ class IndexedTaskInstance(RuntimeTaskInstance):
             indexed["outlet_events"] = outlet_events
         return indexed
 
-    async def aget_state(self) -> IndexedTaskState | None:
-        return IndexedTaskState.deserialize(await self.parent_task_state_store.aget(self.state_key))
-
-    async def aset_state(self, state: IndexedTaskState) -> None:
-        await self.parent_task_state_store.aset(self.state_key, state.serialize())
-
     @property
     def is_async(self) -> bool:
         return self.task.is_async
@@ -1359,10 +1346,6 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         callbacks of an iteration agree with what happens to the task instance.
         """
         return self.max_tries != 0 and self.try_number <= self.max_tries
-
-    @property
-    def state_key(self) -> str:
-        return IndexedTaskState.build_key(self.index)
 
     @property
     def do_xcom_push(self) -> bool:
@@ -1544,6 +1527,13 @@ class IndexedTaskRunner(LoggingMixin):
         with self.in_flight(), self.indexed_context(context) as indexed_context:
             return await _execute_async_task(indexed_context, self.task_instance, self.log)
 
+    @property
+    def elapsed(self) -> float:
+        """Seconds since this indexed task started running, 0.0 before it has."""
+        if self._start_time is None:
+            return 0.0
+        return time.monotonic() - self._start_time
+
     def __enter__(self):
         self._start_time = time.monotonic()
 
@@ -1559,8 +1549,6 @@ class IndexedTaskRunner(LoggingMixin):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        elapsed = time.monotonic() - self._start_time if self._start_time else 0.0
-
         if self._cancelled:
             return None
         if exc_value:
@@ -1580,7 +1568,7 @@ class IndexedTaskRunner(LoggingMixin):
                 self.task_index,
                 self.task_instance.task_id,
                 self.task_instance.try_number,
-                elapsed,
+                self.elapsed,
                 exc_value,
             )
             self.failure = exc_value
@@ -1593,7 +1581,7 @@ class IndexedTaskRunner(LoggingMixin):
                 self.task_index,
                 self.task_instance.task_id,
                 self.task_instance.try_number,
-                elapsed,
+                self.elapsed,
             )
 
     def report_success(self) -> None:

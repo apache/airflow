@@ -348,14 +348,28 @@ IT is designed to address limitations of task mapping in specific scenarios:
 
   A custom XCom backend is not the whole story for IT, though: each indexed task's result
   is also written to its checkpoint in the task state store, so that a retry can
-  replay it instead of running the indexed task again. Those checkpoints land in the
-  ``task_state_store`` table of the metadata database and stay there for the
-  store's retention (``[state_store] default_retention_days``, 30 days unless
-  configured) unless a ``[workers] state_store_backend`` is configured, in
-  which case the table only holds a reference to the payload. Iterating over
-  large results therefore needs both a custom XCom backend and a state store
-  backend; with only the first, the payloads move from the XCom table to the
-  task state store table.
+  replay it instead of running the indexed task again. The checkpoints are written a round of
+  ``task_concurrency`` indexed tasks at a time, one store entry per round, so an entry holds up to
+  ``task_concurrency`` results. By default they land in the ``task_state_store`` table of the
+  metadata database and stay there for the store's retention (``[state_store]
+  default_retention_days``, 30 days unless configured). That suits small results; with large ones,
+  only a database behind the task state store fills it as the XCom table would fill without an
+  XCom backend, a worker logs a warning for every entry above ``[state_store]
+  max_value_storage_bytes`` (64 KB unless configured), and on MySQL an entry cannot exceed 16 MiB.
+
+  So iterate over large results with object storage behind both: the XCom backend, and the task
+  state store backend of the ``common.io`` provider, as for XComs::
+
+      [workers]
+      state_store_backend = airflow.providers.common.io.state_store.backend.StateStoreObjectStorageBackend
+
+      [common.io]
+      state_store_objectstorage_path = s3://conn_id@mybucket/task-state/
+
+  The table then only holds a reference to each entry. ``state_store_objectstorage_threshold`` keeps
+  small entries in the table, and ``state_store_objectstorage_compression`` compresses the others.
+  This backend does not apply ``expires_at``: the checkpoints it writes stay until the object
+  storage's own lifecycle rules remove them.
 
   For more on deferred vs async trade-offs, see :doc:`deferred-vs-async-operators`.
 
@@ -396,9 +410,11 @@ Callbacks
 With IT the callbacks of the wrapped operator run per indexed task, against the indexed task's own
 context, but not all at the same moment:
 
-* ``on_success_callback`` and ``on_skipped_callback`` run once the indexed task's checkpoint is
-  written, so they speak for work a retry will not run again; a checkpoint write that fails fires
-  nothing, and the attempt that runs the indexed task again reports it then.
+* ``on_success_callback`` and ``on_skipped_callback`` run as soon as the indexed task finished. Its
+  checkpoint is written with the round it belongs to (see :ref:`iterate-clear`), so after a hard
+  kill (``SIGKILL``, out of memory) the indexed tasks of the last round run again on the retry,
+  and their success callbacks fire again, as the work of an operator killed during ``execute`` runs
+  again.
 * ``on_failure_callback`` and ``on_retry_callback`` of a failed indexed task wait until every
   indexed task has run, because whether the task is retried depends on all of them: an
   ``AirflowFailException`` in one indexed task fails the whole task without a retry. Once the task's
@@ -419,9 +435,13 @@ context, but not all at the same moment:
 Retries and clears
 ------------------
 
-Each indexed task writes a checkpoint to the task state store when it finishes. A retry of the
-iterated task reads them back: indexed tasks that succeeded or skipped keep that outcome, and only
-the others run again.
+Each indexed task records a checkpoint when it finishes, and the checkpoints are written to the
+task state store a round of ``task_concurrency`` at a time, as one entry per round, plus one for
+what is left when the attempt ends. A run over ``n`` items makes about ``n / task_concurrency``
+writes instead of ``n``, and a retry reads them back once, when it starts: indexed tasks that
+succeeded or skipped keep that outcome, and only the others run again. A round that cannot be
+written is kept and written with the next one. An attempt killed hard loses what it had not written
+yet, its last round unless a write failed before, and those indexed tasks run again.
 
 What a clear does depends on whether it keeps the task state, where the checkpoints live:
 
@@ -507,7 +527,8 @@ Comparison
    * - XCom backend
      - Workers support custom XCom backends
      - Workers support custom XCom backends (triggerers do not); each indexed task's result is also
-       checkpointed in the task state store, so large results need a ``state_store_backend`` too
+       checkpointed in the task state store, so large results need an object storage
+       ``state_store_backend`` too
    * - Use case
      - Independent, trackable units of work
      - High-throughput or streaming workloads

@@ -894,13 +894,13 @@ class IndexedTaskStateStoreAccessor(TaskStateStoreAccessor):
     in iteration 2 lands under ``last_offset_2``. Clearing is refused: it would wipe the siblings'
     state and the operator's own checkpoints; an iteration deletes its own keys instead. Keys
     starting with ``_iterable`` are refused as well: the operator keeps its checkpoints in this
-    store under ``_iterable_<index>``, which is what ``_iterable`` would become once suffixed.
+    store under ``_iterable_batch_<n>``, which is what ``_iterable_batch`` would become once suffixed.
 
     The view wraps the parent's accessor instead of being one: it has no ``_ti_id`` or ``_scope``
     of its own, so every inherited member that reads them is overridden here.
     """
 
-    # The namespace of IndexedTaskState.build_key and Checkpoints.COMPLETION_KEY.
+    # The namespace of CheckpointBatch.KEY_PREFIX and Checkpoints.COMPLETION_KEY.
     RESERVED_PREFIX = "_iterable"
 
     def __init__(self, store: TaskStateStoreAccessor, index: int) -> None:

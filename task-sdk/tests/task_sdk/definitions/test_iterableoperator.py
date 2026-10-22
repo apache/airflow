@@ -30,7 +30,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, call, create_autospec, patch
 
 import jinja2
@@ -59,9 +59,13 @@ from airflow.sdk.definitions._internal.expandinput import (
 from airflow.sdk.definitions._internal.fingerprint import InputFingerprint, to_canonical_json
 from airflow.sdk.definitions.context import clone_context
 from airflow.sdk.definitions.iterableoperator import (
+    CheckpointBatch,
+    CheckpointBatches,
     Checkpoints,
+    EarlierCheckpoints,
     IndexedTaskInstanceNotStarted,
     IndexedTaskLifecycle,
+    IndexedTaskOutcome,
     IndexedTaskOutcomes,
     IndexedTaskUnmapper,
     IterableOperator,
@@ -150,11 +154,24 @@ def run_of(iterable_op: IterableOperator, context, *, trust_checkpoints: bool = 
     return run
 
 
+def leave_checkpoint(run: IterationRun, task: IndexedTaskInstance, checkpoint: Any) -> None:
+    """Leave ``checkpoint`` for ``task`` as an earlier attempt does, read as the run's ``Checkpoints`` read on entry."""
+    store = run.context["task_state_store"]
+    cast("MockTaskStateStoreAccessor", store).seed_checkpoint(task.index, checkpoint)
+    run.checkpoints.earlier.read(store)
+
+
+def written_checkpoint(run: IterationRun, task: IndexedTaskInstance) -> Any:
+    """Write what the run left pending, as the end of its loop does, and return ``task``'s checkpoint as stored."""
+    run.checkpoints.batches.flush()
+    return cast("MockTaskStateStoreAccessor", run.context["task_state_store"]).checkpoint(task.index)
+
+
 class MockTaskStateStoreAccessor:
-    """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing only the async
-    ``aget``/``aset`` methods used by ``IterableOperator`` to checkpoint each indexed task's
-    progress (see ``IndexedTaskLifecycle.run``), plus the sync ``get``/``set``/``delete`` used for
-    the completion marker (see ``IterationRun.run``)."""
+    """Minimal in-memory stand-in for ``TaskStateStoreAccessor``, exposing the async
+    ``aget``/``aset`` methods used by ``IterableOperator`` to write its checkpoint batches while the
+    indexed tasks run (see ``CheckpointBatches``), plus the sync ``get``/``set``/``delete`` used to read
+    them back, write the last batch and the completion marker (see ``Checkpoints``)."""
 
     def __init__(self):
         self._data: dict[str, Any] = {}
@@ -179,6 +196,24 @@ class MockTaskStateStoreAccessor:
 
     def __getitem__(self, key: str) -> Any:
         return self._data[key]
+
+    def _batches(self) -> Iterator[dict[str, Any]]:
+        number = 0
+        while (batch := self._data.get(f"{CheckpointBatch.KEY_PREFIX}{number}")) is not None:
+            yield batch
+            number += 1
+
+    def seed_checkpoint(self, index: int, checkpoint: Any) -> None:
+        """Leave ``checkpoint`` for ``index`` as an earlier attempt does: in a batch after the others."""
+        number = sum(1 for _ in self._batches())
+        self._data[f"{CheckpointBatch.KEY_PREFIX}{number}"] = {str(index): checkpoint}
+
+    def checkpoint(self, index: int) -> Any:
+        """The latest checkpoint the batches hold for ``index``, as stored, or None."""
+        latest = None
+        for batch in self._batches():
+            latest = batch.get(str(index), latest)
+        return latest
 
 
 @contextmanager
@@ -927,7 +962,7 @@ class TestIterableOperator:
         }
         assert "last_offset" not in store
         # the operator's own checkpoints keep their unsuffixed keys in the same store
-        assert all(f"_iterable_{index}" in store for index in range(3))
+        assert all(store.checkpoint(index) is not None for index in range(3))
 
     @pytest.mark.parametrize("is_async", [False, True], ids=["sync", "async"])
     def test_execute_runs_each_indexed_task_with_the_executor_safeguard_tracker_set(self, is_async):
@@ -983,8 +1018,8 @@ class TestIterableOperator:
 
                 assert store["last_offset"] == 42
                 assert store["_iterable_completed"]["completed"] is True
-                assert store["_iterable_0"]["status"] == "success"
-                assert store["_iterable_1"]["status"] == "success"
+                assert store.checkpoint(0)["status"] == "success"
+                assert store.checkpoint(1)["status"] == "success"
 
     def test_execute_reruns_every_index_after_a_clear_that_follows_success(self):
         """
@@ -1010,14 +1045,14 @@ class TestIterableOperator:
                     "since": 0,
                 }
                 for index in (0, 1):
-                    store._data[f"_iterable_{index}"] = IndexedTaskState(
-                        status=TaskInstanceState.SUCCESS, result="stale"
-                    ).serialize()
+                    store.seed_checkpoint(
+                        index, IndexedTaskState(status=TaskInstanceState.SUCCESS, result="stale").serialize()
+                    )
 
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == [(1, None, None), (2, None, None)]
-                assert IndexedTaskState.deserialize(store["_iterable_0"]).result == (1, None, None)
+                assert IndexedTaskState.deserialize(store.checkpoint(0)).result == (1, None, None)
                 assert store["_iterable_completed"] == {
                     "completed": True,
                     "try_number": 2,
@@ -1080,26 +1115,27 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
-                store._data["_iterable_0"] = IndexedTaskState(
-                    status=TaskInstanceState.SUCCESS,
-                    result="from_checkpoint",
-                    fingerprint=fingerprint_of({"arg1": 1}),
-                ).serialize()
-                store._data["_iterable_1"] = IndexedTaskState(
-                    status=TaskInstanceState.UP_FOR_RETRY
-                ).serialize()
+                store.seed_checkpoint(
+                    0,
+                    IndexedTaskState(
+                        status=TaskInstanceState.SUCCESS,
+                        result="from_checkpoint",
+                        fingerprint=fingerprint_of({"arg1": 1}),
+                    ).serialize(),
+                )
+                store.seed_checkpoint(1, IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY).serialize())
 
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == ["from_checkpoint", (2, None, None)]
-                assert store["_iterable_1"]["status"] == "success"
+                assert store.checkpoint(1)["status"] == "success"
                 assert store["_iterable_completed"]["completed"] is True
 
-    def test_a_failed_checkpoint_read_fails_only_its_indexed_task_and_keeps_the_checkpoint(self):
+    def test_a_retry_that_cannot_read_its_checkpoints_runs_nothing_and_keeps_them(self):
         """
-        A retry that cannot read an indexed task's checkpoint fails that indexed task for this attempt,
-        without running it and without writing over the checkpoint, which may say the work is done; the next
-        indexed task still runs (one at a time here, so it starts only after the failure).
+        A retry reads the batches once, when it starts. When the store cannot be read, the attempt fails
+        before any indexed task runs, as running one could repeat work its checkpoint says is done, and
+        the checkpoints stay for the next retry.
         """
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -1112,25 +1148,29 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
-                store._data["_iterable_0"] = IndexedTaskState(
-                    status=TaskInstanceState.SUCCESS,
-                    result="from_checkpoint",
-                    fingerprint=fingerprint_of({"arg1": 1}),
-                ).serialize()
-                original_aget = store.aget
+                store.seed_checkpoint(
+                    0,
+                    IndexedTaskState(
+                        status=TaskInstanceState.SUCCESS,
+                        result="from_checkpoint",
+                        fingerprint=fingerprint_of({"arg1": 1}),
+                    ).serialize(),
+                )
 
-                async def aget_failing_the_first_checkpoint(key, default=None):
-                    if key == "_iterable_0":
-                        raise RuntimeError("state store down")
-                    return await original_aget(key, default)
+                def get_failing(key, default=None):
+                    raise RuntimeError("state store down")
 
-                store.aget = aget_failing_the_first_checkpoint
-                with pytest.raises(RuntimeError, match="state store down"):
+                store.get = get_failing
+                with (
+                    patch.object(MockOperator, "execute", autospec=True) as execute,
+                    pytest.raises(RuntimeError, match="state store down"),
+                ):
                     iterable_op.execute(context=context)
 
-        assert store["_iterable_0"]["status"] == "success"
-        assert store["_iterable_0"]["result"] == "from_checkpoint"
-        assert store["_iterable_1"]["status"] == "success"
+        execute.assert_not_called()
+        assert store.checkpoint(0)["result"] == "from_checkpoint"
+        assert store.checkpoint(1) is None
+        assert "_iterable_completed" not in store
 
     @pytest.mark.parametrize(
         ("classname", "version", "data"),
@@ -1163,18 +1203,21 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
-                store._data["_iterable_0"] = {
-                    **IndexedTaskState(
-                        status=TaskInstanceState.SUCCESS,
-                        fingerprint=fingerprint_of({"arg1": 1}),
-                    ).serialize(),
-                    "result": {CLASSNAME: classname, VERSION: version, DATA: data},
-                }
+                store.seed_checkpoint(
+                    0,
+                    {
+                        **IndexedTaskState(
+                            status=TaskInstanceState.SUCCESS,
+                            fingerprint=fingerprint_of({"arg1": 1}),
+                        ).serialize(),
+                        "result": {CLASSNAME: classname, VERSION: version, DATA: data},
+                    },
+                )
 
                 materialized = list(iterable_op.execute(context=context))
 
         assert materialized == [(1, None, None)]
-        assert store["_iterable_0"]["status"] == "success"
+        assert store.checkpoint(0)["status"] == "success"
 
     def test_a_failed_replay_fails_only_its_indexed_task_and_the_next_retry_replays_it(self):
         """
@@ -1200,17 +1243,20 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
-                store._data["_iterable_0"] = IndexedTaskState(
-                    status=TaskInstanceState.SUCCESS,
-                    result="from_checkpoint",
-                    fingerprint=fingerprint_of({"arg1": 1}),
-                ).serialize()
+                store.seed_checkpoint(
+                    0,
+                    IndexedTaskState(
+                        status=TaskInstanceState.SUCCESS,
+                        result="from_checkpoint",
+                        fingerprint=fingerprint_of({"arg1": 1}),
+                    ).serialize(),
+                )
 
                 with patch.object(IndexedTaskLifecycle, "_push_result", axcom_push_failing_the_first_item):
                     with pytest.raises(RuntimeError, match="xcom backend down"):
                         iterable_op.execute(context=context)
-                status_after_the_failed_replay = store["_iterable_0"]["status"]
-                ran_next_item = store["_iterable_1"]["status"]
+                status_after_the_failed_replay = store.checkpoint(0)["status"]
+                ran_next_item = store.checkpoint(1)["status"]
 
                 context["ti"].try_number = 3
                 materialized = list(iterable_op.execute(context=context))
@@ -1232,21 +1278,27 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 context["ti"].try_number = 2
                 store = context["task_state_store"]
-                store._data["_iterable_0"] = IndexedTaskState(
-                    status=TaskInstanceState.SUCCESS,
-                    result="from_the_old_item",
-                    fingerprint=fingerprint_of({"arg1": "old"}),
-                ).serialize()
-                store._data["_iterable_1"] = IndexedTaskState(
-                    status=TaskInstanceState.SUCCESS,
-                    result="from_checkpoint",
-                    fingerprint=fingerprint_of({"arg1": 2}),
-                ).serialize()
+                store.seed_checkpoint(
+                    0,
+                    IndexedTaskState(
+                        status=TaskInstanceState.SUCCESS,
+                        result="from_the_old_item",
+                        fingerprint=fingerprint_of({"arg1": "old"}),
+                    ).serialize(),
+                )
+                store.seed_checkpoint(
+                    1,
+                    IndexedTaskState(
+                        status=TaskInstanceState.SUCCESS,
+                        result="from_checkpoint",
+                        fingerprint=fingerprint_of({"arg1": 2}),
+                    ).serialize(),
+                )
 
                 materialized = list(iterable_op.execute(context=context))
 
                 assert materialized == [("new", None, None), "from_checkpoint"]
-                assert store["_iterable_0"]["fingerprint"] == fingerprint_of({"arg1": "new"})
+                assert store.checkpoint(0)["fingerprint"] == fingerprint_of({"arg1": "new"})
 
     def test_fingerprint(self):
         """The digest follows the content, not the key order, and gives up on what serde cannot serialize."""
@@ -1604,9 +1656,9 @@ class TestIterableOperator:
                 with pytest.raises(ValueError, match="cannot map b"):
                     iterable_op.execute(context=context)
 
-                assert store["_iterable_0"]["status"] == "success"
-                assert "_iterable_1" not in store
-                assert store["_iterable_2"]["status"] == "success"
+                assert store.checkpoint(0)["status"] == "success"
+                assert store.checkpoint(1) is None
+                assert store.checkpoint(2)["status"] == "success"
 
     def test_a_template_failing_for_one_item_fails_only_that_indexed_task(self):
         """Rendering is part of reading an indexed task's input: a template that fails for one indexed task fails it alone."""
@@ -1623,9 +1675,9 @@ class TestIterableOperator:
                 with pytest.raises(jinja2.UndefinedError):
                     iterable_op.execute(context=context)
 
-                assert store["_iterable_0"]["status"] == "success"
-                assert "_iterable_1" not in store
-                assert store["_iterable_2"]["status"] == "success"
+                assert store.checkpoint(0)["status"] == "success"
+                assert store.checkpoint(1) is None
+                assert store.checkpoint(2)["status"] == "success"
 
     def test_execute_refuses_an_unmappable_upstream_value(self):
         """
@@ -1947,8 +1999,8 @@ class TestIterableOperator:
                 store = context["task_state_store"]
 
                 assert materialized == [(2, None, None)]
-                assert store["_iterable_0"]["status"] == "skipped"
-                assert store["_iterable_1"]["status"] == "success"
+                assert store.checkpoint(0)["status"] == "skipped"
+                assert store.checkpoint(1)["status"] == "success"
                 assert store["_iterable_completed"]["completed"] is True
 
     def test_an_iteration_returning_none_keeps_its_position_and_reads_as_none(self):
@@ -1984,8 +2036,8 @@ class TestIterableOperator:
                 assert result.skipped == [2]
                 assert len(result) == 3
                 assert list(result) == [1, None, 4]
-                assert store["_iterable_1"]["status"] == "success"
-                assert "result" not in store["_iterable_1"]
+                assert store.checkpoint(1)["status"] == "success"
+                assert "result" not in store.checkpoint(1)
 
     @pytest.mark.parametrize("in_a_loop", [False, True])
     def test_the_result_names_the_loop_pass_it_was_pushed_in(self, in_a_loop):
@@ -2109,18 +2161,19 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 run = run_of(iterable_op, context, trust_checkpoints=True)
                 task = run.unmapper.unmap(0, {"raise_exception": RuntimeError("must not run again")})
-                await context["task_state_store"].aset(
-                    task.state_key,
+                leave_checkpoint(
+                    run,
+                    task,
                     IndexedTaskState(
                         status=TaskInstanceState.SKIPPED, fingerprint=task.input_fingerprint
                     ).serialize(),
                 )
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    _, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
+                    outcome = await IndexedTaskLifecycle(run, task, executor).run()
 
-        assert result is None
-        assert isinstance(raised, AirflowSkipException)
+        assert outcome.result is None
+        assert isinstance(outcome.exception, AirflowSkipException)
 
     def test_failed_iteration_checkpoint_records_its_input_and_attempt(self):
         """
@@ -2138,7 +2191,7 @@ class TestIterableOperator:
                 with pytest.raises(RuntimeError):
                     iterable_op.execute(context=context)
 
-                checkpoint = context["task_state_store"]["_iterable_0"]
+                checkpoint = context["task_state_store"].checkpoint(0)
 
         assert checkpoint["status"] == "up_for_retry"
         assert fingerprint_of(failing) is not None
@@ -2194,8 +2247,8 @@ class TestIterableOperator:
                 with pytest.raises(AirflowTaskTimeout, match="gave up waiting"):
                     iterable_op.execute(context=context)
 
-                assert store["_iterable_0"]["status"] == "up_for_retry"
-                assert store["_iterable_1"]["status"] == "success"
+                assert store.checkpoint(0)["status"] == "up_for_retry"
+                assert store.checkpoint(1)["status"] == "success"
         assert killed == []
 
     def test_an_own_timeout_next_to_another_failure_reports_a_retry(self):
@@ -2284,7 +2337,7 @@ class TestIterableOperator:
                 ):
                     with pytest.raises(RuntimeError, match="xcom backend down"):
                         iterable_op.execute(context=context)
-                checkpoint_after_failure = context["task_state_store"]["_iterable_0"]["status"]
+                checkpoint_after_failure = context["task_state_store"].checkpoint(0)["status"]
 
                 context["ti"].try_number = 2
                 result = iterable_op.execute(context=context)
@@ -2294,58 +2347,43 @@ class TestIterableOperator:
         assert runs == [1]
         assert pushed == [(1, None, None)]
 
-    def test_the_success_callback_waits_for_the_checkpoint(self):
+    def test_the_success_callback_fires_once_the_indexed_task_finished(self):
         """
-        An indexed task's success callback fires once its SUCCESS checkpoint is written, not when execute
-        returns.
+        An indexed task's success callback fires once it finished and its SUCCESS outcome is recorded,
+        without waiting for its round to be written: the outcome becomes durable with the round.
 
-        With the checkpoint write failing, the indexed task announces nothing: the attempt fails, the retry
-        runs the indexed task again and reports it then, once. A plain task whose result cannot be pushed
-        fires no success callback either.
+        A round write that fails keeps its outcomes for the next write, so the attempt still succeeds,
+        each callback fired once, and the checkpoints are there for a later retry.
         """
         CALLBACKS.clear()
-        runs = []
-        original_execute = MockCallbackOperator.execute
-
-        def counting_execute(self, context):
-            runs.append(self.arg1)
-            return original_execute(self, context)
 
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
                 dag,
-                ListOfDictsExpandInput([{"arg1": "a"}]),
+                ListOfDictsExpandInput([{"arg1": "a"}, {"arg1": "b"}]),
                 task_id="checkpoint_fails",
-                retries=2,
+                task_concurrency=1,
                 operator_class=MockCallbackOperator,
             )
 
-            with (
-                mock_context(task=iterable_op) as context,
-                patch.object(MockCallbackOperator, "execute", counting_execute),
-            ):
+            with mock_context(task=iterable_op) as context:
                 store = context["task_state_store"]
                 original_aset = store.aset
                 failed: list[str] = []
 
-                async def aset_failing_the_first_success(key, value, **kwargs):
-                    if value.get("status") == "success" and not failed:
+                async def aset_failing_once(key, value, **kwargs):
+                    if not failed:
                         failed.append(key)
                         raise RuntimeError("state store down")
                     await original_aset(key, value, **kwargs)
 
-                store.aset = aset_failing_the_first_success
-                context["ti"].try_number = 1
-                with pytest.raises(RuntimeError, match="state store down"):
-                    iterable_op.execute(context=context)
-                fired_after_the_failed_write = list(CALLBACKS)
-
-                context["ti"].try_number = 2
+                store.aset = aset_failing_once
                 iterable_op.execute(context=context)
 
-        assert fired_after_the_failed_write == []
-        assert runs == ["a", "a"]
-        assert CALLBACKS == [("success", "a")]
+        assert failed == ["_iterable_batch_0"]
+        assert CALLBACKS == [("success", "a"), ("success", "b")]
+        assert store.checkpoint(0)["status"] == "success"
+        assert store.checkpoint(1)["status"] == "success"
 
     def test_a_failed_publish_fires_the_success_callback_once(self):
         """
@@ -2418,7 +2456,7 @@ class TestIterableOperator:
                 context["ti"].try_number = 1
                 with pytest.raises(AirflowFailException, match="raised a non-Exception BaseException"):
                     iterable_op.execute(context=context)
-                status_after_the_failed_callback = store["_iterable_0"]["status"]
+                status_after_the_failed_callback = store.checkpoint(0)["status"]
 
                 context["ti"].try_number = 2
                 result = iterable_op.execute(context=context)
@@ -2429,11 +2467,10 @@ class TestIterableOperator:
         assert fired == ["a"]
         assert pushed == ["a"]
 
-    def test_a_failed_skip_checkpoint_fails_only_its_indexed_task(self):
+    def test_a_failed_skip_write_keeps_the_skip_for_the_next_write(self):
         """
-        A SKIPPED checkpoint write that fails is that indexed task's outcome, as a failed SUCCESS write is:
-        the next indexed task still runs (one at a time here, so it starts only after the failure) and the
-        task fails with the write's error, which the retry gets past by running the indexed task again.
+        A round write that fails is no indexed task's outcome: the SKIPPED outcome is kept and written with
+        the next round, and the indexed task stays skipped.
         """
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -2450,16 +2487,16 @@ class TestIterableOperator:
                 original_aset = store.aset
 
                 async def aset_failing_the_skip(key, value, **kwargs):
-                    if value.get("status") == "skipped":
+                    if [entry["status"] for entry in value.values()] == ["skipped"]:
                         raise RuntimeError("state store down")
                     await original_aset(key, value, **kwargs)
 
                 store.aset = aset_failing_the_skip
-                with pytest.raises(RuntimeError, match="state store down"):
-                    iterable_op.execute(context=context)
+                result = iterable_op.execute(context=context)
 
-        assert "_iterable_0" not in store
-        assert store["_iterable_1"]["status"] == "success"
+        assert result.skipped == [0]
+        assert store.checkpoint(0)["status"] == "skipped"
+        assert store.checkpoint(1)["status"] == "success"
 
     def test_a_skip_callback_that_raises_keeps_the_checkpoint(self):
         """
@@ -2496,12 +2533,13 @@ class TestIterableOperator:
                     iterable_op.execute(context=context)
 
         assert fired == ["a"]
-        assert store["_iterable_0"]["status"] == "skipped"
+        assert store.checkpoint(0)["status"] == "skipped"
 
-    def test_a_failed_up_for_retry_checkpoint_keeps_the_indexed_tasks_own_failure(self):
+    def test_a_failed_up_for_retry_write_keeps_the_indexed_tasks_own_failure(self):
         """
-        An indexed task that failed stays failed when its UP_FOR_RETRY checkpoint cannot be written: the
-        task fails with the indexed task's own error, not the write's, and the next indexed task still runs.
+        An indexed task that failed stays failed when the round holding its UP_FOR_RETRY outcome cannot be
+        written: the task fails with the indexed task's own error, not the write's, the next indexed task
+        still runs, and the outcome is written with the next round.
         """
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -2516,7 +2554,7 @@ class TestIterableOperator:
                 original_aset = store.aset
 
                 async def aset_failing_the_retry(key, value, **kwargs):
-                    if value.get("status") == "up_for_retry":
+                    if [entry["status"] for entry in value.values()] == ["up_for_retry"]:
                         raise RuntimeError("state store down")
                     await original_aset(key, value, **kwargs)
 
@@ -2524,8 +2562,8 @@ class TestIterableOperator:
                 with pytest.raises(ValueError, match="item failed"):
                     iterable_op.execute(context=context)
 
-        assert "_iterable_0" not in store
-        assert store["_iterable_1"]["status"] == "success"
+        assert store.checkpoint(0)["status"] == "up_for_retry"
+        assert store.checkpoint(1)["status"] == "success"
 
     def test_extra_xcoms_are_checkpointed_once_and_pushed_again_when_a_retry_skips_the_indexed_task(self):
         """
@@ -2547,7 +2585,7 @@ class TestIterableOperator:
                 context["ti"].try_number = 1
                 with pytest.raises(RuntimeError, match="sibling failed"):
                     iterable_op.execute(context=context)
-                checkpoint = store["_iterable_0"]
+                checkpoint = store.checkpoint(0)
 
                 # The retry: the failing indexed task succeeds now; the finished one must not run again.
                 pushed = []
@@ -2590,7 +2628,7 @@ class TestIterableOperator:
                 context["ti"].try_number = 1
                 with pytest.raises(RuntimeError, match="sibling failed"):
                     iterable_op.execute(context=context)
-                checkpoint = store["_iterable_0"]
+                checkpoint = store.checkpoint(0)
 
                 pushed = []
 
@@ -2624,17 +2662,21 @@ class TestIterableOperator:
             with mock_context(task=iterable_op) as context:
                 store = context["task_state_store"]
                 writes = []
-                original_aset = store.aset
+                original_aset, original_set = store.aset, store.set
 
                 async def counting_aset(key, value, **kwargs):
                     writes.append(key)
                     await original_aset(key, value, **kwargs)
 
-                store.aset = counting_aset
+                def counting_set(key, value, **kwargs):
+                    writes.append(key)
+                    original_set(key, value, **kwargs)
+
+                store.aset, store.set = counting_aset, counting_set
                 iterable_op.execute(context=context)
 
-        assert writes == ["_iterable_0"]
-        assert store["_iterable_0"]["xcoms"] == {f"key{key}": key for key in range(5)}
+        assert writes == ["_iterable_batch_0", "_iterable_completed"]
+        assert store.checkpoint(0)["xcoms"] == {f"key{key}": key for key in range(5)}
 
     def test_an_async_indexed_tasks_extra_xcoms_are_pushed_again_on_retry(self):
         """The async path pushes through axcom_push; its keys are recorded and replayed the same way."""
@@ -2702,8 +2744,8 @@ class TestIterableOperator:
                     iterable_op.execute(context=context)
 
                 assert "_iterable_completed" not in store
-                assert store["_iterable_0"]["status"] == "success"
-                assert store["_iterable_1"]["status"] == "up_for_retry"
+                assert store.checkpoint(0)["status"] == "success"
+                assert store.checkpoint(1)["status"] == "up_for_retry"
 
                 # The retry: the failing indexed task succeeds now; index 0 must be replayed, not re-run.
                 context["ti"].try_number = 2
@@ -2803,18 +2845,19 @@ class TestIterableOperator:
                 run = run_of(iterable_op, context, trust_checkpoints=True)
                 task = run.unmapper.unmap(0, {"arg1": 1, "arg2": 10})
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
-                await context["task_state_store"].aset(
-                    task.state_key,
+                leave_checkpoint(
+                    run,
+                    task,
                     IndexedTaskState(
                         status=TaskInstanceState.SUCCESS, fingerprint=task.input_fingerprint
                     ).serialize(),
                 )
 
                 executor = mock.MagicMock()
-                _, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
+                outcome = await IndexedTaskLifecycle(run, task, executor).run()
 
-                assert result is None
-                assert raised is None
+                assert outcome.result is None
+                assert outcome.exception is None
                 executor.run_sync.assert_not_called()
 
     @pytest.mark.asyncio
@@ -2822,7 +2865,7 @@ class TestIterableOperator:
         """
         An indexed task whose checkpoint records ``UP_FOR_RETRY`` (left behind by a previous failed or
         crashed attempt) is re-executed rather than skipped — only a ``SUCCESS`` checkpoint causes
-        ``IndexedTaskLifecycle.run`` to skip re-execution — and a new ``SUCCESS`` checkpoint recording its result is
+        ``IndexedTaskLifecycle.run`` to skip re-execution — and a new ``SUCCESS`` checkpoint recording its outcome.result is
         stored once it completes.
         """
         from airflow.sdk.execution_time.executor import AsyncAwareExecutor
@@ -2835,25 +2878,23 @@ class TestIterableOperator:
                 run = run_of(iterable_op, context, trust_checkpoints=True)
                 task = run.unmapper.unmap(0, {"arg1": 1, "arg2": 10})
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
-                await context["task_state_store"].aset(
-                    task.state_key,
-                    IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY).serialize(),
+                leave_checkpoint(
+                    run, task, IndexedTaskState(status=TaskInstanceState.UP_FOR_RETRY).serialize()
                 )
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    result_task, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
+                    outcome = await IndexedTaskLifecycle(run, task, executor).run()
 
-                assert raised is None
-                assert result == (1, 10, None)
+                assert outcome.exception is None
+                assert outcome.result == (1, 10, None)
                 assert (
-                    result_task.try_number == 2
+                    outcome.task.try_number == 2
                 )  # try_number is inherited from the parent TI, never mutated
-                store = context["task_state_store"]
                 assert (
-                    store[task.state_key]
+                    written_checkpoint(run, task)
                     == IndexedTaskState(
                         status=TaskInstanceState.SUCCESS,
-                        result=result,
+                        result=outcome.result,
                         fingerprint=task.input_fingerprint,
                         try_number=2,
                     ).serialize()
@@ -2881,14 +2922,13 @@ class TestIterableOperator:
                 task = run.unmapper.unmap(0, {})
 
                 with AsyncAwareExecutor(loop=asyncio.get_running_loop(), max_workers=1) as executor:
-                    _, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
+                    outcome = await IndexedTaskLifecycle(run, task, executor).run()
 
-                assert raised is None
-                assert result == "done"
+                assert outcome.exception is None
+                assert outcome.result == "done"
                 accessor = context["outlet_events"][Asset(name="a", uri="s3://bucket/a")]
                 assert accessor.extra == {"value": "v"}
-                store = context["task_state_store"]
-                checkpoint = IndexedTaskState.deserialize(store[task.state_key])
+                checkpoint = IndexedTaskState.deserialize(written_checkpoint(run, task))
                 assert checkpoint.outlet_events == [
                     {
                         "kind": "asset",
@@ -2917,8 +2957,9 @@ class TestIterableOperator:
                 run = run_of(iterable_op, context, trust_checkpoints=True)
                 task = run.unmapper.unmap(0, {})
                 task.try_number = 2  # checkpoint is only consulted from the second attempt onwards
-                await context["task_state_store"].aset(
-                    task.state_key,
+                leave_checkpoint(
+                    run,
+                    task,
                     IndexedTaskState(
                         status=TaskInstanceState.SUCCESS,
                         fingerprint=task.input_fingerprint,
@@ -2935,10 +2976,10 @@ class TestIterableOperator:
                 )
 
                 executor = mock.MagicMock()
-                _, result, raised = await IndexedTaskLifecycle(run, task, executor).run()
+                outcome = await IndexedTaskLifecycle(run, task, executor).run()
 
-        assert raised is None
-        assert result is None
+        assert outcome.exception is None
+        assert outcome.result is None
         executor.run_sync.assert_not_called()
         accessor = context["outlet_events"][Asset(name="a", uri="s3://bucket/a")]
         assert accessor.extra == {"value": "v"}
@@ -3267,9 +3308,9 @@ class TestIterableOperator:
                 monkeypatch.setattr("airflow.sdk.execution_time.task_runner._execute_task", tracking_execute)
 
                 with event_loop() as loop, AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
-                    _, _, raised = loop.run_until_complete(IndexedTaskLifecycle(run, task, executor).run())
+                    outcome = loop.run_until_complete(IndexedTaskLifecycle(run, task, executor).run())
 
-        assert raised is None
+        assert outcome.exception is None
         assert seen_active_during_run == [True]
         assert task.task not in iterable_op._state
 
@@ -3353,7 +3394,7 @@ class TestIterableOperator:
                 with pytest.raises(AirflowTaskTimeout):
                     iterable_op.execute(context=context)
 
-                assert "_iterable_0" not in context["task_state_store"]
+                assert context["task_state_store"].checkpoint(0) is None
 
     @pytest.mark.asyncio
     async def test_run_indexed_task_lets_a_cancellation_through(self):
@@ -3370,7 +3411,7 @@ class TestIterableOperator:
                     with pytest.raises(asyncio.CancelledError):
                         await IndexedTaskLifecycle(run, task, executor).run()
 
-                assert task.state_key not in context["task_state_store"]
+                assert written_checkpoint(run, task) is None
 
     def test_deadlock_imminent_error_fails_the_task_without_retry(self):
         """
@@ -3417,8 +3458,8 @@ class TestIterableOperator:
     def test_reschedule_mode_sensor_fails_the_task_without_retry(self):
         """
         An indexed task that raises ``AirflowRescheduleException`` fails the whole task without a retry:
-        an indexed task has no task instance of its own to reschedule, so ``_fail_fast_for`` turns
-        it into an ``AirflowFailException`` that says so.
+        an indexed task has no task instance of its own to reschedule, so
+        ``IndexedTaskOutcome.fail_fast`` turns it into an ``AirflowFailException`` that says so.
         """
         with DAG("test_dag") as dag:
             expand_input = ListOfDictsExpandInput([{}, {}])
@@ -3724,7 +3765,7 @@ class TestIndexedTaskOutcomes:
 
     def test_nothing_raised_is_counted_and_records_nothing_else(self):
         outcomes = self._outcomes()
-        outcomes.record(self._task(0), None)
+        outcomes.record(IndexedTaskOutcome(self._task(0)))
         assert outcomes.total == 1
         assert outcomes.exceptions == []
         assert outcomes.skipped == {}
@@ -3732,14 +3773,14 @@ class TestIndexedTaskOutcomes:
     def test_a_skip_is_noted_under_its_index(self):
         outcomes = self._outcomes()
         skip = AirflowSkipException("odd")
-        outcomes.record(self._task(2), skip)
+        outcomes.record(IndexedTaskOutcome(self._task(2), exception=skip))
         assert outcomes.skipped == {2: skip}
         assert outcomes.exceptions == []
 
     def test_a_failure_is_collected(self):
         outcomes = self._outcomes()
         raised = ValueError("boom")
-        outcomes.record(self._task(1), raised)
+        outcomes.record(IndexedTaskOutcome(self._task(1), exception=raised))
         assert outcomes.exceptions == [raised]
 
     @pytest.mark.parametrize(
@@ -3756,15 +3797,15 @@ class TestIndexedTaskOutcomes:
         """Every later indexed task would end the same way, so nothing is collected: it is raised."""
         outcomes = self._outcomes()
         with pytest.raises(AirflowFailException, match=rf"Indexed task it\[3\] {match}") as info:
-            outcomes.record(self._task(3), raised)
+            outcomes.record(IndexedTaskOutcome(self._task(3), exception=raised))
         assert info.value.__cause__ is raised
         assert outcomes.exceptions == []
 
     def test_a_kill_concludes_as_terminated_whatever_else_happened(self):
         state = IterationState(Mock())
         outcomes = self._outcomes(state=state)
-        outcomes.record(self._task(0), ValueError("a"))
-        outcomes.record(self._task(1), None)
+        outcomes.record(IndexedTaskOutcome(self._task(0), exception=ValueError("a")))
+        outcomes.record(IndexedTaskOutcome(self._task(1)))
         state.request_stop()
         with pytest.raises(AirflowTaskTerminated, match="2 of 5 indexed tasks ran") as info:
             outcomes.conclude(5)
@@ -3775,8 +3816,12 @@ class TestIndexedTaskOutcomes:
         """It ran no code: not a failure to collect or log, not an indexed task that ran, named in the message."""
         state = IterationState(Mock())
         outcomes = self._outcomes(state=state)
-        outcomes.record(self._task(0), None)
-        outcomes.record(self._task(1), IndexedTaskInstanceNotStarted("pulled before the kill"))
+        outcomes.record(IndexedTaskOutcome(self._task(0)))
+        outcomes.record(
+            IndexedTaskOutcome(
+                self._task(1), exception=IndexedTaskInstanceNotStarted("pulled before the kill")
+            )
+        )
         assert outcomes.total == 1
         assert outcomes.not_started == 1
         assert outcomes.exceptions == []
@@ -3791,8 +3836,8 @@ class TestIndexedTaskOutcomes:
         """Every indexed task pulled and run, the killed one back as a failure: the message ends with the count."""
         state = IterationState(Mock())
         outcomes = self._outcomes(state=state)
-        outcomes.record(self._task(0), ValueError("killed"))
-        outcomes.record(self._task(1), None)
+        outcomes.record(IndexedTaskOutcome(self._task(0), exception=ValueError("killed")))
+        outcomes.record(IndexedTaskOutcome(self._task(1)))
         state.request_stop()
         with pytest.raises(AirflowTaskTerminated, match=r"2 of 2 indexed tasks ran\.$"):
             outcomes.conclude(2)
@@ -3807,8 +3852,8 @@ class TestIndexedTaskOutcomes:
     def test_failures_conclude_on_the_exception_handed_to_the_runner(self):
         outcomes = self._outcomes()
         raised = ValueError("a")
-        outcomes.record(self._task(0), raised)
-        outcomes.record(self._task(1), None)
+        outcomes.record(IndexedTaskOutcome(self._task(0), exception=raised))
+        outcomes.record(IndexedTaskOutcome(self._task(1)))
         with pytest.raises(ValueError, match="a") as info:
             outcomes.conclude(2)
         assert info.value is raised
@@ -3820,17 +3865,17 @@ class TestIndexedTaskOutcomes:
     def test_every_indexed_task_skipped_skips_the_task(self):
         outcomes = self._outcomes()
         first = AirflowSkipException("first")
-        outcomes.record(self._task(0), first)
-        outcomes.record(self._task(1), AirflowSkipException("second"))
+        outcomes.record(IndexedTaskOutcome(self._task(0), exception=first))
+        outcomes.record(IndexedTaskOutcome(self._task(1), exception=AirflowSkipException("second")))
         with pytest.raises(AirflowSkipException) as info:
             outcomes.conclude(2)
         assert info.value is first
 
     def test_a_partial_skip_concludes_with_the_skipped_indices_in_order(self):
         outcomes = self._outcomes()
-        outcomes.record(self._task(2), AirflowSkipException("c"))
-        outcomes.record(self._task(0), AirflowSkipException("a"))
-        outcomes.record(self._task(1), None)
+        outcomes.record(IndexedTaskOutcome(self._task(2), exception=AirflowSkipException("c")))
+        outcomes.record(IndexedTaskOutcome(self._task(0), exception=AirflowSkipException("a")))
+        outcomes.record(IndexedTaskOutcome(self._task(1)))
         assert outcomes.conclude(3) == [0, 2]
 
     def test_failed_runners_are_kept_in_the_order_they_failed(self):
@@ -3920,17 +3965,17 @@ class TestAKillSticks:
                     iterable_op.execute(context=context)
 
         assert "_iterable_completed" not in store
-        assert store["_iterable_0"]["status"] == "success"
-        assert all(f"_iterable_{index}" not in store for index in (1, 2, 3))
+        assert store.checkpoint(0)["status"] == "success"
+        assert all(store.checkpoint(index) is None for index in (1, 2, 3))
 
     def test_an_indexed_task_pulled_before_the_kill_but_not_started_does_not_run(self):
         """
-        on_kill() reaches what has started; an indexed task whose checkpoint read is in flight has not.
+        on_kill() reaches what has started; an indexed task whose input is still being read has not.
 
-        On a retry attempt every indexed task reads its checkpoint before its runner starts. A kill that
-        lands during that read (here from the read itself, as a SIGTERM would land on the main
-        thread) finds the indexed task unregistered: it must not run afterwards, gets no checkpoint and
-        fires no callback, as the indexed tasks never pulled do not, and the message counts it apart.
+        Every indexed task reads and renders its input before its runner starts, in a worker thread. A
+        kill that lands meanwhile (here from the read itself, as a SIGTERM would land on the main thread)
+        finds the indexed task unregistered: it must not run afterwards, gets no checkpoint and fires no
+        callback, as the indexed tasks never pulled do not, and the message counts it apart.
         """
         with DAG("test_dag") as dag:
             iterable_op = create_iterable_operator(
@@ -3941,40 +3986,41 @@ class TestAKillSticks:
                 operator_class=MockEchoAsyncOperator,
             )
             with mock_context(task=iterable_op) as context:
-                context["ti"].try_number = 2
                 store = context["task_state_store"]
-                read = store.aget
-                write = store.aset
-                item_0_done = asyncio.Event()
-                killed = asyncio.Event()
+                item_0_done = threading.Event()
+                killed = threading.Event()
+                unmap = IndexedTaskUnmapper.unmap
+                record = Checkpoints.record
 
-                async def aset_and_signal(key, value, **kwargs):
-                    await write(key, value, **kwargs)
-                    if key == "_iterable_0":
+                async def record_and_signal(checkpoints, task, state):
+                    await record(checkpoints, task, state)
+                    if task.index == 0:
                         item_0_done.set()
 
-                async def aget_and_kill(key, default=None):
-                    # Items reach this read in the order their worker threads built them, so the test sets the
-                    # order: indexed task 0 runs to its checkpoint, indexed task 1's read is where the kill
-                    # lands, and indexed task 2's read comes after it.
-                    if key == "_iterable_1":
-                        await asyncio.wait_for(item_0_done.wait(), timeout=5)
+                def unmap_and_kill(unmapper, index, mapped_kwargs):
+                    # Indexed tasks reach this read in the order their worker threads run it, so the test
+                    # sets the order: indexed task 0 runs to its outcome, indexed task 1's read is where
+                    # the kill lands, and indexed task 2's read comes after it.
+                    if index == 1:
+                        assert item_0_done.wait(timeout=5)
                         iterable_op.on_kill()
                         killed.set()
-                    elif key == "_iterable_2":
-                        await asyncio.wait_for(killed.wait(), timeout=5)
-                    return await read(key, default)
+                    elif index == 2:
+                        assert killed.wait(timeout=5)
+                    return unmap(unmapper, index, mapped_kwargs)
 
-                store.aget = aget_and_kill
-                store.aset = aset_and_signal
-                with pytest.raises(
-                    AirflowTaskTerminated, match="1 of 3 indexed tasks ran, 2 pulled but never started"
+                with (
+                    patch.object(IndexedTaskUnmapper, "unmap", unmap_and_kill),
+                    patch.object(Checkpoints, "record", record_and_signal),
+                    pytest.raises(
+                        AirflowTaskTerminated, match="1 of 3 indexed tasks ran, 2 pulled but never started"
+                    ),
                 ):
                     iterable_op.execute(context=context)
 
         assert "_iterable_completed" not in store
-        assert store["_iterable_0"]["status"] == "success"
-        assert all(f"_iterable_{index}" not in store for index in (1, 2))
+        assert store.checkpoint(0)["status"] == "success"
+        assert all(store.checkpoint(index) is None for index in (1, 2))
 
     def test_a_kill_before_the_run_started_still_stops_it(self):
         """SIGTERM can land between the operator's creation and its run: the stop must survive."""
@@ -3989,7 +4035,7 @@ class TestAKillSticks:
                     iterable_op.execute(context=context)
 
         assert "_iterable_completed" not in store
-        assert "_iterable_0" not in store
+        assert store.checkpoint(0) is None
 
     def test_a_rerun_in_the_same_process_does_not_see_the_earlier_kill(self):
         """dag.test() and the tests run one operator object several times; the state is per run."""
@@ -4819,9 +4865,15 @@ class TestCheckpoints:
         from airflow.sdk.execution_time.context import TaskStateStoreAccessor
 
         store = create_autospec(TaskStateStoreAccessor, instance=True)
-        store.get.return_value = marker
+        store.get.side_effect = lambda key, default=None: (
+            marker if key == Checkpoints.COMPLETION_KEY else default
+        )
         ti = SimpleNamespace(task_id="my_task", try_number=try_number, max_tries=max_tries)
         return {"task_state_store": store, "ti": ti}, store
+
+    @staticmethod
+    def _checkpoints(context) -> Checkpoints:
+        return Checkpoints(context, round_size=1, log=Mock())
 
     @staticmethod
     def _completed(try_number: int, max_tries: int = 3, since: int = 0) -> dict:
@@ -4830,7 +4882,7 @@ class TestCheckpoints:
     def test_first_attempt_never_reads_and_marks_completed_on_exit(self):
         context, store = self._context(try_number=1)
 
-        with Checkpoints(context) as checkpoints:
+        with self._checkpoints(context) as checkpoints:
             assert checkpoints.trust_checkpoints is False
 
         store.get.assert_not_called()
@@ -4840,10 +4892,11 @@ class TestCheckpoints:
     def test_retry_without_marker_trusts_checkpoints(self):
         context, store = self._context(try_number=2, marker=None)
 
-        with Checkpoints(context) as checkpoints:
+        with self._checkpoints(context) as checkpoints:
             assert checkpoints.trust_checkpoints is True
 
-        store.get.assert_called_once_with("_iterable_completed")
+        # The batches first, until the first one missing, then the marker.
+        assert store.get.call_args_list == [call("_iterable_batch_0"), call("_iterable_completed")]
         store.delete.assert_not_called()
         store.set.assert_called_once_with("_iterable_completed", self._completed(2))
 
@@ -4851,7 +4904,7 @@ class TestCheckpoints:
         context, store = self._context(try_number=1)
 
         with pytest.raises(RuntimeError, match="indexed task failures"):
-            with Checkpoints(context):
+            with self._checkpoints(context):
                 raise RuntimeError("indexed task failures")
 
         store.set.assert_not_called()
@@ -4861,7 +4914,7 @@ class TestCheckpoints:
         context, store = self._context(try_number=1)
 
         with pytest.raises(AirflowSkipException):
-            with Checkpoints(context):
+            with self._checkpoints(context):
                 raise AirflowSkipException("every iteration skipped")
 
         store.set.assert_called_once_with("_iterable_completed", self._completed(1))
@@ -4882,7 +4935,7 @@ class TestCheckpoints:
         """A clear changes ``max_tries`` (``try_number + retries``), up or down when the retries changed."""
         context, store = self._context(try_number=2, marker=marker, max_tries=4)
 
-        with Checkpoints(context) as checkpoints:
+        with self._checkpoints(context) as checkpoints:
             assert checkpoints.trust_checkpoints is False
             store.set.assert_called_once_with("_iterable_completed", {"completed": False, "since": 2})
 
@@ -4898,7 +4951,7 @@ class TestCheckpoints:
         marker = self._completed(3, max_tries=3, since=since)
         context, store = self._context(try_number=4, marker=marker, max_tries=3)
 
-        with Checkpoints(context) as checkpoints:
+        with self._checkpoints(context) as checkpoints:
             assert checkpoints.trust_checkpoints is True
             assert checkpoints.since == since
             store.set.assert_not_called()
@@ -4909,7 +4962,7 @@ class TestCheckpoints:
         context, store = self._context(try_number=2, marker={"completed": True, "try_number": 1})
 
         with pytest.raises(RuntimeError):
-            with Checkpoints(context):
+            with self._checkpoints(context):
                 raise RuntimeError("indexed task failed")
 
         store.set.assert_called_once_with("_iterable_completed", {"completed": False, "since": 2})
@@ -4917,12 +4970,207 @@ class TestCheckpoints:
     def test_attempt_after_a_failed_rerun_trusts_the_checkpoints_written_since(self):
         context, store = self._context(try_number=3, marker={"completed": False, "since": 2})
 
-        with Checkpoints(context) as checkpoints:
+        with self._checkpoints(context) as checkpoints:
             assert checkpoints.trust_checkpoints is True
             assert checkpoints.since == 2
             store.set.assert_not_called()
 
         store.set.assert_called_once_with("_iterable_completed", self._completed(3, since=2))
+
+
+class TestCheckpointBatches:
+    """The indexed tasks' outcomes are written a round of ``task_concurrency`` at a time, one key per round."""
+
+    @staticmethod
+    def _batches(store, round_size: int) -> CheckpointBatches:
+        return CheckpointBatches(store, round_size=round_size, log=Mock())
+
+    @staticmethod
+    def _state(status: str = "success", try_number: int = 1) -> IndexedTaskState:
+        return IndexedTaskState(status=TaskInstanceState(status), fingerprint="digest", try_number=try_number)
+
+    @pytest.mark.parametrize(
+        ("length", "round_size", "writes"), [(10, 3, 4), (9, 3, 3), (5, 1, 5), (2, 4, 1)]
+    )
+    def test_outcomes_are_written_a_round_at_a_time_each_once(self, length, round_size, writes):
+        """One write per round of concurrency and one for the rest, instead of one per indexed task."""
+        store = MockTaskStateStoreAccessor()
+        batches = self._batches(store, round_size)
+
+        async def finish_all():
+            await asyncio.gather(*(batches.add(index, self._state()) for index in range(length)))
+
+        asyncio.run(finish_all())
+        batches.flush()
+
+        assert sorted(store._data) == sorted(f"_iterable_batch_{n}" for n in range(writes))
+        assert sorted(int(index) for batch in store._data.values() for index in batch) == list(range(length))
+
+    def test_a_round_is_written_once_when_several_indexed_tasks_fill_it_at_once(self):
+        """The indexed tasks that finish while the round is written wait for the lock and add to the next one."""
+        writes = []
+
+        class SlowStore(MockTaskStateStoreAccessor):
+            async def aset(self, key, value, **kwargs):
+                writes.append(sorted(value))
+                await asyncio.sleep(0)
+                self.set(key, value)
+
+        batches = self._batches(SlowStore(), 2)
+
+        async def finish_all():
+            await asyncio.gather(*(batches.add(index, self._state()) for index in range(4)))
+
+        asyncio.run(finish_all())
+        batches.flush()
+
+        # Two rounds, two writes: the indexed task that finds the round written meanwhile writes nothing.
+        assert writes == [["0", "1"], ["2", "3"]]
+
+    def test_a_failed_write_keeps_its_outcomes_for_the_next_one(self):
+        class FailingOnce(MockTaskStateStoreAccessor):
+            failed = False
+
+            async def aset(self, key, value, **kwargs):
+                if not self.failed:
+                    self.failed = True
+                    raise ConnectionError("API server busy")
+                self.set(key, value)
+
+        store = FailingOnce()
+        batches = self._batches(store, 2)
+
+        async def finish_one_by_one():
+            for index in range(4):
+                await batches.add(index, self._state())
+
+        asyncio.run(finish_one_by_one())
+        batches.flush()
+
+        assert list(store._data) == ["_iterable_batch_0"]
+        assert sorted(int(index) for index in store._data["_iterable_batch_0"]) == [0, 1, 2, 3]
+        batches._log.warning.assert_called_once()
+
+    def test_a_failed_final_write_is_logged_and_does_not_fail_the_task(self):
+        class Unavailable(MockTaskStateStoreAccessor):
+            def set(self, key, value, **kwargs):
+                raise ConnectionError("API server gone")
+
+        batches = self._batches(Unavailable(), 4)
+        asyncio.run(batches.add(0, self._state()))
+
+        batches.flush()
+
+        batches._log.exception.assert_called_once()
+
+    def test_a_write_interrupted_by_a_base_exception_keeps_its_outcomes(self):
+        """The parent's timeout or a cancellation goes on, and the round is still written at the end."""
+
+        class TimedOut(MockTaskStateStoreAccessor):
+            async def aset(self, key, value, **kwargs):
+                raise AirflowTaskTimeout("the parent's execution_timeout")
+
+        store = TimedOut()
+        batches = self._batches(store, 1)
+
+        with pytest.raises(AirflowTaskTimeout):
+            asyncio.run(batches.add(0, self._state()))
+        batches.flush()
+
+        assert list(store._data["_iterable_batch_0"]) == ["0"]
+
+    def test_reading_back_takes_the_latest_entry_and_stops_at_the_first_missing_batch(self):
+        store = MockTaskStateStoreAccessor()
+        store._data.update(
+            {
+                "_iterable_batch_0": {
+                    "0": self._state("up_for_retry").serialize(),
+                    "1": self._state().serialize(),
+                },
+                "_iterable_batch_1": {"0": self._state(try_number=2).serialize()},
+                # After a gap: never read, and the next write goes to _iterable_batch_2.
+                "_iterable_batch_3": {"5": self._state().serialize()},
+            }
+        )
+        earlier = EarlierCheckpoints()
+        batches = self._batches(store, 4)
+
+        earlier.read(store)
+        batches.start_at(earlier.count)
+        asyncio.run(batches.add(7, self._state()))
+        batches.flush()
+
+        assert earlier.count == 2
+        assert earlier.state_of(0).try_number == 2
+        assert earlier.state_of(1) == self._state()
+        assert earlier.state_of(5) is None
+        assert list(store._data["_iterable_batch_2"]) == ["7"]
+
+    def test_a_value_that_is_no_batch_ends_the_read(self):
+        store = MockTaskStateStoreAccessor()
+        store._data.update({"_iterable_batch_0": ["not", "a", "batch"], "_iterable_batch_1": {"0": {}}})
+        earlier = EarlierCheckpoints()
+
+        earlier.read(store)
+
+        assert earlier.count == 0
+
+    def test_the_rest_of_the_round_is_written_before_the_completion_marker(self):
+        """The marker says every outcome is durable, so it comes after the last batch."""
+        written = []
+
+        class Recording(MockTaskStateStoreAccessor):
+            def set(self, key, value, **kwargs):
+                written.append(key)
+                super().set(key, value, **kwargs)
+
+        context = {
+            "task_state_store": Recording(),
+            "ti": SimpleNamespace(task_id="my_task", try_number=1, max_tries=0),
+        }
+        with Checkpoints(context, round_size=4, log=Mock()) as checkpoints:
+            asyncio.run(checkpoints.record(SimpleNamespace(index=0), self._state()))
+
+        assert written == ["_iterable_batch_0", "_iterable_completed"]
+
+    def test_a_retry_writes_a_round_at_a_time_and_runs_only_what_failed(self):
+        """
+        Five items, two at a time: the first attempt writes its outcomes as three batches instead of five
+        keys, and the retry runs only the item that failed, replays the others from the batches and writes
+        its own batch after them.
+        """
+        ran = []
+
+        def execute(self, context):
+            ran.append(self.arg1)
+            if self.arg1 == 3 and context["ti"].try_number == 1:
+                raise RuntimeError("item 3 failed")
+            return self.arg1
+
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag,
+                ListOfDictsExpandInput([{"arg1": index} for index in range(5)]),
+                task_id="rounds",
+                task_concurrency=2,
+                retries=1,
+            )
+
+            with mock_context(task=iterable_op) as context, patch.object(MockOperator, "execute", execute):
+                store = context["task_state_store"]
+                context["ti"].try_number = 1
+                with pytest.raises(RuntimeError, match="item 3 failed"):
+                    iterable_op.execute(context=context)
+                first_attempt_keys = sorted(store._data)
+
+                ran.clear()
+                context["ti"].try_number = 2
+                iterable_op.execute(context=context)
+
+        assert first_attempt_keys == ["_iterable_batch_0", "_iterable_batch_1", "_iterable_batch_2"]
+        assert ran == [3]
+        assert store._data["_iterable_batch_3"]["3"]["status"] == "success"
+        assert store._data["_iterable_completed"]["completed"] is True
 
 
 def test_deserialization_allowed_values_are_those_of_the_iterated_operator():
@@ -4953,39 +5201,39 @@ class TestKeepsFailureToItsItem:
             self.task = task
 
         @keeps_failure_to_its_indexed_task
-        async def step(self, raised=None, *, result="done"):
-            """Raise ``raised`` when given, else return the outcome."""
-            if raised is not None:
-                raise raised
-            return self.task, result, None
+        async def step(self, exception=None, *, result="done"):
+            """Raise ``exception`` when given, else return the outcome."""
+            if exception is not None:
+                raise exception
+            return IndexedTaskOutcome(self.task, result)
 
     @pytest.mark.parametrize(
-        "raised",
+        "exception",
         [RuntimeError("store down"), AirflowSkipException("skip"), DeadlockImminentError("re-entry")],
         ids=["exception", "airflow-exception", "base-exception"],
     )
-    def test_what_the_step_raises_is_returned_as_the_outcome(self, raised):
+    def test_what_the_step_raises_is_returned_as_the_outcome(self, exception):
         task = object()
 
-        assert asyncio.run(self.Steps(task).step(raised)) == (task, None, raised)
+        assert asyncio.run(self.Steps(task).step(exception)) == IndexedTaskOutcome(task, exception=exception)
 
     @pytest.mark.parametrize(
-        "raised",
+        "exception",
         [asyncio.CancelledError(), AirflowTaskTimeout("parent timeout")],
         ids=["cancelled", "parent-timeout"],
     )
-    def test_a_cancellation_or_the_parents_timeout_goes_on(self, raised):
-        with pytest.raises(type(raised)):
-            asyncio.run(self.Steps(object()).step(raised))
+    def test_a_cancellation_or_the_parents_timeout_goes_on(self, exception):
+        with pytest.raises(type(exception)):
+            asyncio.run(self.Steps(object()).step(exception))
 
     def test_the_outcome_of_a_step_that_succeeds_is_kept(self):
         task = object()
 
-        assert asyncio.run(self.Steps(task).step(result="pushed")) == (task, "pushed", None)
+        assert asyncio.run(self.Steps(task).step(result="pushed")) == IndexedTaskOutcome(task, "pushed")
 
     def test_the_step_keeps_its_name_and_docstring(self):
         assert self.Steps.step.__name__ == "step"
-        assert self.Steps.step.__doc__ == "Raise ``raised`` when given, else return the outcome."
+        assert self.Steps.step.__doc__ == "Raise ``exception`` when given, else return the outcome."
 
 
 class TestIterateOverALoopTask:
@@ -5051,17 +5299,18 @@ class TestIterateOverALoopTask:
         iterated, _ = self._input_of(iterate_inside_the_loop=True)
         written = []
 
-        async def asend(message):
+        def send(message):
             if isinstance(message, SetTaskStateStore):
                 written.append(message.ti_id)
 
-        mock_supervisor_comms.asend.side_effect = asend
+        mock_supervisor_comms.send.side_effect = send
         passes = [create_runtime_ti(task=iterated) for _ in range(2)]
         for ti in passes:
-            indexed = run_of(iterated, ti.get_template_context()).unmapper.unmap(
-                0, {"op_kwargs": {"value": 1}}
-            )
-            asyncio.run(indexed.aset_state(IndexedTaskState(status=TaskInstanceState.SUCCESS)))
+            run = run_of(iterated, ti.get_template_context())
+            indexed = run.unmapper.unmap(0, {"op_kwargs": {"value": 1}})
+            asyncio.run(run.checkpoints.record(indexed, IndexedTaskState(status=TaskInstanceState.SUCCESS)))
+            # The round is not full: what is left is written once the run's loop closed.
+            run.checkpoints.batches.flush()
 
         assert written == [ti.id for ti in passes]
         assert written[0] != written[1]
