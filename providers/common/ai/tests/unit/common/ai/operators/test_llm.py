@@ -47,7 +47,11 @@ from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 try:
-    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+    from airflow.sdk.serde import (
+        SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
+        deserialize,
+        serialize,
+    )
 except ImportError:
     _CORE_WALKER = False
 
@@ -58,7 +62,6 @@ from airflow.providers.common.compat.sdk import (
     TaskDeferred,
 )
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
-from airflow.sdk.serde import deserialize, serialize
 
 if AIRFLOW_V_3_3_PLUS:
     # On Airflow 3.3+ require_approval pauses the task in AWAITING_INPUT; older Airflow versions defer
