@@ -719,39 +719,6 @@ The ``Client``
    A value from a secrets backend, such as an ``AIRFLOW_VAR_*`` environment variable, still wins over the stored
    value when the Variable is read back. ``setVariable`` without a description clears the existing description.
 
-.. _java-sdk/cancellation:
-
-Stopping when Airflow asks
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Airflow asks a running task to stop when someone marks its task instance failed or successful, or clears it,
-and kills the JVM if the task has not finished
-:ref:`core.killed_task_cleanup_time <config:core__killed_task_cleanup_time>` seconds later.
-
-``context.isCancelled()`` tells a task whether that has happened, and ``context.awaitCancellation(timeout)``
-waits as ``Thread.sleep`` does but returns as soon as it does. A task that calls either one is left running so
-it can stop its work itself:
-
-.. code-block:: java
-
-    @Airflow.Task
-    public void report(Context context) throws Exception {
-      var report = new ProcessBuilder("./build-report.sh").inheritIO().start();
-      while (!context.isCancelled()) {
-        if (report.waitFor(1, TimeUnit.SECONDS)) {
-          if (report.exitValue() != 0) {
-            throw new IllegalStateException("build-report.sh failed");
-          }
-          return;
-        }
-      }
-      report.destroy();
-      throw new IllegalStateException("Airflow asked the task to stop");
-    }
-
-Throw rather than return, since returning reports success for work the task did not finish, and keep checking
-until the task ends. A task that never asks is stopped where it stands.
-
 .. _java-sdk/task-state-store:
 
 Task state store
