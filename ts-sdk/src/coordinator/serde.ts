@@ -42,7 +42,7 @@ import {
 import type { JsonValue } from "../sdk/client-types.js";
 import {
   DOWNSTREAM_JOIN_SUFFIX,
-  getDagLabelledEdges,
+  getDagEdgeLabellings,
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
@@ -90,8 +90,8 @@ const TASK_LANGUAGE = "typescript";
 /**
  * Python's `DAG.edge_info`, keying a group end by its join node as Python does.
  *
- * This writes the labels in the order they were last set. Python writes a label when it draws the
- * edge. So when two labels land on one entry, the label set last is the one kept.
+ * This replays all labels in the order they were set, because Python writes a label each time it
+ * draws an edge. When two labels land on one entry, the label set last is the one kept.
  */
 function serializeEdgeInfo(dag: Dag, graph: DagGraph): SerializedValue {
   const groups = getDagTaskGroups(dag);
@@ -100,17 +100,23 @@ function serializeEdgeInfo(dag: Dag, graph: DagGraph): SerializedValue {
   const put = (from: string, to: string, label: string): void => {
     (info[from] ??= {})[to] = { label };
   };
-  for (const { upstream, downstream, label } of getDagLabelledEdges(dag)) {
-    if (label === undefined) continue;
+  for (const { upstream, downstream, label, receiver } of getDagEdgeLabellings(dag)) {
     const from = groups.has(upstream) ? upstream + DOWNSTREAM_JOIN_SUFFIX : upstream;
     const to = groups.has(downstream) ? downstream + UPSTREAM_JOIN_SUFFIX : downstream;
     put(from, to, label);
     // Python's `extract >> Label("x") >> group` also labels the edge from extract to each root of
-    // the group. Like the Java SDK, this code labels the edges to the roots for an edge drawn with
-    // `before` or `after`, but only when no group holds extract.
-    if (grouped.has(upstream)) continue;
-    for (const root of graph.groupRootsReached.get(upstream)?.get(downstream) ?? []) {
-      put(upstream, root, label);
+    // the group. Python's `report << Label("x") << group` labels the edge from each leaf of the
+    // group to report. Python labels these task edges only when a task is the receiver, as in
+    // `extracted.before(...)` or `reported.after(...)`, and only when no group holds that task.
+    // When a group holds the task, Python replaces the task with that group, and the label goes
+    // on the edge between the two groups. This code keeps the task as the end of the edge,
+    // because a label never changes the ends of its edge. Neither Python nor this code labels a
+    // task edge in that case.
+    const task = receiver === "upstream" ? upstream : downstream;
+    if (groups.has(task) || grouped.has(task)) continue;
+    for (const end of graph.groupEndsReached.get(upstream)?.get(downstream) ?? []) {
+      if (receiver === "upstream") put(upstream, end, label);
+      else put(end, downstream, label);
     }
   }
   return info;

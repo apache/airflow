@@ -273,6 +273,17 @@ export interface OrderEdge {
   readonly label?: string;
 }
 
+/**
+ * Internal: one label that a call of `before` or `after` set on an order-only edge. `receiver` is
+ * the end of the edge whose method was called.
+ */
+export interface EdgeLabelling {
+  readonly upstream: string;
+  readonly downstream: string;
+  readonly label: string;
+  readonly receiver: "upstream" | "downstream";
+}
+
 // A task id cannot hold a NUL, so a joined pair cannot collide with one.
 const EDGE_KEY_SEPARATOR = "\u0000";
 
@@ -410,6 +421,14 @@ export class Label {
       return [target];
     });
     const { dagId } = nodes[0]!;
+    const stranger = nodes.find((each) => each.dagId !== dagId);
+    if (stranger !== undefined) {
+      throw new Error(
+        `Label.of(${JSON.stringify(text)}).on() takes nodes of one Dag, but ` +
+          `"${nodeId(nodes[0]!)}" is in Dag "${dagId}" and "${nodeId(stranger)}" is in Dag ` +
+          `"${stranger.dagId}"`,
+      );
+    }
     const ids = nodes.map((each) => `"${nodeId(each)}"`).join(", ");
     const misuse = (verb: "before" | "after"): never => {
       throw new Error(
@@ -627,7 +646,7 @@ export type RecordedInputs = Readonly<Record<string, TaskRef | JsonValue>>;
 let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 let inputsOf: (dag: Dag) => ReadonlyMap<string, RecordedInputs>;
 let orderEdgesOf: (dag: Dag) => readonly OrderEdge[];
-let labelledEdgesOf: (dag: Dag) => readonly OrderEdge[];
+let labellingsOf: (dag: Dag) => readonly EdgeLabelling[];
 let definedInOf: (dag: Dag) => string | undefined;
 let groupsOf: (dag: Dag) => ReadonlyMap<string, TaskGroupRecord>;
 let finalizeOf: (dag: Dag) => void;
@@ -666,10 +685,10 @@ export class Dag {
   // Keyed by the two task ids, so declaring an edge twice records it once, and
   // insertion-ordered so the serialized Dag reads as written.
   readonly #orderEdges = new Map<string, OrderEdge>();
-  // The keys of the labelled order edges, in the order their labels were last set. The
-  // serializer can put the labels of two edges on one task edge, and Python keeps the label that
-  // was set last.
-  readonly #labelOrder = new Set<string>();
+  // Every label set on an order-only edge, in the order it was set. The serializer replays them
+  // the way Python writes `edge_info`. The end that set a label decides which task edges the
+  // label also covers, and the label set last on an entry is the one kept.
+  readonly #labellings: EdgeLabelling[] = [];
   readonly #definedIn: string | undefined;
   readonly #conditions = new Map<string, ConditionRecord>();
   readonly #branches = new Map<string, readonly TaskRef[]>();
@@ -685,7 +704,7 @@ export class Dag {
     taskRecordsOf = (dag) => dag.#tasks;
     inputsOf = (dag) => dag.#inputs;
     orderEdgesOf = (dag) => [...dag.#orderEdges.values()];
-    labelledEdgesOf = (dag) => [...dag.#labelOrder].map((key) => dag.#orderEdges.get(key)!);
+    labellingsOf = (dag) => [...dag.#labellings];
     definedInOf = (dag) => dag.#definedIn;
     groupsOf = (dag) => dag.#groups;
     finalizeOf = (dag) => dag.#finalize();
@@ -1256,18 +1275,23 @@ export class Dag {
     // labelled node.
     const argument = verb === "before" ? downstreamNode : upstreamNode;
     const labelled = labelledNodes.get(argument);
-    for (const node of labelled?.nodes ?? [argument]) {
-      if (verb === "before") this.#drawOrderEdge(upstreamNode, node, verb, labelled?.text);
-      else this.#drawOrderEdge(node, downstreamNode, verb, labelled?.text);
+    // Every edge is checked before the first one is recorded, so a label on several nodes draws
+    // all of its edges or none of them.
+    const edges = (labelled?.nodes ?? [argument]).map((node) =>
+      verb === "before"
+        ? this.#checkOrderEdge(upstreamNode, node, verb)
+        : this.#checkOrderEdge(node, downstreamNode, verb),
+    );
+    for (const [upstreamId, downstreamId] of edges) {
+      this.#recordOrderEdge(upstreamId, downstreamId, labelled?.text, verb);
     }
   }
 
-  #drawOrderEdge(
+  #checkOrderEdge(
     upstreamNode: Node,
     downstreamNode: Node,
     verb: "before" | "after",
-    text: string | undefined,
-  ): void {
+  ): readonly [string, string] {
     const upstream = resolveNode(upstreamNode);
     const downstream = resolveNode(downstreamNode);
     if (this.#finalized) {
@@ -1280,28 +1304,43 @@ export class Dag {
     // Dag handed out, since it is what carries the method.
     const other = verb === "before" ? downstream : upstream;
     this.#validateOwnNode(other, `${verb}()`);
-    const upstreamId = nodeId(upstream);
-    const downstreamId = nodeId(downstream);
+    const upstreamId = nodeId(upstream)!;
+    const downstreamId = nodeId(downstream)!;
     if (upstreamId === downstreamId) {
       throw new Error(
         `${verb}() cannot draw an edge from node "${upstreamId}" of Dag "${this.dagId}" to ` +
           "itself; an edge orders two different nodes",
       );
     }
+    return [upstreamId, downstreamId];
+  }
+
+  #recordOrderEdge(
+    upstreamId: string,
+    downstreamId: string,
+    text: string | undefined,
+    verb: "before" | "after",
+  ): void {
     const key = `${upstreamId}${EDGE_KEY_SEPARATOR}${downstreamId}`;
     // Idempotent, so an edge drawn from both ends is one edge.
     const edgeLabel = text ?? this.#orderEdges.get(key)?.label;
     this.#orderEdges.set(
       key,
       Object.freeze({
-        upstream: upstreamId!,
-        downstream: downstreamId!,
+        upstream: upstreamId,
+        downstream: downstreamId,
         ...(edgeLabel === undefined ? {} : { label: edgeLabel }),
       }),
     );
     if (text !== undefined) {
-      this.#labelOrder.delete(key);
-      this.#labelOrder.add(key);
+      this.#labellings.push(
+        Object.freeze({
+          upstream: upstreamId,
+          downstream: downstreamId,
+          label: text,
+          receiver: verb === "before" ? "upstream" : "downstream",
+        }),
+      );
     }
   }
 
@@ -1523,9 +1562,9 @@ export function getDagOrderEdges(dag: Dag): readonly OrderEdge[] {
   return orderEdgesOf(dag);
 }
 
-/** Internal: the labelled order-only edges of a Dag, in the order their labels were last set. */
-export function getDagLabelledEdges(dag: Dag): readonly OrderEdge[] {
-  return labelledEdgesOf(dag);
+/** Internal: every label set on an order-only edge of a Dag, in the order it was set. */
+export function getDagEdgeLabellings(dag: Dag): readonly EdgeLabelling[] {
+  return labellingsOf(dag);
 }
 
 /** Internal: what each task of a Dag was called with, keyed by task ID.

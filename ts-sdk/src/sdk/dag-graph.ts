@@ -50,10 +50,14 @@ export interface DagGraph {
   readonly downstreamTaskIds: Map<string, Set<string>>;
   readonly groupEdges: Map<string, GroupEdgeSets>;
   /**
-   * For each labelled edge from a task to a group, the roots the group had when the edge was
-   * expanded, keyed by the task ID and then by the group ID.
+   * For each labelled edge between a task and a group, the tasks at the group's end of the edge:
+   * the group's roots when the group is downstream, its leaves when the group is upstream. Keyed
+   * by the upstream ID and then by the downstream ID. The roots and leaves are the ones the group
+   * has when that edge is expanded. To find them, every edge between two tasks counts, whenever
+   * it was drawn. An edge to or from a group counts only if it was drawn before the labelled
+   * edge.
    */
-  readonly groupRootsReached: Map<string, Map<string, readonly string[]>>;
+  readonly groupEndsReached: Map<string, Map<string, readonly string[]>>;
 }
 
 /**
@@ -70,7 +74,7 @@ export function buildDagGraph(dag: Dag): DagGraph {
   const groups = getDagTaskGroups(dag);
   const downstreamTaskIds = new Map<string, Set<string>>();
   const groupEdges = new Map<string, GroupEdgeSets>();
-  const groupRootsReached = new Map<string, Map<string, readonly string[]>>();
+  const groupEndsReached = new Map<string, Map<string, readonly string[]>>();
   const link = (upstream: string, downstream: string): void => {
     // Two arguments fed by the same upstream are one edge, as is an order-only
     // edge redeclaring one the wiring already drew.
@@ -162,10 +166,10 @@ export function buildDagGraph(dag: Dag): DagGraph {
 
     const from = tasksAt(upstream, "upstream");
     const to = tasksAt(downstream, "downstream");
-    if (!upstreamIsGroup && label !== undefined) {
-      const reached = groupRootsReached.get(upstream) ?? new Map<string, readonly string[]>();
-      reached.set(downstream, ends.roots(downstream));
-      groupRootsReached.set(upstream, reached);
+    if (upstreamIsGroup !== downstreamIsGroup && label !== undefined) {
+      const reached = groupEndsReached.get(upstream) ?? new Map<string, readonly string[]>();
+      reached.set(downstream, upstreamIsGroup ? ends.leaves(upstream) : ends.roots(downstream));
+      groupEndsReached.set(upstream, reached);
     }
     for (const tail of from) {
       for (const head of to) link(tail, head);
@@ -185,7 +189,7 @@ export function buildDagGraph(dag: Dag): DagGraph {
       else sets.downstreamTasks.add(downstream);
     }
   }
-  return { downstreamTaskIds, groupEdges, groupRootsReached };
+  return { downstreamTaskIds, groupEdges, groupEndsReached };
 }
 
 function addTo(index: Map<string, Set<string>>, key: string, value: string): void {

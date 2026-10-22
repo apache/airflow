@@ -645,6 +645,25 @@ describe("Dag", () => {
       );
     });
 
+    it("rejects a label on nodes of two Dags", () => {
+      const { refs } = placedDag("d", "load");
+      const other = placedDag("e", "cleanup").refs;
+
+      expect(() => Label.of("rows").on(refs.load!, other.cleanup!)).toThrowError(
+        'Label.of("rows").on() takes nodes of one Dag, but "load" is in Dag "d" and "cleanup" ' +
+          'is in Dag "e"',
+      );
+    });
+
+    it("draws none of a label's edges when one of them cannot be drawn", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      expect(() => refs.load!.before(Label.of("rows").on(refs.cleanup!, refs.load!))).toThrowError(
+        /cannot draw an edge from node "load" of Dag "d" to itself/,
+      );
+      expect(getDagOrderEdges(dag)).toEqual([]);
+    });
+
     it.each([
       ["undefined", undefined],
       ["an object", { dagId: "d", taskId: "load" }],
