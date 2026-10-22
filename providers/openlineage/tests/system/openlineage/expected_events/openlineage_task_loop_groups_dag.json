@@ -157,7 +157,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "plain",
-                            "full_group_id": "plain",
+                            "unique_group_id": "plain",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -214,7 +214,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "plain",
-                            "full_group_id": "plain",
+                            "unique_group_id": "plain",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -271,7 +271,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "sub",
-                            "full_group_id": "plain.sub",
+                            "unique_group_id": "plain.sub",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -328,7 +328,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "sub",
-                            "full_group_id": "plain.sub",
+                            "unique_group_id": "plain.sub",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -385,7 +385,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "fan_out",
-                            "full_group_id": "fan_out",
+                            "unique_group_id": "fan_out",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -442,7 +442,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "fan_out",
-                            "full_group_id": "fan_out",
+                            "unique_group_id": "fan_out",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -499,7 +499,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "fan_out",
-                            "full_group_id": "fan_out",
+                            "unique_group_id": "fan_out",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -556,7 +556,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "fan_out",
-                            "full_group_id": "fan_out",
+                            "unique_group_id": "fan_out",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -613,7 +613,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "body",
-                            "full_group_id": "outer.body",
+                            "unique_group_id": "outer.body",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -681,7 +681,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "body",
-                            "full_group_id": "outer.body",
+                            "unique_group_id": "outer.body",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -749,7 +749,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "body",
-                            "full_group_id": "outer.body",
+                            "unique_group_id": "outer.body",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -817,7 +817,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "body",
-                            "full_group_id": "outer.body",
+                            "unique_group_id": "outer.body",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -885,7 +885,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -953,7 +953,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1021,7 +1021,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1089,7 +1089,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1157,7 +1157,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "deeper",
-                            "full_group_id": "outer.body.inner.deeper",
+                            "unique_group_id": "outer.body.inner.deeper",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1225,7 +1225,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "deeper",
-                            "full_group_id": "outer.body.inner.deeper",
+                            "unique_group_id": "outer.body.inner.deeper",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1293,7 +1293,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "deeper",
-                            "full_group_id": "outer.body.inner.deeper",
+                            "unique_group_id": "outer.body.inner.deeper",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1361,7 +1361,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "deeper",
-                            "full_group_id": "outer.body.inner.deeper",
+                            "unique_group_id": "outer.body.inner.deeper",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1429,7 +1429,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1497,7 +1497,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1565,7 +1565,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1633,7 +1633,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1701,7 +1701,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1769,7 +1769,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1837,7 +1837,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1905,7 +1905,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "inner",
-                            "full_group_id": "outer.body.inner",
+                            "unique_group_id": "outer.body.inner",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -1973,7 +1973,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "body",
-                            "full_group_id": "outer.body",
+                            "unique_group_id": "outer.body",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -2040,7 +2040,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "body",
-                            "full_group_id": "outer.body",
+                            "unique_group_id": "outer.body",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -2107,7 +2107,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "body",
-                            "full_group_id": "outer.body",
+                            "unique_group_id": "outer.body",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
@@ -2176,7 +2176,7 @@
                     "task": {
                         "task_group": {
                             "group_id": "body",
-                            "full_group_id": "outer.body",
+                            "unique_group_id": "outer.body",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,

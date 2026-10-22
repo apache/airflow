@@ -1376,7 +1376,7 @@ class TaskInfo(InfoJsonEncodable):
             else None
         ),
         # task_group is the task's own group, without loop fields, and loop the loop around the task, so each is
-        # described once. For a loop "body", alone or in a task group "outer" (task_group's full_group_id):
+        # described once. For a loop "body", alone or in a task group "outer" (task_group's unique_group_id):
         #   task "body.work":           task_group "body", the loop itself      loop "body"
         #   task "body.inner.work":     task_group "body.inner"                 loop "body"
         #   task "outer.body.work":     task_group "outer.body", the loop       loop "outer.body"
@@ -1438,8 +1438,8 @@ class TaskGroupInfo(InfoJsonEncodable):
         "_group_id": "group_id",
     }
     casts = {
-        # group_id is the group's own id, while the job facet and task.loop name groups by their full id
-        "full_group_id": lambda tg: getattr(tg, "group_id", None),
+        # group_id is the group's own id, while the job facet and task.loop name groups by their unique id
+        "unique_group_id": lambda tg: getattr(tg, "group_id", None),
     }
     includes = [
         "downstream_group_ids",

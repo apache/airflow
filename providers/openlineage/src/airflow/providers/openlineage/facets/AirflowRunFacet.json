@@ -128,8 +128,8 @@
             "group_id": {
               "type": "string"
             },
-            "full_group_id": {
-              "description": "Group id including the ids of its parent groups.",
+            "unique_group_id": {
+              "description": "Id that identifies the group in the Dag, as the job facet names it.",
               "type": "string"
             },
             "downstream_group_ids": {

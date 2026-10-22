@@ -37,7 +37,7 @@ It checks, for a plain task, tasks, a mapped task and a mapped task group in a l
       task
     - a mapped task group inside a loop: its task's `map_index` and `region_index` are the mapped position,
       its `loop.index` the iteration, and its task's `loop.group_id` the loop's, unlike its own `task_group`,
-      whose `full_group_id` is the mapped group's, while for a task directly in a loop it is the loop's
+      whose `unique_group_id` is the mapped group's, while for a task directly in a loop it is the loop's
     - the loop groups' `max_iterations`, `has_until`, `gate_task_id` and `terminal_task_id` in the
       `taskGroups` of the Dag's job facet, and never in the task's `task_group`: in task events, only task's
       `loop` describes the loop

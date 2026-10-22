@@ -3731,7 +3731,7 @@ def test_task_info_af3():
         "downstream_group_ids": "[]",
         "downstream_task_ids": "['task_1']",
         "group_id": "section_1",
-        "full_group_id": "section_1",
+        "unique_group_id": "section_1",
         "prefix_group_id": True,
         "tooltip": "",
         "upstream_group_ids": "[]",
@@ -3868,7 +3868,7 @@ def test_task_info_af2():
         "downstream_group_ids": "[]",
         "downstream_task_ids": "['task_1']",
         "group_id": "section_1",
-        "full_group_id": "section_1",
+        "unique_group_id": "section_1",
         "prefix_group_id": True,
         "tooltip": "",
         "upstream_group_ids": "[]",
@@ -4723,11 +4723,11 @@ def test_task_info_has_the_loop_around_the_task(nested):
         "gate_task_id": dag.task_group_dict["outer.body"].gate_task_id,
         "terminal_task_id": task_id,
     }
-    # task_group is the task's own group and never describes the loop; its full id tells whether it is the loop
-    assert (info["task_group"]["group_id"], info["task_group"]["full_group_id"]) == (
+    # task_group is the task's own group and never describes the loop; its unique id tells whether it is the loop
+    assert (info["task_group"]["group_id"], info["task_group"]["unique_group_id"]) == (
         ("inner", "outer.body.inner") if nested else ("body", "outer.body")
     )
-    assert (info["task_group"]["full_group_id"] == info["loop"]["group_id"]) is not nested
+    assert (info["task_group"]["unique_group_id"] == info["loop"]["group_id"]) is not nested
     assert "gate_task_id" not in info["task_group"]
 
 
