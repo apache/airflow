@@ -324,6 +324,10 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
      - ✗
+   * - ``listeners`` (MAY)
+     - ✗
+     - ✗
+     - ✗
 
 .. list-table:: Dag definition
    :header-rows: 1
@@ -381,6 +385,10 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
+   * - ``provider-operators`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
    * - ``dynamic-dag-generation`` (MAY †)
      - ✓ 1.0.0
      - ✓ 1.0.0
@@ -409,6 +417,10 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
      - ✗
+   * - ``callbacks`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
 
 .. list-table:: Python Dag with stub TaskHandler
    :header-rows: 1
@@ -431,6 +443,10 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
    * - ``asset-inlets-outlets`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``callbacks`` (MAY)
      - ✗
      - ✗
      - ✗

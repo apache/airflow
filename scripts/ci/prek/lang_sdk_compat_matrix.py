@@ -101,6 +101,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("asset-event-emit", "MAY", "runtime", False),
     Capability("asset-event-read", "MAY", "runtime", False),
     Capability("object-store", "MAY", "runtime", False),
+    Capability("listeners", "MAY", "runtime", False),
     Capability(DAG_DEFINITION_GATE, "SHOULD", "dag-definition", False),
     Capability("dag-args", "MUST", "dag-definition", True),
     Capability("task-args", "MUST", "dag-definition", True),
@@ -113,6 +114,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("if-else-branching", "SHOULD", "dag-definition", True),
     Capability("switch-case-branching", "SHOULD", "dag-definition", True),
     Capability("trigger-dag-run", "MAY", "dag-definition", True),
+    Capability("provider-operators", "MAY", "dag-definition", True),
     Capability("dynamic-dag-generation", "MAY", "dag-definition", True),
     Capability("human-in-the-loop", "MAY", "dag-definition", True),
     Capability("dag-test", "SHOULD", "dag-definition", True),
@@ -122,6 +124,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("taskflow-binding", "MUST", "stub-task-handler", False),
     Capability("dynamic-task-mapping", "MAY", "shared", True),
     Capability("asset-inlets-outlets", "MAY", "shared", True),
+    Capability("callbacks", "MAY", "shared", True),
 ]
 
 CAPABILITY_NAMES = {cap.name for cap in CAPABILITY_DIMENSIONS}

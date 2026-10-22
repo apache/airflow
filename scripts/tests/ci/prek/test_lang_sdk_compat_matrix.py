@@ -182,12 +182,10 @@ class TestParseCapabilities:
             matrix.parse_capabilities(doc, source="test")
 
     def test_shared_capability_dag_definition_mode_is_gated(self):
-        doc = _doc()
-        for row in matrix.build_matrix_parts()[1].groups[0].rows:
-            if row.gated and row.name not in matrix.SHARED_CAPABILITY_NAMES:
-                doc["capabilities"][row.name] = _entry(False)
-        doc["capabilities"][matrix.DAG_DEFINITION_GATE] = _entry(False)
-        doc["capabilities"]["asset-inlets-outlets"][matrix.DAG_DEFINITION_MODE] = _entry(False)
+        # Everything gated is off except the Dag-definition side of dynamic-task-mapping, so the
+        # error names that one shared capability and nothing else.
+        doc = _doc_without_dag_definition()
+        doc["capabilities"]["dynamic-task-mapping"][matrix.DAG_DEFINITION_MODE] = _entry(True, since="3.3")
         with pytest.raises(matrix.CapabilitiesError, match="cannot be supported.*: dynamic-task-mapping$"):
             matrix.parse_capabilities(doc, source="test")
 
@@ -271,6 +269,7 @@ class TestRenderMarkdownTable:
             "taskflow-binding",
             "dynamic-task-mapping",
             "asset-inlets-outlets",
+            "callbacks",
         ]
         assert set(dag_definition_names) >= matrix.SHARED_CAPABILITY_NAMES
         assert all(not row.gated for row in stub_task_handler.groups[0].rows)

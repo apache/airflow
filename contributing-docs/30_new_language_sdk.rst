@@ -445,8 +445,9 @@ authored in the target language. An SDK declares each one independently.
 
 ``retry-policy`` (MAY)
     The SDK lets task code inspect a failure and override whether the task retries or fails,
-    optionally with a custom retry delay. This is distinct from reporting ``up_for_retry``:
-    an SDK can support ordinary retries without exposing a task-facing retry-policy API.
+    optionally with a custom retry delay, the equivalent of Python's ``RetryPolicy``. This is
+    distinct from reporting ``up_for_retry``: an SDK can support ordinary retries without
+    exposing a task-facing retry-policy API.
 
 ``task-state-store`` (MAY)
     The task can read and write the per-task state store.
@@ -464,6 +465,11 @@ authored in the target language. An SDK declares each one independently.
 ``object-store`` (MAY)
     The SDK exposes an object-storage API (an ``ObjectStoragePath`` equivalent) usable from
     task code.
+
+``listeners`` (MAY)
+    A task feeds Airflow's listener API, so a listener plugin sees it as it does a Python
+    task. OpenLineage is the main consumer: without this, a task of this SDK produces no
+    lineage facets of its own.
 
 Dag definition
 ~~~~~~~~~~~~~~
@@ -520,6 +526,14 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
     A Dag definition can declare a task that triggers a run of another Dag, like
     ``TriggerDagRunOperator``.
 
+``provider-operators`` (MAY †)
+    A Dag definition can declare a task that runs a Python provider operator, which executes
+    in the Python runtime. The SDK surface is a declarative binding over the operator's
+    parameters rather than a reimplementation, the same shape the YAML Dag importer's
+    ``uses`` takes, so the bindings are meant to be generated from the Python operators as
+    the source of truth. A built-in task that mirrors an operator's name while running in the
+    SDK's own runtime, such as ``trigger-dag-run``, does not count.
+
 ``dynamic-dag-generation`` (MAY †)
     One artifact can generate several Dags from code, for example in a loop.
 
@@ -567,6 +581,12 @@ the other, so each one is declared once per mode. In a Dag definition the tier a
 ``asset-inlets-outlets`` (MAY)
     A task's asset inlets and outlets are honored, so a successful task emits events for its
     outlets.
+
+``callbacks`` (MAY)
+    Task and Dag callbacks (``on_failure_callback`` and the rest) run. The two authoring modes
+    ask different things of the SDK: in a Dag definition the SDK declares the callback as a
+    function in its own language, while for a stub task the callback is declared in the Python
+    Dag and the SDK's execution path has to let the Python runtime run it.
 
 Compatibility matrix
 ~~~~~~~~~~~~~~~~~~~~

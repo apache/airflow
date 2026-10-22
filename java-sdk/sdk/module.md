@@ -133,6 +133,7 @@ meaning of each dimension is defined in the
 | capability: `asset-event-emit` | MAY | ✗ | – | – | runtime does not emit asset events yet |
 | capability: `asset-event-read` | MAY | ✗ | – | – | no task-facing asset-event API yet |
 | capability: `object-store` | MAY | ✗ | – | – | no object-storage API yet |
+| capability: `listeners` | MAY | ✗ | – | – | no hook into the Python listener API, so a task emits no OpenLineage facets of its own |
 | **Dag definition** |  |  |  |  |  |
 | capability: `dag-definition` | SHOULD | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
@@ -146,6 +147,7 @@ meaning of each dimension is defined in the
 | capability: `if-else-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagDef.If or @Airflow.If |
 | capability: `switch-case-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagDef.Switch or @Airflow.Switch |
 | capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | TriggerDagRun |
+| capability: `provider-operators` | MAY † | ✗ | – | – | only built-in tasks (TriggerDagRun); no generated provider bindings |
 | capability: `dynamic-dag-generation` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `human-in-the-loop` | MAY † | ✗ | – | – |  |
 | capability: `dag-test` | SHOULD † | ✗ | – | – |  |
@@ -153,11 +155,13 @@ meaning of each dimension is defined in the
 | capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
 | capability: `dynamic-task-mapping` | MAY † | ✗ | – | – |  |
 | capability: `asset-inlets-outlets` | MAY † | ✗ | – | – |  |
+| capability: `callbacks` | MAY † | ✗ | – | – | no SDK-defined callback functions |
 | **Python Dag with stub TaskHandler** |  |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
 | capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
 | capability: `dynamic-task-mapping` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
 | capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
+| capability: `callbacks` | MAY | ✗ | – | – | a Python-declared callback does not run for a coordinator task |
 
 *Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition` is supported.*
 
