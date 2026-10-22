@@ -54,7 +54,7 @@ from airflow.providers.standard.utils.hitl import (
     validate_params,
     validate_params_input,
 )
-from airflow.providers.standard.version_compat import BaseOperator
+from airflow.providers.standard.version_compat import BaseOperator, is_arg_set
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
@@ -154,6 +154,8 @@ def request_input(
     It works in ``@task`` and ``PythonOperator`` callables (sync or async), including ``@task.branch``
     and ``@task.short_circuit``. It can't pause tasks that run their callable in another process, such
     as ``@task.virtualenv``, ``@task.external_python``, ``@task.docker`` or ``@task.kubernetes``.
+    Ask one question at a time from the task's own code, not from worker threads or from several
+    ``async`` calls running at once: a task instance has a single Required Actions request.
 
     Needs Airflow 3.4+. Earlier versions keep the first request's subject, body and options when a
     task asks again, after a resume or on a retry, so the reviewer would answer a question they were
@@ -216,7 +218,12 @@ def request_input(
             "key": key,
             # What the resume checks the answer against.
             "options": options,
-            "params": serialized_params,
+            # A param without a default serializes its value as NOTSET, which can't be stored with
+            # the paused task. The resume only checks the answer against each schema, so None will do.
+            "params": {
+                name: {**spec, "value": spec["value"] if is_arg_set(spec["value"]) else None}
+                for name, spec in serialized_params.items()
+            },
             # Earlier answers travel with the task so each run can replay every one of them.
             "answered": [[answered_key, earlier] for answered_key, earlier in answer_log.answers.items()]
             if answer_log is not None

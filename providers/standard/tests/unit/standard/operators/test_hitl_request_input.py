@@ -324,6 +324,32 @@ class TestRequestFields:
         assert seen[0]["responded_by_user"] is None
         assert seen[0]["responded_at"] == RESPONDED_AT
 
+    def test_a_required_param_without_a_default_survives_the_pause(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        with DAG(dag_id="required_param_dag"):
+
+            @task
+            def ask():
+                answer = request_input(
+                    subject="Why?",
+                    options=["Approve", "Reject"],
+                    params={"reason": Param(type="string", minLength=1)},
+                )
+                return answer["params_input"]["reason"]
+
+            op = ask().operator
+        ti = create_runtime_ti(task=op)
+        _, park_msg, _ = _run(ti)
+
+        state, _, err = _answer_and_run(
+            create_runtime_ti, op, ti.id, park_msg, {**_answer("Approve"), "params_input": {"reason": "ok"}}
+        )
+
+        assert err is None
+        assert state == TaskInstanceState.SUCCESS
+        assert _return_values(mock_supervisor_comms) == ["ok"]
+
     def test_hitl_operator_parks_with_its_own_resume_method_and_timeout(
         self, create_runtime_ti, mock_supervisor_comms
     ):

@@ -103,8 +103,13 @@ Things to know:
 * It works in ``@task``, ``@task.branch``, ``@task.short_circuit`` and ``PythonOperator`` callables,
   sync or async. It can't pause tasks that run their callable in another process
   (``@task.virtualenv``, ``@task.external_python``, ``@task.docker``, ``@task.kubernetes``).
+* Ask one question at a time, from the task's own code. A task instance has a single Required
+  Actions request, so two questions asked at once (``asyncio.gather``, ``asyncio.TaskGroup``, or
+  threads) overwrite each other, and a call from a worker thread doesn't see the answers the task
+  resumed with. Don't call it inside code that turns exceptions into a result, such as an agent
+  framework's tool-error handler: the errors above only fail the task if they reach it.
 * It needs Airflow 3.4+.
 * The Required Actions page refuses an answer to a request that the task has since replaced. A
-  client answering through the REST API gets the same protection only if it sends the
-  ``request_created_at`` it read with the request; without it, the answer is applied to whatever
-  request is waiting.
+  client answering through the REST API gets the same protection only if it sends the request's
+  ``created_at`` (from the GET) as ``request_created_at``; without it, the answer is applied to
+  whatever request is waiting.
