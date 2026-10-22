@@ -81,8 +81,9 @@ jobs:
     # A scheduled canary is not needed when the last completed full run of this workflow on the
     # branch tested the same commit and succeeded: it would only repeat that run. A push run tests
     # the changes since the last successful run of this workflow on the branch, found here.
-    # This job runs for every event, with no steps for the others: every job of the run depends on
-    # it, and a skipped job here would skip all of them, whatever their own `if:` says.
+    # This job runs for every event, with no steps for the others: every other job depends on it
+    # through `build-info`, and GitHub skips the whole dependency chain below a skipped job unless
+    # each job in it has a status function such as `always()` in its `if:`.
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 5
     permissions:
@@ -107,10 +108,14 @@ jobs:
           # A successful push or full run tested everything up to its commit. Changes after it -- from
           # pushes whose runs failed, or were cancelled by a newer push -- are all tested by this run.
           # A successful run of this same commit is passed over, so that a re-run tests again.
-          base="$(gh api "repos/${REPOSITORY}/actions/workflows/${workflow_path##*/}/runs" -X GET \
+          if ! base="$(gh api "repos/${REPOSITORY}/actions/workflows/${workflow_path##*/}/runs" -X GET \
             -f branch="${BRANCH}" -f status=success -F per_page=30 \
             --jq "[.workflow_runs[] | select((.event == \"push\" or .event == \"workflow_dispatch\")
-                  and .head_sha != \"${GITHUB_SHA}\")][0].head_sha // \"\"")"
+                  and .head_sha != \"${GITHUB_SHA}\")][0].head_sha // \"\"")"; then
+            # Fail open: a failed lookup must not skip the run.
+            echo "::warning::Could not find the last successful run of ${BRANCH}, all tests will run"
+            base=""
+          fi
           # With no successful run to build on, selective checks run all tests.
           echo "push-base-commit=${base}" >> "${GITHUB_OUTPUT}"
           echo "Testing the changes since ${base:-the start: no successful run yet, so all tests run}." \
@@ -130,11 +135,15 @@ jobs:
           workflow="${workflow_path##*/}"
           # Full runs are the scheduled canaries and manual `workflow_dispatch` runs; this run is
           # still in progress, so `status=completed` leaves it out.
-          last="$(gh api \
+          if ! last="$(gh api \
             "repos/${REPOSITORY}/actions/workflows/${workflow}/runs?branch=${BRANCH}&status=completed" \
             -F per_page=20 -X GET \
             --jq '[.workflow_runs[] | select(.event == "schedule" or .event == "workflow_dispatch")][0]
-                  | "\(.head_sha // "") \(.conclusion // "") \(.html_url // "")"')"
+                  | "\(.head_sha // "") \(.conclusion // "") \(.html_url // "")"')"; then
+            # Fail open: a canary that cannot check the last run runs, and reports to Slack.
+            echo "::warning::Could not find the last full run of ${BRANCH}, running the canary"
+            last=""
+          fi
           read -r last_sha last_conclusion last_url <<< "${last}"
           if [[ "${last_sha}" == "${GITHUB_SHA}" && "${last_conclusion}" == "success" ]]; then
             echo "run-needed=false" >> "${GITHUB_OUTPUT}"
@@ -334,7 +343,7 @@ jobs:
 
   basic-tests:
     name: "Basic tests"
-    needs: [build-info]
+    needs: [build-info, check-run-needed]
     uses: ./.github/workflows/basic-tests.yml
     with:
       runners: ${{ needs.build-info.outputs.runner-type }}
@@ -351,6 +360,7 @@ jobs:
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
       shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
+      push-base-commit: ${{ needs.check-run-needed.outputs.push-base-commit }}
 
   build-ci-images:
     name: Build CI images
@@ -1342,13 +1352,15 @@ jobs:
     name: "Notify Slack"
     needs:
       - build-info
+      - check-run-needed
       - finalize-tests
       - tests-agent-frameworks
+    # A no-op canary (`run-needed` is 'false') does not post; a failed check does.
     if: >-
       always() &&
       !cancelled() &&
       github.event_name == 'schedule' &&
-      needs.build-info.result != 'skipped' &&
+      needs.check-run-needed.outputs.run-needed != 'false' &&
       github.run_attempt == 1
     runs-on: ["ubuntu-slim"]
     steps:

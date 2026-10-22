@@ -123,6 +123,16 @@ jobs:
                 continue
               fi
             fi
+            # A branch without this change backported still builds in full on push, and a run
+            # dispatched there would use its old `ci-image-checks.yml`, which publishes a canary's
+            # partial docs build to the docs bucket of `main`.
+            marker="repos/${REPOSITORY}/contents/.github/workflows/release-branch-ci.yml"
+            if ! gh api --silent "${marker}?ref=${branch//\//%2F}"; then
+              echo "${branch}: skipped, release-branch-ci.yml not backported"
+              echo "| \`${branch}\` | - | \`${head_sha:0:10}\` | skipped: not backported |" \
+                >> "${GITHUB_STEP_SUMMARY}"
+              continue
+            fi
             for workflow in "${workflows[@]}"; do
               # The newest full run of this workflow on the branch. Push runs only run the selective
               # tests of their commit, so they do not count.

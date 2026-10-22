@@ -196,8 +196,13 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
 
 def get_changed_files_since(base_ref: str, commit_ref: str) -> tuple[str, ...] | None:
     """Return the files changed between two commits, or None when they cannot be computed."""
+    # `--no-renames`, as `diff-tree` in `get_changed_files`: a rename counts as a delete plus an add,
+    # so that the tests of the old path are selected too.
     result = run_command(
-        ["git", "diff", "--name-only", base_ref, commit_ref], check=False, capture_output=True, text=True
+        ["git", "diff", "--name-only", "--no-renames", base_ref, commit_ref],
+        check=False,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         console_print(f"[warning] Error when running diff command [/]\n{result.stdout}\n{result.stderr}")

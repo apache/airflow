@@ -989,8 +989,8 @@ class SelectiveChecks:
         return self._default_constraints_branch
 
     def _get_full_run_events(self) -> list[GithubEvents]:
-        # Only `ci-amd.yml` opts in: other push-triggered workflows (constraints, image cache) rely on
-        # a push selecting all Python versions.
+        # Only `ci-amd.yml` / `ci-arm.yml` opt in: other push-triggered workflows (constraints, image
+        # cache) rely on a push selecting all Python versions.
         if self._selective_tests_on_push:
             return [GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
         return [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
@@ -1878,8 +1878,10 @@ class SelectiveChecks:
         if len(self._matching_files(FileGroupForCi.ALL_PYPROJECT_TOML_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             console_print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
-        if self._github_event == GithubEvents.SCHEDULE:
-            console_print("[warning]Upgrade to newer dependencies: Schedule event[/]")
+        # A dispatched run is a full run, like a scheduled canary: on release branches it replaces the
+        # push runs that used to update the constraints after a dependency backport.
+        if self._github_event in (GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH):
+            console_print(f"[warning]Upgrade to newer dependencies: {self._github_event} event[/]")
             return True
         if UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels:
             console_print(

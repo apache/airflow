@@ -41,7 +41,14 @@ def test_get_changed_files_since(mock_run_command, returncode, stdout, expected)
     mock_run_command.return_value = CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr="")
 
     assert get_changed_files_since(base_ref=BASE_COMMIT, commit_ref=PUSHED_COMMIT) == expected
-    assert mock_run_command.call_args.args[0] == ["git", "diff", "--name-only", BASE_COMMIT, PUSHED_COMMIT]
+    assert mock_run_command.call_args.args[0] == [
+        "git",
+        "diff",
+        "--name-only",
+        "--no-renames",
+        BASE_COMMIT,
+        PUSHED_COMMIT,
+    ]
 
 
 def _invoke_selective_check(*extra_args: str):
