@@ -450,6 +450,17 @@ def _fsync_tree_directories(root: Path) -> None:
         fsync_directory(directory)
 
 
+def fsync_tree(root: Path) -> None:
+    """Make all regular files and directory entries in a tree durable."""
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+        for filename in sorted(filenames):
+            path = Path(dirpath) / filename
+            if not path.is_symlink():
+                fsync_file(path)
+    _fsync_tree_directories(root)
+
+
 def _write_manifest_file(manifest: dict[str, Any], manifest_file: Path) -> None:
     with manifest_file.open("wb") as file:
         file.write(serialize_bundle_version_manifest(manifest))
@@ -471,3 +482,18 @@ def _set_snapshot_permissions(snapshot_path: Path) -> None:
             path.chmod(0o555 if executable else 0o444)
     for directory in sorted(directories, key=lambda path: len(path.parts), reverse=True):
         directory.chmod(0o555)
+
+
+def set_cache_tree_permissions(cache_path: Path) -> None:
+    # Cache copies keep files read-only (content drift stays detectable) but leave
+    # directories writable: Airflow's stale-bundle cleanup removes cached versions
+    # with a plain shutil.rmtree, which fails on read-only directories.
+    for dirpath, _, filenames in os.walk(cache_path):
+        directory = Path(dirpath)
+        for filename in filenames:
+            path = directory / filename
+            if path.is_symlink():
+                continue
+            executable = stat.S_IMODE(path.stat().st_mode) & 0o111
+            path.chmod(0o555 if executable else 0o444)
+        directory.chmod(0o755)
