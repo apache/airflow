@@ -250,9 +250,9 @@ Conditional branching
 ``If`` takes inputs and task options as ``Task`` does. ``Then`` is required, and ``Else`` is optional: without it,
 the ``Then`` task is skipped when the condition is false.
 
-The side not taken is skipped, and stays skipped if it is cleared later. Only that task is skipped. A task after both
-sides follows its own trigger rule, and the default ``all_success`` skips it as well. To run such a task when at least
-one side succeeds and none fails, give it ``airflow.TriggerRuleNoneFailedMinOneSuccess``:
+The condition skips only the side not taken, which stays skipped if it is cleared later. Tasks after it follow their
+own trigger rule, so with the default ``all_success``, a task after both sides is skipped too. To run such a task when
+at least one side succeeds and none fails, give it ``airflow.TriggerRuleNoneFailedMinOneSuccess``:
 
 .. code-block:: go
 
@@ -689,14 +689,8 @@ Dag definition
 ~~~~~~~~~~~~~~
 
 Put the bundle in a Dag bundle, such as the default ``dags-folder`` bundle. The Dag processor runs each bundle it
-finds to read its Dags, as it reads any other Dag file, so the Dag processor needs the same ``[sdk]``
-configuration as the workers, and a bundle built for its platform:
-
-.. code-block:: ini
-
-    [sdk]
-    coordinators = {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator"}}
-    queue_to_coordinator = {"golang": "go"}
+finds to read its Dags, as it reads any other Dag file, so it needs the same ``[sdk]`` configuration as the workers,
+shown in the :ref:`quick start <go-sdk/quick-start>`, and a bundle built for its platform.
 
 With more than one ``ExecutableCoordinator``, map each Dag bundle that holds Go Dags to one of them in
 ``[sdk] dag_bundle_to_coordinator``, such as ``{"dags-folder": "go"}``, or its bundles fail to parse.
@@ -763,8 +757,8 @@ Where the configuration is needed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The coordinator runs where tasks run, so the ``[sdk]`` configuration and the bundles are needed on the workers.
-With ``CeleryExecutor``, set them on the Celery workers. With ``LocalExecutor``, tasks run in the scheduler's
-process, so set them there. The Dag processor needs them too, as described above. Register every Dag bundle in
+With ``CeleryExecutor``, set them on the Celery workers. With ``LocalExecutor``, tasks run in subprocesses on the
+scheduler's host, so set them there. The Dag processor needs them too, as described above. Register every Dag bundle in
 ``[dag_processor] dag_bundle_config_list`` on each of these components. The API server never needs them.
 
 There is no separate Go service to run: the worker starts the bundle once per task instance.
