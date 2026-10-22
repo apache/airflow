@@ -214,7 +214,12 @@ def get_mapped_task_instances(
     dag_bag: DagBagDep,
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory("start_date", TI, null_lower_bound_clause=TI.end_date.is_(None))
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
@@ -560,7 +565,12 @@ def get_task_instances(
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory("start_date", TI, null_lower_bound_clause=TI.end_date.is_(None))
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
@@ -636,14 +646,23 @@ def get_task_instances(
     resolver: CoordinateResolverDep,
     region_id: Annotated[UUID | None, Query()] = None,
     region_index: Annotated[int | None, Query(ge=-1)] = None,
+    loop_id: Annotated[
+        str | None,
+        Query(description="Task group id of a loop; matches every instance it produced."),
+    ] = None,
+    iteration: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            description="Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.",
+        ),
+    ] = None,
     cursor: str | None = Query(
         None,
         description="Cursor for keyset-based pagination. "
         "Pass an empty string for the first page, then use ``next_cursor`` from the response. "
         "When ``cursor`` is provided, ``offset`` is ignored.",
     ),
-    loop_id: Annotated[str | None, Query()] = None,
-    iteration: Annotated[int | None, Query(ge=0)] = None,
 ) -> TaskInstanceCollectionResponse:
     """
     Get list of task instances.
@@ -664,7 +683,7 @@ def get_task_instances(
     use_cursor = cursor is not None
     dag_run = None
     query = add_public_map_index(eager_load_task_instance_for_validation(select(TI)))
-    if loop_id is None and iteration is not None:
+    if iteration is not None and loop_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "iteration requires loop_id")
     if loop_id is not None:
         if dag_id == "~" or dag_run_id == "~":
@@ -681,9 +700,12 @@ def get_task_instances(
     if region_index is not None and region_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     if region_id is not None:
+        # One meaning per filter: ``region_id`` names an exact region, and the logical scope of
+        # a loop pass -- its own region plus the expansions nested in it -- is what ``loop_id``
+        # and ``iteration`` are for.
         query = query.where(TI.region_id == region_id)
-    if region_index is not None:
-        query = query.where(TI.region_index == region_index)
+        if region_index is not None:
+            query = query.where(TI.region_index == region_index)
     if dag_run_id != "~":
         if dag_id == "~":
             raise HTTPException(
@@ -837,9 +859,9 @@ def get_task_instances_batch(
     resolver: CoordinateResolverDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
-    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
-    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
-    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
+    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
+    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
+    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     run_after = RangeFilter(
         Range(
             lower_bound_gte=body.run_after_gte,
@@ -865,7 +887,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.start_date_lte,
             upper_bound_lt=body.start_date_lt,
         ),
-        attribute=TI.start_date,  # type: ignore[arg-type]
+        attribute=TI.start_date,
     )
     end_date = RangeFilter(
         Range(
@@ -874,7 +896,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.end_date_lte,
             upper_bound_lt=body.end_date_lt,
         ),
-        attribute=TI.end_date,  # type: ignore[arg-type]
+        attribute=TI.end_date,
     )
     duration = RangeFilter(
         Range(
@@ -883,12 +905,12 @@ def get_task_instances_batch(
             upper_bound_lte=body.duration_lte,
             upper_bound_lt=body.duration_lt,
         ),
-        attribute=TI.duration,  # type: ignore[arg-type]
+        attribute=TI.duration,
     )
-    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
+    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
+    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)
+    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)
+    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)

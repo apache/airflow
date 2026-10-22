@@ -162,6 +162,12 @@
   "toggleTableView": "Show table view",
   "triggerDag": {
     "button": "Trigger",
+    "dagStartEndDate": {
+      "both": "Dag start date: {{startDate}}, end date: {{endDate}}",
+      "end": "Dag end date: {{endDate}}",
+      "noTaskWillRun": "No task will run.",
+      "start": "Dag start date: {{startDate}}"
+    },
     "dataInterval": "Data Interval",
     "dataIntervalAuto": "Inferred from Logical Date and Timetable",
     "dataIntervalManual": "Specify Manually",
@@ -172,6 +178,8 @@
     "loadingFailed": "Failed to load Dag information. Please try again.",
     "manualRunDenied": "Manual runs are not allowed for this Dag",
     "partitionKeyHelp": "Optional - only applies to partitioned Dags",
+    "recentConfig": "Recent configurations",
+    "recentConfigPlaceholder": "Select a recent configuration",
     "runIdHelp": "Optional - will be generated if not provided",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",

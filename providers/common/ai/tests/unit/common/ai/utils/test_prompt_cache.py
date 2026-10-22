@@ -141,6 +141,35 @@ class TestPromptCaching:
         assert {*ALL_DEFAULTS, "anthropic_cache"} == PROMPT_CACHE_SETTING_NAMES
 
 
+_ANTHROPIC_OK_STREAM_EVENTS: list[dict[str, Any]] = [
+    {
+        "type": "message_start",
+        "message": {
+            "id": "msg_1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-sonnet-4-5",
+            "content": [],
+            "stop_reason": None,
+            "stop_sequence": None,
+            "usage": {"input_tokens": 10, "output_tokens": 0},
+        },
+    },
+    {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}},
+    {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "ok"}},
+    {"type": "content_block_stop", "index": 0},
+    {
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn", "stop_sequence": None},
+        "usage": {"output_tokens": 1},
+    },
+    {"type": "message_stop"},
+]
+_ANTHROPIC_OK_STREAM = "".join(
+    f"event: {event['type']}\ndata: {json.dumps(event)}\n\n" for event in _ANTHROPIC_OK_STREAM_EVENTS
+).encode()
+
+
 class TestPromptCachingOnTheAnthropicWire:
     """What an Anthropic model actually sends, captured at the HTTP transport."""
 
@@ -149,7 +178,14 @@ class TestPromptCachingOnTheAnthropicWire:
         bodies: list[dict[str, Any]] = []
 
         def handler(request: httpx2.Request) -> httpx2.Response:
-            bodies.append(json.loads(request.content))
+            body = json.loads(request.content)
+            bodies.append(body)
+            # pydantic-ai >= 2.52 streams whenever its default max_tokens exceeds the SDK's
+            # non-streaming limit and the client timeout is not the SDK default, as here.
+            if body.get("stream"):
+                return httpx2.Response(
+                    200, headers={"content-type": "text/event-stream"}, content=_ANTHROPIC_OK_STREAM
+                )
             return httpx2.Response(
                 200,
                 json={

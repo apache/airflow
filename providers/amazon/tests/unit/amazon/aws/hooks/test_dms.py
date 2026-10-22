@@ -310,6 +310,12 @@ class TestDmsHook:
         assert tasks[0]["ReplicationTaskArn"] == MOCK_TASK_ARN
 
     @mock.patch.object(DmsHook, "get_conn")
+    def test_get_task_description(self, mock_conn):
+        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE
+
+        assert self.dms.get_task_description(MOCK_TASK_ARN) == MOCK_TASK_RESPONSE_DATA
+
+    @mock.patch.object(DmsHook, "get_conn")
     def test_get_task_status(self, mock_conn):
         mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE
 

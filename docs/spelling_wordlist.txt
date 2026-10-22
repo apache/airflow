@@ -1,5 +1,6 @@
 aarch
 abc
+ABI
 AbstractCapability
 AbstractFileSystem
 AbstractToolset
@@ -29,6 +30,7 @@ afterall
 agentcore
 AgentDetails
 agentic
+AgentResult
 AgentVersionDetails
 ai
 aio
@@ -199,6 +201,8 @@ bitmask
 Bitnami
 bitshift
 bitwise
+Boat
+boat
 booktabs
 Bool
 bool
@@ -213,6 +217,7 @@ bugfix
 bugfixes
 buildType
 burstable
+busybox
 bytestring
 cacert
 Cadwyn
@@ -280,11 +285,13 @@ cmdlet
 cmds
 cncf
 cnf
+CNI
 cnt
 codebase
 codec
 codecov
 codepoints
+colima
 Colour
 colour
 colours
@@ -337,6 +344,7 @@ cosmosdb
 cp
 cpu
 cpus
+CPython
 CRD
 crd
 CreateQueryOperator
@@ -367,6 +375,7 @@ Cypher
 cypher
 daemonize
 daemonized
+daemonizing
 dagbag
 DagCallbackRequest
 dagfile
@@ -547,6 +556,7 @@ Drillbit
 driverless
 dropdown
 druidHook
+dryrun
 ds
 dsl
 dsn
@@ -683,6 +693,7 @@ filesystems
 filetype
 FilteredToolset
 finalStatus
+findutils
 fips
 firebase
 Firehose
@@ -907,6 +918,7 @@ irreproducible
 IRSA
 isfile
 ish
+islo
 isn
 isort
 istio
@@ -1013,6 +1025,7 @@ Kylin
 kylin
 Kyverno
 Lakehouse
+Landlock
 langchain
 Langfuse
 LanguageServiceClient
@@ -1203,6 +1216,7 @@ objectORfile
 objectstorage
 observability
 od
+OData
 odbc
 odps
 OIDC
@@ -1229,6 +1243,8 @@ openlineage
 opensandbox
 OpenSearch
 opensearch
+OpenShell
+openshell
 OpenTelemetry
 oper
 OperatorLineage
@@ -1293,6 +1309,7 @@ pinecone
 Pinot
 pinot
 PipelineRun
+PKI
 pkill
 plaintext
 pluggable
@@ -1300,6 +1317,7 @@ pluggy
 plyvel
 png
 PoC
+Podman
 PodManager
 PodSpec
 podSpec
@@ -1477,6 +1495,7 @@ requeues
 requeuing
 rerank
 reranking
+rescanning
 reserialize
 Reserializing
 resetdb
@@ -1511,6 +1530,7 @@ rtype
 ru
 ruleset
 runAsUser
+runbook
 RunContext
 runnable
 RunQueryOperator
@@ -1548,6 +1568,7 @@ sdk
 sdks
 searchpath
 SearchResultGenerator
+seccomp
 secretmanager
 SecretManagerClient
 SecretManagerServiceClient
@@ -1595,6 +1616,7 @@ Sharepoint
 shm
 shouldn
 sie
+sigstore
 SIGTERM
 sku
 sla
@@ -1836,7 +1858,9 @@ triaging
 triggerer
 triggerers
 trino
+trixie
 trojan
+TrustedRouter
 truthy
 tsql
 tsv
@@ -1885,6 +1909,7 @@ unpause
 unpaused
 unpausing
 unpredicted
+unreferenced
 unsanitized
 unscoped
 untestable

@@ -18,7 +18,7 @@
 [build-system]
 requires = [
     "gitdb==4.0.12",
-    "GitPython==3.1.62",
+    "GitPython==3.2.1",
     "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
@@ -103,6 +103,9 @@ dependencies = [
     # parsed with no field-count or field-size bound at all.
     "starlette>=1.3.1",
     "httpx>=0.25.0",
+    # Only for InProcessExecutionAPI's transports, which feed httpx2-based Task SDK clients.
+    # The rest of airflow-core is still on httpx; tracked at https://github.com/apache/airflow/issues/70522
+    "httpx2>=2.0.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
     "itsdangerous>=2.0",
@@ -132,7 +135,7 @@ dependencies = [
     'pendulum>=3.1.0',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.11.0",
+    "pydantic>=2.12.0",
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
@@ -323,7 +326,7 @@ mypy = [
 
 
 [tool.uv]
-required-version = ">=0.11.8"
+required-version = ">=0.13.4"
 
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}

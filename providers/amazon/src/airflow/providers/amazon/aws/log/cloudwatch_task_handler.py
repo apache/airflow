@@ -182,7 +182,15 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         # The handler MUST be initted here, before the processor is actually used to log anything.
         # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
         _ = self.handler
-        from airflow.sdk.log import relative_path_from_logger
+        from airflow.sdk.log import relative_path_from_logger as _relative_path_from_logger
+
+        def relative_path_from_logger(logger) -> Path | None:
+            try:
+                return _relative_path_from_logger(logger)
+            except ValueError:
+                # Skip log files outside ``base_log_folder``, such as a Dag processor log directory
+                # configured elsewhere, as ``upload_to_remote`` does.
+                return None
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
@@ -251,13 +259,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 if parent.exists():
                     self.log.warning("Failed to delete local log dir: %s", parent)
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         messages, logs = self.stream(relative_path, ti)
         str_logs: list[str] = [f"{msg}\n" for group in logs for msg in group]
 
         return messages, str_logs
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
         logs: list[RawLogStream] = []
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
@@ -274,7 +282,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return messages, logs
 
     def get_cloudwatch_logs(
-        self, stream_name: str, task_instance: RuntimeTI
+        self, stream_name: str, task_instance: RuntimeTI | None
     ) -> Generator[CloudWatchLogEvent, None, None]:
         """
         Return all logs from the given log stream.

@@ -27,11 +27,13 @@ Backfill does not make sense for Dags that don't have a time-based schedule.
 Control over data reprocessing
 ------------------------------
 
-There are three options for reprocessing behavior:
+There are three options for reprocessing behavior. The user-facing names and their corresponding
+CLI and REST API values are:
 
-* **none** - if there's already a run for this logical date, do not create another, no matter the state
-* **failed** - if a run exists, if the state is failed, create a new run for this date
-* **completed** - if a run exists, if the state is completed or failed, create a new run for this date
+* **Missing Runs** (``none``) - if there's already a run for this logical date, do not create another,
+  no matter the state
+* **Missing and Errored Runs** (``failed``) - if a run exists and is failed, create a new run for this date
+* **All Runs** (``completed``) - if a run exists and is completed or failed, create a new run for this date
 
 If the latest run is still running or is queued, we do not create another run, no matter the chosen reprocessing behavior.
 

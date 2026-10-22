@@ -20,20 +20,32 @@ from __future__ import annotations
 
 import dataclasses
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from pydantic_ai.usage import RequestUsage, UsageLimits
+from pydantic import TypeAdapter
+from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelResponse
-    from pydantic_ai.usage import RunUsage
+    from pydantic_ai.messages import ModelMessage
+    from pydantic_ai.models import ModelRequestParameters
 
-_REQUEST_USAGE_FIELDS = dataclasses.fields(RequestUsage)
+    from airflow.providers.common.ai.durable.journal import DurableRun
+
+_RUN_USAGE_ADAPTER = TypeAdapter(RunUsage)
+
+# Tool-call payload kinds pydantic-ai counts as a successful call (``tool_calls += 1``);
+# a recorded ModelRetry, approval request or failure is replayed without being counted.
+SUCCESSFUL_TOOL_RESULT_KINDS = frozenset({"tool_return", "tool_content_result"})
+
+# How far past a replayed model response to look for the steps that followed it, beyond
+# one position per tool call: room for argument validation and capability operations.
+_SUCCESSOR_SCAN_SLACK = 16
 
 
-def subtract_request_usage(run_usage: RunUsage, usage: RequestUsage) -> None:
-    """Subtract one response's token usage and cost from a run's usage, in place."""
-    for field in _REQUEST_USAGE_FIELDS:
+def subtract_request_usage(run_usage: RunUsage, usage: RequestUsage | RunUsage) -> None:
+    """Subtract one response's (or one durable operation's) usage and cost from a run's usage, in place."""
+    for field in dataclasses.fields(usage):
         if field.name == "details":
             for name, value in usage.details.items():
                 run_usage.details[name] = run_usage.details.get(name, 0) - value
@@ -48,10 +60,10 @@ def fill_replayed_cost(response: ModelResponse) -> None:
     """
     Price a replayed response in place, the way pydantic-ai's graph is about to.
 
-    ``CachingModel`` stores a live response before the graph prices it, so a cached
+    The journal records a live response before the graph prices it, so a replayed
     response comes back with ``usage.cost=None`` even for a priced model. The graph fills
-    the cost right after ``CachingModel.request`` returns and only when it is still unset,
-    so pricing it here first means the cost this module subtracts is exactly the cost the
+    the cost right after the durable model request returns, and only when it is still
+    unset, by the same lookup, so the cost this module subtracts is exactly the cost the
     graph then adds. Uses the public ``ModelResponse.cost()``, which runs the same price
     lookup as the graph's own best-effort pricing; a response it cannot price stays
     unpriced, as it would in the graph.
@@ -77,25 +89,25 @@ class ReplayUsageLedger:
     """
     Nets durable replays out of the ``RunUsage`` a run is counted and limited against.
 
-    pydantic-ai counts a replayed step exactly like a live one: after
-    ``CachingModel.request`` returns, the graph does ``requests += 1`` and adds the
-    response's usage, and after ``CachingToolset.call_tool`` returns, the tool manager
-    does ``tool_calls += 1``. The ledger cancels each replay when it happens, so the run's
+    pydantic-ai counts a replayed step exactly like a live one: after a durable model
+    request returns, the graph does ``requests += 1`` and adds the response's usage, and
+    after a durable tool call returns successfully, the tool manager does
+    ``tool_calls += 1``. The ledger cancels each replay when it happens, so the run's
     counts only move for live work. Nothing here is persisted: the result is the same
-    whether the cache entry was written by the previous attempt, an attempt that failed
+    whether the journal entry was written by the previous attempt, an attempt that failed
     halfway through its own replay, or an attempt before a clear (which resets the budget
-    but keeps the durable cache).
+    but keeps the durable journal).
 
     Two of pydantic-ai's limit checks run before the durable layer sees the step it
     guards: ``check_before_request`` before each model request, and the up-front
     ``check_before_tool_call`` projection over a whole step's function-tool calls. For
     those, the ledger takes a credit ahead of time -- when a replayed model response is
-    followed in the cache by the next model step or by cached tool results -- and resolves
+    followed in the journal by the next model request or by recorded tool results -- and resolves
     each credit when the step runs: a replay keeps it, a live call gives it back and
     re-runs the check pydantic-ai made against the credited count. Credits that are never
     resolved (the run took a different path, or stopped) are given back by
     :meth:`settle`, so they never reach the persisted total; until then, a credit for a
-    stale cache entry the run never reaches has only loosened that one up-front check.
+    stale journal entry the run never reaches has only loosened that one up-front check.
 
     :param run_usage: The ``RunUsage`` passed to the run as ``usage=``.
     :param usage_limits: The limits passed to the run; ``None`` means pydantic-ai's
@@ -115,16 +127,104 @@ class ReplayUsageLedger:
         # segment was replayed; see record_model_replay.
         self._chain_segment_usage: RequestUsage | None = None
         self._chain_response_id: str | None = None
+        # Function-tool calls issued so far by the current continuation chain, and whether
+        # the last response was suspended (so the next request continues it).
+        self._chain_function_calls = 0
+        self._previous_suspended = False
+
+    def begin_model_request(self, messages: list[ModelMessage]) -> bool:
+        """
+        Note the start of a model request and return whether it continues a suspended response.
+
+        pydantic-ai re-issues a suspended response (Anthropic ``pause_turn``, OpenAI
+        background mode) by sending it back as the last message; the graph counts the whole
+        chain as one request.
+        """
+        continuation = (
+            self._previous_suspended
+            and bool(messages)
+            and isinstance(messages[-1], ModelResponse)
+            and messages[-1].state == "suspended"
+        )
+        if not continuation:
+            self._chain_function_calls = 0
+        return continuation
+
+    def track_chain(self, response: ModelResponse, model_request_parameters: ModelRequestParameters) -> None:
+        """Count the function-tool calls ``response`` issues, for crediting the steps after it."""
+        function_tools = {tool.name for tool in model_request_parameters.function_tools}
+        self._chain_function_calls += sum(
+            1
+            for part in response.parts
+            if isinstance(part, ToolCallPart) and part.tool_name in function_tools
+        )
+        self._previous_suspended = response.state == "suspended"
+
+    def credit_first_replay(self, durable_run: DurableRun) -> None:
+        """
+        Credit the run's first model request if the journal holds a response for it.
+
+        Called before the run starts, because pydantic-ai checks ``request_limit`` before
+        the first request reaches the durable layer; without the credit, a retry whose
+        seeded ``requests`` already equals ``request_limit`` could not start even when
+        every step would replay for free. Steps recorded before the first model request
+        (tool discovery, capability operations) are skipped over.
+        """
+        position = durable_run.position
+        while (entry := durable_run.peek(position)) is not None:
+            if entry.get("kind") == "model":
+                self.credit_request()
+                return
+            position += 1
+
+    def credit_successors(self, durable_run: DurableRun, position: int) -> None:
+        """
+        Credit what the replayed, complete response at ``position`` is followed by in the journal.
+
+        The response's function-tool calls took positions after it when they first ran, and
+        the next model request a position after them. Tool calls with a recorded successful
+        result are credited; the scan stops at the next model request, which is credited too.
+        A position with nothing recorded is a call that raised or was not recorded, and the
+        scan gives up once there are more of those than calls in the chain.
+        """
+        calls = self._chain_function_calls
+        tool_positions: list[int] = []
+        gaps = 0
+        for index in range(position + 1, position + 2 * calls + _SUCCESSOR_SCAN_SLACK + 2):
+            entry = durable_run.peek(index)
+            if entry is None:
+                gaps += 1
+                if gaps > calls:
+                    break
+                continue
+            kind = entry.get("kind")
+            if kind == "model":
+                self.credit_request()
+                break
+            if kind == "tool" and is_successful_tool_payload(entry.get("payload")):
+                tool_positions.append(index)
+        self.credit_tool_steps(tool_positions, batch_calls=calls)
+
+    def record_capability_replay(self, payload: Any) -> None:
+        """
+        Cancel the usage a replayed ``@durable_operation`` brings back with its result.
+
+        pydantic-ai adds the usage an operation accumulated (a summarization's model call,
+        say) to the run when the operation returns, including when it returns from the
+        journal; that usage was already counted by the attempt that ran it.
+        """
+        if isinstance(payload, dict) and isinstance(payload.get("usage_delta"), dict):
+            subtract_request_usage(self.run_usage, _RUN_USAGE_ADAPTER.validate_python(payload["usage_delta"]))
 
     def credit_request(self) -> None:
-        """Credit the next model request, which the cache says will be a replay."""
+        """Credit the next model request, which the journal says will be a replay."""
         if not self._request_credit:
             self._request_credit = True
             self.run_usage.requests -= 1
 
     def credit_tool_steps(self, steps: list[int], *, batch_calls: int) -> None:
         """
-        Credit the tool calls at these step indices, which have cached results.
+        Credit the tool calls at these journal positions, which have recorded results.
 
         :param batch_calls: The number of function-tool calls this replayed response
             issued, i.e. the count pydantic-ai's up-front ``check_before_tool_call``
@@ -202,7 +302,7 @@ class ReplayUsageLedger:
 
     def record_live_tool_call(self, step: int) -> None:
         """
-        Give back a credit whose cached result did not replay, and re-check the limit.
+        Give back a credit whose recorded result did not replay, and re-check the limit.
 
         pydantic-ai's up-front check projected the whole batch this credited call
         belongs to as if every credited call in it would replay for free. With this one
@@ -238,3 +338,8 @@ class ReplayUsageLedger:
             projected = deepcopy(self.run_usage)
             projected.tool_calls = self._tool_batch_projection
             self._limits.check_before_tool_call(projected)
+
+
+def is_successful_tool_payload(payload: Any) -> bool:
+    """Whether a recorded tool-call payload is a result pydantic-ai counts as a successful call."""
+    return isinstance(payload, dict) and payload.get("kind") in SUCCESSFUL_TOOL_RESULT_KINDS

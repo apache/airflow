@@ -1298,6 +1298,12 @@ class TaskInfo(InfoJsonEncodable):
     def __init__(self, obj, runtime_assets: list[tuple[Asset, AssetAlias | None]] | None = None):
         self._runtime_assets = runtime_assets  # Will not be included in final dict, not in self._fields.
         super().__init__(obj)
+        # ``inlets`` / ``outlets`` are a Python repr string that consumers cannot reliably parse
+        # (``extra`` can hold quotes, ``Decimal``, ``True``, ...). Expose them as real lists too.
+        # Set after ``super().__init__`` so ``_cast_basic_types`` does not turn them into strings.
+        for field in ("inlets", "outlets"):
+            if hasattr(self, field):
+                self[f"{field}_list"] = _convert_to_json_safe_list(getattr(self, field), field)
 
     def _extend_fields(self) -> None:
         if not self._runtime_assets:
@@ -2201,6 +2207,19 @@ class OpenLineageRedactor(SecretsMasker):
         except Exception as exc:
             log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item
+
+
+def _convert_to_json_safe_list(value: list, name: str) -> list | None:
+    """
+    Return ``value`` with only JSON-native types.
+
+    Non-serializable values are cast with ``str()``; dict keys JSON can't encode (e.g. tuples) are dropped.
+    """
+    try:
+        return json.loads(json.dumps(value, default=str, skipkeys=True))
+    except (TypeError, ValueError) as e:
+        log.warning("Unable to serialize task `%s` to a JSON list: %s", name, e)
+        return None
 
 
 def is_json_serializable(item):

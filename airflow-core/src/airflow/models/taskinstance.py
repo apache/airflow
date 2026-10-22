@@ -118,7 +118,7 @@ from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComPrimitivesSelectSequence, LazyXComSelectSequence
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
@@ -255,14 +255,11 @@ def _add_and_prime_mapped_ti(
     set_committed_value(ti, "dag_run", dag_run)
 
 
-def _recalculate_dagrun_queued_at_deadlines(
-    dagrun: DagRun, new_queued_at: datetime, session: Session
-) -> None:
+def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session) -> None:
     """
     Recalculate deadline times for deadlines that reference dagrun.queued_at.
 
     :param dagrun: The DagRun whose deadlines should be recalculated
-    :param new_queued_at: The new queued_at timestamp to use for calculation
     :param session: Database session
 
     :meta private:
@@ -285,12 +282,9 @@ def _recalculate_dagrun_queued_at_deadlines(
     from airflow.serialization.decoders import decode_deadline_alert_model, resolve_deadline_alert_interval
 
     for deadline, deadline_alert in results:
-        # We can't use evaluate_with() since the new queued_at is not written to the DB yet, and
-        # interval is stored as JSON, so it has to be decoded rather than passed to timedelta().
         try:
-            interval = resolve_deadline_alert_interval(
-                decode_deadline_alert_model(deadline_alert), session=session
-            )
+            decoded_alert = decode_deadline_alert_model(deadline_alert)
+            interval = resolve_deadline_alert_interval(decoded_alert, session=session)
         except (ValueError, TypeError):
             # Either step can fail: the alert may hold a payload the decoder refuses, or a
             # variable-backed interval may point at a Variable that is missing or non-numeric.
@@ -304,7 +298,16 @@ def _recalculate_dagrun_queued_at_deadlines(
             )
             continue
 
-        new_deadline_time = new_queued_at + interval
+        new_deadline_time = decoded_alert.reference.evaluate_with(
+            session=session,
+            interval=interval,
+            dagrun=dagrun,
+            dag_id=dagrun.dag_id,
+            run_id=dagrun.run_id,
+        )
+
+        if new_deadline_time is None:
+            continue
 
         log.debug(
             "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
@@ -603,7 +606,7 @@ def clear_task_instances(
                     parent_context=parent_trace_context(dr.conf),
                 )
 
-                _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
+                _recalculate_dagrun_queued_at_deadlines(dr, session=session)
 
                 if was_finished:
                     dr.state = dag_run_state
@@ -1104,6 +1107,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    # The slot this instance fills in its region, so its meaning follows the region's node: a loop
+    # region numbers its iterations from one and a mapped expansion numbers its slots from zero.
+    # -1 covers both a plain task, which belongs to no region at all and is the common case, and a
+    # mapped task that has not been expanded yet. Code that reads the column without knowing which
+    # node the region executes cannot tell an iteration from a map index.
     region_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     map_index = synonym("region_index")
     region_id: Mapped[UUID] = mapped_column(
@@ -2836,9 +2844,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
         run_id: str | None = None,
+        full: bool = True,
     ) -> Any:
         """:meta private:"""  # noqa: D400
         # This is only kept for compatibility in tests for now while AIP-72 is in progress.
+        #
+        # `full=False` returns plain JSON types and never runs the Airflow
+        # serialization module, so a stored `__classname__` envelope is not imported or
+        # instantiated. Callers that evaluate task dependencies -- the ti_deps, run by
+        # the scheduler and by the API server's task instance dependencies endpoint --
+        # pass it, since they only need primitive values.
 
         from airflow.models.xcom import XComModel, xcom_entity
 
@@ -2876,9 +2891,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 return default
 
             if map_indexes is not None or first.map_index < 0:
-                return XComModel.deserialize_value(first)
+                if full:
+                    return XComModel.deserialize_value(first)
+                return XComModel.deserialize_value_primitives(first)
 
-            return LazyXComSelectSequence.from_select(
+            sequence_cls = LazyXComSelectSequence if full else LazyXComPrimitivesSelectSequence
+            return sequence_cls.from_select(
                 query.with_only_columns(entity.value).order_by(None),
                 order_by=[entity.map_index.expression],
                 session=session,
@@ -2904,7 +2922,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             ordering.append(case(map_index_whens, value=entity.map_index))
         else:
             ordering.append(entity.map_index)
-        return LazyXComSelectSequence.from_select(
+        sequence_cls = LazyXComSelectSequence if full else LazyXComPrimitivesSelectSequence
+        return sequence_cls.from_select(
             query.with_only_columns(entity.value).order_by(None),
             order_by=ordering,
             session=session,
@@ -3178,6 +3197,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             total_length = None
 
         region_id = self.region_id
+        unmapped_region_id = region_id
         state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
@@ -3233,6 +3253,21 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             else:
                 dr = unmapped_ti.dag_run
                 state = unmapped_ti.state
+                if unmapped_ti.try_number > 0:
+                    # Once the unmapped coordinate is gone its archived attempts are unreachable, and the
+                    # 0142 downgrade rejects them; their XCom and rendered fields are deleted with them.
+                    session.execute(
+                        delete(TaskInstance)
+                        .where(
+                            TaskInstance.dag_id == task.dag_id,
+                            TaskInstance.task_id == task.task_id,
+                            TaskInstance.run_id == run_id,
+                            TaskInstance.region_id == unmapped_region_id,
+                            TaskInstance.map_index == -1,
+                            TaskInstance.working_set.is_(None),
+                        )
+                        .execution_options(synchronize_session=False, include_all_attempts=True)
+                    )
                 zero_index_ti_exists = exists_query(
                     TaskInstance.working_set.is_(True),
                     TaskInstance.dag_id == task.dag_id,
@@ -3564,7 +3599,7 @@ def find_relevant_relatives(
                     continue
                 relative_map_indexes = _get_relevant_map_indexes(
                     task=task,
-                    relative=relative,  # type: ignore[arg-type]
+                    relative=relative,
                     run_id=run_id,
                     map_index=map_index,
                     ti_count=ti_count,

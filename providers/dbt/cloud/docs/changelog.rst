@@ -28,13 +28,24 @@
 Changelog
 ---------
 
+4.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``dbt Cloud: emit OpenLineage events via the OpenLineage public API (#74754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.11.0
 ......
 
 Features
 ~~~~~~~~
 
-* ``Apply hook_params to deferred dbt Cloud job runs (#74199)``
+* ``Apply hook_params to deferred dbt Cloud job runs (#74199, #74489)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -53,6 +64,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-06 (#74429)``
    * ``[main] Upgrade important CI environment (#73629)``
 
 4.10.0
