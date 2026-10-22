@@ -19,6 +19,7 @@
 
 import type {
   ConnectionResult,
+  DeleteXComOpts,
   GetXComOpts,
   JsonValue,
   SetXComOpts,
@@ -100,6 +101,17 @@ export interface TaskClient {
    * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is empty, or `mapIndex` is not an integer.
    */
   setXCom(opts: SetXComOpts): Promise<void>;
+
+  /**
+   * Delete an XCom value.
+   *
+   * Target fields default to the current task's context.
+   *
+   * Resolves whether or not anything was deleted. A key with no stored value
+   * and a target task that does not exist both succeed, so a resolved promise
+   * is not proof that an XCom was removed.
+   */
+  deleteXCom(opts: DeleteXComOpts): Promise<void>;
 
   /**
    * Key/value state private to this task instance.
