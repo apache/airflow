@@ -42,7 +42,7 @@ import {
 import type { JsonValue } from "../sdk/client-types.js";
 import {
   DOWNSTREAM_JOIN_SUFFIX,
-  getDagOrderEdges,
+  getDagEdgeLabellings,
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
@@ -87,15 +87,37 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  */
 const TASK_LANGUAGE = "typescript";
 
-/** Python's `DAG.edge_info`, keying a group end by its join node as Python does. */
-function serializeEdgeInfo(dag: Dag): SerializedValue {
+/**
+ * Python's `DAG.edge_info`, keying a group end by its join node as Python does.
+ *
+ * This replays all labels in the order they were set, because Python writes a label each time it
+ * draws an edge. When two labels land on one entry, the label set last is the one kept.
+ */
+function serializeEdgeInfo(dag: Dag, graph: DagGraph): SerializedValue {
   const groups = getDagTaskGroups(dag);
+  const grouped = new Set([...groups.values()].flatMap((group) => group.taskIds));
   const info: Record<string, Record<string, SerializedValue>> = {};
-  for (const { upstream, downstream, label } of getDagOrderEdges(dag)) {
-    if (label === undefined) continue;
+  const put = (from: string, to: string, label: string): void => {
+    (info[from] ??= {})[to] = { label };
+  };
+  for (const { upstream, downstream, label, receiver } of getDagEdgeLabellings(dag)) {
     const from = groups.has(upstream) ? upstream + DOWNSTREAM_JOIN_SUFFIX : upstream;
     const to = groups.has(downstream) ? downstream + UPSTREAM_JOIN_SUFFIX : downstream;
-    (info[from] ??= {})[to] = { label };
+    put(from, to, label);
+    // Python's `extract >> Label("x") >> group` also labels the edge from extract to each root of
+    // the group. Python's `report << Label("x") << group` labels the edge from each leaf of the
+    // group to report. Python labels these task edges only when a task is the receiver, as in
+    // `extracted.before(...)` or `reported.after(...)`, and only when no group holds that task.
+    // When a group holds the task, Python replaces the task with that group, and the label goes
+    // on the edge between the two groups. This code keeps the task as the end of the edge,
+    // because a label never changes the ends of its edge. Neither Python nor this code labels a
+    // task edge in that case.
+    const task = receiver === "upstream" ? upstream : downstream;
+    if (groups.has(task) || grouped.has(task)) continue;
+    for (const end of graph.groupEndsReached.get(upstream)?.get(downstream) ?? []) {
+      if (receiver === "upstream") put(upstream, end, label);
+      else put(end, downstream, label);
+    }
   }
   return info;
 }
@@ -186,7 +208,7 @@ export function serializeDag(
     }),
     dag_dependencies: dagDependencies,
     task_group: serializeTaskGroups(dag, graph),
-    edge_info: serializeEdgeInfo(dag),
+    edge_info: serializeEdgeInfo(dag, graph),
     params: [],
     // Always written by Python's serializer, so a Dag without either still
     // round-trips to the same object.
