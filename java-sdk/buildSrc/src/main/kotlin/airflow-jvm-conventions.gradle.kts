@@ -26,8 +26,8 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint")
 }
 
-// The versions below are kept in sync with the other build files by a pre-commit hook.
-// See: scripts/ci/prek/check_java_sdk_version_in_sync.py
+// The versions below are kept in sync with the other build files by the blockwatch pre-commit hook.
+// See: blockwatch.toml
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(11))

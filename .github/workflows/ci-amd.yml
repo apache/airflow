@@ -1271,7 +1271,7 @@ jobs:
           persist-credentials: false
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
-      # keep this in sync with go.mod in go-sdk/
+      # blockwatch.toml keeps go-version in sync with go.mod in go-sdk/
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
