@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import abc
+import json
 import time
 from functools import wraps
 from typing import TYPE_CHECKING, Any
@@ -30,6 +31,10 @@ if TYPE_CHECKING:
     from google.auth.transport import Request
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+#: Fields of the IdP token request that ``ClientCredentialsGrantFlowTokenSupplier`` sets itself;
+#: extra parameters cannot replace them.
+RESERVED_TOKEN_REQUEST_FIELDS = frozenset({"grant_type", "client_id", "client_secret"})
 
 
 def cache_token_decorator(get_subject_token_method):
@@ -111,7 +116,8 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
     :params oidc_issuer_url: URL of the IdP that performs OAuth2.0 Client Credentials Grant flow and returns an OIDC token.
     :params client_id: Client ID of the application requesting the token
     :params client_secret: Client secret of the application requesting the token
-    :params extra_params_kwargs: Extra parameters to be passed in the payload of the POST request to the `oidc_issuer_url`
+    :params extra_params_kwargs: Extra parameters to be passed in the payload of the POST request to the `oidc_issuer_url`.
+        They cannot replace the ``grant_type``, ``client_id`` or ``client_secret`` fields the supplier sets itself.
 
     See also:
         https://googleapis.dev/python/google-auth/latest/reference/google.auth.identity_pool.html#google.auth.identity_pool.SubjectTokenSupplier
@@ -125,6 +131,11 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
         **extra_params_kwargs: Any,
     ) -> None:
         super().__init__()
+        if overridden := sorted(RESERVED_TOKEN_REQUEST_FIELDS.intersection(extra_params_kwargs)):
+            raise ValueError(
+                f"Extra parameters cannot replace {', '.join(overridden)} in the token request: the grant type "
+                "is always client_credentials, and the client ID and secret have their own connection fields."
+            )
         self.oidc_issuer_url = oidc_issuer_url
         self.client_id = client_id
         self.client_secret = client_secret
@@ -166,12 +177,13 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
         """
         Create a cache key using the OIDC issuer URL, client ID, client secret and additional parameters.
 
-        Instances with the same credentials will share tokens.
+        Instances with the same credentials and the same additional parameters (names and values) will
+        share tokens; a token requested for one ``audience`` is not reused for another.
         """
         cache_key = (
             self.oidc_issuer_url
             + self.client_id
             + self.client_secret
-            + ",".join(sorted(self.extra_params_kwargs))
+            + json.dumps(self.extra_params_kwargs, sort_keys=True, default=str)
         )
         return cache_key
