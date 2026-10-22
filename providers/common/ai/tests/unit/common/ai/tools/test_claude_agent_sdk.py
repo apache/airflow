@@ -921,7 +921,9 @@ class TestResultTruncation:
 
         result = payload["content"][0]["text"]
         kept = result[: result.index("\n\n[Truncated")]
-        assert (kept == "a" + "\N{GRINNING FACE}" * (len(kept) - 1)) is True
+        # Comparing the whole string would make pytest diff ~250k characters on failure.
+        assert kept[0] == "a"
+        assert set(kept[1:]) == {"\N{GRINNING FACE}"}
         assert (len(result.encode("utf-16-le")) // 2 <= 500_000) is True
 
     @pytest.mark.asyncio
