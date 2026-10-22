@@ -272,6 +272,10 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             escaped_value = value.replace("\\", "\\\\").replace('"', '\\"')
             return f'"{escaped_value}"'
 
+        def build_regex_value(pattern: str) -> str:
+            # Cloud Logging passes a regex string's backslashes to RE2 unchanged, so only quotes are escaped.
+            return pattern.replace('"', '\\"')
+
         _, project = self.credentials_and_project
         log_filters = [
             f"resource.type={escape_label_value(self.resource.type)}",
@@ -285,6 +289,10 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             key: f"labels.{escape_label_key(key)}={escape_label_value(value)}"
             for key, value in ti_labels.items()
         }
+        if LABEL_RUN_ID in ti_labels:
+            # ``=`` ignores letter case, which would mix the lines of runs whose ids differ only in case.
+            run_id_regex = build_regex_value(f"^{re.escape(ti_labels[LABEL_RUN_ID])}$")
+            label_conditions[LABEL_RUN_ID] = f'labels.{LABEL_RUN_ID}=~"{run_id_regex}"'
         if ti_labels.get(LABEL_MAP_INDEX) == "0":
             # Earlier provider releases wrote no ``map_index`` label for map index 0.
             label_conditions[LABEL_MAP_INDEX] = (
@@ -303,8 +311,7 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
             # Workers before 3.4 ship a task's stdout and the supervisor's own lines without task context.
             # The path is matched only for such lines, so other tries that wrote to the same path stay out.
             # Before 3.2.2 the triggerer binds no task context and writes to ``<task path>.trigger.<job id>.log``.
-            # Cloud Logging passes a regex string's backslashes to RE2 unchanged, so only quotes are escaped.
-            path_regex = f"^{re.escape(log_path)}(\\.trigger\\.[0-9]+\\.log)?$".replace('"', '\\"')
+            path_regex = build_regex_value(f"^{re.escape(log_path)}(\\.trigger\\.[0-9]+\\.log)?$")
             path_conditions = [
                 f'labels.{LABEL_LOG_PATH}=~"{path_regex}"',
                 f"NOT labels.{LABEL_TASK_ID}:*",

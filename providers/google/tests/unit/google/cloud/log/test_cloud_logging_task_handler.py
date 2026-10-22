@@ -31,6 +31,7 @@ from google.cloud.logging import Resource
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse, LogEntry
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.cloud.log.cloud_logging_task_handler import (
     CloudLoggingRemoteLogIO,
@@ -217,9 +218,12 @@ class TestCloudLoggingRemoteLogIO:
         )
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        ti = mock.MagicMock()
+        ti = mock.create_autospec(TaskInstance, instance=True)
+        ti.id = "abc"
         ti.task_id = "test_task"
         ti.dag_id = "test_dag"
+        ti.run_id = "run1"
+        ti.map_index = 2
         ti.try_number = 1
         if AIRFLOW_V_3_0_PLUS:
             ti.logical_date = timezone.datetime(2016, 1, 1)
@@ -233,10 +237,34 @@ class TestCloudLoggingRemoteLogIO:
         assert logs == ["MSG1\nMSG2"]
         # The reader normalises the path the way the writer's pathlib path does.
         log_filter = mock_client.return_value.list_log_entries.call_args.kwargs["request"].filter
-        assert (
+        log_path_condition = (
             r'labels.log_path=~"^dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1\.log'
             r'(\.trigger\.[0-9]+\.log)?$"'
-        ) in log_filter
+        )
+        if not AIRFLOW_V_3_0_PLUS:
+            label_conditions = [
+                'labels.task_id="test_task"',
+                'labels.dag_id="test_dag"',
+                'labels.execution_date="2016-01-01T00:00:00+00:00"',
+                'labels.try_number="1"',
+            ]
+        else:
+            label_conditions = [
+                'labels.task_id="test_task"',
+                'labels.dag_id="test_dag"',
+                'labels.run_id=~"^run1$"',
+                'labels.map_index="2"',
+                'labels.try_number="1"',
+            ]
+        if AIRFLOW_V_3_4_PLUS:
+            task_filter = (
+                f'(labels.ti_id="abc" OR ({" AND ".join([*label_conditions, "NOT labels.ti_id:*"])}))'
+            )
+            path_conditions = f"{log_path_condition} AND NOT labels.task_id:* AND NOT labels.ti_id:*"
+        else:
+            task_filter = f"({' AND '.join(label_conditions)})"
+            path_conditions = f"{log_path_condition} AND NOT labels.task_id:*"
+        assert log_filter.splitlines()[2:] == [f"({task_filter} OR ({path_conditions}))"]
 
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
@@ -522,6 +550,49 @@ class TestCloudLoggingRemoteLogIO:
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
     )
+    @pytest.mark.parametrize(
+        ("run_id", "expected_condition"),
+        [
+            ("run1", 'labels.run_id=~"^run1$"'),
+            ("manual__2026-01-01T00:00:00+00:00", r'labels.run_id=~"^manual__2026\-01\-01T00:00:00\+00:00$"'),
+            ('a"b', r'labels.run_id=~"^a\"b$"'),
+        ],
+    )
+    def test_prepare_log_filter_matches_run_id_with_anchored_regex(
+        self, mock_get_creds_and_project_id, run_id, expected_condition
+    ):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"run_id": run_id})
+
+        assert log_filter.splitlines()[2:] == [expected_condition]
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    @pytest.mark.parametrize(
+        ("label_value", "matches"),
+        [
+            ("Run1", False),
+            ("RUN1", False),
+            ("run1", True),
+            ("run10", False),
+            ("xrun1", False),
+        ],
+    )
+    def test_prepare_log_filter_run_id_regex_is_case_sensitive_and_anchored(
+        self, mock_get_creds_and_project_id, label_value, matches
+    ):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"run_id": "run1"})
+
+        run_id_regex = re.search(r'labels\.run_id=~"((?:[^"\\]|\\.)*)"', log_filter).group(1)
+        assert bool(re.search(run_id_regex.replace('\\"', '"'), label_value)) is matches
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
     def test_prepare_log_filter_matches_unlabelled_first_mapped_task(self, mock_get_creds_and_project_id):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
@@ -707,7 +778,10 @@ class TestCloudLoggingHandlerTask:
         return {"execution_date": "2016-01-01T00:00:00+00:00"}
 
     def _run_label_conditions(self) -> list[str]:
-        return [f'labels.{key}="{value}"' for key, value in self._run_labels().items()]
+        return [
+            f'labels.{key}=~"^{re.escape(value)}$"' if key == "run_id" else f'labels.{key}="{value}"'
+            for key, value in self._run_labels().items()
+        ]
 
     def _expect_label_filter(self, *label_conditions: str) -> str:
         if not AIRFLOW_V_3_4_PLUS:
