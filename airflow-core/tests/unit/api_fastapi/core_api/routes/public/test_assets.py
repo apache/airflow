@@ -1986,6 +1986,13 @@ class TestQueuedEventEndpoint(TestAssets):
         session.commit()
         return adrq
 
+    @staticmethod
+    def _authorized_dag_ids_by_method(*, readable: set[str], editable: set[str]):
+        def get_authorized_dag_ids(*, user, method="GET", **kwargs):
+            return set(editable) if method == "PUT" else set(readable)
+
+        return get_authorized_dag_ids
+
 
 class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
@@ -2380,23 +2387,53 @@ class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
         } == {("other_dag", "2026-09-02"), ("other_dag", "2026-09-03")}
         assert set(session.scalars(select(PartitionedAssetKeyLog.asset_partition_dag_run_id))) == {other.id}
 
+    def test_keeps_empty_pending_partitions_the_call_did_not_clear(
+        self, test_client, session, create_dummy_dag
+    ):
+        create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id="dag",
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+        )
+        # Pending and already empty before the call, for another Dag and another key.
+        self._queue_partition(
+            session, dag_id="other_dag", partition_key="2026-09-03", source_keys_by_asset_id={}
+        )
+
+        with mock.patch.object(
+            BaseAuthManager, "get_authorized_dag_ids", autospec=True, return_value={"dag", "other_dag"}
+        ):
+            response = test_client.delete(
+                f"/assets/{asset.id}/queuedEvents", params={"partition_key": "2026-09-02"}
+            )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert {
+            (apdr.target_dag_id, apdr.partition_key) for apdr in session.scalars(select(AssetPartitionDagRun))
+        } == {("other_dag", "2026-09-03")}
+
     @pytest.mark.parametrize(
-        ("readable_dags", "expected_status", "expected_remaining_dag_ids"),
+        ("editable_dags", "expected_status", "expected_remaining_dag_ids"),
         [
-            pytest.param({"dag", "hidden_dag"}, 204, set(), id="both-dags-readable"),
-            pytest.param({"dag"}, 204, {"hidden_dag"}, id="one-dag-readable"),
-            pytest.param(set(), 404, {"dag", "hidden_dag"}, id="no-dag-readable"),
+            pytest.param({"dag", "hidden_dag"}, 204, set(), id="both-dags-editable"),
+            pytest.param({"dag"}, 204, {"hidden_dag"}, id="one-dag-editable"),
+            pytest.param(set(), 404, {"dag", "hidden_dag"}, id="no-dag-editable"),
         ],
     )
-    def test_only_deletes_events_queued_for_readable_dags(
+    def test_only_deletes_events_queued_for_editable_dags(
         self,
         test_client,
         session,
         create_dummy_dag,
-        readable_dags,
+        editable_dags,
         expected_status,
         expected_remaining_dag_ids,
     ):
+        """Being able to read a Dag is not enough: this route deletes only what the user may edit."""
         create_dummy_dag()
         (asset,) = self.create_assets(session=session, num=1)
         for dag_id in ("dag", "hidden_dag"):
@@ -2408,7 +2445,11 @@ class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
             )
 
         with mock.patch.object(
-            BaseAuthManager, "get_authorized_dag_ids", autospec=True, return_value=readable_dags
+            BaseAuthManager,
+            "get_authorized_dag_ids",
+            side_effect=self._authorized_dag_ids_by_method(
+                readable={"dag", "hidden_dag"}, editable=editable_dags
+            ),
         ):
             response = test_client.delete(
                 f"/assets/{asset.id}/queuedEvents", params={"partition_key": "2026-09-02"}
@@ -2561,9 +2602,17 @@ class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
         deletes = [s for s in executed_statements if s.startswith("DELETE")]
         assert len(deletes) == 2
         assert [s for s in deletes if "RETURNING" in s] == [], "DELETE must not read back deleted keys"
+        partition_selects = [
+            s for s in executed_statements if s.startswith("SELECT") and "PARTITIONED_ASSET_KEY_LOG" in s
+        ]
+        # Collecting the partitions to clear is the one read of the queued events, and it
+        # projects their ``AssetPartitionDagRun`` id rather than the keys being deleted.
+        assert len(partition_selects) == 1
+        assert partition_selects[0].startswith("SELECT ASSET_PARTITION_DAG_RUN.ID")
+        assert executed_statements.index(partition_selects[0]) < executed_statements.index(deletes[0])
         after_first_delete = executed_statements[executed_statements.index(deletes[0]) :]
         assert [s for s in after_first_delete if s.startswith("SELECT")] == [], (
-            "No SELECT may precede a DELETE to collect the keys it is about to remove"
+            "No SELECT may follow a DELETE to read back the keys it removed"
         )
 
 
@@ -3341,13 +3390,6 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
             session.add(AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset.id, asset_event_id=event.id))
         session.commit()
         return asset
-
-    @staticmethod
-    def _authorized_dag_ids_by_method(*, readable: set[str], editable: set[str]):
-        def get_authorized_dag_ids(*, user, method="GET", **kwargs):
-            return set(editable) if method == "PUT" else set(readable)
-
-        return get_authorized_dag_ids
 
     @pytest.mark.parametrize("query_string", ["", "?dag_id=dag_a"], ids=["no-dag-id", "editable-dag-id"])
     def test_deletes_only_queued_events_of_editable_dags(self, test_client, session, query_string):
