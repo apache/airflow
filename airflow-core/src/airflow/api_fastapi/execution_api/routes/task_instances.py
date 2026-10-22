@@ -382,11 +382,11 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
-        task = get_task(dag_bag, ti, session=session)
+        serialized_task = get_task(dag_bag, ti, session=session)
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
-        if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(task)):
+        if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(serialized_task)):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
             except ValidationError:
@@ -404,7 +404,7 @@ def ti_run(
                     },
                 )
 
-        if (execution_timeout := get_execution_timeout(task)) is not None:
+        if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
             context.execution_timeout = execution_timeout
 
         # Only set if they are non-null
