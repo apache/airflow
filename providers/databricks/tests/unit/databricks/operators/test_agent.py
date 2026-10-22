@@ -189,15 +189,19 @@ def test_immediate_result(monotonic, operator, status, deferrable):
 
 
 @mock.patch("airflow.providers.databricks.operators.agent.time.sleep", autospec=True)
-@mock.patch("airflow.providers.databricks.operators.agent.time.monotonic", autospec=True, return_value=0)
+@mock.patch(
+    "airflow.providers.databricks.operators.agent.time.monotonic",
+    autospec=True,
+    side_effect=[0, 0, 0, 3, 3],
+)
 def test_waits_for_result(monotonic, sleep, operator):
     result = {"status": "completed", "output": "answer"}
     operator.hook.get_invocation.side_effect = [{"status": "active"}, result]
     assert operator.execute({}) == result
-    assert (
-        operator.hook.get_invocation.call_args_list
-        == [mock.call(INVOCATION_ID, "conversation", app_url=APP_URL, timeout_seconds=3600)] * 2
-    )
+    assert operator.hook.get_invocation.call_args_list == [
+        mock.call(INVOCATION_ID, "conversation", app_url=APP_URL, timeout_seconds=3600),
+        mock.call(INVOCATION_ID, "conversation", app_url=APP_URL, timeout_seconds=3597),
+    ]
     sleep.assert_called_once_with(3)
 
 

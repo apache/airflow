@@ -209,6 +209,26 @@ async def test_async_get_cached_connection(get_connection, session, token, hook)
 
 @mock.patch.object(DatabricksAgentHook, "_a_get_sp_token", autospec=True, return_value="oauth")
 @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession", autospec=True)
+@pytest.mark.asyncio
+async def test_async_get_request_options(session, token, hook):
+    hook.timeout_seconds = 37
+    response = mock.Mock(spec=aiohttp.ClientResponse)
+    response.status = 200
+    response.json = mock.AsyncMock(spec=aiohttp.ClientResponse.json, return_value={"status": "completed"})
+    session.return_value.get.return_value.__aenter__.return_value = response
+
+    async with hook:
+        await hook.a_get_invocation(INVOCATION_ID, app_url=APP_URL)
+
+    session.return_value.get.assert_called_once()
+    kwargs = session.return_value.get.call_args.kwargs
+    assert kwargs["timeout"] == 37
+    assert kwargs["allow_redirects"] is False
+    assert kwargs["headers"]["Authorization"] == "Bearer oauth"
+
+
+@mock.patch.object(DatabricksAgentHook, "_a_get_sp_token", autospec=True, return_value="oauth")
+@mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession", autospec=True)
 @mock.patch("airflow.providers.databricks.hooks.databricks_base.get_async_connection", autospec=True)
 @pytest.mark.asyncio
 async def test_async_get_loads_connection(get_connection, session, token, hook):
