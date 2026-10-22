@@ -24,7 +24,7 @@ from pathlib import Path
 from time import monotonic
 from typing import Protocol
 
-import httpx
+import httpx2
 
 from airflow.api_fastapi.execution_api.datamodels.job import DagProcessorSessionTokenResponse
 from airflow.api_fastapi.execution_api.versions import bundle
@@ -35,7 +35,7 @@ class SessionTokenProvider(Protocol):
     """Provide credentials without prescribing where they are obtained."""
 
     def get_token(
-        self, *, force_refresh: bool = False, retry: bool = False, timeout: httpx.Timeout | None = None
+        self, *, force_refresh: bool = False, retry: bool = False, timeout: httpx2.Timeout | None = None
     ) -> str: ...
 
     def close(self) -> None: ...
@@ -48,7 +48,7 @@ class FileSessionTokenProvider:
         self.path = Path(path)
 
     def get_token(
-        self, *, force_refresh: bool = False, retry: bool = False, timeout: httpx.Timeout | None = None
+        self, *, force_refresh: bool = False, retry: bool = False, timeout: httpx2.Timeout | None = None
     ) -> str:
         token = self.path.read_text().strip()
         if not token:
@@ -60,7 +60,7 @@ class FileSessionTokenProvider:
 
 
 class _SessionTokenClient(Client):
-    def _update_auth(self, response: httpx.Response) -> None:
+    def _update_auth(self, response: httpx2.Response) -> None:
         # Runtime refresh headers must not replace the external workload identity.
         pass
 
@@ -81,7 +81,7 @@ class WorkloadIdentitySessionTokenProvider:
         identity_token: Callable[[], str],
         **kwargs,
     ):
-        if httpx.URL(base_url).scheme != "https":
+        if httpx2.URL(base_url).scheme != "https":
             raise ValueError("Workload identity exchange requires an HTTPS Execution API URL")
         self._identity_token = identity_token
         self._token: str | None = None
@@ -89,7 +89,7 @@ class WorkloadIdentitySessionTokenProvider:
         self._client = _SessionTokenClient(base_url=base_url, token="", follow_redirects=False, **kwargs)
 
     def get_token(
-        self, *, force_refresh: bool = False, retry: bool = False, timeout: httpx.Timeout | None = None
+        self, *, force_refresh: bool = False, retry: bool = False, timeout: httpx2.Timeout | None = None
     ) -> str:
         if not force_refresh and self._token is not None and monotonic() < self._renew_at:
             return self._token

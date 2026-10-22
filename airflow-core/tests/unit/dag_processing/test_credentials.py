@@ -19,7 +19,7 @@ from __future__ import annotations
 from contextlib import nullcontext
 from unittest import mock
 
-import httpx
+import httpx2
 import pytest
 from pydantic import ValidationError
 from tenacity import wait_none
@@ -59,7 +59,7 @@ def make_provider(clock):
         provider = WorkloadIdentitySessionTokenProvider(
             base_url="https://api/execution/",
             identity_token=identity or mock.Mock(spec=lambda: "", return_value="identity-1\n"),
-            transport=httpx.MockTransport(handle),
+            transport=httpx2.MockTransport(handle),
         )
         providers.append(provider)
         return provider, requests
@@ -70,7 +70,7 @@ def make_provider(clock):
 
 
 def issued(token="session-1", expires_in=100):
-    return httpx.Response(200, json={"token": token, "expires_in": expires_in})
+    return httpx2.Response(200, json={"token": token, "expires_in": expires_in})
 
 
 @mock.patch("airflow.sdk.api.client.API_SSL_CA_FILE_PATH", "/private-ca.pem")
@@ -82,19 +82,19 @@ def issued(token="session-1", expires_in=100):
 )
 def test_exchange_uses_api_tls_settings(get_context, make_provider, monkeypatch):
     captured = {}
-    original_init = httpx.Client.__init__
+    original_init = httpx2.Client.__init__
 
     def capture_init(self, **kwargs):
         captured.update(kwargs)
         original_init(self, **kwargs)
 
-    monkeypatch.setattr(httpx.Client, "__init__", capture_init)
+    monkeypatch.setattr(httpx2.Client, "__init__", capture_init)
     provider, _ = make_provider(issued())
 
     get_context.assert_called_once_with("/private-ca.pem", "/server.pem")
     assert captured["verify"] is get_context.return_value
     assert captured["cert"] == ("/client.pem", "/client.key")
-    assert provider._client.timeout == httpx.Timeout(API_TIMEOUT)
+    assert provider._client.timeout == httpx2.Timeout(API_TIMEOUT)
 
 
 def test_runtime_refresh_header_cannot_replace_external_identity(make_provider):
@@ -130,17 +130,19 @@ def test_forced_refresh_and_timeout_are_forwarded(make_provider):
     provider, requests = make_provider(issued(), issued("session-2"))
 
     assert provider.get_token() == "session-1"
-    assert provider.get_token(force_refresh=True, timeout=httpx.Timeout(0.5)) == "session-2"
-    assert requests[-1].extensions["timeout"] == httpx.Timeout(0.5).as_dict()
+    assert provider.get_token(force_refresh=True, timeout=httpx2.Timeout(0.5)) == "session-2"
+    assert requests[-1].extensions["timeout"] == httpx2.Timeout(0.5).as_dict()
 
 
-@pytest.mark.parametrize("failure", [httpx.Response(401), httpx.Response(503), httpx.ConnectError("offline")])
+@pytest.mark.parametrize(
+    "failure", [httpx2.Response(401), httpx2.Response(503), httpx2.ConnectError("offline")]
+)
 def test_failed_renewal_does_not_return_cached_session(make_provider, clock, failure):
     provider, requests = make_provider(issued(), failure, issued("session-2"))
     assert provider.get_token() == "session-1"
     clock.return_value = 100
 
-    with pytest.raises(httpx.HTTPError):
+    with pytest.raises(httpx2.HTTPError):
         provider.get_token()
 
     assert provider.get_token() == "session-2"
@@ -149,7 +151,7 @@ def test_failed_renewal_does_not_return_cached_session(make_provider, clock, fai
 
 @pytest.mark.parametrize("payload", [{"token": "", "expires_in": 10}, {"token": "x", "expires_in": 0}, {}])
 def test_invalid_exchange_response_is_not_cached(make_provider, payload):
-    provider, _ = make_provider(httpx.Response(200, json=payload))
+    provider, _ = make_provider(httpx2.Response(200, json=payload))
     with pytest.raises(ValidationError):
         provider.get_token()
     assert provider._token is None
@@ -174,8 +176,8 @@ def test_missing_identity_fails_before_request(make_provider):
 
 
 def test_redirect_does_not_forward_identity(make_provider):
-    provider, requests = make_provider(httpx.Response(307, headers={"Location": "https://other/execution/"}))
-    with pytest.raises(httpx.HTTPStatusError):
+    provider, requests = make_provider(httpx2.Response(307, headers={"Location": "https://other/execution/"}))
+    with pytest.raises(httpx2.HTTPStatusError):
         provider.get_token()
     assert len(requests) == 1
 
@@ -200,14 +202,14 @@ def test_client_forces_provider_refresh_after_registration_auth_failure(status):
     def handle(request):
         requests.append(request)
         if len(requests) == 1:
-            return httpx.Response(status)
-        return httpx.Response(201, json={"job_id": 1, "token": "job-1", "expires_in": 300})
+            return httpx2.Response(status)
+        return httpx2.Response(201, json={"job_id": 1, "token": "job-1", "expires_in": 300})
 
     with DagProcessorAPIClient(
         base_url="https://api/execution/",
         hostname="processor",
         token_provider=provider,
-        transport=httpx.MockTransport(handle),
+        transport=httpx2.MockTransport(handle),
     ) as client:
         assert client.register_job() == 1
         assert provider.get_token.call_args_list == [
@@ -222,27 +224,27 @@ def test_client_forces_provider_refresh_after_registration_auth_failure(status):
 
 
 @pytest.mark.parametrize("retry", [False, True])
-@pytest.mark.parametrize("failure", [httpx.Response(503), httpx.ConnectError("offline")])
+@pytest.mark.parametrize("failure", [httpx2.Response(503), httpx2.ConnectError("offline")])
 def test_registration_retries_session_exchange_only_when_requested(make_provider, failure, retry):
     provider, requests = make_provider(failure, issued())
     registrations = []
 
     def register(request):
         registrations.append(request)
-        return httpx.Response(201, json={"job_id": 1, "token": "job-1", "expires_in": 300})
+        return httpx2.Response(201, json={"job_id": 1, "token": "job-1", "expires_in": 300})
 
     with DagProcessorAPIClient(
         base_url="https://api/execution/",
         hostname="processor",
         token_provider=provider,
-        transport=httpx.MockTransport(register),
+        transport=httpx2.MockTransport(register),
     ) as client:
         if retry:
             assert client.register_job(retry=True) == 1
             assert len(requests) == 2
             assert len(registrations) == 1
         else:
-            with pytest.raises(httpx.HTTPError):
+            with pytest.raises(httpx2.HTTPError):
                 client.register_job(retry=False)
             assert len(requests) == 1
             assert not registrations
@@ -250,8 +252,8 @@ def test_registration_retries_session_exchange_only_when_requested(make_provider
 
 @pytest.mark.parametrize(("status", "attempts"), [(401, 1), (403, 1), (503, API_RETRIES)])
 def test_exchange_retries_are_bounded_and_do_not_retry_auth_failures(make_provider, status, attempts):
-    provider, requests = make_provider(*(httpx.Response(status) for _ in range(API_RETRIES)))
-    with pytest.raises(httpx.HTTPStatusError):
+    provider, requests = make_provider(*(httpx2.Response(status) for _ in range(API_RETRIES)))
+    with pytest.raises(httpx2.HTTPStatusError):
         provider.get_token(retry=True)
     assert len(requests) == attempts
     assert provider._token is None
@@ -262,27 +264,27 @@ def test_optional_renewal_attempts_exchange_once_then_uses_valid_job_token(
     client_clock, make_provider, clock
 ):
     client_clock.return_value = 0
-    provider, exchanges = make_provider(issued(), httpx.Response(503))
+    provider, exchanges = make_provider(issued(), httpx2.Response(503))
     requests = []
 
     def handle(request):
         requests.append(request)
         if request.url.path.endswith("/jobs"):
-            return httpx.Response(201, json={"job_id": 1, "token": "job-1", "expires_in": 300})
-        return httpx.Response(200, json={"state": "running"})
+            return httpx2.Response(201, json={"job_id": 1, "token": "job-1", "expires_in": 300})
+        return httpx2.Response(200, json={"state": "running"})
 
     with DagProcessorAPIClient(
         base_url="https://api/execution/",
         hostname="processor",
         token_provider=provider,
-        transport=httpx.MockTransport(handle),
+        transport=httpx2.MockTransport(handle),
     ) as client:
         client.register_job()
         client_clock.return_value = clock.return_value = 80
         client.heartbeat()
 
     assert len(exchanges) == 2
-    assert exchanges[-1].extensions["timeout"] == httpx.Timeout(1).as_dict()
+    assert exchanges[-1].extensions["timeout"] == httpx2.Timeout(1).as_dict()
     assert len(requests) == 2
     assert requests[-1].headers["Authorization"] == "Bearer job-1"
 

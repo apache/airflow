@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from unittest import mock
 
 import httpx
+import httpx2
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
@@ -144,10 +145,10 @@ def make_processor(client, exec_app, identity_token, verifier):
         response = client.request(
             request.method, request.url.path, headers=request.headers, content=request.content
         )
-        return httpx.Response(response.status_code, headers=response.headers, content=response.content)
+        return httpx2.Response(response.status_code, headers=response.headers, content=response.content)
 
     def create():
-        transport = httpx.MockTransport(forward)
+        transport = httpx2.MockTransport(forward)
         provider = WorkloadIdentitySessionTokenProvider(
             base_url="https://api/execution/", identity_token=identity_token, transport=transport
         )
@@ -498,16 +499,16 @@ def test_session_renewal_and_job_lifecycle_without_session_file(
 
     def forward(request):
         if request.url.path == URL and not exchange_available:
-            raise httpx.ConnectError("session exchange unavailable", request=request)
+            raise httpx2.ConnectError("session exchange unavailable", request=request)
         response = client.request(
             request.method, request.url.path, headers=request.headers, content=request.content
         )
-        return httpx.Response(response.status_code, headers=response.headers, content=response.content)
+        return httpx2.Response(response.status_code, headers=response.headers, content=response.content)
 
     provider = WorkloadIdentitySessionTokenProvider(
         base_url="https://api/execution/",
         identity_token=lambda: identity_token(exp=NOW + 600),
-        transport=httpx.MockTransport(forward),
+        transport=httpx2.MockTransport(forward),
     )
     try:
         Variable.set("identity-test-key", "value")
@@ -515,7 +516,7 @@ def test_session_renewal_and_job_lifecycle_without_session_file(
             base_url="https://api/execution/",
             hostname="processor",
             token_provider=provider,
-            transport=httpx.MockTransport(forward),
+            transport=httpx2.MockTransport(forward),
         ) as processor:
             job_id = processor.register_job()
             first_session = provider.get_token()
@@ -541,7 +542,7 @@ def test_session_renewal_and_job_lifecycle_without_session_file(
             assert processor.heartbeat() == JobState.RUNNING
             time_machine.shift(61)
             credential_clock.return_value = job_clock.return_value = 541
-            with pytest.raises(httpx.ConnectError):
+            with pytest.raises(httpx2.ConnectError):
                 processor.heartbeat()
 
             exchange_available = True
