@@ -20,7 +20,7 @@
 Add session_id and registration_id to Job.
 
 Revision ID: c71065a1b14f
-Revises: 9cffe90fa0c0
+Revises: ee86eed19e24
 Create Date: 2026-10-05 08:40:20.000000
 
 """
@@ -33,7 +33,7 @@ from alembic import op
 from airflow.migrations.utils import disable_sqlite_fkeys
 
 revision = "c71065a1b14f"
-down_revision = "9cffe90fa0c0"
+down_revision = "ee86eed19e24"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"
