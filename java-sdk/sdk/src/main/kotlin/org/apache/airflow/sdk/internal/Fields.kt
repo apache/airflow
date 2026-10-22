@@ -65,22 +65,19 @@ class Field(
   val type: FieldType,
   val defaultJson: String?,
   val notBlank: Boolean = false,
-)
-
-/**
- * Enforces the constraints [field] carries on a string value. [describe] names
- * the value, so each caller keeps its own wording. Public so that the
- * annotation processor enforces the same constraints on `@Airflow.Dag` /
- * `@Airflow.Task` attributes; not user-facing API.
- *
- * @throws IllegalArgumentException if [text] breaks a constraint.
- */
-fun checkStringConstraints(
-  field: Field,
-  text: String,
-  describe: () -> String,
 ) {
-  require(!field.notBlank || text.isNotBlank()) { "${describe()} must not be blank" }
+  /**
+   * Enforces the constraints this key carries on a string value. [describe]
+   * names the value, so each caller keeps its own wording.
+   *
+   * @throws IllegalArgumentException if [text] breaks a constraint.
+   */
+  fun checkString(
+    text: String,
+    describe: () -> String,
+  ) {
+    require(!notBlank || text.isNotBlank()) { "${describe()} must not be blank" }
+  }
 }
 
 /**
@@ -111,7 +108,7 @@ internal fun checkConfigValue(
   return when (field.type) {
     FieldType.STRING ->
       (value as? String ?: mismatch("a String")).also { text ->
-        checkStringConstraints(field, text) { "Value for $scope config key '$key'" }
+        field.checkString(text) { "Value for $scope config key '$key'" }
       }
     FieldType.BOOLEAN -> value as? Boolean ?: mismatch("a Boolean")
     FieldType.NUMBER -> value as? Number ?: mismatch("a Number")

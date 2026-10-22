@@ -25,10 +25,11 @@ Run with::
 No Python file declares these Dags. The ``airflow-e2e-tests/java-native-bundle`` JAR sits in the Dag
 bundle. There are four ``JavaCoordinator``s, so ``[sdk] dag_bundle_to_coordinator`` picks the
 ``java-native`` one to parse it: the Dag processor runs the JAR through it. Each Dag sets
-``queue="java-native"`` once and every task inherits it, which routes to ``java-jdk``. That coordinator runs the same JAR from the Dag's
-own bundle, whatever its ``task_handler_bundle_name`` says. ``java_native_e2e`` is declared with the interface
-API, ``java_native_annotation_e2e`` with annotations. Both also exercise a task group, an ``If``, a
-``Switch`` and a ``TriggerDagRun`` of ``java_native_target_e2e``, the third Dag the JAR declares.
+``queue="java-native"`` once and every task inherits it, which routes to ``java-jdk``. That
+coordinator runs the same JAR from the Dag's own bundle, whatever its ``task_handler_bundle_name``
+says. ``java_native_e2e`` is declared with the interface API, ``java_native_annotation_e2e`` with
+annotations. Both also exercise a task group, an ``If``, a ``Switch`` and a ``TriggerDagRun`` of
+``java_native_target_e2e``, the third Dag the JAR declares.
 """
 
 from __future__ import annotations
