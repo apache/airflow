@@ -104,6 +104,7 @@ def _get_callback_logfile_path(task: TaskInstanceKey, *, session: Session) -> st
         return log_path
     raise HTTPException(status.HTTP_404_NOT_FOUND, f"No log path found for callback {task.task_id}")
 
+
 @logs_router.get(
     "/logfile_path/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}",
     dependencies=[Depends(jwt_token_authorization_rest)],
