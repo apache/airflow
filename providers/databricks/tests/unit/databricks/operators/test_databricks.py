@@ -4086,6 +4086,10 @@ class TestDatabricksSQLStatementsOperator:
 
 
 class TestDatabricksNotebookOperator:
+    def test_notebook_path_and_source_in_template_fields(self):
+        assert "notebook_path" in DatabricksNotebookOperator.template_fields
+        assert "source" in DatabricksNotebookOperator.template_fields
+
     def test_is_instance_of_databricks_task_base_operator(self):
         operator = DatabricksNotebookOperator(
             task_id="test_task",

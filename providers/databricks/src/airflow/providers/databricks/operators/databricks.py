@@ -2063,6 +2063,12 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         context: Context | None = None,
     ) -> dict[str, object]:
         """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
+        if context is not None:
+            fields_to_render = [f for f in self.template_fields if f != "workflow_run_metadata"]
+            if fields_to_render:
+                self._do_render_template_fields(
+                    self, fields_to_render, context, self.get_template_env(), set()
+                )
         base_task_json = self._get_task_base_json()
 
         result = {
@@ -2370,6 +2376,8 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     """
 
     template_fields = (
+        "notebook_path",
+        "source",
         "notebook_params",
         "workflow_run_metadata",
         "max_retries",

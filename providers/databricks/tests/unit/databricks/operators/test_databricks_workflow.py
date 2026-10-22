@@ -31,7 +31,11 @@ from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
-from airflow.providers.databricks.operators.databricks import DatabricksNotebookOperator
+from airflow.providers.databricks.operators.databricks import (
+    DatabricksNotebookOperator,
+    DatabricksTaskBaseOperator,
+    DatabricksTaskOperator,
+)
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
@@ -647,3 +651,132 @@ class TestTaskGroupExternalDependencyTransfer:
             tg >> end
         nb = dag.get_task("tg.nb")
         assert "end" in nb.downstream_task_ids
+
+
+class CustomWorkflowTaskOperator(DatabricksTaskBaseOperator):
+    """Custom operator subclassing DatabricksTaskBaseOperator for GH-46563 reproduction."""
+
+    template_fields = ("application_args", "spark_conf")
+
+    def __init__(self, application_args=None, spark_conf=None, **kwargs):
+        self.application_args = application_args or []
+        self.spark_conf = spark_conf or {}
+        super().__init__(**kwargs)
+
+    def _get_task_base_json(self):
+        return {
+            "spark_jar_task": {
+                "parameters": self.application_args,
+                "spark_conf": self.spark_conf,
+            }
+        }
+
+
+class TestWorkflowTemplateFields:
+    """Tests for template field rendering in DatabricksWorkflowTaskGroup members (GH-46563)."""
+
+    def test_create_workflow_json_renders_task_operator_template_fields(self):
+        """Test that DatabricksTaskOperator task_config is rendered with execution context."""
+        with DAG(dag_id="test_dag_task_op", start_date=DEFAULT_DATE, schedule=None) as dag:
+            with DatabricksWorkflowTaskGroup(
+                group_id="test_tg",
+                databricks_conn_id="databricks_conn",
+            ):
+                DatabricksTaskOperator(
+                    task_id="spark_task",
+                    task_config={
+                        "spark_python_task": {
+                            "python_file": "dbfs:/script.py",
+                            "parameters": ["--date", "{{ ds }}", "--cluster", "{{ params.cluster_name }}"],
+                        }
+                    },
+                )
+
+        launch_op = dag.get_task("test_tg.launch")
+        context = {
+            "ds": "2025-06-15",
+            "params": {"cluster_name": "prod-cluster"},
+        }
+        workflow_json = launch_op.create_workflow_json(context=context)
+        tasks = workflow_json["tasks"]
+        assert len(tasks) == 1
+        assert tasks[0]["spark_python_task"]["parameters"] == [
+            "--date",
+            "2025-06-15",
+            "--cluster",
+            "prod-cluster",
+        ]
+
+    def test_create_workflow_json_renders_notebook_operator_template_fields(self):
+        """Test that DatabricksNotebookOperator path, source, and params are rendered."""
+        with DAG(dag_id="test_dag_nb_op", start_date=DEFAULT_DATE, schedule=None) as dag:
+            with DatabricksWorkflowTaskGroup(
+                group_id="test_tg",
+                databricks_conn_id="databricks_conn",
+                notebook_params={"group_param": "group_{{ ds }}"},
+            ):
+                DatabricksNotebookOperator(
+                    task_id="notebook_task",
+                    notebook_path="/notebooks/{{ ds }}/etl",
+                    source="{{ params.source_type }}",
+                    notebook_params={"task_param": "task_{{ ds }}"},
+                )
+
+        launch_op = dag.get_task("test_tg.launch")
+        context = {
+            "ds": "2025-06-15",
+            "params": {"source_type": "WORKSPACE"},
+        }
+        workflow_json = launch_op.create_workflow_json(context=context)
+        tasks = workflow_json["tasks"]
+        assert len(tasks) == 1
+        nb_task = tasks[0]["notebook_task"]
+        assert nb_task["notebook_path"] == "/notebooks/2025-06-15/etl"
+        assert nb_task["source"] == "WORKSPACE"
+        assert nb_task["base_parameters"] == {
+            "task_param": "task_2025-06-15",
+            "group_param": "group_2025-06-15",
+        }
+
+    def test_create_workflow_json_renders_custom_operator_template_fields(self):
+        """Test that custom DatabricksTaskBaseOperator subclasses render declared template_fields (GH-46563)."""
+        with DAG(dag_id="test_dag_custom_op", start_date=DEFAULT_DATE, schedule=None) as dag:
+            with DatabricksWorkflowTaskGroup(
+                group_id="test_tg",
+                databricks_conn_id="databricks_conn",
+            ):
+                CustomWorkflowTaskOperator(
+                    task_id="custom_task",
+                    application_args=["main.jar", "--date", "{{ ds }}"],
+                    spark_conf={"spark.app.name": "app_{{ ds }}"},
+                )
+
+        launch_op = dag.get_task("test_tg.launch")
+        context = {"ds": "2025-06-15"}
+        workflow_json = launch_op.create_workflow_json(context=context)
+        tasks = workflow_json["tasks"]
+        assert len(tasks) == 1
+        assert tasks[0]["spark_jar_task"]["parameters"] == ["main.jar", "--date", "2025-06-15"]
+        assert tasks[0]["spark_jar_task"]["spark_conf"] == {"spark.app.name": "app_2025-06-15"}
+
+    def test_create_workflow_json_without_context_preserves_unrendered_templates(self):
+        """Test that create_workflow_json without context leaves raw templates intact."""
+        with DAG(dag_id="test_dag_no_ctx", start_date=DEFAULT_DATE, schedule=None) as dag:
+            with DatabricksWorkflowTaskGroup(
+                group_id="test_tg",
+                databricks_conn_id="databricks_conn",
+            ):
+                DatabricksTaskOperator(
+                    task_id="spark_task",
+                    task_config={
+                        "spark_python_task": {
+                            "python_file": "dbfs:/script.py",
+                            "parameters": ["--date", "{{ ds }}"],
+                        }
+                    },
+                )
+
+        launch_op = dag.get_task("test_tg.launch")
+        workflow_json = launch_op.create_workflow_json(context=None)
+        tasks = workflow_json["tasks"]
+        assert tasks[0]["spark_python_task"]["parameters"] == ["--date", "{{ ds }}"]
