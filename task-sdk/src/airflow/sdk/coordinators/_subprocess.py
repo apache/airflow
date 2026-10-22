@@ -38,6 +38,7 @@ import socket
 import stat
 import subprocess
 import time
+from collections import deque
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, TypeVar, cast
@@ -474,7 +475,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self._arm_execution_timeout()
 
     _xcom_backend: XComBackendProcess | None = attrs.field(default=None, init=False)
-    _pending_xcom_call: Callable[[XComBackendResult], None] | None = attrs.field(default=None, init=False)
+    _pending_xcom_calls: deque[Callable[[XComBackendResult], None]] = attrs.field(factory=deque, init=False)
+    """The callbacks of the calls the XCom backend process has not answered yet, in the order it runs them."""
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """
@@ -561,15 +563,14 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 selector=self.selector,
                 on_result=self._finish_xcom_backend_call,
             )
-        self._pending_xcom_call = finish
+        self._pending_xcom_calls.append(finish)
         self._xcom_backend.send_call(call)
 
     def _finish_xcom_backend_call(self, result: XComBackendResult) -> None:
-        """Finish the call the XCom backend process has answered, if one is still waiting for it."""
-        if (finish := self._pending_xcom_call) is None:
+        """Finish the oldest call the XCom backend process has not answered yet."""
+        if not self._pending_xcom_calls:
             return
-        self._pending_xcom_call = None
-        finish(result)
+        self._pending_xcom_calls.popleft()(result)
 
     def _call_xcom_backend(
         self,
@@ -615,9 +616,9 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self._start_xcom_backend_call(call, answer.append)
         deadline = time.monotonic() + _XCOM_BACKEND_CALL_TIMEOUT
         # The task process has not been told to start, so servicing it here reads no request of its own.
-        while self._pending_xcom_call is not None and (now := time.monotonic()) < deadline:
+        while not answer and (now := time.monotonic()) < deadline:
             self._service_subprocess(max_wait_time=deadline - now)
-        self._pending_xcom_call = None
+        self._pending_xcom_calls.clear()
         if not answer:
             raise XComBackendError("The XCom backend did not answer in time")
         if (error := answer[0].error) is not None:
