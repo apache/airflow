@@ -259,6 +259,12 @@ Some caveats:
 * A failing refresh looks like one that is not due, since a refresh that raises is logged and leaves
   ``last_refreshed`` at its last success. Check the Dag processor logs, and
   ``/api/v2/jobs?job_type=DagProcessorJob`` for a live processor.
+  If the refresh may have changed files, parsing pauses until a refresh succeeds. The processor
+  logs the affected bundle and reports the total number of deferred files through
+  ``dag_processing.files_awaiting_source``. On metrics backends that support tags,
+  ``dag_processing.files_awaiting_source_by_bundle`` provides counts tagged with ``bundle_name``.
+  A provider that reports an unchanged source after failure lets ordinary parsing continue against
+  the previous source while refresh retries continue. Explicit reparse requests wait for a successful refresh.
 * A new version does not mean the new Dags are running, because bundles are refreshed before their
   Dags are parsed.
 * The version and the import-error count together cannot confirm that a particular commit parsed,
@@ -427,6 +433,19 @@ The following methods are abstract and must be implemented in your custom bundle
 **refresh**
     This method should handle refreshing the bundle's contents from its source (e.g., pulling the latest changes from a remote repository).
     This is used by the Dag processor periodically to ensure that the bundle is up-to-date.
+
+    By default, the processor waits for imports using the current source to finish before refreshing.
+    Set the class attribute ``refresh_changes_source = False`` only when ``refresh()`` never changes
+    those files, as with ``LocalDagBundle``. File discovery still runs without waiting for active imports.
+
+    A failed refresh normally pauses new parses because files may have been partially updated.
+    On Airflow 3.4 and later, a provider can raise
+    ``airflow.dag_processing.bundles.base.DagBundleRefreshError`` with ``source_unchanged=True``
+    when it guarantees that the previous source remains intact and usable. The processor can then
+    continue ordinary parsing of that source while retrying refresh at the bundle check interval.
+    Explicit reparse requests still wait for a successful refresh. An unchanged
+    version identifier alone is insufficient to make this guarantee, particularly after a partial
+    checkout or submodule update.
 
 Optional Methods
 ~~~~~~~~~~~~~~~~
