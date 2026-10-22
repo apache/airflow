@@ -49,7 +49,10 @@ def _check_webhook(name: str, registry: WebhookRegistry) -> ConfiguredWebhook | 
     if name not in registry.names:
         problems.append("[webhooks] names does not list it, so its deliveries are answered with 404")
     resolution = resolve_webhook(
-        name, source_type_owners=registry.source_type_owners, default_max_body_bytes=registry.max_body_bytes
+        name,
+        source_type_owners=registry.source_type_owners,
+        default_max_body_bytes=registry.max_body_bytes,
+        default_store_payload=registry.store_payload,
     )
     if isinstance(resolution, ConfiguredWebhook):
         return problems or resolution
@@ -86,7 +89,8 @@ def check(args) -> None:
         if isinstance(result, ConfiguredWebhook):
             print(
                 f"Webhook {name} can be served at /webhooks/{name} by airflow api-server --apps webhooks, "
-                f"with source type {result.source_type} and bodies of up to {result.max_body_bytes} bytes"
+                f"with source type {result.source_type}, bodies of up to {result.max_body_bytes} bytes "
+                f"and store_payload {result.store_payload}"
             )
             continue
         failed = True

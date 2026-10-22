@@ -117,6 +117,8 @@ class TestWebhookRegistry:
             ("webhooks", "max_body_bytes"): "1",
             ("webhooks", "delivery_retention"): "1",
             ("webhooks", "rate_limit_per_minute"): "600",
+            ("webhooks", "store_payload"): "summary",
+            ("webhooks", "max_event_payload_bytes"): "0",
         }
     )
     def test_from_config(self):
@@ -127,6 +129,8 @@ class TestWebhookRegistry:
             max_body_bytes=1,
             delivery_retention=timedelta(days=1),
             rate_limit_per_minute=600,
+            store_payload="summary",
+            max_event_payload_bytes=0,
         )
 
     def test_from_config_defaults_to_no_webhooks(self):
@@ -137,6 +141,8 @@ class TestWebhookRegistry:
             max_body_bytes=1048576,
             delivery_retention=timedelta(days=7),
             rate_limit_per_minute=0,
+            store_payload="full",
+            max_event_payload_bytes=65536,
         )
 
     @pytest.mark.parametrize(
@@ -151,9 +157,23 @@ class TestWebhookRegistry:
             pytest.param(
                 "rate_limit_per_minute", "-1", "rate_limit_per_minute must be 0 or more", id="rate-limit"
             ),
+            pytest.param(
+                "max_event_payload_bytes",
+                "-1",
+                "max_event_payload_bytes must be 0 or more",
+                id="max-event-payload-bytes",
+            ),
         ],
     )
     def test_from_config_refuses_values_out_of_range(self, option, value, message):
         with conf_vars({("webhooks", option): value}):
             with pytest.raises(AirflowConfigException, match=rf"^\[webhooks\] {message}, not {value}$"):
                 WebhookRegistry.from_config()
+
+    @conf_vars({("webhooks", "store_payload"): "some"})
+    def test_from_config_refuses_an_unknown_store_payload(self):
+        with pytest.raises(
+            AirflowConfigException,
+            match=r"^\[webhooks\] store_payload must be one of full, summary, none, not 'some'$",
+        ):
+            WebhookRegistry.from_config()

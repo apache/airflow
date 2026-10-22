@@ -33,6 +33,7 @@ from airflow.webhooks.base import (
     load_json_object,
     verify_hmac_sha256,
 )
+from airflow.webhooks.naming import build_candidate_names
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
@@ -117,7 +118,8 @@ def assert_odd_values_are_parsed_or_refused(
     Assert that ``source`` parses or refuses ``payload`` with any of ``fields`` set to any of ``ODD_VALUES``.
 
     A signature proves who sent a delivery, not its shape. Anything but a ``ValueError`` (a 400) or a
-    delivery of strings would be a 500, which senders retry and some answer by disabling the webhook.
+    delivery of strings that core builds candidate names from would be a 500, which senders retry and
+    some answer by disabling the webhook.
 
     :param fields: Dotted paths into ``payload`` of every field the source type reads, and of their
         parents; a list item is named by its index.
@@ -136,6 +138,7 @@ def assert_odd_values_are_parsed_or_refused(
                 value,
             )
             assert delivery.delivery_id is None or isinstance(delivery.delivery_id, str), (field, value)
+            build_candidate_names("hooks", delivery.path, delivery.kinds)
 
 
 class FakeHmacSource(WebhookSource):

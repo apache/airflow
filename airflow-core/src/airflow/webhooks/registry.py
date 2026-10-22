@@ -18,23 +18,22 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast, get_args
 
 from packaging.utils import InvalidName, canonicalize_name
 
+from airflow._shared.webhook_naming import WEBHOOK_NAME_PATTERN
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers_manager import WEBHOOK_SOURCE_TYPE_PATTERN
+from airflow.webhooks.base import StorePayload
 
 if TYPE_CHECKING:
     from typing import Self
 
-# No leading underscore, so that no webhook can be named like the app's own routes, such as _health.
-WEBHOOK_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 #: The webhook tag that metrics give requests to names that are not listed, so no webhook can have it.
 UNLISTED_WEBHOOK_TAG = "other"
 # retain_until is a TIMESTAMP on MySQL, which ends in January 2038. Without a bound, a large value would
@@ -123,6 +122,15 @@ def _get_delivery_retention() -> timedelta:
     return timedelta(days=days)
 
 
+def _get_store_payload() -> StorePayload:
+    value = conf.get("webhooks", "store_payload")
+    if value not in get_args(StorePayload):
+        raise AirflowConfigException(
+            f"[webhooks] store_payload must be one of {', '.join(get_args(StorePayload))}, not {value!r}"
+        )
+    return cast("StorePayload", value)
+
+
 @dataclass(frozen=True, kw_only=True)
 class WebhookRegistry:
     """
@@ -137,6 +145,10 @@ class WebhookRegistry:
     :param delivery_retention: How long a delivery is recorded for.
     :param rate_limit_per_minute: Verified deliveries per minute that this process takes for each
         webhook, or 0 for no limit.
+    :param store_payload: What is kept of a delivery's payload when neither the webhook's connection nor
+        its source type says.
+    :param max_event_payload_bytes: The largest payload, as compact JSON, copied into a topic event, or 0
+        for no limit.
     """
 
     names: frozenset[str]
@@ -145,6 +157,8 @@ class WebhookRegistry:
     max_body_bytes: int
     delivery_retention: timedelta
     rate_limit_per_minute: int
+    store_payload: StorePayload
+    max_event_payload_bytes: int
 
     @classmethod
     def from_config(cls) -> Self:
@@ -156,4 +170,6 @@ class WebhookRegistry:
             max_body_bytes=_get_int_at_least("max_body_bytes", 1),
             delivery_retention=_get_delivery_retention(),
             rate_limit_per_minute=_get_int_at_least("rate_limit_per_minute", 0),
+            store_payload=_get_store_payload(),
+            max_event_payload_bytes=_get_int_at_least("max_event_payload_bytes", 0),
         )

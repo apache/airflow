@@ -920,6 +920,48 @@ class TestDagBag:
                 "AirflowTimetableInvalid: Asset AND conditions require batch_asset_events=True"
             ]
 
+    @pytest.mark.parametrize(
+        ("schedule", "outlets", "import_error"),
+        [
+            pytest.param("topic", "[]", None, id="schedule"),
+            pytest.param(
+                "None",
+                "[topic]",
+                "ValueError: Task 'publish' cannot use WebhookTopic 'github/acme/web/push' as an outlet; "
+                "a Dag can only schedule on a webhook topic",
+                id="outlet",
+            ),
+            pytest.param(
+                "PartitionedAssetTimetable(assets=topic)",
+                "[]",
+                "AirflowTimetableInvalid: PartitionedAssetTimetable cannot schedule on a WebhookTopic; "
+                "its events have no partition key",
+                id="partitioned",
+            ),
+        ],
+    )
+    def test_process_file_webhook_topic(self, tmp_path, schedule, outlets, import_error):
+        dag_file = tmp_path / "webhook_topic.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                f"""
+                from airflow.sdk import DAG, BaseOperator, PartitionedAssetTimetable, WebhookTopic
+
+                topic = WebhookTopic(webhook="github", path="acme/web", event="push")
+
+                with DAG("webhook_topic", schedule={schedule}):
+                    BaseOperator(task_id="publish", outlets={outlets})
+                """
+            )
+        )
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path))
+        if import_error is None:
+            assert not dagbag.import_errors
+            assert "webhook_topic" in dagbag.dags
+        else:
+            assert not dagbag.dags
+            assert list(dagbag.import_errors.values()) == [import_error]
+
     def test_process_file_invalid_param_check(self, tmp_path):
         """
         test if an invalid param in the dags can be identified

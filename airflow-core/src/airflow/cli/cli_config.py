@@ -1808,7 +1808,8 @@ WEBHOOKS_COMMANDS = (
             '{"status": <status code>, "body": <answer>}. The body is signed with HMAC-SHA256, or, if '
             "connection webhook_<name> sets token_header, the secret is sent in that header. Options that "
             "are not given are taken from connection webhook_<name>. Redirects are not followed. Exits "
-            "with 1 unless the answer is a 2xx."
+            "with 1 unless the answer is a 2xx. A test delivery is processed like any other: it records "
+            "topic events, and queues runs of the Dags scheduled on them."
         ),
         func=lazy_load_command("airflow.cli.commands.webhooks_command.send_test"),
         args=(

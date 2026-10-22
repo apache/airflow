@@ -47,7 +47,7 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 from airflow.sdk.definitions._internal.loop import LoopTaskGroup, check_dag_result_outside_loop
 from airflow.sdk.definitions._internal.types import NOTSET
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.asset import Asset, check_no_webhook_topic
 from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
 from airflow.sdk.definitions.mappedoperator import (
     MappedOperator,
@@ -443,7 +443,9 @@ class DecoratedOperator(BaseOperator):
     def execute(self, context: Context):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
         #  as well
-        for arg in itertools.chain(self.op_args, self.op_kwargs.values()):
+        args = list(itertools.chain(self.op_args, self.op_kwargs.values()))
+        check_no_webhook_topic(args, task_id=self.task_id, kind="inlet")
+        for arg in args:
             if isinstance(arg, Asset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
@@ -459,6 +461,8 @@ class DecoratedOperator(BaseOperator):
         :param context:
         :param xcom_push:
         """
+        returned = return_value if isinstance(return_value, list) else [return_value]
+        check_no_webhook_topic(returned, task_id=self.task_id, kind="outlet")
         if isinstance(return_value, Asset):
             self.outlets.append(return_value)
         if isinstance(return_value, list):

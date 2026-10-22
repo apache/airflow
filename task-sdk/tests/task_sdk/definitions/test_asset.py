@@ -21,18 +21,24 @@ import os
 from collections.abc import Callable
 from unittest import mock
 
+import attrs
 import pytest
 
+from airflow._shared.webhook_naming import build_candidate_names
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions.asset import (
     Asset,
+    AssetAccessControl,
     AssetAll,
     AssetAny,
     AssetUniqueKey,
+    AssetWatcher,
     BaseAsset,
     Dataset,
     Model,
+    WebhookTopic,
     _get_normalized_scheme,
     _sanitize_uri,
 )
@@ -59,6 +65,19 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 )
 def test_asset_condition_requires_batching(condition, requires_batching):
     assert condition.requires_batching is requires_batching
+
+
+@pytest.mark.parametrize(
+    ("condition", "contains_webhook_topic"),
+    [
+        (Asset("a"), False),
+        (WebhookTopic("github/push"), True),
+        (Asset("a") | Asset("b"), False),
+        (Asset("a") | (Asset("b") & WebhookTopic("github/push")), True),
+    ],
+)
+def test_asset_condition_contains_webhook_topic(condition, contains_webhook_topic):
+    assert condition.contains_webhook_topic is contains_webhook_topic
 
 
 @pytest.mark.parametrize(
@@ -448,7 +467,9 @@ class TestAssetUniqueKey:
 
 
 class TestAssetSubclasses:
-    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(
+        ("subcls", "group"), ((Model, "model"), (Dataset, "dataset"), (WebhookTopic, "webhook"))
+    )
     def test_only_name(self, subcls, group):
         obj = subcls(name="foobar")
         assert obj.name == "foobar"
@@ -470,12 +491,131 @@ class TestAssetSubclasses:
         assert obj.group == group
 
     @pytest.mark.parametrize("arg", ["foobar", "s3://bucket/key/path"])
-    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(
+        ("subcls", "group"), ((Model, "model"), (Dataset, "dataset"), (WebhookTopic, "webhook"))
+    )
     def test_only_posarg(self, subcls, group, arg):
         obj = subcls(arg)
         assert obj.name == arg
         assert obj.uri == arg
         assert obj.group == group
+
+
+class TestWebhookTopic:
+    def test_builds_name_from_topic_keywords(self):
+        topic = WebhookTopic(
+            webhook="github", path="acme/web", event="pull_request", action="labeled", detail="deploy-preview"
+        )
+        assert topic.name == "github/acme/web/pull_request/labeled/deploy-preview"
+        assert topic.uri == topic.name
+        assert topic.group == "webhook"
+
+    @pytest.mark.parametrize(
+        ("topic_kwargs", "path", "kind"),
+        [
+            pytest.param(
+                {
+                    "webhook": "github",
+                    "path": "acme/web",
+                    "event": "pull_request",
+                    "action": "labeled",
+                    "detail": "deploy-preview",
+                },
+                "acme/web",
+                ("pull_request", "labeled", "deploy-preview"),
+                id="all-keywords",
+            ),
+            pytest.param(
+                {"webhook": "github", "path": "acme/*", "event": "push"},
+                "acme/web",
+                ("push",),
+                id="wildcard-path",
+            ),
+            pytest.param(
+                {"webhook": "github", "path": "*", "event": "pull_request", "action": "opened"},
+                "acme/web",
+                ("pull_request", "opened", "main"),
+                id="any-path",
+            ),
+            pytest.param({"webhook": "generic", "event": "ping"}, None, ("ping",), id="no-path"),
+            pytest.param(
+                {"webhook": "github", "path": "/acme//web/", "event": "push", "action": " main "},
+                "acme/web",
+                ("push", "main"),
+                id="normalized",
+            ),
+        ],
+    )
+    def test_name_is_a_candidate_name_of_a_matching_delivery(self, topic_kwargs, path, kind):
+        topic = WebhookTopic(**topic_kwargs)
+        assert topic.name in build_candidate_names(topic_kwargs["webhook"], path, [kind])
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param(
+                {"name": "github/push", "webhook": "github", "event": "push"},
+                "not both",
+                id="name-and-keywords",
+            ),
+            pytest.param(
+                {"uri": "github/push", "webhook": "github", "event": "push"},
+                "not both",
+                id="uri-and-keywords",
+            ),
+            pytest.param({"webhook": "github"}, "requires 'webhook' and 'event'", id="no-event"),
+            pytest.param(
+                {"path": "acme/web", "event": "push"}, "requires 'webhook' and 'event'", id="no-webhook"
+            ),
+            pytest.param({"uri": "s3://bucket/key"}, "requires 'name' or the topic keywords", id="only-uri"),
+            pytest.param({}, "requires 'name' or the topic keywords", id="nothing"),
+        ],
+    )
+    def test_rejects_mixed_or_incomplete_forms(self, kwargs, match):
+        with pytest.raises(TypeError, match=match):
+            WebhookTopic(**kwargs)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({"extra": {"key": "value"}}, "cannot have extra", id="extra"),
+            pytest.param(
+                {"watchers": [AssetWatcher(name="watcher", trigger=FileDeleteTrigger(filepath="/tmp/x"))]},
+                "cannot have watchers",
+                id="watchers",
+            ),
+            pytest.param({"group": "asset"}, "always in the 'webhook' group, not 'asset'", id="group"),
+        ],
+    )
+    def test_rejects_extra_watchers_and_another_group(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            WebhookTopic("github/push", **kwargs)
+
+    def test_rejects_a_uri_other_than_its_name(self):
+        with pytest.raises(ValueError, match="uri can only be its name"):
+            WebhookTopic(name="github/my-org/web/issues", uri="s3://exports/issues")
+
+    @pytest.mark.parametrize(
+        "topic_kwargs",
+        [
+            pytest.param({"path": "acme/web", "event": "push", "action": "ma\u00edn"}, id="action"),
+            pytest.param({"path": "acme/w\u00e9b", "event": "push"}, id="path"),
+        ],
+    )
+    def test_rejects_a_part_outside_ascii(self, topic_kwargs):
+        # No delivery offers a name for such a value, and folding it would name another value.
+        with pytest.raises(ValueError, match="must be ASCII"):
+            WebhookTopic(webhook="github", **topic_kwargs)
+
+    def test_evolve_keeps_the_topic_and_its_access_control(self):
+        access_control = AssetAccessControl(producer_teams=["team_a"], allow_global=False)
+        topic = WebhookTopic(webhook="github", event="push", access_control=access_control)
+
+        evolved = attrs.evolve(topic)
+
+        assert type(evolved) is WebhookTopic
+        assert evolved == topic
+        assert evolved.access_control == access_control
 
 
 class TestAssetAccessControl:

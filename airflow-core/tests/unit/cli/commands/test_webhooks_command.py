@@ -128,7 +128,7 @@ class TestCheck:
         os.environ,
         {
             **build_connection_env("demo", source_type="fake"),
-            **build_connection_env("alpha", source_type="fake", max_body_bytes=512),
+            **build_connection_env("alpha", source_type="fake", max_body_bytes=512, store_payload="none"),
         },
     )
     def test_check_without_names_checks_each_listed_webhook(self, parser, capsys):
@@ -139,9 +139,9 @@ class TestCheck:
         assert exit_info.value.code == 1
         assert out.splitlines() == [
             "Webhook alpha can be served at /webhooks/alpha by airflow api-server --apps webhooks, with "
-            "source type fake and bodies of up to 512 bytes",
+            "source type fake, bodies of up to 512 bytes and store_payload none",
             "Webhook demo can be served at /webhooks/demo by airflow api-server --apps webhooks, with "
-            "source type fake and bodies of up to 2048 bytes",
+            "source type fake, bodies of up to 2048 bytes and store_payload full",
         ]
         assert err.splitlines() == ["Problem with webhook github: there is no connection webhook_github"]
 

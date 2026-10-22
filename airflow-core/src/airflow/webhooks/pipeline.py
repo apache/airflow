@@ -19,17 +19,19 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import threading
-from collections.abc import AsyncIterable, Hashable
+from collections.abc import AsyncIterable, Callable, Hashable
 from dataclasses import dataclass, replace
 from datetime import timedelta
 from http import HTTPStatus
 from time import monotonic
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
-from sqlalchemy import inspect, select
+import uuid6
+from sqlalchemy import inspect, select, update
 from sqlalchemy.exc import (
     IntegrityError,
     InterfaceError,
@@ -41,21 +43,24 @@ from starlette.requests import ClientDisconnect
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow._shared.webhook_naming import build_candidate_names
 from airflow.models.inbound_delivery import (
     MAX_CORRELATION_KEY_LENGTH,
     MAX_DELIVERY_ID_LENGTH,
     DeliveryOutcome,
     InboundDelivery,
 )
+from airflow.models.log import Log
 from airflow.utils.session import create_session
 from airflow.webhooks.base import WebhookVerificationError
 from airflow.webhooks.connections import ConfiguredWebhook, ResolutionFailure, WebhookConnectionCache
 from airflow.webhooks.registry import UNLISTED_WEBHOOK_TAG
+from airflow.webhooks.topics import record_topic_events
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from sqlalchemy import Row
+    from sqlalchemy import CursorResult, Row
     from sqlalchemy.orm import Session
 
     from airflow.webhooks.base import WebhookDelivery, WebhookRequest
@@ -65,10 +70,20 @@ log = structlog.get_logger(__name__)
 
 #: The outcome answered to a copy of a delivery that another copy recorded; it is never stored.
 DUPLICATE = "duplicate"
+#: The outcomes of deliveries that recorded nothing, which are processed again when redelivered.
+_REPROCESSED_OUTCOMES = (DeliveryOutcome.NO_SUBSCRIBERS, DeliveryOutcome.DAG_PAUSED)
 RETRY_AFTER_SECONDS = 30
 # The database is down, unreachable or locked, or the pool has no connection to give. SQLite reports a
 # missing table as an OperationalError too.
 _UNAVAILABLE_STORAGE_ERRORS = (OperationalError, InterfaceError, PoolTimeoutError)
+
+
+class _RecordChangedMeanwhile(Exception):
+    """
+    The record of a redelivered delivery changed between this copy's lookup and its update.
+
+    Another copy acted on it, or ``airflow db clean`` removed it.
+    """
 
 
 class DeliveryRejected(Exception):
@@ -160,39 +175,109 @@ def find_delivery(
     ).one_or_none()
 
 
+def _build_audit_log(webhook_name: str, delivery_id: str | None, names: list[str]) -> Log:
+    """Return the audit log entry of a delivery that recorded topic events on ``names``."""
+    return Log(
+        event="webhook_delivery",
+        owner=f"webhook:{webhook_name}",
+        owner_display_name=f"Webhook {webhook_name}",
+        extra=json.dumps({"delivery_id": delivery_id, "names": names, "outcome": DeliveryOutcome.ACCEPTED}),
+        team_name=None,
+    )
+
+
 def record_delivery(
-    webhook: ConfiguredWebhook, delivery: WebhookDelivery, *, body_digest: str, retention: timedelta
+    webhook: ConfiguredWebhook,
+    delivery: WebhookDelivery,
+    *,
+    body_digest: str,
+    retention: timedelta,
+    max_event_payload_bytes: int,
 ) -> str:
     """
-    Record a verified delivery in one transaction, and return its outcome.
+    Record a verified delivery and its topic events in one transaction, and return its outcome.
 
-    A delivery that repeats a recorded one is processed again, without a second row. A copy that another
-    request recorded between this one's lookup and its insert is a duplicate.
+    A delivery that repeats one that acted is a duplicate. One that repeats a delivery that recorded
+    nothing is processed again, without a second row, so that a Dag that subscribed or was unpaused
+    since receives it. A copy that another request recorded or acted on between this one's lookup and
+    its commit is a duplicate, unless no copy has acted though this one could: the record was removed,
+    or the copy that got there first found no Dag to act for. Then this copy is processed again, once,
+    and is answered with 503 if that loses a race too, so that the sender retries.
     """
-    try:
-        with create_session(scoped=False) as session:
-            if find_delivery(webhook.name, delivery.delivery_id, body_digest, session=session) is None:
-                received_at = timezone.utcnow()
-                session.add(
-                    InboundDelivery(
-                        webhook=webhook.name,
-                        delivery_id=delivery.delivery_id,
-                        body_digest=body_digest,
-                        received_at=received_at,
-                        retain_until=received_at + retention,
-                        source_type=webhook.source_type,
-                        attributes=delivery.attributes,
-                        correlation_key=delivery.correlation_key,
-                        outcome=DeliveryOutcome.NO_SUBSCRIBERS,
-                    )
+    candidates = build_candidate_names(webhook.name, delivery.path, delivery.kinds)
+    for _ in range(2):
+        callbacks: list[Callable[[], None]] = []
+        acted = False
+        try:
+            with create_session(scoped=False) as session:
+                original = find_delivery(webhook.name, delivery.delivery_id, body_digest, session=session)
+                if original is not None and original.outcome not in _REPROCESSED_OUTCOMES:
+                    return DUPLICATE
+                # Chosen before the row is written, since every topic event carries it.
+                record_id = uuid6.uuid7() if original is None else original.id
+                topic_events = record_topic_events(
+                    webhook,
+                    delivery,
+                    candidates=candidates,
+                    inbound_delivery_id=record_id,
+                    max_event_payload_bytes=max_event_payload_bytes,
+                    callback_sink=callbacks,
+                    session=session,
                 )
-    except IntegrityError:
-        with create_session(scoped=False) as session:
-            original = find_delivery(webhook.name, delivery.delivery_id, body_digest, session=session)
-        if original is None:
-            raise
-        return DUPLICATE
-    return DeliveryOutcome.NO_SUBSCRIBERS
+                acted = topic_events.outcome is DeliveryOutcome.ACCEPTED
+                recorded: dict[str, Any] = {
+                    "candidates": candidates,
+                    "payload": topic_events.payload,
+                    "outcome": topic_events.outcome,
+                    "actions": {"asset_events": topic_events.asset_events} if acted else None,
+                }
+                if original is None:
+                    received_at = timezone.utcnow()
+                    session.add(
+                        InboundDelivery(
+                            id=record_id,
+                            webhook=webhook.name,
+                            delivery_id=delivery.delivery_id,
+                            body_digest=body_digest,
+                            received_at=received_at,
+                            retain_until=received_at + retention,
+                            source_type=webhook.source_type,
+                            attributes=delivery.attributes,
+                            correlation_key=delivery.correlation_key,
+                            **recorded,
+                        )
+                    )
+                elif topic_events.outcome != original.outcome:
+                    # Matches nothing if another copy has acted on the row, once that copy has committed.
+                    result = session.execute(
+                        update(InboundDelivery)
+                        .where(
+                            InboundDelivery.id == original.id,
+                            InboundDelivery.outcome.in_(_REPROCESSED_OUTCOMES),
+                        )
+                        .values(**recorded)
+                    )
+                    if cast("CursorResult", result).rowcount != 1:
+                        raise _RecordChangedMeanwhile
+                if acted:
+                    names = [asset_event["asset"] for asset_event in topic_events.asset_events]
+                    session.add(_build_audit_log(webhook.name, delivery.delivery_id, names))
+        except (IntegrityError, _RecordChangedMeanwhile) as e:
+            # Rolling back undid what this copy recorded.
+            with create_session(scoped=False) as session:
+                original = find_delivery(webhook.name, delivery.delivery_id, body_digest, session=session)
+            if original is None and isinstance(e, IntegrityError):
+                raise
+            if original is not None and (original.outcome not in _REPROCESSED_OUTCOMES or not acted):
+                return DUPLICATE
+            # No copy has acted on the delivery: its record was removed, or the copy that got there
+            # first recorded nothing where this one found a Dag to act for.
+            continue
+        # Only once committed, so that no listener hears of an event that was rolled back.
+        for callback in callbacks:
+            callback()
+        return topic_events.outcome
+    raise WebhookUnavailable
 
 
 def _has_delivery_table() -> bool:
@@ -235,8 +320,8 @@ class DeliveryPipeline:
     Serves deliveries to the webhooks that a registry lists, and keeps this process's state for them.
 
     A request passes, in order: its name, the webhook's connection, the body limit, verification, the
-    handshake, the rate limit, parsing, and one transaction that records the delivery. Verification is
-    skipped only for a handshake that the source type declares unsigned.
+    handshake, the rate limit, parsing, and one transaction that records the delivery and its topic
+    events. Verification is skipped only for a handshake that the source type declares unsigned.
     """
 
     def __init__(self, registry: WebhookRegistry) -> None:
@@ -316,7 +401,11 @@ class DeliveryPipeline:
         timer.start()
         try:
             outcome = record_delivery(
-                webhook, delivery, body_digest=body_digest, retention=self._registry.delivery_retention
+                webhook,
+                delivery,
+                body_digest=body_digest,
+                retention=self._registry.delivery_retention,
+                max_event_payload_bytes=self._registry.max_event_payload_bytes,
             )
         except Exception as e:
             # Not timed: during an outage, recordings fail after as long as the pool or database takes.
