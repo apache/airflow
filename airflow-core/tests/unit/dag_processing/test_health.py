@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from unittest import mock
 
 import pytest
@@ -51,14 +54,52 @@ def test_local_health_requires_a_fresh_loop(clock, tmp_path, loop_age, api_age, 
         if healthy:
             check_processor_health(readiness=readiness)
         else:
-            with pytest.raises(SystemExit):
+            field, age = ("loop", loop_age) if not 0 <= loop_age <= 30 else ("api", api_age)
+            with pytest.raises(
+                SystemExit,
+                match=rf"Processor {field} heartbeat age {age:.1f}s.*health_check_threshold",
+            ):
                 check_processor_health(readiness=readiness)
 
 
-@pytest.mark.parametrize("contents", [None, "broken", "{}"])
-def test_missing_or_invalid_health_file_fails_closed(tmp_path, contents):
+@pytest.mark.parametrize(
+    ("contents", "cause", "detail"),
+    [
+        (None, FileNotFoundError, "health.json"),
+        ("broken", json.JSONDecodeError, "Expecting value"),
+        ("{}", KeyError, "pid"),
+    ],
+)
+def test_missing_or_invalid_health_file_fails_closed(tmp_path, contents, cause, detail):
     path = tmp_path / "health.json"
     if contents is not None:
         path.write_text(contents)
-    with conf_vars({("dag_processor", "health_check_file"): str(path)}), pytest.raises(SystemExit):
+    with (
+        conf_vars({("dag_processor", "health_check_file"): str(path)}),
+        pytest.raises(SystemExit, match=f"Dag processor is not healthy: .*{detail}") as raised,
+    ):
         check_processor_health()
+    assert isinstance(raised.value.__cause__, cause)
+
+
+def test_dead_processor_fails_health_with_a_fresh_heartbeat(tmp_path):
+    path = tmp_path / "health.json"
+    with subprocess.Popen([sys.executable, "-c", "pass"]) as process:
+        process.wait(timeout=10)
+    with conf_vars({("dag_processor", "health_check_file"): str(path)}):
+        write_processor_health(0)
+        record = json.loads(path.read_text())
+        record["pid"] = process.pid
+        path.write_text(json.dumps(record))
+        with pytest.raises(SystemExit, match="Dag processor is not healthy: .*No such process") as raised:
+            check_processor_health()
+    assert isinstance(raised.value.__cause__, ProcessLookupError)
+
+
+@mock.patch("airflow.dag_processing.health.os.kill", autospec=True)
+def test_inaccessible_processor_reports_the_probe_error(kill, tmp_path):
+    kill.side_effect = PermissionError("Operation not permitted")
+    with conf_vars({("dag_processor", "health_check_file"): str(tmp_path / "health.json")}):
+        write_processor_health(0)
+        with pytest.raises(SystemExit, match="Dag processor is not healthy: Operation not permitted"):
+            check_processor_health()

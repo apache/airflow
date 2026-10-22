@@ -523,8 +523,11 @@ the Execution API. The API client is created
 in the processor process, after any daemon or hot-reload fork. Leaving the setting
 unset preserves the in-process API and database-backed Job lifecycle.
 
-On a trusted host with database access and the server keys, synchronize the configured
-bundle catalog and provision a separate token file for each processor::
+Run catalog synchronization and token provisioning on a trusted host. Catalog synchronization
+requires database access and the deployment's Fernet key when it signs bundle URLs. Token
+provisioning requires the API's JWT signing keys and bundle-name configuration, but does not
+access the metadata database. Synchronize the configured bundle catalog and provision a
+separate token file for each processor::
 
     airflow dag-processor --sync-bundles-only
     airflow dag-processor-token --token-file /run/airflow/processor.jwt --bundle-name dags-folder --rotate
@@ -702,9 +705,17 @@ Synchronize the bundle catalog and run token provisioning in the trusted deploym
 described above. Keep the token provisioner running, and mount its directory rather than
 a single file so atomic token replacement remains visible.
 
+Before starting the isolated processor, stop the trusted deployment's processor for the bundles
+being moved. If that processor must continue serving other bundles, restrict it with
+``--bundle-name`` to those other bundles. This prevents conflicting inventory reconciliation
+and keeps Dag code for the moved bundles out of the database-credentialed processor.
+
 For Compose, use the :download:`standalone processor definition <dag-processor-api/docker-compose.yaml>`
 as its own project, rather than merging it with the quick-start file. It has no shared
 ``env_file``, server configuration mount, or dependency on a database/migration service.
+It serves ``dags-folder`` from its own ``./dags`` directory. Disable the quick-start deployment's
+``airflow-dag-processor`` service unless it is restricted to other bundles: processors that
+reconcile different file sets for the same bundle mark each other's missing Dags stale.
 Create its ``tokens``, ``dags``, and ``logs`` directories with permissions for the configured
 container user; provision ``tokens/processor.jwt``. Set ``AIRFLOW_IMAGE_NAME`` to the image
 with API support. Create an internal network and attach only the API server and processor::
