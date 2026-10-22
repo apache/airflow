@@ -10166,6 +10166,37 @@ class TestSchedulerJob:
         assert asset in active
         assert asset not in orphaned
 
+    def test_asset_orphaning_asset_referenced_from_every_table(self, dag_maker, session):
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        shared = Asset(uri="test://shared", name="shared", group="test_group")
+        dropped = Asset(uri="test://dropped", name="dropped", group="test_group")
+
+        for i in range(3):
+            with dag_maker(dag_id=f"consumer-{i}", schedule=[shared], session=session):
+                BashOperator(task_id="task", bash_command="echo 1")
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            for i in range(3):
+                BashOperator(task_id=f"produce-{i}", bash_command="echo 1", outlets=[shared, dropped])
+                BashOperator(task_id=f"read-{i}", bash_command="echo 1", inlets=[shared])
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [dropped, shared]
+        assert orphaned == []
+
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            for i in range(3):
+                BashOperator(task_id=f"produce-{i}", bash_command="echo 1", outlets=[shared])
+                BashOperator(task_id=f"read-{i}", bash_command="echo 1", inlets=[shared])
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [shared]
+        assert orphaned == [dropped]
+
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job())
 
