@@ -51,7 +51,6 @@ async def require_workload_identity(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(identity_bearer)],
 ) -> DagProcessorIdentity:
-    request.state.skip_execution_token_reissue = True
     verifier: DagProcessorIdentityVerifier | None = request.app.state.dag_processor_identity_verifier
     if verifier is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Workload identity provisioning is not enabled")

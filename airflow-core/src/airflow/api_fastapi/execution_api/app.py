@@ -153,9 +153,6 @@ class JWTReissueMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
 
-        if getattr(request.state, "skip_execution_token_reissue", False):
-            return response
-
         refreshed_token: str | None = None
         token = request.scope.get(_REQUEST_SCOPE_TOKEN_KEY)
         if token:
