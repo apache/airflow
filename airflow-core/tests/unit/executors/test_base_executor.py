@@ -1526,3 +1526,37 @@ class TestExecuteCallbackWorkload:
 
         assert success is False
         assert expected_error in error
+
+
+@mock.patch("airflow.sdk.execution_time.callback_supervisor.supervise_callback", autospec=True)
+@pytest.mark.parametrize(
+    ("fetch_method", "data", "expected_kwargs"),
+    [
+        pytest.param(CallbackFetchMethod.IMPORT_PATH, {"path": "my.callback"}, {}, id="import-path"),
+        pytest.param(
+            CallbackFetchMethod.DAG_ATTRIBUTE,
+            {"req_class": "DagCallbackRequest", "execution_timeout": 300},
+            {"fetch_method": "dag_attribute", "execution_timeout": 300},
+            id="routed-dag-attribute",
+        ),
+    ],
+)
+def test_run_workload_passes_routed_callback_options_only_when_set(
+    mock_supervise, fetch_method, data, expected_kwargs
+):
+    """A Task SDK without routed-callback support still runs callbacks stored without these options."""
+    mock_supervise.return_value = 0
+    wl = workloads.ExecuteCallback(
+        callback=CallbackDTO(id=str(uuid4()), fetch_method=fetch_method, data=data),
+        dag_rel_path="test_dag.py",
+        bundle_info=BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="test.log",
+    )
+
+    BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/")
+
+    passed = mock_supervise.call_args.kwargs
+    assert {
+        key: passed[key] for key in ("fetch_method", "execution_timeout") if key in passed
+    } == expected_kwargs

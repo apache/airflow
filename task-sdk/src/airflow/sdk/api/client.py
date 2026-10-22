@@ -50,6 +50,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     AssetStateStorePutBody,
     AssetStateStoreResponse,
+    CallbackContextResponse,
     CallbackTerminalState,
     CallbackTerminalStatePayload,
     ConnectionResponse,
@@ -68,6 +69,7 @@ from airflow.sdk.api.datamodels._generated import (
     InactiveAssetsResponse,
     LoopDecisionPayload,
     Note,
+    Output,
     PrevSuccessfulDagRunResponse,
     ResultMessage,
     TaskBreadcrumbsResponse,
@@ -1206,9 +1208,16 @@ class CallbackOperations:
         """Exchange the single-use callback token for an execution token."""
         self.client.patch(f"callbacks/{callback_id}/run")
 
+    def get_context(self, callback_id: uuid.UUID) -> CallbackContextResponse:
+        """Fetch the context of a running Dag-attribute callback from the API server."""
+        resp = self.client.get(f"callbacks/{callback_id}/context")
+        return CallbackContextResponse.model_validate_json(resp.read())
+
     def finish(self, callback_id: uuid.UUID, state: CallbackTerminalState, output: str | None = None) -> None:
         """Report the terminal state of a callback to the API server."""
-        body = CallbackTerminalStatePayload(state=state, output=output)
+        body = CallbackTerminalStatePayload(
+            state=state, output=Output(output[:2000]) if output is not None else None
+        )
         self.client.patch(f"callbacks/{callback_id}/state", content=body.model_dump_json())
 
 

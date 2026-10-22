@@ -914,15 +914,23 @@ class BaseExecutor(LoggingMixin):
                 sentry_integration=getattr(workload, "sentry_integration", ""),
             )
         if isinstance(workload, ExecuteCallback):
-            from airflow.executors.workloads.callback import CALLBACK_KWARGS_ENCODING_KEY
+            from airflow.executors.workloads.callback import (
+                CALLBACK_KWARGS_ENCODING_KEY,
+                EXECUTION_TIMEOUT_KEY,
+                CallbackFetchMethod,
+            )
             from airflow.sdk.execution_time.callback_supervisor import supervise_callback
 
-            # Only passed when set, so callbacks stored without it run on any Task SDK, while
-            # encoded kwargs fail on a Task SDK that cannot decode them instead of reaching
-            # the callback encoded.
-            encoding_kwargs = {}
+            # Only passed when set, so callbacks stored without them run on any Task SDK, while
+            # encoded kwargs and Dag-attribute callbacks fail on a Task SDK that cannot run them
+            # instead of reaching the callback encoded or running nothing.
+            optional_kwargs: dict[str, Any] = {}
             if kwargs_encoding := workload.callback.data.get(CALLBACK_KWARGS_ENCODING_KEY):
-                encoding_kwargs["callback_kwargs_encoding"] = kwargs_encoding
+                optional_kwargs["callback_kwargs_encoding"] = kwargs_encoding
+            if workload.callback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
+                optional_kwargs["fetch_method"] = workload.callback.fetch_method.value
+            if execution_timeout := workload.callback.data.get(EXECUTION_TIMEOUT_KEY):
+                optional_kwargs["execution_timeout"] = execution_timeout
             return supervise_callback(
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),
@@ -932,7 +940,7 @@ class BaseExecutor(LoggingMixin):
                 bundle_info=workload.bundle_info,
                 token=workload.token,
                 server=server,
-                **encoding_kwargs,
+                **optional_kwargs,
             )
         if isinstance(workload, TestConnection):
             from airflow.sdk.execution_time.connection_test_supervisor import supervise_connection_test

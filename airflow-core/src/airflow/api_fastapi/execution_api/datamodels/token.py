@@ -48,6 +48,11 @@ class TIClaims(_JWTClaims):
     scope: TaskTokenScope = "execution"
     # Trusted in-process callers construct task identities without a JWT or expiry.
     exp: float | None = None
+    # Signed into the execution token a callback exchanges for: a callback has no task instance
+    # to resolve its Dag, run, bundle or team from.
+    dag_id: str | None = None
+    run_id: str | None = None
+    bundle_name: str | None = None
 
 
 DagBundleGrant = Annotated[frozenset[Annotated[str, Field(min_length=1)]], Field(min_length=1)]

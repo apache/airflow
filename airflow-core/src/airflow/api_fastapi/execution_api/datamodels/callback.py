@@ -17,8 +17,55 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Annotated, Literal
 
-from airflow.api_fastapi.core_api.base import StrictBaseModel
+from pydantic import Field
+
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
+from airflow.utils.state import TaskInstanceState
+
+
+class DagCallbackContext(BaseModel):
+    """What a worker needs to run a Dag's success or failure callbacks."""
+
+    # No default on the tags: it would drop them from ``required``, and the generated task-sdk
+    # client then types them ``Literal | None``, invalid as a tagged-union discriminator.
+    type: Literal["DagCallback"]
+    dag_id: str
+    run_id: str
+    is_failure_callback: bool = True
+    msg: str | None = None
+    dag_run: DagRun | None = None
+    last_ti: TaskInstance | None = None
+
+
+class TaskCallbackContext(BaseModel):
+    """What a worker needs to run a task's failure or retry callbacks."""
+
+    type: Literal["TaskCallback"]
+    ti: TaskInstance
+    task_callback_type: TaskInstanceState | None = None
+    msg: str | None = None
+    ti_context: TIRunContext | None = None
+
+
+class EmailCallbackContext(BaseModel):
+    """What a worker needs to send a task's failure or retry email."""
+
+    type: Literal["EmailCallback"]
+    ti: TaskInstance
+    email_type: Literal["failure", "retry"]
+    msg: str | None = None
+    ti_context: TIRunContext
+
+
+class CallbackContextResponse(BaseModel):
+    """The context of a Dag-attribute callback, read by the worker that runs it."""
+
+    context: Annotated[
+        DagCallbackContext | TaskCallbackContext | EmailCallbackContext, Field(discriminator="type")
+    ]
 
 
 class CallbackTerminalState(str, Enum):
@@ -32,4 +79,4 @@ class CallbackTerminalStatePayload(StrictBaseModel):
     """Payload for transitioning a callback from RUNNING to a terminal state."""
 
     state: CallbackTerminalState
-    output: str | None = None
+    output: Annotated[str | None, Field(max_length=2000)] = None
