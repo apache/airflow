@@ -13082,6 +13082,7 @@ components:
           default: none
         max_active_runs:
           type: integer
+          minimum: 1.0
           title: Max Active Runs
           default: 10
         run_on_latest_version:

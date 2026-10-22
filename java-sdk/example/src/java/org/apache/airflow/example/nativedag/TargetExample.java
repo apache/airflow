@@ -41,6 +41,7 @@ public class TargetExample {
     var dag =
         new DagDef("java_native_target_example")
             .config("description", "Pure-Java Dag that the other native examples trigger")
+            .config("queue", "java")
             .config("catchup", false)
             .config("tags", List.of("example", "java-sdk"));
     dag.task("receive", Receive.class);

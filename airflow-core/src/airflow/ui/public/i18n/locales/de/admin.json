@@ -30,6 +30,7 @@
       "firstConfirmMessage_other": "Die folgenden Verbindungen werden gelöscht:",
       "title": "Verbindung löschen"
     },
+    "duplicate": "Doppelte $t(connections.connection_one)",
     "edit": "Verbindung bearbeiten",
     "form": {
       "connectionIdRequired": "Verbindungs-ID ist erforderlich",
@@ -38,6 +39,7 @@
       "connectionTypeRequired": "Die Auswahl eines Verbindungstyps ist erforderlich",
       "extraFieldsJson": "JSON Ansicht der weiteren Felder",
       "helperText": "Fehlt ein Verbindungstyp? Stellen Sie sicher, dass die notwendigen Provider-Pakete installiert sind.",
+      "helperTextForDuplicatedRedactedFields": "Redigierte Felder ('***') können nicht kopiert werden. Neue Verbindung eingeben.",
       "helperTextForRedactedFields": "Unkenntlich gemachte Felder ('***') bleiben unverändert, wenn sie nicht bearbeitet werden.",
       "selectConnectionType": "Verbindungstyp auswählen",
       "standardFields": "Standardfelder"
