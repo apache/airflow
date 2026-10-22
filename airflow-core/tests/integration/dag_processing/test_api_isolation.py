@@ -145,7 +145,14 @@ def test_processor_without_database_network_or_server_credentials(
             "AIRFLOW_USER_HOME_DIR": "/tmp/airflow-user",
             "AIRFLOW_HOME": "/tmp/isolated-airflow",
             "AIRFLOW_CONFIG": "/tmp/isolated-airflow/airflow.cfg",
-            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": f"postgresql+psycopg://blocked:blocked@{database_ip}:{database_port}/blocked",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": database.set(
+                username="blocked",
+                password="blocked",
+                host=database_ip,
+                port=database_port,
+                database="blocked",
+                query={},
+            ).render_as_string(hide_password=False),
             "AIRFLOW__CORE__FERNET_KEY": "",
             "AIRFLOW__API_AUTH__JWT_SECRET": "",
             "AIRFLOW__API_AUTH__JWT_PRIVATE_KEY_PATH": "",
@@ -256,7 +263,8 @@ def test_processor_without_database_network_or_server_credentials(
                 session.expire_all()
                 dag = session.get(DagModel, "isolated")
                 delivered = session.get(DagProcessorCallback, callback_id)
-                if dag and delivered is None:
+                priority = session.scalar(select(DagPriorityParsingRequest))
+                if dag and delivered is None and priority is None:
                     break
                 if process.poll() is not None:
                     output.seek(0)

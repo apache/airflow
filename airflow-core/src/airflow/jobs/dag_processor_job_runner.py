@@ -24,6 +24,7 @@ import httpx2
 
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
 from airflow.configuration import conf
 from airflow.dag_processing.health import write_processor_health
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -70,10 +71,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     def run_with_api(self, client: DagProcessorAPIClient) -> int | None:
-        """Let the API own the Job row while retaining the normal processor cleanup and listeners."""
-        # The client loads versioned routes which import this runner.
-        from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
-
+        """Mirror ``run_job`` metrics and listener ordering while the API owns Job persistence."""
         self.processor.api_client = client
         self.job.id = self._register_api_job(client)
         self.job.state = JobState.RUNNING
@@ -88,12 +86,12 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
             failed = False
             return result
         finally:
-            self.job.end_date = timezone.utcnow()
             self.job.state = JobState.FAILED if failed else JobState.SUCCESS
             try:
                 get_listener_manager().hook.before_stopping(component=self.job)
             except Exception:
                 self.log.exception("Error calling Dag processor shutdown listener")
+            self.job.end_date = timezone.utcnow()
             try:
                 client.complete_job(TerminalJobState(self.job.state))
             except Exception:
@@ -104,6 +102,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
                 stats.incr("job_end", 1, 1)
 
     def _register_api_job(self, client: DagProcessorAPIClient) -> int:
+        # Client imports stay local: its versioned routes import this runner.
         from airflow.dag_processing.api_client import DagProcessorJobAlreadyRunning
 
         deadline = monotonic() + conf.getint("dag_processor", "health_check_threshold") + self.job.heartrate
@@ -134,12 +133,24 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         except httpx2.HTTPError as error:
             if isinstance(error, httpx2.HTTPStatusError) and error.response.status_code < 500:
                 raise
-            stats.incr("dag_processor_heartbeat_failure", 1, 1)
-            if monotonic() - self._last_api_heartbeat >= conf.getint(
-                "dag_processor", "job_heartbeat_timeout"
-            ):
-                raise DagProcessorHeartbeatTimeout("Dag processor API heartbeat timed out") from error
-            self.log.warning("Unable to heartbeat the Dag processor Job; retrying on the next interval")
+            stats.incr("job_heartbeat_failure", 1, 1)
+            elapsed = monotonic() - self._last_api_heartbeat
+            timeout = conf.getint("dag_processor", "job_heartbeat_timeout")
+            error_type = type(error).__name__
+            status_code = error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
+            if elapsed >= timeout:
+                reason = f"{error_type} (HTTP {status_code})" if status_code is not None else error_type
+                raise DagProcessorHeartbeatTimeout(
+                    f"Dag processor API heartbeat timed out after {elapsed:.1f}s without a successful heartbeat "
+                    f"([dag_processor] job_heartbeat_timeout={timeout}s; {reason})"
+                ) from error
+            self.log.warning(
+                "Unable to heartbeat the Dag processor Job; retrying on the next interval",
+                error_type=error_type,
+                status_code=status_code,
+                elapsed_seconds=elapsed,
+                timeout_seconds=timeout,
+            )
             return
         if client.restart_required or state != JobState.RUNNING:
             raise DagProcessorRegistrationRetired("The API requested a Dag processor restart")
