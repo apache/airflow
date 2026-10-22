@@ -197,6 +197,23 @@ class Client internal constructor(
     mapIndex = details.ti.mapIndex ?: -1,
   )
 
+  /**
+   * Deletes an XCom this task pushed.
+   *
+   * Returns normally when no XCom is stored under [key].
+   *
+   * @param key XCom key; defaults to [XCOM_RETURN_KEY].
+   * @throws ApiError if the API call fails.
+   */
+  @JvmOverloads fun deleteXCom(key: String = XCOM_RETURN_KEY) =
+    impl.deleteXCom(
+      key = key,
+      dagId = details.ti.dagId,
+      taskId = details.ti.taskId,
+      runId = details.ti.runId,
+      mapIndex = details.ti.mapIndex ?: -1,
+    )
+
   internal val argBindings: List<ArgBinding> by lazy {
     decodeArgBindings(details.tiContext?.argBindings)
   }
