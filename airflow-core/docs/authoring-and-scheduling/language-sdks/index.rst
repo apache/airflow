@@ -409,7 +409,7 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
      - ✗
-   * - ``dynamic-task-mapping`` (MAY †)
+   * - ``mapped-tasks`` (MAY †)
      - ✗
      - ✗
      - ✗
@@ -438,7 +438,7 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
-   * - ``dynamic-task-mapping`` (MAY)
+   * - ``mapped-tasks`` (MAY)
      - ✗
      - ✗
      - ✗

@@ -195,7 +195,7 @@ capabilities:
     sdk_version: "1.0.0"
     note: "mapped stubs excluded"
   # Shared by both authoring modes, so declared once per mode.
-  dynamic-task-mapping:
+  mapped-tasks:
     dag-definition:
       supported: false
     stub-task-handler:

@@ -574,7 +574,7 @@ These capabilities exist in both authoring modes, and an SDK may support them in
 the other, so each one is declared once per mode. In a Dag definition the tier applies only when
 ``dag-definition-authoring`` is supported.
 
-``dynamic-task-mapping`` (MAY)
+``mapped-tasks`` (MAY)
     A task can be expanded at runtime via dynamic task mapping, and each mapped instance
     receives its own arguments.
 
@@ -616,7 +616,7 @@ entry per authoring mode:
 
 .. code-block:: yaml
 
-    dynamic-task-mapping:
+    mapped-tasks:
       dag-definition:
         supported: false
       stub-task-handler:

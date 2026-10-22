@@ -122,7 +122,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("asset-scheduling", "MAY", "dag-definition", True),
     Capability("mixed-lang-stub-target", "MUST", "stub-task-handler", False),
     Capability("taskflow-binding", "MUST", "stub-task-handler", False),
-    Capability("dynamic-task-mapping", "MAY", "shared", True),
+    Capability("mapped-tasks", "MAY", "shared", True),
     Capability("asset-inlets-outlets", "MAY", "shared", True),
     Capability("callbacks", "MAY", "shared", True),
 ]

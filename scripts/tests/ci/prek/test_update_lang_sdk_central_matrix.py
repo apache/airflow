@@ -97,8 +97,8 @@ class TestRenderCentralTable:
         assert f"   * - ``object-store`` (MAY)\n     - {matrix.SUPPORTED_MARK}\n" in rendered
         assert f"   * - ``dag-definition-authoring`` (SHOULD)\n     - {matrix.UNSUPPORTED_MARK}\n" in rendered
         assert f"   * - ``task-args`` (MUST †)\n     - {matrix.NA_MARK}\n" in rendered
-        assert f"   * - ``dynamic-task-mapping`` (MAY †)\n     - {matrix.NA_MARK}\n" in rendered
-        assert f"   * - ``dynamic-task-mapping`` (MAY)\n     - {matrix.SUPPORTED_MARK}\n" in rendered
+        assert f"   * - ``mapped-tasks`` (MAY †)\n     - {matrix.NA_MARK}\n" in rendered
+        assert f"   * - ``mapped-tasks`` (MAY)\n     - {matrix.SUPPORTED_MARK}\n" in rendered
         assert "   * - Min. Airflow version\n     - 3.3\n" in rendered
         assert "2026-06-16" in rendered
 

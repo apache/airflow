@@ -145,13 +145,13 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `dag-test` | SHOULD † | ✗ | – | – |  |
 | capability: `asset-definition` | MAY † | ✗ | – | – |  |
 | capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
-| capability: `dynamic-task-mapping` | MAY † | ✗ | – | – |  |
+| capability: `mapped-tasks` | MAY † | ✗ | – | – |  |
 | capability: `asset-inlets-outlets` | MAY † | ✗ | – | – |  |
 | capability: `callbacks` | MAY † | ✗ | – | – | no SDK-defined callback functions |
 | **Python Dag with stub TaskHandler** |  |  |  |  |  |
 | capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
 | capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
-| capability: `dynamic-task-mapping` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
+| capability: `mapped-tasks` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
 | capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
 | capability: `callbacks` | MAY | ✗ | – | – | a Python-declared callback does not run for a coordinator task |
 

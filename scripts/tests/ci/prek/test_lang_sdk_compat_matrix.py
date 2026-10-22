@@ -126,14 +126,14 @@ class TestParseCapabilities:
 
     def test_shared_capability_missing_a_mode_raises(self, capabilities_doc):
         doc = capabilities_doc()
-        del doc["capabilities"]["dynamic-task-mapping"][matrix.STUB_TASK_HANDLER_MODE]
-        with pytest.raises(matrix.CapabilitiesError, match="capabilities.dynamic-task-mapping keys mismatch"):
+        del doc["capabilities"]["mapped-tasks"][matrix.STUB_TASK_HANDLER_MODE]
+        with pytest.raises(matrix.CapabilitiesError, match="capabilities.mapped-tasks keys mismatch"):
             matrix.parse_capabilities(doc, source="test")
 
     def test_shared_capability_declared_as_a_single_entry_raises(self, capabilities_doc, capabilities_entry):
         doc = capabilities_doc()
-        doc["capabilities"]["dynamic-task-mapping"] = capabilities_entry(True, since="3.3")
-        with pytest.raises(matrix.CapabilitiesError, match="capabilities.dynamic-task-mapping keys mismatch"):
+        doc["capabilities"]["mapped-tasks"] = capabilities_entry(True, since="3.3")
+        with pytest.raises(matrix.CapabilitiesError, match="capabilities.mapped-tasks keys mismatch"):
             matrix.parse_capabilities(doc, source="test")
 
     def test_invalid_shared_mode_entry_raises(self, capabilities_doc, capabilities_entry):
@@ -150,13 +150,13 @@ class TestParseCapabilities:
     def test_shared_capability_dag_definition_mode_is_gated(
         self, capabilities_doc_without_dag_definition, capabilities_entry
     ):
-        # Everything gated is off except the Dag-definition side of dynamic-task-mapping, so the
+        # Everything gated is off except the Dag-definition side of mapped-tasks, so the
         # error names that one shared capability and nothing else.
         doc = capabilities_doc_without_dag_definition()
-        doc["capabilities"]["dynamic-task-mapping"][matrix.DAG_DEFINITION_MODE] = capabilities_entry(
+        doc["capabilities"]["mapped-tasks"][matrix.DAG_DEFINITION_MODE] = capabilities_entry(
             True, since="3.3"
         )
-        with pytest.raises(matrix.CapabilitiesError, match="cannot be supported.*: dynamic-task-mapping$"):
+        with pytest.raises(matrix.CapabilitiesError, match="cannot be supported.*: mapped-tasks$"):
             matrix.parse_capabilities(doc, source="test")
 
     def test_shared_capability_stub_task_handler_mode_is_not_gated(
@@ -196,11 +196,11 @@ class TestLoadCapabilities:
 class TestEntryLookup:
     def test_shared_capability_resolves_per_authoring_mode(self, capabilities_doc, capabilities_entry):
         doc = capabilities_doc()
-        doc["capabilities"]["dynamic-task-mapping"][matrix.STUB_TASK_HANDLER_MODE] = capabilities_entry(False)
+        doc["capabilities"]["mapped-tasks"][matrix.STUB_TASK_HANDLER_MODE] = capabilities_entry(False)
         parsed = matrix.parse_capabilities(doc, source="test")
         parts = matrix.build_matrix_parts()
         dag_definition_row, stub_row = (
-            next(row for row in part.groups[0].rows if row.name == "dynamic-task-mapping")
+            next(row for row in part.groups[0].rows if row.name == "mapped-tasks")
             for part in (parts.dag_definition, parts.stub_task_handler)
         )
 
@@ -252,7 +252,7 @@ class TestRenderMarkdownTable:
         assert stub_names == [
             "mixed-lang-stub-target",
             "taskflow-binding",
-            "dynamic-task-mapping",
+            "mapped-tasks",
             "asset-inlets-outlets",
             "callbacks",
         ]
@@ -261,12 +261,12 @@ class TestRenderMarkdownTable:
 
     def test_shared_capability_renders_each_mode(self, capabilities_doc, capabilities_entry):
         doc = capabilities_doc()
-        doc["capabilities"]["dynamic-task-mapping"][matrix.DAG_DEFINITION_MODE] = capabilities_entry(
+        doc["capabilities"]["mapped-tasks"][matrix.DAG_DEFINITION_MODE] = capabilities_entry(
             False, note="no expand API"
         )
         rendered = "".join(matrix.render_markdown_table(matrix.parse_capabilities(doc, source="test")))
-        assert f"| capability: `dynamic-task-mapping` | MAY † | {matrix.UNSUPPORTED_MARK} |" in rendered
-        assert f"| capability: `dynamic-task-mapping` | MAY | {matrix.SUPPORTED_MARK} | 3.3 |" in rendered
+        assert f"| capability: `mapped-tasks` | MAY † | {matrix.UNSUPPORTED_MARK} |" in rendered
+        assert f"| capability: `mapped-tasks` | MAY | {matrix.SUPPORTED_MARK} | 3.3 |" in rendered
 
     def test_supported_and_unsupported_marks(self, capabilities_doc, capabilities_entry):
         doc = capabilities_doc()
