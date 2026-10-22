@@ -76,6 +76,11 @@ on:  # yamllint disable-line rule:truthy
         description: 'Platform for the build - linux/amd64 or linux/arm64'
         required: true
         type: string
+      push-base-commit:
+        description: "For a push: the last successfully tested commit of the branch (empty otherwise)"
+        required: false
+        type: string
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -266,11 +271,35 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Static checks: basic checks only"
-        run: >
-          prek --show-diff-on-failure --color always
-          --from-ref "${{ github.sha }}"^ --to-ref "${{ github.sha }}"
+      - name: "Fetch the last tested push commit"
+        if: inputs.push-base-commit != ''
+        shell: bash
         env:
+          PUSH_BASE_COMMIT: ${{ inputs.push-base-commit }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${PUSH_BASE_COMMIT}" \
+            || echo "::warning::Could not fetch ${PUSH_BASE_COMMIT}, all files will be checked"
+      - name: "Static checks: basic checks only"
+        # A push is checked from the last tested commit of the branch, like its test selection: the
+        # commits of earlier failed or cancelled push runs are checked again. `--from-ref` needs the
+        # merge base, which the shallow fetch does not have, so the changed files are listed here.
+        shell: bash
+        run: |
+          set -euo pipefail
+          prek_args=(--show-diff-on-failure --color always)
+          if [[ -z "${PUSH_BASE_COMMIT}" ]]; then
+            prek "${prek_args[@]}" --from-ref "${GITHUB_SHA}^" --to-ref "${GITHUB_SHA}"
+          elif git cat-file -e "${PUSH_BASE_COMMIT}^{commit}"; then
+            mapfile -t files < <(git diff --name-only --no-renames --diff-filter=d \
+              "${PUSH_BASE_COMMIT}" "${GITHUB_SHA}")
+            if (( ${#files[@]} > 0 )); then
+              prek "${prek_args[@]}" --files "${files[@]}"
+            fi
+          else
+            prek "${prek_args[@]}" --all-files
+          fi
+        env:
+          PUSH_BASE_COMMIT: ${{ inputs.push-base-commit }}
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
           SKIP: ${{ inputs.skip-prek-hooks }}
