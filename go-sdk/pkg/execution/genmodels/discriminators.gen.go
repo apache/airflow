@@ -77,6 +77,7 @@ const (
 	TypeGetXComSequenceItem         = "GetXComSequenceItem"
 	TypeGetXComSequenceSlice        = "GetXComSequenceSlice"
 	TypeHITLDetailRequestResult     = "HITLDetailRequestResult"
+	TypeHITLDetailResponseResult    = "HITLDetailResponseResult"
 	TypeInactiveAssetsResult        = "InactiveAssetsResult"
 	TypeMaskSecret                  = "MaskSecret"
 	TypeOKResponse                  = "OKResponse"
@@ -281,6 +282,9 @@ func EnsureType(m any) any {
 		return b
 	case HITLDetailRequestResult:
 		b.Type = TypeHITLDetailRequestResult
+		return b
+	case HITLDetailResponseResult:
+		b.Type = TypeHITLDetailResponseResult
 		return b
 	case InactiveAssetsResult:
 		b.Type = TypeInactiveAssetsResult

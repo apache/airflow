@@ -30,10 +30,13 @@ from sqlalchemy.sql.functions import FunctionElement
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement
     from sqlalchemy.sql.compiler import SQLCompiler
+
+    from airflow.models.taskinstance import TaskInstance
 
 
 class JSONExtract(FunctionElement):
@@ -195,3 +198,36 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
             "responded_by_user": self.responded_by_user,
             "timedout": timedout,
         }
+
+    def is_awaited_by_running_task(self, ti: TaskInstance) -> bool:
+        """
+        Whether the running task instance ``ti`` is still checking for the answer to this request.
+
+        A Human-in-the-loop operator can keep running for a while after writing its request, checking
+        for the answer before it parks. That only holds for the attempt that wrote the request, before
+        it is resumed: a resumed run (``next_method`` set) has stopped waiting, and an attempt that
+        started after the request was written has not asked yet. :func:`awaiting_response_clause` is
+        the SQL form of the same condition.
+        """
+        return ti.next_method is None and ti.start_date is not None and self.created_at >= ti.start_date
+
+
+def awaiting_response_clause() -> ColumnElement[bool]:
+    """
+    Return the SQL condition for a task instance waiting for its Human-in-the-loop answer.
+
+    The task is parked (``deferred`` before Airflow 3.3, ``awaiting_input`` from 3.3), or still
+    running and checking for the answer, per :meth:`HITLDetail.is_awaited_by_running_task`. Join
+    ``hitl_detail`` to ``task_instance`` before applying it.
+    """
+    # Circular import: airflow.models.taskinstance imports this module at load time.
+    from airflow.models.taskinstance import TaskInstance
+
+    return sa.or_(
+        TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
+        sa.and_(
+            TaskInstance.state == TaskInstanceState.RUNNING,
+            TaskInstance.next_method.is_(None),
+            HITLDetail.created_at >= TaskInstance.start_date,
+        ),
+    )
