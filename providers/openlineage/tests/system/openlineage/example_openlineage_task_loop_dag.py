@@ -41,6 +41,9 @@ It checks, for a plain task, tasks, a mapped task and a mapped task group in a l
     - the loop groups' `max_iterations`, `has_until`, `gate_task_id` and `terminal_task_id` in the
       `taskGroups` of the Dag's job facet, and never in the task's `task_group`: in task events, only task's
       `loop` describes the loop
+    - the job facet's `group_type` and `parse_time_mapped_count` of each group, and for its tasks their
+      `task_group`, `loop_group`, `is_mapped`, `parse_time_mapped_count` (2 for the mapped task group expanded
+      over a literal list, unknown for the task expanded over an upstream result) and `retries`
     - taskInstance's `dag_version_id` of every event
     - a retried task emits START and FAIL for each failed try, then START and COMPLETE for the last one
     - every execution (iteration, map index, try) has its own `runId`, shared by its START and COMPLETE/FAIL

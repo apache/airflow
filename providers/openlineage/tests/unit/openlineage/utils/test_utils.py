@@ -172,6 +172,8 @@ def test_get_airflow_job_facet():
             taskGroups={
                 "section_1": {
                     "parent_group": None,
+                    "group_type": "task_group",
+                    "parse_time_mapped_count": None,
                     "ui_color": "CornflowerBlue",
                     "ui_fgcolor": "#000",
                     "ui_label": "section_1",
@@ -184,6 +186,11 @@ def test_get_airflow_job_facet():
                     "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
                     "task_group": None,
                     "loop_group": None,
+                    "is_mapped": False,
+                    "parse_time_mapped_count": None,
+                    "trigger_rule": "all_success",
+                    "depends_on_past": False,
+                    "retries": 0,
                     "emits_ol_events": True,
                     "ui_color": "#f0ede4",
                     "ui_fgcolor": "#000",
@@ -198,6 +205,11 @@ def test_get_airflow_job_facet():
                     "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
                     "task_group": "section_1",
                     "loop_group": None,
+                    "is_mapped": False,
+                    "parse_time_mapped_count": None,
+                    "trigger_rule": "all_success",
+                    "depends_on_past": False,
+                    "retries": 0,
                     "emits_ol_events": True,
                     "ui_color": "#ffefeb",
                     "ui_fgcolor": "#000",
@@ -1392,6 +1404,11 @@ def test_get_tasks_details():
             "operator": py_decorator_path,
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
             "ui_label": "generate_list",
@@ -1408,6 +1425,11 @@ def test_get_tasks_details():
             "operator": py_decorator_path,
             "task_group": None,
             "loop_group": None,
+            "is_mapped": True,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
             "ui_label": "process_item",
@@ -1424,6 +1446,11 @@ def test_get_tasks_details():
             "operator": py_decorator_path,
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
             "ui_label": "sum_values",
@@ -1435,6 +1462,11 @@ def test_get_tasks_details():
             "operator": "unit.openlineage.utils.test_utils.CustomOperatorForTest",
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": True,
             "ui_color": CustomOperatorForTest.ui_color,
             "ui_fgcolor": CustomOperatorForTest.ui_fgcolor,
@@ -1452,6 +1484,11 @@ def test_get_tasks_details():
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,
             "ui_fgcolor": BashOperator.ui_fgcolor,
@@ -1469,6 +1506,11 @@ def test_get_tasks_details():
             "operator": "unit.openlineage.utils.test_utils.CustomOperatorFromEmpty",
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": False,
             "ui_color": CustomOperatorFromEmpty.ui_color,
             "ui_fgcolor": CustomOperatorFromEmpty.ui_fgcolor,
@@ -1486,6 +1528,11 @@ def test_get_tasks_details():
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
             "ui_fgcolor": PythonOperator.ui_fgcolor,
@@ -1502,6 +1549,11 @@ def test_get_tasks_details():
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,
             "ui_fgcolor": BashOperator.ui_fgcolor,
@@ -1520,6 +1572,11 @@ def test_get_tasks_details():
             "operator": "airflow.providers.standard.operators.empty.EmptyOperator",
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": False,
             "ui_color": EmptyOperator.ui_color,
             "ui_fgcolor": EmptyOperator.ui_fgcolor,
@@ -1536,6 +1593,11 @@ def test_get_tasks_details():
             "operator": f"{BASH_OPERATOR_PATH}.BashOperator",
             "task_group": None,
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,
             "ui_fgcolor": BashOperator.ui_fgcolor,
@@ -1553,6 +1615,11 @@ def test_get_tasks_details():
             "operator": "unit.openlineage.utils.test_utils.TestMappedOperator",
             "task_group": None,
             "loop_group": None,
+            "is_mapped": True,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "ui_color": "#fff",
             "ui_fgcolor": "#000",
             "ui_label": "task_6",
@@ -1566,6 +1633,11 @@ def test_get_tasks_details():
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": "section_1",
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
             "ui_fgcolor": PythonOperator.ui_fgcolor,
@@ -1582,6 +1654,11 @@ def test_get_tasks_details():
             "operator": "airflow.providers.standard.operators.empty.EmptyOperator",
             "task_group": "section_1.section_2",
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": False,
             "ui_color": EmptyOperator.ui_color,
             "ui_fgcolor": EmptyOperator.ui_fgcolor,
@@ -1596,6 +1673,11 @@ def test_get_tasks_details():
             "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": "section_1.section_2.section_3",
             "loop_group": None,
+            "is_mapped": False,
+            "parse_time_mapped_count": None,
+            "trigger_rule": "all_success",
+            "depends_on_past": False,
+            "retries": 0,
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
             "ui_fgcolor": PythonOperator.ui_fgcolor,
@@ -2004,6 +2086,8 @@ def test_get_task_groups_details():
     expected = {
         "tg1": {
             "parent_group": None,
+            "group_type": "task_group",
+            "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg1",
@@ -2012,6 +2096,8 @@ def test_get_task_groups_details():
         },
         "tg2": {
             "parent_group": None,
+            "group_type": "task_group",
+            "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg2",
@@ -2020,6 +2106,8 @@ def test_get_task_groups_details():
         },
         "tg3": {
             "parent_group": None,
+            "group_type": "task_group",
+            "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg3",
@@ -2086,6 +2174,86 @@ def test_get_tasks_details_has_the_loop_of_each_task():
     }
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loops require Airflow 3.4")
+def test_job_facet_tells_which_tasks_expand_and_when_they_run():
+    from airflow.sdk import task, task_group
+    from airflow.sdk.definitions._internal.loop import create_loop
+
+    from tests_common.test_utils.dag import create_scheduler_dag
+
+    with DAG("structure_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+
+        @task
+        def produce():
+            return [1, 2]
+
+        @task(retries=2, depends_on_past=True, trigger_rule="all_done")
+        def consume(x):
+            return x
+
+        literal = PythonOperator.partial(task_id="literal", python_callable=list).expand(
+            op_kwargs=[{}, {}, {}]
+        )
+        dynamic = consume.expand(x=produce())
+
+        @task_group
+        def fan_out(x):
+            EmptyOperator(task_id="member")
+
+        literal >> dynamic >> fan_out.expand(x=[1, 2])
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        create_loop(body, max_iterations=3)
+    scheduler_dag = create_scheduler_dag(dag)
+    edge_map = _build_labeled_edge_map(scheduler_dag)
+
+    tasks = _get_tasks_details(scheduler_dag, edge_map=edge_map)
+    groups = _get_task_groups_details(scheduler_dag, edge_map=edge_map)
+
+    fields = ("is_mapped", "parse_time_mapped_count", "trigger_rule", "depends_on_past", "retries")
+    assert {task_id: tuple(tasks[task_id][f] for f in fields) for task_id in tasks} == {
+        "literal": (True, 3, "all_success", False, 0),
+        "produce": (False, None, "all_success", False, 0),
+        # Expanded over an upstream result, so its size is only known when the Dag runs
+        "consume": (True, None, "all_done", True, 2),
+        "fan_out.member": (True, 2, "all_success", False, 0),
+        "body.work": (False, None, "all_success", False, 0),
+        "body.__loop_gate": (False, None, "all_success", False, 0),
+    }
+    assert {group_id: (g["group_type"], g["parse_time_mapped_count"]) for group_id, g in groups.items()} == {
+        "fan_out": ("mapped", 2),
+        "body": ("loop", None),
+    }
+
+
+@pytest.mark.parametrize("dag_kind", ["task_sdk", "scheduler"])
+def test_job_facet_tells_mapped_task_groups_apart(dag_kind):
+    from airflow.providers.common.compat.sdk import task_group
+
+    with DAG("groups_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
+
+        @task_group
+        def fan_out(x):
+            EmptyOperator(task_id="member")
+
+        fan_out.expand(x=[1, 2])
+        with TaskGroup("plain"):
+            EmptyOperator(task_id="work")
+    if dag_kind == "scheduler":
+        if not AIRFLOW_V_3_0_PLUS:
+            pytest.skip("Airflow 2 has no separate scheduler Dag")
+        from tests_common.test_utils.dag import create_scheduler_dag
+
+        dag = create_scheduler_dag(dag)
+
+    groups = _get_task_groups_details(dag, edge_map=_build_labeled_edge_map(dag))
+
+    assert (groups["fan_out"]["group_type"], groups["plain"]["group_type"]) == ("mapped", "task_group")
+
+
 def test_get_task_groups_details_nested():
     with DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
         with TaskGroup("tg1", prefix_group_id=True) as tg:
@@ -2097,6 +2265,8 @@ def test_get_task_groups_details_nested():
     expected = {
         "tg1": {
             "parent_group": None,
+            "group_type": "task_group",
+            "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg1",
@@ -2105,6 +2275,8 @@ def test_get_task_groups_details_nested():
         },
         "tg1.tg2": {
             "parent_group": "tg1",
+            "group_type": "task_group",
+            "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg2",
@@ -2113,6 +2285,8 @@ def test_get_task_groups_details_nested():
         },
         "tg1.tg2.tg3": {
             "parent_group": "tg1.tg2",
+            "group_type": "task_group",
+            "parse_time_mapped_count": None,
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg3",

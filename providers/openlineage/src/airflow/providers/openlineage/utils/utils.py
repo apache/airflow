@@ -2351,11 +2351,18 @@ def _get_tasks_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple[dict,
     for single_task in sorted(dag.tasks, key=lambda x: x.task_id):
         task_edges, group_edges = edge_map.get(single_task.task_id, ({}, {}))
         task_loop = get_task_loop_info(single_task)
+        is_mapped = single_task.get_needs_expansion()
         tasks[single_task.task_id] = {
             "operator": get_fully_qualified_class_name(single_task),
             "task_group": single_task.task_group.group_id if single_task.task_group else None,
             # The loop around the task, which is not task_group for a task in a task group inside the loop
             "loop_group": task_loop["group_id"] if task_loop else None,
+            # Expanded by itself or by a mapped task group around it
+            "is_mapped": is_mapped,
+            "parse_time_mapped_count": _get_parse_time_mapped_count(single_task) if is_mapped else None,
+            "trigger_rule": getattr(single_task.trigger_rule, "value", single_task.trigger_rule),
+            "depends_on_past": single_task.depends_on_past,
+            "retries": single_task.retries,
             "emits_ol_events": _emits_ol_events(single_task),
             "ui_color": single_task.ui_color,
             "ui_fgcolor": single_task.ui_fgcolor,
@@ -2373,8 +2380,11 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
     result = {}
     for tg_id, tg in dag.task_group_dict.items():
         task_edges, group_edges = edge_map.get(tg_id, ({}, {}))
+        group_type = _get_task_group_type(tg)
         result[tg_id] = {
             "parent_group": tg.parent_group.group_id if tg.parent_group else None,
+            "group_type": group_type,
+            "parse_time_mapped_count": _get_parse_time_mapped_count(tg) if group_type == "mapped" else None,
             "ui_color": tg.ui_color,
             "ui_fgcolor": tg.ui_fgcolor,
             "ui_label": tg.label,
@@ -2387,6 +2397,31 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
             },
         }
     return result
+
+
+def _get_task_group_type(task_group: Any) -> str:
+    """Tell whether a task group is a loop, a mapped task group or a plain one."""
+    if hasattr(task_group, "gate_task_id"):
+        return "loop"
+    if (is_mapped := getattr(task_group, "is_mapped", None)) is None:
+        # Only the scheduler's serialized task groups tell it themselves
+        try:
+            from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+        except ImportError:  # Airflow 2
+            from airflow.utils.task_group import MappedTaskGroup  # type: ignore[no-redef]
+        is_mapped = isinstance(task_group, MappedTaskGroup)
+    return "mapped" if is_mapped else "task_group"
+
+
+def _get_parse_time_mapped_count(node: Any) -> int | None:
+    """Return how many instances a mapped task or task group expands to, when it's known before the Dag runs."""
+    # The scheduler's serialized Dag and Airflow 2's count, while a Task SDK Dag doesn't
+    if (get_count := getattr(node, "get_parse_time_mapped_ti_count", None)) is None:
+        return None
+    try:
+        return get_count()
+    except RuntimeError:  # NotFullyPopulated, as the size depends on the results of upstream tasks
+        return None
 
 
 def _emits_ol_events(task: AnyOperator) -> bool:

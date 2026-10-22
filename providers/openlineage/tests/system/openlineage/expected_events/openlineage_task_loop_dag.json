@@ -7,29 +7,68 @@
                 "airflow": {
                     "taskGroups": {
                         "accumulate": {
+                            "group_type": "loop",
+                            "parse_time_mapped_count": null,
                             "gate_task_id": "accumulate.__loop_gate",
                             "has_until": false,
                             "max_iterations": 3,
                             "terminal_task_id": "accumulate.report"
                         },
                         "process_batch": {
+                            "group_type": "loop",
+                            "parse_time_mapped_count": null,
                             "gate_task_id": "process_batch.__loop_gate",
                             "has_until": false,
                             "max_iterations": 2,
                             "terminal_task_id": "process_batch.process"
                         },
                         "poll": {
+                            "group_type": "loop",
+                            "parse_time_mapped_count": null,
                             "gate_task_id": "poll.ready",
                             "has_until": true,
                             "max_iterations": 3,
                             "terminal_task_id": "poll.check"
                         },
                         "process_batch.fetch": {
+                            "group_type": "mapped",
+                            "parse_time_mapped_count": 2,
                             "parent_group": "process_batch",
                             "max_iterations": null,
                             "has_until": null,
                             "gate_task_id": null,
                             "terminal_task_id": null
+                        }
+                    },
+                    "tasks": {
+                        "plain_task": {
+                            "task_group": null,
+                            "loop_group": null,
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "accumulate.increment": {
+                            "task_group": "accumulate",
+                            "loop_group": "accumulate",
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "retries": 2
+                        },
+                        "process_batch.process": {
+                            "task_group": "process_batch",
+                            "loop_group": "process_batch",
+                            "is_mapped": true,
+                            "parse_time_mapped_count": null,
+                            "retries": 3
+                        },
+                        "process_batch.fetch.download": {
+                            "task_group": "process_batch.fetch",
+                            "loop_group": "process_batch",
+                            "is_mapped": true,
+                            "parse_time_mapped_count": 2,
+                            "retries": 0
                         }
                     }
                 }
