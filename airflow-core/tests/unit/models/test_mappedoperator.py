@@ -1956,15 +1956,18 @@ def test_short_circuit_skips_later_tasks_in_task_group_mapped_over_upstream_outp
         assert states[task_id] == {0: "success", 1: "skipped"}
 
 
-def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker):
-    """Regression test for #39801.
+@pytest.mark.parametrize(
+    "trigger_rule", [TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, TriggerRule.ALL_DONE_MIN_ONE_SUCCESS]
+)
+def test_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker, trigger_rule):
+    """Regression test for #39801 and its ``ALL_DONE_MIN_ONE_SUCCESS`` counterpart.
 
-    A task with the ``NONE_FAILED_MIN_ONE_SUCCESS`` trigger rule inside a dynamically
+    A task with a ``*_MIN_ONE_SUCCESS`` trigger rule inside a dynamically
     expanded task group must expand and run once its upstream (also inside the group)
-    succeeds, instead of being skipped prematurely at its unexpanded (map_index -1)
-    summary ti before the task group has expanded.
+    succeeds, instead of being skipped or marked upstream_failed prematurely at its
+    unexpanded (map_index -1) summary ti.
     """
-    with dag_maker(dag_id="test_none_failed_min_one_success_in_mapped_task_group") as dag:
+    with dag_maker(dag_id=f"test_{trigger_rule.value}_in_mapped_task_group") as dag:
 
         @task
         def init():
@@ -1976,7 +1979,7 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(d
             def imsleepy(message):
                 return message
 
-            @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+            @task(trigger_rule=trigger_rule)
             def imawake(message):
                 pass
 
@@ -1994,14 +1997,17 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(d
     assert states["tg.imawake"] == {0: "success", 1: "success", 2: "success"}
 
 
-def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(dag_maker):
+@pytest.mark.parametrize(
+    "trigger_rule", [TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, TriggerRule.ALL_DONE_MIN_ONE_SUCCESS]
+)
+def test_min_one_success_trigger_rule_expands_in_nested_task_group(dag_maker, trigger_rule):
     """Regression test for #39801, nested-group shape.
 
-    Same as above, but the ``NONE_FAILED_MIN_ONE_SUCCESS`` task lives in a plain task
+    Same as above, but the ``*_MIN_ONE_SUCCESS`` task lives in a plain task
     group nested inside the mapped one (the exact shape of the issue's reproducer), so
     its immediate ``task_group`` is not mapped — only an ancestor is.
     """
-    with dag_maker(dag_id="test_none_failed_min_one_success_in_nested_task_group") as dag:
+    with dag_maker(dag_id=f"test_{trigger_rule.value}_in_nested_task_group") as dag:
 
         @task
         def init():
@@ -2015,7 +2021,7 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(d
 
             @task_group(group_id="inner")
             def inner(message):
-                @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+                @task(trigger_rule=trigger_rule)
                 def imawake(message):
                     pass
 
@@ -2033,6 +2039,47 @@ def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(d
 
     assert states["tg.imsleepy"] == {0: "success", 1: "success", 2: "success"}
     assert states["tg.inner.imawake"] == {0: "success", 1: "success", 2: "success"}
+
+
+@pytest.mark.parametrize(
+    ("upstream_outcome", "expected_state"),
+    [("skip", "skipped"), ("fail", "upstream_failed")],
+)
+def test_all_done_min_one_success_decides_per_index_in_mapped_task_group(
+    dag_maker, upstream_outcome, expected_state
+):
+    """An ``ALL_DONE_MIN_ONE_SUCCESS`` task in a mapped group is evaluated per expanded index."""
+    with dag_maker(dag_id=f"test_all_done_min_one_success_upstream_{upstream_outcome}") as dag:
+
+        @task
+        def init():
+            return ["seize", "the", "day"]
+
+        @task_group(group_id="tg")
+        def tg(message):
+            @task
+            def imsleepy(message):
+                if message == "the":
+                    if upstream_outcome == "skip":
+                        raise AirflowSkipException
+                    raise ValueError("boom")
+                return message
+
+            @task(trigger_rule=TriggerRule.ALL_DONE_MIN_ONE_SUCCESS)
+            def imawake(message):
+                pass
+
+            imawake(imsleepy(message))
+
+        tg.expand(message=init())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    assert states["tg.imawake"] == {0: "success", 1: expected_state, 2: "success"}
 
 
 def test_mapped_operator_retry_delay_default(dag_maker):

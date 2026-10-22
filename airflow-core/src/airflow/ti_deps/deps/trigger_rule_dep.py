@@ -459,6 +459,11 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = sum(count for _, count in task_id_counts)
                 upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
+            # Once its in-group upstreams have expanded, the summary ti of a task in a mapped
+            # task group has no upstream ti left to judge; the expanded tis decide instead.
+            if map_index < 0 and upstream == 0 and task.get_closest_mapped_task_group() is not None:
+                return
+
             upstream_done = done >= upstream
 
             changed = False
