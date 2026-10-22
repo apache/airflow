@@ -37,6 +37,7 @@ from fastmcp.exceptions import McpError
 from mcp_types import jsonrpc
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.mcp import MCPToolset as PydanticAIMCPToolset
+from pydantic_ai.toolsets import CombinedToolset
 
 from airflow.models import Connection
 from airflow.providers.common.ai.utils import toolset_base
@@ -202,6 +203,14 @@ async def _list_and_call(toolset, text="hi"):
         tools = await toolset.get_tools(_ctx())
         result = await toolset.execute_tool("echo", {"text": text}, ctx=_ctx(), tool=tools["echo"])
     return tools, result
+
+
+async def _list_and_call_in_an_agent_run(toolset, text="hi"):
+    """Call ``echo`` the way an agent run does, through a CombinedToolset, which closes ``toolset``."""
+    combined = CombinedToolset([toolset])
+    async with combined:
+        tools = await combined.get_tools(_ctx())
+        return await combined.call_tool("echo", {"text": text}, _ctx(), tools["echo"])
 
 
 async def _call_concurrently(*texts):
@@ -572,12 +581,32 @@ class TestErrors:
         with pytest.raises(ModelRetry, match="'text' is required"):
             _run(call_with_missing_argument())
 
+    @pytest.mark.parametrize("call", [_list_and_call, _list_and_call_in_an_agent_run])
     @pytest.mark.parametrize("text", ["drop", "drop body"])
-    def test_connection_lost_during_a_tool_call_is_a_transport_error(self, gateway, gateway_conn, text):
+    def test_connection_lost_during_a_tool_call_is_a_transport_error(self, gateway, gateway_conn, text, call):
         with pytest.raises(DatabricksUnityMCPTransportError, match="may or may not have run"):
-            _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID), text))
+            _run(call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID), text))
 
         assert [m for _, _, m in _StubGateway.requests].count("tools/call") == 1
+
+    @pytest.mark.parametrize(
+        ("mcp_error", "expected"),
+        [
+            # The server answered, so the overlapping call's failure says nothing about this call.
+            (McpError(jsonrpc.INVALID_PARAMS, "Invalid params"), None),
+            (McpError(jsonrpc.CONNECTION_CLOSED, "Connection closed"), DatabricksUnityMCPTransportError),
+        ],
+    )
+    def test_recorded_request_failure_only_explains_a_call_without_an_answer(self, mcp_error, expected):
+        operation = unity_mcp._Operation(overlapped=True, failures=[httpx2.ConnectError("refused")])
+        toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
+
+        translated = toolset._translate_error(mcp_error, operation, during_tool_call=True)
+
+        if expected is None:
+            assert translated is None
+        else:
+            assert type(translated) is expected
 
     def test_unreachable_gateway_is_a_transport_error(self, create_connection_without_db):
         create_connection_without_db(
@@ -595,11 +624,12 @@ class TestErrors:
     unity_mcp, "PydanticAIMCPToolset", functools.partial(PydanticAIMCPToolset, read_timeout=0.5)
 )
 class TestRequestTimeout:
-    def test_tool_call_without_an_answer_is_not_left_to_the_model(self, gateway, gateway_conn):
+    @pytest.mark.parametrize("call", [_list_and_call, _list_and_call_in_an_agent_run])
+    def test_tool_call_without_an_answer_is_not_left_to_the_model(self, gateway, gateway_conn, call):
         _StubGateway.delays = {"tools/call": 2}
 
         with pytest.raises(DatabricksUnityMCPTransportError, match="may or may not have run"):
-            _run(_list_and_call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
+            _run(call(DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)))
 
         assert [m for _, _, m in _StubGateway.requests].count("tools/call") == 1
 

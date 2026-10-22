@@ -119,3 +119,8 @@ several tool calls of the toolset at once, the status of a failed call cannot be
 others', so a call that fails with HTTP 401, 403 or 429 is reported as ``DatabricksUnityMCPError``
 without it. Transport errors, timeouts and a denial the gateway reports in its JSON-RPC answer keep
 their class. Use task retries for calls that are safe to repeat.
+
+These exception classes and their attributes reach the task in Pydantic AI runs. Through the
+LangChain bridge, ``airflow_toolset_to_langchain_tools``, a failed tool call raises
+``ToolCallError`` instead, whose message names the exception class and repeats its message;
+``http_status_code`` and ``retry_after`` are not carried over.

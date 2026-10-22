@@ -398,6 +398,9 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         self._init_timeout = init_timeout
         self._server: Any = None
         self._operations: set[_Operation] = set()
+        # Whether a gateway failure was reported while connected, so closing the session, which
+        # re-raises that failure, must not replace the report.
+        self._failure_reported = False
         # A templated name is checked once it has been rendered, when the toolset connects.
         if "{{" not in service_name:
             validate_service_name(service_name)
@@ -537,11 +540,13 @@ class DatabricksUnityMCPToolset(AirflowToolset):
             translated = self._translate_error(e, operation, during_tool_call=during_tool_call)
             if translated is None:
                 raise
+            self._failure_reported = True
             raise translated from e
         finally:
             self._operations.discard(operation)
 
     async def __aenter__(self) -> DatabricksUnityMCPToolset:
+        self._failure_reported = False
         async with self._gateway_operation():
             await (await self._resolve_server()).__aenter__()
         return self
@@ -549,7 +554,9 @@ class DatabricksUnityMCPToolset(AirflowToolset):
     async def __aexit__(self, *args: Any) -> bool | None:
         if self._server is None:
             return None
-        if args[0] is None:
+        # pydantic-ai's CombinedToolset closes its toolsets without passing on the exception
+        # that ends the run, so a reported failure is remembered rather than read from args.
+        if args[0] is None and not self._failure_reported:
             return await self._server.__aexit__(*args)
         try:
             return await self._server.__aexit__(*args)
