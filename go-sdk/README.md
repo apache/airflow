@@ -190,12 +190,18 @@ upstream object as a single argument.
 | `actx.Logger()` | the `*slog.Logger` that writes to the task's Airflow log |
 | `actx.Client()` | the `sdk.Client` for Variables, Connections and XCom |
 | `actx.TaskInstance()` | `DagID`, `RunID`, `TaskID`, `MapIndex` (nil for an unmapped task), `TryNumber` |
-| `actx.DagRun()` | `DagID`, `RunID`, and the `*time.Time` fields `LogicalDate`, `DataIntervalStart`, `DataIntervalEnd` (nil when the run has no such value, e.g. a manual trigger) |
+| `actx.DagRun()` | `DagID`, `RunID`, `RunAfter`, `RunType` (an `airflow.DagRunType` such as `airflow.DagRunTypeManual`), `Conf` (may be nil or empty when no configuration was supplied), and the `*time.Time` fields `LogicalDate`, `DataIntervalStart`, `DataIntervalEnd` (nil when the run has no such value, e.g. a manual trigger) |
 
 It is itself a `context.Context`, so pass it straight to a client call or to
 `http.NewRequestWithContext`, and select on `actx.Done()`, which fires when the supervisor asks the
 task to stop. Cleanup that must outlive that cancellation runs under `context.WithoutCancel(actx)`.
 A helper typed as a plain `context.Context` recovers the same surface with `airflow.FromContext`.
+
+`Conf` is a `map[string]any`. Its integers are `int64`, except positive values above
+`math.MaxInt64`, which are `uint64`; floating-point values are `float64`. This also applies to
+values in nested maps and arrays. The runtime copies these containers from the startup details.
+Use a map lookup or `len` to check for configuration entries; a run without configuration may
+have a nil or empty map.
 
 ```go
 func extract(actx airflow.Context) (any, error) {
@@ -434,9 +440,10 @@ drift, so a missed bump is caught by `go test`. A snapshot can also grow a field
 struct does not declare — so the `check-go-sdk-generated-drift` prek hook regenerates them and fails
 when the committed files differ.
 
-[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` constants again, so that
-a Dag author does not import `genmodels`. `TestDagRunStateMatchesGenmodels` fails when regenerating
-the models adds, renames or removes a `DagRunState` constant. The test keeps failing until
+[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` and
+`genmodels.DagRunType` constants again, so that a Dag author does not import `genmodels`.
+`TestDagRunStateMatchesGenmodels` and `TestDagRunTypeMatchesGenmodels` fail when regenerating
+the models adds, renames or removes a constant from either enum. The tests keep failing until
 `airflow/enums.go` declares the same constants as `genmodels`.
 
 ## Regenerating the Dag, task and task group specs
