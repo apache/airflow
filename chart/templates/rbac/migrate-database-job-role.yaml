@@ -1,0 +1,88 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+#######################################
+## Airflow Migrate Database Job Role
+##
+## Grants pods + pods/exec in the release namespace so the migrate-database-job
+## can exec ``airflow db downgrade`` inside the still-running api-server pod on
+## a chart downgrade. The forward-migrate branch never uses these permissions.
+#######################################
+{{- if and .Values.rbac.create .Values.migrateDatabaseJob.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "airflow.fullname" . }}-migrate-database-job-role
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    tier: airflow
+    component: run-airflow-migrations
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.migrateDatabaseJob.useHelmHooks }}
+  annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  {{- end }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "pods"
+    verbs:
+      - "get"
+      - "list"
+  - apiGroups:
+      - ""
+    resources:
+      - "pods/exec"
+    # The reconciler execs ``airflow db downgrade`` via the kubernetes python
+    # client. Different apiserver versions / client paths authorize exec under
+    # either ``create`` (the classic ``kubectl exec`` POST) or ``get`` (the
+    # GET-based ``connect_get_namespaced_pod_exec`` upgrade). Grant both so the
+    # downgrade branch is not at the mercy of that variation.
+    verbs:
+      - "create"
+      - "get"
+  # The downgrade branch scales every DB-touching workload to 0 after running
+  # ``airflow db downgrade`` so no OLD code keeps querying the now-downgraded
+  # schema before helm rolls in TARGET pods. See chart/files/db_migrate.py.
+  - apiGroups:
+      - "apps"
+    resources:
+      - "deployments"
+      - "statefulsets"
+    verbs:
+      - "get"
+      - "list"
+  - apiGroups:
+      - "apps"
+    resources:
+      - "deployments/scale"
+      - "statefulsets/scale"
+    # Only ``patch`` is needed: the reconciler patches the scale subresource to
+    # 0 replicas and never reads it back.
+    verbs:
+      - "patch"
+{{- end }}

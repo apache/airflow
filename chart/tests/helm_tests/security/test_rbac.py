@@ -66,11 +66,13 @@ RBAC_ENABLED_KIND_NAME_TUPLES = [
     ("Role", "test-rbac-pod-launcher-role"),
     ("Role", "test-rbac-cleanup-role"),
     ("Role", "test-rbac-database-cleanup-role"),
+    ("Role", "test-rbac-migrate-database-job-role"),
     ("Role", "test-rbac-pod-log-reader-role"),
     ("RoleBinding", "test-rbac-pod-launcher-rolebinding"),
     ("RoleBinding", "test-rbac-pod-log-reader-rolebinding"),
     ("RoleBinding", "test-rbac-cleanup-rolebinding"),
     ("RoleBinding", "test-rbac-database-cleanup-rolebinding"),
+    ("RoleBinding", "test-rbac-migrate-database-job-rolebinding"),
 ]
 
 SERVICE_ACCOUNT_NAME_TUPLES = [
