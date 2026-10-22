@@ -11484,6 +11484,46 @@ class TestSchedulerJob:
         ]
         assert recorded[0][1] >= 600
 
+    def test_emit_schedule_overdue_metric_resets_recovered_dag_to_zero(self, dag_maker, monkeypatch, session):
+        """A Dag that is no longer held back is reported as zero, so its last value doesn't stick."""
+        with dag_maker("blocked_dag", schedule="@hourly", max_active_runs=1, session=session):
+            pass
+        session.execute(
+            update(DagModel)
+            .where(DagModel.dag_id == "blocked_dag")
+            .values(
+                next_dagrun_create_after=timezone.utcnow() - timedelta(minutes=10),
+                exceeds_max_non_backfill=True,
+            )
+        )
+        session.flush()
+
+        recorded: list[tuple[str, float, dict | None]] = []
+
+        def _fake_gauge(metric: str, value: float, *_, tags=None, **__):
+            recorded.append((metric, value, tags))
+
+        monkeypatch.setattr("airflow._shared.observability.metrics.stats.gauge", _fake_gauge, raising=True)
+
+        self.job_runner = SchedulerJobRunner(Job())
+        self.job_runner._emit_schedule_overdue_metric(session=session)
+        assert len(recorded) == 1
+        assert recorded[0][1] >= 600
+
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == "blocked_dag").values(exceeds_max_non_backfill=False)
+        )
+        session.flush()
+        recorded.clear()
+        self.job_runner._emit_schedule_overdue_metric(session=session)
+
+        assert recorded == [("dag.schedule_overdue_seconds", 0, {"dag_id": "blocked_dag"})]
+
+        recorded.clear()
+        self.job_runner._emit_schedule_overdue_metric(session=session)
+
+        assert recorded == []
+
     # Multi-team scheduling tests
     def test_multi_team_get_team_names_for_dag_ids_success(self, dag_maker, session):
         """Test successful team name resolution for multiple DAG IDs."""

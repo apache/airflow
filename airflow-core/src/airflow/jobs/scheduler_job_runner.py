@@ -3687,13 +3687,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("scheduler.dagruns.running", float(counts.get(DagRunState.RUNNING, 0)))
         stats.gauge("scheduler.dagruns.queued", float(counts.get(DagRunState.QUEUED, 0)))
 
+    previous_schedule_overdue_dag_ids: frozenset[str] = frozenset()
+
     @provide_session
     def _emit_schedule_overdue_metric(self, *, session: Session = NEW_SESSION) -> None:
         """
         Emit how long each time-scheduled Dag held back by ``max_active_runs`` has been due.
 
         ``DagModel.dags_needing_dagruns`` skips Dags at ``max_active_runs``, so their next run
-        is never created and nothing is queued. Only Dags in that state are emitted.
+        is never created and nothing is queued. Only Dags in that state are emitted, and a Dag
+        that leaves it is reset to zero once.
         """
         now = timezone.utcnow()
         stmt = select(DM.dag_id, DM.next_dagrun_create_after).where(
@@ -3705,14 +3708,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             DM.exceeds_max_non_backfill == expression.true(),
             DM.next_dagrun_create_after <= now,
         )
+        overdue_dag_ids = set()
         for dag_id, create_after in session.execute(stmt):
             if create_after is None:
                 continue
+            overdue_dag_ids.add(dag_id)
             stats.gauge(
                 "dag.schedule_overdue_seconds",
                 (now - create_after).total_seconds(),
                 tags={"dag_id": dag_id},
             )
+        # Reset Dags that recovered since the last run; StatsD would otherwise keep their last value.
+        for dag_id in self.previous_schedule_overdue_dag_ids - overdue_dag_ids:
+            stats.gauge("dag.schedule_overdue_seconds", 0, tags={"dag_id": dag_id})
+        self.previous_schedule_overdue_dag_ids = frozenset(overdue_dag_ids)
 
     @provide_session
     def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
