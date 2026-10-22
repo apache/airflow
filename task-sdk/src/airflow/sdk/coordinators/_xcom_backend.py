@@ -33,6 +33,7 @@ import contextlib
 import selectors
 import signal
 import time
+from collections import deque
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 from uuid import UUID
@@ -167,7 +168,8 @@ class XComBackendProcess(WatchedSubprocess):
     decoder: ClassVar[TypeAdapter[_FromXComBackendProcess]] = TypeAdapter(_FromXComBackendProcess)
 
     _call_request_id: int | None = attrs.field(default=None, init=False)
-    _queued_call: XComBackendCall | None = attrs.field(default=None, init=False)
+    _queued_calls: deque[XComBackendCall] = attrs.field(factory=deque, init=False)
+    _unanswered_calls: int = attrs.field(default=0, init=False)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -194,18 +196,25 @@ class XComBackendProcess(WatchedSubprocess):
         """
         Send ``call`` to the process, which answers it through ``on_result``.
 
-        A call sent before the process has asked for one waits until it does, which is how the first call
-        of a task waits for the process to start.
+        The process runs one call at a time, so a call waits its turn and is answered in the order it
+        was sent. That is also how the first call of a task waits for the process to start.
         """
-        if self._call_request_id is None:
-            self._queued_call = call
+        self._queued_calls.append(call)
+        self._unanswered_calls += 1
+        self._send_next_call()
+
+    def _send_next_call(self) -> None:
+        """Hand the oldest waiting call to the process, if it has asked for one."""
+        if self._call_request_id is None or not self._queued_calls:
             return
         request_id, self._call_request_id = self._call_request_id, None
-        self.send_msg(call, request_id=request_id)
+        self.send_msg(self._queued_calls.popleft(), request_id=request_id)
 
     def stop(self) -> None:
         """Let the helper process exit, and kill it if it does not exit in time."""
-        self._queued_call = None
+        # The task this process serves is over, so nothing waits for the calls it has not answered.
+        self._queued_calls.clear()
+        self._unanswered_calls = 0
         if self._exit_code is None and self._call_request_id is not None:
             # The process may be dead already, such as when the task it serves was killed.
             with contextlib.suppress(OSError):
@@ -227,23 +236,22 @@ class XComBackendProcess(WatchedSubprocess):
     def _on_socket_closed(self, sock: socket) -> None:
         super()._on_socket_closed(sock)
         if sock is self.stdin:
-            # The process has exited, or is exiting, so it answers no call it was still running.
-            self.on_result(XComBackendResult(error="The XCom backend process exited before it answered"))
+            # The process has exited, or is exiting, so it answers none of the calls it was still to run.
+            unanswered, self._unanswered_calls = self._unanswered_calls, 0
+            for _ in range(unanswered):
+                self.on_result(XComBackendResult(error="The XCom backend process exited before it answered"))
 
     def _handle_await_call(
         self, msg: AwaitXComBackendCall, log: FilteringBoundLogger, req_id: int
     ) -> ResponseSent:
         self._call_request_id = req_id
-        if (queued := self._queued_call) is not None:
-            self._queued_call = None
-            self.send_call(queued)
+        self._send_next_call()
         return ResponseSent.ALREADY_SENT
 
     def _handle_result(self, msg: XComBackendResult, log: FilteringBoundLogger, req_id: int) -> ResponseSent:
         self._call_request_id = req_id
-        if (queued := self._queued_call) is not None:
-            self._queued_call = None
-            self.send_call(queued)
+        self._unanswered_calls -= 1
+        self._send_next_call()
         self.on_result(msg)
         return ResponseSent.ALREADY_SENT
 

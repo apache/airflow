@@ -1440,6 +1440,25 @@ class _InProcessXComBackend:
 
 
 @attrs.define
+class _DeferredXComBackend:
+    """Holds every call until the test answers it, the way the helper process runs one call at a time."""
+
+    xcom: type[BaseXCom]
+    on_result: Callable[[XComBackendResult], None]
+    calls: list[XComBackendCall] = attrs.field(factory=list)
+
+    def send_call(self, call):
+        self.calls.append(call)
+
+    def answer_next(self) -> None:
+        """Answer the oldest call that is still waiting."""
+        self.on_result(_HookRunner(self.xcom).run(self.calls.pop(0)))
+
+    def stop(self):
+        pass
+
+
+@attrs.define
 class _FakeApi:
     """Records Execution API requests, and answers each with ``responses`` by method and path."""
 
@@ -1656,6 +1675,44 @@ class TestPopenActivitySubprocessXComBackend:
 
         assert _sent_body(proc)["root"] == expected
         assert proc._xcom_backend.calls == [XComBackendCall(hook="load", key="summary", value=item)]
+
+    def test_requests_that_overlap_each_get_their_own_response(self, make_proc):
+        """A runtime can send several XCom requests at once, so a request may start while another runs."""
+        _RefXCom.stored["ref://task_1/None/summary"] = "first"
+        _RefXCom.stored["ref://task_1/None/other"] = "second"
+        proc = make_proc(
+            _RefXCom,
+            _FakeApi(
+                {
+                    ("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"}),
+                    ("GET", _XCOM_PATH.replace("summary", "other")): (
+                        200,
+                        {"key": "other", "value": "ref://task_1/None/other"},
+                    ),
+                }
+            ),
+        )
+        backend = _DeferredXComBackend(_RefXCom, proc._finish_xcom_backend_call)
+        proc._xcom_backend = backend  # type: ignore[assignment]
+
+        for req_id, key in enumerate(("summary", "other")):
+            proc._handle_request(
+                GetXCom(key=key, dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, req_id
+            )
+
+        # Both requests wait on the backend, and neither has been answered.
+        assert [call.key for call in backend.calls] == ["summary", "other"]
+        assert cast("MagicMock", proc.stdin).sendall.call_count == 0
+
+        backend.answer_next()
+        backend.answer_next()
+
+        sent = [
+            msgspec.msgpack.decode(frame.args[0][4:])
+            for frame in cast("MagicMock", proc.stdin).sendall.call_args_list
+        ]
+        assert [request_id for request_id, _, _ in sent] == [0, 1]
+        assert [body["value"] for _, body, _ in sent] == [serialize("first"), serialize("second")]
 
     def test_get_xcom_sequence_slice_loads_the_values_through_the_backend(self, make_proc):
         _RefXCom.stored["ref://task_1/None/summary"] = (12, 3402.0)

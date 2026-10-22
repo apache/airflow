@@ -23,7 +23,7 @@ import signal
 import socket
 import time
 from typing import cast
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import MagicMock, call, create_autospec, patch
 
 import httpx2
 import msgspec
@@ -323,7 +323,30 @@ class TestXComBackendProcessSendCall:
         assert cast("MagicMock", backend.stdin).sendall.call_count == 1
         assert _decode_sent_call(backend.stdin)["hook"] == "purge"
 
+    def test_calls_sent_while_one_runs_are_answered_in_order(self, backend, on_result):
+        """A runtime can send several XCom requests at once, and each one gets its own result."""
+        log = structlog.get_logger(logger_name="task")
+        backend._handle_await_call(AwaitXComBackendCall(), log, req_id=1)
+
+        backend.send_call(XComBackendCall(hook="load", key="first", value={}))
+        backend.send_call(XComBackendCall(hook="load", key="second", value={}))
+
+        # Only the first call reaches the process, which runs one call at a time.
+        assert cast("MagicMock", backend.stdin).sendall.call_count == 1
+        assert _decode_sent_call(backend.stdin)["key"] == "first"
+
+        backend._handle_result(XComBackendResult(value="first value"), log, req_id=2)
+
+        assert cast("MagicMock", backend.stdin).sendall.call_count == 2
+        assert _decode_sent_call(backend.stdin)["key"] == "second"
+        on_result.assert_called_once_with(XComBackendResult(value="first value"))
+
+        backend._handle_result(XComBackendResult(value="second value"), log, req_id=3)
+
+        assert on_result.call_args_list[-1].args == (XComBackendResult(value="second value"),)
+
     def test_a_closed_requests_socket_reports_that_the_process_exited(self, backend, on_result):
+        backend.send_call(XComBackendCall(hook="purge", key="return_value", value={}))
         other_socket = MagicMock(spec=socket.socket)
 
         backend._on_socket_closed(other_socket)
@@ -335,3 +358,21 @@ class TestXComBackendProcessSendCall:
         on_result.assert_called_once_with(
             XComBackendResult(error="The XCom backend process exited before it answered")
         )
+
+    def test_a_closed_requests_socket_fails_every_call_that_waits(self, backend, on_result):
+        backend.send_call(XComBackendCall(hook="load", key="first", value={}))
+        backend.send_call(XComBackendCall(hook="load", key="second", value={}))
+
+        backend._on_socket_closed(backend.stdin)
+
+        exited = XComBackendResult(error="The XCom backend process exited before it answered")
+        assert on_result.call_args_list == [call(exited), call(exited)]
+
+    def test_a_stopped_process_answers_no_call(self, backend, on_result):
+        """Nothing waits for a call once the task the process serves is over."""
+        backend.send_call(XComBackendCall(hook="load", key="first", value={}))
+        backend._exit_code = 0
+
+        backend.stop()
+
+        on_result.assert_not_called()
