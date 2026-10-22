@@ -297,8 +297,6 @@ class TaskStateStore internal constructor(
           )
         else -> now.plus(retention)
       }
-    // TODO: warn when the serialized value exceeds [state_store] max_value_storage_bytes once the
-    //   coordinator passes it to the JVM, as the Python accessor does.
     impl.setTaskStateStore(tiId = details.ti.id, key = key, value = value, expiresAt = expiresAt)
   }
 
