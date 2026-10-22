@@ -17,7 +17,10 @@
                         "try_number": 1,
                         "max_tries": 0,
                         "state": "running",
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": {
+                            "$optional": "runtime task instances of Airflow 3.0 have no Dag version",
+                            "$value": "{{ is_uuid(result) }}"
+                        }
                     }
                 }
             }
@@ -35,7 +38,10 @@
                         "try_number": 1,
                         "max_tries": 0,
                         "state": "skipped",
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": {
+                            "$optional": "runtime task instances of Airflow 3.0 have no Dag version",
+                            "$value": "{{ is_uuid(result) }}"
+                        }
                     }
                 }
             }
@@ -60,7 +66,10 @@
                         "try_number": 1,
                         "max_tries": 2,
                         "state": "running",
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": {
+                            "$optional": "runtime task instances of Airflow 3.0 have no Dag version",
+                            "$value": "{{ is_uuid(result) }}"
+                        }
                     }
                 }
             }
@@ -78,7 +87,10 @@
                         "try_number": 1,
                         "max_tries": 2,
                         "state": "failed",
-                        "dag_version_id": "{{ is_uuid(result) }}"
+                        "dag_version_id": {
+                            "$optional": "runtime task instances of Airflow 3.0 have no Dag version",
+                            "$value": "{{ is_uuid(result) }}"
+                        }
                     }
                 }
             }

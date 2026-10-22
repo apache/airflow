@@ -23,7 +23,7 @@ It checks:
     - a task that raises AirflowFailException with retries left emits START with `state` running, and FAIL
       with `state` failed at `try_number` 1 and `max_tries` 2: it isn't retried although
       `try_number <= max_tries`
-    - taskInstance's `dag_version_id` of every event
+    - taskInstance's `dag_version_id` of every event, from Airflow 3.1 on
 """
 
 from __future__ import annotations
@@ -33,7 +33,6 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.common.compat.sdk import AirflowFailException, AirflowSkipException
 from airflow.sdk import task
-from airflow.utils.trigger_rule import TriggerRule
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
@@ -61,7 +60,7 @@ with DAG(
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
-        trigger_rule=TriggerRule.ALL_DONE,
+        trigger_rule="all_done",
     )
 
     [skip_itself(), fail_without_retry()] >> check_events
