@@ -51,6 +51,19 @@ export interface SetXComOpts {
 }
 
 /**
+ * Options for deleting an XCom value.
+ *
+ * `dagId`, `taskId`, and `runId` default to the running task's context.
+ */
+export interface DeleteXComOpts {
+  key: string;
+  dagId?: string;
+  runId?: string;
+  taskId?: string;
+  mapIndex?: number | null;
+}
+
+/**
  * Pass as {@link TaskStateStoreSetOpts.retentionMs} to store a task state store
  * key with no expiry, regardless of the deployment default.
  *

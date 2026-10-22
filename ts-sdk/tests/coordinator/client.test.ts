@@ -162,6 +162,7 @@ describe("writes do not read a supervisor 404 as absence", () => {
     ["setVariable", "PutVariable", (c: TaskClient) => c.setVariable("k", "v")],
     ["deleteVariable", "DeleteVariable", (c: TaskClient) => c.deleteVariable("k")],
     ["setXCom", "SetXCom", (c: TaskClient) => c.setXCom({ key: "k", value: 1 })],
+    ["deleteXCom", "DeleteXCom", (c: TaskClient) => c.deleteXCom({ key: "k" })],
     [
       "taskStateStore.set",
       "SetTaskStateStore",
@@ -313,6 +314,89 @@ describe("client is bound to TaskContext", () => {
       include_prior_dates: true,
     });
     expect(sent[3]).toMatchObject({ type: "SetXCom", map_index: 5 });
+  });
+});
+
+describe("deleteXCom", () => {
+  it("defaults dag/task/run + map_index from ctx", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.deleteXCom({ key: "k" });
+
+    expect(sent[0]).toEqual({
+      type: "DeleteXCom",
+      key: "k",
+      dag_id: "d",
+      task_id: "t",
+      run_id: "r",
+      map_index: null,
+    });
+  });
+
+  it("sends explicit dagId/taskId/runId/mapIndex overrides", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.deleteXCom({
+      key: "k",
+      dagId: "other_dag",
+      taskId: "upstream",
+      runId: "manual__1",
+      mapIndex: 2,
+    });
+
+    expect(sent[0]).toEqual({
+      type: "DeleteXCom",
+      key: "k",
+      dag_id: "other_dag",
+      task_id: "upstream",
+      run_id: "manual__1",
+      map_index: 2,
+    });
+  });
+
+  it("defaults map_index from a mapped ctx when opts omit it", async () => {
+    const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+    const sent: Record<string, unknown>[] = [];
+    const recordingComm = {
+      request: async (b: Record<string, unknown>) => {
+        sent.push(b);
+        return { body: null };
+      },
+    } as unknown as CommChannel;
+    const c = createCoordinatorClient(recordingComm, mappedCtx, FAKE_TI_ID);
+
+    await c.deleteXCom({ key: "k" });
+
+    expect(sent[0]).toEqual({
+      type: "DeleteXCom",
+      key: "k",
+      dag_id: "d",
+      task_id: "t",
+      run_id: "r",
+      map_index: 3,
+    });
+  });
+
+  it("keeps an explicit mapIndex: 0, rather than falling back to ctx", async () => {
+    const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+    const sent: Record<string, unknown>[] = [];
+    const recordingComm = {
+      request: async (b: Record<string, unknown>) => {
+        sent.push(b);
+        return { body: null };
+      },
+    } as unknown as CommChannel;
+    const c = createCoordinatorClient(recordingComm, mappedCtx, FAKE_TI_ID);
+
+    await c.deleteXCom({ key: "k", mapIndex: 0 });
+
+    expect(sent[0]).toMatchObject({ map_index: 0 });
+  });
+
+  it("propagates a supervisor error as a thrown error", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "GENERIC_ERROR" } }]);
+
+    await expect(c.deleteXCom({ key: "k" })).rejects.toThrow(/GENERIC_ERROR/);
   });
 });
 
