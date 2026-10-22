@@ -21,13 +21,14 @@ package org.apache.airflow.e2e;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Bundle for the runner-behaviour E2E tests: deliberately broken task classes that exercise
- * instantiation failures, and tasks that round-trip Airflow Variables and task state through the
- * supervisor.
+ * instantiation failures, and tasks that round-trip Airflow Variables, task state and asset state
+ * through the supervisor.
  */
 public class TestBundleBuilder implements BundleBuilder {
   public static class MissingNoArgConstructor implements Task {
@@ -90,6 +91,46 @@ public class TestBundleBuilder implements BundleBuilder {
     }
   }
 
+  /**
+   * Calls every asset state store method on one asset, through a lookup by name and a lookup by
+   * URI. Each step changes the state through one lookup and checks the result through the other,
+   * so the task fails unless both lookups reach the same asset. The E2E test then reads the
+   * remaining keys through the REST API.
+   */
+  public static class UseAssetStateStore implements Task {
+    public void execute(@NotNull Context context, Client client) {
+      var byName = client.getAssetStateStore().byName("java_e2e_orders");
+      var byUri = client.getAssetStateStore().byUri("x-java-e2e://orders");
+
+      byName.set("scratch", "first");
+      expect("first", byUri.get("scratch"), "set() through the name");
+      byUri.clear();
+      expect(null, byName.get("scratch"), "clear() through the URI");
+
+      byUri.set("scratch", "second");
+      expect("second", byName.get("scratch"), "set() through the URI");
+      byName.clear();
+      expect(null, byUri.get("scratch"), "clear() through the name");
+
+      byName.set("deleted", "temporary");
+      byUri.delete("deleted");
+      expect(null, byName.get("deleted"), "delete() through the URI");
+      byUri.set("deleted", "temporary");
+      byName.delete("deleted");
+      expect(null, byUri.get("deleted"), "delete() through the name");
+
+      var summary = Map.of("run_id", context.dagRun.runId, "rows", 3L);
+      byName.set("summary", summary);
+      expect(summary, byUri.get("summary"), "set() through the name, with a map value");
+    }
+
+    private static void expect(Object expected, Object actual, String step) {
+      if (!Objects.equals(expected, actual)) {
+        throw new IllegalStateException(step + ": expected " + expected + " but read " + actual);
+      }
+    }
+  }
+
   @NotNull
   @Override
   public Iterable<DagDef> getDags() {
@@ -100,7 +141,9 @@ public class TestBundleBuilder implements BundleBuilder {
     variableWrite.addTask("write_and_delete", WriteAndDeleteVariable.class);
     var taskState = new DagDef("java_task_state");
     taskState.addTask("roundtrip_task_state", RoundtripTaskState.class);
-    return List.of(uninstantiable, variableWrite, taskState);
+    var assetStateStore = new DagDef("java_asset_state_store");
+    assetStateStore.addTask("use_asset_state_store", UseAssetStateStore.class);
+    return List.of(uninstantiable, variableWrite, taskState, assetStateStore);
   }
 
   public static void main(String[] args) {

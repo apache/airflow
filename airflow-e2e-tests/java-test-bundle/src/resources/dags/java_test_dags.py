@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from airflow.sdk import dag, task
+from airflow.sdk import Asset, dag, task
 
 
 @task.stub(queue="java-test")
@@ -60,3 +60,20 @@ def java_task_state():
 
 
 java_task_state()
+
+
+# The Java task cannot see this inlet. Declaring it keeps the asset active, and the
+# Execution API only reads and writes the state of active assets.
+java_e2e_orders = Asset(name="java_e2e_orders", uri="x-java-e2e://orders")
+
+
+@task.stub(queue="java-test", inlets=[java_e2e_orders])
+def use_asset_state_store(): ...
+
+
+@dag(dag_id="java_asset_state_store")
+def java_asset_state_store():
+    use_asset_state_store()
+
+
+java_asset_state_store()
