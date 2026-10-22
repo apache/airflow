@@ -95,7 +95,7 @@ if TYPE_CHECKING:
 
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import JobFacet, RunFacet, processing_engine_run
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import InstanceState, Session
 
     from airflow.models.asset import AssetEvent
     from airflow.sdk.execution_time.secrets_masker import (
@@ -1156,8 +1156,27 @@ class TaskInstanceInfo(InfoJsonEncodable):
         """Return the name or version of the Dag bundle the attempt runs from."""
         if (bundle := getattr(ti, "bundle_instance", None)) is not None:  # A runtime task instance
             return getattr(bundle, key, None)
-        # A stored one only through its Dag version, which Airflow 2 doesn't have
-        return safe_getattr(safe_getattr(ti, "dag_version"), f"bundle_{key}")
+        if not isinstance(ti, TaskInstance):
+            return None
+        return getattr(TaskInstanceInfo.get_stored_dag_version(ti), f"bundle_{key}", None)
+
+    @staticmethod
+    def get_stored_dag_version(ti: TaskInstance) -> Any:
+        """Return the Dag version of a stored task instance, or None when it can't be read, as on Airflow 2."""
+        from sqlalchemy import inspect
+
+        try:
+            state: InstanceState = inspect(ti)
+            if "dag_version" not in state.unloaded or state.session is None:
+                # Loaded already, or not in a session to load it from, so reading it doesn't query
+                return safe_getattr(ti, "dag_version")
+            # The event must still be sent without it, and the savepoint keeps the caller's transaction usable
+            with state.session.begin_nested():
+                return ti.dag_version
+        except Exception:
+            log.warning("OpenLineage failed to read the Dag version of task instance %s", ti.id)
+            log.debug("Exception details:", exc_info=True)
+            return None
 
     def __init__(self, obj, position: TaskInstancePosition | None = None):
         # Pass the position when the caller has already placed the task instance, e.g. from its stored region or

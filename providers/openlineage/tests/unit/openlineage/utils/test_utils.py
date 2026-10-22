@@ -29,6 +29,7 @@ from uuid import UUID, uuid4
 import pendulum
 import pytest
 from openlineage.client.facet_v2 import parent_run
+from sqlalchemy import literal, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import DetachedInstanceError
 from uuid6 import uuid7
@@ -2191,7 +2192,7 @@ def test_job_facet_tells_which_tasks_expand_and_when_they_run():
         def consume(x):
             return x
 
-        literal = PythonOperator.partial(task_id="literal", python_callable=list).expand(
+        literal_mapped = PythonOperator.partial(task_id="literal", python_callable=list).expand(
             op_kwargs=[{}, {}, {}]
         )
         dynamic = consume.expand(x=produce())
@@ -2200,7 +2201,7 @@ def test_job_facet_tells_which_tasks_expand_and_when_they_run():
         def fan_out(x):
             EmptyOperator(task_id="member")
 
-        literal >> dynamic >> fan_out.expand(x=[1, 2])
+        literal_mapped >> dynamic >> fan_out.expand(x=[1, 2])
 
         @task_group
         def body():
@@ -4370,6 +4371,38 @@ def test_stored_task_instance_is_placed_as_airflow_places_it_for_the_worker(
         "forked_from_region_id": str(loop_region.id),
         "resumes_from_index": 2,
     }
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Dag versions require Airflow 3")
+@pytest.mark.parametrize("load_fails", [False, True])
+@patch("airflow.providers.openlineage.utils.utils.log", autospec=True)
+def test_stored_task_instance_info_reads_its_dag_version_without_risking_the_event(
+    mock_log, dag_maker, session, load_fails
+):
+    with dag_maker(session=session):
+        PythonOperator(task_id="work", python_callable=list)
+    ti = dag_maker.create_dagrun().task_instances[0]
+    session.expire(ti, ["dag_version"])
+
+    if load_fails:
+        with patch.object(
+            TaskInstance,
+            "dag_version",
+            new_callable=PropertyMock,
+            side_effect=RuntimeError("Lost connection"),
+        ):
+            info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=False, map_index=-1)))
+    else:
+        info = dict(TaskInstanceInfo(ti, position=TaskInstancePosition(in_loop=False, map_index=-1)))
+
+    expected_bundle_name = None if load_fails else "dag_maker"
+    assert (info["dag_bundle_name"], info["dag_version_id"]) == (expected_bundle_name, str(ti.dag_version_id))
+    assert mock_log.warning.call_count == (
+        2 if load_fails else 0
+    )  # Once for the bundle name, once for its version
+    # The failure was rolled back to its savepoint, so the caller's transaction is still usable
+    assert session.execute(select(literal(1))).scalar() == 1
 
 
 @pytest.mark.db_test
