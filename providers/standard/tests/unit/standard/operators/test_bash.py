@@ -62,6 +62,34 @@ class TestBashOperator:
         assert op.skip_on_exit_code == [99]
         assert op.cwd is None
 
+    @pytest.mark.parametrize("append_env", [False, True])
+    def test_get_env_does_not_mutate_user_env(self, append_env):
+        user_env = {"ENV_KEY": "val"}
+        op = BashOperator(
+            task_id="test_env_no_mutate",
+            bash_command="echo 1",
+            env=user_env,
+            append_env=append_env,
+        )
+        fake_ti_1 = mock.Mock(dag_id="dag_1", task_id="task_1", try_number=1)
+        res1 = op.get_env({"task_instance": fake_ti_1})
+
+        assert res1["ENV_KEY"] == "val"
+        assert res1["AIRFLOW_CTX_DAG_ID"] == "dag_1"
+        assert user_env == {"ENV_KEY": "val"}
+        assert op.env == {"ENV_KEY": "val"}
+        assert res1 is not user_env
+
+        # Verify repeated calls do not accumulate or leak stale context vars into user_env or op.env
+        fake_ti_2 = mock.Mock(dag_id="dag_2", task_id="task_2", try_number=2)
+        res2 = op.get_env({"task_instance": fake_ti_2})
+
+        assert res2["ENV_KEY"] == "val"
+        assert res2["AIRFLOW_CTX_DAG_ID"] == "dag_2"
+        assert user_env == {"ENV_KEY": "val"}
+        assert op.env == {"ENV_KEY": "val"}
+        assert res2 is not user_env
+
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("append_env", "user_defined_env", "expected_airflow_home"),

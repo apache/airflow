@@ -188,13 +188,13 @@ class BashOperator(BaseOperator):
     def get_env(self, context) -> dict:
         """Build the set of environment variables to be exposed for the bash command."""
         system_env = os.environ.copy()
-        env = self.env
-        if env is None:
+        if self.env is None:
+            env = system_env
+        elif self.append_env:
+            system_env.update(self.env)
             env = system_env
         else:
-            if self.append_env:
-                system_env.update(env)
-                env = system_env
+            env = self.env.copy()
 
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.debug(
