@@ -724,16 +724,17 @@ and again whenever the bundle configuration changes::
 
     airflow dag-processor --sync-bundles-only
 
-This step needs database access. Token provisioning itself needs only the API's signing
-configuration and the configured bundle names; it does not access the metadata database.
-
-Kubernetes token provisioner
-""""""""""""""""""""""""""""
+This step needs database access and the deployment's Fernet key when signing bundle URLs.
+Token provisioning itself needs only the API's JWT signing configuration and the configured
+bundle names; it does not access the metadata database.
 
 Before starting the isolated processor, stop the trusted deployment's processor for the bundles
 being moved. If that processor must continue serving other bundles, restrict it with
 ``--bundle-name`` to those other bundles. This prevents conflicting inventory reconciliation
 and keeps Dag code for the moved bundles out of the database-credentialed processor.
+
+Kubernetes token provisioner
+""""""""""""""""""""""""""""
 
 For Kubernetes, use the :download:`processor-only Helm values <dag-processor-api/helm-values.yaml>`
 in a **separate release and namespace**. These values disable other components and built-in
