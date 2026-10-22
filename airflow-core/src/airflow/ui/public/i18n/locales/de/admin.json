@@ -30,7 +30,7 @@
       "firstConfirmMessage_other": "Die folgenden Verbindungen werden gelöscht:",
       "title": "Verbindung löschen"
     },
-    "duplicate": "$t(connections.connection_one) duplizieren",
+    "duplicate": "Kopie der Verbindung erstellen",
     "edit": "Verbindung bearbeiten",
     "form": {
       "connectionIdRequired": "Verbindungs-ID ist erforderlich",
