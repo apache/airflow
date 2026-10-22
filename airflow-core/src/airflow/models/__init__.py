@@ -71,6 +71,7 @@ def import_all_models():
     import airflow.models.deadline_alert
     import airflow.models.dynamic_region
     import airflow.models.errors
+    import airflow.models.inbound_delivery
     import airflow.models.revoked_token
     import airflow.models.serialized_dag
     import airflow.models.task_state_store
