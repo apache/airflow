@@ -178,15 +178,15 @@ def generate_task_lifecycle_diagram():
         cond_scheduled_skip >> Edge(label="NO") >> cond_task_def_existence
         (cond_scheduled_skip >> Edge(label="YES") >> state_skipped,)
         (cond_task_def_existence >> Edge(label="NO") >> state_removed,)
-        (cond_task_def_existence >> Edge(label="YES") >> state_scheduled,)
+        (cond_task_def_existence >> Edge(label="YES") >> cond_trigger_task_1,)
         state_removed >> cond_task_restore
         cond_task_restore >> Edge(label="NO") >> state_removed
         cond_task_restore >> Edge(label="YES") >> state_none
-        state_scheduled >> component_executor >> state_queued >> cond_trigger_task_1
-        cond_trigger_task_1 >> Edge(label="NO") >> component_worker
+        cond_trigger_task_1 >> Edge(label="NO") >> state_scheduled
         cond_trigger_task_1 >> Edge(label="YES") >> component_triggerer
+        state_scheduled >> component_executor >> state_queued >> component_worker
         component_triggerer >> state_deferred >> cond_trigger_task_2
-        cond_trigger_task_2 >> Edge(label="NO") >> component_scheduler
+        cond_trigger_task_2 >> Edge(label="NO") >> state_scheduled
         cond_trigger_task_2 >> Edge(label="YES") >> cond_task_complete_1
         cond_task_complete_1 >> Edge(label="NO") >> state_deferred
         cond_task_complete_1 >> Edge(label="YES") >> cond_defer_signal_raised
