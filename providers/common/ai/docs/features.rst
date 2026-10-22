@@ -247,8 +247,8 @@ Recover from failures
 Bring your own agent
 --------------------
 
-The Strands, ADK, Anthropic SDK, OpenAI Agents SDK and other-framework routes get every
-toolset except
+The Strands, ADK, Anthropic SDK, OpenAI Agents SDK, Claude Agent SDK and other-framework
+routes get every toolset except
 ``MCPToolset`` and ``AgentSkillsToolset``.
 
 .. list-table::
@@ -275,6 +275,10 @@ toolset except
      - Gives an OpenAI Agents SDK agent the toolsets. Run through ``run_durably``, a retry
        replays its completed calls.
      - None; install ``openai-agents``
+   * - :doc:`Claude Agent SDK <frameworks/claude_agent_sdk>`
+     - Gives the Claude Agent SDK's agent loop the toolsets through an in-process MCP
+       server.
+     - ``claude-agent-sdk``
    * - :doc:`LangChain <hooks/langchain>`
      - Builds LangChain chat and embedding models from a connection, and
        :doc:`turns a toolset into LangChain tools <toolsets/langchain>`.
