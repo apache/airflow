@@ -162,6 +162,10 @@ def _delete_pending_partitioned_queued_events(
     of a partition keeps the partition waiting for them rather than dropping the progress
     made by the others.
 
+    Both deletes are restricted to the partitions this call actually clears events from. A
+    pending partition that is already empty for an unrelated reason belongs to whoever left
+    it behind, and a call that never matched any of its events must not remove it.
+
     :return: The number of deleted queued events.
     """
     pakl_where_clause: list[ColumnElement[bool]] = [
@@ -177,6 +181,15 @@ def _delete_pending_partitioned_queued_events(
         pakl_where_clause.append(PartitionedAssetKeyLog.target_dag_id.in_(permitted_dag_ids))
     pakl_of_apdr = PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id
 
+    apdr_ids = session.scalars(
+        select(AssetPartitionDagRun.id).where(
+            AssetPartitionDagRun.created_dag_run_id.is_(None),
+            exists().where(pakl_of_apdr, *pakl_where_clause),
+        )
+    ).all()
+    if not apdr_ids:
+        return 0
+
     # Nothing is loaded into the session beforehand, so skip synchronizing it; the subquery
     # criteria would otherwise make SQLAlchemy read back the deleted keys.
     pakl_result = cast(
@@ -185,22 +198,16 @@ def _delete_pending_partitioned_queued_events(
             delete(PartitionedAssetKeyLog)
             .where(
                 *pakl_where_clause,
-                exists().where(pakl_of_apdr, AssetPartitionDagRun.created_dag_run_id.is_(None)),
+                PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(apdr_ids),
             )
             .execution_options(synchronize_session=False)
         ),
     )
 
-    apdr_where_clause: list[ColumnElement[bool]] = [
-        AssetPartitionDagRun.created_dag_run_id.is_(None),
-        ~exists().where(pakl_of_apdr),
-    ]
-    if dag_id is not None:
-        apdr_where_clause.append(AssetPartitionDagRun.target_dag_id == dag_id)
-    if permitted_dag_ids is not None:
-        apdr_where_clause.append(AssetPartitionDagRun.target_dag_id.in_(permitted_dag_ids))
     session.execute(
-        delete(AssetPartitionDagRun).where(*apdr_where_clause).execution_options(synchronize_session=False)
+        delete(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id.in_(apdr_ids), ~exists().where(pakl_of_apdr))
+        .execution_options(synchronize_session=False)
     )
     return pakl_result.rowcount
 
