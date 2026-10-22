@@ -172,6 +172,8 @@ export interface TaskStateStore {
    * negative, NaN, or Infinity; when the deployment's
    * `[state_store] default_retention_days` is invalid; or when the resolved
    * expiry would overflow the wire timestamp (year 9999).
+   * @throws `Error` when `value` holds something JSON cannot carry, such as a
+   * `Date` or a `Buffer`.
    */
   set(key: string, value: NonNullable<JsonValue>, opts?: TaskStateStoreSetOpts): Promise<void>;
 
