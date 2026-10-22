@@ -104,7 +104,9 @@ def _callback_logfile_path(task: TaskInstanceKey, *, session: Session) -> str:
     if not log_path:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No log path found for callback {task.task_id}")
     return log_path
-
+    if command and (log_path := json.loads(command).get("log_path")):
+        return log_path
+    raise HTTPException(status.HTTP_404_NOT_FOUND, f"No log path found for callback {task.task_id}")
 
 @logs_router.get(
     "/logfile_path/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}",
