@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import warnings
 from contextlib import nullcontext
 from pathlib import Path
@@ -30,6 +31,7 @@ from google.cloud.logging import Resource
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse, LogEntry
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.cloud.log.cloud_logging_task_handler import (
     CloudLoggingRemoteLogIO,
@@ -50,7 +52,14 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 def test_ti_id_label_is_only_written_from_airflow_3_4(is_airflow_3_4_plus, expect_ti_id):
     now = timezone.utcnow()
     ti = SimpleNamespace(
-        id="some-ti-id", task_id="t", dag_id="d", try_number=1, logical_date=now, execution_date=now
+        id="some-ti-id",
+        task_id="t",
+        dag_id="d",
+        run_id="r",
+        map_index=-1,
+        try_number=1,
+        logical_date=now,
+        execution_date=now,
     )
 
     with mock.patch(
@@ -60,6 +69,48 @@ def test_ti_id_label_is_only_written_from_airflow_3_4(is_airflow_3_4_plus, expec
         labels = _task_instance_to_labels(ti)
 
     assert ("ti_id" in labels) is expect_ti_id
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="CloudLoggingRemoteLogIO only writes on Airflow 3")
+@pytest.mark.parametrize("map_index", [-1, 0, 3])
+@mock.patch("airflow.providers.google.cloud.log.cloud_logging_task_handler.AIRFLOW_V_3_4_PLUS", False)
+def test_read_labels_match_labels_written_for_run_without_logical_date(map_index, tmp_path):
+    ti = SimpleNamespace(
+        id="some-ti-id",
+        task_id="t",
+        dag_id="d",
+        run_id="r",
+        map_index=map_index,
+        try_number=2,
+        logical_date=None,
+    )
+    transport = mock.MagicMock()
+    io = CloudLoggingRemoteLogIO(base_log_folder=str(tmp_path), gcp_log_name="airflow")
+    with (
+        mock.patch.object(
+            CloudLoggingRemoteLogIO, "transport", new_callable=PropertyMock, return_value=transport
+        ),
+        mock.patch("airflow.sdk.log.relative_path_from_logger", return_value="some/path.log"),
+    ):
+        io.processors[0](
+            mock.MagicMock(),
+            "info",
+            {
+                "event": "msg",
+                "ti_id": ti.id,
+                "dag_id": ti.dag_id,
+                "task_id": ti.task_id,
+                "run_id": ti.run_id,
+                "try_number": ti.try_number,
+                "map_index": ti.map_index,
+            },
+        )
+    written_labels = transport.send.call_args.kwargs["labels"]
+
+    read_labels = _task_instance_to_labels(ti)
+
+    assert read_labels.items() <= written_labels.items()
+    assert read_labels["map_index"] == str(map_index)
 
 
 def _create_list_log_entries_response_mock(messages, token):
@@ -167,20 +218,53 @@ class TestCloudLoggingRemoteLogIO:
         )
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
-        ti = mock.MagicMock()
+        ti = mock.create_autospec(TaskInstance, instance=True)
+        ti.id = "abc"
         ti.task_id = "test_task"
         ti.dag_id = "test_dag"
+        ti.run_id = "run1"
+        ti.map_index = 2
         ti.try_number = 1
         if AIRFLOW_V_3_0_PLUS:
             ti.logical_date = timezone.datetime(2016, 1, 1)
         else:
             ti.execution_date = timezone.datetime(2016, 1, 1)
 
-        messages, logs = self.io.read("dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1.log", ti)
+        messages, logs = self.io.read("dag_id=test_dag/run_id=run1//task_id=test_task/./attempt=1.log", ti)
 
         assert len(messages) == 1
         assert "Cloud Logging" in messages[0]
         assert logs == ["MSG1\nMSG2"]
+        # The reader normalises the path the way the writer's pathlib path does.
+        log_filter = mock_client.return_value.list_log_entries.call_args.kwargs["request"].filter
+        log_path_condition = (
+            r'labels.log_path=~"^dag_id=test_dag/run_id=run1/task_id=test_task/attempt=1\.log'
+            r'(\.trigger\.[0-9]+\.log)?$"'
+        )
+        if not AIRFLOW_V_3_0_PLUS:
+            label_conditions = [
+                'labels.task_id="test_task"',
+                'labels.dag_id="test_dag"',
+                'labels.execution_date="2016-01-01T00:00:00+00:00"',
+                'labels.try_number="1"',
+            ]
+        else:
+            label_conditions = [
+                'labels.task_id="test_task"',
+                'labels.dag_id="test_dag"',
+                'labels.run_id=~"^run1$"',
+                'labels.map_index="2"',
+                'labels.try_number="1"',
+            ]
+        if AIRFLOW_V_3_4_PLUS:
+            task_filter = (
+                f'(labels.ti_id="abc" OR ({" AND ".join([*label_conditions, "NOT labels.ti_id:*"])}))'
+            )
+            path_conditions = f"{log_path_condition} AND NOT labels.task_id:* AND NOT labels.ti_id:*"
+        else:
+            task_filter = f"({' AND '.join(label_conditions)})"
+            path_conditions = f"{log_path_condition} AND NOT labels.task_id:*"
+        assert log_filter.splitlines()[2:] == [f"({task_filter} OR ({path_conditions}))"]
 
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
@@ -305,7 +389,7 @@ class TestCloudLoggingRemoteLogIO:
         # Mock relative_path_from_logger to return something truthy
         with mock.patch(
             "airflow.sdk.log.relative_path_from_logger",
-            return_value="some/path.py",
+            return_value=Path("some/path.py"),
         ):
             proc = io.processors[0]
             event = {
@@ -333,6 +417,7 @@ class TestCloudLoggingRemoteLogIO:
                 "run_id": "test_run_id",
                 "try_number": "2",
                 "map_index": "-1",
+                "log_path": "some/path.py",
             }
 
     @mock.patch(
@@ -388,6 +473,135 @@ class TestCloudLoggingRemoteLogIO:
             )
 
         assert log_filter.splitlines()[2:] == expected_conditions
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    @pytest.mark.parametrize(
+        ("is_airflow_3_4_plus", "expected_condition"),
+        [
+            pytest.param(
+                False,
+                '((labels.task_id="test_task" AND labels.try_number="1") '
+                r'OR (labels.log_path=~"^dag_id=d/attempt=1\.log(\.trigger\.[0-9]+\.log)?$" '
+                "AND NOT labels.task_id:*))",
+                id="before-3.4",
+            ),
+            pytest.param(
+                True,
+                '((labels.ti_id="abc" OR (labels.task_id="test_task" AND labels.try_number="1" '
+                "AND NOT labels.ti_id:*)) "
+                r'OR (labels.log_path=~"^dag_id=d/attempt=1\.log(\.trigger\.[0-9]+\.log)?$" '
+                "AND NOT labels.task_id:* AND NOT labels.ti_id:*))",
+                id="3.4-or-later",
+            ),
+        ],
+    )
+    def test_prepare_log_filter_matches_log_path(
+        self, mock_get_creds_and_project_id, is_airflow_3_4_plus, expected_condition
+    ):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        with mock.patch(
+            "airflow.providers.google.cloud.log.cloud_logging_task_handler.AIRFLOW_V_3_4_PLUS",
+            is_airflow_3_4_plus,
+        ):
+            log_filter = self.io.prepare_log_filter(
+                {"task_id": "test_task", "try_number": "1", "ti_id": "abc"},
+                log_path="dag_id=d/attempt=1.log",
+            )
+
+        assert log_filter.splitlines()[2:] == [expected_condition]
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    def test_prepare_log_filter_escapes_log_path_regex(self, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"task_id": "t"}, log_path='run_id=a"b+c/attempt=1.log')
+
+        assert r'labels.log_path=~"^run_id=a\"b\+c/attempt=1\.log(\.trigger\.[0-9]+\.log)?$"' in log_filter
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    @pytest.mark.parametrize(
+        ("label_value", "matches"),
+        [
+            ("dag_id=d/attempt=1.log", True),
+            ("dag_id=d/attempt=1.log.trigger.12.log", True),
+            ("dag_id=d/attempt=11.log", False),
+            ("dag_id=d/attempt=1.log.trigger.x.log", False),
+            ("dag_id=d/attempt=1xlog", False),
+            ("prefix/dag_id=d/attempt=1.log", False),
+        ],
+    )
+    def test_prepare_log_filter_log_path_regex_matches_task_and_trigger_files(
+        self, mock_get_creds_and_project_id, label_value, matches
+    ):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"task_id": "t"}, log_path="dag_id=d/attempt=1.log")
+
+        path_regex = re.search(r'labels\.log_path=~"((?:[^"\\]|\\.)*)"', log_filter).group(1)
+        assert bool(re.search(path_regex.replace('\\"', '"'), label_value)) is matches
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    @pytest.mark.parametrize(
+        ("run_id", "expected_condition"),
+        [
+            ("run1", 'labels.run_id=~"^run1$"'),
+            ("manual__2026-01-01T00:00:00+00:00", r'labels.run_id=~"^manual__2026\-01\-01T00:00:00\+00:00$"'),
+            ('a"b', r'labels.run_id=~"^a\"b$"'),
+        ],
+    )
+    def test_prepare_log_filter_matches_run_id_with_anchored_regex(
+        self, mock_get_creds_and_project_id, run_id, expected_condition
+    ):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"run_id": run_id})
+
+        assert log_filter.splitlines()[2:] == [expected_condition]
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    @pytest.mark.parametrize(
+        ("label_value", "matches"),
+        [
+            ("Run1", False),
+            ("RUN1", False),
+            ("run1", True),
+            ("run10", False),
+            ("xrun1", False),
+        ],
+    )
+    def test_prepare_log_filter_run_id_regex_is_case_sensitive_and_anchored(
+        self, mock_get_creds_and_project_id, label_value, matches
+    ):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"run_id": "run1"})
+
+        run_id_regex = re.search(r'labels\.run_id=~"((?:[^"\\]|\\.)*)"', log_filter).group(1)
+        assert bool(re.search(run_id_regex.replace('\\"', '"'), label_value)) is matches
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    def test_prepare_log_filter_matches_unlabelled_first_mapped_task(self, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+
+        log_filter = self.io.prepare_log_filter({"task_id": "test_task", "map_index": "0"})
+
+        assert log_filter.splitlines()[2:] == [
+            'labels.task_id="test_task"',
+            '(labels.map_index="0" OR NOT labels.map_index:*)',
+        ]
 
     @mock.patch(
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
@@ -558,6 +772,17 @@ class TestCloudLoggingHandlerTask:
     def _ti_id_labels(self) -> dict[str, str]:
         return {"ti_id": str(self.ti.id)} if AIRFLOW_V_3_4_PLUS else {}
 
+    def _run_labels(self) -> dict[str, str]:
+        if AIRFLOW_V_3_0_PLUS:
+            return {"run_id": self.ti.run_id, "map_index": str(self.ti.map_index)}
+        return {"execution_date": "2016-01-01T00:00:00+00:00"}
+
+    def _run_label_conditions(self) -> list[str]:
+        return [
+            f'labels.{key}=~"^{re.escape(value)}$"' if key == "run_id" else f'labels.{key}="{value}"'
+            for key, value in self._run_labels().items()
+        ]
+
     def _expect_label_filter(self, *label_conditions: str) -> str:
         if not AIRFLOW_V_3_4_PLUS:
             return "\n".join(label_conditions)
@@ -585,11 +810,10 @@ class TestCloudLoggingHandlerTask:
         self.logger.info("test-message")
         cloud_logging_task_handler.flush()
 
-        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         labels = {
             "task_id": self.TASK_ID,
             "dag_id": self.DAG_ID,
-            date_key: "2016-01-01T00:00:00+00:00",
+            **self._run_labels(),
             "try_number": "1",
             **self._ti_id_labels(),
         }
@@ -613,11 +837,10 @@ class TestCloudLoggingHandlerTask:
         self.logger.info("test-message")
         cloud_logging_task_handler.flush()
 
-        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         labels = {
             "task_id": self.TASK_ID,
             "dag_id": self.DAG_ID,
-            date_key: "2016-01-01T00:00:00+00:00",
+            **self._run_labels(),
             "try_number": "1",
             **self._ti_id_labels(),
             "product.googleapis.com/task_id": "test-value",
@@ -640,14 +863,12 @@ class TestCloudLoggingHandlerTask:
         cloud_logging_task_handler = self._setup_handler()
         logs, metadata = cloud_logging_task_handler.read(self.ti)
 
-        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
-
         filter_str = (
             'resource.type="global"\n'
             'logName="projects/project_id/logs/airflow"\n'
             'labels.task_id="task_for_testing_cloud_logging_task_handler"\n'
             'labels.dag_id="dag_for_testing_cloud_logging_task_handler"\n'
-            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+            + "\n".join(self._run_label_conditions())
         )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
@@ -675,13 +896,12 @@ class TestCloudLoggingHandlerTask:
         cloud_logging_task_handler = self._setup_handler()
 
         logs, metadata = cloud_logging_task_handler.read(self.ti)
-        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         filter_str = (
             'resource.type="global"\n'
             'logName="projects/project_id/logs/airflow"\n'
             'labels.task_id="K\\"OT"\n'
             'labels.dag_id="dag_for_testing_cloud_logging_task_handler"\n'
-            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+            + "\n".join(self._run_label_conditions())
         )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
@@ -707,14 +927,13 @@ class TestCloudLoggingHandlerTask:
         cloud_logging_task_handler = self._setup_handler()
 
         logs, metadata = cloud_logging_task_handler.read(self.ti, 3)
-        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         filter_str = (
             'resource.type="global"\n'
             'logName="projects/project_id/logs/airflow"\n'
             + self._expect_label_filter(
                 'labels.task_id="task_for_testing_cloud_logging_task_handler"',
                 'labels.dag_id="dag_for_testing_cloud_logging_task_handler"',
-                f'labels.{date_label}="2016-01-01T00:00:00+00:00"',
+                *self._run_label_conditions(),
                 'labels.try_number="3"',
             )
         )
@@ -743,14 +962,13 @@ class TestCloudLoggingHandlerTask:
         cloud_logging_task_handler = self._setup_handler()
 
         logs, metadata1 = cloud_logging_task_handler.read(self.ti, 3)
-        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         filter_str = (
             'resource.type="global"\n'
             'logName="projects/project_id/logs/airflow"\n'
             + self._expect_label_filter(
                 'labels.task_id="task_for_testing_cloud_logging_task_handler"',
                 'labels.dag_id="dag_for_testing_cloud_logging_task_handler"',
-                f'labels.{date_label}="2016-01-01T00:00:00+00:00"',
+                *self._run_label_conditions(),
                 'labels.try_number="3"',
             )
         )
@@ -778,7 +996,7 @@ class TestCloudLoggingHandlerTask:
                     + self._expect_label_filter(
                         'labels.task_id="task_for_testing_cloud_logging_task_handler"',
                         'labels.dag_id="dag_for_testing_cloud_logging_task_handler"',
-                        f'labels.{date_label}="2016-01-01T00:00:00+00:00"',
+                        *self._run_label_conditions(),
                         'labels.try_number="3"',
                     )
                 ),
@@ -828,7 +1046,6 @@ class TestCloudLoggingHandlerTask:
         mock_client.return_value.list_log_entries.return_value.pages = iter([page])
 
         logs, metadata = cloud_logging_task_handler.read(self.ti)
-        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         filter_str = (
             'resource.type="cloud_composer_environment"\n'
             'logName="projects/project_id/logs/airflow"\n'
@@ -837,7 +1054,7 @@ class TestCloudLoggingHandlerTask:
             'resource.labels.project_id="project_id"\n'
             'labels.task_id="task_for_testing_cloud_logging_task_handler"\n'
             'labels.dag_id="dag_for_testing_cloud_logging_task_handler"\n'
-            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+            + "\n".join(self._run_label_conditions())
         )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
@@ -894,14 +1111,13 @@ class TestCloudLoggingHandlerTask:
         assert "global" in parsed_qs["resource"]
 
         filter_params = parsed_qs["advancedFilter"][0].splitlines()
-        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         expected_filter = [
             'resource.type="global"',
             'logName="projects/project_id/logs/airflow"',
             *self._expect_label_filter(
                 f'labels.task_id="{self.ti.task_id}"',
                 f'labels.dag_id="{self.DAG_ID}"',
-                f'labels.{date_label}="{self.ti.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else self.ti.execution_date.isoformat()}"',
+                *self._run_label_conditions(),
                 f'labels.try_number="{self.ti.try_number}"',
             ).splitlines(),
         ]
