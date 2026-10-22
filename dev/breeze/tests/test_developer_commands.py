@@ -204,7 +204,7 @@ class TestBuildDocsSphinxAirflowTheme:
         )
 
         assert result.exit_code == 2
-        assert "--sdk-docs-only:" in result.output
+        assert "--sdk-docs-only:" in click.unstyle(result.output)
         for mock in docker_mocks.values():
             mock.assert_not_called()
 
