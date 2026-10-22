@@ -322,7 +322,6 @@
       "before": "변경 전",
       "category": "분류",
       "impact": "영향",
-      "occurrences": "발생 횟수",
       "operation": "변경 유형",
       "path": "경로"
     },
