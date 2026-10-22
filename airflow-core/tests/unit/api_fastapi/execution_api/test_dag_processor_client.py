@@ -30,6 +30,7 @@ import jwt
 import pytest
 import uvicorn
 from sqlalchemy import select, update
+from sqlalchemy.engine import make_url
 from tenacity import wait_none
 from uuid6 import uuid7
 
@@ -450,6 +451,7 @@ def test_normal_processor_command_uses_authenticated_api(
     ]
     config = {
         ("dag_processor", "execution_api_token_file"): str(provision_token()),
+        ("dag_processor", "health_check_file"): str(tmp_path / "processor-health.json"),
         ("core", "execution_api_server_url"): api_url,
         ("core", "load_examples"): "False",
         ("core", "multi_team"): str(multi_team),
@@ -468,12 +470,24 @@ def test_normal_processor_command_uses_authenticated_api(
             session.commit()
             processor_config = dict(config)
             if not database_access:
+                database = make_url(conf.get("database", "sql_alchemy_conn"))
+                if database.get_backend_name() == "sqlite":
+                    blocked_database = database.set(database=str(tmp_path / "unavailable" / "metadata.db"))
+                else:
+                    blocked_database = database.set(
+                        username="blocked",
+                        password="blocked",
+                        host="127.0.0.1",
+                        port=1,
+                        database="blocked",
+                        query={},
+                    )
                 processor_config.update(
                     {
                         (
                             "database",
                             "sql_alchemy_conn",
-                        ): "postgresql+psycopg://blocked:blocked@127.0.0.1:1/blocked",
+                        ): blocked_database.render_as_string(hide_password=False),
                         ("core", "fernet_key"): "",
                         ("api_auth", "jwt_secret"): "",
                         ("api_auth", "jwt_private_key_path"): "",
@@ -495,6 +509,7 @@ def test_normal_processor_command_uses_authenticated_api(
                 check=False,
             )
             assert result.returncode == 0, result.stdout + result.stderr
+            assert (tmp_path / "processor-health.json").is_file()
 
         session.expire_all()
         job = session.scalars(select(Job)).one()

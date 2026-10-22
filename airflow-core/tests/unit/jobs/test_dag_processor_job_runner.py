@@ -20,6 +20,7 @@ from unittest import mock
 
 import httpx2
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
 from airflow.dag_processing.api_client import (
@@ -27,9 +28,10 @@ from airflow.dag_processing.api_client import (
     DagProcessorJobAlreadyRunning,
     DagProcessorRegistrationRetired,
 )
+from airflow.dag_processing.health import check_processor_health
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorHeartbeatTimeout, DagProcessorJobRunner
-from airflow.jobs.job import Job, JobState
+from airflow.jobs.job import Job, JobState, run_job
 
 from tests_common.test_utils.config import conf_vars
 
@@ -44,10 +46,11 @@ def client():
 
 
 @pytest.fixture
-def runner():
-    return DagProcessorJobRunner(
-        job=Job(heartrate=5), processor=mock.create_autospec(DagFileProcessorManager, instance=True)
-    )
+def runner(tmp_path):
+    with conf_vars({("dag_processor", "health_check_file"): str(tmp_path / "health.json")}):
+        yield DagProcessorJobRunner(
+            job=Job(heartrate=5), processor=mock.create_autospec(DagFileProcessorManager, instance=True)
+        )
 
 
 @pytest.fixture
@@ -161,6 +164,41 @@ def test_shutdown_listener_failure_does_not_prevent_completion(listeners, runner
     client.complete_job.assert_called_once_with(TerminalJobState.SUCCESS)
 
 
+@pytest.mark.parametrize("use_api", [False, True], ids=["database", "api"])
+@pytest.mark.parametrize("error", [None, ValueError("parse failed")], ids=["success", "failed"])
+@mock.patch("airflow.jobs.job.get_listener_manager", autospec=True)
+@mock.patch("airflow.jobs.dag_processor_job_runner.get_listener_manager", autospec=True)
+@mock.patch.object(Job, "prepare_for_execution", autospec=True)
+def test_shutdown_listener_observes_terminal_state_before_end_date(
+    prepare, api_listeners, db_listeners, runner, client, use_api, error
+):
+    db_listeners.return_value = api_listeners.return_value
+    observed = []
+    api_listeners.return_value.hook.before_stopping.side_effect = lambda component: observed.append(
+        (component.state, component.end_date)
+    )
+    runner.processor.run.side_effect = error
+
+    def run():
+        if use_api:
+            runner.run_with_api(client)
+        else:
+            run_job(
+                runner.job,
+                execute_callable=runner._execute,
+                session=mock.create_autospec(Session, instance=True),
+            )
+
+    if error is None:
+        run()
+    else:
+        with pytest.raises(ValueError, match="parse failed"):
+            run()
+
+    assert observed == [(JobState.FAILED if error else JobState.SUCCESS, None)]
+    assert runner.job.end_date is not None
+
+
 @pytest.mark.parametrize("parse_error", [None, ValueError("original error")])
 def test_completion_failure_preserves_the_original_error(runner, client, parse_error):
     runner.processor.run.side_effect = parse_error
@@ -213,7 +251,8 @@ def test_restart_stops_parsing_and_releases_children(runner, client, clock, rest
 
 @pytest.mark.parametrize("failure", ["transport", 503, 403])
 @conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
-def test_heartbeat_failure_is_bounded(runner, client, clock, failure):
+@mock.patch("airflow.jobs.dag_processor_job_runner.stats.incr", autospec=True)
+def test_heartbeat_failure_is_bounded(incr, runner, client, clock, failure, caplog):
     error = (
         httpx2.ConnectError("unavailable")
         if failure == "transport"
@@ -232,9 +271,26 @@ def test_heartbeat_failure_is_bounded(runner, client, clock, failure):
         runner.processor.heartbeat()
 
     runner.processor.run.side_effect = run
-    with pytest.raises(httpx2.HTTPStatusError if failure == 403 else DagProcessorHeartbeatTimeout):
+    with pytest.raises(httpx2.HTTPStatusError if failure == 403 else DagProcessorHeartbeatTimeout) as raised:
         runner.run_with_api(client)
     assert client.heartbeat.call_count == (1 if failure == 403 else 2)
+    failure_metrics = [call for call in incr.call_args_list if call.args[0].endswith("_heartbeat_failure")]
+    assert failure_metrics == [mock.call("job_heartbeat_failure", 1, 1)] * (0 if failure == 403 else 2)
+    if failure != 403:
+        assert {
+            "event": "Unable to heartbeat the Dag processor Job; retrying on the next interval",
+            "error_type": type(error).__name__,
+            "status_code": None if failure == "transport" else failure,
+            "elapsed_seconds": 5,
+            "timeout_seconds": 10,
+        } in caplog
+        message = str(raised.value)
+        assert "after 10.0s" in message
+        assert "[dag_processor] job_heartbeat_timeout=10s" in message
+        assert type(error).__name__ in message
+        if failure == 503:
+            assert "HTTP 503" in message
+        assert raised.value.__cause__ is error
 
 
 @conf_vars({("dag_processor", "job_heartbeat_timeout"): "10"})
@@ -261,13 +317,21 @@ def test_recovered_heartbeat_resets_the_lease(runner, client, clock):
         ("dag_processor", "job_heartbeat_timeout"): "300",
     }
 )
-def test_a_stall_past_the_health_threshold_keeps_the_lease(runner, client, clock):
+@mock.patch("airflow.dag_processing.health.monotonic", autospec=True)
+def test_api_outage_fails_readiness_until_heartbeat_recovers(health_clock, runner, client, clock):
     client.heartbeat.side_effect = [httpx2.ConnectError("offline"), JobState.RUNNING]
+    health_clock.side_effect = lambda: clock.return_value
 
     def run():
-        for tick in (120, 125):
+        clock.return_value = 120
+        runner.processor.heartbeat()
+        check_processor_health()
+        with pytest.raises(SystemExit, match="api heartbeat age 120.0s"):
+            check_processor_health(readiness=True)
+        for tick in (125, 126):
             clock.return_value = tick
             runner.processor.heartbeat()
+        check_processor_health(readiness=True)
 
     runner.processor.run.side_effect = run
     runner.run_with_api(client)

@@ -50,7 +50,12 @@ def check_processor_health(*, readiness: bool = False) -> None:
         now = monotonic()
         maximum_age = conf.getint("dag_processor", "health_check_threshold")
         fields = ("loop", "api") if readiness else ("loop",)
-        if any(not 0 <= now - record[field] <= maximum_age for field in fields):
-            raise ValueError("Processor heartbeat has expired")
+        for field in fields:
+            age = now - record[field]
+            if not 0 <= age <= maximum_age:
+                raise ValueError(
+                    f"Processor {field} heartbeat age {age:.1f}s is outside 0..{maximum_age}s "
+                    "([dag_processor] health_check_threshold)"
+                )
     except (OSError, ValueError, KeyError, TypeError) as error:
-        raise SystemExit("Dag processor is not healthy") from error
+        raise SystemExit(f"Dag processor is not healthy: {error}") from error

@@ -51,8 +51,8 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processor_heartbeat_failure"
-    description: "Number of failed Dag processor heartbeats through the Execution API."
+  - name: "job_heartbeat_failure"
+    description: "Number of failed job heartbeats through the metadata database or Execution API."
     type: "counter"
     legacy_name: "-"
     name_variables: []
