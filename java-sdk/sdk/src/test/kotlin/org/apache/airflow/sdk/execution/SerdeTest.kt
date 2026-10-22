@@ -227,7 +227,6 @@ internal class SerdeTest {
       mapOf(
         "extract" to "java",
         "heavy" to "java_large",
-        // Set on the task, so it wins; at the schema default, so it is left out.
         "on_default" to null,
         "has_rows" to "java",
         "pick" to "java",

@@ -153,16 +153,16 @@ private fun serializeTask(
   }
   // Lets NotPreviouslySkippedDep re-skip a cleared downstream, as Python's SkipMixin does.
   if (def.decider != null) data["_can_skip_downstream"] = true
+  // A trigger task takes the Dag's queue too, because the Java runtime runs it.
+  val config =
+    if (dagQueue == null || "queue" in def.configValues) def.configValues else def.configValues + ("queue" to dagQueue)
   // Emit only config entries that differ from their schema default, mirroring
   // Python BaseSerialization's "omit hard-coded default" behavior, which the Go
   // and TypeScript SDKs mirror too. Operator fields are stored unwrapped, so the
   // __type encoding is stripped. If core grows a task-level fill_config_defaults,
   // every SDK has to keep explicitly set values instead, or an explicit retries=0
   // reads as unset and picks up the configured default.
-  // The Dag's queue is merged in first, so one equal to the schema default is left out too.
-  // A trigger task takes it as well, because the Java runtime runs it.
-  val config =
-    if (dagQueue == null || "queue" in def.configValues) def.configValues else def.configValues + ("queue" to dagQueue)
+  // The Dag's queue is merged in before this, so one equal to the schema default is left out too.
   config.forEach { (key, value) ->
     if (key !in OMITTED_TASK_KEYS && !matchesSchemaDefault(SchemaFields.TASK[key], value)) {
       data[key] = unwrapTypeEncoding(serializeValue(value))

@@ -2078,24 +2078,51 @@ class AirflowProcessorTest {
   @Test
   @DisplayName("reject a blank Dag-level queue")
   fun rejectBlankDagQueue() {
-    val compilation =
-      compile(
-        """
-        package org.apache.airflow.example;
-        import org.apache.airflow.sdk.Airflow;
-        @Airflow.Dag(queue = " ")
-        public class TestExample {
-          @Airflow.Task public void t() {}
+    for (queue in listOf("", " ")) {
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          @Airflow.Dag(queue = "$queue")
+          public class TestExample {
+            @Airflow.Task public void t() {}
 
-          @Airflow.Deps
-          static class Wiring implements TestExampleDeps {
-            void depends() { t(); }
+            @Airflow.Deps
+            static class Wiring implements TestExampleDeps {
+              void depends() { t(); }
+            }
           }
-        }
-      """,
-      )
-    assertThat(compilation).failed()
-    assertThat(compilation).hadErrorContaining("Annotation attribute 'queue' of @Airflow.Dag must not be blank")
+        """,
+        )
+      assertThat(compilation).failed()
+      assertThat(compilation).hadErrorContaining("Annotation attribute 'queue' must not be blank")
+    }
+  }
+
+  @Test
+  @DisplayName("reject a blank task-level queue")
+  fun rejectBlankTaskQueue() {
+    for (queue in listOf("", " ")) {
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          @Airflow.Dag
+          public class TestExample {
+            @Airflow.Task(queue = "$queue") public void t() {}
+
+            @Airflow.Deps
+            static class Wiring implements TestExampleDeps {
+              void depends() { t(); }
+            }
+          }
+        """,
+        )
+      assertThat(compilation).failed()
+      assertThat(compilation).hadErrorContaining("Annotation attribute 'queue' must not be blank")
+    }
   }
 
   @Test

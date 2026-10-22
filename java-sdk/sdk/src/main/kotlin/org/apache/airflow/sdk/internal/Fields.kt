@@ -57,13 +57,31 @@ private val DAG_RUN_STATE_NAMES = listOf("queued", "running", "success", "failed
  * @property type Accepted value shape.
  * @property defaultJson Schema default as raw JSON, or `null` when the schema
  *    declares no default.
+ * @property notBlank Whether a value for this key must not be blank.
  */
 class Field(
   val key: String,
   val attribute: String,
   val type: FieldType,
   val defaultJson: String?,
+  val notBlank: Boolean = false,
 )
+
+/**
+ * Enforces the constraints [field] carries on a string value. [describe] names
+ * the value, so each caller keeps its own wording. Public so that the
+ * annotation processor enforces the same constraints on `@Airflow.Dag` /
+ * `@Airflow.Task` attributes; not user-facing API.
+ *
+ * @throws IllegalArgumentException if [text] breaks a constraint.
+ */
+fun checkStringConstraints(
+  field: Field,
+  text: String,
+  describe: () -> String,
+) {
+  require(!field.notBlank || text.isNotBlank()) { "${describe()} must not be blank" }
+}
 
 /**
  * Validates one `config(key, value)` call against a schema field table and
@@ -91,7 +109,10 @@ internal fun checkConfigValue(
       "Value for $scope config key '$key' must be $expected, got: ${value.javaClass.name}",
     )
   return when (field.type) {
-    FieldType.STRING -> value as? String ?: mismatch("a String")
+    FieldType.STRING ->
+      (value as? String ?: mismatch("a String")).also { text ->
+        checkStringConstraints(field, text) { "Value for $scope config key '$key'" }
+      }
     FieldType.BOOLEAN -> value as? Boolean ?: mismatch("a Boolean")
     FieldType.NUMBER -> value as? Number ?: mismatch("a Number")
     FieldType.INTEGER ->

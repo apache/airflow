@@ -38,6 +38,7 @@ import org.apache.airflow.sdk.internal.Refs
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.TaskArgs
 import org.apache.airflow.sdk.internal.TypeRef
+import org.apache.airflow.sdk.internal.checkStringConstraints
 import org.apache.airflow.sdk.internal.deriveJoinNodeIds
 import org.apache.airflow.sdk.internal.foldArgName
 import org.apache.airflow.sdk.internal.registrarName
@@ -714,9 +715,7 @@ class AirflowProcessor : AbstractProcessor() {
     when (field.type) {
       FieldType.STRING -> {
         val text = value.value as String
-        require(field !== SchemaFields.DAG["queue"] || text.isNotBlank()) {
-          "Annotation attribute 'queue' of @Airflow.Dag must not be blank"
-        }
+        checkStringConstraints(field, text) { "Annotation attribute '${field.attribute}'" }
         CodeBlock.of($$"$S", text)
       }
       FieldType.BOOLEAN, FieldType.INTEGER, FieldType.NUMBER -> CodeBlock.of($$"$L", value.value)

@@ -596,7 +596,10 @@ Native Java Dags
 A Dag can also be authored entirely in Java: the annotations (or the ``DagDef`` / ``TaskDef``
 objects) carry the configuration, and Java declares the graph.
 
-Every task of the Dag runs on the Java coordinator, so it needs a queue that :ref:`queue_to_coordinator <java-sdk/coordinator-config>` sends there. Set ``queue`` once on the Dag, with ``@Airflow.Dag(queue = "java")`` or ``dag.config("queue", "java")``, and each task inherits it, including a ``TriggerDagRun`` task. A task's own ``queue`` wins over the Dag's. The Dag's ``queue`` cannot be blank.
+Every task of the Dag runs on the Java coordinator, so it needs a queue that
+:ref:`queue_to_coordinator <java-sdk/coordinator-config>` sends there. Set ``queue`` once on the Dag, with
+``@Airflow.Dag(queue = "java")`` or ``dag.config("queue", "java")``, and each task inherits it, including a
+``TriggerDagRun`` task. A task's own ``queue`` wins over the Dag's. A ``queue`` that is set cannot be blank.
 
 Building the Dag in Java
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -909,7 +912,8 @@ several Java coordinators, an unmapped bundle's JARs fail to parse too.
   ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.
 * Two JARs in the bundle that set the same ``Main-Class`` fail to parse, because the JVM would load
   the classes of only one of them. Keep one in the bundle.
-* Set ``queue`` on the Dag, as :ref:`java-sdk/native-dags` shows, so its tasks run on a queue that ``queue_to_coordinator`` routes to a ``JavaCoordinator``, such as ``java`` above.
+* Set ``queue`` on the Dag, as :ref:`java-sdk/native-dags` shows, so its tasks run on a queue that
+  ``queue_to_coordinator`` routes to a ``JavaCoordinator``, such as ``java`` above.
 * A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to,
   which need not be the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK.
   A task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is missing,

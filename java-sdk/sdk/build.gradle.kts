@@ -284,7 +284,14 @@ abstract class GenerateDagDslTask : DefaultTask() {
         val attrDefault: String,
         val defaultJson: String?,
         val doc: String,
+        val notBlank: Boolean = false,
     )
+
+    // Schema keys whose value cannot be blank, in every table that holds them.
+    private val notBlankKeys = setOf("queue")
+
+    private fun constrained(fields: List<DslField>): List<DslField> =
+        fields.map { if (it.key in notBlankKeys) it.copy(notBlank = true) else it }
 
     private fun camelCase(key: String): String =
         key
@@ -487,7 +494,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                             ?: throw GradleException("Dag allowlist key '$key' is not a scalar the DSL can express"),
                     )
                 }
-            }
+            }.let(::constrained)
 
         val excludedSeen = mutableSetOf<String>()
         val taskFields =
@@ -506,7 +513,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                     val override = if (key == "retry_exponential_backoff") "Double" else null
                     resolveField(key, prop, override)?.let { add(it) }
                 }
-            }
+            }.let(::constrained)
         (excludedTaskKeys - excludedSeen).takeIf { it.isNotEmpty() }?.let {
             throw GradleException("Excluded task keys match no eligible schema property; remove or fix: $it")
         }
@@ -772,6 +779,7 @@ abstract class GenerateDagDslTask : DefaultTask() {
                     "          \"${f.attribute}\",",
                     "          FieldType.${f.fieldType},",
                     "          $defaultRepr,",
+                    "          ${f.notBlank},",
                     "        ),",
                 ).joinToString("\n")
             }

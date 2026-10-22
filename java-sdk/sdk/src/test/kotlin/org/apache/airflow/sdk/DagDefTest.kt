@@ -237,7 +237,20 @@ internal class DagDefTest {
           DagDef("dag").config("queue", queue)
         }
 
-      Assertions.assertEquals("Dag config key 'queue' must not be blank", error.message)
+      Assertions.assertEquals("Value for Dag config key 'queue' must not be blank", error.message)
+    }
+  }
+
+  @Test
+  @DisplayName("Should reject a blank task queue")
+  fun shouldRejectBlankTaskQueue() {
+    for (queue in listOf("", "  ")) {
+      val error =
+        Assertions.assertThrows(IllegalArgumentException::class.java) {
+          DagDef("dag").task<Unit>("extract", NoOp::class.java).config("queue", queue)
+        }
+
+      Assertions.assertEquals("Value for task config key 'queue' must not be blank", error.message)
     }
   }
 

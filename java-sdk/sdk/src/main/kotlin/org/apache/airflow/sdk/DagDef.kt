@@ -102,9 +102,7 @@ class DagDef(
     key: String,
     value: Any?,
   ): DagDef {
-    val checked = checkConfigValue("Dag", SchemaFields.DAG, key, value)
-    require(key != "queue" || (checked as String).isNotBlank()) { "Dag config key 'queue' must not be blank" }
-    dagConfig[key] = checked
+    dagConfig[key] = checkConfigValue("Dag", SchemaFields.DAG, key, value)
     return this
   }
 
@@ -547,17 +545,17 @@ class TaskDef(
    * Sets one task-level configuration value.
    *
    * Keys are Airflow's own task setting names (for example `"retries"`,
-   * `"queue"`, `"retry_delay"`); unknown keys and mismatched
-   * value types are rejected on the call, so mistakes surface where the task is
-   * defined.
+   * `"queue"`, `"retry_delay"`); unknown keys, mismatched
+   * value types and a blank `"queue"` are rejected on the call, so mistakes
+   * surface where the task is defined.
    *
    * @param key Airflow task setting name, e.g. `"retries"`.
    * @param value Value matching the key's schema type. Durations take
    *    [java.time.Duration], date-times [java.time.OffsetDateTime] or
    *    [java.time.Instant].
    * @return This task definition, for chaining.
-   * @throws IllegalArgumentException if the key is unknown or the value type
-   *    does not match.
+   * @throws IllegalArgumentException if the key is unknown, the value type
+   *    does not match, or `"queue"` is blank.
    */
   fun config(
     key: String,
