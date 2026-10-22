@@ -4149,13 +4149,13 @@ class TestExecutionTimeoutKillsInFlightIndexedTasks:
 
         assert sorted(KILLED_ON_TIMEOUT) == [(kind, 1), (kind, 2)]
 
-    def test_the_parents_timeout_is_sent_to_the_supervisor_once(self, mock_supervisor_comms):
+    def test_the_parents_timeout_is_started_on_the_supervisor_once(self, mock_supervisor_comms):
         """
         Sync indexed tasks with an execution_timeout run in worker threads, where TimeoutPosix cannot fire,
-        under the parent's limit. Re-sending SetExecutionTimeout per indexed task would move the
-        supervisor's hard-kill deadline to the last indexed task started, up to one full timeout late.
+        under the parent's limit. Starting the supervisor's timeout again per indexed task would move its
+        hard-kill deadline to the last indexed task started, up to one full timeout late.
         """
-        from airflow.sdk.execution_time.comms import SetExecutionTimeout
+        from airflow.sdk.execution_time.comms import StartExecutionTimeout
         from airflow.sdk.execution_time.task_runner import _run_execute_callable
 
         with DAG("test_dag") as dag:
@@ -4176,9 +4176,7 @@ class TestExecutionTimeoutKillsInFlightIndexedTasks:
             call.kwargs.get("msg", call.args[0] if call.args else None)
             for call in mock_supervisor_comms.send.call_args_list
         ]
-        assert [msg for msg in sent if isinstance(msg, SetExecutionTimeout)] == [
-            SetExecutionTimeout(timeout_seconds=30.0)
-        ]
+        assert [msg for msg in sent if isinstance(msg, StartExecutionTimeout)] == [StartExecutionTimeout()]
 
     def test_the_struck_async_indexed_tasks_on_kill_runs_off_the_loop_thread(self):
         """

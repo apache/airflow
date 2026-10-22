@@ -1212,11 +1212,10 @@ class SetRenderedMapIndex(BaseModel):
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
 
 
-class SetExecutionTimeout(BaseModel):
-    """Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process."""
+class StartExecutionTimeout(BaseModel):
+    """Tell the supervisor to start enforcing the run context's ``execution_timeout`` from outside the task process."""
 
-    timeout_seconds: Annotated[float, Field(gt=0)]
-    type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
+    type: Literal["StartExecutionTimeout"] = "StartExecutionTimeout"
 
 
 class TriggerDagRun(TriggerDAGRunPayload):
@@ -1423,12 +1422,12 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
-    | SetExecutionTimeout
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskStateStore
     | SetXCom
     | SkipDownstreamTasks
+    | StartExecutionTimeout
     | SucceedTask
     | ValidateInletsAndOutlets
     | TaskState

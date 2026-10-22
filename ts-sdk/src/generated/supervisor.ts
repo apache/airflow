@@ -270,6 +270,7 @@ export type TaskId1 = string;
 export type Name9 = string;
 export type Kind1 = "literal";
 export type FromDefault = boolean;
+export type ExecutionTimeout = number | null;
 export type MultiTeam = boolean;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
@@ -581,15 +582,13 @@ export type Type66 = "SetAssetStateStoreByName";
 export type Uri9 = string;
 export type Key16 = string;
 export type Type67 = "SetAssetStateStoreByUri";
-export type TimeoutSeconds = number;
-export type Type68 = "SetExecutionTimeout";
-export type Type69 = "SetRenderedFields";
+export type Type68 = "SetRenderedFields";
 export type RenderedMapIndex3 = string;
-export type Type70 = "SetRenderedMapIndex";
+export type Type69 = "SetRenderedMapIndex";
 export type TiId8 = string;
 export type Key17 = string;
 export type ExpiresAt = string | null;
-export type Type71 = "SetTaskStateStore";
+export type Type70 = "SetTaskStateStore";
 export type Key18 = string;
 export type DagId21 = string;
 export type RunId14 = string;
@@ -597,9 +596,10 @@ export type TaskId9 = string;
 export type MapIndex7 = number | null;
 export type DagResult1 = boolean;
 export type MappedLength = number | null;
-export type Type72 = "SetXCom";
+export type Type71 = "SetXCom";
 export type Tasks = (string | [unknown, unknown])[];
-export type Type73 = "SkipDownstreamTasks";
+export type Type72 = "SkipDownstreamTasks";
+export type Type73 = "StartExecutionTimeout";
 export type DagRelPath = string;
 export type StartDate6 = string;
 export type SentryIntegration = string;
@@ -1070,6 +1070,7 @@ export interface TIRunContext {
   should_retry?: ShouldRetry;
   start_date?: StartDate2;
   arg_bindings?: ArgBindings;
+  execution_timeout?: ExecutionTimeout;
   multi_team?: MultiTeam;
 }
 /**
@@ -1786,16 +1787,6 @@ export interface SetAssetStateStoreByUri {
   type?: Type67;
 }
 /**
- * Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process.
- *
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "SetExecutionTimeout".
- */
-export interface SetExecutionTimeout {
-  timeout_seconds: TimeoutSeconds;
-  type?: Type68;
-}
-/**
  * Payload for setting RTIF for a task instance.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1803,7 +1794,7 @@ export interface SetExecutionTimeout {
  */
 export interface SetRenderedFields {
   rendered_fields: RenderedFields;
-  type?: Type69;
+  type?: Type68;
 }
 export interface RenderedFields {
   [k: string]: JsonValue;
@@ -1816,7 +1807,7 @@ export interface RenderedFields {
  */
 export interface SetRenderedMapIndex {
   rendered_map_index: RenderedMapIndex3;
-  type?: Type70;
+  type?: Type69;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1827,7 +1818,7 @@ export interface SetTaskStateStore {
   key: Key17;
   value: JsonValue;
   expires_at: ExpiresAt;
-  type?: Type71;
+  type?: Type70;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1842,7 +1833,7 @@ export interface SetXCom {
   map_index?: MapIndex7;
   dag_result?: DagResult1;
   mapped_length?: MappedLength;
-  type?: Type72;
+  type?: Type71;
 }
 /**
  * Update state of downstream tasks within a task instance to 'skipped', while updating current task to success state.
@@ -1852,6 +1843,15 @@ export interface SetXCom {
  */
 export interface SkipDownstreamTasks {
   tasks: Tasks;
+  type?: Type72;
+}
+/**
+ * Tell the supervisor to start enforcing the run context's ``execution_timeout`` from outside the task process.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "StartExecutionTimeout".
+ */
+export interface StartExecutionTimeout {
   type?: Type73;
 }
 /**

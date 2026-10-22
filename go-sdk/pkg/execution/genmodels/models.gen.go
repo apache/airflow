@@ -1561,16 +1561,6 @@ type SetAssetStateStoreByURI struct {
 	Value JsonValue `msgpack:"value"`
 }
 
-// Tell the supervisor the task's “execution_timeout“ so it can enforce it from
-// outside the task process.
-type SetExecutionTimeout struct {
-	// TimeoutSeconds corresponds to the JSON schema field "timeout_seconds".
-	TimeoutSeconds float64 `msgpack:"timeout_seconds"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `msgpack:"type,omitempty"`
-}
-
 // Payload for setting RTIF for a task instance.
 type SetRenderedFields struct {
 	// RenderedFields corresponds to the JSON schema field "rendered_fields".
@@ -1645,6 +1635,13 @@ type SkipDownstreamTasks struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+// Tell the supervisor to start enforcing the run context's “execution_timeout“
+// from outside the task process.
+type StartExecutionTimeout struct {
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
 type StartupDetails struct {
 	// BundleInfo corresponds to the JSON schema field "bundle_info".
 	BundleInfo BundleInfo `msgpack:"bundle_info"`
@@ -1714,6 +1711,9 @@ type TIRunContext struct {
 
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
+
+	// ExecutionTimeout corresponds to the JSON schema field "execution_timeout".
+	ExecutionTimeout interface{} `msgpack:"execution_timeout,omitempty"`
 
 	// ExpandedTICount corresponds to the JSON schema field "expanded_ti_count".
 	ExpandedTICount *int `msgpack:"expanded_ti_count,omitempty"`

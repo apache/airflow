@@ -127,10 +127,10 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
+    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -1364,8 +1364,8 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         Do not: the iterated task's own ``execution_timeout`` caps every indexed task.
 
         An indexed task runs in a worker thread, where ``TimeoutPosix`` cannot fire, and the
-        iterated task already told the supervisor about its limit; sending ``SetExecutionTimeout``
-        again per indexed task would move the supervisor's deadline to the last one started.
+        iterated task already started the supervisor's timeout; sending ``StartExecutionTimeout``
+        again per indexed task would restart the supervisor's deadline at the last one started.
         """
         return False
 
@@ -3002,7 +3002,7 @@ def _run_execute_callable(
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
+            SUPERVISOR_COMMS.send(StartExecutionTimeout())
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)
