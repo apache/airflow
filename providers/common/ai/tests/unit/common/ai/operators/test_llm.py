@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import ANY, MagicMock, patch
 from uuid import uuid4
@@ -81,6 +81,10 @@ requires_typed_xcom = pytest.mark.skipif(
 
 class Entities(BaseModel):
     names: list[str]
+
+
+class Dated(BaseModel):
+    d: date
 
 
 class Link(BaseModel):
@@ -495,6 +499,18 @@ class TestLLMOperator:
 
         assert result == {"names": ["A", "B"]}
         assert not isinstance(result, Entities)
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_serialize_output_keeps_python_field_types(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(Dated(d=date(2026, 1, 2)))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMOperator(task_id="t", prompt="p", llm_conn_id="c", output_type=Dated, serialize_output=True)
+        result = op.execute(context=MagicMock())
+
+        assert type(result) is dict
+        assert type(result["d"]) is date
 
     @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
