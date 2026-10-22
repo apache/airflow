@@ -50,9 +50,9 @@ type DagRef struct {
 	// in common.
 	groups     []*TaskGroupRef
 	groupsByID map[string]*TaskGroupRef
-	// edgeLabels holds every edge between two tasks of the Dag, whether Inputs, Before or After
-	// declared it, and the label that Label put on it. An edge with no label maps to the empty
-	// string, so a lookup reports whether the edge has been declared.
+	// edgeLabels maps each edge between two tasks of the Dag to its label, whether Inputs, Before or
+	// After declared the edge. An edge with no label maps to the empty string, so a lookup reports
+	// whether the edge has been declared.
 	edgeLabels map[edgeKey]string
 	// groupEdges holds the edges that have a task group at one end or both, in the order they
 	// were first declared, and groupEdgeLabels holds their labels as edgeLabels does. Registration

@@ -84,6 +84,7 @@ jobs:
           --draft
           --switch-to-base
           --no-k8s-schema-sync
+          --latest-package-managers
           --answer yes
       - name: >-
           [${{ inputs.target-branch }}] Find upgrade PR

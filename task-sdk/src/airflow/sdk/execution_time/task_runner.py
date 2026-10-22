@@ -74,6 +74,7 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.context import render_template_to_string
+from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -118,10 +119,10 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
+    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -268,6 +269,27 @@ class RuntimeTaskInstance(TaskInstance):
             self.region_index = self.map_index
 
     @property
+    def loop(self) -> LoopContextAccessor | None:
+        """The iteration of the innermost loop this task instance runs in, ``None`` outside a loop."""
+        if self._ti_context_from_server is None or self._ti_context_from_server.loop is None:
+            return None
+        return LoopContextAccessor(self._ti_context_from_server.loop, self)
+
+    @property
+    def loop_decision(self) -> LoopDecision | None:
+        """A loop gate's decision, set once the gate has evaluated whether the loop stops."""
+        if self._loop_decision is None:
+            return None
+        return LoopDecision(stop=self._loop_decision.stop, reason=self._loop_decision.reason)
+
+    @property
+    def expanded_ti_count(self) -> int | None:
+        """Number of instances in this mapped task's expansion in its loop iteration, None if not mapped."""
+        if self._ti_context_from_server is None:
+            return None
+        return self._ti_context_from_server.expanded_ti_count
+
+    @property
     def stats_tags(self) -> dict[str, str]:
         """Metric tags for this task instance, including dag tags and team_name when available."""
         tags: dict[str, str] = {}
@@ -360,8 +382,8 @@ class RuntimeTaskInstance(TaskInstance):
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
-            if from_server.loop is not None:
-                self._cached_template_context["loop"] = LoopContextAccessor(from_server.loop, self)
+            if (loop := self.loop) is not None:
+                self._cached_template_context["loop"] = loop
             dag_run = from_server.dag_run
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
@@ -2321,7 +2343,7 @@ def _run_execute_callable(
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
+            SUPERVISOR_COMMS.send(StartExecutionTimeout())
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)
