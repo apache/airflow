@@ -1,0 +1,1 @@
+Fix pool slot undercounting for tasks that return to ``scheduled`` after deferral when ``include_deferred`` is enabled. Those task instances keep occupying a pool slot (identified via ``next_method``) until they are queued or running again, so pools continue to protect external resources across the deferral boundary.
