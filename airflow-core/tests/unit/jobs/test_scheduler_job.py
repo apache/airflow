@@ -363,6 +363,12 @@ def make_pool_stats(
     }
 
 
+def assign_executor_to_team(executor: MagicMock, team_name: str) -> None:
+    # ExecutorLoader.load_executor sets the team on both; the scheduler reads it from the name.
+    executor.team_name = team_name
+    executor.name.team_name = team_name
+
+
 @patch.dict(
     ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
 )
@@ -2392,8 +2398,8 @@ class TestSchedulerJob:
         session.add_all([bundle1, bundle2])
         session.flush()
 
-        mock_executors[0].team_name = "team_a"
-        mock_executors[1].team_name = "team_b"
+        assign_executor_to_team(mock_executors[0], "team_a")
+        assign_executor_to_team(mock_executors[1], "team_b")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             op1 = EmptyOperator(task_id="task_a_default")  # No explicit executor - should use team's default
@@ -4653,6 +4659,8 @@ class TestSchedulerJob:
         dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
 
         mock_executor = MagicMock()
+        mock_executor.name = ExecutorName(module_path="mock.executor.module.path")
+        mock_executor.team_name = None
         scheduler_job = Job()
 
         ti = dag_run.get_task_instance(task_id="task", session=session)
@@ -11950,7 +11958,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Configure one executor to be team-specific
-        mock_executors[1].team_name = "team_a"
+        assign_executor_to_team(mock_executors[1], "team_a")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             task = EmptyOperator(task_id="test_task")  # No explicit executor
@@ -12016,7 +12024,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Configure executor for the team
-        mock_executors[1].team_name = "team_a"
+        assign_executor_to_team(mock_executors[1], "team_a")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             task = EmptyOperator(task_id="test_task", executor="secondary_exec")
@@ -12050,7 +12058,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Configure one executor for the team, but keep default as global
-        mock_executors[1].team_name = "team_a"
+        assign_executor_to_team(mock_executors[1], "team_a")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             task = EmptyOperator(task_id="test_task", executor="default_exec")  # Global executor
@@ -12085,7 +12093,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Configure executors for different teams
-        mock_executors[1].team_name = "team_b"  # Different team!
+        assign_executor_to_team(mock_executors[1], "team_b")  # Different team!
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):  # DAG belongs to team_a
             task = EmptyOperator(
@@ -12144,7 +12152,7 @@ class TestSchedulerJob:
         session.add(bundle)
         session.flush()
 
-        mock_executors[1].team_name = "team_a"
+        assign_executor_to_team(mock_executors[1], "team_a")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             task = EmptyOperator(task_id="test_task")
@@ -12266,8 +12274,8 @@ class TestSchedulerJob:
         session.add_all([bundle1, bundle2])
         session.flush()
 
-        mock_executors[0].team_name = "team_a"
-        mock_executors[1].team_name = "team_b"
+        assign_executor_to_team(mock_executors[0], "team_a")
+        assign_executor_to_team(mock_executors[1], "team_b")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             EmptyOperator(task_id="task_a")
@@ -12316,8 +12324,8 @@ class TestSchedulerJob:
         session.add_all([bundle1, bundle2])
         session.flush()
 
-        mock_executors[0].team_name = "team_a"
-        mock_executors[1].team_name = "team_b"
+        assign_executor_to_team(mock_executors[0], "team_a")
+        assign_executor_to_team(mock_executors[1], "team_b")
 
         with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
             EmptyOperator(task_id="task_a")
