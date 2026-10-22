@@ -231,8 +231,8 @@ the Dag. Every id declared in it is prefixed with the group's, as in Python:
 A group takes ``Before`` and ``After`` too, which orders the whole group against a task or another group.
 
 Tasks and groups share one id namespace, so a Dag cannot hold both a task and a group called ``staging``. Set
-``PrefixGroupID`` to ``false`` in an ``airflow.TaskGroupSpec`` to keep the ids declared in a group as written. A
-group id is made of letters, digits, dashes and underscores, and is at most 200 characters.
+``PrefixGroupID`` in an ``airflow.TaskGroupSpec`` to a pointer to ``false`` to keep the ids declared in a group
+as written. A group id is made of letters, digits, dashes and underscores, and is at most 200 characters.
 
 Conditional branching
 ~~~~~~~~~~~~~~~~~~~~~
