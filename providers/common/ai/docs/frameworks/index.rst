@@ -152,7 +152,7 @@ Tested versions
      - 0.21.0 and later require ``openai>=3``, while Airflow's constraints file pins
        ``openai`` below 3, so installing with that file gives 0.20.
    * - Claude Agent SDK
-     - 0.2.163
+     - 0.2.168
      - Bundles the Claude Code CLI as the subprocess the SDK talks to.
 
 These are the versions the adapter tests have been run against. Strands and ADK cap
