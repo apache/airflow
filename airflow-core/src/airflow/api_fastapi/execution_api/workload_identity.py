@@ -33,6 +33,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 from airflow.api_fastapi.auth.tokens import JWKS, JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import DagBundleGrant
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.manager import get_configured_bundle_names
 
 NonemptyString = Annotated[str, Field(min_length=1)]
 
@@ -83,6 +84,11 @@ class DagProcessorIdentityVerifier:
     def __init__(self, config: WorkloadIdentityConfig, *, client: httpx.AsyncClient):
         if config.audience in conf.getlist("execution_api", "jwt_audience"):
             raise ValueError("Workload identity must use a dedicated audience")
+        if unknown := frozenset().union(*config.grants.values()) - get_configured_bundle_names():
+            raise ValueError(
+                "[execution_api] dag_processor_workload_identity grants Dag bundles missing from "
+                f"[dag_processor] dag_bundle_config_list: {sorted(unknown)}"
+            )
         self.config = config
         self.jwks = JWKS(
             url=str(config.jwks_url), client=client, refresh_on_unknown_kid=True, raise_on_fetch_error=True

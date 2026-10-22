@@ -42,7 +42,10 @@ from airflow.api_fastapi.auth.tokens import (
 )
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
-from airflow.api_fastapi.execution_api.workload_identity import create_dag_processor_identity_verifier
+from airflow.api_fastapi.execution_api.workload_identity import (
+    DagProcessorIdentityVerifier,
+    create_dag_processor_identity_verifier,
+)
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -106,6 +109,12 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     if JWTValidator not in registry:
         # Create an app scoped validator, so that we don't have to fetch it every time
         registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
+
+    # InProcessExecutionAPI stubs out the identity verifier: don't create one in that case.
+    if DagProcessorIdentityVerifier in registry:
+        app.state.dag_processor_identity_verifier = None
+        yield
+        return
 
     async with create_dag_processor_identity_verifier() as verifier:
         app.state.dag_processor_identity_verifier = verifier

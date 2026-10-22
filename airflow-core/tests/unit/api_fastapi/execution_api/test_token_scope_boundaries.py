@@ -55,8 +55,6 @@ from airflow.dag_processing.processor import ToManager
 # Routes that intentionally deviate from the default (execution-only) policy.
 # Any route NOT listed here must accept only {"execution"}.
 NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
-    # Bootstrap authenticates a deployment identity, never an Airflow runtime token.
-    "POST /dag-processor/session-token": set(),
     # The /run endpoint exchanges a workload token for a short-lived execution token.
     "PATCH /task-instances/{task_instance_id}/run": {"execution", "workload"},
     # Connection test routes run from a queued worker context (workload-only).
@@ -140,9 +138,7 @@ def _get_dependency_calls(dependant: Dependant) -> set:
 def _all_route_policies() -> dict[str, set[str]]:
     """Return a map of all API routes and their allowed token types."""
     return {
-        key: set()
-        if key == "POST /dag-processor/session-token"
-        else set(getattr(route, "allowed_token_types", {"execution"}))
+        key: set(getattr(route, "allowed_token_types", {"execution"}))
         for key, route in _get_api_routes().items()
     }
 

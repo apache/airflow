@@ -42,7 +42,6 @@ from airflow.api_fastapi.execution_api.workload_identity import (
     DagProcessorIdentityVerifier,
     WorkloadIdentityNotAllowed,
 )
-from airflow.dag_processing.bundles.manager import get_configured_bundle_names
 
 router = VersionedAPIRouter()
 identity_bearer = HTTPBearer(auto_error=False, scheme_name="DagProcessorWorkloadIdentity")
@@ -85,10 +84,7 @@ async def require_workload_identity(
             (status.HTTP_401_UNAUTHORIZED, "The workload identity is missing, invalid, or expired"),
             (status.HTTP_403_FORBIDDEN, "The identity is not authorized as a Dag processor"),
             (status.HTTP_404_NOT_FOUND, "Workload identity provisioning is disabled"),
-            (
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-                "Signing keys or the configured bundle grant are unavailable",
-            ),
+            (status.HTTP_503_SERVICE_UNAVAILABLE, "The identity provider's signing keys are unavailable"),
         ]
     ),
 )
@@ -97,10 +93,6 @@ def exchange_session_token(
     identity: Annotated[DagProcessorIdentity, Depends(require_workload_identity)],
     services: svcs.Container = DepContainer,
 ) -> DagProcessorSessionTokenResponse:
-    if not identity.bundle_names <= get_configured_bundle_names():
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "Workload identity bundle grant is unavailable"
-        )
     generator: JWTGenerator = services.get(JWTGenerator)
     try:
         lifetime = get_token_lifetime(generator, identity.expires_at, "Workload identity has expired")

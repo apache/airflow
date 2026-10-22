@@ -545,8 +545,8 @@ Use your identity provider's exact issuer, HTTPS JWKS URL, and signing algorithm
 ``ES256``, or ``EdDSA``). Use a dedicated audience, distinct from ``[execution_api] jwt_audience``.
 The API server verifies the signature, issuer, audience, issued-at time, expiry, and any not-before
 claim, using ``[api_auth] jwt_leeway`` for clock skew. Only exact subjects listed in ``grants`` can
-obtain a session, and every granted bundle must be configured on the API server. This option is
-empty by default, disabling the exchange.
+obtain a session. Every granted bundle must be configured on the API server, which otherwise refuses
+to start. This option is empty by default, disabling the exchange.
 Apply the same trust configuration to all API-server replicas and restart them after changes.
 
 The JWKS endpoint must accept unauthenticated HTTPS GET requests from the Airflow API server.
@@ -621,7 +621,7 @@ Session expiry is capped by both the external identity's remaining lifetime and
 with less than one second remaining cannot obtain a session. Renewal rereads the platform identity
 and retains the same session and Job. During an identity-provider or API outage, the client can continue using
 an already-issued Job credential until it expires; it cannot renew without a valid identity.
-Removing a grant stops future exchanges after API-server configuration is reloaded. Credentials
+Removing a grant stops future exchanges once the API servers restart with the new configuration. Credentials
 already issued remain subject to their expiry and Job ownership checks.
 
 Verification uses the issuer's JWKS and does not perform online token introspection. In particular,
