@@ -119,10 +119,11 @@ class TestLLMBranchOperator:
         )
 
     @pytest.mark.parametrize("model_name", ["gpt-5", None])
+    @patch("airflow.providers.common.ai.operators.llm.stamp_identity_on_agent_spans", autospec=True)
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_run_usage_run_id_and_model_name_pushed_to_xcom(
-        self, mock_hook_cls, mock_do_branch, make_reporting_agent, model_name
+        self, mock_hook_cls, mock_do_branch, mock_stamp, make_reporting_agent, model_name
     ):
         mock_agent, expected_pushes = make_reporting_agent("task_a", model_name=model_name)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
@@ -138,6 +139,10 @@ class TestLLMBranchOperator:
             if c.kwargs["key"] != "decision"
         }
         assert pushes == expected_pushes
+        mock_stamp.assert_called_once()
+        agent_arg, attrs = mock_stamp.call_args.args
+        assert agent_arg is mock_agent
+        assert attrs["airflow.task_instance.id"] == "ti-1"
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

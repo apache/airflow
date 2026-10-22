@@ -516,13 +516,13 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         user_prompt: Any,
         *,
         usage_limits: UsageLimits | None,
-        run_usage: RunUsage | None = None,
+        run_usage: RunUsage,
         **run_kwargs: Any,
     ) -> AgentRunResult[Any]:
         """
         Run the agent, bounding ``usage_limits`` across task retries when the usage budget applies.
 
-        ``run_usage``, when given, receives this attempt's own usage, also when the run raises
+        ``run_usage`` receives this attempt's own usage, also when the run raises
         partway through. With the usage budget, pydantic-ai is handed the cross-attempt total
         instead, so the attempt's share is credited to ``run_usage`` once the run ends.
         """
@@ -530,8 +530,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         ti = context["task_instance"] if usage_limits is not None else None
         self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
         if self._usage_budget is None:
-            if run_usage is not None:
-                run_kwargs["usage"] = run_usage
+            run_kwargs["usage"] = run_usage
             result = self.run_agent_sync(agent, user_prompt, usage_limits=usage_limits, **run_kwargs)
             log_run_summary(self.log, result)
             return result
@@ -542,8 +541,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
                 agent, user_prompt, run_usage=cumulative_usage, usage_limits=usage_limits, **run_kwargs
             )
         finally:
-            if run_usage is not None:
-                run_usage.incr(subtract_run_usage(cumulative_usage, base))
+            run_usage.incr(subtract_run_usage(cumulative_usage, base))
         log_run_summary(self.log, result, usage=attempt_usage)
         self._log_cumulative_usage(cumulative_usage)
         return result
