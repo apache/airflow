@@ -21,6 +21,7 @@
 
 export type {
   ConnectionResult,
+  DeleteXComOpts,
   GetXComOpts,
   JsonValue,
   SetXComOpts,

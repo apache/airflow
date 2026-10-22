@@ -600,6 +600,8 @@ The ``TaskClient``
      - Publishes an XCom value. ``key`` defaults to ``return_value``, and ``dagId``, ``runId`` and ``taskId``
        to the current task's. ``mapIndex`` defaults to the current task's own map index when the target is the
        current task, and to the unmapped value otherwise.
+   * - ``deleteXCom({ ... })``
+     - Removes an XCom value. The target and ``mapIndex`` default the same way as for ``setXCom``.
    * - ``taskStateStore``
      - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
@@ -608,7 +610,8 @@ The ``TaskClient``
 
    A value from a secrets backend, such as an ``AIRFLOW_VAR_*`` environment variable, still wins over the
    stored value when the Variable is read back. ``setVariable`` without a description clears the existing
-   description, and ``deleteVariable`` succeeds even when the Variable does not exist.
+   description, and ``deleteVariable`` succeeds even when the Variable does not exist. ``deleteXCom`` is the
+   same way: it succeeds whether or not a value was stored, and even when the target task does not exist.
 
 .. _typescript-sdk/task-state-store:
 

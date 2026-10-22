@@ -23,6 +23,7 @@ import type {
   ArgNameMap,
   ConnectionResult,
   DagSpec,
+  DeleteXComOpts,
   GetXComOpts,
   JsonValue,
   Node,
@@ -426,6 +427,13 @@ describe("public API", () => {
       dagId?: string | null;
       runId?: string | null;
       taskId?: string | null;
+      mapIndex?: number | null;
+    }>();
+    expectTypeOf<DeleteXComOpts>().toEqualTypeOf<{
+      key: string;
+      dagId?: string;
+      runId?: string;
+      taskId?: string;
       mapIndex?: number | null;
     }>();
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{
