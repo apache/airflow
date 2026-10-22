@@ -61,10 +61,9 @@ With Object Storage
 
 .. note::
 
-    Experimental: ``datasource_config`` can change or be removed in a minor release of this
-    provider. It runs on the DataFusion engine of ``common.sql``, which pins ``datafusion``
-    below 52 because the DataFusion 52 crate is not supported with ``iceberg-core``.
-    See :ref:`howto/stability`.
+    ``datasource_config`` runs on the DataFusion engine of ``common.sql``, which pins
+    ``datafusion`` below 52 because the DataFusion 52 crate is not supported with
+    ``iceberg-core``.
 
 Use ``datasource_config`` to generate queries for data stored in object storage
 (e.g., S3, GCS, Azure Blob Storage, local filesystem) via `DataFusion <https://datafusion.apache.org/>`_.
