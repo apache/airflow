@@ -188,20 +188,18 @@ class TestUriMasking:
             ("postgresql://user:pass@host:5432/db", "postgresql://***:***@host:5432/db"),
             ("mysql://admin:secret@localhost:3306/test", "mysql://***:***@localhost:3306/test"),
             ("http://api:key123@api.example.com:8080/v1", "http://***:***@api.example.com:8080/v1"),
+            ("mysql://admin:secret@localhost", "mysql://***:***@localhost"),
             # URIs without credentials
             ("sqlite:///tmp/test.db", "sqlite:///tmp/test.db"),
             ("filesystem://", "filesystem://"),
             ("redis://localhost:6379/0", "redis://localhost:6379/0"),
+            ("redis://localhost#user@fragment", "redis://localhost#user@fragment"),
             # `extra` in the query string
             ("http://host/?api_key=secret&token=t1", "http://host/?***"),
             ("http://api:key@host:8080/?api_key=secret", "http://***:***@host:8080/?***"),
             ("http:///?api_key=secret", "http:///?***"),
             ("postgres://host/db?__extra__=%7B%22k%22%3A+%22v%22%7D", "postgres://host/db?***"),
             # `host` with its own scheme, giving a doubled scheme
-            (
-                "http://https://alice:hunter2@api.example.com/?api_key=secret",
-                "http://https://***:***@api.example.com/?***",
-            ),
             ("http://https://alice:hunter2@api.example.com/", "http://https://***:***@api.example.com/"),
             # Edge cases
             ("", ""),
@@ -212,36 +210,24 @@ class TestUriMasking:
         result = _mask_uri_credentials(uri)
         assert result == expected
 
-    def test_mask_uri_credentials_masks_extra_for_connection_uri(self):
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            ("example.com", "http://***:***@example.com/?***"),
+            ("https://api.example.com", "http://https://***:***@api.example.com/?***"),
+        ],
+    )
+    def test_mask_uri_credentials_for_connection_uri(self, host, expected):
         conn = Connection(
             conn_id="leaky",
             conn_type="http",
-            host="example.com",
+            host=host,
             login="alice",
             password="hunter2",
             extra='{"api_key": "SUPERSECRETKEY"}',
         )
 
-        masked = _mask_uri_credentials(conn.get_uri())
-
-        assert "SUPERSECRETKEY" not in masked
-        assert masked == "http://***:***@example.com/?***"
-
-    def test_mask_uri_credentials_masks_host_with_embedded_scheme(self):
-        conn = Connection(
-            conn_id="leaky_scheme",
-            conn_type="http",
-            host="https://api.example.com",
-            login="alice",
-            password="hunter2",
-            extra='{"api_key": "SUPERSECRETKEY"}',
-        )
-
-        masked = _mask_uri_credentials(conn.get_uri())
-
-        assert "hunter2" not in masked
-        assert "SUPERSECRETKEY" not in masked
-        assert masked == "http://https://***:***@api.example.com/?***"
+        assert _mask_uri_credentials(conn.get_uri()) == expected
 
 
 class TestConnectionDisplayMapper:

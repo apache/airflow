@@ -75,7 +75,7 @@ def _mask_uri_credentials(uri: str) -> str:
             masked = masked.replace(f"?{parsed.query}", f"?{SENSITIVE_PLACEHOLDER}", 1)
 
         # A ``host`` with its own scheme makes ``get_uri`` emit ``http://https://user:pass@host``,
-        # which ``urlsplit`` reads as netloc ``https:``. Find the authority after the last "://".
+        # which ``urlsplit`` reads as netloc ``https:``.
         scheme_block, separator, rest = masked.rpartition("://")
         if separator:
             authority_end = min(
