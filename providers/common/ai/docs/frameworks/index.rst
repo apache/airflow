@@ -157,9 +157,8 @@ overridden. It installs the newest framework release that is older than the repo
 ``exclude-newer`` window, which for the OpenAI Agents SDK means the newest release that
 accepts ``openai`` 2.x, not the versions in the table above. It therefore does not show
 that those versions work in the environment a user gets. Canary runs, which include
-scheduled, push and manual runs on the Apache Airflow repository and pull requests
-labeled ``canary``, install each framework's newest release with its own dependency
-pins instead.
+scheduled and manual runs on ``main`` and pull requests labeled ``canary``, install each
+framework's newest release with its own dependency pins instead.
 
 Choosing a route
 ----------------
