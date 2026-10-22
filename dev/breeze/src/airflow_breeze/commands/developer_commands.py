@@ -978,6 +978,16 @@ def _build_python_docs(
     return sphinx_returncode
 
 
+def _validate_sphinx_airflow_theme_path(ctx: click.Context, param: click.Parameter, value: str | None):
+    if value and not Path(value, "sphinx_airflow_theme/static/_gen").is_dir():
+        raise click.BadParameter(
+            f"{value} has no sphinx_airflow_theme/static/_gen. It must be the `sphinx_airflow_theme` "
+            "sub-folder of an airflow-site checkout (not the repository root), "
+            "after `./site.sh prepare-theme`."
+        )
+    return value
+
+
 @main.command(name="build-docs")
 @option_builder
 @click.option(
@@ -1040,8 +1050,10 @@ def _build_python_docs(
 @click.option(
     "--sphinx-airflow-theme-path",
     type=click.Path(exists=True, file_okay=False, resolve_path=True),
-    help="Build the docs with the `sphinx_airflow_theme` folder of an airflow-site checkout "
-    "(after `./site.sh prepare-theme`) instead of the published theme.",
+    callback=_validate_sphinx_airflow_theme_path,
+    help="Build the docs with the `sphinx_airflow_theme` sub-folder of an airflow-site checkout "
+    "(not the repository root, e.g. `../airflow-site/sphinx_airflow_theme`), after "
+    "`./site.sh prepare-theme`, instead of the published theme.",
 )
 @option_verbose
 @option_answer
@@ -1067,15 +1079,11 @@ def build_docs(
     """
     Build documents.
     """
-    if (
-        sphinx_airflow_theme_path
-        and not Path(sphinx_airflow_theme_path, "sphinx_airflow_theme/static/_gen").is_dir()
-    ):
-        console_print(
-            f"[error]{sphinx_airflow_theme_path} has no sphinx_airflow_theme/static/_gen. Pass the "
-            "`sphinx_airflow_theme` folder of an airflow-site checkout after `./site.sh prepare-theme`."
+    if sdk_docs_only and sphinx_airflow_theme_path:
+        raise click.UsageError(
+            "--sphinx-airflow-theme-path cannot be used with --sdk-docs-only: "
+            "the SDK docs do not use the Sphinx theme."
         )
-        sys.exit(1)
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
