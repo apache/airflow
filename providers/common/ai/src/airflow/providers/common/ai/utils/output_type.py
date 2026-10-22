@@ -57,7 +57,7 @@ def is_model_dump_required(output: Any, output_type: Any, *, serialize_output: b
     ``TypeAliasType`` or a ``NewType``, so an instance of a class it did not find is dumped.
     Without ``iter_pydantic_models`` there is no evidence either way, so the caller's ``serialize_output`` decides.
     """
-    if not (found := list(_iter_models_in_output(output))):
+    if not (found := [model for model, _ in _iter_models_in_output(output)]):
         return False
     if serialize_output:
         return True
@@ -71,29 +71,43 @@ def dump_output_for_xcom(output: Any, output_type: Any, *, serialize_output: boo
     """
     Return the output as it is pushed to XCom: dumped when ``is_model_dump_required``, else unchanged.
 
-    The dump is JSON-compatible, as the serde ``BaseModel`` serializer's is, so a ``HttpUrl``, ``Path`` or
-    ``Enum`` field is a string that XCom accepts. Field names, not aliases, match ``dump_output_to_json``.
+    With ``serialize_output`` the dump holds Python values, as the ``model_dump()`` of 1.0.0 does, so a
+    ``date`` or ``Decimal`` field keeps its type; an output with a set, frozenset or dict key holding a model
+    is dumped to JSON values instead. A model the worker registers no class for, without ``serialize_output``,
+    is dumped to JSON values as well, field names rather than aliases, so a ``HttpUrl``, ``Path`` or ``Enum``
+    field is a string that XCom accepts.
     """
-    if is_model_dump_required(output, output_type, serialize_output=serialize_output):
-        return to_jsonable_python(output, by_alias=False)
-    return output
+    if not is_model_dump_required(output, output_type, serialize_output=serialize_output):
+        return output
+    # Python mode is what 1.0.0 pushed, a minor release must not change it. A model dumped to a dict cannot
+    # be a set member, so python mode raises on a set holding models.
+    if serialize_output and not any(in_set for _, in_set in _iter_models_in_output(output)):
+        if isinstance(output, BaseModel):
+            return output.model_dump()
+        return TypeAdapter(Any).dump_python(output, mode="python")
+    return to_jsonable_python(output, by_alias=False)
 
 
-def _iter_models_in_output(output: Any) -> Iterator[BaseModel]:
+def _iter_models_in_output(output: Any) -> Iterator[tuple[BaseModel, bool]]:
     """
-    Yield the ``BaseModel`` instances in an output, looking inside list, tuple, set, frozenset and dict.
+    Yield the ``BaseModel`` instances in an output, each with whether it must be hashable.
 
-    A dict is read by value only. Dict keys, dataclass and NamedTuple contents and model fields are not walked.
+    Looks inside list, tuple, set, frozenset and dict. A set member or a dict key is hashable, so it is
+    flagged, and so is whatever is nested in one. Dataclass and NamedTuple contents and model fields
+    are not walked.
     """
-    stack = [output]
+    stack = [(output, False)]
     while stack:
-        item = stack.pop()
+        item, in_set = stack.pop()
         if isinstance(item, BaseModel):
-            yield item
-        elif isinstance(item, (list, tuple, set, frozenset)):
-            stack.extend(item)
+            yield item, in_set
+        elif isinstance(item, (set, frozenset)):
+            stack.extend((element, True) for element in item)
+        elif isinstance(item, (list, tuple)):
+            stack.extend((element, in_set) for element in item)
         elif isinstance(item, dict):
-            stack.extend(item.values())
+            stack.extend((key, True) for key in item)
+            stack.extend((value, in_set) for value in item.values())
 
 
 def dump_output_to_json(output: Any) -> str:

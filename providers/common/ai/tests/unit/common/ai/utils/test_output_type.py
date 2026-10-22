@@ -20,11 +20,13 @@ import json
 from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Literal, NamedTuple
 from unittest import mock
+from uuid import UUID
 
 import pytest
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, computed_field, model_validator
@@ -65,6 +67,23 @@ class Item(BaseModel):
 
 class B(BaseModel):
     y: str
+
+
+class Stamped(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    d: date
+    at: datetime
+    amount: Decimal
+    ident: UUID
+
+
+STAMPED = Stamped(
+    d=date(2026, 1, 2),
+    at=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
+    amount=Decimal("1.5"),
+    ident=UUID("12345678-1234-5678-1234-567812345678"),
+)
 
 
 class FromAttributesModel(BaseModel):
@@ -314,6 +333,68 @@ class TestDumpOutputForXcom:
 
         assert dump_output_for_xcom(output, list[A], serialize_output=True) == [{"x": 1}]
         assert dump_output_for_xcom(output, list[A], serialize_output=False) is output
+
+    def test_serialize_output_keeps_python_field_types(self):
+        dumped = dump_output_for_xcom(STAMPED, Stamped, serialize_output=True)
+
+        assert type(dumped) is dict
+        assert dumped == {"d": STAMPED.d, "at": STAMPED.at, "amount": STAMPED.amount, "ident": STAMPED.ident}
+        assert [type(value) for value in dumped.values()] == [date, datetime, Decimal, UUID]
+
+    @pytest.mark.parametrize(
+        ("output", "container_type"),
+        [([STAMPED], list), ({"k": STAMPED}, dict), ((STAMPED,), tuple)],
+        ids=["list", "dict", "tuple"],
+    )
+    def test_serialize_output_keeps_python_field_types_inside_a_container(self, output, container_type):
+        dumped = dump_output_for_xcom(output, [Stamped, str], serialize_output=True)
+
+        assert type(dumped) is container_type
+        element = next(iter(dumped.values())) if container_type is dict else dumped[0]
+        assert type(element) is dict
+        assert type(element["d"]) is date
+        assert type(element["amount"]) is Decimal
+
+    @pytest.mark.parametrize(
+        "output",
+        [
+            {STAMPED},
+            frozenset({STAMPED}),
+            [{STAMPED}],
+            {"k": frozenset({STAMPED})},
+            {STAMPED: 1, "k": STAMPED},
+        ],
+        ids=["set", "frozenset", "set-in-list", "frozenset-in-dict", "model-as-dict-key"],
+    )
+    def test_serialize_output_dumps_json_values_when_a_set_or_dict_key_holds_the_model(self, output):
+        dumped = dump_output_for_xcom(output, [Stamped, str], serialize_output=True)
+
+        assert "2026-01-02" in str(dumped)
+        assert date not in {type(v) for v in _flatten_values(dumped)}
+
+    @requires_walker
+    def test_unregistered_model_is_dumped_to_json_values(self):
+        dumped = dump_output_for_xcom(STAMPED, [Stamped, str], serialize_output=False)
+
+        assert dumped == {
+            "d": "2026-01-02",
+            "at": STAMPED.at.isoformat().replace("+00:00", "Z"),
+            "amount": "1.5",
+            "ident": str(STAMPED.ident),
+        }
+
+
+def _flatten_values(dumped):
+    """Yield the leaf values of nested lists and dicts."""
+    stack = [dumped]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, dict):
+            stack.extend(item.values())
+        elif isinstance(item, list):
+            stack.extend(item)
+        else:
+            yield item
 
 
 class TestRehydratePydanticOutput:
