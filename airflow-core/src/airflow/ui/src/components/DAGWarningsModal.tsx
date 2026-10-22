@@ -20,11 +20,15 @@ import { Heading, HStack, Spacer, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
-import type { DAGWarningResponse } from "openapi/requests/types.gen";
+import type { DAGWarningResponse, ImportErrorResponse } from "openapi/requests/types.gen";
 
 import { Modal } from "src/system-components";
 
-import { ErrorAlert } from "./ErrorAlert";
+import { getApiErrorDetail } from "src/utils";
+
+import { DagImportErrorDetails } from "./DagImportErrorDetails";
+import type { ExpandedApiError } from "./ErrorAlert";
+import { StatusMessage } from "./StatusMessage";
 import { WarningAlert } from "./WarningAlert";
 
 /** The modal lists the page error as one more item next to the warnings, so the button count does too. */
@@ -32,21 +36,49 @@ export const countDagWarnings = (warningsTotal: number | undefined, error: unkno
   (warningsTotal ?? 0) + Number(Boolean(error));
 
 type ImportDAGErrorModalProps = {
+  /** Stated as one more warning, for a Dag that is no longer in its file. */
+  readonly deactivatedMessage?: string;
   readonly error?: unknown;
+  readonly importError?: ImportErrorResponse;
   readonly onClose: () => void;
   readonly open: boolean;
   readonly warnings?: Array<DAGWarningResponse>;
 };
 
-export const DAGWarningsModal = ({ error, onClose, open, warnings }: ImportDAGErrorModalProps) => {
-  const { t: translate } = useTranslation("components");
-  const heading = Boolean(error)
-    ? warnings?.length !== undefined && warnings.length > 0
-      ? translate("dagWarnings.errorAndWarning", {
-          warning: translate("dagWarnings.warning", { count: warnings.length }),
-        })
-      : translate("dagWarnings.error_one")
-    : "";
+export const DAGWarningsModal = ({
+  deactivatedMessage,
+  error,
+  importError,
+  onClose,
+  open,
+  warnings,
+}: ImportDAGErrorModalProps) => {
+  const { t: translate } = useTranslation(["components", "common", "dashboard"]);
+  const warningCount = (warnings?.length ?? 0) + Number(deactivatedMessage !== undefined);
+  // Named for the worst thing in it, since that is what the reader came for.
+  const errorHeading =
+    importError === undefined
+      ? translate("dagWarnings.error_one")
+      : translate("dashboard:importErrors.dagImportError", { count: 1 });
+  const hasError = Boolean(error) || importError !== undefined;
+  const apiError = error as ExpandedApiError | undefined;
+  // What the request itself said, falling back to the bare word when it carried no status or message.
+  const pageErrorHeading =
+    [apiError?.status, apiError?.message].filter(Boolean).join(" ") || translate("common:error.title");
+  const detail = getApiErrorDetail(error);
+  const errorDetail = Array.isArray(detail) ? detail.join("\n") : detail;
+  let heading = "";
+
+  if (hasError) {
+    heading =
+      warningCount > 0
+        ? translate("dagWarnings.errorAndWarning", {
+            warningText: translate("dagWarnings.warning", { count: warningCount }),
+          })
+        : errorHeading;
+  } else if (warningCount > 0) {
+    heading = translate("dagWarnings.warning", { count: warningCount });
+  }
 
   return (
     <Modal
@@ -63,9 +95,25 @@ export const DAGWarningsModal = ({ error, onClose, open, warnings }: ImportDAGEr
       open={open}
       scrollBehavior="inside"
     >
+      {importError === undefined ? undefined : (
+        <VStack>
+          <StatusMessage
+            body={<DagImportErrorDetails importError={importError} />}
+            heading={translate("dashboard:importErrors.dagImportError", { count: 1 })}
+            severity="error"
+          />
+          <Spacer />
+        </VStack>
+      )}
       {Boolean(error) && (
         <VStack>
-          <ErrorAlert error={error} />
+          <StatusMessage body={errorDetail} heading={pageErrorHeading} severity="error" />
+          <Spacer />
+        </VStack>
+      )}
+      {deactivatedMessage === undefined ? undefined : (
+        <VStack>
+          <StatusMessage heading={deactivatedMessage} severity="warning" />
           <Spacer />
         </VStack>
       )}

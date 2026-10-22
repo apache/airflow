@@ -18,7 +18,7 @@
  */
 
 export { capitalize } from "./capitalize";
-export { createErrorToaster, getErrorStatus } from "./errorHandling";
+export { createErrorToaster, getApiErrorDetail, getErrorStatus } from "./errorHandling";
 export { formatNumber } from "./formatNumber";
 export { getMetaKey } from "./getMetaKey";
 export { hasDagRunConfig } from "./hasDagRunConfig";

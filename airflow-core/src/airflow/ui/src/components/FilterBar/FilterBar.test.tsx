@@ -90,6 +90,20 @@ describe("FilterBar boolean filters", () => {
     expect(screen.getByTestId("needs_review-pill")).not.toHaveTextContent(":");
   });
 
+  it("keeps the remove control out of the pill button", () => {
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    // A button nested inside another button is invalid HTML and React warns about it at runtime.
+    expect(within(screen.getByTestId("needs_review-pill")).queryAllByRole("button")).toHaveLength(0);
+  });
+
   it("clears the filter when the pill is clicked", async () => {
     const onFiltersChange = vi.fn();
 

@@ -16,26 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 
-import { Alert } from "src/system-components";
+import { StatusMessage } from "src/components/StatusMessage";
 
 type Props = {
   readonly warning?: {
     message: string;
+    warning_type?: string;
   };
 };
 
 export const WarningAlert = ({ warning }: Props) => {
-  if (!Boolean(warning)) {
+  const { t: translate } = useTranslation("components");
+
+  if (warning === undefined) {
     return undefined;
   }
 
+  // The type is the warning's own short form; only a synthesised warning arrives without one.
   return (
-    <Alert data-testid="warning-alert" status="warning">
-      <Flex align="center" whiteSpace="preserve" wordBreak="break-all">
-        {warning?.message}
-      </Flex>
-    </Alert>
+    <StatusMessage
+      body={warning.message}
+      heading={warning.warning_type ?? translate("dagWarnings.warning", { count: 1 })}
+      severity="warning"
+    />
   );
 };
