@@ -50,17 +50,15 @@ The Python Task SDK is not covered here. It is released together with Airflow co
 
 # Release cycle
 
-Language SDK releases follow the Airflow core release cycle. Each core feature release
-(`X.Y.0`, roughly every two or three months, see
-[Airflow's release process and version policy](../airflow-core/docs/release-process.rst))
-is the scheduling anchor: when a core minor is being prepared, every language SDK that has
-changes worth shipping cuts a release from that minor's release branch.
+Each language SDK has its own release cycle. What ties a release to Airflow core is the branch it
+is cut from, not its timing: an SDK release is always cut from a core release branch, but an SDK
+decides for itself when to release.
 
-Following the core cycle does not mean an SDK must release on every core minor. An SDK with no
-user-visible change since its last release can skip the cycle, and an SDK that needs a fix out
-earlier can release off-cycle from the same branch. What the cycle fixes is the default moment
-to release and the branch to release from, so users get an SDK that is known to work against the
-core version they are upgrading to.
+Core feature releases (`X.Y.0`, roughly every two or three months, see
+[Airflow's release process and version policy](../airflow-core/docs/release-process.rst)) are the
+default moment to cut one, for an SDK with changes worth shipping. An SDK with nothing
+user-visible to ship can skip a cycle entirely, and a patch release can happen at any time
+against the branch of the core minor it targets.
 
 # Release branch
 
@@ -76,8 +74,12 @@ The rules for SDK changes are the same as for the rest of the repository:
 - Land the change on `main` first.
 - Cherry-pick it to the active `vX-Y-test` branch, the way core and provider fixes are
   cherry-picked. Do not commit SDK changes directly to a release branch.
-- Cut the SDK release candidate from `vX-Y-test` (or from `vX-Y-stable` once the core release is
-  final), so the SDK sources match the core version the release targets.
+- Cut the SDK release candidate from `vX-Y-test`, so the SDK sources match the core version the
+  release targets. Cherry-picks always land on `vX-Y-test`, including after the core release is
+  final; `vX-Y-stable` receives them once a release is cut from it.
+
+A patch release is the same thing again: cherry-pick the fix onto the active `vX-Y-test` and tag
+from there. Language SDKs do not get release branches of their own.
 
 This matters more for a language SDK than for a Python distribution, because the SDK and the
 supervisor it talks to are versioned together. An SDK built from `main` can declare a newer
@@ -143,8 +145,8 @@ signing tooling in place before that release is cut.
 
 Common to every language SDK release. The per-SDK guides expand steps 5 to 9.
 
-1. Confirm which core release branch you are releasing from (`vX-Y-test` during the cycle,
-   `vX-Y-stable` after the core release is final).
+1. Confirm which core minor you are releasing against, and work from that minor's `vX-Y-test`
+   branch.
 2. Confirm every change you intend to ship has landed on `main` and been cherry-picked to that
    branch.
 3. Re-sync the vendored schemas and the generated code against the release branch, and commit any
