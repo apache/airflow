@@ -223,6 +223,44 @@ When the operator creates an HITL request that is waiting for a human response, 
    :start-after: [START howto_hitl_entry_operator]
    :end-before: [END howto_hitl_entry_operator]
 
+Waiting for a quick response
+----------------------------
+
+An HITL task stops running as soon as it has written its request: it waits in the ``awaiting_input``
+state without holding a worker slot, and when the response arrives the scheduler queues it again so
+a worker can run ``execute_complete``. For an answer that comes hours later that round trip does not
+matter. For an answer that comes seconds after the notification, it is most of the wait.
+
+``response_poll_window`` keeps the task running and checking for a response for a while first:
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.providers.standard.operators.hitl import ApprovalOperator
+
+    ApprovalOperator(
+        task_id="approve_deploy",
+        subject="Deploy this build?",
+        response_poll_window=timedelta(minutes=2),
+        response_timeout=timedelta(hours=4),
+    )
+
+A response in the first two minutes is used in the same task run, with no rescheduling. Otherwise
+the task waits in ``awaiting_input`` as usual for the rest of the four hours: the window is part of
+``response_timeout``, not added to it.
+
+The window holds a worker slot and a pool slot for as long as it runs, so keep it to the few
+minutes in which a quick answer is likely. It also counts against ``execution_timeout``, which must
+be longer than the window.
+
+.. note::
+
+    ``response_poll_window`` needs a standard provider release that has it, and Airflow 3.5 or
+    later, where a running task can read its own response and the Required Actions page accepts a
+    response during the window. On older Airflow versions the window is ignored with a warning in
+    the task log, and the task starts waiting for the response straight away.
+
 
 Testing HITL Dags locally
 -------------------------
