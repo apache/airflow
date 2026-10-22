@@ -363,10 +363,17 @@ def build_task_event_job_facets(
     }
 
 
-def _get_job_type_facets(job_type: dict[str, str] | None) -> dict[str, job_type_job.JobTypeJobFacet]:
+def _get_job_type_facets(job_type: dict[str, str] | None) -> dict[str, JobFacet]:
     if not job_type:
         return {}
-    return {"jobType": job_type_job.JobTypeJobFacet(**job_type, producer=_PRODUCER)}
+    return {
+        "jobType": job_type_job.JobTypeJobFacet(
+            processingType=job_type["processingType"],
+            integration=job_type["integration"],
+            jobType=job_type["jobType"],
+            producer=_PRODUCER,
+        )
+    }
 
 
 def _get_parent_run_facet(
