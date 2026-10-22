@@ -46,3 +46,34 @@ class DatabricksApiError(AirflowException):
     def __init__(self, message: str, *, http_status_code: int | None = None) -> None:
         super().__init__(message)
         self.http_status_code = http_status_code
+
+
+class DatabricksUnityMCPError(DatabricksApiError):
+    """Raised when a call to a Unity Gateway MCP Service fails."""
+
+
+class DatabricksUnityMCPAccessDeniedError(DatabricksUnityMCPError):
+    """
+    Raised when the gateway will not let the caller invoke the service.
+
+    The service may not exist, the caller may lack a privilege on it, or its credentials may be invalid.
+    """
+
+
+class DatabricksUnityMCPThrottledError(DatabricksUnityMCPError):
+    """Raised when the gateway rate-limits the caller."""
+
+    def __init__(
+        self, message: str, *, http_status_code: int | None = None, retry_after: float | None = None
+    ) -> None:
+        super().__init__(message, http_status_code=http_status_code)
+        self.retry_after = retry_after
+
+
+class DatabricksUnityMCPTransportError(DatabricksUnityMCPError):
+    """
+    Raised when the gateway cannot be reached or the connection drops.
+
+    When this interrupts a tool call, the tool may or may not have run, so the call is not
+    retried automatically.
+    """
