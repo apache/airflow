@@ -57,7 +57,7 @@ states:
     supported: true
     since: "3.4.0"
     sdk_version: "1.0.0"
-    note: "approval() / hitl() in a native Dag"
+    note: "approval() / hitl() in a Dag definition"
   removed:
     supported: true
     since: "3.4.0"
@@ -114,7 +114,7 @@ capabilities:
     supported: false
     note: "no hook into the Python listener API, so a task emits no OpenLineage facets of its own"
   # Dag definition: the whole Dag is declared in the SDK's language.
-  dag-definition:
+  dag-definition-authoring:
     supported: true
     since: "3.4.0"
     sdk_version: "1.0.0"

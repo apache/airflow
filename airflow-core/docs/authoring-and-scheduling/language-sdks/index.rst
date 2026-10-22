@@ -337,7 +337,7 @@ release that shipped it. See the legend below the tables for what each mark mean
      - Go
      - Java
      - TypeScript
-   * - ``dag-definition`` (SHOULD)
+   * - ``dag-definition-authoring`` (SHOULD)
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
@@ -451,7 +451,7 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
 
-*Marks:* ``✓`` supported (with the SDK release that shipped it, when known) · ``✗`` not supported · ``n/a`` not applicable · ``n/p`` not published. A tier marked ``†`` applies only when ``dag-definition`` is supported.
+*Marks:* ``✓`` supported (with the SDK release that shipped it, when known) · ``✗`` not supported · ``n/a`` not applicable · ``n/p`` not published. A tier marked ``†`` applies only when ``dag-definition-authoring`` is supported.
 
 .. END AUTO-GENERATED LANG-SDK COMPAT MATRIX
 

@@ -478,14 +478,14 @@ A Dag definition lets an entire Dag — not just individual task bodies — be w
 the target language, without a Python Dag file. It is gated by a single umbrella
 capability:
 
-``dag-definition`` (SHOULD)
+``dag-definition-authoring`` (SHOULD)
     The SDK can define a whole Dag in the target language. The project intends every
     Language SDK to reach this bar, but an SDK is not required to ship it before it is
     ready; an SDK that only executes ``@task.stub`` tasks from a Python Dag is still useful
     and remains conformant to the MUST tier.
 
 The remaining Dag-definition capabilities are **conditional**: their tier applies only when
-``dag-definition`` is supported (written ``†``). For an SDK that does not (yet) author Dags
+``dag-definition-authoring`` is supported (written ``†``). For an SDK that does not (yet) author Dags
 in its own language they are *not applicable* (``n/a``) rather than unsupported.
 
 ``dag-args`` (MUST †)
@@ -572,7 +572,7 @@ Shared capabilities
 
 These capabilities exist in both authoring modes, and an SDK may support them in one mode but not
 the other, so each one is declared once per mode. In a Dag definition the tier applies only when
-``dag-definition`` is supported.
+``dag-definition-authoring`` is supported.
 
 ``dynamic-task-mapping`` (MAY)
     A task can be expanded at runtime via dynamic task mapping, and each mapped instance

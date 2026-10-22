@@ -111,7 +111,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | state: `skipped` | SHOULD | ✓ | 3.4.0 | 1.0.0 | triggerDagRun with skipWhenAlreadyExists only |
 | state: `deferred` | MAY | ✓ | 3.4.0 | 1.0.0 | triggerDagRun with deferrable only |
 | state: `up_for_reschedule` | MAY | ✗ | – | – | runtime does not emit RescheduleTask yet |
-| state: `awaiting_input` | MAY | ✓ | 3.4.0 | 1.0.0 | approval() / hitl() in a native Dag |
+| state: `awaiting_input` | MAY | ✓ | 3.4.0 | 1.0.0 | approval() / hitl() in a Dag definition |
 | state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
 | **Task runtime** |  |  |  |  |  |
 | capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | structured records over the log socket |
@@ -127,7 +127,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `object-store` | MAY | ✗ | – | – | no object-storage API yet |
 | capability: `listeners` | MAY | ✗ | – | – | no hook into the Python listener API, so a task emits no OpenLineage facets of its own |
 | **Dag definition** |  |  |  |  |  |
-| capability: `dag-definition` | SHOULD | ✓ | 3.4.0 | 1.0.0 | new Dag |
+| capability: `dag-definition-authoring` | SHOULD | ✓ | 3.4.0 | 1.0.0 | new Dag |
 | capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `task-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `dag-params` | MUST † | ✗ | – | – |  |
@@ -155,7 +155,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
 | capability: `callbacks` | MAY | ✗ | – | – | a Python-declared callback does not run for a coordinator task |
 
-*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition` is supported.*
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition-authoring` is supported.*
 
 <!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 

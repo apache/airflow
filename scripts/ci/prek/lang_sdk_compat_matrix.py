@@ -53,7 +53,7 @@ Mode = Literal["dag-definition", "stub-task-handler"]
 RowKind = Literal["state", "capability"]
 Tier = Literal["MUST", "SHOULD", "MAY"]
 Group = Literal["runtime", "dag-definition", "stub-task-handler", "shared"]
-EntryKey = tuple[str, Mode | None]
+EntryKey = tuple[RowKind, str, Mode | None]
 
 DAG_DEFINITION_MODE: Final[Mode] = "dag-definition"
 STUB_TASK_HANDLER_MODE: Final[Mode] = "stub-task-handler"
@@ -61,7 +61,7 @@ AUTHORING_MODES: Final[tuple[Mode, ...]] = (DAG_DEFINITION_MODE, STUB_TASK_HANDL
 
 # The umbrella capability that gates the conditional Dag-definition capabilities: when an SDK does
 # not support it, every gated capability is "not applicable" rather than unsupported.
-DAG_DEFINITION_GATE: Final = "dag-definition"
+DAG_DEFINITION_GATE: Final = "dag-definition-authoring"
 
 # TaskInstance states a subprocess can emit, in display order, with their conformance tier.
 # Scheduler-owned states (queued, scheduled, running, restarting, upstream_failed) are never
@@ -145,12 +145,10 @@ class MatrixRow(NamedTuple):
 
     @property
     def entry_key(self) -> EntryKey:
-        # Only a shared capability carries one entry per authoring mode; every other dimension is
-        # declared once, so its mode is dropped from the key.
-        return self.name, (self.mode if self.name in SHARED_CAPABILITY_NAMES else None)
+        return self.kind, self.name, self.mode
 
 
-GATE_KEY: Final[EntryKey] = (DAG_DEFINITION_GATE, None)
+GATE_KEY: Final[EntryKey] = ("capability", DAG_DEFINITION_GATE, None)
 
 
 class MatrixGroup(NamedTuple):
@@ -163,18 +161,31 @@ class MatrixPart(NamedTuple):
     groups: list[MatrixGroup]
 
 
+class MatrixParts(NamedTuple):
+    common: MatrixPart
+    dag_definition: MatrixPart
+    stub_task_handler: MatrixPart
+
+
 def _build_capability_rows(groups: tuple[Group, ...], mode: Mode | None) -> list[MatrixRow]:
     return [
-        MatrixRow("capability", cap.name, cap.tier, cap.gated and mode != STUB_TASK_HANDLER_MODE, mode)
+        MatrixRow(
+            "capability",
+            cap.name,
+            cap.tier,
+            cap.gated and mode != STUB_TASK_HANDLER_MODE,
+            # Only a shared capability has one entry per authoring mode to pick between.
+            mode if cap.group == "shared" else None,
+        )
         for group in groups
         for cap in CAPABILITY_DIMENSIONS
         if cap.group == group
     ]
 
 
-def build_matrix_parts() -> list[MatrixPart]:
+def build_matrix_parts() -> MatrixParts:
     """Split the dimensions into the parts both renderers publish, in display order."""
-    return [
+    return MatrixParts(
         MatrixPart(
             "Common to both authoring modes",
             [
@@ -203,7 +214,7 @@ def build_matrix_parts() -> list[MatrixPart]:
                 )
             ],
         ),
-    ]
+    )
 
 
 class LangSdk(TypedDict):
@@ -304,16 +315,18 @@ def parse_capabilities(doc: object, *, source: str, expected_sdk: str | None = N
         _validate_entry(entry, label=f"states.{name}", source=source)
     capabilities = doc["capabilities"]
     _validate_keys(capabilities, expected=CAPABILITY_NAMES, kind="capabilities", source=source)
-    entries: dict[EntryKey, DimensionEntry] = {(name, None): entry for name, entry in doc["states"].items()}
+    entries: dict[EntryKey, DimensionEntry] = {
+        ("state", name, None): entry for name, entry in doc["states"].items()
+    }
     for name, entry in capabilities.items():
         if name in SHARED_CAPABILITY_NAMES:
             _validate_keys(entry, expected=set(AUTHORING_MODES), kind=f"capabilities.{name}", source=source)
             for mode in AUTHORING_MODES:
                 _validate_entry(entry[mode], label=f"capabilities.{name}.{mode}", source=source)
-                entries[name, mode] = entry[mode]
+                entries["capability", name, mode] = entry[mode]
         else:
             _validate_entry(entry, label=f"capabilities.{name}", source=source)
-            entries[name, None] = entry
+            entries["capability", name, None] = entry
     if not entries[GATE_KEY]["supported"]:
         supported_gated = sorted(
             row.name

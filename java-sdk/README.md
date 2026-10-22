@@ -176,7 +176,7 @@ prek hook regenerate it.
 | capability: `object-store` | MAY | ✗ | – | – | no object-storage API yet |
 | capability: `listeners` | MAY | ✗ | – | – | no hook into the Python listener API, so a task emits no OpenLineage facets of its own |
 | **Dag definition** |  |  |  |  |  |
-| capability: `dag-definition` | SHOULD | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `dag-definition-authoring` | SHOULD | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `task-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `dag-params` | MUST † | ✗ | – | – |  |
@@ -204,7 +204,7 @@ prek hook regenerate it.
 | capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
 | capability: `callbacks` | MAY | ✗ | – | – | a Python-declared callback does not run for a coordinator task |
 
-*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition` is supported.*
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition-authoring` is supported.*
 
 <!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
