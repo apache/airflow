@@ -866,13 +866,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`'
+            next_dagrun, last_run_state, last_run_start_date, last_run_run_after`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`'
+          next_dagrun, last_run_state, last_run_start_date, last_run_run_after`'
       - name: is_favorite
         in: query
         required: false
@@ -1329,13 +1329,15 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, deadline_time,
-            created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`'
+            created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state,
+            callback_type`'
           default:
           - deadline_time
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, deadline_time,
-          created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`'
+          created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state,
+          callback_type`'
       - name: missed
         in: query
         required: false
@@ -1512,6 +1514,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeadlineAlertCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs:
+    get:
+      tags:
+      - Deadlines
+      summary: Get Callback Logs
+      description: Get the execution logs of a deadline callback.
+      operationId: get_callback_logs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: callback_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Callback Id
+      - name: accept
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/json
+          - application/x-ndjson
+          - '*/*'
+          default: '*/*'
+          title: Accept
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstancesLogResponse'
+            application/x-ndjson:
+              schema:
+                type: string
+                example: '{"content": "content"}
+
+                  {"content": "content"}
+
+                  '
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -2480,6 +2556,78 @@ paths:
         schema:
           type: string
           title: Run Id
+      - name: start_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
+      - name: start_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
+      - name: end_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
+      - name: end_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       responses:
         '200':
           description: Successful Response
@@ -3274,6 +3422,17 @@ components:
       - count
       title: CalendarTimeRangeResponse
       description: Represents a summary of DAG runs for a specific calendar time range.
+    CallbackState:
+      type: string
+      enum:
+      - scheduled
+      - pending
+      - queued
+      - running
+      - success
+      - failed
+      title: CallbackState
+      description: All possible states of callbacks.
     ConfigResponse:
       properties:
         fallback_page_limit:
@@ -4102,6 +4261,22 @@ components:
           - type: string
           - type: 'null'
           title: Team Name
+        callback_id:
+          type: string
+          format: uuid
+          title: Callback Id
+        callback_type:
+          type: string
+          title: Callback Type
+        callback_state:
+          anyOf:
+          - $ref: '#/components/schemas/CallbackState'
+          - type: 'null'
+        callback_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callback Path
       type: object
       required:
       - id
@@ -4110,6 +4285,8 @@ components:
       - created_at
       - dag_id
       - dag_run_id
+      - callback_id
+      - callback_type
       title: DeadlineResponse
       description: Deadline serializer for responses.
     DurationStats:
@@ -4937,7 +5114,9 @@ components:
           title: Loop Id
         iteration:
           type: integer
+          minimum: 1.0
           title: Iteration
+          description: Position in the enclosing loop, counting from one.
       type: object
       required:
       - loop_id
@@ -4969,6 +5148,11 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        decision_reason:
+          type: string
+          title: Decision Reason
+          description: Why the loop's gate continued or stopped the loop at this iteration,
+            if its until callable said.
       type: object
       required:
       - index
@@ -5593,6 +5777,21 @@ components:
       - nodes
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    StructuredLogMessage:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event:
+          type: string
+          title: Event
+      additionalProperties: true
+      type: object
+      required:
+      - event
+      title: StructuredLogMessage
+      description: An individual log message.
     TaskInletAssetReference:
       properties:
         dag_id:
@@ -5915,6 +6114,28 @@ components:
       - awaiting_input
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
+    TaskInstancesLogResponse:
+      properties:
+        content:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/StructuredLogMessage'
+            type: array
+          - items:
+              type: string
+            type: array
+          title: Content
+        continuation_token:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Continuation Token
+      type: object
+      required:
+      - content
+      - continuation_token
+      title: TaskInstancesLogResponse
+      description: Log serializer for responses.
     TaskOutletAssetReference:
       properties:
         dag_id:

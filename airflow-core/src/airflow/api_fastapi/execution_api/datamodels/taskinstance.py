@@ -29,16 +29,19 @@ from pydantic import (
     Tag,
     TypeAdapter,
     WithJsonSchema,
+    field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
-from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
+from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex, _drop_null_default
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
+from airflow.models.dynamic_region import LOOP_DECISION_REASON_MAX_BYTES
 from airflow.utils.state import (
     DagRunState,
     IntermediateTIState,
@@ -88,6 +91,23 @@ class TerminalStateNonSuccess(str, Enum):
     SERVER_TERMINATED = "server_terminated"
 
 
+class LoopDecisionPayload(StrictBaseModel):
+    """A loop gate's evaluation of its ``until`` callable."""
+
+    stop: bool
+    reason: str | None = None
+
+    @field_validator("reason")
+    @classmethod
+    def _check_reason(cls, reason: str | None) -> str | None:
+        if reason is not None:
+            if len(reason.encode()) > LOOP_DECISION_REASON_MAX_BYTES:
+                raise ValueError(f"must be at most {LOOP_DECISION_REASON_MAX_BYTES} bytes of UTF-8")
+            if "\x00" in reason:
+                raise ValueError("cannot contain NUL bytes")
+        return reason
+
+
 class TITerminalStatePayload(StrictBaseModel):
     """Report a terminal outcome other than SUCCESS, or acknowledge server-requested termination."""
 
@@ -99,6 +119,7 @@ class TITerminalStatePayload(StrictBaseModel):
     retry_reason: str | None = None
     hostname: str | None = None
     pid: int | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TISuccessStatePayload(StrictBaseModel):
@@ -122,6 +143,7 @@ class TISuccessStatePayload(StrictBaseModel):
     task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
     outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
     rendered_map_index: str | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -431,10 +453,42 @@ class LoopContext(BaseModel):
     """Pinned loop definition and enclosing iteration for a task execution."""
 
     node_id: str
-    index: int = Field(ge=0)
+    index: int = Field(ge=1)
     max_iterations: int = Field(gt=0)
     terminal_task_id: str
     terminal_is_mapped: bool
+
+    region_id: uuid.UUID
+    """
+    The loop region holding this iteration, which identifies the trajectory it runs in.
+
+    A mapped task's own ``region_id`` is its expansion's, so this is how its instances are tied to the
+    unmapped tasks of the same iteration.
+    """
+
+    trajectory: int = Field(ge=1)
+    """
+    The number of ``region_id`` in the loop's chain of regions: 1 for the original, n + 1 for its n-th fork.
+
+    Clearing a loop gate with the later iterations forks the newest loop region, and the iterations from
+    ``resumes_from_index`` on run again in the fork.
+    """
+
+    forked_from_region_id: Annotated[
+        SkipJsonSchema[None] | uuid.UUID, Field(json_schema_extra=_drop_null_default)
+    ] = None
+    """
+    The region ``region_id`` was forked from, the previous one in the chain. Absent for the original region.
+
+    The fork replaces the iterations from ``resumes_from_index`` on, which can be held by earlier regions of
+    the chain too.
+    """
+
+    resumes_from_index: Annotated[
+        SkipJsonSchema[None] | int,
+        Field(json_schema_extra=_drop_null_default),
+    ] = None
+    """The first iteration ``region_id`` holds. Absent for the original region, which holds them from 1."""
 
 
 class TIRunContext(BaseModel):
@@ -444,6 +498,16 @@ class TIRunContext(BaseModel):
     """DAG run information for the task instance."""
 
     loop: LoopContext | None = None
+
+    expanded_ti_count: Annotated[
+        SkipJsonSchema[None] | int,
+        Field(json_schema_extra=_drop_null_default),
+    ] = None
+    """
+    Number of live, non-removed instances in the mapped task's expansion this instance belongs to.
+
+    ``None`` for a task that isn't mapped. Inside a loop, it counts the instances of this iteration only.
+    """
 
     task_reschedule_count: int = 0
     """How many times the task has been rescheduled."""
@@ -489,6 +553,13 @@ class TIRunContext(BaseModel):
     Ordered positional-argument binding spec for stub (foreign-runtime) tasks.
 
     ``None`` for regular tasks and for stub tasks that declare no parameters.
+    """
+
+    execution_timeout: float | None = None
+    """
+    The task's ``execution_timeout`` in seconds, taken from its serialized Dag.
+
+    The supervisor enforces the timeout with this value. ``None`` when no timeout is set.
     """
 
     multi_team: bool = False

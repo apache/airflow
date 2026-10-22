@@ -80,6 +80,18 @@ Below is an example of using this operator to create an item schedule in Fabric.
     :start-after: [START howto_operator_ms_fabric_create_item_schedule]
     :end-before: [END howto_operator_ms_fabric_create_item_schedule]
 
+Durable execution
+~~~~~~~~~~~~~~~~~
+
+Set ``durable=True`` to make the operator :doc:`durable <apache-airflow:core-concepts/resumable-tasks>`.
+It keeps every processed page and the link to the next one in the
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>`, so a retry continues at the page
+it stopped at. For a request that is not a ``GET``, it also keeps the result, so a retry returns it instead
+of sending the request again.
+
+Pages are stored as they are, so pages larger than ``[state_store] max_value_storage_bytes`` need a state
+store backend that offloads large values. Durable execution requires Airflow 3.3 or newer.
+
 Cross-References
 ----------------
 

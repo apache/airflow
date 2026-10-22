@@ -912,8 +912,15 @@ class BaseExecutor(LoggingMixin):
                 sentry_integration=getattr(workload, "sentry_integration", ""),
             )
         if isinstance(workload, ExecuteCallback):
+            from airflow.executors.workloads.callback import CALLBACK_KWARGS_ENCODING_KEY
             from airflow.sdk.execution_time.callback_supervisor import supervise_callback
 
+            # Only passed when set, so callbacks stored without it run on any Task SDK, while
+            # encoded kwargs fail on a Task SDK that cannot decode them instead of reaching
+            # the callback encoded.
+            encoding_kwargs = {}
+            if kwargs_encoding := workload.callback.data.get(CALLBACK_KWARGS_ENCODING_KEY):
+                encoding_kwargs["callback_kwargs_encoding"] = kwargs_encoding
             return supervise_callback(
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),
@@ -923,6 +930,7 @@ class BaseExecutor(LoggingMixin):
                 bundle_info=workload.bundle_info,
                 token=workload.token,
                 server=server,
+                **encoding_kwargs,
             )
         if isinstance(workload, TestConnection):
             from airflow.sdk.execution_time.connection_test_supervisor import supervise_connection_test

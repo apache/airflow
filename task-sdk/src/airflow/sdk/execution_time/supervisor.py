@@ -130,12 +130,12 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
+    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -191,6 +191,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.api.datamodels._generated import TIRunContext
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -1725,6 +1726,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=UTC))
             self._should_retry = ti_context.should_retry
+            self._execution_timeout_seconds = ti_context.execution_timeout
             self._last_successful_heartbeat = time.monotonic()
         except Exception as e:
             # On any error kill that subprocess!
@@ -1734,6 +1736,10 @@ class ActivitySubprocess(WatchedSubprocess):
                 self._terminal_state = SERVER_TERMINATED
                 return
             raise
+
+        if (prepared := self._prepare_ti_context(ti, ti_context)) is None:
+            return
+        ti_context = prepared
 
         # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
         # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
@@ -1758,6 +1764,17 @@ class ActivitySubprocess(WatchedSubprocess):
         except (BrokenPipeError, ConnectionResetError):
             # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
             log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
+
+    def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
+        """
+        Return the context the supervisor sends to the task process, or None when the task must not run.
+
+        An implementation that returns None must first stop the task process and record the outcome that
+        will be reported. This base version returns the context unchanged, because the Python task runner
+        itself deletes the XComs in ``ti_context.xcom_keys_to_clear`` with ``XCom.delete``, which also
+        purges them from the XCom backend.
+        """
+        return ti_context
 
     def wait(self) -> int:
         if self._wait_completed and self._exit_code is not None:
@@ -1840,6 +1857,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     when=msg.end_date or datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     retry_reason=msg.retry_reason,
+                    loop_decision=msg.loop_decision,
                 )
             elif isinstance(msg, SucceedTask):
                 self.client.task_instances.succeed(
@@ -1848,6 +1866,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     task_outlets=msg.task_outlets,
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
+                    loop_decision=msg.loop_decision,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(
@@ -1978,13 +1997,15 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         Enforce ``execution_timeout`` from outside the task process.
 
-        The task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the only
-        place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that can
-        still run Python signal handlers; one that has not reported a terminal state within the grace period
-        is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
+        A Python task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the
+        only place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that
+        can still run Python signal handlers; one that has not reported a terminal state within the grace
+        period is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
-        The deadline is armed by ``SetExecutionTimeout``, which the task process sends right before
-        ``execute()``. Anything before that (bundle load, Dag parsing) is not covered here.
+        For a Python task, ``StartExecutionTimeout`` arms the deadline right before ``execute()``, so bundle
+        loading and Dag parsing are not covered; Dag parsing has its own ``dagbag_import_timeout``. For a
+        task a language SDK runs, it is armed once the runtime has been sent ``StartupDetails``. Either
+        way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the timeout elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return
@@ -2128,12 +2149,18 @@ class ActivitySubprocess(WatchedSubprocess):
         self.client.task_instances.skip_downstream_tasks(self.id, msg)
         return None, {}
 
-    def _handle_set_execution_timeout(
-        self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
+    def _handle_start_execution_timeout(
+        self, msg: StartExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
-        self._execution_timeout_seconds = msg.timeout_seconds
-        self._execution_timeout_enforce_at = time.monotonic() + msg.timeout_seconds + KILLED_TASK_CLEANUP_TIME
+        self._arm_execution_timeout()
         return None, {}
+
+    def _arm_execution_timeout(self) -> None:
+        if self._execution_timeout_seconds is None:
+            return
+        self._execution_timeout_enforce_at = (
+            time.monotonic() + self._execution_timeout_seconds + KILLED_TASK_CLEANUP_TIME
+        )
 
     def _handle_set_rendered_fields(
         self, msg: SetRenderedFields, log: FilteringBoundLogger, req_id: int
@@ -2429,11 +2456,11 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(RetryTask, _handle_task_state),
                 register_request_method(SetAssetStateStoreByName, _handle_set_asset_state_store_by_name),
                 register_request_method(SetAssetStateStoreByUri, _handle_set_asset_state_store_by_uri),
-                register_request_method(SetExecutionTimeout, _handle_set_execution_timeout),
                 register_request_method(SetRenderedFields, _handle_set_rendered_fields),
                 register_request_method(SetRenderedMapIndex, _handle_set_rendered_map_index),
                 register_request_method(SetTaskStateStore, _handle_set_task_state_store),
                 register_request_method(SkipDownstreamTasks, _handle_skip_downstream_tasks),
+                register_request_method(StartExecutionTimeout, _handle_start_execution_timeout),
                 register_request_method(SucceedTask, _handle_finished_task),
                 register_request_method(TaskState, _handle_task_state),
                 register_request_method(TriggerDagRun, _handle_trigger_dag_run),
@@ -2594,8 +2621,14 @@ class InProcessTestSupervisor(ActivitySubprocess):
             **kwargs,
         )
 
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
+        from airflow.sdk.execution_time.task_runner import (
+            RuntimeTaskInstance,
+            check_xcom_backend_supports_loops,
+            finalize,
+            run,
+        )
 
+        check_xcom_backend_supports_loops(task.dag)
         supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
         with set_supervisor_comms(supervisor.comms):
             supervisor.ti = what  # type: ignore[assignment]
@@ -2883,7 +2916,15 @@ def process_log_messages_from_subprocess(
         if ts := event.get("timestamp"):
             # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
             # datetime.strptime cn
-            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
+            try:
+                event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
+            except msgspec.DecodeError:
+                # The subprocess sends the timestamp field, and msgspec cannot always parse its value. For
+                # example, user code can call self.log.info("...", timestamp=1697190085).
+                # An uncaught DecodeError would stop the task supervisor before it reports the
+                # task state, or stop the whole Dag processor during Dag parsing. Moving the value to
+                # invalid_timestamp lets MaybeTimeStamper add the time the supervisor received the line.
+                event["invalid_timestamp"] = event.pop("timestamp")
 
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace

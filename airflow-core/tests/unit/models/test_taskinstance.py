@@ -137,6 +137,8 @@ from tests_common.test_utils.taskinstance import (
 from unit.models import DEFAULT_DATE
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag, pytest.mark.want_activate_assets]
@@ -650,7 +652,7 @@ class TestTaskInstance:
         )
 
         ti.run(session=session)
-        executor_configs = session.scalars(
+        executor_configs: Sequence[dict | None] = session.scalars(
             select(TaskInstance.executor_config).where(TaskInstance.dag_id == ti.dag_id)
         ).all()
         assert executor_configs == [{"foo": "bar"}]
@@ -5223,16 +5225,17 @@ def display_coordinates_tis(dag_maker, session):
         run_id=dr.run_id,
         node_id="body.inner_mapped",
         parent_region_id=loop_region.id,
-        parent_region_index=1,
+        parent_region_index=2,
         session=session,
     )
-    for task_id, region in (("body.step", loop_region), ("body.inner_mapped", inner_region)):
-        tis[task_id, 1] = TaskInstance(
+    # Keyed by iteration: `step` carries it as its own index, `inner_mapped` carries a map index instead.
+    for task_id, region, index in (("body.step", loop_region, 2), ("body.inner_mapped", inner_region, 1)):
+        tis[task_id, 2] = TaskInstance(
             dag.get_task(task_id),
             run_id=dr.run_id,
             dag_version_id=dr.created_dag_version_id,
             region_id=region.id,
-            region_index=1,
+            region_index=index,
         )
     return tis
 
@@ -5243,7 +5246,7 @@ def display_coordinates_tis(dag_maker, session):
         pytest.param(("mapped", 1), False, {"map_index": 1}, id="mapped task outside a loop"),
         pytest.param(("plain", -1), False, {}, id="unmapped task"),
         pytest.param(("plain", -1), True, {"map_index": -1}, id="unmapped task, index requested"),
-        pytest.param(("body.step", 1), False, {"iteration": 1}, id="unmapped loop-body task"),
+        pytest.param(("body.step", 2), False, {"iteration": 2}, id="unmapped loop-body task"),
     ],
 )
 def test_display_coordinates(display_coordinates_tis, key, include_unmapped, expected):
@@ -5252,7 +5255,7 @@ def test_display_coordinates(display_coordinates_tis, key, include_unmapped, exp
 
 
 def test_display_coordinates_of_a_mapped_loop_body_task_keep_the_region(display_coordinates_tis):
-    ti = display_coordinates_tis["body.inner_mapped", 1]
+    ti = display_coordinates_tis["body.inner_mapped", 2]
     assert ti.get_display_coordinates() == {"region_id": str(ti.region_id), "region_index": 1}
 
 
@@ -5261,7 +5264,7 @@ def test_display_coordinates_of_a_mapped_loop_body_task_keep_the_region(display_
     [
         pytest.param(("mapped", 1), True, True, id="mapped task outside a loop"),
         pytest.param(("mapped", 1), False, False, id="detached mapped task outside a loop"),
-        pytest.param(("body.inner_mapped", 1), True, False, id="mapped loop-body task"),
+        pytest.param(("body.inner_mapped", 2), True, False, id="mapped loop-body task"),
     ],
 )
 def test_display_coordinates_without_the_task_definition(
@@ -5455,7 +5458,7 @@ def test_archive_decides_from_the_state_committed_after_the_lock(completed_loop,
     stale = next(
         ti
         for ti in dr.get_task_instances(session=session)
-        if ti.task_id == "body.consume" and ti.region_index == 2
+        if ti.task_id == "body.consume" and ti.region_index == 3
     )
     stale.state, stale.start_date, stale.end_date = State.QUEUED, None, None
     session.flush()
@@ -5477,11 +5480,11 @@ def test_archive_decides_from_the_state_committed_after_the_lock(completed_loop,
 def test_mapped_archival_ack_uses_fork_facts_when_definition_is_missing(loop_run, session):
     dr, dag, loop, root, tis, iteration = loop_run
     archiving = next(
-        ti for ti in tis if ti.task_id == "body.process" and iteration(ti) == 3 and ti.region_index == 0
+        ti for ti in tis if ti.task_id == "body.process" and iteration(ti) == 4 and ti.region_index == 0
     )
     archiving.state = State.RUNNING
     session.flush()
-    gate = next(ti for ti in tis if ti.task_id == loop.gate_task_id and ti.region_index == 2)
+    gate = next(ti for ti in tis if ti.task_id == loop.gate_task_id and ti.region_index == 3)
     clear_loop_task_instances([gate], downstream=False, session=session)
     session.execute(
         delete(SerializedDagModel).where(SerializedDagModel.dag_version_id == archiving.dag_version_id)

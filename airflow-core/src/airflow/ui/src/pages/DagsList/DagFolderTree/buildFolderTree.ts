@@ -114,7 +114,8 @@ export type FolderTreeNode = {
 };
 
 export const bundleNodeValue = (bundleName: string) => `bundle:${bundleName}`;
-export const folderNodeValue = (bundleName: string, folder: string) => `folder:${bundleName}:${folder}`;
+export const folderNodeValue = (bundleName: string, folder: string) =>
+  `folder:${encodeURIComponent(bundleName)}:${folder}`;
 
 const toTreeNodes = (bundleName: string, nodes: ReadonlyArray<FolderNode>): Array<FolderTreeNode> =>
   nodes.map((node) => ({

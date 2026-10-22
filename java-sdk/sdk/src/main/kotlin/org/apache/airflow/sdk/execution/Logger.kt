@@ -22,17 +22,14 @@ package org.apache.airflow.sdk.execution
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.writeString
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import java.time.Instant
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlin.reflect.KClass
-import kotlin.time.Clock
 
 // Adapted from Python logging.
 enum class Level(
@@ -179,7 +176,7 @@ internal data class LogMessage(
   val arguments: Map<String, Any?>,
   val logger: String,
   val level: Level,
-  val timestamp: LocalDateTime = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+  val timestamp: Instant = Instant.now(),
 )
 
 /**
@@ -223,10 +220,13 @@ internal class Logger(
   }
 }
 
+// The log channel accepts one writer at a time, but several threads log: the task's own thread, the
+// thread that handles a stop signal, and the thread that reads replies from the supervisor.
 internal object LogSender {
   private var writer: ByteWriteChannel? = null
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
+  @Synchronized
   fun configure(channel: ByteWriteChannel) {
     writer = channel
     if (!channel.isClosedForWrite) {
@@ -236,6 +236,7 @@ internal object LogSender {
     }
   }
 
+  @Synchronized
   fun send(message: LogMessage) {
     val channel = writer
     if (channel == null || channel.isClosedForWrite) {
@@ -243,6 +244,11 @@ internal object LogSender {
     } else {
       sendTo(channel, message)
     }
+  }
+
+  internal fun reset() {
+    writer = null
+    messages.clear()
   }
 
   private fun sendTo(
@@ -253,7 +259,7 @@ internal object LogSender {
     map["event"] = message.event
     map["level"] = message.level.name.lowercase()
     map["logger"] = message.logger
-    map["timestamp"] = message.timestamp
+    map["timestamp"] = message.timestamp.toString()
     // TODO: Can this be done asynchronously instead?
     runBlocking { writer.writeString("${map.toJsonElement()}\n") }
   }
@@ -270,5 +276,5 @@ private fun Any?.toJsonElement(): JsonElement =
     is Number -> JsonPrimitive(this)
     is String -> JsonPrimitive(this)
     null -> JsonNull
-    else -> JsonPrimitive(toString()) // Also correctly handles Kotlinx DateTime.
+    else -> JsonPrimitive(toString())
   }

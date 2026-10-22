@@ -2235,10 +2235,9 @@ def test_zero_length_expansion_leaves_a_region_holding_only_its_skipped_placehol
     assert placeholder.state == TaskInstanceState.SKIPPED
 
 
-def test_promotion_leaves_earlier_placeholder_task_instances_at_their_coordinates(mapped_dag, session):
+def test_promotion_deletes_earlier_placeholder_task_instances(mapped_dag, session):
     dr, serialized, upstream_id = mapped_dag
     placeholder = _live_tis(session, dr, serialized.task_id)[0]
-    region_id = placeholder.region_id
     placeholder.task = serialized
     placeholder.try_number = 1
     placeholder.state = TaskInstanceState.FAILED
@@ -2249,9 +2248,16 @@ def test_promotion_leaves_earlier_placeholder_task_instances_at_their_coordinate
 
     expand_mapped_task(serialized, dr.run_id, upstream_id, 2, session)
 
-    archived = session.get(TaskInstance, archived_id)
-    assert (archived.region_id, archived.region_index, archived.try_number) == (region_id, -1, 1)
-    assert archived.working_set is None
+    # The delete doesn't synchronize the session, so read the database rather than the identity map.
+    session.expire_all()
+    assert (
+        session.scalar(
+            select(TaskInstance.id)
+            .where(TaskInstance.id == archived_id)
+            .execution_options(include_all_attempts=True)
+        )
+        is None
+    )
     live = _live_tis(session, dr, serialized.task_id)
     assert [ti.region_index for ti in live] == [0, 1]
     assert live[0].id == current.id

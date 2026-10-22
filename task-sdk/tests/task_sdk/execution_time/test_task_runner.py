@@ -151,11 +151,11 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
-    SetExecutionTimeout,
     SetRenderedFields,
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
+    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskRescheduleStartDate,
@@ -183,6 +183,7 @@ from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
+    _axcom_push,
     _defer_task,
     _execute_task,
     _find_native_dag_importer,
@@ -192,6 +193,7 @@ from airflow.sdk.execution_time.task_runner import (
     _run_execute_callable,
     _serialize_outlet_events,
     _xcom_push,
+    check_xcom_backend_supports_loops,
     finalize,
     get_startup_details,
     parse,
@@ -207,6 +209,7 @@ from airflow.triggers.testing import SuccessTrigger
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
+from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -290,8 +293,9 @@ def test_parse(test_dags_dir: Path, make_ti_context, coordinates, map_index):
     assert ti.map_index == map_index
 
 
+@mock.patch("airflow.sdk.execution_time.task_runner.check_xcom_backend_supports_loops", autospec=True)
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
-def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
+def test_parse_dag_bag(mock_dagbag, mock_check_xcom_backend, test_dags_dir: Path, make_ti_context):
     """Test that checks that the BundleDagBag is constructed as expected during parsing"""
     mock_bag_instance = mock.Mock()
     mock_dagbag.return_value = mock_bag_instance
@@ -339,6 +343,7 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
     ):
         parse(what, mock.Mock())
 
+    mock_check_xcom_backend.assert_called_once_with(mock_dag)
     mock_dagbag.assert_called_once_with(
         dag_folder=mock.ANY,
         safe_mode=False,
@@ -1095,6 +1100,45 @@ def test_parse_fails_a_task_of_a_native_dag_without_retries(
         queue="default",
         path="dag.native",
     )
+
+
+class _StoreXCom(SerializeValueOnlyXCom):
+    @classmethod
+    def store_value(cls, coordinate, key, value):
+        return value
+
+
+def _make_dag(with_loop: bool) -> DAG:
+    @task_group
+    def body():
+        BaseOperator(task_id="work")
+
+    with DAG("xcom_backend_check", schedule=None) as dag:
+        if with_loop:
+            create_loop(body, max_iterations=2)
+        else:
+            body()
+    return dag
+
+
+@pytest.mark.parametrize(
+    ("backend", "with_loop"),
+    [
+        pytest.param(SerializeValueOnlyXCom, False, id="legacy-without-loop"),
+        pytest.param(_StoreXCom, True, id="store-value-with-loop"),
+    ],
+)
+def test_check_xcom_backend_supports_loops_accepts(backend, with_loop, monkeypatch):
+    monkeypatch.setattr("airflow.sdk.execution_time.task_runner.XCom", backend)
+
+    check_xcom_backend_supports_loops(_make_dag(with_loop))
+
+
+def test_check_xcom_backend_supports_loops_rejects_legacy_backend_in_loop_dag(monkeypatch):
+    monkeypatch.setattr("airflow.sdk.execution_time.task_runner.XCom", SerializeValueOnlyXCom)
+
+    with pytest.raises(TypeError, match="uses a loop"):
+        check_xcom_backend_supports_loops(_make_dag(with_loop=True))
 
 
 @patch("airflow.dag_processing.dagbag.BundleDagBag", autospec=True)
@@ -4639,18 +4683,22 @@ class TestXComAfterTaskExecution:
 
         runtime_ti = create_runtime_ti(task=task)
 
-        with mock.patch.object(XCom, "set") as mock_xcom_set:
+        with mock.patch.object(XCom, "_push", autospec=True) as mock_xcom_push:
             _xcom_push(runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, mapped_length=7)
-            mock_xcom_set.assert_called_once_with(
-                key=BaseXCom.XCOM_RETURN_KEY,
-                value=result,
-                dag_id=runtime_ti.dag_id,
-                task_id=runtime_ti.task_id,
-                run_id=runtime_ti.run_id,
-                map_index=runtime_ti.map_index,
-                dag_result=False,
-                _mapped_length=7,
+            mock_xcom_push.assert_called_once_with(
+                runtime_ti, BaseXCom.XCOM_RETURN_KEY, result, dag_result=False, mapped_length=7
             )
+
+    @pytest.mark.asyncio
+    async def test_axcom_push_passes_the_task_instance(self, create_runtime_ti):
+        runtime_ti = create_runtime_ti(task=BaseOperator(task_id="push_task"))
+
+        with mock.patch.object(XCom, "_apush", autospec=True) as mock_xcom_apush:
+            await _axcom_push(runtime_ti, "key", "value")
+
+        mock_xcom_apush.assert_awaited_once_with(
+            runtime_ti, "key", "value", dag_result=False, mapped_length=None
+        )
 
     def test_xcom_with_multiple_outputs_and_no_mapping_result(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned without mapping."""
@@ -4710,15 +4758,12 @@ class TestXComAfterTaskExecution:
 
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
-        mock_xcom_backend.set.assert_called_once_with(
-            key=BaseXCom.XCOM_RETURN_KEY,
-            value="pushing to xcom backend!",
-            dag_id="test_dag",
-            task_id="pull_task",
-            run_id="test_run",
-            map_index=-1,
+        mock_xcom_backend._push.assert_called_once_with(
+            runtime_ti,
+            BaseXCom.XCOM_RETURN_KEY,
+            "pushing to xcom backend!",
             dag_result=False,
-            _mapped_length=None,
+            mapped_length=None,
         )
 
         # assert that we didn't call the API when XCom backend is configured
@@ -6842,7 +6887,7 @@ class TestRunExecuteCallable:
             _run_execute_callable(context={}, execute=execute, task=task)
 
         task.on_kill.assert_called_once()
-        mock_supervisor_comms.send.assert_called_once_with(SetExecutionTimeout(timeout_seconds=0.01))
+        mock_supervisor_comms.send.assert_called_once_with(StartExecutionTimeout())
 
     def test_fast_fails_when_timeout_already_elapsed(self, mock_supervisor_comms):
         """A non-positive timeout fast-fails before running the callable and still calls on_kill."""

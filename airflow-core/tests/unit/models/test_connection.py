@@ -401,6 +401,35 @@ class TestConnection:
             captured_log for captured_log in captured_logs if captured_log["log_level"] == "warning"
         ] == []
 
+    def test_rejects_uri_with_zero_port_argument(self):
+        with pytest.raises(
+            AirflowException, match="You must create an object using the URI or individual values"
+        ):
+            Connection(uri="http://example.com", port=0)
+
+    @pytest.mark.parametrize("port", [0, 65535, None])
+    def test_allows_valid_port_boundaries(self, port):
+        conn = Connection(conn_id="test-port", conn_type="http", port=port)
+        assert conn.port == port
+
+    @pytest.mark.parametrize(("port", "expected"), [("123", 123), ("0", 0), ("", None)])
+    def test_converts_string_port_values(self, port, expected):
+        conn = Connection(conn_id="test-port", conn_type="http", port=port)
+        assert conn.port == expected
+
+    @pytest.mark.parametrize("port", [-1, 65536, 1.5, "abc", "65536"])
+    def test_rejects_invalid_direct_port_values(self, port):
+        with pytest.raises(ValueError, match="port"):
+            Connection(conn_id="test-port", conn_type="http", port=port)
+
+    def test_rejects_invalid_port_assignment(self):
+        conn = Connection(conn_id="test-port", conn_type="http", port=5432)
+
+        with pytest.raises(ValueError, match="port"):
+            conn.port = 65536
+
+        assert conn.port == 5432
+
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
         [
