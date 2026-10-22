@@ -268,7 +268,7 @@ def ti_run(
                 if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
                 else ()
             )
-            dr = (
+            succeeded_dr = (
                 session.scalars(
                     select(DR)
                     .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
@@ -277,8 +277,8 @@ def ti_run(
                 .unique()
                 .one()
             )
-            dr._team_name = dr.team_name
-            stats.incr("previously_succeeded", tags={**dr.stats_tags, "task_id": ti.task_id})
+            succeeded_dr._team_name = succeeded_dr.team_name
+            stats.incr("previously_succeeded", tags={**succeeded_dr.stats_tags, "task_id": ti.task_id})
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
