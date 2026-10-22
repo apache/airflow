@@ -139,6 +139,12 @@ Use Grid View to:
 - **Understand the status of recent Dag runs** at a glance
 - **Identify failed or retried tasks** by color and tooltip
 - **Take action** by clicking a task cell to view logs or mark task instances as successful, failed, or cleared
+- **Act on several task instances at once**: Ctrl + click (Cmd + click on macOS) adds or removes a cell, and
+  Shift + click selects every cell between the last one picked and the clicked one. The selected task instances can
+  then be cleared, marked, or deleted together; each action starts with no option checked, so only the selected
+  task instances are concerned unless you ask for more. The actions of the details panel are hidden meanwhile. A mapped
+  task's cell stands for all of its mapped task instances. Task groups and tasks inside a loop cannot be selected
+  this way.
 - **Filter tasks** by name or partial ID
 - **Select a run range**, like "last 25 runs" using the dropdown above the grid
 
