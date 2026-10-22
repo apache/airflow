@@ -1921,6 +1921,36 @@ export type PluginImportErrorResponse = {
 };
 
 /**
+ * Serializer for a UI action that opens a URL.
+ */
+export type PluginLinkActionResponse = {
+    name: string;
+    destination: 'dag' | 'dag_run' | 'task_instance';
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    applies_to?: PluginAppliesToResponse | null;
+    action_type: "link";
+    href: string;
+    [key: string]: unknown | string | "link";
+};
+
+export type destination2 = 'dag' | 'dag_run' | 'task_instance';
+
+/**
+ * Serializer for a UI action that mounts a React component behind a button.
+ */
+export type PluginReactActionResponse = {
+    name: string;
+    destination: 'dag' | 'dag_run' | 'task_instance';
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    applies_to?: PluginAppliesToResponse | null;
+    action_type: "react";
+    bundle_url: string;
+    [key: string]: unknown | string | "react";
+};
+
+/**
  * Plugin serializer.
  */
 export type PluginResponse = {
@@ -1935,6 +1965,10 @@ export type PluginResponse = {
      */
     external_views: Array<ExternalViewResponse>;
     react_apps: Array<ReactAppResponse>;
+    /**
+     * User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.
+     */
+    ui_actions?: Array<(PluginLinkActionResponse | PluginReactActionResponse)>;
     appbuilder_views: Array<AppBuilderViewResponse>;
     /**
      * @deprecated
@@ -2052,7 +2086,7 @@ export type ReactAppResponse = {
     [key: string]: unknown | string;
 };
 
-export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
+export type destination3 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.

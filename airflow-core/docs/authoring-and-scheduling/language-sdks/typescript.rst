@@ -243,23 +243,33 @@ the reference it was called on, so ``loaded.before(cleaned).before(notified)`` d
 Pass a value as an input when the downstream task needs it, and use ``before`` or ``after`` when it only needs
 to run in order.
 
-Wrap a reference in ``label`` to name the edge drawn to it, as Python's ``Label`` does:
+To label an edge the way Python's ``Label`` does, pass ``Label.of(text).on(reference)`` to ``before`` or
+``after``. The text comes before the reference. That way the text sits between the two tasks of the edge in
+the code, just as the label sits between them in the graph:
 
 .. code-block:: typescript
 
-    import { label } from "apache-airflow-ts-sdk";
+    import { Label } from "apache-airflow-ts-sdk";
 
-    checked.before(label(processed, "rows found"), label(notified, "no rows"));
+    checked.before(Label.of("rows found").on(processed), Label.of("no rows").on(notified));
+    cleaned.after(Label.of("always").on(loaded));      // loaded >> Label("always") >> cleaned
 
-A labeled reference only goes into ``before`` or ``after``; calling either on it throws. Redrawing an
-existing edge, including one an input drew, labels it. That is also how to label the branches of ``dag.if``
-or ``dag.switch`` (see below):
+``on`` also takes several references and puts the same label on the edge to or from each of them:
+
+.. code-block:: typescript
+
+    // loaded >> Label("forks") >> [reportedEmpty, notified]
+    loaded.before(Label.of("forks").on(reportedEmpty, notified));
+
+Pass the value that ``on`` returns only to ``before`` or ``after``. Calling ``before`` or ``after`` on that
+value throws an error. Redrawing an existing edge, including one an input drew, labels it. That is also how
+to label the branches of ``dag.if`` or ``dag.switch`` (see below):
 
 .. code-block:: typescript
 
     const rowCheck = dag.if(hasRows, { total });
     rowCheck.then(loaded).else(reportedEmpty);
-    rowCheck.before(label(loaded, "rows found"), label(reportedEmpty, "no rows"));
+    rowCheck.before(Label.of("rows found").on(loaded), Label.of("no rows").on(reportedEmpty));
 
 Task groups
 ~~~~~~~~~~~
