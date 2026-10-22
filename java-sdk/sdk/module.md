@@ -29,12 +29,12 @@ Apply the Gradle plugin, and add the SDK and its annotation processor:
 
 ```groovy
 plugins {
-    id("org.apache.airflow.sdk") version "1.0.0"
+    id("org.apache.airflow.sdk") version "1.0.0-beta2"
 }
 
 dependencies {
-    annotationProcessor("org.apache.airflow:airflow-sdk-processor:1.0.0")
-    implementation("org.apache.airflow:airflow-sdk:1.0.0")
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:1.0.0-beta2")
+    implementation("org.apache.airflow:airflow-sdk:1.0.0-beta2")
 }
 
 airflowBundle {
@@ -46,15 +46,15 @@ Declare a Dag with `@Airflow.Dag`, its tasks with `@Airflow.Task`, and its graph
 Passing the value one task returns into another is how the tasks depend on each other:
 
 ```java
-@Airflow.Dag(id = "java_hello", schedule = "@daily")
+@Airflow.Dag(id = "java_hello", schedule = "@daily", queue = "java")
 public class HelloDag {
 
-  @Airflow.Task(queue = "java")
+  @Airflow.Task
   public long extract() {
     return 42L;
   }
 
-  @Airflow.Task(queue = "java")
+  @Airflow.Task
   public void report(long rows) {
     System.out.println("extracted " + rows + " rows");
   }

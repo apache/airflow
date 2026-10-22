@@ -32,8 +32,8 @@ two ways to use it:
 
 Both use the same task API and the same build plugin, and one bundle can serve both.
 
-The SDK is published to Maven Central as ``org.apache.airflow:airflow-sdk``. This guide covers version ``1.0.0``
-and later.
+The SDK is published to Maven Central as ``org.apache.airflow:airflow-sdk``. This guide covers version
+``1.0.0-beta2`` and later.
 
 .. seealso::
 
@@ -78,7 +78,7 @@ Set the SDK version in ``gradle.properties`` and name the project in ``settings.
 
 .. code-block:: properties
 
-    airflowJavaSdkVersion=1.0.0
+    airflowJavaSdkVersion=1.0.0-beta2
 
 .. code-block:: groovy
 
@@ -119,15 +119,15 @@ Declare the Dag in ``HelloDag.java``:
 
     import org.apache.airflow.sdk.*;
 
-    @Airflow.Dag(id = "java_hello", schedule = "@daily")
+    @Airflow.Dag(id = "java_hello", schedule = "@daily", queue = "java")
     public class HelloDag {
 
-      @Airflow.Task(queue = "java")
+      @Airflow.Task
       public long extract() {
         return 42L;
       }
 
-      @Airflow.Task(queue = "java")
+      @Airflow.Task
       public void report(long rows) {
         System.out.println("extracted " + rows + " rows");
       }
@@ -196,7 +196,7 @@ the graph by calling the task methods:
 
 .. code-block:: java
 
-    @Airflow.Dag(id = "java_etl", schedule = "@daily")
+    @Airflow.Dag(id = "java_etl", schedule = "@daily", queue = "java")
     public class EtlPipeline {
 
       @Airflow.Task(retries = 2)
@@ -247,7 +247,7 @@ value of an upstream task itself, through ``client.getXCom``:
       }
     }
 
-    var dag = new DagDef("java_etl").config("schedule", "@daily");
+    var dag = new DagDef("java_etl").config("schedule", "@daily").config("queue", "java");
     var extract = dag.task("extract", Extract.class).config("retries", 2);
     var load = dag.task("load", Load.class);
     extract.before(load);
@@ -278,14 +278,15 @@ are applied, so Airflow's defaults hold for the rest.
 
 .. code-block:: java
 
-    @Airflow.Dag(id = "java_etl", schedule = "@daily", startDate = "2026-01-01T00:00:00Z", catchup = false)
+    @Airflow.Dag(id = "java_etl", schedule = "@daily", startDate = "2026-01-01T00:00:00Z", catchup = false,
+        queue = "java")
 
-    @Airflow.Task(retries = 2, retryDelay = "PT5M", queue = "java")
+    @Airflow.Task(retries = 2, retryDelay = "PT5M")
 
 .. code-block:: java
 
-    var dag = new DagDef("java_etl").config("schedule", "@daily").config("catchup", false);
-    dag.task("load", Load.class).config("retry_delay", Duration.ofMinutes(5)).config("queue", "java");
+    var dag = new DagDef("java_etl").config("schedule", "@daily").config("catchup", false).config("queue", "java");
+    dag.task("load", Load.class).config("retry_delay", Duration.ofMinutes(5));
 
 Durations and date-times are ISO-8601 strings in annotations, and ``java.time.Duration`` and
 ``java.time.OffsetDateTime`` values in ``config``. An unknown setting or a value of the wrong type fails the
@@ -293,8 +294,10 @@ build for an annotation, and the ``config`` call for an object.
 
 A cron ``schedule`` runs in the time zone of ``startDate``, or in UTC without one.
 
-Every task needs a queue that :ref:`queue_to_coordinator <java-sdk/coordinator-config>` sends to a
-``JavaCoordinator``. There is no Dag-level queue yet, so set ``queue`` on each task.
+Every task of the Dag runs on the Java coordinator, so it needs a queue that
+:ref:`queue_to_coordinator <java-sdk/coordinator-config>` sends there. Set ``queue`` once on the Dag and each
+task inherits it, including a ``TriggerDagRun`` task. A task's own ``queue`` wins over the Dag's, and the Dag's
+cannot be blank.
 
 Order-only dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -462,8 +465,6 @@ sides of a condition get theirs. A new label replaces the old one:
 import. Pass the value ``on`` returns only to ``before`` and ``after``: calling ``before`` or ``after`` on it fails. On
 an edge to or from a task group, the UI shows the label on the group's node.
 
-A label never changes which tasks an edge connects. Python's ``Label`` can: when the end on its left is in a task group
-and the other end is not in that group, Python replaces that end with the group.
 
 Triggering another Dag
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -599,8 +600,9 @@ parameters, which the SDK injects, do not count:
     }
 
 **By name.** A class implementing ``TaskInput`` receives each argument in the public field of the same name,
-ignoring case and underscores, so ``region_code`` reaches ``regionCode``. ``@ArgName`` maps a field to an
-argument whose name cannot match on its own:
+ignoring case and underscores, so ``region_code`` reaches ``regionCode``. The class needs a public
+no-argument constructor, and only its public non-final fields bind. ``@ArgName`` maps a field to an argument
+whose name cannot match on its own, and is matched as written, with no folding:
 
 .. code-block:: python
 
@@ -693,7 +695,8 @@ The ``Client``
        ``extra``. Throws when the connection does not exist.
    * - ``getXCom(taskId)``
      - The ``return_value`` XCom of a task in the same Dag run, or ``null`` when it does not exist. Overloads
-       take a ``key``, ``dagId``, ``runId`` and ``mapIndex``. See :ref:`java-sdk/types`.
+       read another key, Dag or run; see the API reference. For the Java types values arrive as, see
+       :ref:`java-sdk/types`.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
      - Publishes an XCom value. The value must be JSON-serializable.
    * - ``getTaskStateStore()``
@@ -716,7 +719,7 @@ checkpoint. See :doc:`/core-concepts/task-state-store` for the full concept.
 
 .. code-block:: java
 
-    @Airflow.Task(queue = "java")
+    @Airflow.Task
     public void submit(Client client) throws Exception {
       var store = client.getTaskStateStore();
       var jobId = (String) store.get("job_id");
@@ -857,17 +860,21 @@ class that declares a Dag, so the Airflow UI's **Code** view shows it.
 Maven
 ~~~~~
 
-Import ``airflow-sdk-bom`` to manage the SDK's artifact versions, and add the SDK and, for the annotation
-style, the annotation processor:
+Set the SDK version once as a property, import ``airflow-sdk-bom`` to manage the SDK's artifact versions, and
+add the SDK and, for the annotation style, the annotation processor:
 
 .. code-block:: xml
+
+    <properties>
+      <airflow.sdk.version>1.0.0-beta2</airflow.sdk.version>
+    </properties>
 
     <dependencyManagement>
       <dependencies>
         <dependency>
           <groupId>org.apache.airflow</groupId>
           <artifactId>airflow-sdk-bom</artifactId>
-          <version>1.0.0</version>
+          <version>${airflow.sdk.version}</version>
           <type>pom</type>
           <scope>import</scope>
         </dependency>
@@ -889,7 +896,7 @@ style, the annotation processor:
           <path>
             <groupId>org.apache.airflow</groupId>
             <artifactId>airflow-sdk-processor</artifactId>
-            <version>1.0.0</version>
+            <version>${airflow.sdk.version}</version>
           </path>
         </annotationProcessorPaths>
       </configuration>
@@ -979,8 +986,8 @@ A task runs the JAR of its Dag from the same Dag bundle, at the version its Dag 
 * Every JAR whose manifest sets ``Main-Class`` is parsed. Many dependency JARs set one, so keep one executable
   JAR per Dag bundle, set the coordinator's ``main_class``, or list the other JARs in ``.airflowignore``.
 * Two JARs that set the same ``Main-Class`` fail to parse.
-* A JAR built with an SDK older than ``1.0.0`` fails to parse. List it in ``.airflowignore``; tasks still
-  find it.
+* A JAR whose ``Airflow-Supervisor-Schema-Version`` manifest attribute is older than ``2026-10-30`` fails to
+  parse. List it in ``.airflowignore``; tasks still find it.
 * A bundle that fails to parse, or whose Dags have a cycle, shows up as an import error, and the other Dags keep
   working. Do not declare the same ``dag_id`` in a Python file of that Dag bundle too.
 
@@ -1033,8 +1040,8 @@ Where the configuration is needed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The coordinator runs where tasks run, so the ``[sdk]`` configuration and a JRE are needed on the workers. With
-``CeleryExecutor``, set them on the Celery workers. With ``LocalExecutor``, tasks run in the scheduler's process,
-so set them there. The Dag processor needs them too: it parses the JARs, and checks the stub tasks of each
+``CeleryExecutor``, set them on the Celery workers. With ``LocalExecutor``, they run in subprocesses on the
+scheduler's host, so set them there. The Dag processor needs them too: it parses the JARs, and checks the stub tasks of each
 Python Dag against the handlers the JARs register. The API server never needs them.
 Register every Dag bundle a coordinator names in ``[dag_processor] dag_bundle_config_list`` on every component.
 
@@ -1098,8 +1105,8 @@ Set ``java_executable`` to an absolute path in production, so tasks run on a kno
 Limitations
 -----------
 
-* **A Dag declared in Java cannot express everything yet.** Dag params, assets, dynamic task mapping and a
-  Dag-level queue have no Java form. Declare such a Dag in Python, and implement its tasks in Java with
+* **A Dag declared in Java cannot express everything yet.** Dag params, assets and dynamic task mapping have
+  no Java form. Declare such a Dag in Python, and implement its tasks in Java with
   :func:`@task.stub <airflow.sdk.task.stub>`.
 * **Cluster policies do not apply to Dags declared in Java.** ``dag_policy`` and ``task_policy`` do not run when
   the Dag processor reads them.

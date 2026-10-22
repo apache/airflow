@@ -326,6 +326,17 @@ repos:
           ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
+      - id: check-java-sdk-docs-version-in-sync
+        name: Check the Java SDK version the user-facing docs install is consistent
+        entry: ./scripts/ci/prek/check_java_sdk_docs_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/docs/authoring-and-scheduling/language-sdks/java\.rst$|
+          ^java-sdk/README\.md$|
+          ^java-sdk/sdk/module\.md$|
+          ^scripts/ci/prek/check_java_sdk_docs_version_in_sync\.py$
+        pass_filenames: false
       - id: sync-java-sdk-supervisor-schema
         name: Sync Java SDK supervisor schema with configured version
         env:
