@@ -40,10 +40,13 @@ from airflow.providers.common.ai.utils.output_type import (
     is_model_dump_required,
     rehydrate_pydantic_output,
 )
-from airflow.sdk.serde import deserialize, serialize
 
 try:
-    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
+    from airflow.sdk.serde import (
+        SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER,
+        deserialize,
+        serialize,
+    )
 except ImportError:
     _CORE_WALKER = False
 
