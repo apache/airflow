@@ -2338,6 +2338,34 @@ class TestStringifiedDAGs:
                 }
             ]
 
+    @pytest.mark.parametrize("dependency_kind", ["trigger", "sensor"])
+    def test_dag_deps_skip_a_dag_id_supplied_by_an_expanded_task_group(self, dependency_kind):
+        """
+        A dag id that an expanded task group supplies is not known until the task is expanded.
+
+        It arrives as a ``MappedArgument``, which names no edge of the static dependency graph and
+        is unhashable, so collecting a dependency for it used to fail serialization outright.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
+
+        with DAG(
+            dag_id="test_expanded_task_group_dag_id",
+            schedule=None,
+            start_date=datetime(2020, 1, 1),
+        ) as dag:
+
+            @task_group(group_id="group")
+            def build(dag_id):
+                if dependency_kind == "trigger":
+                    TriggerDagRunOperator(task_id="trigger", trigger_dag_id=dag_id)
+                else:
+                    ExternalTaskSensor(task_id="sensor", external_dag_id=dag_id)
+
+            build.expand(dag_id=["dag_1", "dag_2"])
+
+        assert DagSerialization.to_dict(dag)["dag"]["dag_dependencies"] == []
+
     def test_task_group_sorted(self):
         """
         Tests serialize_task_group, make sure the list is in order
