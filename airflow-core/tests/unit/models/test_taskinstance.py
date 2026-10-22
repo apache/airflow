@@ -5072,6 +5072,81 @@ def test_clear_task_instances_recalculates_custom_queued_deadlines(
         assert deadline.deadline_time == original_deadline_time
 
 
+def test_clear_task_instances_skips_deadline_whose_reference_raises(dag_maker, session, monkeypatch):
+    """A clear must survive a custom reference that raises while it is being re-anchored.
+
+    The evaluation is the Dag author's own code and is reached straight from the clear API, so
+    anything it raises would otherwise surface there as an HTTP 500.
+    """
+
+    class RaisingReference(BaseDeadlineReference):
+        evaluation_timing = DAGRUN_QUEUED_TIMING
+
+        def _evaluate_with(self, *, session, dagrun):
+            raise RuntimeError("deliberate failure inside a custom deadline reference")
+
+    reference = encode_deadline_reference(RaisingReference())
+    monkeypatch.setattr(
+        plugins_manager,
+        "get_deadline_references_plugins",
+        lambda: {reference["__class_path"]: RaisingReference},
+    )
+
+    with dag_maker(
+        dag_id="test_recalculate_raising_reference",
+        schedule=datetime.timedelta(days=1),
+    ) as dag:
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+    original_queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+    dag_run.queued_at = original_queued_at
+    session.flush()
+
+    interval = datetime.timedelta(hours=1)
+    deadline_alert = DeadlineAlertModel(
+        serialized_dag_id=session.scalar(
+            select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+        ),
+        reference=reference,
+        interval=serialize(interval),
+        callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
+    )
+    session.add(deadline_alert)
+    session.flush()
+
+    original_deadline_time = original_queued_at + interval
+    session.add(
+        Deadline(
+            dagrun_id=dag_run.id,
+            deadline_alert_id=deadline_alert.id,
+            deadline_time=original_deadline_time,
+            callback=AsyncCallback(empty_callback_for_deadline),
+            dag_id=dag_run.dag_id,
+        )
+    )
+    session.flush()
+
+    tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
+
+    with mock.patch("airflow.models.taskinstance.log") as mock_log:
+        clear_task_instances(tis, session)
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    assert dag_run.queued_at > original_queued_at
+
+    deadline = session.scalar(select(Deadline).where(Deadline.dagrun_id == dag_run.id))
+    assert deadline.deadline_time == original_deadline_time
+
+    assert mock_log.warning.call_count == 1
+    msg, *args = mock_log.warning.call_args.args
+    assert "Error while recalculating deadline" in msg
+    assert args[0] == deadline.id
+
+
 def test_get_dagrun_loaded_but_none_returns_dagrun(dag_maker, session):
     """
     Test that `get_dagrun()` fetches `DagRun` from DB when the `dag_run`

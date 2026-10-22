@@ -295,9 +295,17 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
         try:
             decoded_alert = decode_deadline_alert_model(deadline_alert)
             interval = resolve_deadline_alert_interval(decoded_alert, session=session)
-        except (ValueError, TypeError):
-            # Either step can fail: the alert may hold a payload the decoder refuses, or a
-            # variable-backed interval may point at a Variable that is missing or non-numeric.
+            new_deadline_time = decoded_alert.reference.evaluate_with(
+                session=session,
+                interval=interval,
+                dagrun=dagrun,
+                dag_id=dagrun.dag_id,
+                run_id=dagrun.run_id,
+            )
+        except Exception:
+            # Any step can fail: the alert may hold a payload the decoder refuses, a
+            # variable-backed interval may point at a Variable that is missing or non-numeric,
+            # and the evaluation is the Dag author's own code, which may raise anything at all.
             # Leave this deadline alone rather than failing the whole clear.
             log.warning(
                 "Error while recalculating deadline %s for DagRun %s.%s, leaving it unchanged",
@@ -307,14 +315,6 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
                 exc_info=True,
             )
             continue
-
-        new_deadline_time = decoded_alert.reference.evaluate_with(
-            session=session,
-            interval=interval,
-            dagrun=dagrun,
-            dag_id=dagrun.dag_id,
-            run_id=dagrun.run_id,
-        )
 
         if new_deadline_time is None:
             continue
