@@ -149,8 +149,11 @@ class TestBuildDocsPythonVersion:
     def test_environment_python_does_not_change_the_docs_build(self, runner, docker_mocks):
         # PYTHON_MAJOR_MINOR_VERSION is set on every job of the docs publishing workflow, so an
         # option reading it silently decided what the docs were built with.
-        runner.invoke(build_docs, [], env={"PYTHON_MAJOR_MINOR_VERSION": "3.12"}, catch_exceptions=False)
+        result = runner.invoke(
+            build_docs, [], env={"PYTHON_MAJOR_MINOR_VERSION": "3.12"}, catch_exceptions=False
+        )
 
+        assert result.exit_code == 0
         mock_build = docker_mocks["build_ci_image_if_needed"]
         mock_shell = docker_mocks["execute_command_in_shell"]
         assert mock_build.call_args.kwargs["command_params"].python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
@@ -188,6 +191,7 @@ class TestBuildDocsSphinxAirflowTheme:
         result = runner.invoke(build_docs, ["--sphinx-airflow-theme-path", str(theme_checkout)])
 
         assert result.exit_code == 2
+        assert "sphinx_airflow_theme/static/_gen" in " ".join(click.unstyle(result.output).split())
         for mock in docker_mocks.values():
             mock.assert_not_called()
 
@@ -200,6 +204,7 @@ class TestBuildDocsSphinxAirflowTheme:
         )
 
         assert result.exit_code == 2
+        assert "cannot be used with --sdk-docs-only" in " ".join(click.unstyle(result.output).split())
         for mock in docker_mocks.values():
             mock.assert_not_called()
 

@@ -1052,7 +1052,7 @@ def _validate_sphinx_airflow_theme_path(ctx: click.Context, param: click.Paramet
     type=click.Path(exists=True, file_okay=False, resolve_path=True),
     callback=_validate_sphinx_airflow_theme_path,
     help="Build the docs with the `sphinx_airflow_theme` sub-folder of an airflow-site checkout "
-    "(not the repository root, e.g. `../airflow-site/sphinx_airflow_theme`), after "
+    "(e.g. `../airflow-site/sphinx_airflow_theme`, not the repository root), after "
     "`./site.sh prepare-theme`, instead of the published theme.",
 )
 @option_verbose
