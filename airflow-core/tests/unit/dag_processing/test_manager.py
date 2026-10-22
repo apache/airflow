@@ -36,6 +36,7 @@ from contextlib import contextmanager, nullcontext
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
+from types import MappingProxyType
 from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -2349,17 +2350,13 @@ class TestDagFileProcessorManager:
         assert not manager._bundles_waiting_for_refresh
         assert list(manager._files_awaiting_source) == [file]
 
-    @pytest.mark.parametrize("api_mode", [False, True])
     @mock.patch("airflow.dag_processing.manager.emit_metrics", autospec=True)
     @mock.patch("airflow.dag_processing.manager.time.perf_counter", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "_create_process", autospec=True)
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    def test_parse_time_spans_source_deferral_until_dispatch(
-        self, create, persist, perf_counter, emit, api_mode
-    ):
-        client = mock.create_autospec(DagProcessorAPIClient, instance=True) if api_mode else None
-        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    def test_parse_time_spans_source_deferral_until_dispatch(self, create, persist, perf_counter, emit):
+        manager = DagFileProcessorManager(max_runs=1)
         manager._parallelism = 2
         blocked = DagFileInfo(bundle_name="blocked", rel_path=Path("blocked.py"))
         healthy = DagFileInfo(bundle_name="healthy", rel_path=Path("healthy.py"))
@@ -2401,7 +2398,6 @@ class TestDagFileProcessorManager:
         manager.prepare_file_queue(known_files=known_files)
         assert emit.call_count == 1
 
-    @pytest.mark.parametrize("api_mode", [False, True])
     @mock.patch("airflow.dag_processing.manager.emit_metrics", autospec=True)
     @mock.patch("airflow.dag_processing.manager.time.perf_counter", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "persist_parsing_result", autospec=True)
@@ -2413,19 +2409,17 @@ class TestDagFileProcessorManager:
         }
     )
     def test_parse_time_emits_when_processors_finish_in_alternating_cycles(
-        self, create, persist, perf_counter, emit, api_mode
+        self, create, persist, perf_counter, emit
     ):
-        client = mock.create_autospec(DagProcessorAPIClient, instance=True) if api_mode else None
-        manager = DagFileProcessorManager(max_runs=-1, api_client=client)
+        manager = DagFileProcessorManager(max_runs=-1)
         manager._parallelism = 2
         first, second = _get_file_infos(["first.py", "second.py"])
         manager._bundle_parse_sources[first.bundle_name] = DagParseSource()
         known_files = {first.bundle_name: {first, second}}
         processors = [mock.create_autospec(DagFileProcessorProcess, instance=True) for _ in range(5)]
         for processor in processors:
-            processor.id = uuid7()
-            processor.had_callbacks = False
             processor.start_time = 0
+            processor.had_callbacks = False
             processor.is_ready = False
             processor.parsing_result = DagFileParsingResult(fileloc="file.py", serialized_dags=[])
         self._configure_mock_processes(create, *processors)
@@ -2436,8 +2430,6 @@ class TestDagFileProcessorManager:
         for count, completed in enumerate((first, second, first), start=1):
             manager._processors[completed].is_ready = True
             manager._collect_results()
-            if api_mode:
-                manager._publish_pending_results()
             assert len(manager._processors) == 1
             perf_counter.return_value = 10 * (count + 1)
 
@@ -5763,13 +5755,11 @@ class TestDagFileProcessorManager:
         proc, read_end = self.mock_processor()
         proc.had_callbacks = False
         proc.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
-        proc.parse_source = manager._bundle_parse_sources["testing"]
-        create.return_value = proc
+        self._configure_mock_processes(create, proc)
         if publication_fails:
             client.publish_parse_result.side_effect = RuntimeError("publication failed")
         try:
             manager._start_new_processes()
-            create.assert_called_once_with(manager, file, source=proc.parse_source)
             manager.handle_parsing_result(file, proc, session=session)
             client.publish_parse_result.assert_not_called()
             manager._publish_pending_results()
@@ -5818,6 +5808,24 @@ class TestDagFileProcessorManager:
         }
         assert manager._file_stats[file].import_errors == 1
         assert not manager._pending_publications
+
+    @pytest.mark.parametrize(
+        "version_data",
+        [None, {}, {"revision": "v1"}, MappingProxyType({}), MappingProxyType({"revision": "v1"})],
+    )
+    def test_api_publication_preserves_version_data(self, version_data):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        file = _get_file_infos(["dag.py"])[0]
+        proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
+        proc.id = uuid7()
+        proc.dispatch_sequence = 1
+        proc.parse_source = DagParseSource(version_data=version_data)
+        proc.parsing_result = DagFileParsingResult(fileloc="dag.py", serialized_dags=[])
+
+        body = manager._build_parse_result(file, proc, 0.5)
+
+        assert body.version_data == version_data
 
     @pytest.mark.parametrize("source_available", [True, False])
     def test_api_publication_carries_diagnostics_and_explicit_source_availability(self, source_available):
@@ -6008,7 +6016,7 @@ class TestDagFileProcessorManager:
         manager._bundle_parse_sources["testing"] = DagParseSource()
         manager._processors[requested] = self.mock_processor()[0]
         manager._file_queue = OrderedDict.fromkeys([requested, other, later])
-        create.return_value = self.mock_processor()[0]
+        self._configure_mock_processes(create, self.mock_processor()[0])
 
         manager._start_new_processes()
 
@@ -6049,7 +6057,7 @@ class TestDagFileProcessorManager:
         work = ProcessorWorkItem(
             id=str(uuid7()), claim_id=uuid7(), bundle_name=bundle.name, relative_fileloc="a.py"
         )
-        manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, refresh_generation=1)
+        manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, inventory_sequence=1)
         manager._bundles_waiting_for_refresh.add(bundle.name)
         manager._bundle_versions[bundle.name] = "previous"
 
@@ -6095,7 +6103,11 @@ class TestDagFileProcessorManager:
                 manager, "get_bundle_state", return_value=BundleState(last_refreshed=None, version=None)
             ),
             mock.patch.object(manager, "update_bundle_state"),
-            mock.patch.object(manager, "_find_files_in_bundle", return_value=set()),
+            mock.patch.object(
+                manager,
+                "_find_files_in_bundle",
+                return_value=DagBundleDiscoveryResult(files=set(), failed_sources=frozenset()),
+            ),
             mock.patch.object(manager, "deactivate_deleted_dags"),
             mock.patch.object(manager, "clear_orphaned_import_errors"),
             mock.patch.object(manager, "handle_removed_files"),
@@ -6841,10 +6853,11 @@ def test_callback_constructor_outage_allows_other_work_until_retry_expires(
     normal = DagFileInfo(bundle_name=bundle.name, rel_path=Path("normal.py"), bundle_path=tmp_path)
     manager._add_files_to_queue([normal], mode="back")
 
-    def create(manager, file):
+    def create(manager, file, *, source):
         proc = mock.create_autospec(DagFileProcessorProcess, instance=True)
         proc.id = uuid7()
         proc.had_callbacks = file.bundle_version is not None
+        proc.parse_source = source
         return proc
 
     create_process.side_effect = create
@@ -6964,7 +6977,7 @@ def test_equal_claimed_callbacks_dispatch_once_each_after_preparation_recovers(
     DagFileProcessorManager,
     "_find_files_in_bundle",
     autospec=True,
-    return_value=DagBundleDiscoveryResult(files=set()),
+    return_value=DagBundleDiscoveryResult(files=set(), failed_sources=frozenset()),
 )
 @conf_vars({("core", "multi_team"): "True"})
 def test_refresh_reads_one_fresh_catalog_per_pass(find_files, tmp_path):
@@ -7044,7 +7057,7 @@ def test_catalog_omission_releases_priority_capacity_and_allows_recovery(
         manager._bundle_versions[name] = None
         manager._bundle_parse_sources[name] = DagParseSource()
         work = ProcessorWorkItem(id=str(uuid7()), claim_id=uuid7(), bundle_name=name, relative_fileloc="a.py")
-        claims[name] = PriorityParseClaim(work=work, refresh_generation=1)
+        claims[name] = PriorityParseClaim(work=work, inventory_sequence=1)
         manager._priority_claims[work.id, work.claim_id] = claims[name]
     manager._dag_bundles = list(bundles.values())
     previous_files = files.copy()
@@ -7112,7 +7125,7 @@ def test_catalog_omission_releases_priority_capacity_and_allows_recovery(
     client.publish_inventory.side_effect = None
     revision = uuid7()
     client.publish_inventory.return_value.revision = revision
-    find_files.return_value = DagBundleDiscoveryResult(files=files["missing"])
+    find_files.return_value = DagBundleDiscoveryResult(files=files["missing"], failed_sources=frozenset())
     manager._refresh_dag_bundles(files)
 
     bundles["missing"].refresh.assert_called_once()
@@ -7320,7 +7333,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
                 id=str(uuid7()), claim_id=uuid7(), bundle_name=name, relative_fileloc="b.py"
             )
             retained_claims[work.id, work.claim_id] = PriorityParseClaim(
-                work=work, refresh_generation=1, attempt_id=attempt_id
+                work=work, inventory_sequence=1, attempt_id=attempt_id
             )
             if name == "oversized":
                 active_file = DagFileInfo(bundle_name=name, rel_path=Path("b.py"), bundle_path=tmp_path)
@@ -7389,7 +7402,7 @@ def test_oversized_inventory_releases_unassigned_priority_capacity(
 
     manager._start_new_processes()
 
-    create.assert_called_once_with(manager, ready_file)
+    create.assert_called_once_with(manager, ready_file, source=manager._bundle_parse_sources["ready"])
     assert manager._priority_claims[ready_work.id, ready_work.claim_id].attempt_id == process.id
     assert {
         key: claim
@@ -7472,30 +7485,30 @@ def test_api_inventory_cleanup_preserves_claimed_callbacks():
     processor.close.assert_not_called()
 
 
-@pytest.mark.parametrize("generation", [0, 1])
+@pytest.mark.parametrize("inventory_sequence", [1, 2])
 @pytest.mark.parametrize("discovery_failed", [False, True])
-def test_inventory_only_fails_priority_requests_after_authoritative_refresh(generation, discovery_failed):
+def test_inventory_only_fails_priority_requests_after_authoritative_refresh(
+    inventory_sequence, discovery_failed
+):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     client.publish_inventory.return_value.revision = uuid7()
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
     work = ProcessorWorkItem(
         id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="archive.zip/a.py"
     )
-    manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, refresh_generation=1)
+    manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, inventory_sequence=2)
     body = DagBundleInventoryBody(
         attempt_id=uuid7(),
-        dispatch_sequence=1,
+        dispatch_sequence=inventory_sequence,
         expected_revision=None,
         files=["archive.zip"],
         failed_sources=["archive.zip"] if discovery_failed else [],
     )
-    manager._pending_inventories["testing"] = PendingBundleInventory(
-        body, set(), DagParseSource(refresh_generation=generation)
-    )
+    manager._pending_inventories["testing"] = PendingBundleInventory(body, set(), DagParseSource())
 
     manager._publish_bundle_inventory("testing", {})
 
-    failed = generation == 1 and not discovery_failed
+    failed = inventory_sequence == 2 and not discovery_failed
     assert manager._pending_work_acks == ([("priority", work)] if failed else [])
     assert ((work.id, work.claim_id) in manager._priority_claims) is not failed
 
@@ -7513,7 +7526,7 @@ def test_pending_requested_work_does_not_block_other_available_capacity(kind):
         id=str(uuid7()), claim_id=uuid7(), bundle_name="testing", relative_fileloc="missing.py"
     )
     if kind == "priority":
-        manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, refresh_generation=1)
+        manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(work=work, inventory_sequence=1)
         manager.claim_priority_files()
     else:
         manager._callback_claims[1] = work
@@ -7526,7 +7539,7 @@ def _claim_priority_parse(manager: DagFileProcessorManager, file: DagFileInfo) -
         id=str(uuid7()), claim_id=uuid7(), bundle_name=file.bundle_name, relative_fileloc=str(file.rel_path)
     )
     manager._priority_claims[work.id, work.claim_id] = PriorityParseClaim(
-        work=work, refresh_generation=0, attempt_id=uuid7()
+        work=work, inventory_sequence=0, attempt_id=uuid7()
     )
     manager._file_stats[file] = DagFileStat()
     return work
@@ -7606,10 +7619,11 @@ def test_priority_request_waits_for_its_own_refreshed_import(create, tmp_path, p
     new.id = uuid7()
     new.start_time = time.monotonic()
     new.had_callbacks = False
+    new.parse_source = manager._bundle_parse_sources[bundle.name]
     new.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
     create.return_value = new
     manager._start_new_processes()
-    create.assert_called_once_with(manager, file)
+    create.assert_called_once_with(manager, file, source=manager._bundle_parse_sources[file.bundle_name])
 
     later = work.model_copy(update={"claim_id": uuid7()})
     manager._parallelism = 2
@@ -7653,6 +7667,7 @@ def test_priority_request_during_publication_retry_completes_after_refresh(creat
     proc.id = uuid7()
     proc.start_time = time.monotonic()
     proc.had_callbacks = False
+    proc.parse_source = manager._bundle_parse_sources[bundle.name]
     proc.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
     create.return_value = proc
     manager._start_new_processes()
@@ -7690,6 +7705,7 @@ def test_priority_request_during_publication_retry_completes_after_refresh(creat
     replacement.id = uuid7()
     replacement.start_time = time.monotonic()
     replacement.had_callbacks = False
+    replacement.parse_source = manager._bundle_parse_sources[bundle.name]
     replacement.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
     create.return_value = replacement
     manager._start_new_processes()

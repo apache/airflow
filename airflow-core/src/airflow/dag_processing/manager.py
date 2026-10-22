@@ -195,10 +195,10 @@ class DeferredCallback:
 
 @attrs.define
 class PriorityParseClaim:
-    """A priority request served only by an import after its requested refresh."""
+    """A priority request served only after an inventory captured following the claim."""
 
     work: ProcessorWorkItem
-    refresh_generation: int
+    inventory_sequence: int
     attempt_id: UUID | None = None
 
 
@@ -846,7 +846,7 @@ class DagFileProcessorManager(LoggingMixin):
         files = []
         for item in work:
             self._priority_claims[item.id, item.claim_id] = PriorityParseClaim(
-                work=item, refresh_generation=self._bundle_refresh_generations[item.bundle_name] + 1
+                work=item, inventory_sequence=self._dispatch_sequence + 1
             )
             bundle = bundles[item.bundle_name]
             path = find_enclosing_file(bundle.path / item.relative_fileloc)
@@ -1231,17 +1231,19 @@ class DagFileProcessorManager(LoggingMixin):
             return
         del self._pending_inventories[bundle_name]
         self._bundle_parse_sources[bundle_name] = attrs.evolve(
-            pending.source, bundle_revision=receipt.revision
+            pending.source,
+            bundle_revision=receipt.revision,
+            inventory_sequence=pending.body.dispatch_sequence,
         )
         self._bundle_versions[bundle_name] = pending.source.bundle_version
-        self._bundle_failed_sources[bundle_name] = frozenset(pending.body.failed_sources)
         known_files[bundle_name] = pending.found_files
+        self._bundle_failed_sources[bundle_name] = frozenset(pending.body.failed_sources)
         failed_sources = set(pending.body.failed_sources)
         for key, claim in list(self._priority_claims.items()):
             item = claim.work
             if (
                 item.bundle_name == bundle_name
-                and pending.source.refresh_generation >= claim.refresh_generation
+                and pending.body.dispatch_sequence >= claim.inventory_sequence
                 and item.relative_fileloc not in pending.body.files
                 and not is_source_discovery_failed(item.relative_fileloc, failed_sources)
             ):
@@ -1473,6 +1475,7 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
 
                 found_files = discovery.files
+
                 if self.api_client is not None:
                     self._dispatch_sequence += 1
                     try:
@@ -1506,8 +1509,8 @@ class DagFileProcessorManager(LoggingMixin):
                 else:
                     self._bundle_versions[bundle.name] = version_after_refresh
 
-                self._bundle_failed_sources[bundle.name] = discovery.failed_sources
                 known_files[bundle.name] = found_files
+                self._bundle_failed_sources[bundle.name] = discovery.failed_sources
 
                 self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
                 self.clear_orphaned_import_errors(
@@ -2313,7 +2316,12 @@ class DagFileProcessorManager(LoggingMixin):
             or (file in self._priority_files and file.bundle_name in self._bundles_needing_refresh)
         ):
             return None
-        return self._bundle_parse_sources.get(file.bundle_name)
+        source = self._bundle_parse_sources.get(file.bundle_name)
+        if source is not None and any(
+            source.inventory_sequence < claim.inventory_sequence for claim in self._get_priority_claims(file)
+        ):
+            return None
+        return source
 
     def _has_priority_request(self, file: DagFileInfo) -> bool:
         # A claim outlives the queue marker when its file is requeued behind a running or stale import.
@@ -2380,7 +2388,7 @@ class DagFileProcessorManager(LoggingMixin):
             processor.dispatch_sequence = self._dispatch_sequence
             if file.bundle_version is None:
                 for claim in priority_claims:
-                    if processor.had_callbacks or source.refresh_generation < claim.refresh_generation:
+                    if processor.had_callbacks:
                         requested_later[file] = None
                     else:
                         claim.attempt_id = processor.id
@@ -2674,7 +2682,8 @@ class DagFileProcessorManager(LoggingMixin):
 
         A file that is still queued, waiting for its bundle source, or being
         parsed is not done, even if its stats already show *max_runs*.
-        Callback-only work is ignored because it does not count as a parse.
+        Callbacks do not count as parses, but API mode waits for claimed callback
+        work and its pending acknowledgments before exiting.
         """
         if self.max_runs == -1:  # Unlimited runs.
             return False

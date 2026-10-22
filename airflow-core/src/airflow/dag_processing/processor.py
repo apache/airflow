@@ -600,6 +600,7 @@ class DagParseSource:
     version_data: Mapping[str, Any] | None = None
     refresh_generation: int = 0
     bundle_revision: UUID | None = None
+    inventory_sequence: int = 0
 
     @classmethod
     def for_callback(cls, bundle_version: str | None) -> Self:
