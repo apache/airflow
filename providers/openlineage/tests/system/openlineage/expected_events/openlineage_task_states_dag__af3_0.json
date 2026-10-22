@@ -85,51 +85,7 @@
         "job": {
             "name": "openlineage_task_states_dag.skip_itself"
         },
-        "run": {
-            "facets": {
-                "airflow": {
-                    "taskInstance": {
-                        "try_number": 1,
-                        "max_tries": 0,
-                        "state": "skipped",
-                        "dag_version_id": null,
-                        "id": "{{ is_uuid(result) }}",
-                        "map_index": null,
-                        "rendered_map_index": null,
-                        "expanded_ti_count": null,
-                        "loop": null,
-                        "region_id": null,
-                        "region_index": null,
-                        "dag_bundle_name": "{{ result is string }}",
-                        "dag_bundle_version": "{{ result is string }}"
-                    },
-                    "dag": {
-                        "dag_id": "openlineage_task_states_dag"
-                    },
-                    "dagRun": {
-                        "run_id": "{{ result is string }}",
-                        "clear_number": 0
-                    },
-                    "task": {
-                        "task_id": "skip_itself",
-                        "trigger_rule": "all_success",
-                        "retries": 0,
-                        "retry_delay": "300.0 seconds",
-                        "loop": null,
-                        "task_group": null
-                    }
-                },
-                "parent": {
-                    "run": {
-                        "runId": "{{ is_uuid(result) }}"
-                    },
-                    "job": {
-                        "name": "openlineage_task_states_dag"
-                    }
-                }
-            },
-            "runId": "{{ is_uuid(result) }}"
-        }
+        "$absent": "Airflow 3.0 calls no listener when a task skips itself"
     },
     {
         "eventType": "FAIL",
