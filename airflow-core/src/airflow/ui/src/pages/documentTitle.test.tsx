@@ -43,6 +43,8 @@ describe("document title", () => {
     ["/dag_runs", "dagRun_other"],
     ["/task_instances", "taskInstance_other"],
     ["/connections", "admin.Connections"],
+    ["/webhook_deliveries", "browse.webhookDeliveries"],
+    ["/webhook_deliveries/demo", "webhookDeliveries.title"],
     ["/variables", "admin.Variables"],
     ["/pools", "admin.Pools"],
     ["/providers", "admin.Providers"],

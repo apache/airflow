@@ -20,7 +20,7 @@
 import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiActivity, FiBarChart, FiDatabase, FiTag, FiUser, FiUsers } from "react-icons/fi";
+import { FiActivity, FiBarChart, FiDatabase, FiInbox, FiTag, FiUser, FiUsers } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
   MdBuild,
@@ -69,6 +69,7 @@ import {
   jobStateOptions,
   jobTypeOptions,
   taskInstanceStateOptions,
+  webhookDeliveryOutcomeOptions,
 } from "src/constants/stateOptions";
 import { useConfig } from "src/queries/useConfig";
 
@@ -152,6 +153,12 @@ export const useFilterConfigs = () => {
       placeholder: translate("common:filters.searchAsset"),
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.CORRELATION_KEY]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("browse:webhookDeliveries.columns.correlationKey"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.CREATED_AT_RANGE]: {
       endKey: SearchParamsKeys.CREATED_AT_LTE,
       icon: <MdDateRange />,
@@ -193,6 +200,12 @@ export const useFilterConfigs = () => {
       label: translate("browse:deadlines.columns.deadlineTime"),
       startKey: SearchParamsKeys.DEADLINE_TIME_GTE,
       type: FilterTypes.DATERANGE,
+    },
+    [SearchParamsKeys.DELIVERY_ID]: {
+      hotkeyDisabled: true,
+      icon: <FiInbox />,
+      label: translate("browse:webhookDeliveries.columns.deliveryId"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.DURATION_GTE]: {
       icon: <MdHourglassEmpty />,
@@ -364,6 +377,15 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.OUTCOME]: {
+      icon: <MdCheckCircle />,
+      label: translate("browse:webhookDeliveries.columns.outcome"),
+      options: webhookDeliveryOutcomeOptions.items.map((option) => ({
+        label: translate(option.label),
+        value: option.value,
+      })),
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.OWNERS]: {
       icon: <FiUser />,
       isCreatable: true,
@@ -405,6 +427,13 @@ export const useFilterConfigs = () => {
       label: translate("common:taskInstance.queue"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.RECEIVED_AT_RANGE]: {
+      endKey: SearchParamsKeys.RECEIVED_AT_LTE,
+      icon: <MdDateRange />,
+      label: translate("browse:webhookDeliveries.columns.receivedAt"),
+      startKey: SearchParamsKeys.RECEIVED_AT_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.RENDERED_MAP_INDEX]: {
       hotkeyDisabled: true,
@@ -487,6 +516,12 @@ export const useFilterConfigs = () => {
         value: option.value,
       })),
       type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.SOURCE_TYPE]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("browse:webhookDeliveries.columns.sourceType"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.START_DATE_RANGE]: {
       endKey: SearchParamsKeys.START_DATE_LTE,
@@ -573,6 +608,12 @@ export const useFilterConfigs = () => {
       icon: <FiUser />,
       label: translate("common:user"),
       supportsAdvancedSearch: true,
+      type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.WEBHOOK_NAME]: {
+      hotkeyDisabled: true,
+      icon: <FiInbox />,
+      label: translate("browse:webhookDeliveries.columns.webhook"),
       type: FilterTypes.TEXT,
     },
   };

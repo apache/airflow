@@ -11100,6 +11100,184 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/webhooks/{webhook_name}/deliveries:
+    get:
+      tags:
+      - Webhook
+      - experimental
+      summary: 'Experimental: List the deliveries a webhook received.'
+      description: "\U0001F6A7 This is an experimental endpoint and may change or\
+        \ be removed without notice.\n\nLists the deliveries a webhook received, newest\
+        \ first unless `order_by` says otherwise, without their payloads.\n\nUse `~`\
+        \ as the webhook name to list the deliveries of every webhook whose connection\
+        \ you may read; `webhook_names` then narrows the list to some of them."
+      operationId: get_webhook_deliveries
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: webhook_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Webhook Name
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `received_at,
+            id, webhook, outcome, delivery_id`'
+          default:
+          - -received_at
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `received_at, id, webhook,
+          outcome, delivery_id`'
+      - name: webhook_names
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Only these webhooks. Repeat it to name several: `?webhook_names=a&webhook_names=b`.'
+          title: Webhook Names
+        description: 'Only these webhooks. Repeat it to name several: `?webhook_names=a&webhook_names=b`.'
+      - name: outcome
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Outcome
+      - name: delivery_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Delivery Id
+      - name: id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Id
+      - name: correlation_key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Correlation Key
+      - name: source_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Type
+      - name: received_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Received At Gte
+      - name: received_at_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Received At Gt
+      - name: received_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Received At Lte
+      - name: received_at_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Received At Lt
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDeliveryCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
@@ -19000,6 +19178,100 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
+    WebhookDeliveryCollectionResponse:
+      properties:
+        deliveries:
+          items:
+            $ref: '#/components/schemas/WebhookDeliveryResponse'
+          type: array
+          title: Deliveries
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - deliveries
+      - total_entries
+      title: WebhookDeliveryCollectionResponse
+      description: Webhook delivery collection response.
+    WebhookDeliveryResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        webhook:
+          type: string
+          title: Webhook
+        delivery_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Delivery Id
+          description: The sender's id for the delivery, if it sends one.
+        received_at:
+          type: string
+          format: date-time
+          title: Received At
+        source_type:
+          type: string
+          title: Source Type
+        attributes:
+          anyOf:
+          - additionalProperties:
+              anyOf:
+              - type: string
+              - type: integer
+            type: object
+          - type: 'null'
+          title: Attributes
+          description: What the webhook's source type parsed from the delivery.
+        correlation_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Correlation Key
+          description: What the delivery is about, such as a pull request.
+        outcome:
+          type: string
+          title: Outcome
+          description: What Airflow did with the delivery, such as ``no_subscribers``.
+        candidates:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Candidates
+          description: The webhook topic names built from the delivery.
+        actions:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
+            type: object
+          - type: 'null'
+          title: Actions
+          description: What the delivery did, such as the topic events it recorded.
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
+      type: object
+      required:
+      - id
+      - webhook
+      - delivery_id
+      - received_at
+      - source_type
+      - attributes
+      - correlation_key
+      - outcome
+      - candidates
+      - actions
+      - team_name
+      title: WebhookDeliveryResponse
+      description: A delivery an inbound webhook received, without its payload.
     XComCollectionResponse:
       properties:
         xcom_entries:

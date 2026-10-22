@@ -924,6 +924,22 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DAG_BUNDLES")
                 else []
             ),
+            *(
+                [
+                    (
+                        [MenuItem.WEBHOOK_DELIVERIES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_CONNECTION)],
+                        [MenuItem.WEBHOOK_DELIVERIES],
+                    ),
+                    (
+                        [MenuItem.WEBHOOK_DELIVERIES],
+                        [(ACTION_CAN_ACCESS_MENU, "Webhook Deliveries")],
+                        [],
+                    ),
+                ]
+                if hasattr(MenuItem, "WEBHOOK_DELIVERIES")
+                else []
+            ),
             (
                 [],
                 [],

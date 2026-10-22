@@ -1,0 +1,405 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "@testing-library/jest-dom/vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { WebhookDeliveryResponse } from "openapi/requests/types.gen";
+
+import { TimezoneProvider } from "src/context/timezone";
+import { server } from "src/mocks/server";
+import { AppWrapper } from "src/utils/AppWrapper";
+import { BaseWrapper } from "src/utils/Wrapper";
+
+import { WebhookDeliveries } from "./WebhookDeliveries";
+
+vi.mock("src/components/MonacoEditor", () => ({
+  default: ({ value }: { readonly value?: string }) => <div data-testid="monaco-editor">{value}</div>,
+}));
+
+const deliveriesUrl = "/api/v2/webhooks/:webhookName/deliveries";
+const deliveryRecordId = "0199f8a0-0000-7000-8000-000000000002";
+
+const buildDeliveryRow = (overrides: Partial<WebhookDeliveryResponse>): WebhookDeliveryResponse => ({
+  actions: null,
+  attributes: null,
+  candidates: null,
+  correlation_key: null,
+  delivery_id: null,
+  id: "0199f8a0-0000-7000-8000-000000000001",
+  outcome: "no_subscribers",
+  received_at: "2026-10-18T12:00:00Z",
+  source_type: "hmac_json",
+  team_name: null,
+  webhook: "demo",
+  ...overrides,
+});
+
+const detailedDelivery = buildDeliveryRow({
+  actions: {
+    asset_events: [
+      { asset: "demo/pull_request", asset_id: 3, event_id: 7 },
+      { asset: "demo/pull_request/labeled", asset_id: 4, event_id: 8 },
+    ],
+    other_action: { count: 1 },
+  },
+  attributes: { action: "labeled", event: "pull_request", number: 7 },
+  candidates: ["demo/pull_request", "demo/pull_request/labeled"],
+  correlation_key: "octo/repo#7",
+  delivery_id: "gh-2",
+  id: deliveryRecordId,
+  outcome: "accepted",
+  source_type: "github",
+});
+
+/** Serve `rows` for the list and `detail` for a request naming a delivery id, recording each URL. */
+const serveDeliveries = (
+  rows: Array<WebhookDeliveryResponse>,
+  detail: Array<WebhookDeliveryResponse> = [detailedDelivery],
+) => {
+  const requests: Array<URL> = [];
+
+  server.use(
+    http.get(deliveriesUrl, ({ request }) => {
+      const url = new URL(request.url);
+
+      requests.push(url);
+
+      const deliveries = url.searchParams.has("id") ? detail : rows;
+
+      return HttpResponse.json({ deliveries, total_entries: deliveries.length });
+    }),
+  );
+
+  return requests;
+};
+
+const filterListRequests = (requests: Array<URL>) => requests.filter((url) => !url.searchParams.has("id"));
+const filterDetailRequests = (requests: Array<URL>) => requests.filter((url) => url.searchParams.has("id"));
+
+/** Answer with `response` only once `signal` aborts, so a test sees the page while it waits. */
+const holdResponseUntil = (signal: AbortSignal, response: Response) =>
+  new Promise<Response>((resolve) => {
+    signal.addEventListener("abort", () => resolve(response));
+  });
+
+const apiErrors = [
+  { detail: "Access to the webhook `nope` is denied", status: 403 },
+  { detail: "The webhook `nope` was not found", status: 404 },
+];
+
+/** Render the page without the app's retries, so an error response shows at once. */
+const renderWithoutRetries = (initialEntry: string) => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <TimezoneProvider>
+          <Routes>
+            <Route element={<WebhookDeliveries />} path="webhook_deliveries/:webhookName" />
+          </Routes>
+        </TimezoneProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+    { wrapper: BaseWrapper },
+  );
+};
+
+afterEach(() => {
+  // The table keeps the last sort per page path.
+  localStorage.clear();
+});
+
+describe("WebhookDeliveries", () => {
+  it("lists every readable webhook's deliveries and links each to its webhook's page", async () => {
+    const requests = serveDeliveries([
+      detailedDelivery,
+      buildDeliveryRow({ delivery_id: "gh-1", webhook: "other" }),
+      buildDeliveryRow({
+        delivery_id: "gh-0",
+        id: "0199f8a0-0000-7000-8000-000000000000",
+        outcome: "dropped",
+      }),
+    ]);
+
+    render(<AppWrapper initialEntries={["/webhook_deliveries"]} />);
+
+    const accepted = await screen.findByRole("row", { name: /gh-2/u });
+    const otherWebhook = screen.getByRole("row", { name: /gh-1/u });
+    const unknownOutcome = screen.getByRole("row", { name: /gh-0/u });
+
+    expect(screen.getByRole("heading", { name: "browse.webhookDeliveries" })).toBeInTheDocument();
+    expect(within(accepted).getByRole("link", { name: "demo" })).toHaveAttribute(
+      "href",
+      "/webhook_deliveries/demo",
+    );
+    expect(within(otherWebhook).getByRole("link", { name: "other" })).toHaveAttribute(
+      "href",
+      "/webhook_deliveries/other",
+    );
+    expect(within(accepted).getByText("webhookDeliveries.outcomes.accepted")).toBeInTheDocument();
+    expect(within(accepted).getByText("octo/repo#7")).toBeInTheDocument();
+    expect(within(accepted).getByText("github")).toBeInTheDocument();
+    // Attributes, topic names and actions are only in the details panel.
+    expect(within(accepted).queryByText("labeled")).not.toBeInTheDocument();
+    expect(within(accepted).queryByText("demo/pull_request")).not.toBeInTheDocument();
+    expect(within(otherWebhook).getByText("webhookDeliveries.outcomes.no_subscribers")).toBeInTheDocument();
+    expect(within(unknownOutcome).getByText("dropped")).toBeInTheDocument();
+    expect(new Set(filterListRequests(requests).map((url) => url.pathname))).toEqual(
+      new Set(["/api/v2/webhooks/~/deliveries"]),
+    );
+  });
+
+  it("presets the webhook named in the route", async () => {
+    const requests = serveDeliveries([buildDeliveryRow({ delivery_id: "gh-1" })]);
+
+    // The webhook filter belongs to the all-webhooks view, so a stale one in the URL is not sent.
+    render(<AppWrapper initialEntries={["/webhook_deliveries/demo?webhook_name=other"]} />);
+
+    await screen.findByRole("row", { name: /gh-1/u });
+
+    expect(screen.getByRole("heading", { name: "webhookDeliveries.title" })).toBeInTheDocument();
+    expect(screen.queryByText("webhookDeliveries.columns.webhook")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("webhook_name-pill")).not.toBeInTheDocument();
+    expect(new Set(filterListRequests(requests).map((url) => url.pathname))).toEqual(
+      new Set(["/api/v2/webhooks/demo/deliveries"]),
+    );
+    expect(filterListRequests(requests).every((url) => !url.searchParams.has("webhook_names"))).toBe(true);
+  });
+
+  it("sends the filters in the URL and shows them as removable filters", async () => {
+    const requests = serveDeliveries([buildDeliveryRow({ delivery_id: "gh-2" })]);
+    const filters = {
+      correlation_key: "octo/repo#7",
+      delivery_id: "gh-2",
+      outcome: "accepted",
+      received_at_gte: "2026-10-18T00:00:00Z",
+      received_at_lte: "2026-10-19T00:00:00Z",
+      source_type: "github",
+    };
+
+    render(
+      <AppWrapper
+        initialEntries={[
+          `/webhook_deliveries?${new URLSearchParams({ ...filters, webhook_name: "demo" }).toString()}`,
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(filterListRequests(requests)).not.toHaveLength(0));
+    const [request] = filterListRequests(requests);
+
+    for (const [param, value] of Object.entries(filters)) {
+      expect(request?.searchParams.get(param)).toBe(value);
+    }
+    expect(request?.searchParams.getAll("webhook_names")).toEqual(["demo"]);
+    expect(await screen.findByTestId("webhook_name-pill")).toHaveTextContent("demo");
+    expect(screen.getByTestId("source_type-pill")).toHaveTextContent("github");
+  });
+
+  it("sorts by delivery ID through the API", async () => {
+    const requests = serveDeliveries([buildDeliveryRow({ delivery_id: "gh-1" })]);
+
+    render(<AppWrapper initialEntries={["/webhook_deliveries/demo"]} />);
+
+    fireEvent.click(
+      (await screen.findByText("webhookDeliveries.columns.deliveryId")).closest(
+        "button",
+      ) as HTMLButtonElement,
+    );
+
+    await waitFor(() =>
+      expect(filterListRequests(requests).at(-1)?.searchParams.getAll("order_by")).toEqual(["delivery_id"]),
+    );
+  });
+
+  it("opens a delivery's details from its row and closes them again", async () => {
+    const requests = serveDeliveries([detailedDelivery]);
+
+    render(<AppWrapper initialEntries={["/webhook_deliveries"]} />);
+
+    const row = await screen.findByRole("row", { name: /gh-2/u });
+
+    fireEvent.click(within(row).getByRole("button", { name: "webhookDeliveries.details.show" }));
+
+    const panel = await screen.findByTestId("delivery-details");
+
+    await waitFor(() => expect(within(panel).getByText("github")).toBeInTheDocument());
+    expect(filterDetailRequests(requests).at(-1)?.searchParams.get("id")).toBe(deliveryRecordId);
+    expect(filterDetailRequests(requests).at(-1)?.pathname).toBe("/api/v2/webhooks/~/deliveries");
+    expect(within(panel).getByText(deliveryRecordId)).toBeInTheDocument();
+    expect(within(panel).getByText("octo/repo#7")).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "demo" })).toHaveAttribute(
+      "href",
+      "/webhook_deliveries/demo",
+    );
+
+    const attributes = within(panel).getByTestId("delivery-attributes");
+
+    expect(within(attributes).getByRole("row", { name: "action labeled" })).toBeInTheDocument();
+    expect(within(attributes).getByRole("row", { name: "number 7" })).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Close" }));
+
+    await waitFor(() => expect(screen.queryByTestId("delivery-details")).not.toBeInTheDocument());
+  });
+
+  it("copies each topic name, and lists asset events by name with other actions as JSON", async () => {
+    serveDeliveries([], [detailedDelivery]);
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
+
+    const panel = await screen.findByTestId("delivery-details");
+    const assetEvents = await within(panel).findByTestId("delivery-asset-events");
+
+    expect(
+      within(assetEvents)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["demo/pull_request", "demo/pull_request/labeled"]);
+    expect(within(panel).getByTestId("monaco-editor")).toHaveTextContent(
+      JSON.stringify({ other_action: { count: 1 } }, undefined, 2),
+      { normalizeWhitespace: false },
+    );
+
+    const candidate = within(panel).getByTestId("delivery-candidates");
+    const [, copyLabeled] = within(candidate).getAllByRole("button");
+
+    fireEvent.click(copyLabeled as HTMLElement);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("demo/pull_request/labeled"));
+  });
+
+  it("shows asset events in a shape it does not know as recorded", async () => {
+    serveDeliveries(
+      [],
+      [buildDeliveryRow({ actions: { asset_events: { "demo/push": 8 } }, id: deliveryRecordId })],
+    );
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
+
+    const panel = await screen.findByTestId("delivery-details");
+
+    expect(await within(panel).findByTestId("monaco-editor")).toHaveTextContent(
+      JSON.stringify({ asset_events: { "demo/push": 8 } }, undefined, 2),
+      { normalizeWhitespace: false },
+    );
+    expect(within(panel).queryByTestId("delivery-asset-events")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { explanation: "webhookDeliveries.outcomeExplanations.accepted", outcome: "accepted" },
+    { explanation: "webhookDeliveries.outcomeExplanations.dag_paused", outcome: "dag_paused" },
+    { explanation: "webhookDeliveries.outcomeExplanations.no_subscribers", outcome: "no_subscribers" },
+    { explanation: "webhookDeliveries.outcomeExplanations.unknown", outcome: "dropped" },
+  ])("explains the $outcome outcome", async ({ explanation, outcome }) => {
+    serveDeliveries([], [buildDeliveryRow({ id: deliveryRecordId, outcome })]);
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries/demo?id=${deliveryRecordId}`]} />);
+
+    const panel = await screen.findByTestId("delivery-details");
+
+    expect(await within(panel).findByText(explanation)).toBeInTheDocument();
+  });
+
+  it("opens the delivery a link names, whichever page the table shows", async () => {
+    const requests = serveDeliveries([buildDeliveryRow({ delivery_id: "gh-1" })]);
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries/demo?id=${deliveryRecordId}`]} />);
+
+    const panel = await screen.findByTestId("delivery-details");
+
+    await waitFor(() => expect(within(panel).getByText("gh-2")).toBeInTheDocument());
+    expect(filterDetailRequests(requests).at(-1)?.pathname).toBe("/api/v2/webhooks/demo/deliveries");
+    expect(filterDetailRequests(requests).at(-1)?.searchParams.get("limit")).toBe("1");
+    // The id opens the panel; it does not filter the table.
+    expect(await screen.findByRole("row", { name: /gh-1/u })).toBeInTheDocument();
+  });
+
+  it("says when a linked delivery is not one the user may read", async () => {
+    serveDeliveries([], []);
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
+
+    const panel = await screen.findByTestId("delivery-details");
+
+    expect(await within(panel).findByText("webhookDeliveries.details.notFound")).toBeInTheDocument();
+  });
+
+  it("shows a spinner while a linked delivery loads", async () => {
+    const release = new AbortController();
+
+    server.use(
+      http.get(deliveriesUrl, ({ request }) =>
+        new URL(request.url).searchParams.has("id")
+          ? holdResponseUntil(
+              release.signal,
+              HttpResponse.json({ deliveries: [detailedDelivery], total_entries: 1 }),
+            )
+          : HttpResponse.json({ deliveries: [], total_entries: 0 }),
+      ),
+    );
+
+    render(<AppWrapper initialEntries={[`/webhook_deliveries?id=${deliveryRecordId}`]} />);
+
+    const panel = await screen.findByTestId("delivery-details");
+
+    expect(await within(panel).findByTestId("delivery-details-loading")).toBeInTheDocument();
+
+    release.abort();
+
+    expect(await within(panel).findByText("gh-2")).toBeInTheDocument();
+    expect(within(panel).queryByTestId("delivery-details-loading")).not.toBeInTheDocument();
+  });
+
+  it.each(apiErrors)("shows a $status from the API", async ({ detail, status }) => {
+    server.use(http.get(deliveriesUrl, () => HttpResponse.json({ detail }, { status })));
+
+    renderWithoutRetries("/webhook_deliveries/nope");
+
+    const alert = await screen.findByTestId("error-alert");
+
+    expect(alert).toHaveTextContent(String(status));
+    expect(alert).toHaveTextContent(detail);
+  });
+
+  it.each(apiErrors)("shows a $status for a linked delivery in its panel", async ({ detail, status }) => {
+    server.use(
+      http.get(deliveriesUrl, ({ request }) =>
+        new URL(request.url).searchParams.has("id")
+          ? HttpResponse.json({ detail }, { status })
+          : HttpResponse.json({ deliveries: [], total_entries: 0 }),
+      ),
+    );
+
+    renderWithoutRetries(`/webhook_deliveries/nope?id=${deliveryRecordId}`);
+
+    const panel = await screen.findByTestId("delivery-details");
+    const alert = await within(panel).findByTestId("error-alert");
+
+    expect(alert).toHaveTextContent(String(status));
+    expect(alert).toHaveTextContent(detail);
+    expect(within(panel).queryByText("webhookDeliveries.details.notFound")).not.toBeInTheDocument();
+  });
+});

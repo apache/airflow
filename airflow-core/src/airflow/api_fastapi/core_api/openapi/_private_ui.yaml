@@ -5317,6 +5317,7 @@ components:
       - Pools
       - Providers
       - Variables
+      - Webhook Deliveries
       - XComs
       title: MenuItem
       description: Define all menu items defined in the menu.

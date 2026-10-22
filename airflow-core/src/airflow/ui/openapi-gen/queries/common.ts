@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryResult } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, WebhookService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagSchedulingState, ReprocessBehavior } from "../requests/types.gen";
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
@@ -303,6 +303,25 @@ export const UseExperimentalServiceWaitDagRunUntilFinishedKeyFn = ({ dagId, dagR
   interval: number;
   result?: string[];
 }, queryKey?: Array<unknown>) => [useExperimentalServiceWaitDagRunUntilFinishedKey, ...(queryKey ?? [{ dagId, dagRunId, interval, result }])];
+export type ExperimentalServiceGetWebhookDeliveriesDefaultResponse = Awaited<ReturnType<typeof ExperimentalService.getWebhookDeliveries>>;
+export type ExperimentalServiceGetWebhookDeliveriesQueryResult<TData = ExperimentalServiceGetWebhookDeliveriesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useExperimentalServiceGetWebhookDeliveriesKey = "ExperimentalServiceGetWebhookDeliveries";
+export const UseExperimentalServiceGetWebhookDeliveriesKeyFn = ({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, sourceType, webhookName, webhookNames }: {
+  correlationKey?: string;
+  deliveryId?: string;
+  id?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  outcome?: string;
+  receivedAtGt?: string;
+  receivedAtGte?: string;
+  receivedAtLt?: string;
+  receivedAtLte?: string;
+  sourceType?: string;
+  webhookName: string;
+  webhookNames?: string[];
+}, queryKey?: Array<unknown>) => [useExperimentalServiceGetWebhookDeliveriesKey, ...(queryKey ?? [{ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, sourceType, webhookName, webhookNames }])];
 export type ExperimentalServiceGetDagVersionDiffDefaultResponse = Awaited<ReturnType<typeof ExperimentalService.getDagVersionDiff>>;
 export type ExperimentalServiceGetDagVersionDiffQueryResult<TData = ExperimentalServiceGetDagVersionDiffDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useExperimentalServiceGetDagVersionDiffKey = "ExperimentalServiceGetDagVersionDiff";
@@ -1041,6 +1060,25 @@ export const UseVariableServiceGetVariablesKeyFn = ({ limit, offset, orderBy, va
   variableKeyPattern?: string;
   variableKeyPrefixPattern?: string;
 } = {}, queryKey?: Array<unknown>) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern, variableKeyPrefixPattern }])];
+export type WebhookServiceGetWebhookDeliveriesDefaultResponse = Awaited<ReturnType<typeof WebhookService.getWebhookDeliveries>>;
+export type WebhookServiceGetWebhookDeliveriesQueryResult<TData = WebhookServiceGetWebhookDeliveriesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useWebhookServiceGetWebhookDeliveriesKey = "WebhookServiceGetWebhookDeliveries";
+export const UseWebhookServiceGetWebhookDeliveriesKeyFn = ({ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, sourceType, webhookName, webhookNames }: {
+  correlationKey?: string;
+  deliveryId?: string;
+  id?: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  outcome?: string;
+  receivedAtGt?: string;
+  receivedAtGte?: string;
+  receivedAtLt?: string;
+  receivedAtLte?: string;
+  sourceType?: string;
+  webhookName: string;
+  webhookNames?: string[];
+}, queryKey?: Array<unknown>) => [useWebhookServiceGetWebhookDeliveriesKey, ...(queryKey ?? [{ correlationKey, deliveryId, id, limit, offset, orderBy, outcome, receivedAtGt, receivedAtGte, receivedAtLt, receivedAtLte, sourceType, webhookName, webhookNames }])];
 export type DagVersionServiceGetDagVersionDiffDefaultResponse = Awaited<ReturnType<typeof DagVersionService.getDagVersionDiff>>;
 export type DagVersionServiceGetDagVersionDiffQueryResult<TData = DagVersionServiceGetDagVersionDiffDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagVersionServiceGetDagVersionDiffKey = "DagVersionServiceGetDagVersionDiff";

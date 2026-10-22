@@ -9747,6 +9747,145 @@ export const $VersionInfo = {
     description: 'Version information serializer for responses.'
 } as const;
 
+export const $WebhookDeliveryCollectionResponse = {
+    properties: {
+        deliveries: {
+            items: {
+                '$ref': '#/components/schemas/WebhookDeliveryResponse'
+            },
+            type: 'array',
+            title: 'Deliveries'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['deliveries', 'total_entries'],
+    title: 'WebhookDeliveryCollectionResponse',
+    description: 'Webhook delivery collection response.'
+} as const;
+
+export const $WebhookDeliveryResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        webhook: {
+            type: 'string',
+            title: 'Webhook'
+        },
+        delivery_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Delivery Id',
+            description: "The sender's id for the delivery, if it sends one."
+        },
+        received_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Received At'
+        },
+        source_type: {
+            type: 'string',
+            title: 'Source Type'
+        },
+        attributes: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'integer'
+                            }
+                        ]
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Attributes',
+            description: "What the webhook's source type parsed from the delivery."
+        },
+        correlation_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Correlation Key',
+            description: 'What the delivery is about, such as a pull request.'
+        },
+        outcome: {
+            type: 'string',
+            title: 'Outcome',
+            description: 'What Airflow did with the delivery, such as ``no_subscribers``.'
+        },
+        candidates: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Candidates',
+            description: 'The webhook topic names built from the delivery.'
+        },
+        actions: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        '$ref': '#/components/schemas/JsonValue'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Actions',
+            description: 'What the delivery did, such as the topic events it recorded.'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        }
+    },
+    type: 'object',
+    required: ['id', 'webhook', 'delivery_id', 'received_at', 'source_type', 'attributes', 'correlation_key', 'outcome', 'candidates', 'actions', 'team_name'],
+    title: 'WebhookDeliveryResponse',
+    description: 'A delivery an inbound webhook received, without its payload.'
+} as const;
+
 export const $XComCollectionResponse = {
     properties: {
         xcom_entries: {
@@ -12476,7 +12615,7 @@ export const $LoopSummaryResponse = {
 
 export const $MenuItem = {
     type: 'string',
-    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Dag Bundles', 'Deadlines', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'XComs'],
+    enum: ['Required Actions', 'Assets', 'Audit Log', 'Config', 'Connections', 'Dags', 'Dag Bundles', 'Deadlines', 'Docs', 'Jobs', 'Plugins', 'Pools', 'Providers', 'Variables', 'Webhook Deliveries', 'XComs'],
     title: 'MenuItem',
     description: 'Define all menu items defined in the menu.'
 } as const;

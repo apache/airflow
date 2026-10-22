@@ -35,6 +35,7 @@ const ALL_MENU_ITEMS: Array<MenuItem> = [
   "Pools",
   "Providers",
   "Variables",
+  "Webhook Deliveries",
   "XComs",
 ];
 
