@@ -26,8 +26,10 @@ __all__ = ["ExecutionAPISecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH_WORKERS"]
 # Server-side default secrets search path (for comparison/detection only)
 # This matches what airflow-core uses but is defined here to avoid importing from core
 _SERVER_DEFAULT_SECRETS_SEARCH_PATH = [
+    # <block name="secrets-search-path" same-as="airflow-core/src/airflow/secrets/base_secrets.py:secrets-search-path">
     "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
     "airflow.secrets.metastore.MetastoreBackend",
+    # </block>
 ]
 
 DEFAULT_SECRETS_SEARCH_PATH_WORKERS = [

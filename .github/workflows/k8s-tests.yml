@@ -188,7 +188,7 @@ jobs:
       # pulls and reusing the caches restored below. The module/build and Gradle caches are keyed
       # explicitly (rather than via the setup-* built-in caching) so the key carries an ``-vN-`` salt:
       # bump it to force-invalidate a poisoned cache without waiting for a dependency change to rotate it.
-      # keep go-version in sync with go-sdk/go.mod and the sibling Go SDK job in ci-amd.yml.
+      # blockwatch.toml keeps go-version in sync with go-sdk/go.mod and the sibling Go SDK job in ci-amd.yml.
       - name: "Setup Go for lang-SDK build"
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
