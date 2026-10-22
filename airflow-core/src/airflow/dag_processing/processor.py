@@ -21,6 +21,7 @@ import functools
 import importlib
 import logging
 import os
+import signal
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -98,6 +99,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.execution_time.supervisor import RequestHandler, RequestResult, ResponseSent
     from airflow.typing_compat import Self
+
+_CRASH_SIGNAL_NAMES = frozenset(
+    sig.name for sig in (signal.SIGSEGV, signal.SIGBUS, signal.SIGILL, signal.SIGFPE, signal.SIGABRT)
+)
 
 
 class DagFileParseRequest(BaseModel):
@@ -720,6 +725,8 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     client: Client
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
+    _parse_request: DagFileParseRequest = attrs.field(init=False)
+
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,
     }
@@ -776,4 +783,23 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
             bundle_name=bundle_name,
             callback_requests=callbacks,
         )
+        self._parse_request = msg
         self.send_msg(msg, request_id=0)
+
+    @property
+    def is_ready(self) -> bool:
+        if not super().is_ready:
+            return False
+        if self.parsing_result is None and not self.had_callbacks:
+            if (signal_name := getattr(self._exit_code, "name", None)) in _CRASH_SIGNAL_NAMES:
+                self.parsing_result = DagFileParsingResult(
+                    fileloc=self._parse_request.file,
+                    serialized_dags=[],
+                    import_errors={
+                        self.dag_file_rel_path: (
+                            f"The Dag file parsing process was killed by {signal_name} before it "
+                            "reported a parse result; see the Dag processor log of this file."
+                        )
+                    },
+                )
+        return True
