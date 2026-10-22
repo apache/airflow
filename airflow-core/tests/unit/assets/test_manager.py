@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy import event, func, insert, select
+from sqlalchemy import event, exc, func, insert, select
 from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.orm import Session
 
@@ -704,61 +704,182 @@ class TestAssetManager:
     def test_concurrent_events_from_different_assets_share_one_pending_apdr(self, dag_maker, session):
         """Events from two producer assets racing on one partition key accumulate on one APDR.
 
-        The second writer looks the key up while the first writer's APDR is still uncommitted,
-        so it finds nothing and inserts its own. Two pending APDRs holding one event each can
+        If the second writer looks the key up before the first writer commits its APDR, it finds
+        nothing and inserts its own. Two pending APDRs holding one event each can
         never satisfy ``asset_a & asset_b``, and the consumer Dag never runs.
         """
         _clear_partition_db()
-        asset_a = Asset(name="race-asset-a")
-        asset_b = Asset(name="race-asset-b")
-        with dag_maker(
-            dag_id="race-consumer",
-            schedule=PartitionedAssetTimetable(
-                assets=asset_a & asset_b, default_partition_mapper=IdentityMapper()
-            ),
-            serialized=True,
-        ):
-            EmptyOperator(task_id="hi")
-        dag_maker.sync_dagbag_to_db()
-        session.commit()
-
-        test_thread = threading.get_ident()
-        second_writer_inserting_apdr = threading.Event()
-
-        def on_execute(conn, cursor, statement, parameters, context, executemany):
-            if threading.get_ident() != test_thread and statement.startswith(
-                "INSERT INTO asset_partition_dag_run "
-            ):
-                second_writer_inserting_apdr.set()
-
-        def second_writer():
-            with create_session(scoped=False) as second:
-                AssetManager.register_asset_change(asset=asset_b, partition_key="day-1", session=second)
-
-        event.listen(settings.engine, "before_cursor_execute", on_execute)
         try:
-            with create_session(scoped=False) as first:
-                AssetManager.register_asset_change(asset=asset_a, partition_key="day-1", session=first)
-                first.flush()
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                    second_done = pool.submit(second_writer)
-                    assert second_writer_inserting_apdr.wait(timeout=30)
-                    first.commit()
-                    second_done.result(timeout=30)
-        finally:
-            event.remove(settings.engine, "before_cursor_execute", on_execute)
+            asset_a = Asset(name="race-asset-a")
+            asset_b = Asset(name="race-asset-b")
+            with dag_maker(
+                dag_id="race-consumer",
+                schedule=PartitionedAssetTimetable(
+                    assets=asset_a & asset_b, default_partition_mapper=IdentityMapper()
+                ),
+                serialized=True,
+            ):
+                EmptyOperator(task_id="hi")
+            dag_maker.sync_dagbag_to_db()
+            session.commit()
 
-        pending = session.scalars(
-            select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == "race-consumer")
-        ).all()
-        assert len(pending) == 1
-        logged_events = session.scalar(
-            select(func.count())
-            .select_from(PartitionedAssetKeyLog)
-            .where(PartitionedAssetKeyLog.asset_partition_dag_run_id == pending[0].id)
+            test_thread = threading.get_ident()
+            second_writer_inserting_apdr = threading.Event()
+
+            def on_execute(conn, cursor, statement, parameters, context, executemany):
+                if threading.get_ident() != test_thread and statement.startswith(
+                    "INSERT INTO asset_partition_dag_run "
+                ):
+                    second_writer_inserting_apdr.set()
+
+            def run_second_writer():
+                with create_session(scoped=False) as second:
+                    AssetManager.register_asset_change(asset=asset_b, partition_key="day-1", session=second)
+
+            event.listen(settings.engine, "before_cursor_execute", on_execute)
+            try:
+                with create_session(scoped=False) as first:
+                    AssetManager.register_asset_change(asset=asset_a, partition_key="day-1", session=first)
+                    first.flush()
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        second_done = pool.submit(run_second_writer)
+                        assert second_writer_inserting_apdr.wait(timeout=30)
+                        first.commit()
+                        second_done.result(timeout=30)
+            finally:
+                event.remove(settings.engine, "before_cursor_execute", on_execute)
+
+            pending = session.scalars(
+                select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == "race-consumer")
+            ).all()
+            assert len(pending) == 1
+            logged_events = session.scalar(
+                select(func.count())
+                .select_from(PartitionedAssetKeyLog)
+                .where(PartitionedAssetKeyLog.asset_partition_dag_run_id == pending[0].id)
+            )
+            assert logged_events == 2
+        finally:
+            _clear_partition_db()
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_inserts_again_when_winner_was_consumed(self, session, dag_maker):
+        """A winner turned into a Dag run before the loser looks it up has freed the key, so the loser inserts anew."""
+        with dag_maker(dag_id="consumed_winner_producer", serialized=True):
+            EmptyOperator(task_id="hi")
+        dag_run = dag_maker.create_dagrun()
+        testing_dag = DagModel(dag_id="testing_dag_consumed_winner", is_stale=False, bundle_name="testing")
+        session.add(testing_dag)
+        winner = AssetPartitionDagRun(
+            target_dag_id=testing_dag.dag_id, partition_key="k", pending_partition_key="k"
         )
-        assert logged_events == 2
+        session.add(winner)
+        session.commit()
+        lookups = []
+
+        def lookup_misses_then_consumes_winner(*, target_key, target_dag_id, session):
+            if lookups:
+                winner.created_dag_run_id = dag_run.id
+                session.flush()
+            lookups.append(target_key)
+            return None
+
+        with mock.patch.object(
+            AssetManager,
+            "_get_latest_pending_apdr",
+            autospec=True,
+            side_effect=lookup_misses_then_consumes_winner,
+        ):
+            apdr = AssetManager._get_or_create_apdr(
+                target_key="k",
+                target_partition_date=None,
+                target_dag=testing_dag,
+                rollup_fingerprint={},
+                allow_reuse=True,
+                session=session,
+            )
+        session.flush()
+
+        assert apdr.id != winner.id
+        assert apdr.pending_partition_key == "k"
+        assert dict(
+            session.execute(
+                select(AssetPartitionDagRun.id, AssetPartitionDagRun.pending_partition_key).where(
+                    AssetPartitionDagRun.target_dag_id == testing_dag.dag_id
+                )
+            ).all()
+        ) == {winner.id: None, apdr.id: "k"}
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_get_or_create_apdr_reraises_when_insert_keeps_conflicting(self, session):
+        testing_dag = DagModel(dag_id="testing_dag_no_winner", is_stale=False, bundle_name="testing")
+        session.add(testing_dag)
+        session.commit()
+        session.add(
+            AssetPartitionDagRun(
+                target_dag_id=testing_dag.dag_id, partition_key="k", pending_partition_key="k"
+            )
+        )
+        session.flush()
+
+        with mock.patch.object(AssetManager, "_get_latest_pending_apdr", autospec=True, return_value=None):
+            with pytest.raises(exc.IntegrityError):
+                AssetManager._get_or_create_apdr(
+                    target_key="k",
+                    target_partition_date=None,
+                    target_dag=testing_dag,
+                    rollup_fingerprint={},
+                    allow_reuse=True,
+                    session=session,
+                )
+
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(AssetPartitionDagRun)
+                .where(AssetPartitionDagRun.target_dag_id == testing_dag.dag_id)
+            )
+            == 1
+        )
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_queue_dagruns_creates_apdrs_in_dag_id_order(self, session, dag_maker):
+        """Partitioned consumers get their APDRs in dag_id order whatever order the set iterates in."""
         _clear_partition_db()
+        try:
+            asset = Asset(name="ordered-asset")
+            for dag_id in ("z-consumer", "a-consumer"):
+                with dag_maker(
+                    dag_id=dag_id,
+                    schedule=PartitionedAssetTimetable(
+                        assets=asset, default_partition_mapper=IdentityMapper()
+                    ),
+                    serialized=True,
+                ):
+                    EmptyOperator(task_id="hi")
+            dag_maker.sync_dagbag_to_db()
+            session.commit()
+
+            class ReverseOrderSet(set):
+                def __iter__(self):
+                    return iter(sorted(super().__iter__(), key=lambda d: d.dag_id, reverse=True))
+
+            real_queue_dagruns = AssetManager._queue_dagruns
+
+            def queue_dagruns_in_reverse_order(*, dags_to_queue, **kwargs):
+                real_queue_dagruns(dags_to_queue=ReverseOrderSet(dags_to_queue), **kwargs)
+
+            with mock.patch.object(
+                AssetManager, "_queue_dagruns", autospec=True, side_effect=queue_dagruns_in_reverse_order
+            ):
+                AssetManager.register_asset_change(asset=asset, partition_key="day-1", session=session)
+            session.flush()
+
+            assert session.scalars(
+                select(AssetPartitionDagRun.target_dag_id).order_by(AssetPartitionDagRun.id)
+            ).all() == ["a-consumer", "z-consumer"]
+        finally:
+            _clear_partition_db()
 
     def test_assigning_created_dag_run_id_clears_pending_partition_key(self):
         apdr = AssetPartitionDagRun(target_dag_id="d", partition_key="k", pending_partition_key="k")

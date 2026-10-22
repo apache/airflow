@@ -970,7 +970,6 @@ class AssetPartitionDagRun(Base):
     target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
-    # Backs the one-pending-row-per-key guard for batched events; see the class docstring.
     pending_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # Serialized snapshot of the rollup definition (mapper + window for every

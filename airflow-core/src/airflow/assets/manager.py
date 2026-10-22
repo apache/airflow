@@ -65,6 +65,8 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
+_APDR_GET_OR_CREATE_ATTEMPTS = 2
+
 
 class AssetManager(LoggingMixin):
     """
@@ -707,7 +709,8 @@ class AssetManager(LoggingMixin):
             )
             return pending_apdr
 
-        apdr = AssetPartitionDagRun(
+        build_apdr = partial(
+            AssetPartitionDagRun,
             target_dag_id=target_dag.dag_id,
             created_dag_run_id=None,
             partition_key=target_key,
@@ -716,33 +719,43 @@ class AssetManager(LoggingMixin):
             rollup_fingerprint=rollup_fingerprint,
         )
         if not allow_reuse:
+            apdr = build_apdr()
             session.add(apdr)
             session.flush()
         else:
             # begin_nested() flushes the caller's pending rows before the savepoint starts, so
-            # rolling it back on a conflict expunges only ``apdr``.
-            try:
-                with session.begin_nested():
-                    session.add(apdr)
-            except exc.IntegrityError:
-                winner = cls._get_latest_pending_apdr(
-                    target_key=target_key, target_dag_id=target_dag.dag_id, session=session
-                )
-                if winner is None:
-                    raise
-                cls.logger().debug(
-                    "Another process created the APDR for key %s dag_id %s first; reusing it",
-                    target_key,
-                    target_dag.dag_id,
-                )
-                cls._reconcile_partition_date(
-                    apdr=winner,
-                    target_partition_date=target_partition_date,
-                    target_dag_id=target_dag.dag_id,
-                    target_key=target_key,
-                    session=session,
-                )
-                return winner
+            # rolling it back on a conflict expunges only ``apdr``. The re-lookup after a
+            # conflict sees the winner's row on MySQL only because it runs at READ COMMITTED
+            # (settings.py), unlike its REPEATABLE READ default.
+            for attempt in range(1, _APDR_GET_OR_CREATE_ATTEMPTS + 1):
+                apdr = build_apdr()
+                try:
+                    with session.begin_nested():
+                        session.add(apdr)
+                except exc.IntegrityError:
+                    winner = cls._get_latest_pending_apdr(
+                        target_key=target_key, target_dag_id=target_dag.dag_id, session=session
+                    )
+                    if winner is None:
+                        # The winner was already turned into a Dag run, which cleared its key and
+                        # freed the constraint, so the INSERT can be run again.
+                        if attempt == _APDR_GET_OR_CREATE_ATTEMPTS:
+                            raise
+                        continue
+                    cls.logger().debug(
+                        "Another process created the APDR for key %s dag_id %s first; reusing it",
+                        target_key,
+                        target_dag.dag_id,
+                    )
+                    cls._reconcile_partition_date(
+                        apdr=winner,
+                        target_partition_date=target_partition_date,
+                        target_dag_id=target_dag.dag_id,
+                        target_key=target_key,
+                        session=session,
+                    )
+                    return winner
+                break
 
         cls.logger().debug(
             "No existing APDR found. Create APDR for key %s dag_id %s",
