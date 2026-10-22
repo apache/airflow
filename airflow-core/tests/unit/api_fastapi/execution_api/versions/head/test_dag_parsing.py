@@ -987,7 +987,7 @@ def test_inventory_deactivates_removed_file_after_2x_upgrade(client, exec_app, s
     exec_app.dependency_overrides[require_auth] = authenticate
     manager = DagFileProcessorManager(max_runs=1)
     found_files = manager._find_files_in_bundle(LocalDagBundle(name="dags-folder", path=str(tmp_path)))
-    observed_files = sorted(manager._get_observed_filelocs(found_files))
+    observed_files = sorted(manager._get_observed_filelocs(found_files.files))
     assert observed_files == [surviving_file.name]
     inventory = {
         "attempt_id": str(uuid7()),
