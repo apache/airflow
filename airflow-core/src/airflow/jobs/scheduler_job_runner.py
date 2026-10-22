@@ -3687,7 +3687,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("scheduler.dagruns.running", float(counts.get(DagRunState.RUNNING, 0)))
         stats.gauge("scheduler.dagruns.queued", float(counts.get(DagRunState.QUEUED, 0)))
 
-    previous_schedule_overdue_dag_ids: frozenset[str] = frozenset()
+    previous_schedule_overdue_metrics: dict[str, float] = {}
 
     @provide_session
     def _emit_schedule_overdue_metric(self, *, session: Session = NEW_SESSION) -> None:
@@ -3708,20 +3708,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             DM.exceeds_max_non_backfill == expression.true(),
             DM.next_dagrun_create_after <= now,
         )
-        overdue_dag_ids = set()
-        for dag_id, create_after in session.execute(stmt):
-            if create_after is None:
-                continue
-            overdue_dag_ids.add(dag_id)
-            stats.gauge(
-                "dag.schedule_overdue_seconds",
-                (now - create_after).total_seconds(),
-                tags={"dag_id": dag_id},
-            )
-        # Reset Dags that recovered since the last run; StatsD would otherwise keep their last value.
-        for dag_id in self.previous_schedule_overdue_dag_ids - overdue_dag_ids:
-            stats.gauge("dag.schedule_overdue_seconds", 0, tags={"dag_id": dag_id})
-        self.previous_schedule_overdue_dag_ids = frozenset(overdue_dag_ids)
+        overdue_metrics = {
+            dag_id: (now - create_after).total_seconds()
+            for dag_id, create_after in session.execute(stmt)
+            if create_after is not None
+        }
+
+        for dag_id, overdue_seconds in overdue_metrics.items():
+            stats.gauge("dag.schedule_overdue_seconds", overdue_seconds, tags={"dag_id": dag_id})
+
+        for prev_dag_id in self.previous_schedule_overdue_metrics:
+            # Reset previously exported stats that are no longer present in current metrics to zero
+            if prev_dag_id not in overdue_metrics:
+                stats.gauge("dag.schedule_overdue_seconds", 0, tags={"dag_id": prev_dag_id})
+
+        self.previous_schedule_overdue_metrics = overdue_metrics
 
     @provide_session
     def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
