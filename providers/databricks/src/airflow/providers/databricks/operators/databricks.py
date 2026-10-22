@@ -2066,10 +2066,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         if context is not None:
             fields_to_render = [f for f in self.template_fields if f != "workflow_run_metadata"]
             if fields_to_render:
-                self._do_render_template_fields(
-                    self, fields_to_render, context, self.get_template_env(), set()
+                operator_proxy = copy.copy(self)
+                operator_proxy._do_render_template_fields(
+                    operator_proxy, fields_to_render, context, self.get_template_env(), set()
                 )
-        base_task_json = self._get_task_base_json()
+                base_task_json = operator_proxy._get_task_base_json()
+            else:
+                base_task_json = self._get_task_base_json()
+        else:
+            base_task_json = self._get_task_base_json()
 
         result = {
             "depends_on": [
@@ -2492,16 +2497,20 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
                 "Calling `_convert_to_databricks_workflow_task` without a parent TaskGroup."
             )
 
+        operator_proxy = copy.copy(self)
         if hasattr(databricks_workflow_task_group, "notebook_packages"):
-            self._extend_workflow_notebook_packages(databricks_workflow_task_group)
+            operator_proxy.notebook_packages = list(self.notebook_packages)
+            operator_proxy._extend_workflow_notebook_packages(databricks_workflow_task_group)
 
         if hasattr(databricks_workflow_task_group, "notebook_params"):
-            self.notebook_params = {
+            operator_proxy.notebook_params = {
                 **self.notebook_params,
                 **databricks_workflow_task_group.notebook_params,
             }
 
-        return super()._convert_to_databricks_workflow_task(relevant_upstreams, task_dict, context=context)
+        return super(DatabricksNotebookOperator, operator_proxy)._convert_to_databricks_workflow_task(
+            relevant_upstreams, task_dict, context=context
+        )
 
 
 class DatabricksTaskOperator(DatabricksTaskBaseOperator):
