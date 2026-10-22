@@ -459,10 +459,11 @@ Parameters
   ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
   otherwise; ``True`` records a single-turn run without seeding it. See :doc:`../message_history`.
 - ``serialize_output``: If ``True``, a Pydantic ``BaseModel`` output, or a
-  list, tuple, set or dict holding models, is dumped to JSON-compatible values
-  with ``pydantic_core.to_jsonable_python`` before being pushed to XCom.
-  A model the worker cannot register from ``output_type`` (for example one in a
-  list of output types) is dumped even when this is ``False``. Default ``False``
+  list, tuple, set or dict holding models, is dumped with ``model_dump()``-style
+  Python values before being pushed to XCom (JSON-compatible values if a set holds
+  the models). A model the worker cannot register from ``output_type`` (for example
+  one in a list of output types) is dumped to JSON-compatible values even when
+  this is ``False``. Default ``False``
   -- a registered Pydantic instance flows through XCom unchanged. Set to
   ``True`` when a downstream consumer needs the dict shape.
 
