@@ -2324,9 +2324,13 @@ def _run_execute_callable(
     context: Context,
     execute: Callable[..., Any] | functools.partial[Any],
     task: BaseOperator,
+    *,
+    execution_timeout: float | None,
 ) -> Any:
     """
     Run the task's execute callable, applying the execution timeout if one is set.
+
+    ``execution_timeout`` comes from the run context, so it matches the supervisor's timer.
 
     The contextvars snapshot is taken here, after the ``task.execute`` span is
     current, so spans the operator emits during ``execute`` nest under it rather
@@ -2336,18 +2340,17 @@ def _run_execute_callable(
     """
     ctx = contextvars.copy_context()
     ctx.run(ExecutorSafeguard.tracker.set, task)
-    if task.execution_timeout:
+    if execution_timeout is not None:
         from airflow.sdk.execution_time.timeout import timeout
 
         # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
         try:
             # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
+            if execution_timeout <= 0:
                 raise AirflowTaskTimeout()
             SUPERVISOR_COMMS.send(StartExecutionTimeout())
             # Run task in timeout wrapper
-            with timeout(timeout_seconds):
+            with timeout(execution_timeout):
                 result = ctx.run(execute, context=context)
         except AirflowTaskTimeout:
             task.on_kill()
@@ -2395,7 +2398,8 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    result = _run_execute_callable(context, execute, task)
+    execution_timeout = ti._ti_context_from_server.execution_timeout if ti._ti_context_from_server else None
+    result = _run_execute_callable(context, execute, task, execution_timeout=execution_timeout)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)

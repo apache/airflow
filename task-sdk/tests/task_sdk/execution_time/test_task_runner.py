@@ -2115,6 +2115,25 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
+@pytest.mark.parametrize(
+    ("task_timeout", "context_timeout", "expectation"),
+    [
+        pytest.param(timedelta(hours=1), 0.0, pytest.raises(AirflowTaskTimeout), id="only-context-elapsed"),
+        pytest.param(timedelta(seconds=-1), None, contextlib.nullcontext(), id="only-task-elapsed"),
+    ],
+)
+def test_execution_timeout_from_run_context(
+    create_runtime_ti, mock_supervisor_comms, task_timeout, context_timeout, expectation
+):
+    """The runner times the task with the run context's value, which the supervisor also uses."""
+    op = PythonOperator(task_id="test_timeout", execution_timeout=task_timeout, python_callable=lambda: None)
+    ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
+    ti._ti_context_from_server.execution_timeout = context_timeout
+
+    with expectation:
+        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+
+
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
@@ -6863,10 +6882,8 @@ class TestRunExecuteCallable:
             yield
 
     @staticmethod
-    def _make_task(execution_timeout=None):
-        task = mock.MagicMock(spec=BaseOperator)
-        task.execution_timeout = execution_timeout
-        return task
+    def _make_task():
+        return mock.MagicMock(spec=BaseOperator)
 
     def test_runs_in_isolated_context_with_safeguard_tracker_set(self, mock_supervisor_comms):
         """The callable runs in an internal context copy that has the safeguard tracker set and does not leak."""
@@ -6880,7 +6897,9 @@ class TestRunExecuteCallable:
             seen["tracker"] = ExecutorSafeguard.tracker.get(None)
             return context["value"] * 2
 
-        result = _run_execute_callable(context={"value": 21}, execute=execute, task=task)
+        result = _run_execute_callable(
+            context={"value": 21}, execute=execute, task=task, execution_timeout=None
+        )
 
         assert result == 42
         # The safeguard tracker is set to the task inside the copy used to run execute.
@@ -6894,24 +6913,24 @@ class TestRunExecuteCallable:
 
     def test_applies_execution_timeout(self, mock_supervisor_comms):
         """When a timeout is set and the callable overruns, AirflowTaskTimeout is raised and on_kill is called."""
-        task = self._make_task(execution_timeout=timedelta(milliseconds=10))
+        task = self._make_task()
 
         def execute(context):
             time.sleep(0.2)
 
         with pytest.raises(AirflowTaskTimeout):
-            _run_execute_callable(context={}, execute=execute, task=task)
+            _run_execute_callable(context={}, execute=execute, task=task, execution_timeout=0.01)
 
         task.on_kill.assert_called_once()
         mock_supervisor_comms.send.assert_called_once_with(StartExecutionTimeout())
 
     def test_fast_fails_when_timeout_already_elapsed(self, mock_supervisor_comms):
         """A non-positive timeout fast-fails before running the callable and still calls on_kill."""
-        task = self._make_task(execution_timeout=timedelta(seconds=-1))
+        task = self._make_task()
         execute = mock.MagicMock()
 
         with pytest.raises(AirflowTaskTimeout):
-            _run_execute_callable(context={}, execute=execute, task=task)
+            _run_execute_callable(context={}, execute=execute, task=task, execution_timeout=0.0)
 
         execute.assert_not_called()
         task.on_kill.assert_called_once()
@@ -6930,7 +6949,9 @@ class TestRunExecuteCallable:
 
         with mock.patch("airflow.sdk.execution_time.tracing.tracer", t):
             with t.start_as_current_span("parent", context=parent_ctx):
-                result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task)
+                result = _run_execute_callable(
+                    context={}, execute=lambda context: "ok", task=task, execution_timeout=None
+                )
 
         assert result == "ok"
         names = [s.name for s in exporter.get_finished_spans()]
@@ -6958,7 +6979,7 @@ class TestRunExecuteCallable:
 
         with mock.patch("airflow.sdk.execution_time.tracing.tracer", t):
             with t.start_as_current_span("parent", context=parent_ctx):
-                result = _run_execute_callable(context={}, execute=execute, task=task)
+                result = _run_execute_callable(context={}, execute=execute, task=task, execution_timeout=None)
 
         assert result == "ok"
         spans = {s.name: s for s in exporter.get_finished_spans()}
@@ -6977,7 +6998,9 @@ class TestRunExecuteCallable:
 
         with mock.patch("airflow.sdk.execution_time.tracing.tracer", t):
             with t.start_as_current_span("parent", context=parent_ctx):
-                result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task)
+                result = _run_execute_callable(
+                    context={}, execute=lambda context: "ok", task=task, execution_timeout=None
+                )
 
         assert result == "ok"
         names = [s.name for s in exporter.get_finished_spans()]

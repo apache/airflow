@@ -2954,6 +2954,9 @@ def create_runtime_ti(mocked_parse):
             max_tries=task_retries if max_tries is None else max_tries,
             should_retry=should_retry if should_retry is not None else try_number <= task_retries,
         )
+        # Same as the Execution API; older Task SDKs have no such field.
+        if task.execution_timeout and "execution_timeout" in TIRunContext.model_fields:
+            ti_context.execution_timeout = max(task.execution_timeout.total_seconds(), 0.0)
 
         compat_fields = {
             "requests_fd": 0,
