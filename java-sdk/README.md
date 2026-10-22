@@ -48,7 +48,11 @@ See the [guide][building-a-bundle] for Maven.
 
 Declare a Dag:
 
+<!-- BEGIN SHARED SNIPPET hello-dag -->
+
 ```java
+package com.mycompany.airflow.hello;
+
 import org.apache.airflow.sdk.*;
 
 @Airflow.Dag(id = "java_hello", schedule = "@daily", queue = "java")
@@ -73,15 +77,26 @@ public class HelloDag {
 }
 ```
 
+<!-- END SHARED SNIPPET hello-dag -->
+
 Serve it from the main class:
 
+<!-- BEGIN SHARED SNIPPET hello-main -->
+
 ```java
+package com.mycompany.airflow.hello;
+
+import org.apache.airflow.sdk.Bundle;
+import org.apache.airflow.sdk.Server;
+
 public class Main {
   public static void main(String[] args) {
     Server.create(args).serve(new Bundle().register(HelloDag.class));
   }
 }
 ```
+
+<!-- END SHARED SNIPPET hello-main -->
 
 Build the bundle into `build/bundle/`:
 

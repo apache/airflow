@@ -113,6 +113,8 @@ Configure the build in ``build.gradle``:
 
 Declare the Dag in ``HelloDag.java``:
 
+.. BEGIN SHARED SNIPPET hello-dag
+
 .. code-block:: java
 
     package com.mycompany.airflow.hello;
@@ -140,7 +142,11 @@ Declare the Dag in ``HelloDag.java``:
       }
     }
 
+.. END SHARED SNIPPET hello-dag
+
 Serve it from ``Main.java``:
+
+.. BEGIN SHARED SNIPPET hello-main
 
 .. code-block:: java
 
@@ -154,6 +160,8 @@ Serve it from ``Main.java``:
         Server.create(args).serve(new Bundle().register(HelloDag.class));
       }
     }
+
+.. END SHARED SNIPPET hello-main
 
 Build the bundle from the project root:
 

@@ -17,7 +17,59 @@
 from __future__ import annotations
 
 import pytest
-from check_java_sdk_docs_version_in_sync import DOKKA_MODULE, JAVA_RST, SDK_README, check_sync
+from sync_java_sdk_docs import (
+    DOKKA_MODULE,
+    JAVA_RST,
+    SDK_README,
+    check_versions,
+    extract_snippet,
+    render_snippet,
+)
+
+RST_WITH_SNIPPET = """
+Declare the Dag in ``HelloDag.java``:
+
+.. BEGIN SHARED SNIPPET hello-dag
+
+.. code-block:: java
+
+    @Airflow.Dag(id = "java_hello", queue = "java")
+    public class HelloDag {
+
+      @Airflow.Task
+      public long extract() {
+        return 42L;
+      }
+    }
+
+.. END SHARED SNIPPET hello-dag
+
+Build the bundle:
+"""
+
+HELLO_DAG = """@Airflow.Dag(id = "java_hello", queue = "java")
+public class HelloDag {
+
+  @Airflow.Task
+  public long extract() {
+    return 42L;
+  }
+}"""
+
+
+def test_extracts_the_guides_snippet_without_its_directive_or_indent():
+    assert extract_snippet(RST_WITH_SNIPPET, "hello-dag") == HELLO_DAG
+
+
+def test_rejects_a_snippet_the_guide_does_not_mark():
+    with pytest.raises(ValueError, match="hello-main"):
+        extract_snippet(RST_WITH_SNIPPET, "hello-main")
+
+
+def test_renders_the_snippet_as_a_fenced_block():
+    rendered = "".join(render_snippet(HELLO_DAG))
+
+    assert rendered == f"\n```java\n{HELLO_DAG}\n```\n\n"
 
 
 def _contents(rst_version: str, readme_version: str, module_version: str) -> dict[str, str]:
@@ -46,7 +98,7 @@ and later.
 
 
 def test_accepts_one_version_everywhere():
-    assert check_sync(_contents("1.0.0-beta2", "1.0.0-beta2", "1.0.0-beta2")) == []
+    assert check_versions(_contents("1.0.0-beta2", "1.0.0-beta2", "1.0.0-beta2")) == []
 
 
 @pytest.mark.parametrize(
@@ -57,7 +109,7 @@ def test_accepts_one_version_everywhere():
     ],
 )
 def test_reports_a_version_that_drifted(rst: str, readme: str, module: str, stale: str):
-    errors = check_sync(_contents(rst, readme, module))
+    errors = check_versions(_contents(rst, readme, module))
 
     assert errors[0].startswith("Documented Java SDK versions disagree:")
     assert any(line.lstrip().startswith(stale) for line in errors[1:])
@@ -67,4 +119,4 @@ def test_reports_a_file_with_no_version():
     contents = _contents("1.0.0-beta2", "1.0.0-beta2", "1.0.0-beta2")
     contents[DOKKA_MODULE] = "Write Apache Airflow Dags and tasks in Java.\n"
 
-    assert check_sync(contents) == [f"{DOKKA_MODULE}: no Java SDK version found"]
+    assert check_versions(contents) == [f"{DOKKA_MODULE}: no Java SDK version found"]

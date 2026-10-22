@@ -45,7 +45,13 @@ airflowBundle {
 Declare a Dag with `@Airflow.Dag`, its tasks with `@Airflow.Task`, and its graph in an `@Airflow.Deps` class.
 Passing the value one task returns into another is how the tasks depend on each other:
 
+<!-- BEGIN SHARED SNIPPET hello-dag -->
+
 ```java
+package com.mycompany.airflow.hello;
+
+import org.apache.airflow.sdk.*;
+
 @Airflow.Dag(id = "java_hello", schedule = "@daily", queue = "java")
 public class HelloDag {
 
@@ -66,6 +72,19 @@ public class HelloDag {
     }
   }
 }
+```
+
+<!-- END SHARED SNIPPET hello-dag -->
+
+Serve it from the main class:
+
+<!-- BEGIN SHARED SNIPPET hello-main -->
+
+```java
+package com.mycompany.airflow.hello;
+
+import org.apache.airflow.sdk.Bundle;
+import org.apache.airflow.sdk.Server;
 
 public class Main {
   public static void main(String[] args) {
@@ -73,6 +92,8 @@ public class Main {
   }
 }
 ```
+
+<!-- END SHARED SNIPPET hello-main -->
 
 Build the bundle with `./gradlew bundle`, and see the [Java SDK guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/java.html) for deploying it, and for everything
 a Dag declared in Java can do.
