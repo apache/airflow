@@ -344,6 +344,7 @@ cosmosdb
 cp
 cpu
 cpus
+CPython
 CRD
 crd
 CreateQueryOperator
@@ -555,6 +556,7 @@ Drillbit
 driverless
 dropdown
 druidHook
+dryrun
 ds
 dsl
 dsn
@@ -1614,6 +1616,7 @@ Sharepoint
 shm
 shouldn
 sie
+sigstore
 SIGTERM
 sku
 sla
@@ -1855,6 +1858,7 @@ triaging
 triggerer
 triggerers
 trino
+trixie
 trojan
 TrustedRouter
 truthy

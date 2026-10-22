@@ -19,10 +19,14 @@
 from __future__ import annotations
 
 import logging
+import socket
+import warnings
 from typing import Any
 
 import urllib3.util
+from urllib3.connection import HTTPConnection
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
@@ -60,9 +64,10 @@ try:
         """
         Wrapper around kubernetes sync ApiClient to set default timeout.
 
-        When *disable_verify_ssl* is True the TLS certificate check is turned off
-        on the *client_configuration* that is passed (or on a fresh default copy)
-        so that callers do not need to repeat this logic at every call-site.
+        When *disable_verify_ssl* is True the TLS certificate check is turned off, and when
+        *enable_tcp_keepalive* is True TCP keepalive is enabled, on the *configuration*
+        that is passed (or on a fresh default copy) so that callers do not need to repeat
+        this logic at every call-site.
         """
 
         def __init__(
@@ -70,11 +75,15 @@ try:
             configuration: client.Configuration | None = None,
             *,
             disable_verify_ssl: bool = False,
+            enable_tcp_keepalive: bool = False,
         ) -> None:
-            if disable_verify_ssl:
+            if disable_verify_ssl or enable_tcp_keepalive:
                 if configuration is None:
                     configuration = client.Configuration.get_default_copy()
-                configuration.verify_ssl = False
+                if disable_verify_ssl:
+                    configuration.verify_ssl = False
+                if enable_tcp_keepalive:
+                    configure_tcp_keepalive(configuration)
             super().__init__(configuration=configuration)
 
         def call_api(self, *args: Any, **kwargs: Any) -> Any:
@@ -115,53 +124,64 @@ except ImportError as e:
     _import_err = e
 
 
-def _enable_tcp_keepalive() -> None:
+def configure_tcp_keepalive(configuration: Configuration) -> None:
     """
-    Enable TCP keepalive mechanism.
+    Enable TCP keepalive on the Kubernetes client ``configuration``.
 
-    This prevents urllib3 connection to hang indefinitely when idle connection
-    is time-outed on services like cloud load balancers or firewalls.
+    This prevents connections from hanging indefinitely when an idle connection is timed out
+    by services like cloud load balancers or firewalls. The options are set through
+    ``Configuration.socket_options``, which the client passes on to its urllib3 pool manager.
 
-    See https://github.com/apache/airflow/pull/11406 for detailed explanation.
-
-    Please ping @michalmisiewicz or @dimberman in the PR if you want to modify this function.
+    See https://github.com/apache/airflow/pull/11406 for the original discussion.
     """
-    import socket
-
-    from urllib3.connection import HTTPConnection, HTTPSConnection
-
     tcp_keep_idle = conf.getint("kubernetes_executor", "tcp_keep_idle")
     tcp_keep_intvl = conf.getint("kubernetes_executor", "tcp_keep_intvl")
     tcp_keep_cnt = conf.getint("kubernetes_executor", "tcp_keep_cnt")
 
-    socket_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+    keepalive_options: list[tuple[int, int, int | bytes]] = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
 
     if hasattr(socket, "TCP_KEEPIDLE"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
     else:
         log.debug("Unable to set TCP_KEEPIDLE on this platform")
 
     if hasattr(socket, "TCP_KEEPINTVL"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
     else:
         log.debug("Unable to set TCP_KEEPINTVL on this platform")
 
     if hasattr(socket, "TCP_KEEPCNT"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
     else:
         log.debug("Unable to set TCP_KEEPCNT on this platform")
 
-    # Cast both the default options and our socket options
-    socket_options_cast: list[tuple[int, int, int | bytes]] = [
-        (level, opt, val) for level, opt, val in socket_options
-    ]
-    default_options_cast: list[tuple[int, int, int | bytes]] = [
-        (level, opt, val) for level, opt, val in HTTPSConnection.default_socket_options
-    ]
+    base_options = configuration.socket_options
+    if base_options is None:
+        base_options = HTTPConnection.default_socket_options
+    overridden = {(level, optname) for level, optname, _ in keepalive_options}
+    configuration.socket_options = [
+        option for option in base_options if (option[0], option[1]) not in overridden
+    ] + keepalive_options
 
-    # Then use the cast versions for both HTTPS and HTTP
-    HTTPSConnection.default_socket_options = default_options_cast + socket_options_cast
-    HTTPConnection.default_socket_options = default_options_cast + socket_options_cast
+
+def _enable_tcp_keepalive(configuration: Configuration | None = None) -> None:
+    """
+    Enable TCP keepalive mechanism.
+
+    .. deprecated::
+        Use :func:`configure_tcp_keepalive` instead.
+    """
+    warnings.warn(
+        "_enable_tcp_keepalive is deprecated, use configure_tcp_keepalive(configuration) instead.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
+    set_default = configuration is None
+    if configuration is None:
+        configuration = _get_default_configuration()
+    configure_tcp_keepalive(configuration)
+    if set_default:
+        Configuration.set_default(configuration)
 
 
 def get_kube_client(
@@ -182,10 +202,10 @@ def get_kube_client(
     if not has_kubernetes:
         raise _import_err
 
-    if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
-        _enable_tcp_keepalive()
-
     configuration = _get_default_configuration()
+
+    if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
+        configure_tcp_keepalive(configuration)
     api_client_retry_configuration = conf.getjson(
         "kubernetes_executor", "api_client_retry_configuration", fallback={}
     )

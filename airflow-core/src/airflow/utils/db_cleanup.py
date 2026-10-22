@@ -763,7 +763,7 @@ def _build_query(
         query = query.outerjoin(
             subquery,
             and_(
-                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
+                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
                 base_table_recency_col == column(max_date_col_name),
             ),
         )

@@ -16,6 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Text, type TextProps } from "@chakra-ui/react";
 
-export { default as BackfillBanner } from "./BackfillBanner";
-export { default as DrainingBanner } from "./DrainingBanner";
+// Paths and serialized values are machine text, so they are set in mono. Chakra's Code would add
+// its own surface on top of the table's striped rows, which leaves the two nearly the same shade.
+export const MonoText = ({ children, ...rest }: TextProps) => (
+  <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap" {...rest}>
+    {children}
+  </Text>
+);

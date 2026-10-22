@@ -301,10 +301,11 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     # narrows or widens the cooldown for this specific package — honour it so the
     # script picks the same version `uv lock` would resolve against the override.
     cooldown_hours = _MANUAL_COOLDOWN_OVERRIDES.get(package_name.lower())
+    bypass_cooldown = LATEST_PACKAGE_MANAGERS and package_name.lower() in ("pip", "uv")
     # Skip versions released within the cooldown period
     latest_version = ""
     for version in reversed(sorted_versions):
-        if not _is_version_within_cooldown(releases, str(version), cooldown_hours):
+        if bypass_cooldown or not _is_version_within_cooldown(releases, str(version), cooldown_hours):
             latest_version = str(version)
             break
     if not latest_version:
@@ -401,53 +402,41 @@ def prune_obsolete_cooldown_overrides() -> bool:
     return True
 
 
-def get_all_python_versions() -> list[Version]:
+HARDENED_PYTHON_CATALOG_URL = (
+    "https://raw.githubusercontent.com/docker-hardened-images/catalog/main/image/python/debian-{debian}/"
+    "{python_major_minor}-dev.yaml"
+)
+# One patchlevel pin serves the images of every Debian release Airflow builds on (trixie is the
+# default, bookworm is still available for PROD images).
+HARDENED_PYTHON_DEBIAN_RELEASES = ["13", "12"]
+
+
+def get_latest_python_version(python_major_minor: str) -> str:
     """
-    Fetch all released Python versions by parsing the Python FTP directory listing.
-    This provides static information about all available Python releases.
+    Return the newest Python patchlevel published as a Docker Hardened Image for a major.minor.
+
+    The images are built on those hardened images, so the pinned patchlevel has to be one Docker has
+    published - a newer python.org release is of no use until Docker builds it. The image definitions
+    in the public catalog list the patchlevel tag each image is currently built from.
     """
-    if VERBOSE:
-        console.print("[bright_blue]Fetching all released Python versions from python.org FTP")
-    url = "https://www.python.org/ftp/python/"
-    headers = {"User-Agent": "Python requests"}
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-
-    # Parse the HTML directory listing to extract version numbers
-    # The FTP directory listing has links like: <a href="3.12.1/">3.12.1/</a>
-    versions = []
-    # Match version patterns like "3.12.1/" in href attributes
-    version_pattern = re.compile(r'href="(\d+\.\d+\.\d+)/"')
-
-    for match in version_pattern.finditer(response.text):
-        version_str = match.group(1)
-        try:
-            # Parse as version to validate it's a proper version number
-            version_obj = Version(version_str)
-            # Only include Python 3.x versions
-            if version_obj.major == 3:
-                versions.append(version_obj)
-        except Exception:
-            # Skip invalid version strings
-            continue
-
-    return versions
-
-
-def get_latest_python_version(python_major_minor: str, all_versions: list[Version]) -> str:
-    """
-    Fetch the latest released Python version for a given major.minor (e.g. '3.12') from FTP directory listing.
-    Uses static directory information rather than API calls.
-    """
-    # Only consider releases matching the major.minor.patch pattern
-    matching = [
-        version for version in all_versions if python_major_minor == f"{version.major}.{version.minor}"
-    ]
-    if not matching:
-        console.print(f"[bright_red]No released Python versions found for {python_major_minor}")
-        sys.exit(1)
-    # Sort and return the latest version
-    latest_version = sorted(matching)[-1]
+    latest_per_release = []
+    for debian in HARDENED_PYTHON_DEBIAN_RELEASES:
+        url = HARDENED_PYTHON_CATALOG_URL.format(debian=debian, python_major_minor=python_major_minor)
+        if VERBOSE:
+            console.print(
+                f"[bright_blue]Fetching the hardened Python {python_major_minor} definition from {url}"
+            )
+        response = requests.get(url, headers={"User-Agent": "Python requests"})
+        response.raise_for_status()
+        pattern = rf"^\s*-\s*(\d+\.\d+\.\d+)-debian{debian}-dev\s*$"
+        versions = [Version(tag) for tag in re.findall(pattern, response.text, re.MULTILINE)]
+        if not versions:
+            console.print(f"[bright_red]No hardened Python {python_major_minor} image tags found in {url}")
+            sys.exit(1)
+        latest_per_release.append(max(versions))
+    # Docker does not always publish a patchlevel for every Debian release on the same day - pinning
+    # one that a release lacks would point its builds at a tag that does not exist.
+    latest_version = min(latest_per_release)
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for {python_major_minor}: {latest_version}")
     return str(latest_version)
@@ -677,6 +666,11 @@ GOLANG_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
 
 AIRFLOW_IMAGE_PYTHON_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     (re.compile(r"(AIRFLOW_PYTHON_VERSION=)(\"[0-9.abrc]+\")"), Quoting.DOUBLE_QUOTED),
+    # Base image tags pin the same Python patchlevel as AIRFLOW_PYTHON_VERSION and have to move with it
+    (
+        re.compile(r"((?:dhi\.io|ghcr\.io/apache/airflow/base)/python:)([0-9]+\.[0-9]+\.[0-9.abrc]+)"),
+        Quoting.UNQUOTED,
+    ),
     (
         re.compile(r"(\| ``AIRFLOW_PYTHON_VERSION`` *\| )(``[0-9.abrc]+``)( *\|)"),
         Quoting.REVERSE_DOUBLE_QUOTED,
@@ -779,6 +773,10 @@ UPGRADE_MYPY: bool = get_env_bool("UPGRADE_MYPY")
 UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
 UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
+LATEST_PACKAGE_MANAGERS: bool = (
+    os.environ.get("LATEST_PACKAGE_MANAGERS", "false").lower() == "true"
+    or os.environ.get("UPGRADE_LATEST_PACKAGE_MANAGERS", "false").lower() == "true"
+)
 
 # Read from global_constants.py rather than repeating the list here. A hard-coded copy silently
 # stops upgrading the versions it does not know about: 3.14 was added to Airflow in March 2026 and
@@ -964,10 +962,9 @@ def fetch_python_versions() -> dict[str, str]:
     if not UPGRADE_PYTHON:
         return latest_python_versions
 
-    all_python_versions = get_all_python_versions()
     for python_major_minor_version in ALL_PYTHON_MAJOR_MINOR_VERSIONS:
         latest_python_versions[python_major_minor_version] = get_latest_python_version(
-            python_major_minor_version, all_python_versions
+            python_major_minor_version
         )
         if python_major_minor_version == DEFAULT_PROD_IMAGE_PYTHON_VERSION:
             console.print(

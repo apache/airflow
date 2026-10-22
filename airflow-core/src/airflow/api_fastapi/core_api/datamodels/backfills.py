@@ -20,9 +20,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 
-from pydantic import AliasPath, Field, NonNegativeInt
+from pydantic import AliasPath, Field, NonNegativeInt, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
 from airflow.models.backfill import ReprocessBehavior
 from airflow.utils.state import DagRunState
 
@@ -36,7 +37,7 @@ class BackfillPostBody(StrictBaseModel):
     run_backwards: bool = False
     dag_run_conf: dict | None = None
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
-    max_active_runs: int = 10
+    max_active_runs: int = Field(default=10, ge=1)
     run_on_latest_version: bool | None = Field(
         default=None,
         description="Run on the latest bundle version of the Dag for each backfilled run. "
@@ -52,6 +53,11 @@ class BackfillPostBody(StrictBaseModel):
         "to complete. Requires the same permission as pausing the Dag. "
         "Ignored by the dry-run endpoint.",
     )
+
+    @field_validator("dag_run_conf")
+    @classmethod
+    def _check_reserved_keys(cls, dag_run_conf: dict | None) -> dict | None:
+        return check_conf_reserved_keys(dag_run_conf, root="dag_run_conf")
 
 
 class BackfillResponse(BaseModel):
