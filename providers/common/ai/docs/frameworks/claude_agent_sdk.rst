@@ -82,7 +82,10 @@ that matter most for this adapter; see `Built-in tools run on the worker host`_.
 also build ``ClaudeAgentOptions`` yourself and add
 :attr:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.server` and
 :attr:`~airflow.providers.common.ai.tools.claude_agent_sdk.AirflowTools.allowed_tools` to
-it.
+it. Put the server in ``mcp_servers`` under the key ``tools.server_name`` (``"airflow"`` by
+default). The SDK names a server after its dict key, so ``{"warehouse": tools.server}``
+serves ``mcp__warehouse__*`` tools while ``allowed_tools`` lists ``mcp__airflow__*`` and
+the names do not match.
 
 What each tool does
 --------------------
