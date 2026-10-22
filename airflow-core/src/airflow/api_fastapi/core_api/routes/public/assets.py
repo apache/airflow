@@ -97,6 +97,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -181,10 +182,17 @@ def _delete_pending_partitioned_queued_events(
         pakl_where_clause.append(PartitionedAssetKeyLog.target_dag_id.in_(permitted_dag_ids))
     pakl_of_apdr = PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id
 
+    # Locking the partitions serialises calls that clear different assets of the same one.
+    # Under READ COMMITTED each would otherwise still see the events the other has deleted
+    # but not committed, conclude the partition is not empty, and leave it pending forever.
     apdr_ids = session.scalars(
-        select(AssetPartitionDagRun.id).where(
-            AssetPartitionDagRun.created_dag_run_id.is_(None),
-            exists().where(pakl_of_apdr, *pakl_where_clause),
+        with_row_locks(
+            select(AssetPartitionDagRun.id).where(
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+                exists().where(pakl_of_apdr, *pakl_where_clause),
+            ),
+            session=session,
+            key_share=False,
         )
     ).all()
     if not apdr_ids:
