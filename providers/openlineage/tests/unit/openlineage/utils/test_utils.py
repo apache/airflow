@@ -1619,8 +1619,8 @@ def test_get_tasks_details():
             "task_group": None,
             "loop_group": None,
             "is_mapped": True,
-            # Airflow 2 operators count a literal expansion, Task SDK ones only once serialized
-            "parse_time_mapped_count": None if AIRFLOW_V_3_0_PLUS else 2,
+            # Task SDK operators count a literal expansion only once serialized from Airflow 3.2 on
+            "parse_time_mapped_count": None if AIRFLOW_V_3_2_PLUS else 2,
             "trigger_rule": "all_success",
             "depends_on_past": False,
             "retries": 0,
