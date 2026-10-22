@@ -138,11 +138,15 @@ def generate_task_lifecycle_diagram():
             **CONDITION_NODE_ATTRS,
         )
         cond_trigger_task_1 = Custom(
-            "\n\n\n\n\nA triggerer task?\n(can execute just only with triggerer)",
+            "\n\n\n\n\nStarts in the triggerer?\n(start_from_trigger)",
             CONDITION_IMG,
             **CONDITION_NODE_ATTRS,
         )
-        cond_trigger_task_2 = Custom("\n\n\n\n\nA triggerer task?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
+        cond_trigger_task_2 = Custom(
+            "\n\n\n\n\nTrigger ends the task?\n(end_from_trigger)",
+            CONDITION_IMG,
+            **CONDITION_NODE_ATTRS,
+        )
         cond_task_complete_1 = Custom(
             "\n\n\n\n\n                       Task completes?", CONDITION_IMG, **CONDITION_NODE_ATTRS
         )
@@ -196,7 +200,7 @@ def generate_task_lifecycle_diagram():
         (
             state_awaiting_input
             >> Edge(label="response received,\nor timeout default applied")
-            >> component_scheduler
+            >> state_scheduled
         )
         cond_defer_signal_raised >> Edge(label="NO") >> cond_skip_signal
         cond_defer_signal_raised >> Edge(label="YES") >> component_triggerer
