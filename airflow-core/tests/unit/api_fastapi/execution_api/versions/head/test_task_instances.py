@@ -2118,6 +2118,55 @@ class TestTIRunState:
         assert response.status_code == 200
         mock_stats.timing.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("initial_state", "expect_metric"),
+        [
+            pytest.param(State.SUCCESS, True, id="success"),
+            pytest.param(State.FAILED, False, id="failed"),
+            pytest.param(State.SKIPPED, False, id="skipped"),
+            pytest.param(State.UP_FOR_RETRY, False, id="up_for_retry"),
+        ],
+    )
+    def test_ti_run_previously_succeeded_metric(
+        self, client, session, create_task_instance, time_machine, initial_state, expect_metric
+    ):
+        """A start refused because the task instance already succeeded is counted as previously_succeeded."""
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id=f"test_ti_run_previously_succeeded_metric_{initial_state}",
+            state=initial_state,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+        expected_tags = ti.stats_tags
+        assert "run_type" in expected_tags
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances.stats", autospec=True
+        ) as mock_stats:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": instant.isoformat(),
+                },
+            )
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "invalid_state"
+        if expect_metric:
+            mock_stats.incr.assert_called_once_with("previously_succeeded", tags=expected_tags)
+        else:
+            mock_stats.incr.assert_not_called()
+
     def test_ti_run_skips_queued_duration_metric_on_duplicate_start(
         self, client, session, create_task_instance, time_machine
     ):
