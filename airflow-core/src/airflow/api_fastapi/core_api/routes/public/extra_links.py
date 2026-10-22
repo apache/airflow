@@ -120,10 +120,7 @@ def get_extra_links(
             )
         ]
 
-    all_extra_link_pairs = (
-        (link_name, task.get_extra_links(ti, link_name))
-        for link_name in link_names  # type: ignore[arg-type]
-    )
+    all_extra_link_pairs = ((link_name, task.get_extra_links(ti, link_name)) for link_name in link_names)
     all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
 
     return ExtraLinkCollectionResponse(

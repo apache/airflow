@@ -125,6 +125,38 @@ class AirflowClient:
             time.sleep(check_interval)
         raise TimeoutError(f"Dag {dag_id} was not registered within {timeout}s. Last error: {last_error}")
 
+    def list_dag_ids(self, tags: list[str]) -> set[str]:
+        """List the IDs of the live Dags with any of *tags*; the API leaves out stale Dags by default."""
+        dag_ids: set[str] = set()
+        limit = 100
+        offset = 0
+        while True:
+            resp = self._make_request(
+                method="GET", endpoint="dags", params={"tags": tags, "limit": limit, "offset": offset}
+            )
+            dag_ids |= {dag["dag_id"] for dag in resp["dags"]}
+            offset += len(resp["dags"])
+            if not resp["dags"] or offset >= resp["total_entries"]:
+                return dag_ids
+
+    def wait_for_dag_ids(
+        self, expected: set[str], tags: list[str], timeout: int = 120, check_interval: int = 3
+    ):
+        """Poll until the live Dags with *tags* are exactly *expected*.
+
+        Raises ``TimeoutError`` naming the expected and the last seen Dag IDs after *timeout* seconds.
+        """
+        start = time.monotonic()
+        seen: set[str] = set()
+        while time.monotonic() - start < timeout:
+            seen = self.list_dag_ids(tags)
+            if seen == expected:
+                return
+            time.sleep(check_interval)
+        raise TimeoutError(
+            f"Dag IDs did not become {sorted(expected)} within {timeout}s. Last seen: {sorted(seen)}"
+        )
+
     def un_pause_dag(self, dag_id: str):
         self.wait_for_dag(dag_id)
         return self._make_request(
@@ -215,6 +247,14 @@ class AirflowClient:
         return self._make_request(
             method="GET",
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
+        )
+
+    def set_task_instance_state(self, dag_id: str, run_id: str, task_id: str, state: str):
+        """Set the state of a task instance, as marking it in the UI does."""
+        return self._make_request(
+            method="PATCH",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}",
+            json={"new_state": state},
         )
 
     def get_hitl_detail(self, dag_id: str, run_id: str, task_id: str, map_index: int = -1):

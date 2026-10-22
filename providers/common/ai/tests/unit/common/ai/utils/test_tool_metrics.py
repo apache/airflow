@@ -20,15 +20,15 @@ import asyncio
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from pydantic_ai import RunContext
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import ApprovalRequired, CallDeferred, ModelRetry
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets.combined import CombinedToolset
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.durable.caching_toolset import CachingToolset
-from airflow.providers.common.ai.durable.step_counter import DurableStepCounter
+from airflow.providers.common.ai.durable import AirflowDurability
+from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.tool_metrics import (
     calling_framework,
@@ -36,7 +36,7 @@ from airflow.providers.common.ai.utils.tool_metrics import (
 )
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset, ensure_masked
 
-from unit.common.ai.operators.test_agent import _InMemoryDurableStorage
+from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
 from unit.common.ai.utils.test_toolset_base import _call as _call_scripted, _ScriptedToolset
 
@@ -55,6 +55,20 @@ def _sql_toolset(**hook_kwargs) -> SQLToolset:
     ts = SQLToolset("pg_default")
     ts._hook = _make_mock_db_hook(**hook_kwargs)
     return ts
+
+
+def _run_two_attempts(build_toolset, tool_name: str) -> None:
+    """Run a durable agent that calls ``tool_name`` twice over one journal: live, then replayed."""
+    storage = MemoryStorage()
+    for _ in range(2):
+        agent = Agent(
+            TestModel(call_tools=[tool_name]),
+            name="analyst",
+            toolsets=[build_toolset()],
+            capabilities=[AirflowDurability()],
+        )
+        with journal_scope(DurableJournal(storage)):
+            agent.run_sync("go")
 
 
 def _call(toolset, name: str, args: dict):
@@ -116,18 +130,7 @@ class TestToolsetsCountTheirCalls:
         stats.incr.assert_not_called()
 
     def test_a_durable_replay_is_counted_as_replayed_not_executed(self, stats):
-        storage = _InMemoryDurableStorage()
-        for _ in range(2):
-            cached = CachingToolset(
-                wrapped=ensure_masked(_sql_toolset()), storage=storage, counter=DurableStepCounter()
-            )
-            ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage(), tool_call_id="c1")
-
-            async def run(toolset=cached, ctx=ctx):
-                tools = await toolset.get_tools(ctx)
-                return await toolset.call_tool("list_tables", {}, ctx, tools["list_tables"])
-
-            asyncio.run(run())
+        _run_two_attempts(lambda: ensure_masked(_sql_toolset()), "list_tables")
 
         assert [c.kwargs["tags"]["outcome"] for c in stats.incr.call_args_list] == ["executed", "replayed"]
 
@@ -149,31 +152,13 @@ class TestOutcomes:
         assert [c.kwargs["tags"]["outcome"] for c in stats.incr.call_args_list] == outcomes
 
     def test_a_replay_through_a_wrapper_counts_the_toolset_underneath(self, stats):
-        storage = _InMemoryDurableStorage()
-        for _ in range(2):
-            wrapped = ensure_masked(_sql_toolset().prefixed("wh"))
-            cached = CachingToolset(wrapped=wrapped, storage=storage, counter=DurableStepCounter())
-            ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage(), tool_call_id="c1")
-
-            async def run(toolset=cached, ctx=ctx):
-                tools = await toolset.get_tools(ctx)
-                return await toolset.call_tool("wh_list_tables", {}, ctx, tools["wh_list_tables"])
-
-            asyncio.run(run())
+        _run_two_attempts(lambda: ensure_masked(_sql_toolset().prefixed("wh")), "wh_list_tables")
 
         assert [c.kwargs["tags"]["outcome"] for c in stats.incr.call_args_list] == ["executed", "replayed"]
 
     def test_a_replay_inside_a_combined_toolset_counts_the_toolset_it_came_from(self, stats):
-        storage = _InMemoryDurableStorage()
-        for _ in range(2):
-            combined = CombinedToolset([_sql_toolset(), FunctionToolset([])])
-            cached = CachingToolset(wrapped=combined, storage=storage, counter=DurableStepCounter())
-            ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage(), tool_call_id="c1")
-
-            async def run(toolset=cached, ctx=ctx):
-                tools = await toolset.get_tools(ctx)
-                return await toolset.call_tool("list_tables", {}, ctx, tools["list_tables"])
-
-            asyncio.run(run())
+        _run_two_attempts(
+            lambda: CombinedToolset([_sql_toolset(), FunctionToolset([], id="none")]), "list_tables"
+        )
 
         assert [c.kwargs["tags"]["outcome"] for c in stats.incr.call_args_list] == ["executed", "replayed"]

@@ -266,6 +266,17 @@ def update_hitl_detail(
                 "and is not allowed to write again."
             ),
         )
+    if (
+        update_hitl_detail_payload.request_created_at is not None
+        and update_hitl_detail_payload.request_created_at != hitl_detail_model.created_at
+    ):
+        # The task asked again since the client loaded the request, so this answer was given
+        # while reading other content (an operator that pauses more than once in one run).
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The Human-in-the-loop request was replaced after it was loaded. Reload it and answer "
+            "the request that is waiting now.",
+        )
 
     user_id = user.get_id()
     user_name = user.get_name()

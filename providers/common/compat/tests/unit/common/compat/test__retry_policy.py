@@ -128,11 +128,11 @@ class TestChainRetryPolicyBackport:
 
     def test_a_single_policy_must_be_wrapped_in_a_sequence(self):
         with pytest.raises(TypeError, match="wrap the single policy in a list"):
-            ChainRetryPolicy(self.floor)  # type: ignore[arg-type]
+            ChainRetryPolicy(self.floor)
 
     def test_members_must_be_retry_policies(self):
         with pytest.raises(TypeError, match=r"policies\[1\] must be a RetryPolicy, got str"):
-            ChainRetryPolicy([self.floor, "rules"])  # type: ignore[list-item]
+            ChainRetryPolicy([self.floor, "rules"])
 
     def test_accepts_any_sequence(self):
         policy = ChainRetryPolicy((self.fail_403, self.floor))
@@ -292,6 +292,22 @@ class TestChainRetryPolicyBackport:
 
         assert decision.retry_delay == timedelta(seconds=7)
         assert decision.reason == "Fixed: retry"
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS or not hasattr(RetryAction, "RESCHEDULE"),
+        reason="RESCHEDULE needs Airflow 3.5+",
+    )
+    def test_reschedule_keeps_its_bounds(self):
+        decided = RetryDecision.reschedule(timedelta(minutes=10), max_reschedules=6, reason="quota full")
+        policy = ChainRetryPolicy([self.fail_403, self._policy(decided)])
+
+        decision = policy.evaluate(ConnectionError("x"), try_number=1, max_tries=0)
+
+        assert decision == RetryDecision.reschedule(
+            timedelta(minutes=10),
+            max_reschedules=6,
+            reason="Fixed: quota full (after ExceptionRetryPolicy: no decision)",
+        )
 
     def test_nested_chains_compose(self):
         inner = ChainRetryPolicy([self.fail_403])

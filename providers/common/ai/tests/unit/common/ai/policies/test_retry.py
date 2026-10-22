@@ -52,6 +52,10 @@ from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryPolicy, RetryRule
 from airflow.sdk.log import mask_secret
 
+requires_reschedule = pytest.mark.skipif(
+    not hasattr(RetryAction, "RESCHEDULE"), reason="RESCHEDULE needs Airflow 3.5+"
+)
+
 HOOK = "airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook"
 
 
@@ -114,13 +118,13 @@ class TestErrorCategory:
     def test_int_seconds_delay_is_rejected(self):
         """Int seconds was the shape of the removed ``suggested_delay_seconds`` field."""
         with pytest.raises(TypeError, match="must be a timedelta or None, got 60"):
-            ErrorCategory("x", delay=60)  # type: ignore[arg-type]
+            ErrorCategory("x", delay=60)
 
     @pytest.mark.parametrize("retry", ["false", None, 0])
     def test_retry_must_be_a_bool(self, retry):
         """A truthy string here would retry a category the author meant to fail."""
         with pytest.raises(TypeError, match="retry must be True or False"):
-            ErrorCategory("x", retry=retry)  # type: ignore[arg-type]
+            ErrorCategory("x", retry=retry)
 
     def test_negative_delay_is_rejected(self):
         with pytest.raises(ValueError, match="must not be negative"):
@@ -135,14 +139,14 @@ class TestErrorCategory:
         with pytest.raises(ValueError, match="ErrorCategory.min_confidence must be between 0 and 1"):
             ErrorCategory("x", min_confidence=1.5)
         with pytest.raises(TypeError, match="ErrorCategory.min_confidence must be a number"):
-            ErrorCategory("x", min_confidence="0.5")  # type: ignore[arg-type]
+            ErrorCategory("x", min_confidence="0.5")
 
 
 class TestDefaultCategories:
     def test_cannot_be_mutated(self):
         """The default table is shared by every policy instance, so it must be read-only."""
         with pytest.raises(TypeError):
-            DEFAULT_CATEGORIES["auth"] = ErrorCategory("x")  # type: ignore[index]
+            DEFAULT_CATEGORIES["auth"] = ErrorCategory("x")
 
     def test_documented_split(self):
         """Spelled out here on purpose: the docs list this table, so a drift shows up as a test failure."""
@@ -177,7 +181,7 @@ class TestClassifierRetryPolicyConstruction:
 
     def test_categories_must_be_a_mapping(self):
         with pytest.raises(TypeError, match="categories must be a mapping"):
-            ClassifierRetryPolicy(llm_conn_id="test", categories=[ErrorCategory("x")])  # type: ignore[arg-type]
+            ClassifierRetryPolicy(llm_conn_id="test", categories=[ErrorCategory("x")])
 
     @pytest.mark.parametrize("categories", [{}, {"only": ErrorCategory("x")}])
     def test_fewer_than_two_categories_is_rejected(self, categories):
@@ -194,7 +198,7 @@ class TestClassifierRetryPolicyConstruction:
     def test_category_values_must_be_error_categories(self):
         """A bare string is not a description here: retry and delay would have nowhere to live."""
         with pytest.raises(TypeError, match=r"categories\['a'\] must be an ErrorCategory, got str"):
-            ClassifierRetryPolicy(llm_conn_id="test", categories={"a": "flaky", "b": ErrorCategory("y")})  # type: ignore[dict-item]
+            ClassifierRetryPolicy(llm_conn_id="test", categories={"a": "flaky", "b": ErrorCategory("y")})
 
     def test_category_bar_needs_a_policy_bar_to_inherit(self):
         with pytest.raises(
@@ -469,9 +473,9 @@ class TestClassification:
         assert (first.action, second.action) == (RetryAction.RETRY, RetryAction.FAIL)
         prompts = [call.args[0] for call in agent.run_sync.call_args_list]
         assert "ConnectionError: reset" in prompts[0]
-        assert "attempt 1 of 3" in prompts[0]
+        assert "attempt 1 of 4" in prompts[0]
         assert "PermissionError: expired" in prompts[1]
-        assert "attempt 2 of 3" in prompts[1]
+        assert "attempt 2 of 4" in prompts[1]
 
     @patch(HOOK, autospec=True)
     def test_custom_instructions_forwarded_to_agent(self, mock_hook_cls):
@@ -657,7 +661,7 @@ class TestConfidenceGate:
         assert decision.reason == "category=auth confidence=0.05 threshold=n/a action=fail"
 
 
-PROMPT_HEADER = "Classify this error from a data pipeline task (attempt 2 of 4):\n\n"
+PROMPT_HEADER = "Classify this error from a data pipeline task (attempt 2 of 5):\n\n"
 
 POLICY_CLASSES = [
     pytest.param(ClassifierRetryPolicy, id="classifier"),
@@ -688,13 +692,15 @@ def _truncated_read(*, explicit: bool = True) -> Exception:
     )
 
 
-def _prompt_for(mock_hook_cls, policy_cls, exception, **kwargs) -> str:
+def _prompt_for(
+    mock_hook_cls, policy_cls, exception, *, try_number: int = 2, max_tries: int = 4, **kwargs
+) -> str:
     """Evaluate ``exception`` under a ``policy_cls`` built with ``kwargs`` and return the prompt the model got."""
     if policy_cls is ClassifierRetryPolicy:
         agent = _install(mock_hook_cls, _agent("data"))
     else:
         agent = _install(mock_hook_cls, _open_agent("data", should_retry=False))
-    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=2, max_tries=4)
+    policy_cls(llm_conn_id="test", **kwargs).evaluate(exception, try_number=try_number, max_tries=max_tries)
     return agent.run_sync.call_args.args[0]
 
 
@@ -708,7 +714,36 @@ class TestPrompt:
 
         prompt = agent.run_sync.call_args.args[0]
         assert "ValueError: bad column type" in prompt
-        assert "attempt 2 of 5" in prompt
+        assert "attempt 2 of 6" in prompt
+
+    @pytest.mark.parametrize(
+        ("try_number", "max_tries", "expected"),
+        [
+            pytest.param(1, 1, "attempt 1 of 2", id="first-try-with-one-retry-left"),
+            pytest.param(2, 1, "attempt 2 of 2", id="last-try"),
+            pytest.param(3, 3, "attempt 3 of 4", id="after-clear"),
+        ],
+    )
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_counts_the_first_try_in_the_attempt_total(
+        self, mock_hook_cls, policy_cls, try_number, max_tries, expected
+    ):
+        """
+        ``max_tries`` is the last try number that may still retry, so the final attempt is one more.
+
+        It equals ``retries`` on a fresh run; a clear adds the tries already used, so a ``retries=1``
+        task cleared after two tries runs try 3 with ``max_tries=3``.
+        """
+        prompt = _prompt_for(
+            mock_hook_cls,
+            policy_cls,
+            ValueError("bad column type"),
+            try_number=try_number,
+            max_tries=max_tries,
+        )
+
+        assert f"({expected})" in prompt
 
     @pytest.mark.enable_redact
     @patch(HOOK, autospec=True)
@@ -724,7 +759,7 @@ class TestPrompt:
         )
 
         assert agent.run_sync.call_args.args[0] == (
-            "Classify this error from a data pipeline task (attempt 1 of 3):\n\n"
+            "Classify this error from a data pipeline task (attempt 1 of 4):\n\n"
             "ConnectionError: could not authenticate with password ***"
         )
 
@@ -1047,7 +1082,7 @@ class TestOnUncertain:
 
     def test_fallback_policy_must_be_a_retry_policy(self):
         with pytest.raises(TypeError, match="fallback_policy must be a RetryPolicy"):
-            ClassifierRetryPolicy(llm_conn_id="jev", min_confidence=0.5, fallback_policy="llm")  # type: ignore[arg-type]
+            ClassifierRetryPolicy(llm_conn_id="jev", min_confidence=0.5, fallback_policy="llm")
 
     @patch(HOOK, autospec=True)
     def test_confident_classifier_answer_never_consults_the_llm(self, mock_hook_cls):
@@ -1135,6 +1170,37 @@ class TestOnUncertain:
         assert decision.retry_delay == timedelta(seconds=9)
         assert decision.reason == "escalated (model_error)"
 
+    @requires_reschedule
+    def test_reschedule_from_fallback_policy_keeps_its_bounds(self):
+        inner = MagicMock(spec=LLMRetryPolicy)
+        inner.evaluate.return_value = RetryDecision.reschedule(
+            timedelta(minutes=10), max_reschedules=6, reason="quota full"
+        )
+        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, fallback_policy=inner)
+
+        decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision == RetryDecision.reschedule(
+            timedelta(minutes=10), max_reschedules=6, reason="escalated (model_error); quota full"
+        )
+
+    @requires_reschedule
+    def test_reschedule_from_fallback_rules_keeps_its_bounds(self):
+        rule = RetryRule(
+            exception=RuntimeError,
+            action=RetryAction.RESCHEDULE,
+            reschedule_timeout=timedelta(hours=4),
+            reason="quota full",
+        )
+        policy = ClassifierRetryPolicy(llm_conn_id="nonexistent", min_confidence=0.8, fallback_rules=[rule])
+
+        decision = policy.evaluate(RuntimeError("?"), try_number=1, max_tries=3)
+
+        assert decision == RetryDecision.reschedule(
+            reschedule_timeout=timedelta(hours=4),
+            reason="classifier answer not applied (model_error); quota full",
+        )
+
     @pytest.mark.parametrize(
         "inner_decision",
         [
@@ -1150,7 +1216,7 @@ class TestOnUncertain:
         ],
     )
     def test_any_default_from_fallback_policy_lets_the_outer_rules_run(self, inner_decision, caplog):
-        """Only RETRY or FAIL ends the chain; the reason text on a DEFAULT does not make it a decision."""
+        """Only a decision other than DEFAULT ends the chain; the reason text on a DEFAULT does not make it one."""
         inner = MagicMock(spec=LLMRetryPolicy)
         inner.evaluate.return_value = inner_decision
         policy = ClassifierRetryPolicy(

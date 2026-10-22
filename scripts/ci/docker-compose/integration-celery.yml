@@ -22,6 +22,7 @@ services:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
       breeze.description: "Integration required for Celery executor tests."
     volumes:
       - rabbitmq-db-volume:/var/lib/rabbitmq
@@ -55,7 +56,9 @@ volumes:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
   redis-db-volume:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"

@@ -20,6 +20,7 @@ import multiprocessing as mp
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from collections.abc import Callable
@@ -2206,7 +2207,16 @@ def _run_complete_tests(
                 f"\n[info]Provisioning lang-SDK test env for Python {python}, "
                 f"Kubernetes {kubernetes_version}\n"
             )
-            _setup_lang_sdk_test(python=python, kubernetes_version=kubernetes_version, output=output)
+            try:
+                _setup_lang_sdk_test(python=python, kubernetes_version=kubernetes_version, output=output)
+            except subprocess.CalledProcessError as e:
+                # The cluster is deleted when this returns, so the pod logs have to be exported now
+                # for the failing release to be diagnosable at all.
+                _logs(python=python, kubernetes_version=kubernetes_version)
+                return (
+                    e.returncode,
+                    f"Lang-SDK test setup failed for Python {python}, Kubernetes {kubernetes_version}",
+                )
         get_console(output=output).print(
             f"\n[info]Running tests Python {python}, Kubernetes {kubernetes_version}\n"
         )

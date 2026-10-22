@@ -113,11 +113,6 @@ class ObjectStorageToolset(AirflowToolset):
     """
     Give an agent read-only access to the files under one object-storage path.
 
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
-
     Exposes three tools, ``list_files``, ``get_file_info`` and ``read_file``, rooted at
     ``path``, which is any location Airflow's
     :class:`~airflow.sdk.ObjectStoragePath` can open: ``s3://``, ``gs://``, ``abfs://``,

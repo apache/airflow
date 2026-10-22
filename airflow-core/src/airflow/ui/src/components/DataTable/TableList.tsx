@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { Button, Icon, Table, Text } from "@chakra-ui/react";
 import { flexRender, type RowData, type Table as TanStackTable } from "@tanstack/react-table";
@@ -29,10 +29,15 @@ import type { DataTableFeatures } from "./features";
 
 type TableListProps<TData extends RowData> = {
   readonly noRowsMessage?: ReactNode;
+  readonly renderSubComponent?: (row: TData) => ReactNode;
   readonly table: TanStackTable<DataTableFeatures, TData>;
 };
 
-export const TableList = <TData extends RowData>({ noRowsMessage, table }: TableListProps<TData>) => {
+export const TableList = <TData extends RowData>({
+  noRowsMessage,
+  renderSubComponent,
+  table,
+}: TableListProps<TData>) => {
   "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
   const { t: translate } = useTranslation("components");
   const { rows } = table.getRowModel();
@@ -115,13 +120,22 @@ export const TableList = <TData extends RowData>({ noRowsMessage, table }: Table
           </Table.Row>
         ) : (
           rows.map((row) => (
-            <Table.Row key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <Table.Cell data-testid={`table-cell-${cell.column.id}`} key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </Table.Cell>
-              ))}
-            </Table.Row>
+            <Fragment key={row.id}>
+              <Table.Row>
+                {row.getVisibleCells().map((cell) => (
+                  <Table.Cell data-testid={`table-cell-${cell.column.id}`} key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </Table.Cell>
+                ))}
+              </Table.Row>
+              {renderSubComponent !== undefined && row.getIsExpanded() ? (
+                <Table.Row data-testid="table-sub-row">
+                  <Table.Cell colSpan={row.getVisibleCells().length}>
+                    {renderSubComponent(row.original)}
+                  </Table.Cell>
+                </Table.Row>
+              ) : undefined}
+            </Fragment>
           ))
         )}
       </Table.Body>

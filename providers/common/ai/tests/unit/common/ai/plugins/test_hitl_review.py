@@ -38,7 +38,6 @@ from airflow.models.xcom import XComModel
 from airflow.providers.common.ai.plugins.hitl_review import (
     HITLReviewPlugin,
     _build_session_response,
-    _get_base_url_path,
     _get_map_index,
     _is_task_completed,
     _read_xcom,
@@ -680,16 +679,6 @@ class TestWriteXcom:
         _clear_db()
 
 
-class TestGetBaseUrlPath:
-    def test_default_base_url(self):
-        with conf_vars({("api", "base_url"): "/"}):
-            assert _get_base_url_path("/hitl-review") == "/hitl-review"
-
-    def test_http_base_url_extracts_path(self):
-        with conf_vars({("api", "base_url"): "http://example.com/airflow/"}):
-            assert _get_base_url_path("/hitl-review") == "/airflow/hitl-review"
-
-
 class TestIsTaskCompleted:
     """Test _is_task_completed."""
 
@@ -1067,7 +1056,7 @@ class TestRegionalReview:
             run_id=dr.run_id,
             dag_version_id=first.dag_version_id,
             region_id=first.region_id,
-            region_index=1,
+            region_index=2,
             state="deferred",
         )
         session.add(second)
@@ -1122,19 +1111,19 @@ class TestRegionalReview:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["status"] == expected_status
-        assert data["current_output"] == "pass 1"
-        assert data["conversation"][0]["content"] == "pass 1"
+        assert data["current_output"] == "pass 2"
+        assert data["conversation"][0]["content"] == "pass 2"
         assert data["task_completed"] is False
         session.expire_all()
         earlier = session.scalar(
             select(XComModel.value).where(
                 XComModel.key == XCOM_AGENT_SESSION,
                 XComModel.region_id == ti.region_id,
-                XComModel.region_index == 0,
+                XComModel.region_index == 1,
             )
         )
         assert earlier["status"] == "pending_review"
-        assert earlier["current_output"] == "pass 0"
+        assert earlier["current_output"] == "pass 1"
 
     @mock.patch("airflow.providers.common.ai.plugins.hitl_review.AIRFLOW_V_3_4_PLUS", False)
     def test_region_selectors_are_rejected_on_hosts_without_regions(self, regional_review, test_client):
@@ -1192,7 +1181,7 @@ class TestForkedRegionReview:
             run_id=dr.run_id,
             dag_version_id=first.dag_version_id,
             region_id=region.id,
-            region_index=1,
+            region_index=2,
             state="failed",
         )
         forked = TaskInstance(
@@ -1200,7 +1189,7 @@ class TestForkedRegionReview:
             run_id=dr.run_id,
             dag_version_id=first.dag_version_id,
             region_id=fork.id,
-            region_index=1,
+            region_index=2,
             state="running",
         )
         session.add_all([beyond_cut, forked])
@@ -1361,7 +1350,7 @@ class TestMappedReviewInLoop:
             run_id=first_region.run_id,
             node_id=first_region.node_id,
             parent_region_id=first_region.parent_region_id,
-            parent_region_index=1,
+            parent_region_index=2,
             session=session,
         )
         session.flush()

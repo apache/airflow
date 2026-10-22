@@ -30,10 +30,12 @@ import structlog
 from starlette.requests import Request
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
     from fastapi import FastAPI
 
 logger = structlog.get_logger(logger_name=__name__)
+
+TRIGGER_TI_ID_HEADER = "Airflow-Trigger-Ti-Id"
 
 
 # Finalizer arguments must not reference the transport, or it cannot be garbage collected.
@@ -51,12 +53,16 @@ def _shutdown_loop(
     thread.join(timeout=5)
 
 
-def _configure_in_process_auth(app: FastAPI) -> None:
+def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None) -> None:
     from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
     from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
     from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
     from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
-    from airflow.api_fastapi.execution_api.security import _IN_PROCESS_NON_TI_CALLER, _jwt_bearer
+    from airflow.api_fastapi.execution_api.security import (
+        _IN_PROCESS_NON_TI_CALLER,
+        _IN_PROCESS_TRIGGERER_ID,
+        _jwt_bearer,
+    )
 
     async def always_allow(request: Request):
         from uuid import UUID
@@ -71,6 +77,8 @@ def _configure_in_process_auth(app: FastAPI) -> None:
             "task_instance_id" not in request.path_params
             and "X-Airflow-In-Process-Attempt-Id" not in request.headers
         )
+        if triggerer_id is not None:
+            request.scope[_IN_PROCESS_TRIGGERER_ID] = triggerer_id
         claims = TIClaims(scope="execution")
         return TIToken(id=ti_id, claims=claims)
 
@@ -86,10 +94,11 @@ class InProcessExecutionAPI:
     A helper class to make it possible to run the ExecutionAPI "in-process".
 
     The sync version of this makes use of a2wsgi which runs the async loop in a separate thread. This is
-    needed so that we can use the sync httpx client
+    needed so that we can use the sync httpx2 client
     """
 
     _app: FastAPI | None = None
+    triggerer_id: int | None = None
 
     @cached_property
     def app(self):
@@ -105,13 +114,14 @@ class InProcessExecutionAPI:
             self._app = create_task_execution_api_app(lifespan=attrs.evolve(lifespan, registry=registry))
             # Auth dependency overrides bypass validation, so the stub skips validator setup in lifespan().
             registry.register_value(JWTValidator, None)
-            _configure_in_process_auth(self._app)
+            _configure_in_process_auth(self._app, triggerer_id=self.triggerer_id)
 
         return self._app
 
+    # httpx2, not httpx: the only consumers are Task SDK clients, which subclass httpx2.Client.
     @cached_property
-    def transport(self) -> httpx.WSGITransport:
-        import httpx
+    def transport(self) -> httpx2.WSGITransport:
+        import httpx2
         from a2wsgi import ASGIMiddleware
 
         from airflow import settings
@@ -133,7 +143,7 @@ class InProcessExecutionAPI:
         # Wait for startup so callers see a ready app and the finalizer can close an entered context.
         asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
 
-        transport = httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
+        transport = httpx2.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
         # Callers can retain the transport after dropping this instance; finalizing on self would
         # stop the loop while requests still need it.
@@ -142,7 +152,7 @@ class InProcessExecutionAPI:
         return transport
 
     @cached_property
-    def atransport(self) -> httpx.ASGITransport:
-        import httpx
+    def atransport(self) -> httpx2.ASGITransport:
+        import httpx2
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx2.ASGITransport(app=self.app)

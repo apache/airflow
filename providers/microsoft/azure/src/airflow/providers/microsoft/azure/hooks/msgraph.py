@@ -41,7 +41,7 @@ from io import BytesIO
 from json import JSONDecodeError
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import quote, urljoin, urlparse
 
 # Stays on httpx (not httpx2): the client below is handed to kiota_http, which builds and
@@ -71,7 +71,7 @@ from airflow.providers.common.compat.connection import get_async_connection, get
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, redact
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Coroutine, Iterable
 
     from azure.core.pipeline.transport._requests_basic import RequestsTransport
     from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
@@ -85,6 +85,8 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+T = TypeVar("T")
 
 
 def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -770,6 +772,31 @@ class KiotaRequestAdapterHook(BaseHook):
             access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
             credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
             await credential._credential.close()
+
+    def run_sync(self, coroutine: Coroutine[Any, Any, T]) -> T:
+        """
+        Run a coroutine of this hook from synchronous code, such as an operator's ``execute``.
+
+        :func:`asyncio.run` tears down the event loop that the cached request adapter is bound to, so
+        the adapter is closed while that loop still runs and the next call builds a new one.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            coroutine.close()
+            raise RuntimeError(
+                "run_sync cannot be called from a running event loop, await the coroutine instead."
+            )
+
+        async def run_and_close() -> T:
+            try:
+                return await coroutine
+            finally:
+                await self.close()
+
+        return asyncio.run(run_and_close())
 
     def request_information(
         self,

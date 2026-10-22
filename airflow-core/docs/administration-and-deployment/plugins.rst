@@ -360,6 +360,7 @@ definitions in Airflow.
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
+        # The server preloads the bundle of a "base" app from a plugin with no team, so it downloads alongside the UI's own scripts.
         "destination": "task",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
@@ -420,7 +421,7 @@ and compared as strings, so numbers and booleans need no quoting rules of their 
 
 An **unqualified path is rooted at the entity the destination is about** — on ``dag_run``,
 ``state`` is the run's state; on ``task_instance``, the task instance's. A path may instead
-name a related record as its first segment: ``dag``, ``dag_run``, ``task`` or
+name a related record as its first segment: ``asset``, ``dag``, ``dag_run``, ``task`` or
 ``task_instance``. Traversing a list fans out across it, so ``dag.tags.name`` collects every
 tag name and matches if any of them is listed.
 
@@ -448,7 +449,10 @@ resolves:
    * - ``task_instance``
      - ``task_instance``
      - ``dag``, ``dag_run``, ``task``, ``task_instance``
-   * - ``nav``, ``base``, ``dashboard``, ``asset``
+   * - ``asset``
+     - ``asset``
+     - ``asset``
+   * - ``nav``, ``base``, ``dashboard``
      - —
      - none, so every path is skipped
 

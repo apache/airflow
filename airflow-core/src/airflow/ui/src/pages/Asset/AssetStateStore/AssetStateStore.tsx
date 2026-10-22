@@ -133,6 +133,7 @@ const getColumns = ({
         <DeleteAssetStateStoreButton assetId={assetId} storeKey={original.key} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -145,7 +146,7 @@ export const AssetStateStore = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
-  const { data, error, isFetching, isLoading } = useAssetStateStoreServiceListAssetStateStore({
+  const { data, error, isLoading } = useAssetStateStoreServiceListAssetStateStore({
     assetId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
@@ -162,7 +163,6 @@ export const AssetStateStore = () => {
         displayMode="table"
         hideRowCountHeading
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="assets:assetStateStore.entry"
         noRowsMessage={translate("assetStateStore.emptyState")}
