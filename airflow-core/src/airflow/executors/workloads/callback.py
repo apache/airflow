@@ -40,7 +40,8 @@ log = structlog.get_logger(__name__)
 class CallbackFetchMethod(str, Enum):
     """Methods used to fetch callback at runtime."""
 
-    # For future use once Dag Processor callbacks (on_success_callback/on_failure_callback) get moved to executors
+    # For Dag processor callbacks (Dag and task callbacks, and emails), which the worker reads from
+    # the parsed Dag
     DAG_ATTRIBUTE = "dag_attribute"
 
     # For deadline callbacks since they import callbacks through the import path
@@ -51,6 +52,15 @@ class CallbackFetchMethod(str, Enum):
 # passed to the callback as they are, as for callbacks stored before the key was introduced.
 CALLBACK_KWARGS_ENCODING_KEY = "kwargs_encoding"
 SERDE_KWARGS_ENCODING = "serde"
+
+# Keys in ``CallbackDTO.data`` set by the scheduler when it routes a Dag processor callback. Times
+# are ISO 8601 strings. The timeout is stamped by the scheduler so the worker enforcing it and the
+# scheduler reaping a lost callback agree on it.
+START_DEADLINE_KEY = "start_deadline"
+STARTED_AT_KEY = "started_at"
+EXECUTION_TIMEOUT_KEY = "execution_timeout"
+# Holds the serialized callback request; workers read it from the Execution API, not the workload.
+CALLBACK_REQUEST_DATA_KEY = "req_data"
 
 
 class CallbackDTO(BaseModel):
@@ -132,8 +142,16 @@ class ExecuteCallback(BaseDagBundleWorkload):
             )
         fname = f"executor_callbacks/{dag_run.dag_id}/{dag_run.run_id}/{callback.id}"
 
+        data = callback.data
+        if callback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
+            # The request carries the run's context, which may hold run conf: the worker reads it
+            # from the Execution API rather than from executor transports, which also limit its size.
+            data = {key: value for key, value in data.items() if key != CALLBACK_REQUEST_DATA_KEY}
+
         return cls(
-            callback=CallbackDTO.model_validate(callback, from_attributes=True),
+            callback=CallbackDTO(
+                id=str(callback.id), fetch_method=CallbackFetchMethod(callback.fetch_method), data=data
+            ),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc or ""),
             token=cls.generate_token(str(callback.id), generator),
             log_path=fname,

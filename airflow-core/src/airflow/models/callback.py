@@ -40,7 +40,10 @@ from airflow.configuration import conf
 from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import (
     CALLBACK_KWARGS_ENCODING_KEY,
+    CALLBACK_REQUEST_DATA_KEY,
     SERDE_KWARGS_ENCODING,
+    START_DEADLINE_KEY,
+    STARTED_AT_KEY,
     CallbackFetchMethod,
 )
 from airflow.models import Base
@@ -229,6 +232,29 @@ class Callback(Base, BaseWorkload):
         """Return the executor name for scheduler routing."""
         return self.data.get("executor")
 
+    @property
+    def start_deadline(self) -> datetime | None:
+        """Return when a routed callback must have started by, or ``None`` if it has no deadline."""
+        value = self.data.get(START_DEADLINE_KEY)
+        return datetime.fromisoformat(value) if value else None
+
+    @property
+    def started_at(self) -> datetime | None:
+        """Return when the callback's worker exchanged its token, if it recorded that."""
+        value = self.data.get(STARTED_AT_KEY)
+        return datetime.fromisoformat(value) if value else None
+
+    def mark_started(self, when: datetime) -> None:
+        # Reassigned rather than mutated so the JSON column is flagged as changed.
+        self.data = {**self.data, STARTED_AT_KEY: when.isoformat()}
+
+    def get_callback_request(self) -> CallbackRequest | None:
+        """Return the Dag processor callback request this callback stores, or ``None`` if it has none."""
+        if (req_class := self.data.get("req_class")) is None:
+            return None
+        request_class = getattr(import_module("airflow.callbacks.callback_requests"), req_class)
+        return request_class.from_json(self.data[CALLBACK_REQUEST_DATA_KEY])
+
     @staticmethod
     def create_from_sdk_def(callback_def: CallbackDefinitionProtocol, **kwargs) -> Callback:
         # Cannot check actual type using isinstance() because that would require SDK import
@@ -337,6 +363,11 @@ class ExecutorCallback(Callback):
         self.data[CALLBACK_KWARGS_ENCODING_KEY] = SERDE_KWARGS_ENCODING
 
     def __repr__(self):
+        if self.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
+            return (
+                f"{self.data.get('req_class')} for Dag {self.get_dag_id()} "
+                f"on {self.data.get('executor') or 'default'} executor"
+            )
         return (
             f"{self.data['path']}({_format_kwargs_for_display(self.data['kwargs'])}) "
             f"on {self.data.get('executor', 'default')} executor"
@@ -355,11 +386,9 @@ class DagProcessorCallback(Callback):
         self.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
         self.state = None
         self.bundle_name = callback.bundle_name
-        self.data |= {"req_class": callback.__class__.__name__, "req_data": callback.to_json()}
+        self.data |= {"req_class": callback.__class__.__name__, CALLBACK_REQUEST_DATA_KEY: callback.to_json()}
 
     def get_callback_request(self) -> CallbackRequest:
-        module = import_module("airflow.callbacks.callback_requests")
-        callback_request_class = getattr(module, self.data["req_class"])
-        # Get the function (from the instance) that we need to call
-        from_json = getattr(callback_request_class, "from_json")
-        return from_json(self.data["req_data"])
+        if (request := super().get_callback_request()) is None:
+            raise ValueError(f"Dag processor callback {self.id} stores no callback request")
+        return request

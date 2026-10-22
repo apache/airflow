@@ -3673,3 +3673,39 @@ callbacks:
       type: integer
       example: "300"
       default: "0"
+    route_dag_processor_callbacks:
+      description: |
+        Run Dag success and failure callbacks, task failure and retry callbacks, and the task emails
+        that a task could not send itself on executors instead of in a Dag processor.
+
+        A task's callbacks and emails run on the task's executor and queue, and a Dag's callbacks on
+        the default executor of the Dag's team. Callbacks for a task that never started, such as one
+        failed while stuck in the queue, run on the team's default executor and queue. The worker
+        parses the Dag file at the Dag run's bundle version. Callbacks whose executor cannot run
+        callbacks, and callbacks of Lang-SDK Dags, stay with the Dag processor.
+
+        Enable this only once every scheduler and worker runs a version that supports it. Turning it
+        off leaves callbacks that were already routed to their executors.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
+    routed_callback_execution_timeout:
+      description: |
+        Maximum execution time in seconds for a callback routed by
+        ``[callbacks] route_dag_processor_callbacks``. The worker terminates a callback that runs
+        longer, and the scheduler fails a routed callback whose worker has not reported it finished
+        within this time plus a grace period. 0 means no timeout.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "300"
+    max_routed_callbacks_per_loop:
+      description: |
+        The maximum number of Dag processor callbacks each scheduler loop routes to executors.
+        Routed callbacks take executor slots from ``[core] parallelism`` and are sent before tasks,
+        so this limits how much a burst of callbacks delays tasks.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "20"

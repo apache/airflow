@@ -604,6 +604,28 @@ class TestGetTeamNameDep:
 
         assert result == "team_a"
 
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("async_db_engine")
+    async def test_callback_token_resolves_the_team_of_its_signed_bundle(self, session):
+        """A callback's token has no task instance to resolve its team from, so its bundle claim does."""
+        clear_db_dag_bundles()
+        clear_db_teams()
+        bundle = DagBundleModel(name="callback_bundle")
+        bundle.teams.append(Team(name="team_a"))
+        session.add(bundle)
+        session.commit()
+        token = TIToken(id=UUID(int=3), claims=TIClaims(scope="execution", bundle_name="callback_bundle"))
+
+        try:
+            with conf_vars({("core", "multi_team"): "True"}):
+                result = await get_team_name_dep(token=token, dag_bundle=None)
+        finally:
+            clear_db_dag_bundles()
+            clear_db_teams()
+
+        assert result == "team_a"
+
 
 _TOKEN_TYPES: dict[type, type[ExecutionToken]] = {
     TIClaims: TIToken,

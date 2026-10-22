@@ -37,7 +37,9 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     AssetStateStoreResponse,
+    CallbackState,
     ConnectionResponse,
+    DagCallbackContext,
     DagResponse,
     DagRunState,
     DagRunStateResponse,
@@ -2452,3 +2454,52 @@ class TestCallbackOperations:
         with pytest.raises(ServerResponseError) as err:
             client.callbacks.run(callback_id)
         assert err.value.response.status_code == 409
+
+    def test_get_context_returns_the_callback_context(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "GET"
+            assert request.url.path == f"/callbacks/{callback_id}/context"
+            return httpx2.Response(
+                status_code=200,
+                json={
+                    "context": {
+                        "type": "DagCallback",
+                        "dag_id": "test_dag",
+                        "run_id": "test_run",
+                        "is_failure_callback": False,
+                    }
+                },
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        context = client.callbacks.get_context(callback_id).context
+
+        assert context == DagCallbackContext(
+            type="DagCallback", dag_id="test_dag", run_id="test_run", is_failure_callback=False
+        )
+
+    @pytest.mark.parametrize(
+        ("state", "output", "expected_body"),
+        [
+            pytest.param(CallbackState.SUCCESS, None, {"state": "success", "output": None}, id="success"),
+            pytest.param(
+                CallbackState.FAILED,
+                "x" * 2001,
+                {"state": "failed", "output": "x" * 2000},
+                id="failed-truncated",
+            ),
+        ],
+    )
+    def test_update_state_reports_the_terminal_state(self, state, output, expected_body):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == f"/callbacks/{callback_id}/state"
+            assert json.loads(request.read()) == expected_body
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.callbacks.update_state(callback_id, state, output)

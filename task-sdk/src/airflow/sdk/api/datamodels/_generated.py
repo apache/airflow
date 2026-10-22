@@ -63,6 +63,35 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
+class CallbackState(str, Enum):
+    """
+    All possible states of callbacks.
+    """
+
+    SCHEDULED = "scheduled"
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class Output(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="Output")]
+
+
+class CallbackTerminalStatePayload(BaseModel):
+    """
+    The outcome a worker reports for a callback it ran.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: CallbackState
+    output: Annotated[Output | None, Field(title="Output")] = None
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
@@ -219,6 +248,11 @@ class DagRunType(str, Enum):
     OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
     ASSET_MATERIALIZATION = "asset_materialization"
+
+
+class EmailType(str, Enum):
+    FAILURE = "failure"
+    RETRY = "retry"
 
 
 class HITLUser(BaseModel):
@@ -524,6 +558,25 @@ class TaskBreadcrumbsResponse(BaseModel):
     breadcrumbs: Annotated[list[dict[str, Any]], Field(title="Breadcrumbs")]
 
 
+class TaskInstance(BaseModel):
+    """
+    Schema for TaskInstance model with minimal required fields needed for Runtime.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    try_number: Annotated[int, Field(title="Try Number")]
+    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = "default"
+
+
 class TaskInstanceState(str, Enum):
     """
     All possible states that a Task Instance can be in.
@@ -699,25 +752,6 @@ class XComSequenceSliceResponse(RootModel[list[JsonValue | None]]):
             title="XComSequenceSliceResponse",
         ),
     ]
-
-
-class TaskInstance(BaseModel):
-    """
-    Schema for TaskInstance model with minimal required fields needed for Runtime.
-    """
-
-    id: Annotated[UUID, Field(title="Id")]
-    task_id: Annotated[str, Field(title="Task Id")]
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    run_id: Annotated[str, Field(title="Run Id")]
-    try_number: Annotated[int, Field(title="Try Number")]
-    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
-    map_index: Annotated[int | None, Field(title="Map Index")] = -1
-    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
-    region_index: Annotated[int | None, Field(title="Region Index")] = None
-    hostname: Annotated[str | None, Field(title="Hostname")] = None
-    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
-    queue: Annotated[str | None, Field(title="Queue")] = "default"
 
 
 class BundleInfo(BaseModel):
@@ -996,6 +1030,20 @@ class TaskArgBinding(RootModel[XComArgBinding | LiteralArgBinding]):
     root: Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")]
 
 
+class DagCallbackContext(BaseModel):
+    """
+    What a worker needs to run a Dag's success or failure callbacks.
+    """
+
+    type: Annotated[Literal["DagCallback"], Field(title="Type")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    is_failure_callback: Annotated[bool | None, Field(title="Is Failure Callback")] = True
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    dag_run: DagRun | None = None
+    last_ti: TaskInstance | None = None
+
+
 class TIRunContext(BaseModel):
     """
     Response schema for TaskInstance run context.
@@ -1019,3 +1067,38 @@ class TIRunContext(BaseModel):
     arg_bindings: Annotated[list[TaskArgBinding] | None, Field(title="Arg Bindings")] = None
     execution_timeout: Annotated[float | None, Field(title="Execution Timeout")] = None
     multi_team: Annotated[bool | None, Field(title="Multi Team")] = False
+
+
+class TaskCallbackContext(BaseModel):
+    """
+    What a worker needs to run a task's failure or retry callbacks.
+    """
+
+    type: Annotated[Literal["TaskCallback"], Field(title="Type")]
+    ti: TaskInstance
+    task_callback_type: TaskInstanceState | None = None
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    ti_context: TIRunContext | None = None
+
+
+class EmailCallbackContext(BaseModel):
+    """
+    What a worker needs to send a task's failure or retry email.
+    """
+
+    type: Annotated[Literal["EmailCallback"], Field(title="Type")]
+    ti: TaskInstance
+    email_type: Annotated[EmailType, Field(title="Email Type")]
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    ti_context: TIRunContext
+
+
+class CallbackContextResponse(BaseModel):
+    """
+    The context of a Dag-attribute callback, read by the worker that runs it.
+    """
+
+    context: Annotated[
+        DagCallbackContext | TaskCallbackContext | EmailCallbackContext,
+        Field(discriminator="type", title="Context"),
+    ]

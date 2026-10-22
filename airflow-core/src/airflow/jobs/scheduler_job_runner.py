@@ -28,9 +28,11 @@ import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from contextlib import ExitStack, suppress
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
@@ -70,9 +72,16 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.exceptions import DagNotFound, TaskNotFound, UnknownExecutorException
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.workloads.base import BaseWorkload, BundleInfo, WorkloadType
+from airflow.executors.workloads.callback import (
+    EXECUTION_TIMEOUT_KEY,
+    START_DEADLINE_KEY,
+    CallbackFetchMethod,
+)
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
@@ -96,7 +105,14 @@ from airflow.models.asset import (
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun
-from airflow.models.callback import Callback, CallbackKey, CallbackType, ExecutorCallback
+from airflow.models.callback import (
+    TERMINAL_STATES as CALLBACK_TERMINAL_STATES,
+    Callback,
+    CallbackKey,
+    CallbackType,
+    DagProcessorCallback,
+    ExecutorCallback,
+)
 from airflow.models.connection_test import (
     ACTIVE_STATES as CONNECTION_TEST_ACTIVE_STATES,
     DISPATCHED_STATES,
@@ -340,6 +356,20 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     )
 
 
+@dataclass(frozen=True)
+class _CallbackRoute(BaseWorkload):
+    """The Dag and executor a Dag processor callback runs for, before it becomes an executor callback."""
+
+    dag_id: str
+    executor: str | None
+
+    def get_dag_id(self) -> str | None:
+        return self.dag_id
+
+    def get_executor_name(self) -> str | None:
+        return self.executor
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -397,6 +427,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
+        self._route_dag_processor_callbacks_enabled = conf.getboolean(
+            "callbacks", "route_dag_processor_callbacks"
+        )
+        self._routed_callback_execution_timeout = conf.getint(
+            "callbacks", "routed_callback_execution_timeout"
+        )
+        self._max_routed_callbacks_per_loop = conf.getint("callbacks", "max_routed_callbacks_per_loop")
+        # Routing scans Dag processor callbacks after the last one it saw, so rows it cannot route
+        # don't keep newer ones from being routed.
+        self._callback_routing_cursor: UUID | None = None
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
         self._dag_id_to_team_name: dict[str, str | None] = {}
@@ -525,7 +565,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if team := team_map.get(dr.dag_id):
                 dr._team_name = team
 
-    def _get_workload_team_name(self, workload: SchedulerWorkload, session: Session) -> str | None:
+    def _get_workload_team_name(self, workload: BaseWorkload, session: Session) -> str | None:
         """
         Resolve team name for a workload using the DAG > Bundle > Team relationship chain.
 
@@ -1450,9 +1490,186 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     generator=executor.jwt_generator,
                 )
 
-                executor.queue_workload(workload, session=session)
-                callback.state = CallbackState.QUEUED
+                try:
+                    executor.queue_workload(workload, session=session)
+                except NotImplementedError as e:
+                    # Some executors run callbacks without declaring it, so ask the executor itself.
+                    self.log.error("Failing callback %s: %s", callback.id, e)
+                    callback.state = CallbackState.FAILED
+                    callback.output = str(e)
+                else:
+                    callback.state = CallbackState.QUEUED
                 session.add(callback)
+
+    def _route_dag_processor_callbacks(self, session: Session) -> None:
+        """
+        Queue Dag processor callbacks on executors as executor callbacks.
+
+        A routed row becomes an executor callback in the transaction that queues it, so no scheduler
+        finds it pending and no Dag processor, old or new, claims it: a callback runs by routing or by
+        a Dag processor, never both. Rows that cannot be routed stay with the Dag processor.
+        """
+        budget = min(
+            self._max_routed_callbacks_per_loop,
+            self._parallelism - sum(executor.slots_occupied for executor in self.executors),
+        )
+        if budget <= 0:
+            return
+
+        query = select(DagProcessorCallback).order_by(DagProcessorCallback.id).limit(budget)
+        if self._callback_routing_cursor is not None:
+            query = query.where(DagProcessorCallback.id > self._callback_routing_cursor)
+        rows = session.scalars(
+            with_row_locks(query, session, of=DagProcessorCallback, skip_locked=True)
+        ).all()
+        # Start over once a scan reaches the newest row, retrying the rows it left behind.
+        self._callback_routing_cursor = rows[-1].id if len(rows) == budget else None
+
+        now = timezone.utcnow()
+        for row in rows:
+            try:
+                with session.begin_nested():
+                    self._route_dag_processor_callback(row, now=now, session=session)
+            except Exception:
+                self.log.exception("Failed to route callback %s; leaving it to the Dag processor", row.id)
+
+    def _route_dag_processor_callback(
+        self, row: DagProcessorCallback, *, now: datetime, session: Session
+    ) -> None:
+        request = row.get_callback_request()
+        if get_claiming_importer(request.filepath, request.bundle_name) is not None:
+            # The Dag processor logs and drops the callbacks of Lang-SDK Dags.
+            return
+
+        executor_name: str | None = None
+        queue: str | None = None
+        if isinstance(request, DagCallbackRequest):
+            dag_id, run_id = request.dag_id, request.run_id
+        else:
+            dag_id, run_id = request.ti.dag_id, request.ti.run_id
+            executor_name, queue = self._get_callback_executor_and_queue(request.ti.id, session=session)
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+        if dag_run is None:
+            self.log.warning("Not routing callback %s: Dag run %s of %s not found", row.id, run_id, dag_id)
+            return
+        serialized_dag = self.scheduler_dag_bag.get_dag_for_run(dag_run, session=session)
+        if serialized_dag is None or not serialized_dag.relative_fileloc:
+            self.log.warning("Not routing callback %s: no serialized Dag for run %s", row.id, run_id)
+            return
+
+        team_name = (
+            self._get_team_names_for_dag_ids([dag_id], session).get(dag_id) if self._multi_team else None
+        )
+        executor = self._try_to_load_executor(
+            _CallbackRoute(dag_id=dag_id, executor=executor_name), session, team_name=team_name
+        )
+        if executor is None or WorkloadType.EXECUTE_CALLBACK not in executor.supported_workload_types:
+            self.log.debug("Not routing callback %s: its executor %s cannot run callbacks", row.id, executor)
+            return
+
+        data = {
+            **row.data,
+            "dag_id": dag_id,
+            "dag_run_id": dag_run.id,
+            # The callback's token is valid for as long: past this, it could not start anyway.
+            START_DEADLINE_KEY: (now + timedelta(seconds=self._task_queued_timeout)).isoformat(),
+        }
+        if executor_name:
+            data["executor"] = executor_name
+        if queue:
+            data["queue"] = queue
+        if self._routed_callback_execution_timeout > 0:
+            data[EXECUTION_TIMEOUT_KEY] = self._routed_callback_execution_timeout
+
+        result = cast(
+            "CursorResult",
+            session.execute(
+                update(Callback)
+                .where(Callback.id == row.id, Callback.type == CallbackType.DAG_PROCESSOR)
+                .values(type=CallbackType.EXECUTOR, state=CallbackState.QUEUED, data=data)
+                .execution_options(synchronize_session=False)
+            ),
+        )
+        if not result.rowcount:
+            # A Dag processor without row locks, as on SQLite, claimed it first.
+            return
+        session.expunge(row)
+        callback = session.get_one(Callback, row.id)
+
+        workload = workloads.ExecuteCallback.make(
+            callback=callback,
+            dag_run=dag_run,
+            dag_rel_path=Path(serialized_dag.relative_fileloc),
+            generator=executor.jwt_generator,
+            bundle_info=BundleInfo(
+                name=request.bundle_name, version=request.bundle_version, version_data=request.version_data
+            ),
+        )
+        executor.queue_workload(workload, session=session)
+        self.log.info("Routed callback %s to %s", callback, executor)
+
+    @staticmethod
+    def _get_callback_executor_and_queue(ti_id: UUID, *, session: Session) -> tuple[str | None, str | None]:
+        """Return the executor and queue of the task a callback is for, or ``None`` for the team's default."""
+        ti = session.execute(
+            select(TI.executor, TI.queue, TI.start_date)
+            .where(TI.id == ti_id)
+            .execution_options(include_all_attempts=True)
+        ).one_or_none()
+        if ti is None or ti.start_date is None:
+            # A task that never started, such as one failed while stuck in the queue: its own queue
+            # just failed to run it.
+            return None, None
+        return ti.executor, ti.queue
+
+    @provide_session
+    def _reap_routed_callbacks(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Fail routed callbacks that can no longer finish.
+
+        These are callbacks still queued past their start deadline, and callbacks running past their
+        timeout plus a grace period without their worker reporting an outcome. A routed callback
+        can only start while queued and before its start deadline, so failing it then cannot race a
+        start. Callbacks don't heartbeat, so a lost worker is noticed only by time.
+        """
+        now = timezone.utcnow()
+        candidates = session.scalars(
+            select(ExecutorCallback).where(
+                ExecutorCallback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE,
+                ExecutorCallback.state.in_((CallbackState.QUEUED, CallbackState.RUNNING)),
+            )
+        ).all()
+        expired_ids = [callback.id for callback in candidates if self._get_reap_reason(callback, now)]
+        if not expired_ids:
+            return
+        session.expunge_all()
+
+        stmt = select(ExecutorCallback).where(ExecutorCallback.id.in_(expired_ids))
+        for callback in session.scalars(with_row_locks(stmt, session, of=ExecutorCallback, skip_locked=True)):
+            # Re-checked under the lock: its worker may have started or finished it since.
+            if not (reason := self._get_reap_reason(callback, now)):
+                continue
+            self.log.warning("Failing routed callback %s: %s", callback, reason)
+            callback.state = CallbackState.FAILED
+            callback.output = reason
+            stats.incr(
+                "scheduler.routed_callbacks.reaped",
+                tags=prune_dict({"team_name": resolve_team_name(callback.get_dag_id(), session=session)}),
+            )
+
+    @staticmethod
+    def _get_reap_reason(callback: Callback, now: datetime) -> str | None:
+        if callback.state == CallbackState.QUEUED:
+            if (start_deadline := callback.start_deadline) is not None and now >= start_deadline:
+                return f"Never started: its start deadline {start_deadline.isoformat()} passed"
+        elif callback.state == CallbackState.RUNNING:
+            timeout = callback.data.get(EXECUTION_TIMEOUT_KEY)
+            if timeout and (started_at := callback.started_at) is not None:
+                grace = max(60, timeout // 2)
+                if now >= started_at + timedelta(seconds=timeout + grace):
+                    return f"Its worker did not report it finished within {timeout}s plus {grace}s grace"
+        return None
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
@@ -1586,6 +1803,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            if callback.state in CALLBACK_TERMINAL_STATES:
+                # The worker reported the outcome through the Execution API, or the reaper settled it.
+                continue
             if state == CallbackState.SUCCESS:
                 callback.state = CallbackState.SUCCESS
                 cls.logger().info("Callback %s completed successfully", callback_id)
@@ -2056,6 +2276,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._handle_tasks_stuck_in_queued,
         )
 
+        # Runs even with routing turned off, to settle callbacks routed before it was.
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
+            self._reap_routed_callbacks,
+            non_fatal=True,
+        )
+
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._update_asset_orphanage,
@@ -2147,6 +2374,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                     ):
                         deadline.handle_miss(session)
+
+                    if self._route_dag_processor_callbacks_enabled:
+                        self._route_dag_processor_callbacks(session)
 
                     # Route ExecutorCallback workloads to executors (similar to task routing)
                     self._enqueue_executor_callbacks(session)
@@ -4614,9 +4844,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return _executor_to_workloads
 
-    def _try_to_load_executor(
-        self, workload: SchedulerWorkload, session, team_name=NOTSET
-    ) -> BaseExecutor | None:
+    def _try_to_load_executor(self, workload: BaseWorkload, session, team_name=NOTSET) -> BaseExecutor | None:
         """
         Try to load the given executor.
 

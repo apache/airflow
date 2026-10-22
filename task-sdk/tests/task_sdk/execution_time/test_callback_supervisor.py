@@ -31,7 +31,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
-from airflow.sdk.api.datamodels._generated import XComResponse
+from airflow.sdk.api.datamodels._generated import CallbackState, DagCallbackContext, XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
     Path,
@@ -46,6 +46,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariableKeys,
     GetXCom,
     MaskSecret,
+    PutVariable,
     VariableKeysResult,
     VariableResult,
     XComResult,
@@ -360,6 +361,21 @@ class TestCallbackHandleRequest:
             test_id="mask_secret",
             mask_secret_args=("super_secret", "api_key"),
         ),
+        RequestCase(
+            message=GetXCom(key="return_value", dag_id="d", run_id="r", task_id="t"),
+            test_id="get_xcom",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("d", "r", "t", "return_value", None, False),
+                kwargs={"previous_iteration": False},
+                response=XComResponse(key="return_value", value="v"),
+            ),
+        ),
+        RequestCase(
+            message=PutVariable(key="k", value="v", description=None),
+            test_id="put_variable",
+            client_mock=ClientMock(method_path="variables.set", args=("k", "v", None), response=None),
+        ),
     ]
 
     @pytest.fixture
@@ -528,6 +544,18 @@ class TestCallbackExecutionTimeout:
         mock_kill.assert_not_called()
         assert proc._exit_code == 0
 
+    @pytest.mark.parametrize(
+        ("execution_timeout", "expected"),
+        [pytest.param(7.0, 7.0, id="stamped"), pytest.param(None, 3, id="config")],
+    )
+    def test_timeout_stamped_by_the_scheduler_overrides_the_config(
+        self, callback_subprocess, execution_timeout, expected
+    ):
+        callback_subprocess.execution_timeout = execution_timeout
+
+        with conf_vars({("callbacks", "callback_execution_timeout"): "3"}):
+            assert callback_subprocess._get_callback_execution_timeout() == expected
+
     def test_timeout_kills_long_running_subprocess(self, callback_subprocess, mocker):
         """When timeout>0 and the subprocess exceeds the timeout, it is killed."""
         proc = callback_subprocess
@@ -544,6 +572,7 @@ class TestCallbackExecutionTimeout:
         proc._monitor_subprocess()
 
         mock_kill.assert_called_once_with(proc, signal.SIGTERM, escalation_delay=5.0, force=True)
+        assert proc.timed_out is True
 
 
 class TestCallbackSubprocessStart:
@@ -662,6 +691,42 @@ class TestCallbackSubprocessStart:
             self.mock_super_start.call_args.kwargs["target"]()
 
             assert str(mock_bundle_setup["bundle_path"]) in mock_sys_path
+
+    @pytest.mark.parametrize(
+        ("errors", "expected_exit"),
+        [pytest.param([], None, id="succeeded"), pytest.param(["boom"], 1, id="failed")],
+    )
+    def test_dag_attribute_callback_runs_from_the_parsed_dag(self, base_start_kwargs, errors, expected_exit):
+        context = DagCallbackContext(type="DagCallback", dag_id="test_dag", run_id="test_run")
+        bundle_info = BundleInfo(name="test-bundle", version="1.0")
+        CallbackSubprocess.start(**{**base_start_kwargs, "bundle_info": bundle_info, "context": context})
+
+        with patch(
+            "airflow.sdk.execution_time.dag_attribute_callbacks.run_dag_attribute_callbacks",
+            autospec=True,
+            return_value=errors,
+        ) as mock_run:
+            if expected_exit is None:
+                self.mock_super_start.call_args.kwargs["target"]()
+            else:
+                with pytest.raises(SystemExit) as exc_info:
+                    self.mock_super_start.call_args.kwargs["target"]()
+                assert exc_info.value.code == expected_exit
+
+        mock_run.assert_called_once_with(
+            context, dag_rel_path=base_start_kwargs["dag_rel_path"], bundle_info=bundle_info, log=ANY
+        )
+        self.mock_execute_callback.assert_not_called()
+
+    def test_dag_attribute_callback_without_a_bundle_fails(self, base_start_kwargs):
+        context = DagCallbackContext(type="DagCallback", dag_id="test_dag", run_id="test_run")
+        CallbackSubprocess.start(**{**base_start_kwargs, "context": context})
+
+        with pytest.raises(SystemExit) as exc_info:
+            self.mock_super_start.call_args.kwargs["target"]()
+
+        assert exc_info.value.code == 1
+        self.mock_execute_callback.assert_not_called()
 
     def test_callback_supervisor_should_exit_on_error(self, base_start_kwargs):
         """Test that callback supervisor exits if execute_callback returns an error."""
@@ -791,3 +856,85 @@ class TestSuperviseCallbackExchangesTokenFirst:
         )
 
         assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding
+
+
+class TestSuperviseRoutedCallback:
+    """A routed callback reads its context after the exchange and reports its outcome."""
+
+    CALLBACK_ID = "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be47"
+
+    def _supervise(self, client, **kwargs):
+        return supervise_callback(
+            id=self.CALLBACK_ID,
+            callback_path="",
+            callback_kwargs={},
+            dag_rel_path=Path("dag.py"),
+            client=client,
+            **kwargs,
+        )
+
+    @pytest.mark.parametrize(
+        ("fetch_method", "reads_context"),
+        [
+            pytest.param("dag_attribute", True, id="dag-attribute"),
+            pytest.param(None, False, id="import-path"),
+        ],
+    )
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_context_is_read_after_the_exchange(self, mock_start, _nondumpable, fetch_method, reads_context):
+        calls: list[str] = []
+        client = Mock()
+        client.callbacks.run.side_effect = lambda callback_id: calls.append("exchange")
+        context = DagCallbackContext(type="DagCallback", dag_id="test_dag", run_id="test_run")
+        client.callbacks.get_context.side_effect = lambda callback_id: (
+            calls.append("context") or Mock(context=context)
+        )
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        self._supervise(client, fetch_method=fetch_method, execution_timeout=30)
+
+        assert calls == (["exchange", "context"] if reads_context else ["exchange"])
+        assert mock_start.call_args.kwargs["context"] == (context if reads_context else None)
+        assert mock_start.call_args.kwargs["execution_timeout"] == 30
+
+    @pytest.mark.parametrize(
+        ("exit_code", "timed_out", "expected_state", "expected_output"),
+        [
+            pytest.param(0, False, CallbackState.SUCCESS, None, id="success"),
+            pytest.param(
+                1, False, CallbackState.FAILED, "Callback subprocess exited with code 1", id="failed"
+            ),
+            pytest.param(
+                -15, True, CallbackState.FAILED, "Callback timed out after 30 seconds", id="timed-out"
+            ),
+        ],
+    )
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_outcome_is_reported(
+        self, mock_start, _nondumpable, exit_code, timed_out, expected_state, expected_output
+    ):
+        client = Mock()
+        process = Mock(wait=Mock(return_value=exit_code), timed_out=timed_out)
+        process._get_callback_execution_timeout.return_value = 30
+        mock_start.return_value = process
+
+        if exit_code:
+            with pytest.raises(RuntimeError, match=expected_output):
+                self._supervise(client)
+        else:
+            assert self._supervise(client) == 0
+
+        client.callbacks.update_state.assert_called_once_with(
+            uuid.UUID(self.CALLBACK_ID), expected_state, expected_output
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_failing_to_report_leaves_the_outcome_to_the_executor(self, mock_start, _nondumpable):
+        client = Mock()
+        client.callbacks.update_state.side_effect = RuntimeError("404 Not Found")
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        assert self._supervise(client) == 0

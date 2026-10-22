@@ -43,6 +43,15 @@ There are three different places where callbacks can be defined.
     ``$AIRFLOW_HOME/logs/dag_processor/latest/dags-folder/<the_path_for_your_dag>/DAG_FILE.py.log``
 
 .. note::
+    Dag callbacks, and the task failure and retry callbacks and emails that a task cannot run itself (for example
+    after it was killed externally or stopped heartbeating), run in a Dag processor by default. Set
+    :ref:`callbacks.route_dag_processor_callbacks <config:callbacks__route_dag_processor_callbacks>` to ``True`` to
+    run them on executors instead: a task's callbacks run on the task's executor and queue, and a Dag's callbacks on
+    the default executor of the Dag's team. Their logs are then written under
+    ``$AIRFLOW_HOME/logs/executor_callbacks/<dag_id>/<run_id>/``. Callbacks whose executor cannot run callbacks stay
+    with the Dag processor.
+
+.. note::
     As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions
     to be executed in the desired event. Simply pass a list of callback functions to the callback args when defining your Dag/task
     callbacks: e.g ``on_failure_callback=[callback_func_1, callback_func_2]``
