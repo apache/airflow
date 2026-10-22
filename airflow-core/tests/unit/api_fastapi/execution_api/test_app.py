@@ -233,7 +233,7 @@ def test_in_process_execution_api_runs_without_jwt_secret():
 def test_in_process_execution_api_ignores_workload_identity_trust():
     """Trust settings shared with API servers must not stop components that host the in-process API."""
     api = InProcessExecutionAPI()
-    with httpx.Client(transport=api.transport) as client:
+    with httpx2.Client(transport=api.transport) as client:
         response = client.post("http://localhost/dag-processor/session-token")
     assert response.status_code == 404
     assert response.json() == {"detail": "Workload identity provisioning is not enabled"}

@@ -227,7 +227,7 @@ class DagProcessorAPIClient(Client):
         force: bool = False,
         refresh: bool = False,
         retry: bool = False,
-        timeout: httpx.Timeout | None = None,
+        timeout: httpx2.Timeout | None = None,
     ) -> str:
         now = monotonic()
         if self._session_token is None or force or now >= self._reload_at:
