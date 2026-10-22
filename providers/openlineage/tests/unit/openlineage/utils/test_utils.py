@@ -5554,14 +5554,10 @@ _ROOT_JOB_TYPE = {"processingType": "STREAMING", "integration": "CUSTOM", "jobTy
 
 
 def _get_job_type_facets(job: parent_run.Job | parent_run.RootJob) -> dict | None:
-    return (
-        {
-            field: getattr(job.facets["jobType"], field)
-            for field in ("processingType", "integration", "jobType")
-        }
-        if "jobType" in job.facets
-        else None
-    )
+    job_type_facet = (job.facets or {}).get("jobType")
+    if job_type_facet is None:
+        return None
+    return {field: getattr(job_type_facet, field) for field in ("processingType", "integration", "jobType")}
 
 
 @pytest.mark.parametrize(
