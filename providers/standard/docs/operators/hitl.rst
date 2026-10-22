@@ -80,8 +80,8 @@ Things to know:
   example when it includes a value computed fresh each run), or when the task can ask the same
   subject more than once, such as one approval per agent tool call: key on the call's id.
 * The task fails instead of guessing when the keys don't line up: when it asks a key whose answer
-  it has already read, and when the run that resumed with an answer asks something new or finishes
-  without reading that answer.
+  it has already read, and when a run that resumed with an answer asks a new question, or finishes,
+  before reading that answer.
 * Every pause carries the answers the task has received so far in this try, including their
   ``params_input``, so keep the number of questions per try small (a handful, not hundreds) and the
   form fields short.
@@ -101,9 +101,8 @@ Things to know:
   ``defaults``, it resumes with ``timedout`` set to ``True`` and ``responded_by_user`` set to
   ``None``.
 * It works in ``@task``, ``@task.branch``, ``@task.short_circuit`` and ``PythonOperator`` callables,
-  sync or async. In tasks that run their callable in another process (``@task.virtualenv``,
-  ``@task.external_python``, ``@task.docker``, ``@task.kubernetes``) it raises before any request is
-  written.
+  sync or async. It can't pause tasks that run their callable in another process
+  (``@task.virtualenv``, ``@task.external_python``, ``@task.docker``, ``@task.kubernetes``).
 * It needs Airflow 3.4+.
 * The Required Actions page refuses an answer to a request that the task has since replaced. A
   client answering through the REST API gets the same protection only if it sends the

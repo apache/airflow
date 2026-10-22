@@ -152,8 +152,8 @@ def request_input(
     ``task_state_store`` before calling this.
 
     It works in ``@task`` and ``PythonOperator`` callables (sync or async), including ``@task.branch``
-    and ``@task.short_circuit``, but not in tasks that run their callable in another process, such as
-    ``@task.virtualenv``, ``@task.external_python`` or ``@task.docker``.
+    and ``@task.short_circuit``. It can't pause tasks that run their callable in another process, such
+    as ``@task.virtualenv``, ``@task.external_python``, ``@task.docker`` or ``@task.kubernetes``.
 
     Needs Airflow 3.4+. Earlier versions keep the first request's subject, body and options when a
     task asks again, after a resume or on a retry, so the reviewer would answer a question they were
