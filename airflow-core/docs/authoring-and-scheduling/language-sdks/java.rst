@@ -352,7 +352,8 @@ Annotate a plain Java class and let the SDK generate the boilerplate at compile 
    * - ``@Airflow.Dag(id = "...")``
      - Marks a class as a Dag that Java itself owns.  Attributes (``schedule``, ``description``,
        ``tags``, ``catchup``, …) are Airflow's own Dag settings; only attributes written
-       explicitly are applied.  See :ref:`java-sdk/native-dags`.
+       explicitly are applied.  ``queue`` is the queue each task runs on unless the task sets its
+       own.  See :ref:`java-sdk/native-dags`.
    * - ``@Airflow.Task(id = "...")``
      - Marks a method as a task of a Java-owned Dag.  If ``id`` is omitted the method name is
        used.  Further attributes (``retries``, ``queue``, ``retryDelay``, …) are Airflow's own
@@ -642,6 +643,11 @@ Native Java Dags
 A Dag can also be authored entirely in Java: the annotations (or the ``DagDef`` / ``TaskDef``
 objects) carry the configuration, and Java declares the graph.
 
+Every task of the Dag runs on the Java coordinator, so it needs a queue that
+:ref:`queue_to_coordinator <java-sdk/coordinator-config>` sends there. Set ``queue`` once on the Dag, with
+``@Airflow.Dag(queue = "java")`` or ``dag.config("queue", "java")``, and each task inherits it, including a
+``TriggerDagRun`` task. A task's own ``queue`` wins over the Dag's. A ``queue`` that is set cannot be blank.
+
 Building the Dag in Java
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -922,7 +928,7 @@ The Dag processor runs the JAR's main class to list its Dags, so it needs a Java
         "kwargs": {"java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java"}
       }
     }
-    queue_to_coordinator = {"java-native": "java-native"}
+    queue_to_coordinator = {"java": "java-native"}
 
 Once a ``JavaCoordinator`` is configured, the Dag processor parses the executable JARs of every Dag bundle,
 so it needs this ``[sdk]`` configuration and a JRE. With one ``JavaCoordinator``, it parses them all.
@@ -953,9 +959,8 @@ several Java coordinators, an unmapped bundle's JARs fail to parse too.
   ``Main-Class`` are parsed. List JARs that should not be parsed in ``.airflowignore``.
 * Two JARs in the bundle that set the same ``Main-Class`` fail to parse, because the JVM would load
   the classes of only one of them. Keep one in the bundle.
-* Set ``queue`` on every task, with ``@Airflow.Task(queue = "java-native")`` or
-  ``TaskDef.config("queue", "java-native")``, so it runs on the coordinator's queue. There is no
-  Dag-level queue yet.
+* Set ``queue`` on the Dag, as :ref:`java-sdk/native-dags` shows, so its tasks run on a queue that
+  ``queue_to_coordinator`` routes to a ``JavaCoordinator``, such as ``java`` above.
 * A task runs the JAR of its Dag on the ``JavaCoordinator`` that its queue routes to,
   which need not be the one that parsed the JAR. For example, a queue can route to a coordinator that uses another JDK.
   A task whose queue routes to another kind of coordinator fails without retries. A task whose JAR is missing,
