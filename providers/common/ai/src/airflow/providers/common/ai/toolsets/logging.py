@@ -91,7 +91,11 @@ class _LoggingToolset(WrapperToolset[Any]):
 
 @dataclass
 class ToolLoggingCapability(AbstractCapability[Any]):
-    """Apply tool-call logging to the assembled function toolset for an agent run."""
+    """
+    Apply tool-call logging to the assembled function toolset for an agent run.
+
+    .. note:: Experimental; see :ref:`howto/stability`.
+    """
 
     logger: Logger | logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
 
