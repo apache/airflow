@@ -54,6 +54,7 @@ class TestParseWebhookNames:
             pytest.param("a/b", "'a/b', which is not a webhook name", id="slash"),
             pytest.param("a" * 65, "which is not a webhook name", id="65-characters"),
             pytest.param("github,jira,github", "lists 'github' more than once", id="duplicate"),
+            pytest.param("github,other", "lists 'other', which is reserved", id="metrics-tag"),
         ],
     )
     def test_invalid_names_are_refused(self, value, message):
@@ -113,6 +114,7 @@ class TestWebhookRegistry:
             ("webhooks", "connection_cache_ttl"): "0",
             ("webhooks", "max_body_bytes"): "1",
             ("webhooks", "delivery_retention"): "1",
+            ("webhooks", "rate_limit_per_minute"): "600",
         }
     )
     def test_from_config(self):
@@ -122,6 +124,7 @@ class TestWebhookRegistry:
             connection_cache_ttl=0,
             max_body_bytes=1,
             delivery_retention=timedelta(days=1),
+            rate_limit_per_minute=600,
         )
 
     def test_from_config_defaults_to_no_webhooks(self):
@@ -131,6 +134,7 @@ class TestWebhookRegistry:
             connection_cache_ttl=60,
             max_body_bytes=1048576,
             delivery_retention=timedelta(days=7),
+            rate_limit_per_minute=0,
         )
 
     @pytest.mark.parametrize(
@@ -141,6 +145,9 @@ class TestWebhookRegistry:
             pytest.param("delivery_retention", "0", "delivery_retention must be 1 or more", id="retention"),
             pytest.param(
                 "delivery_retention", "366", "delivery_retention must be 365 or less", id="retention-too-long"
+            ),
+            pytest.param(
+                "rate_limit_per_minute", "-1", "rate_limit_per_minute must be 0 or more", id="rate-limit"
             ),
         ],
     )

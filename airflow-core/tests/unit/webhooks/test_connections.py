@@ -60,6 +60,7 @@ REGISTRY = WebhookRegistry(
     connection_cache_ttl=60,
     max_body_bytes=DEFAULT_MAX_BODY_BYTES,
     delivery_retention=timedelta(days=7),
+    rate_limit_per_minute=0,
 )
 
 

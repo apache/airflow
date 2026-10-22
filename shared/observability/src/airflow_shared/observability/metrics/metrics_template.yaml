@@ -405,6 +405,22 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "webhooks.deliveries"
+    description: "Number of verified inbound webhook deliveries answered 200 or 202, handshakes
+    excluded. A retry of a recorded delivery is counted again. Metric with webhook and outcome tagging;
+    outcome is the outcome answered."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "webhooks.rejections"
+    description: "Number of requests to inbound webhooks that were refused. Metric with webhook and
+    status tagging; status is the status code answered, and webhook is ``other`` for a name that
+    ``[webhooks] names`` does not list or a path that names no webhook."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "managed_agent.failover"
     description: "Number of failover transitions inside a ``FailoverManagedAgentClient`` group,
     emitted once each time a member fails and the next one is tried. Metric with from_platform
@@ -925,6 +941,13 @@ metrics:
   - name: "connection_test.hook_duration"
     description: "Milliseconds a worker spends running the hook's ``test_connection`` for a
     worker-dispatched connection test."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "webhooks.delivery_duration"
+    description: "Milliseconds taken to record a verified inbound webhook delivery. Recordings that
+    fail are not timed. Metric with webhook tagging."
     type: "timer"
     legacy_name: "-"
     name_variables: []
