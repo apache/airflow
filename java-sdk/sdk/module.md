@@ -29,18 +29,20 @@ Apply the Gradle plugin, and add the SDK and its annotation processor:
 
 ```groovy
 plugins {
-    id("org.apache.airflow.sdk") version "1.0.0-beta2"
+    id("org.apache.airflow.sdk") version "<version>"
 }
 
 dependencies {
-    annotationProcessor("org.apache.airflow:airflow-sdk-processor:1.0.0-beta2")
-    implementation("org.apache.airflow:airflow-sdk:1.0.0-beta2")
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:<version>")
+    implementation("org.apache.airflow:airflow-sdk:<version>")
 }
 
 airflowBundle {
     mainClass = "com.mycompany.airflow.hello.Main"
 }
 ```
+
+Replace `<version>` with a release from [Maven Central](https://central.sonatype.com/artifact/org.apache.airflow/airflow-sdk).
 
 Declare a Dag with `@Airflow.Dag`, its tasks with `@Airflow.Task`, and its graph in an `@Airflow.Deps` class.
 Passing the value one task returns into another is how the tasks depend on each other:

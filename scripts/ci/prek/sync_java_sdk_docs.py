@@ -25,7 +25,8 @@ Keep the Java SDK quick start the same wherever a reader meets it.
 The quick start appears on three pages, and nothing resolves them at build time, so an edit to one
 leaves the others saying something else. The guide owns the snippets; this hook copies them into
 the SDK README and the Dokka landing page between their ``SHARED SNIPPET`` markers, and checks that
-all three install the same SDK version.
+none of the three names a release instead of the version placeholder, since a pinned release goes
+stale as soon as the next one ships.
 
 Run from the repo root:
 
@@ -48,15 +49,16 @@ DOKKA_MODULE = "java-sdk/sdk/module.md"
 SNIPPET_NAMES = ("hello-dag", "hello-main")
 GENERATED_FILES = (SDK_README, DOKKA_MODULE)
 
-# Each pattern's first group is a version a reader installs, and all of them must agree.
+# The docs point readers at Maven Central for a release, and show this in the build snippets instead.
+VERSION_PLACEHOLDER = "<version>"
+
+# Each pattern's first group is the version a reader installs, and all of them must be the placeholder.
 VERSION_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
     JAVA_RST: (
-        re.compile(r"This guide covers version\s+``([^`]+)``"),
         re.compile(r"^\s*airflowJavaSdkVersion=(\S+)", re.MULTILINE),
-        re.compile(r"<airflow\.sdk\.version>([^<]+)</airflow\.sdk\.version>"),
+        re.compile(r"<airflow\.sdk\.version>(.+?)</airflow\.sdk\.version>"),
     ),
     SDK_README: (
-        re.compile(r"^\*\*Status:\*\*\s+(\S+)", re.MULTILINE),
         re.compile(r'id\("org\.apache\.airflow\.sdk"\)\s+version\s+"([^"]+)"'),
         re.compile(r'"org\.apache\.airflow:airflow-sdk(?:-[a-z]+)?:([^"]+)"'),
     ),
@@ -94,13 +96,15 @@ def find_versions(contents: dict[str, str]) -> dict[str, list[str]]:
 
 
 def check_versions(contents: dict[str, str]) -> list[str]:
-    """Return one error line per problem: a file with no version, or a version that disagrees."""
+    """Return one error line per problem: a file with no version, or one that names a release."""
     found = find_versions(contents)
     errors = [f"{path}: no Java SDK version found" for path, versions in found.items() if not versions]
-    distinct = {version for versions in found.values() for version in versions}
-    if len(distinct) > 1:
-        errors.append(f"Documented Java SDK versions disagree: {', '.join(sorted(distinct))}")
-        errors += [f"  {path}: {', '.join(versions)}" for path, versions in found.items() if versions]
+    errors += [
+        f"{path}: the build snippets install {version!r}"
+        for path, versions in found.items()
+        for version in sorted(set(versions))
+        if version != VERSION_PLACEHOLDER
+    ]
     return errors
 
 
@@ -130,7 +134,8 @@ def main() -> int:
     if errors := check_versions(contents):
         console.print("[red]" + "\n".join(errors) + "[/]")
         console.print(
-            f"Make every documented Java SDK version read the same, or fix the patterns in\n  {__file__}"
+            f"Install {VERSION_PLACEHOLDER!r} and link to Maven Central for the release, or fix the "
+            f"patterns in\n  {__file__}"
         )
         return 1
     if changed:

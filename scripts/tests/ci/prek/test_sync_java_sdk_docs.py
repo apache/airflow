@@ -21,6 +21,7 @@ from sync_java_sdk_docs import (
     DOKKA_MODULE,
     JAVA_RST,
     SDK_README,
+    VERSION_PLACEHOLDER,
     check_versions,
     extract_snippet,
     render_snippet,
@@ -75,16 +76,11 @@ def test_renders_the_snippet_as_a_fenced_block():
 def _contents(rst_version: str, readme_version: str, module_version: str) -> dict[str, str]:
     return {
         JAVA_RST: f"""
-This guide covers version ``{rst_version}``
-and later.
-
     airflowJavaSdkVersion={rst_version}
 
       <airflow.sdk.version>{rst_version}</airflow.sdk.version>
 """,
         SDK_README: f"""
-**Status:** {readme_version} · Java 11+
-
     id("org.apache.airflow.sdk") version "{readme_version}"
     annotationProcessor("org.apache.airflow:airflow-sdk-processor:{readme_version}")
     implementation("org.apache.airflow:airflow-sdk:{readme_version}")
@@ -97,26 +93,27 @@ and later.
     }
 
 
-def test_accepts_one_version_everywhere():
-    assert check_versions(_contents("1.0.0-beta2", "1.0.0-beta2", "1.0.0-beta2")) == []
+def test_accepts_the_placeholder_everywhere():
+    assert check_versions(_contents(*[VERSION_PLACEHOLDER] * 3)) == []
 
 
 @pytest.mark.parametrize(
-    "rst, readme, module, stale",
+    "rst, readme, module, pinned",
     [
-        pytest.param("1.0.0", "1.0.0-beta2", "1.0.0-beta2", SDK_README, id="guide-bumped-alone"),
-        pytest.param("1.0.0-beta2", "1.0.0-beta2", "1.0.0-beta1", DOKKA_MODULE, id="dokka-left-behind"),
+        pytest.param("1.0.0", VERSION_PLACEHOLDER, VERSION_PLACEHOLDER, JAVA_RST, id="guide-pins"),
+        pytest.param(VERSION_PLACEHOLDER, "1.0.0-beta2", VERSION_PLACEHOLDER, SDK_README, id="readme-pins"),
+        pytest.param(VERSION_PLACEHOLDER, VERSION_PLACEHOLDER, "1.0.0-beta1", DOKKA_MODULE, id="dokka-pins"),
     ],
 )
-def test_reports_a_version_that_drifted(rst: str, readme: str, module: str, stale: str):
+def test_reports_a_page_that_names_a_release(rst: str, readme: str, module: str, pinned: str):
     errors = check_versions(_contents(rst, readme, module))
 
-    assert errors[0].startswith("Documented Java SDK versions disagree:")
-    assert any(line.lstrip().startswith(stale) for line in errors[1:])
+    assert len(errors) == 1
+    assert errors[0].startswith(f"{pinned}: the build snippets install ")
 
 
 def test_reports_a_file_with_no_version():
-    contents = _contents("1.0.0-beta2", "1.0.0-beta2", "1.0.0-beta2")
+    contents = _contents(*[VERSION_PLACEHOLDER] * 3)
     contents[DOKKA_MODULE] = "Write Apache Airflow Dags and tasks in Java.\n"
 
     assert check_versions(contents) == [f"{DOKKA_MODULE}: no Java SDK version found"]

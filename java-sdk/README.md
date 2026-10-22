@@ -21,7 +21,7 @@
 
 Write Apache Airflow Dags and tasks in Java, Kotlin, Scala or any other JVM language.
 
-**Status:** 1.0.0-beta2 · Java 11+
+**Status:** Beta · Java 11+
 
 ## Installation
 
@@ -29,12 +29,12 @@ Apply the Gradle plugin, and add the SDK and its annotation processor:
 
 ```groovy
 plugins {
-    id("org.apache.airflow.sdk") version "1.0.0-beta2"
+    id("org.apache.airflow.sdk") version "<version>"
 }
 
 dependencies {
-    annotationProcessor("org.apache.airflow:airflow-sdk-processor:1.0.0-beta2")
-    implementation("org.apache.airflow:airflow-sdk:1.0.0-beta2")
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:<version>")
+    implementation("org.apache.airflow:airflow-sdk:<version>")
 }
 
 airflowBundle {
@@ -42,7 +42,7 @@ airflowBundle {
 }
 ```
 
-See the [guide][building-a-bundle] for Maven.
+Replace `<version>` with a release from [Maven Central](https://central.sonatype.com/artifact/org.apache.airflow/airflow-sdk). See the [guide][building-a-bundle] for Maven.
 
 ## Quick start
 

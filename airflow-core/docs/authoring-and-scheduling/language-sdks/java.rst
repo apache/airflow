@@ -32,12 +32,13 @@ two ways to use it:
 
 Both use the same task API and the same build plugin, and one bundle can serve both.
 
-The SDK is published to Maven Central as ``org.apache.airflow:airflow-sdk``. This guide covers version
-``1.0.0-beta2`` and later.
+The SDK is published to Maven Central as ``org.apache.airflow:airflow-sdk``.
 
 .. seealso::
 
-  For the full API reference, see the `Java SDK API reference <https://airflow.apache.org/docs/java-sdk/stable/>`__.
+  For the full API reference, see the `Java SDK API reference
+  <https://airflow.apache.org/docs/java-sdk/stable/>`__, and for the released versions,
+  `Maven Central <https://central.sonatype.com/artifact/org.apache.airflow/airflow-sdk>`__.
 
 .. contents:: Contents
    :local:
@@ -74,11 +75,13 @@ Create a Gradle project:
         ├── HelloDag.java
         └── Main.java
 
-Set the SDK version in ``gradle.properties`` and name the project in ``settings.gradle``:
+Set the SDK version in ``gradle.properties``, using the release you want from
+`Maven Central <https://central.sonatype.com/artifact/org.apache.airflow/airflow-sdk>`__, and name the project
+in ``settings.gradle``:
 
 .. code-block:: properties
 
-    airflowJavaSdkVersion=1.0.0-beta2
+    airflowJavaSdkVersion=<version>
 
 .. code-block:: groovy
 
@@ -868,13 +871,15 @@ class that declares a Dag, so the Airflow UI's **Code** view shows it.
 Maven
 ~~~~~
 
-Set the SDK version once as a property, import ``airflow-sdk-bom`` to manage the SDK's artifact versions, and
-add the SDK and, for the annotation style, the annotation processor:
+Set the release you want from
+`Maven Central <https://central.sonatype.com/artifact/org.apache.airflow/airflow-sdk>`__ once as a property,
+import ``airflow-sdk-bom`` to manage the SDK's artifact versions, and add the SDK and, for the annotation
+style, the annotation processor:
 
 .. code-block:: xml
 
     <properties>
-      <airflow.sdk.version>1.0.0-beta2</airflow.sdk.version>
+      <airflow.sdk.version><version></airflow.sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -994,8 +999,10 @@ A task runs the JAR of its Dag from the same Dag bundle, at the version its Dag 
 * Every JAR whose manifest sets ``Main-Class`` is parsed. Many dependency JARs set one, so keep one executable
   JAR per Dag bundle, set the coordinator's ``main_class``, or list the other JARs in ``.airflowignore``.
 * Two JARs that set the same ``Main-Class`` fail to parse.
-* A JAR whose ``Airflow-Supervisor-Schema-Version`` manifest attribute is older than ``2026-10-30`` fails to
-  parse. List it in ``.airflowignore``; tasks still find it.
+* A JAR built with an ``org.apache.airflow:airflow-sdk`` release too old for this Airflow version fails to
+  parse. Rebuild it with a newer release, or list it in ``.airflowignore``; tasks still find it. The SDK
+  stamps its supervisor schema version on the JAR as the ``Airflow-Supervisor-Schema-Version`` manifest
+  attribute, and the Dag processor rejects anything older than ``2026-10-30``.
 * A bundle that fails to parse, or whose Dags have a cycle, shows up as an import error, and the other Dags keep
   working. Do not declare the same ``dag_id`` in a Python file of that Dag bundle too.
 
