@@ -22,6 +22,7 @@ import functools
 import importlib
 import inspect
 import json
+import re
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -479,6 +480,37 @@ class TestIsJsonRpcRequest:
         assert unity_mcp._is_jsonrpc_request(request) is expected
 
 
+class TestGatewayClient:
+    @pytest.mark.parametrize(
+        ("method", "body", "recorded"),
+        [
+            ("POST", {"jsonrpc": "2.0", "id": 1, "method": "tools/call"}, True),
+            ("POST", {"jsonrpc": "2.0", "method": "notifications/initialized"}, False),
+            ("GET", None, False),
+        ],
+    )
+    def test_records_failures_of_json_rpc_requests_only(self, method, body, recorded):
+        operation = unity_mcp._Operation()
+
+        def fail(request):
+            if request.headers.get("X-Fail") == "connect":
+                raise httpx2.ConnectError("refused", request=request)
+            return httpx2.Response(503)
+
+        async def send_both():
+            async with unity_mcp._GatewayClient(
+                transport=httpx2.MockTransport(fail), operations={operation}
+            ) as client:
+                await client.request(method, "https://h/mcp", json=body)
+                with pytest.raises(httpx2.ConnectError):
+                    await client.request(method, "https://h/mcp", json=body, headers={"X-Fail": "connect"})
+
+        _run(send_both())
+
+        assert operation.errors == ([(503, None)] if recorded else [])
+        assert len(operation.failures) == (1 if recorded else 0)
+
+
 class TestErrors:
     @pytest.mark.parametrize(
         ("status", "headers", "error", "expected", "retry_after"),
@@ -488,6 +520,7 @@ class TestErrors:
             (403, {}, "not_authorized", DatabricksUnityMCPAccessDeniedError, None),
             (404, {}, None, DatabricksUnityMCPError, None),
             (429, {"Retry-After": "12"}, None, DatabricksUnityMCPThrottledError, 12.0),
+            (429, {"Retry-After": "-5"}, None, DatabricksUnityMCPThrottledError, None),
             (
                 429,
                 {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"},
@@ -507,6 +540,8 @@ class TestErrors:
 
         assert type(err.value) is expected
         assert err.value.http_status_code == status
+        # No tool call was sent, so nothing may have run.
+        assert "may or may not have run" not in str(err.value)
         if expected is DatabricksUnityMCPThrottledError:
             assert err.value.retry_after == retry_after
 
@@ -562,6 +597,12 @@ class TestErrors:
             assert isinstance(invalid, ModelRetry)
             assert type(failed) is DatabricksUnityMCPError
 
+            # The dropped call ends the session; the other call either got its answer first or
+            # finds the session gone, which is the same transport failure, never a raw error.
+            dropped, other = _run(_call_concurrently("drop", "hi"))
+            assert type(dropped) is DatabricksUnityMCPTransportError
+            assert other == "echo: hi" or type(other) is DatabricksUnityMCPTransportError, repr(other)
+
             # The status is lost, but the gateway's JSON-RPC code still marks the denial.
             denied, succeeded = _run(_call_concurrently("reply 403 not_authorized", "hi"))
             assert type(denied) is DatabricksUnityMCPAccessDeniedError
@@ -595,6 +636,7 @@ class TestErrors:
             # The server answered, so the overlapping call's failure says nothing about this call.
             (McpError(jsonrpc.INVALID_PARAMS, "Invalid params"), None),
             (McpError(jsonrpc.CONNECTION_CLOSED, "Connection closed"), DatabricksUnityMCPTransportError),
+            (RuntimeError("Client is not connected."), DatabricksUnityMCPTransportError),
         ],
     )
     def test_recorded_request_failure_only_explains_a_call_without_an_answer(self, mcp_error, expected):
@@ -607,6 +649,86 @@ class TestErrors:
             assert translated is None
         else:
             assert type(translated) is expected
+
+    @staticmethod
+    def _with_context(error, context):
+        error.__context__ = context
+        return error
+
+    @pytest.mark.parametrize(
+        ("error", "during_tool_call", "expected", "match"),
+        [
+            pytest.param(
+                ExceptionGroup("task group", [httpx2.ConnectError("refused")]),
+                False,
+                DatabricksUnityMCPTransportError,
+                "refused",
+                id="transport error inside an exception group",
+            ),
+            pytest.param(
+                _with_context(RuntimeError("wrapped"), httpx2.ConnectError("refused")),
+                False,
+                DatabricksUnityMCPTransportError,
+                "refused",
+                id="transport error in the context",
+            ),
+            pytest.param(
+                httpx2.ReadTimeout(""),
+                False,
+                DatabricksUnityMCPTransportError,
+                "ReadTimeout",
+                id="transport error without a message is named",
+            ),
+            pytest.param(
+                TimeoutError(),
+                False,
+                DatabricksUnityMCPTransportError,
+                "Raise init_timeout",
+                id="bare timeout while connecting",
+            ),
+            pytest.param(
+                RuntimeError("Failed to initialize server session"),
+                True,
+                DatabricksUnityMCPTransportError,
+                "Timed out waiting.*may or may not have run",
+                id="handshake timeout during a tool call",
+            ),
+            pytest.param(
+                McpError(-32001, "The warehouse is still starting"),
+                True,
+                None,
+                None,
+                id="server's own -32001 answer reaches the model",
+            ),
+        ],
+    )
+    def test_error_is_translated_from_its_chain(self, error, during_tool_call, expected, match):
+        toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
+
+        translated = toolset._translate_error(
+            error, unity_mcp._Operation(), during_tool_call=during_tool_call
+        )
+
+        if expected is None:
+            assert translated is None
+        else:
+            assert type(translated) is expected
+            assert re.search(match, str(translated))
+
+    def test_status_of_the_last_failed_request_is_used(self):
+        operation = unity_mcp._Operation(errors=[(503, None), (429, 5.0)])
+
+        assert operation.http_error == (429, 5.0)
+
+    def test_call_that_finds_the_session_ended_is_a_transport_error(self):
+        toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
+
+        translated = toolset._translate_error(
+            RuntimeError("Client is not connected."), unity_mcp._Operation(), during_tool_call=True
+        )
+
+        assert type(translated) is DatabricksUnityMCPTransportError
+        assert "may or may not have run" in str(translated)
 
     def test_unreachable_gateway_is_a_transport_error(self, create_connection_without_db):
         create_connection_without_db(
@@ -705,6 +827,10 @@ class TestClientErrorMessages:
     def test_message_prefix_is_still_made_up_by_the_client(self, prefix):
         assert prefix in inspect.getsource(importlib.import_module("mcp.client.streamable_http"))
 
+    def test_session_ended_message_is_still_raised_by_fastmcp(self):
+        source = inspect.getsource(importlib.import_module("fastmcp.client.client"))
+        assert unity_mcp._SESSION_ENDED_MESSAGE in source
+
     def test_handshake_timeout_message_is_still_raised_by_fastmcp(self):
         source = inspect.getsource(importlib.import_module("fastmcp.client.client"))
         assert unity_mcp._HANDSHAKE_TIMEOUT_MESSAGE in source
@@ -735,6 +861,30 @@ class TestHandshakeTimeout:
     def test_init_timeout_must_be_positive(self, init_timeout):
         with pytest.raises(ValueError, match="init_timeout must be a positive number"):
             DatabricksUnityMCPToolset(SERVICE, init_timeout=init_timeout)
+
+
+class TestClosing:
+    @pytest.mark.parametrize("failed_before", [False, True])
+    def test_error_while_closing_after_a_clean_run_is_raised(self, gateway, gateway_conn, failed_before):
+        toolset = DatabricksUnityMCPToolset(SERVICE, databricks_conn_id=CONN_ID)
+        if failed_before:
+            # A failure in an earlier run must not hide close errors in the next one.
+            with pytest.raises(DatabricksUnityMCPError):
+                _run(_list_and_call(toolset, "reply 503"))
+
+        async def close_with_an_error():
+            async with toolset:
+                await toolset.get_tools(_ctx())
+                real_exit = toolset._server.__aexit__
+
+                async def failing_exit(*args):
+                    await real_exit(*args)
+                    raise RuntimeError("close failed")
+
+                toolset._server.__aexit__ = failing_exit
+
+        with pytest.raises(RuntimeError, match="close failed"):
+            _run(close_with_an_error())
 
 
 class TestFrameworkNeutralTools:

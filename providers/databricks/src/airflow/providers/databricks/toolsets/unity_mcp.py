@@ -86,6 +86,9 @@ _CLIENT_ERRORS = {
 # What fastmcp raises, in place of the TimeoutError it loses, when the MCP handshake outlasts
 # init_timeout (see fastmcp.client.client).
 _HANDSHAKE_TIMEOUT_MESSAGE = "Failed to initialize server session"
+# What fastmcp raises for a call that reaches the session after another request ended it
+# (see fastmcp.client.client).
+_SESSION_ENDED_MESSAGE = "Client is not connected"
 # What the MCP client raises when a request outlasts its read timeout (see
 # mcp.shared.jsonrpc_dispatcher). A server may use the same code, so the message is matched too.
 _REQUEST_TIMEOUT_CODE = -32001
@@ -171,6 +174,13 @@ def _is_request_timeout(error: McpError | None) -> bool:
         error is not None
         and error.error.code == _REQUEST_TIMEOUT_CODE
         and _REQUEST_TIMEOUT_MESSAGE.fullmatch(error.error.message) is not None
+    )
+
+
+def _is_session_ended(error: BaseException) -> bool:
+    return any(
+        isinstance(e, RuntimeError) and str(e).startswith(_SESSION_ENDED_MESSAGE)
+        for e in _walk_exceptions(error)
     )
 
 
@@ -459,7 +469,8 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         mcp_error = _find(error, McpError)
         # When a request fails once the session is open, the call only sees an error the MCP
         # client makes up; what the request ran into is in the operation's failures.
-        saw_no_answer = mcp_error is not None and _is_client_error(mcp_error)
+        session_ended = _is_session_ended(error)
+        saw_no_answer = session_ended or (mcp_error is not None and _is_client_error(mcp_error))
         failure = operation.failures[0] if saw_no_answer and operation.failures else None
         token_error = _find(error, _TokenUnavailableError)
         if token_error is None and isinstance(failure, _TokenUnavailableError):
@@ -505,6 +516,10 @@ class DatabricksUnityMCPToolset(AirflowToolset):
         if during_tool_call and _is_handshake_timeout(error):
             return DatabricksUnityMCPTransportError(
                 f"Timed out waiting for Unity Gateway to answer MCP Service {service!r}.{ambiguous}"
+            )
+        if session_ended:
+            return DatabricksUnityMCPTransportError(
+                f"The connection to Unity Gateway for MCP Service {service!r} ended.{ambiguous}"
             )
         if _is_handshake_timeout(error):
             return DatabricksUnityMCPTransportError(
