@@ -24,19 +24,20 @@ import re
 
 import pytest
 
+from airflow.sdk import task_handler
 from airflow.sdk.task_handlers import (
     call_handler,
     declare_handler,
-    get_registry,
-    task_handler,
+    get_handler,
 )
+from airflow.sdk.task_handlers.registry import _REGISTRY
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
-    get_registry()._handlers.clear()
+    _REGISTRY.clear()
     yield
-    get_registry()._handlers.clear()
+    _REGISTRY.clear()
 
 
 def _bound(bindings, resolver=lambda *_: None):
@@ -51,17 +52,17 @@ class TestRegistry:
 
         transform_h = task_handler("events_pipeline", "transform")(transform)
         assert transform is transform_h, "@task_handler should return the original function"
-        assert get_registry().get("events_pipeline", "transform") is transform
+        assert get_handler("events_pipeline", "transform") is transform
 
     def test_task_id_defaults_to_function_name(self):
         @task_handler("d")
         def extract():
             return 1
 
-        assert get_registry().get("d", "extract") is extract
+        assert get_handler("d", "extract") is extract
 
     def test_unknown_lookup_returns_none(self):
-        assert get_registry().get("nope", "nope") is None
+        assert get_handler("nope", "nope") is None
 
     def test_duplicate_registration_rejected(self):
         @task_handler("d", "t")

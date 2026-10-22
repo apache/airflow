@@ -53,6 +53,7 @@ class TaskHandlerDeclaration:
 
     task_id: str
     params: list[TaskHandlerParam] = field(default_factory=list)
+    handler: Callable[..., typing.Any] | None = field(default=None, compare=False, repr=False)
 
 
 def declare_handler(
@@ -84,7 +85,7 @@ def declare_handler(
                 required=p.default is Parameter.empty,
             )
         )
-    return TaskHandlerDeclaration(task_id=task_id, params=params)
+    return TaskHandlerDeclaration(task_id=task_id, params=params, handler=fn)
 
 
 class _ValueSchemaGenerator(GenerateJsonSchema):
