@@ -548,6 +548,31 @@ class TestManagedAgent:
 
     @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
     @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
+    @pytest.mark.parametrize("status", [429, 500])
+    def test_reraised_http_error_remains_transient(self, http, token, hook, status):
+        hook.retry_args["reraise"] = True
+        failed_post = mock.Mock(spec=requests.Response)
+        failed_post.status_code = status
+        original_error = requests.HTTPError(response=failed_post)
+        failed_post.raise_for_status.side_effect = original_error
+        status_response = mock.Mock(spec=requests.Response)
+        status_response.status_code = 200
+        status_response.json.return_value = {"id": INVOCATION_ID, "status": "active"}
+        http.side_effect = lambda method, *args, **kwargs: {"POST": failed_post, "GET": status_response}[
+            method
+        ]
+
+        with pytest.raises(requests.HTTPError) as exc:
+            hook.agent(APP_URL).invoke(
+                ManagedAgentRequest(prompt="hello", vendor_options={"invocation_id": INVOCATION_ID})
+            )
+
+        assert exc.value is original_error
+        expected_methods = ["POST"] * hook.retry_limit + (["GET"] if status == 500 else [])
+        assert [call.args[0] for call in http.call_args_list] == expected_methods
+
+    @mock.patch.object(DatabricksAgentHook, "_get_sp_token", autospec=True, return_value="oauth")
+    @mock.patch("airflow.providers.databricks.hooks.agent.requests.request", autospec=True)
     def test_sync_failure_is_terminal_after_status_lookup(self, http, token, hook):
         failed_post = mock.Mock(spec=requests.Response)
         failed_post.status_code = 500
