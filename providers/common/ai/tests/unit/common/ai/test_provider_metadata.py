@@ -76,7 +76,6 @@ LABELS = {
     "heroku": "Heroku",
     "huggingface": "Hugging Face",
     "litellm": "LiteLLM",
-    "meta": "Meta",
     "mistral": "Mistral AI",
     "moonshotai": "Moonshot AI",
     "nebius": "Nebius",
@@ -167,14 +166,14 @@ requires_openai_codex_module = pytest.mark.skipif(
 # supports `pydantic-ai-slim>=2.33.0` (`pyproject.toml`) and CI's "Low dep tests" job installs
 # exactly that floor. Vendors upstream added after the floor are legitimately absent there --
 # bisected empirically: `vllm` landed in 2.38.0, `github_copilot` in 2.42.0, `typesafe` in
-# 2.45.0, `system_one` in 2.53.0, `openai_decisions` in 2.55.0 and `meta` in 2.57.0 (`openai_codex` also
-# landed after the floor, in 2.41.0, but is excluded from this reasoning -- see
+# 2.45.0, `system_one` in 2.53.0 and `openai_decisions` in 2.55.0 (`openai_codex` also landed
+# after the floor, in 2.41.0, but is excluded from this reasoning -- see
 # `OPENAI_CODEX_AVAILABLE_FROM` above) -- so only the "installed but not declared" direction
 # holds on every supported version. The opposite direction ("declared but not installed") is a
 # real drift signal solely from the release that carries every vendor currently declared, i.e.
-# the latest of them, `meta`'s 2.57.0: raise this when a newly declared vendor lands
+# the latest of them, `openai_decisions`'s 2.55.0: raise this when a newly declared vendor lands
 # in a later release.
-ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.57.0")
+ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.55.0")
 
 requires_all_declared_vendors = pytest.mark.skipif(
     Version(Version(version("pydantic-ai-slim")).base_version) < ALL_DECLARED_VENDORS_AVAILABLE_FROM,

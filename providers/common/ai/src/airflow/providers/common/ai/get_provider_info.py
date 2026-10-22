@@ -165,7 +165,6 @@ def get_provider_info():
                     "Heroku",
                     "Hugging Face",
                     "LiteLLM",
-                    "Meta",
                     "Mistral AI",
                     "Moonshot AI",
                     "Nebius",
