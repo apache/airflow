@@ -759,10 +759,10 @@ func TestSerializeWritesTheLabelsOfEdges(t *testing.T) {
 	groupTask(t, transform, "clean")
 	publish := dag.TaskGroup("publish")
 	groupTask(t, publish, "push")
-	extracted.Before(Label(loaded, "rows"), notified)
-	extracted.Before(Label(transform, "to transform"))
-	transform.Before(Label(publish, "to publish"))
-	publish.Before(Label(notified, "to notify"))
+	extracted.Before(Label("rows").On(loaded), notified)
+	extracted.Before(Label("to transform").On(transform))
+	transform.Before(Label("to publish").On(publish))
+	publish.Before(Label("to notify").On(notified))
 
 	got := serializedDag(t, dag)
 
