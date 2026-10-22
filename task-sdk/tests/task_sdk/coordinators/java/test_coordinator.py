@@ -497,7 +497,7 @@ class TestJavaCoordinatorExecuteNativeDag:
         bundle = MagicMock(path=tmp_path, version="v1")
         bundle.name = "dags-folder"
         with (
-            patch("airflow.sdk.coordinators._subprocess._initialize_pinned_bundle", return_value=bundle),
+            patch("airflow.sdk.coordinators._subprocess.initialize_pinned_bundle", return_value=bundle),
             patch("airflow.sdk.coordinators._subprocess.BundleVersionLock"),
             patch.object(_PopenActivitySubprocess, "start") as mock_start,
         ):

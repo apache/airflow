@@ -25,40 +25,23 @@ task handler.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
+from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
 from airflow.sdk.bases.xcom import BaseXCom
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
-    from typing import Literal, NotRequired, TypeAlias
+
+    from airflow.sdk.api.datamodels._generated import TaskArgBinding
 
     XComResolver = Callable[[str, str], Any]
 
-__all__ = ["ArgBinding", "call_handler"]
-
-
-class LiteralArgBinding(TypedDict):
-    """Literal argument representation."""
-
-    name: str
-    kind: Literal["literal"]
-    value: NotRequired[Any]
-
-
-class XComArgBinding(TypedDict):
-    """XCom reference argument representation."""
-
-    name: str
-    kind: Literal["xcom"]
-    task_id: str
-
-
-ArgBinding: TypeAlias = "LiteralArgBinding | XComArgBinding"
+__all__ = ["call_handler"]
 
 
 def _bind_arguments(
-    arg_bindings: list[ArgBinding] | None,
+    arg_bindings: list[TaskArgBinding] | None,
     xcom_resolver: XComResolver,
     *,
     skip_defaults: bool = True,
@@ -73,29 +56,21 @@ def _bind_arguments(
     so the handler's own default applies -- matching ADR-0007's "defaults are explicit" so a
     keyword consumer can leave them unclaimed. Set false to bind them explicitly.
 
-    ``None`` (an argless call) yields ``{}``.
+    ``None`` (an argless call) yields nothing.
     """
-    for i, binding in enumerate(arg_bindings or ()):
-        if not (name := binding.get("name")):
-            raise ValueError(f"arg_bindings[{i}]: missing 'name'")
-        match binding:
-            case {"kind": "literal", "from_default": True} if skip_defaults:
+    for binding in arg_bindings or ():
+        match binding.root:
+            case LiteralArgBinding(from_default=True) if skip_defaults:
                 continue
-            case {"kind": "literal"}:
-                yield name, binding.get("value")
-            case {"kind": "xcom", "task_id": str(task_id)} if task_id:
+            case LiteralArgBinding(name=name, value=value):
+                yield name, value
+            case XComArgBinding(name=name, task_id=task_id):
                 yield name, xcom_resolver(task_id, BaseXCom.XCOM_RETURN_KEY)
-            case {"kind": "xcom"}:
-                raise ValueError(f"arg_bindings[{i}] ({name!r}): xcom binding missing 'task_id'")
-            case {"kind": kind}:
-                raise ValueError(f"arg_bindings[{i}] ({name!r}): unknown kind {kind!r}")
-            case _:
-                raise ValueError(f"arg_bindings[{i}] ({name!r}): missing 'kind'")
 
 
 def call_handler(
     fn: Callable[..., Any],
-    arg_bindings: list[ArgBinding] | None,
+    arg_bindings: list[TaskArgBinding] | None,
     xcom_resolver: XComResolver,
     *,
     skip_defaults: bool = True,

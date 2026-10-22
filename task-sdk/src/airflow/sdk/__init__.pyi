@@ -136,6 +136,7 @@ from airflow.sdk.execution_time import macros as macros
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
+from airflow.sdk.task_handlers import task_handler as task_handler
 
 conf: AirflowSDKConfigParser
 
@@ -236,6 +237,7 @@ __all__ = [
     "setup",
     "task",
     "task_group",
+    "task_handler",
     "teardown",
     "conf",
 ]

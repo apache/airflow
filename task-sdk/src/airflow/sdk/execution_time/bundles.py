@@ -28,15 +28,40 @@ import os
 from getpass import getuser
 from typing import TYPE_CHECKING
 
+from airflow.dag_processing.bundles.base import unpack_bundle_version  # noqa: SDK002
 from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
+from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.exceptions import AirflowException
 from airflow.sdk.execution_time.tracing import detail_span
 
 if TYPE_CHECKING:
-    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
-    from airflow.sdk.api.datamodels._generated import BundleInfo
+    from structlog.typing import FilteringBoundLogger
 
-__all__ = ["initialize_ti_bundle", "verify_bundle_access"]
+    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
+
+__all__ = ["initialize_pinned_bundle", "initialize_ti_bundle", "verify_bundle_access"]
+
+
+def initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+    """
+    Materialize *target* at a concrete version, so the tree handed to the caller is lockable.
+
+    A bundle resolved without a version points at the bundle's shared, mutable
+    checkout: another task refreshing the same bundle resets it underneath a caller
+    still reading it, and ``BundleVersionLock`` cannot protect it because a
+    version-less lock is a no-op. Re-resolving at the version current now yields a
+    private ``versions/<version>`` tree that the lock does cover.
+
+    Bundles that do not track versions have nothing to pin and keep their single path.
+    """
+    bundle = initialize_ti_bundle(target)
+    if bundle.version is not None:
+        return bundle
+    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
+    if version is None:
+        return bundle
+    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
+    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
 
 
 def initialize_ti_bundle(bundle_info: BundleInfo) -> BaseDagBundle:

@@ -67,6 +67,8 @@ Task Decorators:
 
 .. autoapifunction:: airflow.sdk.task_group
 
+.. autoapifunction:: airflow.sdk.task_handler
+
 .. autoapifunction:: airflow.sdk.setup
 
 .. autoapifunction:: airflow.sdk.teardown

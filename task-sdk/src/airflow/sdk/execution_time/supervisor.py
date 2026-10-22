@@ -3135,6 +3135,7 @@ def supervise_task(
     _make_process_nondumpable()
 
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
+    from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
 
     if not client:
         if dry_run and server:
@@ -3172,7 +3173,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
+        coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
     except:
         log.exception(
             "Failed to initialize coordinator for task",
