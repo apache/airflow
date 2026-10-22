@@ -2468,6 +2468,79 @@ execution_api:
       default: "urn:airflow.apache.org:task"
       example: ~
       type: string
+webhooks:
+  description: |
+    Settings for inbound webhooks, which the API server receives at ``POST /webhooks/<name>``.
+  options:
+    names:
+      description: |
+        .. note:: |experimental|
+
+        Comma-separated names of the webhooks to serve, each configured by a ``webhook_<name>``
+        connection. Requests for other names are answered with 404 without looking up a connection, so
+        they cannot add calls to a secrets backend. Empty serves no webhook.
+
+        A name has 1 to 64 lowercase letters, digits, ``-`` and ``_``, and starts with a letter or a
+        digit. Names qualified with a team, such as ``team:name``, are not supported yet.
+      version_added: 3.5.0
+      type: string
+      example: "github,jira"
+      default: ""
+    source_type_owners:
+      description: |
+        .. note:: |experimental|
+
+        Comma-separated ``source_type=package`` pairs, each naming the provider package that serves a
+        webhook source type. A source type that more than one installed provider declares is served by
+        none of them unless it is listed here. A source type listed here is served only by the package
+        named, so installing another package that declares it cannot replace the code that verifies its
+        deliveries.
+      version_added: 3.5.0
+      type: string
+      example: "github=apache-airflow-providers-github"
+      default: ""
+    connection_cache_ttl:
+      description: |
+        .. note:: |experimental|
+
+        Seconds a listed webhook's connection, or the failure to find or use it, is reused before it is
+        read again. Each API server process caches on its own. A changed connection takes up to this long
+        to apply, except that a delivery that fails verification has the connection read again, at most
+        once per this period, so a secret changed in the connection applies to the first delivery signed
+        with it. A lookup that a secrets backend failed, which includes a connection environment variable
+        that cannot be parsed, is used only by the deliveries that waited for it. 0 turns the cache off,
+        so deliveries share a read of the connection only while it is under way.
+      version_added: 3.5.0
+      type: integer
+      example: "300"
+      default: "60"
+    max_body_bytes:
+      description: |
+        .. note:: |experimental|
+
+        Largest request body, in bytes, that a webhook accepts, unless its connection sets its own limit,
+        higher or lower, with ``max_body_bytes`` in its extra; larger requests are answered with 413. So
+        anyone who can edit a ``webhook_<name>`` connection can raise that webhook's limit.
+      version_added: 3.5.0
+      type: integer
+      example: "65536"
+      default: "1048576"
+    delivery_retention:
+      description: |
+        .. note:: |experimental|
+
+        Days a webhook delivery is recorded for. ``airflow db clean`` removes a record only once it is
+        older than this, whatever cutoff it is given. A changed value applies to deliveries received
+        after the change.
+
+        Keep it longer than any sender retries a delivery: a retry that arrives after the record of its
+        first delivery is removed is not recognised as a retry, and is processed again. At most 365, so
+        that the time a record is kept until fits the metadata database's timestamps, which end in
+        January 2038 on MySQL.
+      version_added: 3.5.0
+      type: integer
+      example: "30"
+      default: "7"
 lineage:
   description: ~
   options:

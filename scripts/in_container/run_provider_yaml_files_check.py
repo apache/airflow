@@ -422,6 +422,38 @@ def check_remote_logging_scheme_duplicates(yaml_files: dict[str, dict]) -> tuple
     return num_schemes, num_errors
 
 
+@run_check("Checking webhook-sources source-type duplicates")
+def check_webhook_source_type_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    """Each webhook ``source-type`` must be declared once, by one provider and with one class.
+
+    ``ProvidersManager`` serves a source type with more than one declaration from none of them, so
+    a duplicate would leave it unusable wherever all its declaring providers are installed.
+    """
+    num_errors = 0
+    declarations_by_type: dict[str, set[tuple[str, str]]] = {}
+    for provider_data in yaml_files.values():
+        package_name = provider_data["package-name"]
+        for entry in provider_data.get("webhook-sources", []):
+            declarations_by_type.setdefault(entry["source-type"], set()).add(
+                (package_name, entry["classpath"])
+            )
+    num_source_types = len(declarations_by_type)
+    duplicates = [
+        (source_type, ", ".join(f"{package}: {classpath}" for package, classpath in sorted(declarations)))
+        for source_type, declarations in sorted(declarations_by_type.items())
+        if len(declarations) > 1
+    ]
+    if duplicates:
+        console.print(
+            "Duplicate webhook source types found. Each source type may be declared by only one "
+            "provider, with one class; otherwise ProvidersManager serves it from none of them. "
+            "Please give each source type a unique name."
+        )
+        errors.append(tabulate(duplicates, headers=["Webhook source type", "Declared by"]))
+        num_errors += 1
+    return num_source_types, num_errors
+
+
 @run_check("Checking completeness of list of {sensors, hooks, operators, triggers, bundles, toolsets}")
 def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     yaml_files: dict[str, dict],
@@ -715,8 +747,8 @@ def check_hook_classes_with_conn_type_are_registered(yaml_files: dict[str, dict]
 def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tuple[int, int]:
     """
     Walk all provider source files, find Hook/Operator/Sensor/Trigger/Executor/Notifier/
-    SecretsBackend/AuthManager/LoggingHandler/DagBundle/DBManager/Toolset/RetryPolicy subclasses, and
-    verify they are registered in the appropriate provider.yaml section.
+    SecretsBackend/AuthManager/LoggingHandler/DagBundle/DBManager/Toolset/RetryPolicy/WebhookSource
+    subclasses, and verify they are registered in the appropriate provider.yaml section.
 
     This catches classes placed in non-standard directories or modules that were missed
     when updating provider.yaml.
@@ -735,6 +767,7 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
     from airflow.triggers.base import BaseTrigger
     from airflow.utils.db_manager import BaseDBManager
     from airflow.utils.log.file_task_handler import FileTaskHandler
+    from airflow.webhooks.base import WebhookSource
 
     # Most specific first — BaseSensorOperator is a BaseOperator subclass
     base_class_resource_map: list[tuple[type, str]] = [
@@ -751,6 +784,7 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
         (BaseDBManager, "db-managers"),
         (AbstractToolset, "toolsets"),
         (RetryPolicy, "retry-policies"),
+        (WebhookSource, "webhook-sources"),
     ]
 
     # Resource types where registration is by class path (not module)
@@ -761,6 +795,7 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
         "auth-managers",
         "logging",
         "db-managers",
+        "webhook-sources",
     }
 
     num_checks = 0
@@ -803,6 +838,8 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
         ):
             for class_path in provider_data.get(resource_type, []):
                 registered_classes.add(class_path)
+        for entry in provider_data.get("webhook-sources", []):
+            registered_classes.add(entry["classpath"])
 
         # Find the src directory for the provider
         src_dir = package_dir / "src"
@@ -932,6 +969,26 @@ def check_plugin_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
                 ObjectType.CLASS,
             )
     return num_plugins, num_errors
+
+
+@run_check("Checking webhook-sources classes belong to package, exist and are classes")
+def check_webhook_source_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
+    resource_type = "webhook-sources"
+    num_errors = 0
+    num_webhook_sources = 0
+    for yaml_file_path, provider_data in yaml_files.items():
+        provider_package = _filepath_to_module(yaml_file_path)
+        webhook_sources = provider_data.get(resource_type)
+        if webhook_sources:
+            num_webhook_sources += len(webhook_sources)
+            num_errors += check_if_objects_exist_and_belong_to_package(
+                {webhook_source["classpath"] for webhook_source in webhook_sources},
+                provider_package,
+                yaml_file_path,
+                resource_type,
+                ObjectType.CLASS,
+            )
+    return num_webhook_sources, num_errors
 
 
 def _check_simple_class_list(resource_type, yaml_files):
@@ -1228,6 +1285,7 @@ if __name__ == "__main__":
     all_files_loaded = len(all_provider_files) == len(paths)
     check_integration_duplicates(all_parsed_yaml_files)
     check_remote_logging_scheme_duplicates(all_parsed_yaml_files)
+    check_webhook_source_type_duplicates(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_integrations_names_of_hooks_sensors_operators(all_parsed_yaml_files)
 
@@ -1240,6 +1298,7 @@ if __name__ == "__main__":
     check_executor_classes(all_parsed_yaml_files)
     check_queue_classes(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
+    check_webhook_source_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
     check_secrets_backend_classes(all_parsed_yaml_files)
     check_auth_manager_classes(all_parsed_yaml_files)

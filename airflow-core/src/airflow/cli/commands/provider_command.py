@@ -23,9 +23,12 @@ import sys
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import deprecated_for_airflowctl
-from airflow.providers_manager import ProvidersManager
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
+from airflow.providers_manager import ProvidersManager, WebhookSourceInfo
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+from airflow.webhooks.registry import parse_source_type_owners
 
 ERROR_IMPORTING_HOOK = "Error when importing hook!"
 
@@ -233,6 +236,36 @@ def queues_list(args):
         output=args.output,
         mapper=lambda x: {
             "queue_class_names": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
+@providers_configuration_loaded
+def webhook_sources_list(args):
+    """List all webhook source types at the command line."""
+    try:
+        owners = parse_source_type_owners(conf.get("webhooks", "source_type_owners"))
+    except AirflowConfigException as e:
+        raise SystemExit(str(e)) from e
+    providers_manager = ProvidersManager()
+    conflicts = providers_manager.webhook_source_conflicts
+
+    def get_status(info: WebhookSourceInfo) -> str:
+        if (owner := owners.get(info.source_type)) is not None:
+            if info.package_name == owner:
+                return "ok: picked by [webhooks] source_type_owners"
+            return f"not served: [webhooks] source_type_owners picks {owner}"
+        return "conflict: served by none" if info.source_type in conflicts else "ok"
+
+    AirflowConsole().print_as(
+        data=providers_manager.webhook_sources,
+        output=args.output,
+        mapper=lambda x: {
+            "source_type": x.source_type,
+            "classpath": x.classpath,
+            "package_name": x.package_name,
+            "status": get_status(x),
         },
     )
 

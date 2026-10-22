@@ -124,6 +124,13 @@ Exposing customized functionality to the Airflow's core:
 * ``triggers`` - this field should contain the list of all the trigger class names that the
   provider provides. See :doc:`apache-airflow:authoring-and-scheduling/deferring` for description of the triggers.
 
+* ``webhook-sources`` - this field should contain the list of the inbound webhook source types that the
+  provider provides, each a ``source-type`` together with the ``classpath`` of the
+  ``airflow.webhooks.base.WebhookSource`` subclass that implements it. A source type declared by more than
+  one installed provider is served by none of them, unless ``[webhooks] source_type_owners`` (see
+  :doc:`apache-airflow:configurations-ref`) names the package that serves it. |experimental|
+  See :doc:`/core-extensions/webhook-sources` for the source types of the community-managed providers.
+
 .. note:: Deprecated values
 
   * ``asset-uris`` (deprecated) - this field should contain the list of the URI schemes together with

@@ -43,10 +43,12 @@ from airflow.providers_manager import (
     ProviderInfo,
     ProvidersManager,
     RemoteLoggingInfo,
+    WebhookSourceInfo,
     provider_incompatibility_reason,
 )
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.webhooks import FakeHmacSource
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -62,6 +64,20 @@ class FakeRemoteLogIO:
     @classmethod
     def from_config(cls):
         return cls()
+
+
+class FakeWebhookSource:
+    """Importable stub used by webhook-sources discovery tests."""
+
+
+def fake_webhook_source_function():
+    """Importable non-class used by webhook-sources discovery tests."""
+
+
+FAKE_WEBHOOK_SOURCE = f"{__name__}.FakeWebhookSource"
+FAKE_WEBHOOK_SOURCE_FUNCTION = f"{__name__}.fake_webhook_source_function"
+FAKE_HMAC_SOURCE = "tests_common.test_utils.webhooks.FakeHmacSource"
+FAKE_PROVIDER_SOURCE = "airflow.providers.fake.webhooks.FakeSource"
 
 
 def test_cleanup_providers_manager(cleanup_providers_manager):
@@ -392,6 +408,162 @@ class TestWithoutCheckProviderManager:
         mock_correctness_check.assert_not_called()
 
         assert providers_manager._executor_without_check_set == result
+
+
+class TestWebhookSourceDiscovery:
+    @pytest.fixture(autouse=True)
+    def inject_fixtures(self, cleanup_providers_manager):
+        pass
+
+    @staticmethod
+    def set_providers(webhook_sources_by_package: dict[str, list[object]]) -> ProvidersManager:
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = {
+            package_name: ProviderInfo(version="0.0.1", data={"webhook-sources": entries})
+            for package_name, entries in webhook_sources_by_package.items()
+        }
+        return providers_manager
+
+    @pytest.mark.parametrize(
+        ("classpath", "expected_class"),
+        [
+            pytest.param(FAKE_HMAC_SOURCE, FakeHmacSource, id="class"),
+            pytest.param(FAKE_WEBHOOK_SOURCE_FUNCTION, None, id="not-a-class"),
+        ],
+    )
+    def test_source_type_declared_once_is_served(self, classpath, expected_class):
+        providers_manager = self.set_providers(
+            {"fake-webhooks": [{"source-type": "fake", "classpath": classpath}]}
+        )
+
+        assert providers_manager.webhook_sources == [
+            WebhookSourceInfo(source_type="fake", classpath=classpath, package_name="fake-webhooks")
+        ]
+        assert providers_manager.webhook_source_conflicts == {}
+        assert providers_manager.get_webhook_source_class("fake") is expected_class
+        assert providers_manager.get_webhook_source_class("unknown") is None
+
+    @pytest.mark.parametrize(
+        ("package_name", "expected_class"),
+        [
+            pytest.param(None, None, id="served-by-neither"),
+            pytest.param("fake-webhooks-first", FakeWebhookSource, id="first-package-chosen"),
+            pytest.param("fake-webhooks-second", FakeHmacSource, id="second-package-chosen"),
+            pytest.param("Fake_Webhooks.Second", FakeHmacSource, id="non-normalized-package-chosen"),
+            pytest.param("fake-webhooks-other", None, id="undeclaring-package-chosen"),
+        ],
+    )
+    def test_source_type_declared_by_two_providers_is_a_conflict(self, package_name, expected_class):
+        providers_manager = self.set_providers(
+            {
+                "fake-webhooks-first": [{"source-type": "dup", "classpath": FAKE_WEBHOOK_SOURCE}],
+                "fake-webhooks-second": [{"source-type": "dup", "classpath": FAKE_HMAC_SOURCE}],
+            }
+        )
+        declarations = [
+            WebhookSourceInfo(
+                source_type="dup", classpath=FAKE_WEBHOOK_SOURCE, package_name="fake-webhooks-first"
+            ),
+            WebhookSourceInfo(
+                source_type="dup", classpath=FAKE_HMAC_SOURCE, package_name="fake-webhooks-second"
+            ),
+        ]
+
+        assert providers_manager.webhook_sources == sorted(declarations)
+        assert providers_manager.webhook_source_conflicts == {"dup": declarations}
+        assert providers_manager.get_webhook_source_class("dup", package_name=package_name) is expected_class
+
+    @pytest.mark.parametrize(
+        ("second_classpath", "is_conflict"),
+        [
+            pytest.param(FAKE_HMAC_SOURCE, False, id="same-class-repeated"),
+            pytest.param(FAKE_WEBHOOK_SOURCE, True, id="another-class"),
+        ],
+    )
+    def test_source_type_declared_twice_by_one_provider(self, second_classpath, is_conflict):
+        providers_manager = self.set_providers(
+            {
+                "fake-webhooks": [
+                    {"source-type": "fake", "classpath": FAKE_HMAC_SOURCE},
+                    {"source-type": "fake", "classpath": second_classpath},
+                ]
+            }
+        )
+
+        assert ("fake" in providers_manager.webhook_source_conflicts) is is_conflict
+        assert (providers_manager.get_webhook_source_class("fake") is None) is is_conflict
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            pytest.param({"classpath": FAKE_PROVIDER_SOURCE}, id="no-source-type"),
+            pytest.param({"source-type": "fake"}, id="no-classpath"),
+            pytest.param({"source-type": "", "classpath": FAKE_PROVIDER_SOURCE}, id="empty"),
+            pytest.param({"source-type": "hmac-json", "classpath": FAKE_PROVIDER_SOURCE}, id="hyphen"),
+            pytest.param({"source-type": "Fake", "classpath": FAKE_PROVIDER_SOURCE}, id="uppercase"),
+            pytest.param({"source-type": "1fake", "classpath": FAKE_PROVIDER_SOURCE}, id="leading-digit"),
+            # inbound_delivery.source_type cannot store a longer one.
+            pytest.param({"source-type": "a" * 65, "classpath": FAKE_PROVIDER_SOURCE}, id="too-long"),
+            pytest.param({"source-type": "fake\n", "classpath": FAKE_PROVIDER_SOURCE}, id="trailing-newline"),
+            pytest.param({"source-type": "fake", "classpath": FAKE_HMAC_SOURCE}, id="class-outside-provider"),
+            pytest.param({"source-type": 1, "classpath": FAKE_PROVIDER_SOURCE}, id="non-string-source-type"),
+            pytest.param({"source-type": "fake", "classpath": 1}, id="non-string-classpath"),
+            pytest.param("fake", id="bare-string"),
+        ],
+    )
+    def test_invalid_entry_is_skipped_alone(self, entry):
+        providers_manager = self.set_providers(
+            {
+                "apache-airflow-providers-fake": [
+                    entry,
+                    {"source-type": "valid", "classpath": FAKE_PROVIDER_SOURCE},
+                ]
+            }
+        )
+
+        assert [info.source_type for info in providers_manager.webhook_sources] == ["valid"]
+
+    @pytest.mark.parametrize(
+        ("imported", "expected_class"),
+        [
+            pytest.param(FakeHmacSource, FakeHmacSource, id="class"),
+            pytest.param(None, None, id="import-failed"),
+            pytest.param(fake_webhook_source_function, None, id="not-a-class"),
+        ],
+    )
+    @patch("airflow.providers_manager.import_string", autospec=True)
+    @patch("airflow.providers_manager._correctness_check", autospec=True)
+    def test_class_is_imported_once_on_first_use(
+        self, mock_correctness_check: MagicMock, mock_import_string: MagicMock, imported, expected_class
+    ):
+        mock_correctness_check.return_value = imported
+        providers_manager = self.set_providers(
+            {"fake-webhooks": [{"source-type": "fake", "classpath": FAKE_HMAC_SOURCE}]}
+        )
+
+        assert providers_manager.webhook_sources == [
+            WebhookSourceInfo(source_type="fake", classpath=FAKE_HMAC_SOURCE, package_name="fake-webhooks")
+        ]
+        assert providers_manager.webhook_source_conflicts == {}
+        mock_correctness_check.assert_not_called()
+        mock_import_string.assert_not_called()
+
+        assert providers_manager.get_webhook_source_class("fake") is expected_class
+        assert providers_manager.get_webhook_source_class("fake") is expected_class
+        mock_correctness_check.assert_called_once_with(
+            "fake-webhooks", FAKE_HMAC_SOURCE, providers_manager._provider_dict["fake-webhooks"]
+        )
+
+    def test_cleanup_resets_webhook_sources(self):
+        providers_manager = self.set_providers(
+            {"fake-webhooks": [{"source-type": "fake", "classpath": FAKE_HMAC_SOURCE}]}
+        )
+        providers_manager.get_webhook_source_class("fake")
+
+        providers_manager._cleanup()
+
+        assert providers_manager._webhook_sources_by_type == {}
+        assert providers_manager._webhook_source_classes == {}
 
 
 class TestProvidersMetadataLoading:

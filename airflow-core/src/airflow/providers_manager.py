@@ -24,6 +24,7 @@ import functools
 import inspect
 import json
 import logging
+import re
 import traceback
 import warnings
 from collections.abc import Callable, Iterator, MutableMapping
@@ -60,6 +61,9 @@ MIN_PROVIDER_VERSIONS = {
 BLOCKED_PROVIDER_MIN_VERSIONS = {
     "apache-airflow-providers-common-ai": "1.0.0",
 }
+
+# inbound_delivery.source_type is a String(64).
+WEBHOOK_SOURCE_TYPE_PATTERN = re.compile(r"[a-z][a-z0-9_]{0,63}")
 
 
 def _is_source_install(dist: Distribution) -> bool:
@@ -260,6 +264,14 @@ class RemoteLoggingInfo(NamedTuple):
 
     classpath: str
     scheme: str
+    package_name: str
+
+
+class WebhookSourceInfo(NamedTuple):
+    """Webhook source type declared by a provider."""
+
+    source_type: str
+    classpath: str
     package_name: str
 
 
@@ -481,6 +493,8 @@ class ProvidersManager(LoggingMixin):
         self._executor_without_check_set: set[tuple[str, str]] = set()
         self._queue_class_name_set: set[str] = set()
         self._db_manager_class_name_set: set[str] = set()
+        self._webhook_sources_by_type: dict[str, dict[WebhookSourceInfo, None]] = {}
+        self._webhook_source_classes: dict[WebhookSourceInfo, type | None] = {}
         self._provider_configs: dict[str, dict[str, Any]] = {}
         self._trigger_info_set: set[TriggerInfo] = set()
         self._notification_info_set: set[NotificationInfo] = set()
@@ -650,6 +664,12 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of providers db_managers information."""
         self.initialize_providers_list()
         self._discover_db_managers()
+
+    @provider_info_cache("webhook_sources")
+    def initialize_providers_webhook_sources(self):
+        """Lazy initialization of providers webhook source types, without importing them."""
+        self.initialize_providers_list()
+        self._discover_webhook_sources()
 
     @provider_info_cache("notifications")
     def initialize_providers_notifications(self):
@@ -1349,6 +1369,38 @@ class ProvidersManager(LoggingMixin):
                     if _correctness_check(provider_package, db_manager_class_name, provider):
                         self._db_manager_class_name_set.add(db_manager_class_name)
 
+    def _discover_webhook_sources(self) -> None:
+        """
+        Retrieve all webhook source types declared in the providers, without importing them.
+
+        A source type declared more than once is a conflict, not first-wins: providers are sorted by
+        package name, so first-wins would let any package that sorts earlier replace the code that
+        verifies another provider's deliveries.
+        """
+        for provider_package, provider in self._provider_dict.items():
+            for entry in provider.data.get("webhook-sources", []):
+                # The runtime schema leaves entries untyped so that one bad entry does not skip the
+                # whole provider; the types are checked here instead.
+                fields = entry if isinstance(entry, dict) else {}
+                source_type = fields.get("source-type")
+                classpath = fields.get("classpath")
+                if not (
+                    isinstance(source_type, str)
+                    and WEBHOOK_SOURCE_TYPE_PATTERN.fullmatch(source_type)
+                    and isinstance(classpath, str)
+                    and classpath
+                ):
+                    log.warning("Ignoring invalid webhook source %s from %s package", entry, provider_package)
+                    continue
+                if not _check_builtin_provider_prefix(provider_package, classpath):
+                    continue
+                info = WebhookSourceInfo(
+                    source_type=source_type, classpath=classpath, package_name=provider_package
+                )
+                # A dict used as an ordered set: provider_info_cache has no lock, so discovery can run
+                # twice at once, and a declaration seen twice must not become a conflict.
+                self._webhook_sources_by_type.setdefault(source_type, {})[info] = None
+
     def _discover_config(self) -> None:
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1564,6 +1616,64 @@ class ProvidersManager(LoggingMixin):
         return sorted(self._db_manager_class_name_set)
 
     @property
+    def webhook_sources(self) -> list[WebhookSourceInfo]:
+        """Return every webhook source type declaration, conflicting ones included, without importing."""
+        self.initialize_providers_webhook_sources()
+        return sorted(
+            info for declarations in self._webhook_sources_by_type.values() for info in declarations
+        )
+
+    @property
+    def webhook_source_conflicts(self) -> dict[str, list[WebhookSourceInfo]]:
+        """Return the webhook source types declared more than once, each with all its declarations."""
+        self.initialize_providers_webhook_sources()
+        return {
+            source_type: list(declarations)
+            for source_type, declarations in sorted(self._webhook_sources_by_type.items())
+            if len(declarations) > 1
+        }
+
+    def get_webhook_source_class(self, source_type: str, *, package_name: str | None = None) -> type | None:
+        """
+        Return the class declared for a webhook source type, importing it on first use.
+
+        The result is checked to be a class, but not to be a ``WebhookSource``; that is left to the
+        caller.
+
+        :param source_type: The source type.
+        :param package_name: Use this provider package's declaration, so that a source type other
+            providers declare too can still be served. The name is normalized as package names are, so
+            ``apache_airflow_providers_github`` matches ``apache-airflow-providers-github``. By default a
+            source type is served only when exactly one provider declares it.
+        :return: The class, or None when no single declaration matches, or the classpath cannot be
+            imported or is not a class. A declaration is imported once and the result, None included,
+            is cached.
+        """
+        self.initialize_providers_webhook_sources()
+        owner = None if package_name is None else canonicalize_name(package_name)
+        declarations = [
+            info
+            for info in self._webhook_sources_by_type.get(source_type, {})
+            if owner is None or info.package_name == owner
+        ]
+        if len(declarations) != 1:
+            return None
+        info = declarations[0]
+        if info not in self._webhook_source_classes:
+            imported = _correctness_check(
+                info.package_name, info.classpath, self._provider_dict[info.package_name]
+            )
+            if imported is not None and not inspect.isclass(imported):
+                log.warning(
+                    "Ignoring webhook source %s from %s package: it is not a class",
+                    info.classpath,
+                    info.package_name,
+                )
+                imported = None
+            self._webhook_source_classes[info] = imported
+        return self._webhook_source_classes[info]
+
+    @property
     def filesystem_module_names(self) -> list[str]:
         self.initialize_providers_filesystems()
         return sorted(self._fs_set)
@@ -1626,6 +1736,8 @@ class ProvidersManager(LoggingMixin):
         self._executor_class_name_set.clear()
         self._executor_without_check_set.clear()
         self._queue_class_name_set.clear()
+        self._webhook_sources_by_type.clear()
+        self._webhook_source_classes.clear()
         self._provider_configs.clear()
 
         # Imported lazily to avoid a configuration/providers_manager import cycle during cleanup.
