@@ -50,7 +50,7 @@ logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
 def _logfile_path(task: TaskInstanceKey, task_instance_id: UUID | None = None, *, session=NEW_SESSION) -> str:
     """Elaborate the (relative) path and filename to expect from task execution."""
     if is_callback_job(task.dag_id, task.task_id, task.run_id, task.try_number, task.map_index):
-        return _callback_logfile_path(task, session=session)
+        return _get_callback_logfile_path(task, session=session)
     if task_instance_id is None:
         stored_id = session.scalar(
             select(EdgeJobModel.task_instance_id).where(
@@ -81,7 +81,7 @@ def _logfile_path(task: TaskInstanceKey, task_instance_id: UUID | None = None, *
     return FileTaskHandler(".")._render_filename(ti, task.try_number)
 
 
-def _callback_logfile_path(task: TaskInstanceKey, *, session: Session) -> str:
+def _get_callback_logfile_path(task: TaskInstanceKey, *, session: Session) -> str:
     """
     Return a callback's ``log_path`` from the workload JSON in the callback's ``edge_job`` row.
 
@@ -100,10 +100,6 @@ def _callback_logfile_path(task: TaskInstanceKey, *, session: Session) -> str:
             EdgeJobModel.try_number == task.try_number,
         )
     )
-    log_path = json.loads(command).get("log_path") if command else None
-    if not log_path:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No log path found for callback {task.task_id}")
-    return log_path
     if command and (log_path := json.loads(command).get("log_path")):
         return log_path
     raise HTTPException(status.HTTP_404_NOT_FOUND, f"No log path found for callback {task.task_id}")
