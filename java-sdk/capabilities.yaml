@@ -71,6 +71,7 @@ capabilities:
   xcom-read-write:
     supported: true
     since: "3.3"
+    note: "getXCom / setXCom / deleteXCom"
   connection-read:
     supported: true
     since: "3.3"
