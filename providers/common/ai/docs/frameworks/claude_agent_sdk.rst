@@ -267,7 +267,7 @@ Install this provider with its ``claude-agent-sdk`` extra:
 
 The extra installs the SDK, which bundles the Claude Code CLI. The adapter needs
 ``claude-agent-sdk`` 0.2.160 or later, which the extra requires, and is tested with
-0.2.163.
+0.2.168.
 
 .. seealso::
 
