@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import contextlib
 import importlib.util
-import logging
 import marshal
 import py_compile
 import signal
@@ -396,37 +395,14 @@ class TestPythonDagImporter:
         assert result.errors[0].error_type == "import"
         assert "unexpected None" in result.errors[0].message
 
-    def test_sigsegv_handler_registration_and_execution(self, mock_bundle):
+    def test_import_does_not_replace_sigsegv_handler(self, mock_bundle):
         dag_file = mock_bundle.path / "sample_dag.py"
         dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag')\n")
+        handler_before = signal.getsignal(signal.SIGSEGV)
 
-        importer = PythonDagImporter()
-        registered_handler = None
+        result = PythonDagImporter().import_definition(
+            FilesystemDagDefinition(path=dag_file), bundle=mock_bundle
+        )
 
-        def mock_signal_func(signum, handler):
-            nonlocal registered_handler
-            if signum == signal.SIGSEGV:
-                registered_handler = handler
-
-        with mock.patch("signal.signal", side_effect=mock_signal_func):
-            result = importer.import_definition(FilesystemDagDefinition(path=dag_file), bundle=mock_bundle)
-            assert callable(registered_handler)
-
-            registered_handler(signal.SIGSEGV, None)
-            assert len(result.errors) == 1
-            assert result.errors[0].error_type == "segfault"
-            assert "Received SIGSEGV signal while processing" in result.errors[0].message
-
-    def test_sigsegv_handler_registration_failure_logged(self, mock_bundle, caplog):
-        dag_file = mock_bundle.path / "sample_dag.py"
-        dag_file.write_text("from airflow.sdk import DAG\ndag = DAG('test_dag')\n")
-
-        importer = PythonDagImporter()
-        with (
-            mock.patch("signal.signal", side_effect=ValueError("signal only works in main thread")),
-            caplog.at_level(logging.WARNING),
-        ):
-            result = importer.import_definition(FilesystemDagDefinition(path=dag_file), bundle=mock_bundle)
-
-        assert len(result.dags) == 1
-        assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text
+        assert [dag.dag_id for dag in result.dags] == ["test_dag"]
+        assert signal.getsignal(signal.SIGSEGV) is handler_before

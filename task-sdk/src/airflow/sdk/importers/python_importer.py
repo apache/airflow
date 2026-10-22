@@ -24,7 +24,6 @@ import importlib.abc
 import importlib.util
 import logging
 import marshal
-import signal
 import sys
 import traceback
 import types
@@ -232,18 +231,6 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         result: DagImportResult,
         bundle: BaseDagBundle,
     ) -> list[types.ModuleType]:
-        def _handle_sigsegv(signum, frame):
-            msg = f"Received SIGSEGV signal while processing {definition!r}."
-            log.error(msg)
-            result.errors.append(
-                DagImportError(source_reference=repr(definition), message=msg, error_type="segfault")
-            )
-
-        try:
-            signal.signal(signal.SIGSEGV, _handle_sigsegv)
-        except (ValueError, AttributeError):
-            log.warning("SIGSEGV signal handler registration failed. Not in the main thread")
-
         log.debug("Importing %r (bundle: %s)", definition, bundle.name)
         mod_name = get_unique_dag_module_name(repr(definition))
 
