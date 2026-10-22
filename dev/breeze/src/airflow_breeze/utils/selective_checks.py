@@ -907,6 +907,7 @@ class SelectiveChecks:
         github_actor: str = "",
         github_context_dict: dict[str, Any] | None = None,
         platform: str = CI_AMD_PLATFORM,
+        selective_tests_on_push: bool = False,
     ):
         self._files = files
         # A changed test helper selects the tests that import it, as if those test files had changed;
@@ -933,6 +934,7 @@ class SelectiveChecks:
         self._github_actor = github_actor
         self._github_context_dict = github_context_dict or {}
         self._platform = platform
+        self._selective_tests_on_push = selective_tests_on_push
         self._new_toml: dict[str, Any] = {}
         self._old_toml: dict[str, Any] = {}
 
@@ -986,8 +988,15 @@ class SelectiveChecks:
     def default_constraints_branch(self) -> str:
         return self._default_constraints_branch
 
+    def _get_full_run_events(self) -> list[GithubEvents]:
+        # Only `ci-amd.yml` opts in: other push-triggered workflows (constraints, image cache) rely on
+        # a push selecting all Python versions.
+        if self._selective_tests_on_push:
+            return [GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
+        return [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]
+
     def _should_run_all_tests_and_versions(self) -> bool:
-        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
+        if self._github_event in self._get_full_run_events():
             if self.only_text_non_doc_files_changed and self._github_event == GithubEvents.PUSH:
                 console_print(
                     f"[warning]Only text non doc files changed in {self._github_event}, skip full tests[/]"
@@ -2279,7 +2288,7 @@ class SelectiveChecks:
 
     def _is_canary_run(self):
         return (
-            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH, GithubEvents.WORKFLOW_DISPATCH]
+            self._github_event in self._get_full_run_events()
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
             and not self.only_text_non_doc_files_changed
         ) or CANARY_LABEL in self._pr_labels
