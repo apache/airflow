@@ -56,10 +56,13 @@ By default, the operator waits for the result. Set ``deferrable=True`` to releas
 the worker while waiting, or ``wait_for_termination=False`` to return the initial
 submission response immediately. ``polling_period_seconds`` controls polling.
 The timeout limits the wait after submission; it does not cancel the remote run.
-Synchronous polling bounds each request and its retries by the remaining wait
-and raises :class:`~airflow.providers.databricks.exceptions.DatabricksAgentInvocationTimeout`
-when that budget expires. OAuth refresh has a separate HTTP timeout and can delay
-reporting that the wait expired. In deferrable mode, Airflow enforces the timeout on the deferred task.
+Synchronous polling uses the remaining wait to set request timeouts and limit retries,
+with each GET timeout capped by the hook's ``timeout_seconds``. It
+raises :class:`~airflow.providers.databricks.exceptions.DatabricksAgentInvocationTimeout`
+when it detects that the budget has expired. Requests' HTTP timeout limits network
+inactivity, not total response duration: a server that keeps sending data can delay
+that check. OAuth refresh also has a separate HTTP timeout and can delay reporting
+that the wait expired. In deferrable mode, Airflow enforces the timeout on the deferred task.
 
 .. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_agent.py
     :language: python
@@ -178,8 +181,10 @@ errors propagate after the hook's configured retries. A synchronous agent failur
 returns HTTP 500. After HTTP retries, the hook queries the known invocation ID:
 a stored ``failed`` status becomes ``ManagedAgentInvocationError``. If the lookup
 cannot confirm a stored failure, the original HTTP error propagates as transient.
-The request timeout bounds the HTTP call, its retries and the status lookup;
-OAuth refresh retains its separate timeout.
+The request timeout supplies a shared budget for the HTTP call, its retries and
+the status lookup. It is checked between attempts and after a successful HTTP response;
+it does not interrupt an HTTP response that keeps sending data. OAuth refresh
+retains its separate timeout.
 ``ManagedAgentToolset`` defaults to ``timeout=None``, so each synchronous HTTP
 attempt uses the hook's ``timeout_seconds`` (180 seconds by default). After the
 hook's retries are exhausted (three attempts by default), the call fails without
