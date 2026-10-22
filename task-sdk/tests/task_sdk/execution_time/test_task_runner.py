@@ -2115,91 +2115,6 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
-class _DeferralTimeoutProbe(BaseOperator):
-    def execute(self, context):
-        return "fresh"
-
-    def execute_complete(self, context, event=None):
-        return "resumed"
-
-
-def _resume_from_deferral(ti: RuntimeTaskInstance) -> None:
-    server_context = ti._ti_context_from_server
-    assert server_context is not None
-    server_context.next_method = "execute_complete"
-    server_context.next_kwargs = {"event": None}
-
-
-@pytest.mark.parametrize(
-    ("resuming", "elapsed", "expected_seconds", "expected_result"),
-    [
-        pytest.param(True, timedelta(minutes=4), 60.0, "resumed", id="resumed"),
-        pytest.param(True, timedelta(minutes=-1), 300.0, "resumed", id="resumed_clock_ahead"),
-        pytest.param(False, timedelta(hours=3), 300.0, "fresh", id="not_deferred"),
-    ],
-)
-@mock.patch("airflow.sdk.execution_time.timeout.timeout", autospec=True)
-def test_execution_timeout_on_resume_uses_time_still_left(
-    mock_timeout,
-    resuming,
-    elapsed,
-    expected_seconds,
-    expected_result,
-    time_machine,
-    create_runtime_ti,
-    mock_supervisor_comms,
-):
-    """A resumed deferral keeps only the timeout still left. A fresh run keeps the full timeout."""
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-    op = _DeferralTimeoutProbe(
-        task_id="deferral_timeout",
-        execution_timeout=timedelta(minutes=5),
-    )
-    ti = create_runtime_ti(task=op, dag_id="dag_deferral_timeout", start_date=instant - elapsed)
-    if resuming:
-        _resume_from_deferral(ti)
-
-    result = _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
-
-    assert result == expected_result
-    mock_timeout.assert_called_once_with(expected_seconds)
-    mock_supervisor_comms.send.assert_called_once_with(SetExecutionTimeout(timeout_seconds=expected_seconds))
-
-
-@mock.patch("airflow.sdk.execution_time.timeout.timeout", autospec=True)
-def test_resumed_task_fails_when_execution_timeout_already_elapsed(
-    mock_timeout, time_machine, create_runtime_ti, mock_supervisor_comms
-):
-    """Resuming after the original execution_timeout has already elapsed fails before the task runs."""
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-    op = _DeferralTimeoutProbe(
-        task_id="deferral_timeout_expired",
-        execution_timeout=timedelta(minutes=5),
-    )
-    ti = create_runtime_ti(
-        task=op,
-        dag_id="dag_deferral_timeout_expired",
-        start_date=instant - timedelta(minutes=6),
-    )
-    _resume_from_deferral(ti)
-    killed: list[None] = []
-    ti.task.on_kill = lambda: killed.append(None)
-
-    with pytest.raises(AirflowTaskTimeout):
-        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
-
-    assert killed == [None]
-    mock_timeout.assert_not_called()
-    sent_timeouts = [
-        sent.args[0]
-        for sent in mock_supervisor_comms.send.call_args_list
-        if sent.args and isinstance(sent.args[0], SetExecutionTimeout)
-    ]
-    assert sent_timeouts == []
-
-
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
@@ -6984,6 +6899,53 @@ class TestRunExecuteCallable:
 
         execute.assert_not_called()
         task.on_kill.assert_called_once()
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("server_timeout", "expected_seconds"),
+        [
+            pytest.param(60.0, 60.0, id="time-left"),
+            pytest.param(None, 300.0, id="server-omitted"),
+        ],
+    )
+    @mock.patch("airflow.sdk.execution_time.timeout.timeout", autospec=True)
+    def test_prefers_run_context_execution_timeout(
+        self, mock_timeout, server_timeout, expected_seconds, mock_supervisor_comms, make_ti_context
+    ):
+        """The in-process timeout uses the seconds the API server sent."""
+        task = self._make_task(execution_timeout=timedelta(minutes=5))
+        run_context = make_ti_context()
+        run_context.execution_timeout = server_timeout
+        ti = mock.Mock(spec=RuntimeTaskInstance)
+        ti._ti_context_from_server = run_context
+
+        result = _run_execute_callable(context={}, execute=lambda context: "ok", task=task, ti=ti)
+
+        assert result == "ok"
+        mock_timeout.assert_called_once_with(expected_seconds)
+        mock_supervisor_comms.send.assert_called_once_with(StartExecutionTimeout())
+
+    @mock.patch("airflow.sdk.execution_time.timeout.timeout", autospec=True)
+    def test_run_context_timeout_of_zero_fails_before_the_callable(
+        self, mock_timeout, mock_supervisor_comms, make_ti_context
+    ):
+        """A server value of 0 means the timeout already elapsed, even when the task timeout has not."""
+        task = self._make_task(execution_timeout=timedelta(minutes=5))
+        run_context = make_ti_context()
+        run_context.execution_timeout = 0.0
+        ti = mock.Mock(spec=RuntimeTaskInstance)
+        ti._ti_context_from_server = run_context
+        called: list[object] = []
+
+        def execute(context):
+            called.append(context)
+
+        with pytest.raises(AirflowTaskTimeout):
+            _run_execute_callable(context={}, execute=execute, task=task, ti=ti)
+
+        assert called == []
+        task.on_kill.assert_called_once()
+        mock_timeout.assert_not_called()
         mock_supervisor_comms.send.assert_not_called()
 
     def test_emits_task_execute_span_at_detail_level_2(self):

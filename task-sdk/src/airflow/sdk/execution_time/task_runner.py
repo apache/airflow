@@ -2336,10 +2336,10 @@ def _run_execute_callable(
     """
     ctx = contextvars.copy_context()
     ctx.run(ExecutorSafeguard.tracker.set, task)
-    if task.execution_timeout:
+    timeout_seconds = _get_execution_timeout_seconds(task, ti)
+    if timeout_seconds is not None:
         from airflow.sdk.execution_time.timeout import timeout
 
-        timeout_seconds = _remaining_execution_timeout_seconds(task.execution_timeout, ti)
         try:
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
@@ -2356,22 +2356,23 @@ def _run_execute_callable(
     return result
 
 
-def _remaining_execution_timeout_seconds(
-    execution_timeout: timedelta, ti: RuntimeTaskInstance | None
-) -> float:
+def _get_execution_timeout_seconds(task: BaseOperator, ti: RuntimeTaskInstance | None) -> float | None:
     """
-    Return how many seconds of ``execution_timeout`` this attempt may still use.
+    Return the in-process timeout in seconds, or None when this run has no timeout.
 
-    A resumed task keeps the original ``start_date``: the server puts it on
-    ``TIRunContext`` only when ``next_method`` is set, and the supervisor copies
-    that onto the runtime task. Count that elapsed time against the timeout.
-    A fresh run's ``start_date`` is this attempt, so leave its timeout untouched.
+    Prefer the run context. The API server sends the full configured timeout, or the time
+    still left when the task is resuming, including 0 once that limit has elapsed. Use the
+    task's own ``execution_timeout`` only when the server did not send one.
     """
-    timeout_seconds = execution_timeout.total_seconds()
-    if ti is None or not (ti._ti_context_from_server and ti._ti_context_from_server.next_method):
-        return timeout_seconds
-    elapsed = (datetime.now(tz=UTC) - ti.start_date).total_seconds()
-    return timeout_seconds - max(elapsed, 0.0)
+    if (
+        ti is not None
+        and (run_context := ti._ti_context_from_server) is not None
+        and run_context.execution_timeout is not None
+    ):
+        return run_context.execution_timeout
+    if not task.execution_timeout:
+        return None
+    return task.execution_timeout.total_seconds()
 
 
 @detail_span("_execute_task")
