@@ -32,9 +32,13 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.git.hooks.git import GitHook
+from airflow.providers.git.version_compat import AIRFLOW_V_3_4_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.dag_processing.bundles.base import BundleVersion
+
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.dag_processing.bundles.base import DagBundleRefreshError
 
 if TYPE_CHECKING:
     from tenacity import RetryCallState
@@ -472,10 +476,18 @@ class GitDagBundle(BaseDagBundle):
         with self.lock():
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
             with cm:
-                self._fetch_bare_repo()
-                self.repo.remotes.origin.fetch(
-                    ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
-                )
+                try:
+                    self._fetch_bare_repo()
+                    self.repo.remotes.origin.fetch(
+                        ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
+                    )
+                except GitCommandError as e:
+                    if AIRFLOW_V_3_4_PLUS:
+                        raise DagBundleRefreshError(
+                            "Failed to fetch the Dag bundle; the previous source files are unchanged",
+                            source_unchanged=True,
+                        ) from e
+                    raise
                 remote_branch = f"origin/{self.tracking_ref}"
                 if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
                     target = remote_branch
