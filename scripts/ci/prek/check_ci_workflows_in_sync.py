@@ -27,12 +27,12 @@ Documented divergences:
 
 1. Header intro comment (different prose explaining what each file is for)
 2. Workflow ``name:`` — ``Tests (ARM)`` vs ``Tests (AMD)``
-3. Triggers — ARM = its own schedule + push (to release-prep /
-   providers branches) + workflow_dispatch; AMD = its own schedule
-   (offset from ARM's cron) + the same push branches + pull_request +
-   workflow_dispatch. Both wrappers run on post-merge pushes to
-   stable / providers branches; only AMD runs on PRs (per-PR ARM
-   coverage stays cron-driven via the canary).
+3. Triggers — ARM = its own schedule + workflow_dispatch; AMD = its own
+   schedule (offset from ARM's cron) + pull_request + push (selective
+   tests on release-prep / providers branches) + workflow_dispatch.
+   ``release-branch-ci.yml`` dispatches the full runs of both on those
+   branches. Only AMD runs on PRs and pushes (ARM coverage stays
+   cron-driven via the canary and the dispatched release-branch runs).
 4. ``concurrency.group`` prefix — ``ci-arm-`` vs ``ci-amd-``
 5. ``build-info`` outputs ``platform`` and ``runner-type`` — hardcoded per
    architecture (and the surrounding comment naming the "ARM/AMD copy")
@@ -84,7 +84,10 @@ THIS_SCRIPT = Path(__file__).relative_to(REPO_ROOT)
 # AMD, append a rule here.
 LINE_RULES: list[tuple[str, str]] = [
     (r"^name: Tests \((?:ARM|AMD)\)$", "name: Tests (PLACEHOLDER)"),
-    (r"^  group: ci-(?:arm|amd)-", "  group: ci-PLACEHOLDER-"),
+    (
+        r"^    ci-(?:arm|amd)-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\$\{\{$",
+        "    ci-PLACEHOLDER-${{ github.event.pull_request.number || github.ref }}${{",
+    ),
     (r'^      platform: "linux/(?:arm64|amd64)"$', '      platform: "linux/PLACEHOLDER"'),
     (r"^      runner-type: '\[\"ubuntu-22\.04(?:-arm)?\"\]'$", "      runner-type: 'PLACEHOLDER'"),
     (r'^          PLATFORM: "linux/(?:arm64|amd64)"$', '          PLATFORM: "linux/PLACEHOLDER"'),
@@ -134,6 +137,16 @@ AMD_ONLY_BLOCK = """  schedule:
       - airflow-ctl/v[0-9]+-[0-9]+-test
       - airflow-ctl/v[0-9]+-[0-9]+-stable
     types: [opened, reopened, synchronize, ready_for_review]
+  push:
+    # Pushes to release-prep / providers branches run only the tests needed by the changes since the
+    # last successful run of the branch (selected as for a PR). Full runs of these branches, on AMD
+    # and ARM, are dispatched by `release-branch-ci.yml`. `main` does not build on push; its full
+    # runs are the canary above.
+    branches:
+      - v[0-9]+-[0-9]+-test
+      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+      - chart/v[0-9]+-[0-9]+x-test
+      - airflow-ctl/v[0-9]+-[0-9]+-test
 """
 
 
