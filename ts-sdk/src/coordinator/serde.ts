@@ -42,7 +42,7 @@ import {
 import type { JsonValue } from "../sdk/client-types.js";
 import {
   DOWNSTREAM_JOIN_SUFFIX,
-  getDagOrderEdges,
+  getDagLabelledEdges,
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
@@ -87,15 +87,31 @@ const TASK_MODULE = "airflow.sdk.coordinators.node";
  */
 const TASK_LANGUAGE = "typescript";
 
-/** Python's `DAG.edge_info`, keying a group end by its join node as Python does. */
-function serializeEdgeInfo(dag: Dag): SerializedValue {
+/**
+ * Python's `DAG.edge_info`, keying a group end by its join node as Python does.
+ *
+ * This writes the labels in the order they were last set. Python writes a label when it draws the
+ * edge. So when two labels land on one entry, the label set last is the one kept.
+ */
+function serializeEdgeInfo(dag: Dag, graph: DagGraph): SerializedValue {
   const groups = getDagTaskGroups(dag);
+  const grouped = new Set([...groups.values()].flatMap((group) => group.taskIds));
   const info: Record<string, Record<string, SerializedValue>> = {};
-  for (const { upstream, downstream, label } of getDagOrderEdges(dag)) {
+  const put = (from: string, to: string, label: string): void => {
+    (info[from] ??= {})[to] = { label };
+  };
+  for (const { upstream, downstream, label } of getDagLabelledEdges(dag)) {
     if (label === undefined) continue;
     const from = groups.has(upstream) ? upstream + DOWNSTREAM_JOIN_SUFFIX : upstream;
     const to = groups.has(downstream) ? downstream + UPSTREAM_JOIN_SUFFIX : downstream;
-    (info[from] ??= {})[to] = { label };
+    put(from, to, label);
+    // Python's `extract >> Label("x") >> group` also labels the edge from extract to each root of
+    // the group. Like the Java SDK, this code labels the edges to the roots for an edge drawn with
+    // `before` or `after`, but only when no group holds extract.
+    if (grouped.has(upstream)) continue;
+    for (const root of graph.groupRootsReached.get(upstream)?.get(downstream) ?? []) {
+      put(upstream, root, label);
+    }
   }
   return info;
 }
@@ -186,7 +202,7 @@ export function serializeDag(
     }),
     dag_dependencies: dagDependencies,
     task_group: serializeTaskGroups(dag, graph),
-    edge_info: serializeEdgeInfo(dag),
+    edge_info: serializeEdgeInfo(dag, graph),
     params: [],
     // Always written by Python's serializer, so a Dag without either still
     // round-trips to the same object.

@@ -49,6 +49,11 @@ export interface DagGraph {
   /** Each task's downstream task IDs, with every group endpoint expanded. */
   readonly downstreamTaskIds: Map<string, Set<string>>;
   readonly groupEdges: Map<string, GroupEdgeSets>;
+  /**
+   * For each labelled edge from a task to a group, the roots the group had when the edge was
+   * expanded, keyed by the task ID and then by the group ID.
+   */
+  readonly groupRootsReached: Map<string, Map<string, readonly string[]>>;
 }
 
 /**
@@ -65,6 +70,7 @@ export function buildDagGraph(dag: Dag): DagGraph {
   const groups = getDagTaskGroups(dag);
   const downstreamTaskIds = new Map<string, Set<string>>();
   const groupEdges = new Map<string, GroupEdgeSets>();
+  const groupRootsReached = new Map<string, Map<string, readonly string[]>>();
   const link = (upstream: string, downstream: string): void => {
     // Two arguments fed by the same upstream are one edge, as is an order-only
     // edge redeclaring one the wiring already drew.
@@ -149,13 +155,18 @@ export function buildDagGraph(dag: Dag): DagGraph {
     return sets;
   };
 
-  for (const { upstream, downstream } of orderEdges) {
+  for (const { upstream, downstream, label } of orderEdges) {
     const upstreamIsGroup = groups.has(upstream);
     const downstreamIsGroup = groups.has(downstream);
     if (!upstreamIsGroup && !downstreamIsGroup) continue;
 
     const from = tasksAt(upstream, "upstream");
     const to = tasksAt(downstream, "downstream");
+    if (!upstreamIsGroup && label !== undefined) {
+      const reached = groupRootsReached.get(upstream) ?? new Map<string, readonly string[]>();
+      reached.set(downstream, ends.roots(downstream));
+      groupRootsReached.set(upstream, reached);
+    }
     for (const tail of from) {
       for (const head of to) link(tail, head);
     }
@@ -174,7 +185,7 @@ export function buildDagGraph(dag: Dag): DagGraph {
       else sets.downstreamTasks.add(downstream);
     }
   }
-  return { downstreamTaskIds, groupEdges };
+  return { downstreamTaskIds, groupEdges, groupRootsReached };
 }
 
 function addTo(index: Map<string, Set<string>>, key: string, value: string): void {
