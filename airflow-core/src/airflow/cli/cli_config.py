@@ -2317,7 +2317,10 @@ core_commands: list[CLICommand] = [
             Arg(
                 ("--sync-bundles-only",),
                 action="store_true",
-                help="Provision the configured bundle catalog using trusted database and signing credentials, then exit",
+                help=(
+                    "Provision the bundle catalog on a trusted host using database access "
+                    "and the Fernet key for signing bundle URLs, then exit"
+                ),
             ),
             ARG_PID,
             ARG_DAEMON,
