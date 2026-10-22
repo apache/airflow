@@ -587,6 +587,53 @@ An ``InputTask`` whose type argument is not a concrete ``TaskInput`` fails when 
 rather than mid-run.  Plain ``Task`` remains the right interface for a task the Dag file
 calls with no arguments.
 
+.. _java-sdk/cancellation:
+
+Stopping when Airflow asks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Airflow asks a running task to stop when, for example, a user marks its task instance as failed. The
+supervisor, the Airflow process that started the task's JVM, then sends the JVM ``SIGTERM``. If the JVM
+is still running after a grace period, the supervisor sends ``SIGKILL``. When a user marks the task
+instance failed or success, or clears it, the grace period is
+:ref:`core.killed_task_cleanup_time <config:core__killed_task_cleanup_time>` seconds.
+
+A task can check ``Context.isCancelled()``, or call ``Context.awaitCancellation(timeout)`` where it
+would otherwise wait with ``Thread.sleep``. Unlike ``Thread.sleep``, ``awaitCancellation`` returns as
+soon as Airflow asks the task to stop. Once a task has called either method, the SDK catches the first
+``SIGTERM`` or ``SIGINT`` and the JVM keeps running. The task can then stop its work, such as a process
+it started, and throw. Keep checking until the task returns, because the first signal no longer stops
+the JVM:
+
+.. code-block:: java
+
+    public class ReportTask implements Task {
+      @Override
+      public void execute(Context context, Client client) throws Exception {
+        Process report = new ProcessBuilder("./build-report.sh").inheritIO().start();
+        while (!context.isCancelled()) {
+          if (report.waitFor(1, TimeUnit.SECONDS)) {
+            if (report.exitValue() != 0) {
+              throw new IllegalStateException("build-report.sh failed");
+            }
+            return;
+          }
+        }
+        report.destroy();
+        throw new IllegalStateException("Airflow asked the task to stop");
+      }
+    }
+
+Throw rather than return when the task stops early, because returning reports success for work the
+task did not finish. If a user changed the task instance's state while the task ran, for example by
+marking the task instance failed, Airflow keeps that state whatever the task reports.
+
+A task that has never checked cannot stop on its own, so for that task the JVM handles the signal as it
+does without the SDK: shutdown hooks run and the JVM exits. The JVM handles a second signal the same
+way, so sending the signal a second time stops a task that does not stop when asked. For a task that
+has checked, shutdown hooks run when the JVM exits after the task returns. The shutdown hooks do not run
+at all if the supervisor has to kill the JVM with ``SIGKILL``.
+
 .. _java-sdk/native-dags:
 
 Native Java Dags
@@ -682,9 +729,10 @@ returns the same handle every time, so it names one node wherever it appears; on
 arguments is called once, and the wiring fails if it is called again with arguments, so hold its
 handle in a local and reuse that.
 
-``before``, ``after`` and ``Flow.of`` work here exactly as they do on the interface surface; inside
-the wiring class ``Flow`` is inherited by simple name, so it needs no import and never collides with
-``java.util.concurrent.Flow``.
+``before``, ``after``, ``Flow.of`` and ``Label`` work here exactly as they do on the interface
+surface.  Inside the wiring class, ``Flow`` is inherited by simple name, so it needs no import and
+never collides with ``java.util.concurrent.Flow``.  ``Label`` is not inherited, so the wiring class
+has to import it with ``import org.apache.airflow.sdk.Label;``.
 
 Every ``@Airflow.Dag`` class declares a wiring class, because the graph is what the Dag owns.  A
 class that supplies only task bodies, for a Dag a Python file declares, carries
@@ -758,6 +806,53 @@ underscores, or dashes, and no task or other group in the Dag can share it.
     does.  Python instead reads it at each ``>>``.  Edges are still resolved in the order they were
     drawn, as Python resolves them, so drawing an inner edge before or after an outer one gives
     different upstreams.
+
+Edge labels
+~~~~~~~~~~~
+
+An edge can carry a label.  The Airflow UI shows the label on the edge in the graph, as it does for
+Python's ``Label``.  ``Label`` is a class in the ``org.apache.airflow.sdk`` package.  ``Label.of`` takes
+the label text, and ``on`` takes the task or group at one end of the edge you want to label.  Pass the
+result to ``before`` or ``after`` like any other point in the flow.  The text then sits between the two
+tasks in the code, as the label sits between them in the graph:
+
+.. code-block:: java
+
+    loaded.before(Label.of("when empty").on(reportEmpty)); // load >> Label("when empty") >> report_empty
+    cleaned.after(Label.of("always").on(loaded));          // load >> Label("always") >> cleanup
+
+A label goes on edges, not on tasks.  It covers only the edges between the receiver of ``before`` or
+``after`` and the tasks and groups passed to the label's ``on``.  So each edge of a fan-out can carry
+its own label.  ``on`` also takes several tasks or groups.  In that case, the label goes on the edge
+to or from each of them:
+
+.. code-block:: java
+
+    checked.before(Label.of("rows found").on(processed), Label.of("no rows").on(reportEmpty));
+    // load >> Label("forks") >> [report_empty, report_suspicious]
+    loaded.before(Label.of("forks").on(reportEmpty, reportSuspicious));
+
+When an edge already exists, declaring it again with a label only adds the label.  That is how the
+sides of a condition get their labels:
+
+.. code-block:: java
+
+    var hasRows = dag.If(HasRows.class).Then(load).Else(loadEmpty);
+    hasRows.before(Label.of("rows found").on(load), Label.of("no rows").on(loadEmpty));
+
+When an edge already has a label, a new label replaces it.  Use the value that ``on`` returns only in
+the arguments of ``before`` and ``after``.  Calling ``before`` or ``after`` on that value fails.  When
+an edge goes to or from a task group, the UI draws it to or from the group's own node and shows the
+label there.
+
+.. note::
+
+    A label never changes which tasks an edge connects.  Python's ``Label`` can change those tasks.
+    It does so when the end written to the left of the ``Label`` is in a task group and the other end
+    is not in that same group.  Python then replaces the left end with the group that contains it.
+    For example, if ``v`` is in group ``g`` and ``n`` is in no group, ``v >> Label("x") >> n`` draws
+    edges from the leaves of ``g`` instead of from ``v``.  In Java, the end that matches this
+    left end is the receiver of ``before`` or ``after``.
 
 Configuration attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~

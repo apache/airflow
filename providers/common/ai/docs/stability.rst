@@ -69,6 +69,10 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Seeds the run with the given conversation, as a list of messages or its JSON form,
        and publishes the finished conversation under the ``message_history`` XCom key so a
        later run can continue it. Cannot be combined with ``enable_hitl_review``.
+   * - ``emit_message_history`` on ``AgentOperator``
+     - Publishes the finished conversation under the ``message_history`` XCom key without
+       seeding the run. Defaults to ``True`` when ``message_history`` is set, and ``False``
+       stops a seeded run from publishing it. Cannot be combined with ``enable_hitl_review``.
    * - ``durable=True`` on ``AgentOperator`` and ``@task.agent``, and
        :class:`~airflow.providers.common.ai.durable.AirflowDurability`
        (:doc:`durable_execution`)
@@ -181,7 +185,7 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        :data:`~airflow.providers.common.ai.policies.retry.DEFAULT_CATEGORIES`, whose seven
        names and their retry or fail split stay the same. When the model call fails, or
        ``min_confidence`` is set and the answer is under it or carries no confidence, the
-       policy uses the RETRY or FAIL of ``fallback_policy``, then ``fallback_rules``, then
+       policy uses the decision of ``fallback_policy``, then ``fallback_rules``, then
        the task's own retry settings. ``ErrorCategory.min_confidence`` overrides the
        policy's ``min_confidence`` for that one category. ``min_confidence`` only has an
        effect when the model reports a confidence, and that comes from the ``typesafe``
@@ -223,8 +227,9 @@ Everything this provider ships that is not in the table above is experimental.
      - Thin integrations of ``pydantic-ai-harness`` and ``pydantic-ai-shields``, which are
        before their 1.0 releases.
    * - The Agent Skills toolset (:doc:`toolsets/skills`)
-     - It may move from ``pydantic-ai-skills`` to the on-demand loading Pydantic AI now has
-       itself (`pydantic/pydantic-ai#5230 <https://github.com/pydantic/pydantic-ai/pull/5230>`__).
+     - It is built on ``pydantic-ai-skills``, a community package. Whether it moves to
+       ``pydantic-ai-harness``'s ``Skills`` once that loads skill resources and scripts is
+       still open.
    * - :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` and its
        backends (:doc:`sandbox/index`)
      - ``durable=True`` cannot be used with it yet, the ``sbx`` backend leaves its sandbox
@@ -260,6 +265,10 @@ Everything this provider ships that is not in the table above is experimental.
    * - The Anthropic tool runner adapter (:doc:`frameworks/anthropic`)
      - Built on ``tool_runner``, a beta helper of the Anthropic SDK that can change between
        SDK releases.
+   * - The OpenAI Agents SDK adapter, trace processor and ``run_durably``
+       (:doc:`frameworks/openai_agents`)
+     - Written against OpenAI Agents SDK 0.20 and 0.23. The SDK is pre-1.0 and changes
+       its tool and runner APIs between minor releases.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)

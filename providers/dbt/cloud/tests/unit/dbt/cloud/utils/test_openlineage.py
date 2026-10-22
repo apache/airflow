@@ -101,13 +101,14 @@ def get_dbt_artifact(*args, **kwargs):
     [
         ("1.99.0", True),
         ("2.0.0", True),
-        ("2.3.0", True),
-        ("2.5.0", False),
+        ("2.5.0", True),
+        ("2.15.0", True),
+        ("2.16.0", False),
         ("2.99.0", False),
     ],
 )
 def test_previous_version_openlineage_provider(value, is_error):
-    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 2.4"""
+    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 2.16"""
 
     def _mock_version(package):
         if package == "apache-airflow-providers-openlineage":
@@ -118,7 +119,7 @@ def test_previous_version_openlineage_provider(value, is_error):
     mock_task_instance = MagicMock()
 
     expected_err = (
-        f"OpenLineage provider version `{value}` is lower than required `2.5.0`, "
+        f"OpenLineage provider version `{value}` is lower than required `2.16.0`, "
         "skipping function `generate_openlineage_events_from_dbt_cloud_run` execution"
     )
 
@@ -160,7 +161,7 @@ def test_get_parent_run_metadata():
 
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
     @patch("importlib.metadata.version", return_value="3.0.0")
-    @patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
+    @patch("airflow.providers.openlineage.api.emit")
     @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_task_instance_run_id")
     @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_dag_run_id")
     @patch.object(DbtCloudHook, "get_job_run")
@@ -173,7 +174,7 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_get_job_run,
         mock_build_dag_run_id,
         mock_build_task_instance_run_id,
-        mock_get_openlineage_listener,
+        mock_emit,
         mock_version,
     ):
         mock_operator = MagicMock(spec=DbtCloudRunJobOperator)
@@ -210,15 +211,12 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_task_instance.dag_id = DAG_ID
         mock_task_instance.dag_run.clear_number = 0
 
-        mock_adapter = MagicMock()
-
-        mock_adapter.emit.side_effect = emit_event
-        mock_get_openlineage_listener.return_value.adapter = mock_adapter
+        mock_emit.side_effect = emit_event
 
         mock_build_task_instance_run_id.return_value = TASK_UUID
         mock_build_dag_run_id.return_value = DAG_UUID
         generate_openlineage_events_from_dbt_cloud_run(mock_operator, task_instance=mock_task_instance)
-        assert mock_adapter.emit.call_count == 4
+        assert mock_emit.call_count == 4
 
     def test_do_not_raise_error_if_runid_not_set_on_operator(self):
         operator = DbtCloudRunJobOperator(task_id="dbt-job-runid-taskid", job_id=1500)

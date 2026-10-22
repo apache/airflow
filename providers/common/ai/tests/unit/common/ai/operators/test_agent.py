@@ -36,12 +36,13 @@ from pydantic_ai.capabilities import (
     AbstractCapability,
     CapabilityOrdering,
     CombinedCapability,
+    HandleDeferredToolCalls,
     PrefixTools,
     Thinking,
     Toolset,
     WebSearch,
 )
-from pydantic_ai.exceptions import ModelRetry, ToolFailed, UsageLimitExceeded
+from pydantic_ai.exceptions import ApprovalRequired, ModelRetry, ToolFailed, UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
     ModelMessagesTypeAdapter,
@@ -66,6 +67,7 @@ from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.base import RUN_ID_KEY, build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, DurableRun, journal_scope
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
 from airflow.providers.common.ai.sandbox.base import (
@@ -1426,36 +1428,12 @@ class TestAgentOperatorCapabilities:
 
         assert "Thinking" not in json.dumps(serialized, default=str)
 
-    @pytest.mark.parametrize(
-        "wrap",
-        [
-            pytest.param(lambda code_mode: code_mode, id="direct"),
-            pytest.param(lambda code_mode: CombinedCapability([Thinking(), code_mode]), id="combined"),
-            pytest.param(lambda code_mode: code_mode.prefix_tools("sandboxed"), id="prefixed"),
-            pytest.param(
-                lambda code_mode: CombinedCapability([PrefixTools(wrapped=code_mode, prefix="sandboxed")]),
-                id="prefixed-in-combined",
-            ),
-        ],
-    )
-    @pytest.mark.parametrize("passed_as", ["capabilities", "agent_params"])
-    def test_durable_refuses_a_code_mode_capability(self, fake_harness, wrap, passed_as):
-        capabilities = [wrap(_FakeCodeMode())]
-        kwargs = (
-            {"capabilities": capabilities}
-            if passed_as == "capabilities"
-            else {"agent_params": {"capabilities": capabilities}}
-        )
+    def test_durable_accepts_a_code_mode_capability(self, fake_harness):
+        code_mode = _FakeCodeMode()
 
-        with pytest.raises(ValueError, match="CodeMode capability"):
-            AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, **kwargs)
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[code_mode])
 
-    def test_durable_accepts_capabilities_without_code_mode(self, fake_harness):
-        thinking = Thinking()
-
-        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[thinking])
-
-        assert op.capabilities == [thinking]
+        assert op.capabilities == [code_mode]
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
     @pytest.mark.parametrize(
@@ -1474,20 +1452,28 @@ class TestAgentOperatorCapabilities:
     def test_harness_without_the_code_mode_extra_does_not_break_other_agents(
         self, harness_without_code_mode_extra
     ):
-        # Neither the durable check at construction nor the approval check at run time may
-        # touch the harness root, whose CodeMode export would raise ImportError here.
-        AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[Thinking()])
+        # The approval check at run time must not touch the harness root, whose CodeMode
+        # export would raise ImportError here.
         op = AgentOperator(task_id="u", prompt="p", llm_conn_id="llm", capabilities=[Thinking()])
 
         assert op._supports_tool_approval() is True
 
     def test_capability_function_is_left_for_the_run_to_resolve(self, fake_harness):
         def build(ctx):
-            return Thinking()
+            raise AssertionError("resolved before the run started")
 
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", durable=True, capabilities=[build])
 
         assert op.capabilities == [build]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow >= 3.3")
+    def test_tool_approval_check_leaves_a_capability_function_for_the_run(self, fake_harness):
+        def build(ctx):
+            raise AssertionError("resolved before the run started")
+
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="llm", capabilities=[build])
+
+        assert op._supports_tool_approval() is True
 
 
 @pytest.mark.skipif(
@@ -1605,6 +1591,10 @@ class TestAgentOperatorRegenerateWithFeedback:
         )
 
         assert output == '{"text":"Revised","score":0.0}'
+
+
+def _refund(order_id: int) -> str:
+    return f"refunded order {order_id}"
 
 
 def _tool_then_answer(fail_after_tool: list[bool], live: dict[str, int]):
@@ -1747,6 +1737,125 @@ class TestAgentOperatorDurable:
 
     def test_non_durable_accepts_a_toolset_without_an_id(self):
         AgentOperator(task_id="t", prompt="p", llm_conn_id="c", toolsets=[FunctionToolset()])
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param(
+                {"toolsets": [FunctionToolset(id="orders"), FunctionToolset(id="orders")]}, id="toolsets"
+            ),
+            pytest.param(
+                {"toolsets": [FunctionToolset(id="orders"), FunctionToolset(id="orders").prefixed("b")]},
+                id="wrapped",
+            ),
+            pytest.param(
+                {
+                    "toolsets": [FunctionToolset(id="orders")],
+                    "capabilities": [Toolset(FunctionToolset(id="orders"))],
+                },
+                id="toolset-capability",
+            ),
+            pytest.param(
+                {"agent_params": {"toolsets": [FunctionToolset(id="orders"), FunctionToolset(id="orders")]}},
+                id="agent-params",
+            ),
+        ],
+    )
+    def test_durable_refuses_two_toolsets_with_the_same_id(self, kwargs):
+        with pytest.raises(ValueError, match="more than one toolset has the id 'orders'"):
+            AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, **kwargs)
+
+    def test_durable_ignores_agent_params_toolsets_that_toolsets_overrides(self):
+        AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            toolsets=[FunctionToolset(id="orders")],
+            agent_params={"toolsets": [FunctionToolset(id="orders")]},
+        )
+
+    def test_durable_accepts_one_toolset_passed_twice(self):
+        orders = FunctionToolset(id="orders")
+
+        AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            durable=True,
+            toolsets=[orders],
+            capabilities=[Toolset(orders)],
+        )
+
+    def test_durable_fails_a_tool_that_raises_approval_required_with_unsupported_tool_deferral_error(self):
+        def refund() -> str:
+            raise ApprovalRequired
+
+        def model(messages, info):
+            return ModelResponse(parts=[ToolCallPart("refund", {})], usage=RequestUsage(input_tokens=7))
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=True,
+            enable_tool_logging=False,
+            toolsets=[FunctionToolset(tools=[refund], id="shop")],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model), **kw)
+        context = _make_context(ti=_make_ti(id="ti-1", try_number=1))
+
+        with (
+            patch.object(
+                AgentOperator, "_build_durable_storage", autospec=True, return_value=MemoryStorage()
+            ),
+            pytest.raises(UnsupportedToolDeferralError, match=r"need approval \(refund\)"),
+        ):
+            op.execute(context=context)
+
+        pushed = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].xcom_push.call_args_list
+        }
+        assert pushed["usage"]["input_tokens"] == 7
+
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(
+                FunctionToolset(tools=[_refund], id="shop").approval_required(), id="approval-required"
+            ),
+            pytest.param(
+                FunctionToolset(tools=[Tool(_refund, requires_approval=True)], id="shop"), id="tool"
+            ),
+        ],
+    )
+    def test_durable_runs_a_tool_needing_approval_that_a_handler_settles_inline(self, toolset):
+        def model(messages, info):
+            if len(messages) == 1:
+                return ModelResponse(parts=[ToolCallPart("_refund", {"order_id": 4411})])
+            return ModelResponse(parts=[TextPart("done")])
+
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=True,
+            enable_tool_logging=False,
+            toolsets=[toolset],
+            capabilities=[
+                HandleDeferredToolCalls(handler=lambda ctx, req: req.build_results(approve_all=True))
+            ],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model), **kw)
+
+        with patch.object(
+            AgentOperator, "_build_durable_storage", autospec=True, return_value=MemoryStorage()
+        ):
+            output = op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
+
+        assert output == "done"
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -2018,22 +2127,32 @@ class TestAgentOperatorMessageHistory:
         assert "message_history" not in pushed_keys
         assert pushed_keys == {"run_id", "usage", MODEL_NAME_XCOM_KEY}
 
+    @pytest.mark.parametrize(
+        ("kwargs", "emits"),
+        [
+            pytest.param({"message_history": []}, True, id="seeded"),
+            pytest.param({"emit_message_history": True}, True, id="opt-in"),
+            pytest.param({"message_history": [], "emit_message_history": False}, False, id="opt-out"),
+        ],
+    )
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_transcript_emitted_to_xcom_when_history_set(self, mock_hook_cls, make_mock_run_result):
-        """When message_history is set, the post-run transcript is pushed to XCom and round-trips."""
+    def test_transcript_emitted_to_xcom(self, mock_hook_cls, kwargs, emits, make_mock_run_result):
+        """The transcript push follows emit_message_history, which defaults to whether the run is seeded."""
         mock_agent = _make_mock_agent("ok", make_mock_run_result)
         mock_agent.run_sync.return_value.all_messages.return_value = _sample_history()
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
-        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", message_history=[])
+        op = AgentOperator(task_id="t", prompt="run", llm_conn_id="c", **kwargs)
         context = _make_context()
         op.execute(context=context)
 
+        # emit_message_history never seeds the run.
+        assert ("message_history" in mock_agent.run_sync.call_args.kwargs) is ("message_history" in kwargs)
         ti = context["task_instance"]
         pushes = {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list}
-        assert set(pushes) == {"run_id", "usage", "message_history", MODEL_NAME_XCOM_KEY}
-        restored = ModelMessagesTypeAdapter.validate_json(pushes["message_history"])
-        assert len(restored) == 2
+        assert ("message_history" in pushes) is emits
+        if emits:
+            assert len(ModelMessagesTypeAdapter.validate_json(pushes["message_history"])) == 2
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_usage_limits_still_forwarded_with_history(
@@ -2056,16 +2175,19 @@ class TestAgentOperatorMessageHistory:
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
     )
-    def test_message_history_with_hitl_review_raises(self):
-        """message_history cannot be combined with HITL review (post-review transcript is lost)."""
-        with pytest.raises(ValueError, match="message_history and enable_hitl_review"):
-            AgentOperator(
-                task_id="t",
-                prompt="run",
-                llm_conn_id="c",
-                message_history=[],
-                enable_hitl_review=True,
-            )
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({"message_history": []}, "message_history and enable_hitl_review", id="seeded"),
+            pytest.param(
+                {"emit_message_history": True}, "emit_message_history and enable_hitl_review", id="opt-in"
+            ),
+        ],
+    )
+    def test_message_history_with_hitl_review_raises(self, kwargs, match):
+        """Transcript emission cannot be combined with HITL review (post-review transcript is lost)."""
+        with pytest.raises(ValueError, match=match):
+            AgentOperator(task_id="t", prompt="run", llm_conn_id="c", enable_hitl_review=True, **kwargs)
 
     def test_durable_path_also_seeds_message_history(self):
         """The durable branch forwards message_history into the run, and keeps its conversation id."""

@@ -23,7 +23,9 @@ import textwrap
 import zipfile
 from types import SimpleNamespace
 
+import pendulum
 import pytest
+from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import BaseOperator, XComArg
 from airflow.sdk.definitions._internal.templater import LiteralValue
@@ -81,6 +83,51 @@ class _TemporalOperator(BaseOperator):
 OP_TEMPORAL = f"{__name__}.{_TemporalOperator.__name__}"
 
 
+class _DateOperator(BaseOperator):
+    """An operator with a date-typed argument (``day``)."""
+
+    def __init__(self, *, day: datetime.date | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.day = day
+
+
+OP_DATE = f"{__name__}.{_DateOperator.__name__}"
+
+
+class _PendulumOperator(BaseOperator):
+    """An operator with pendulum-typed temporal arguments."""
+
+    def __init__(self, *, when: pendulum.DateTime | None = None, day: pendulum.Date | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self.when = when
+        self.day = day
+
+
+OP_PENDULUM = f"{__name__}.{_PendulumOperator.__name__}"
+
+
+class _PeriodOperator(BaseOperator):
+    """An operator with time-period-typed arguments."""
+
+    def __init__(
+        self,
+        *,
+        gap: datetime.timedelta | None = None,
+        window: relativedelta | None = None,
+        either: datetime.timedelta | relativedelta | None = None,
+        span: pendulum.Duration | None = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.gap = gap
+        self.window = window
+        self.either = either
+        self.span = span
+
+
+OP_PERIOD = f"{__name__}.{_PeriodOperator.__name__}"
+
+
 @pytest.fixture
 def mock_bundle(tmp_path):
     bundle_dir = tmp_path / "bundle"
@@ -113,19 +160,50 @@ def test_get_source_code(mock_bundle):
     assert "$schema" in src.source_code
 
 
-def test_might_contain_dag(mock_bundle):
+_DRAFT_SCHEMA = "https://json-schema.org/draft/2020-12/schema"
+
+
+@pytest.mark.parametrize(
+    ("case", "body", "expected"),
+    [
+        # Recognized: $schema declares the canonical Dag URL, in any of its spellings.
+        ("yaml", f"$schema: {HEAD_SCHEMA}\ndag_id: d\ntasks: []\n", True),
+        ("yaml_quoted_value", f'$schema: "{HEAD_SCHEMA}"\n', True),
+        ("yaml_quoted_key", f'"$schema": {HEAD_SCHEMA}\n', True),
+        ("yaml_space_before_colon", f"$schema : {HEAD_SCHEMA}\n", True),
+        ("yaml_not_first_line", f"dag_id: d\n$schema: {HEAD_SCHEMA}\n", True),
+        ("json", f'{{"$schema": "{HEAD_SCHEMA}", "dag_id": "d", "tasks": []}}', True),
+        # Skipped: no $schema declaration naming the canonical Dag URL.
+        ("no_schema", "just: config\n", False),
+        ("other_schema_url", f"$schema: {_DRAFT_SCHEMA}\n", False),
+        ("url_only_no_schema", f"note: see {HEAD_SCHEMA}\n", False),
+        # The URL sits in another field while $schema is something else -- the published snapshot's shape.
+        ("url_in_other_field", f"$schema: {_DRAFT_SCHEMA}\n$id: {HEAD_SCHEMA}\n", False),
+        # The word "$schema" appears in prose, not as a declaration whose value is the URL.
+        ("schema_word_in_prose", f"description: set $schema at {HEAD_SCHEMA}\n", False),
+        # A different key that merely starts with "$schema".
+        ("different_schema_key", f"$schema_version: {HEAD_SCHEMA}\n", False),
+    ],
+)
+def test_might_contain_dag_sniff(mock_bundle, case, body, expected):
     importer = YamlDagImporter()
-    has = _def(mock_bundle, "has.yaml", f"$schema: {HEAD_SCHEMA}\ndag_id: d\ntasks: []\n")
-    nope = _def(mock_bundle, "nope.yaml", "just: config\n")
-    # A $schema that is not the canonical Dag URL (e.g. a JSON-Schema file) must not be picked up.
-    other = _def(mock_bundle, "schema.yaml", "$schema: https://json-schema.org/draft/2020-12/schema\n")
-    # The canonical URL merely mentioned, without a $schema declaration, must not be picked up either.
-    mention = _def(mock_bundle, "mention.yaml", f"note: see {HEAD_SCHEMA}\n")
-    assert importer.might_contain_dag(has, safe_mode=True)
-    assert not importer.might_contain_dag(nope, safe_mode=True)
-    assert not importer.might_contain_dag(other, safe_mode=True)
-    assert not importer.might_contain_dag(mention, safe_mode=True)
-    assert importer.might_contain_dag(nope, safe_mode=False)  # sniff skipped
+    definition = _def(mock_bundle, f"{case}.yaml", body)
+    assert importer.might_contain_dag(definition, safe_mode=True) is expected
+
+
+def test_might_contain_dag_skips_sniff_without_safe_mode(mock_bundle):
+    # Without safe mode the sniff is bypassed and every file is kept; the parser reports non-Dags.
+    importer = YamlDagImporter()
+    definition = _def(mock_bundle, "config.yaml", "just: config\n")
+    assert importer.might_contain_dag(definition, safe_mode=False)
+
+
+def test_might_contain_dag_keeps_unreadable_file(mock_bundle):
+    # A file that cannot be read is kept rather than silently dropped.
+    importer = YamlDagImporter()
+    definition = _def(mock_bundle, "gone.yaml", f"$schema: {HEAD_SCHEMA}\n")
+    definition.path.unlink()
+    assert importer.might_contain_dag(definition, safe_mode=True)
 
 
 def test_list_dag_definitions_skips_non_dag_yaml(mock_bundle):
@@ -277,6 +355,160 @@ def test_import_coerces_temporal_with_arg(mock_bundle):
     cutoff = result.dags[0].get_task("a").cutoff
     assert isinstance(cutoff, datetime.datetime)
     assert (cutoff.year, cutoff.month, cutoff.day) == (2024, 1, 1)
+
+
+@pytest.mark.parametrize(
+    ("value", "exp_type"),
+    [
+        ("2024-01-01", datetime.date),  # YAML date -> plain date
+        ("'2024-01-01'", datetime.date),  # ISO date string -> plain date
+        ("2024-01-01T03:30:00", datetime.datetime),  # a datetime is a date subtype, left as-is
+    ],
+)
+def test_import_coerces_date_with_arg(mock_bundle, value, exp_type):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP_DATE}, with: {{day: {value}}}}}"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    day = result.dags[0].get_task("a").day
+    assert type(day) is exp_type
+    assert (day.year, day.month, day.day) == (2024, 1, 1)
+
+
+def test_import_coerces_pendulum_temporal_args(mock_bundle):
+    # a pendulum.DateTime / pendulum.Date annotation yields pendulum values, not stdlib
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP_PENDULUM}, with: {{when: 2024-01-01T03:30:00, day: 2024-01-01}}}}"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    task = result.dags[0].get_task("a")
+    assert type(task.when) is pendulum.DateTime
+    assert (task.when.year, task.when.month, task.when.day, task.when.hour) == (2024, 1, 1, 3)
+    assert type(task.day) is pendulum.Date
+    assert (task.day.year, task.day.month, task.day.day) == (2024, 1, 1)
+
+
+def test_import_coerces_timedelta_with_arg(mock_bundle):
+    # a timedelta-typed argument accepts the short form and ISO-8601
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: a, uses: {OP_PERIOD}, with: {{gap: 1h30m}}}}
+            - {{id: b, uses: {OP_PERIOD}, with: {{gap: PT90M}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").gap == datetime.timedelta(hours=1, minutes=30)
+    assert result.dags[0].get_task("b").gap == datetime.timedelta(minutes=90)
+
+
+def test_import_coerces_relativedelta_with_arg(mock_bundle):
+    definition = _def(
+        mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP_PERIOD}, with: {{window: P1Y2M}}}}")
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").window == relativedelta(years=1, months=2)
+
+
+def test_import_coerces_pendulum_duration_with_arg(mock_bundle):
+    # a pendulum.Duration arg accepts the short form and an ISO duration carrying
+    # years/months (which a timedelta cannot represent)
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(
+            f"- {{id: a, uses: {OP_PERIOD}, with: {{span: 5m}}}}\n"
+            f"- {{id: b, uses: {OP_PERIOD}, with: {{span: P1Y2M}}}}",
+        ),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    span_a = result.dags[0].get_task("a").span
+    span_b = result.dags[0].get_task("b").span
+    assert type(span_a) is pendulum.Duration
+    assert span_a == pendulum.Duration(minutes=5)
+    assert type(span_b) is pendulum.Duration
+    assert (span_b.years, span_b.months) == (1, 2)
+
+
+def test_import_period_union_picks_type_by_components(mock_bundle):
+    # for an arg that accepts both, an ISO duration with months/years becomes a relativedelta,
+    # otherwise a timedelta
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: a, uses: {OP_PERIOD}, with: {{either: P1D}}}}
+            - {{id: b, uses: {OP_PERIOD}, with: {{either: P1M}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").either == datetime.timedelta(days=1)
+    assert result.dags[0].get_task("b").either == relativedelta(months=1)
+
+
+def test_import_does_not_coerce_unparseable_duration(mock_bundle):
+    # months need a relativedelta, so P1M on a timedelta-only arg is left as-is; the short form is
+    # timedelta-only, so it is left as-is on a relativedelta arg
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"""
+            - {{id: a, uses: {OP_PERIOD}, with: {{gap: P1M}}}}
+            - {{id: b, uses: {OP_PERIOD}, with: {{window: 5m}}}}
+        """),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").gap == "P1M"
+    assert result.dags[0].get_task("b").window == "5m"
+
+
+def test_import_coerces_task_level_timedelta(mock_bundle):
+    definition = _def(
+        mock_bundle, "dag.yaml", _doc(f"- {{id: a, uses: {OP}, with: {{payload: x}}, retry_delay: PT5M}}")
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].get_task("a").retry_delay == datetime.timedelta(minutes=5)
+
+
+def test_import_coerces_dag_level_timedelta(mock_bundle):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(f"- {{id: a, uses: {OP}, with: {{payload: x}}}}", extra="dagrun_timeout: 5m\n"),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].dagrun_timeout == datetime.timedelta(minutes=5)
+
+
+def test_import_schedule_timetable_coerces_delta(mock_bundle):
+    definition = _def(
+        mock_bundle,
+        "dag.yaml",
+        _doc(
+            f"- {{id: a, uses: {OP}, with: {{payload: x}}}}",
+            extra=(
+                "schedule: {uses: airflow.sdk.definitions.timetables.interval."
+                "DeltaDataIntervalTimetable, with: {delta: P1D}}\n"
+            ),
+        ),
+    )
+    result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
+    assert result.success, result.errors
+    assert result.dags[0].timetable.delta == datetime.timedelta(days=1)
 
 
 def test_import_code_task_builds_stub_operator(mock_bundle):

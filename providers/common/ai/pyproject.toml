@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "1.0.0"
+version = "1.1.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -66,7 +66,7 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.21.0",
+    "apache-airflow-providers-common-compat>=1.22.0",
     "apache-airflow-providers-standard>=1.20.0",
     # 2.33.0 is the first release that works with anthropic>=1: it moved to httpx2 alongside
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
@@ -127,16 +127,20 @@ dependencies = [
 # Provides the CodeMode capability for AgentOperator(capabilities=[CodeMode()]).
 # pydantic-ai-harness is pre-1.0; an opt-in extra so its churn never breaks the
 # base provider install.
-"code-mode" = ["pydantic-ai-harness[codemode]>=0.24.0"]
+# 0.35.0 is the first release that caps pydantic-monty below 1.0; earlier releases also
+# accept monty 1.x, which they cannot run code with.
+"code-mode" = ["pydantic-ai-harness[codemode]>=0.35.0"]
 # Shield capabilities such as InputGuard, OutputGuard, ToolGuard, and CostTracking.
 "shields" = ["pydantic-ai-shields>=0.3.4"]
 # Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset;
 # the git provider supplies GitHook + GitPython for cloning GitSkills with
-# credentials from a `git` connection. Native progressive disclosure is tracked
-# upstream in pydantic/pydantic-ai#5230; revisit this extra once that lands.
+# credentials from a `git` connection. pydantic-ai-harness's Skills capability is not
+# a replacement: it loads only SKILL.md instructions, with no skill resources and no
+# run_skill_script. pydantic-ai-skills 2.0 removed SkillsToolset, which AgentSkillsToolset
+# wraps, so the extra stays below 2 until the toolset moves to the 2.x capability API.
 "skills" = [
     "apache-airflow-providers-git>=0.4.0",
-    "pydantic-ai-skills>=1.2.0",
+    "pydantic-ai-skills>=1.2.0,<2",
 ]
 # Islo-hosted microVM sandboxes for SandboxToolset: like modal, needs no host-level
 # installation, only ISLO_API_KEY in the worker environment.
@@ -187,7 +191,7 @@ dev = [
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "sqlglot>=30.0.0",
     "pydantic-ai-slim[mcp]>=2.36.0",
-    "pydantic-ai-skills>=1.2.0",
+    "pydantic-ai-skills>=1.2.0,<2",
     "apache-airflow-providers-common-sql[datafusion]",
     "langchain>=1.0.0",
     "llama-index-core>=0.14.5",
@@ -197,6 +201,8 @@ dev = [
     # needs them so the adapter tests, which build real SDK models, run instead of skipping.
     "openai>=2.47.0",
     "anthropic>=1.1.0",
+    # The code-mode extra, so the tests that run a real CodeMode under durable execution run.
+    "pydantic-ai-harness[codemode]>=0.35.0",
     "boat-sdk>=1.9.3",
     "islo>=0.3.19",
     "opensandbox>=1.1.0",
@@ -231,8 +237,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

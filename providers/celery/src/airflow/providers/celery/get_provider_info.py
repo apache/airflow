@@ -141,7 +141,7 @@ def get_provider_info():
                         "default": None,
                     },
                     "result_backend_sqlalchemy_engine_options": {
-                        "description": "Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.\n",
+                        "description": "Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.\nFor psycopg (v3), ``connect_args.prepare_threshold`` defaults to ``None`` to disable\nautomatic prepared statements unless explicitly overridden.\n",
                         "version_added": None,
                         "type": "string",
                         "example": '{"pool_recycle": 1800}',

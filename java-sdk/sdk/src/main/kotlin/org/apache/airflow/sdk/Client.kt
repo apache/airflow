@@ -179,8 +179,11 @@ class Client internal constructor(
    * Pushes an XCom value for downstream tasks to read.
    *
    * @param key XCom key; defaults to [XCOM_RETURN_KEY].
-   * @param value Value to push. Must be JSON-serializable.
+   * @param value Value to push. Must be JSON-serializable. The SDK rejects byte
+   *    arrays, so encode binary data as a string first, for example with Base64.
    * @throws ApiError if the API call fails.
+   * @throws IllegalArgumentException if [value] is or contains a type that the
+   *    SDK cannot send, such as a byte array.
    */
   @JvmOverloads fun setXCom(
     key: String = XCOM_RETURN_KEY,
@@ -294,8 +297,6 @@ class TaskStateStore internal constructor(
           )
         else -> now.plus(retention)
       }
-    // TODO: warn when the serialized value exceeds [state_store] max_value_storage_bytes once the
-    //   coordinator passes it to the JVM, as the Python accessor does.
     impl.setTaskStateStore(tiId = details.ti.id, key = key, value = value, expiresAt = expiresAt)
   }
 

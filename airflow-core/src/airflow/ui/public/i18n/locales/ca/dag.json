@@ -302,10 +302,6 @@
     "summary_one": "{{count, number}} canvi",
     "summary_other": "{{count, number}} canvis",
     "target": "Comparar amb",
-    "truncated": {
-      "description": "S'han omès els canvis de les rutes no mostrades per respectar el límit, de manera que el recompte és un mínim.",
-      "title": "No s'han retornat tots els canvis"
-    },
     "unavailable": {
       "description": "No s'han pogut comparar aquestes versions. Motiu:",
       "title": "Comparació no disponible",

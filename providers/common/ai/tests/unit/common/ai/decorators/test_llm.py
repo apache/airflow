@@ -46,7 +46,7 @@ class TestLLMDecoratedOperator:
         assert result == "This is a summary."
         assert op.prompt == "Summarize this text"
         mock_agent.run_sync.assert_called_once_with(
-            "Summarize this text", usage_limits=None, cancellation_token=ANY
+            "Summarize this text", usage=ANY, usage_limits=None, cancellation_token=ANY
         )
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -100,7 +100,9 @@ class TestLLMDecoratedOperator:
         op.execute(context={})
 
         assert op.prompt == prompt
-        mock_agent.run_sync.assert_called_once_with(prompt, usage_limits=None, cancellation_token=ANY)
+        mock_agent.run_sync.assert_called_once_with(
+            prompt, usage=ANY, usage_limits=None, cancellation_token=ANY
+        )
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -123,7 +125,7 @@ class TestLLMDecoratedOperator:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls, make_mock_run_result):
         """op_kwargs are resolved by the callable to build the prompt."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("done")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -140,5 +142,5 @@ class TestLLMDecoratedOperator:
 
         assert op.prompt == "Summarize quantum computing"
         mock_agent.run_sync.assert_called_once_with(
-            "Summarize quantum computing", usage_limits=None, cancellation_token=ANY
+            "Summarize quantum computing", usage=ANY, usage_limits=None, run_id=ANY, cancellation_token=ANY
         )

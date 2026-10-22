@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "所有映射索引",
   "allRuns": "所有執行",
   "blockingDeps": {
     "dependency": "相依性 (Dependencies)",
@@ -35,6 +36,21 @@
       "wednesday": "三"
     }
   },
+  "callbacks": {
+    "callback_one": "回呼",
+    "callback_other": "回呼",
+    "columns": {
+      "alertName": "期限警示",
+      "callback": "回呼",
+      "deadlineTime": "截止時間",
+      "missedBy": "逾期時間",
+      "type": "類型"
+    },
+    "types": {
+      "executor": "同步",
+      "triggerer": "非同步"
+    }
+  },
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
@@ -67,17 +83,6 @@
     "upcoming": "即將到期",
     "upcomingCount_one": "{{count, number}} 個即將到期的期限",
     "upcomingCount_other": "{{count, number}} 個即將到期的期限"
-  },
-  "execution": {
-    "clearSelected": "清除已選取的執行項目",
-    "empty": "此次 Dag 執行沒有任何執行項目。",
-    "iteration": "{{node}} · 第 {{index}} 次迭代",
-    "mapped_one": "{{task}}（此頁面有 1 個映射任務）",
-    "mapped_other": "{{task}}（此頁面有 {{count, number}} 個映射任務）",
-    "page": "顯示第 {{start, number}}–{{end, number}} 個，共 {{total, number}} 個執行項目",
-    "runTasks": "此次 Dag 執行的任務",
-    "select": "選取 {{task}}",
-    "title": "執行項目"
   },
   "extraLinks": "額外連結",
   "grid": {
@@ -120,11 +125,6 @@
     "warning": "WARNING"
   },
   "loop": {
-    "filter": {
-      "all": "所有迭代",
-      "invocation": "呼叫",
-      "label": "迭代"
-    },
     "history": {
       "capLabel": "上限：{{max}}",
       "iterationsAxis": "迭代次數",
@@ -134,7 +134,7 @@
       },
       "title": "每次執行的迭代次數"
     },
-    "iteration": "第 {{index}} 次迭代",
+    "iterationLabel": "第 {{index}} 次迭代",
     "iterations": "迭代次數",
     "outcome": "結果",
     "reason": {
@@ -259,6 +259,7 @@
     "auditLog": "稽核日誌",
     "backfills": "回填",
     "calendar": "日曆",
+    "callbacks": "回呼",
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",
@@ -334,6 +335,11 @@
       "provenance": "來源",
       "unknown": "未知"
     },
+    "limitReached": {
+      "description": "變更數量已超過「變更數上限」。調高上限即可查看其餘變更。",
+      "descriptionDefault": "變更數量已超過預設上限。將「變更數上限」調高，即可查看其餘變更。",
+      "title": "僅顯示前 {{limit, number}} 項變更"
+    },
     "maxChanges": "變更數上限",
     "maxChangesDefault": "預設",
     "noChanges": "這些版本的狀態相同。",
@@ -345,14 +351,13 @@
     },
     "record_one": "記錄",
     "record_other": "記錄",
+    "schemaChange": "序列化 Schema {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "選擇兩個版本以查看它們之間的差異。",
     "summary_one": "1 項變更",
     "summary_other": "{{count, number}} 項變更",
+    "summaryAtLeast_one": "至少 {{count, number}} 項變更",
+    "summaryAtLeast_other": "至少 {{count, number}} 項變更",
     "target": "比較對象",
-    "truncated": {
-      "description": "為維持在上限內，未顯示的路徑上的變更已被捨棄，因此此數量僅為下限。",
-      "title": "部分變更未回傳"
-    },
     "unavailable": {
       "description": "無法比較這些版本。原因：",
       "title": "無法比較",

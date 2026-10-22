@@ -98,6 +98,8 @@ _VARIABLE_WRITE_DAG_ID = "java_variable_write"
 _VARIABLE_WRITE_DESCRIPTION = "written by the Java SDK e2e test"
 _TASK_STATE_DAG_ID = "java_task_state"
 _TASK_STATE_TASK_ID = "roundtrip_task_state"
+_STOP_REQUEST_DAG_ID = "java_stop_request"
+_STOP_REQUEST_TASK_ID = "wait_for_stop_request"
 
 
 @dataclass
@@ -425,6 +427,60 @@ class TestJavaSDKVariableWrite:
             f"java_e2e_scratch should have been deleted by the Java task, "
             f"got HTTP {excinfo.value.response.status_code}"
         )
+
+
+class TestJavaSDKStopRequest:
+    """Verify a running Java task sees Airflow's request to stop.
+
+    Marking a running task instance failed makes the supervisor send the task's JVM SIGTERM.
+    ``WaitForStopRequest`` in the java-test-bundle fixture project checks ``Context.isCancelled``
+    and then waits with ``Context.awaitCancellation``, so the SDK keeps the JVM running. The task
+    then returns from the wait and logs that it is stopping. A JVM that exited on the signal could
+    not write that log line.
+    """
+
+    def test_running_task_stops_at_airflows_request(self):
+        client = AirflowClient()
+        run_id = client.trigger_dag(
+            _STOP_REQUEST_DAG_ID, json={"logical_date": datetime.now(UTC).isoformat()}
+        )["dag_run_id"]
+        run = _CompletedRun(client=client, dag_id=_STOP_REQUEST_DAG_ID, run_id=run_id)
+
+        # The SDK keeps the signal only for a task that has checked, so mark the task instance failed only
+        # after the task logs that it is waiting.
+        deadline = time.monotonic() + _JAVA_TASK_TIMEOUT
+        while (
+            state := _get_task_state(client, _STOP_REQUEST_DAG_ID, run_id, _STOP_REQUEST_TASK_ID)
+        ) != "running":
+            assert state in {None, "scheduled", "queued"}, f"the task ended before it ran; state: {state!r}"
+            assert time.monotonic() < deadline, f"the task never started; state: {state!r}"
+            time.sleep(3)
+        waiting, records = run.wait_for_log_record(
+            _STOP_REQUEST_TASK_ID, 1, lambda r: r.get("event") == "Waiting for a stop request"
+        )
+        assert waiting is not None, (
+            f"the task never started waiting; events seen: {[r.get('event') for r in records]}"
+        )
+
+        client.set_task_instance_state(_STOP_REQUEST_DAG_ID, run_id, _STOP_REQUEST_TASK_ID, "failed")
+
+        stopping, records = run.wait_for_log_record(
+            _STOP_REQUEST_TASK_ID, 1, lambda r: r.get("event") == "Stopping at Airflow's request"
+        )
+        assert stopping is not None, (
+            f"the task should see the request to stop; events seen: {[r.get('event') for r in records]}"
+        )
+        caught = [r.get("signal") for r in records if r.get("event") == "Asking the task to stop"]
+        assert caught == ["SIGTERM"], f"the SDK should log the SIGTERM it caught; records: {records}"
+        assert client.wait_for_dag_run(_STOP_REQUEST_DAG_ID, run_id, timeout=_JAVA_TASK_TIMEOUT) == "failed"
+        assert _get_task_state(client, _STOP_REQUEST_DAG_ID, run_id, _STOP_REQUEST_TASK_ID) == "failed", (
+            "Airflow should keep the state the test set"
+        )
+
+
+def _get_task_state(client: AirflowClient, dag_id: str, run_id: str, task_id: str) -> str | None:
+    task_instances = client.get_task_instances(dag_id, run_id).get("task_instances", [])
+    return next((ti.get("state") for ti in task_instances if ti["task_id"] == task_id), None)
 
 
 class TestJavaSDKInterfaceExample:

@@ -22,10 +22,9 @@ from sqlalchemy import select
 from airflow._shared.timezones import timezone
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dynamic_region import LOOP_DECISION_KEY, DynamicRegion
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
@@ -47,7 +46,8 @@ def loop_run(dag_maker, session):
         loop >> EmptyOperator(task_id="outside")
     dr = dag_maker.create_dagrun()
     root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
-    for index in range(1, 5):
+    # The run already holds the first iteration; add the rest up to the cap.
+    for index in range(2, 6):
         child = DynamicRegion(
             dag_id=dr.dag_id,
             run_id=dr.run_id,
@@ -102,12 +102,13 @@ def completed_loop(dag_maker, session):
                 ti.state = State.SUCCESS
                 ti.start_date = ti.end_date = timezone.utcnow()
         gate = next(ti for ti in members if ti.task_id == loop.gate_task_id)
-        session.add(XComModelV2(task_instance_id=gate.id, key=LOOP_DECISION_KEY, value=decision))
         session.flush()
         group, _ = resolver.loop_context(gate)
-        dr.complete_loop_gate(gate, group, State.SUCCESS, session=session)
+        dr.complete_loop_gate(
+            gate, group, State.SUCCESS, stop=decision == "stop", reason=None, session=session
+        )
         session.flush()
 
-    for index in range(5):
-        complete_pass(index, "stop" if index == 4 else "continue")
+    for index in range(1, 6):
+        complete_pass(index, "stop" if index == 5 else "continue")
     return dr, loop, complete_pass

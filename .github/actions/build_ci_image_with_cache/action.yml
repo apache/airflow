@@ -113,7 +113,7 @@ runs:
       # yamllint disable-line rule:line-length
       uses: apache/infrastructure-actions/stash/restore@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # restore/v1.0.0
       with:
-        key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
+        key: "ci-cache-mount-save-v4-${{ inputs.platform }}-${{ inputs.python }}\
           -${{ inputs.image-stash-ref }}"
         path: "/tmp/"
       id: restore-mount-cache
@@ -122,7 +122,7 @@ runs:
       shell: bash
       env:
         PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.python }}
-        CACHE_FILE: "/tmp/ci-cache-mount-save-v3-${{ inputs.python }}.tar.gz"
+        CACHE_FILE: "/tmp/ci-cache-mount-save-v4-${{ inputs.python }}.tar.gz"
       run: |
         if [[ ! -f "${CACHE_FILE}" ]]; then
           echo "${CACHE_FILE} is missing - the stash restore may have timed out. Building without it."
@@ -211,14 +211,14 @@ runs:
         PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.python }}
       run: >
         breeze ci-image export-mount-cache
-        --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+        --cache-file /tmp/ci-cache-mount-save-v4-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
       if: steps.stashed-image.outputs.reusable != 'true'
     - name: "Stash the mount cache"
       uses: apache/infrastructure-actions/stash/save@61dcea11f19e2bbe1263f14d72235e8da17d3ad0  # save/v1.0.0
       with:
-        key: "ci-cache-mount-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
+        key: "ci-cache-mount-save-v4-${{ inputs.platform }}-${{ inputs.python }}\
           -${{ inputs.image-stash-ref }}"
-        path: "/tmp/ci-cache-mount-save-v3-${{ inputs.python }}.tar.gz"
+        path: "/tmp/ci-cache-mount-save-v4-${{ inputs.python }}.tar.gz"
         if-no-files-found: 'error'
         retention-days: '6'
       if: steps.stashed-image.outputs.reusable != 'true'

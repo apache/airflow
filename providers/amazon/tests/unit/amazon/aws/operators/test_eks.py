@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import runpy
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any, TypedDict
 from unittest import mock
 
@@ -26,6 +28,7 @@ from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
+from airflow.providers.amazon.aws.operators import eks
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
     EksCreateFargateProfileOperator,
@@ -33,6 +36,7 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksDeleteClusterOperator,
     EksDeleteFargateProfileOperator,
     EksDeleteNodegroupOperator,
+    EksPodExecOperator,
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.triggers.eks import (
@@ -42,7 +46,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksPodTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, TaskDeferred
 
 from unit.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -1062,6 +1066,69 @@ class TestEksDeleteFargateProfileOperator:
 
 
 class TestEksPodOperator:
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute", autospec=True
+    )
+    @mock.patch.object(EksHook, "generate_config_file_with_credentials", autospec=True)
+    @pytest.mark.parametrize("fails", [False, True])
+    def test_execute_uses_shared_auth_context(self, generate_config, execute, fails):
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
+        generate_config.return_value = config_context
+        operator = EksPodOperator(
+            task_id="run_pod", cluster_name=CLUSTER_NAME, namespace="workloads", image="test-image"
+        )
+
+        def run_in_context(op, context):
+            assert op.config_file == "/tmp/kubeconfig"
+            assert op._credentials_file_path == "/tmp/credentials"
+            config_context.__exit__.assert_not_called()
+            if fails:
+                raise RuntimeError("parent failed")
+            return "result"
+
+        execute.side_effect = run_in_context
+        with pytest.raises(RuntimeError, match="parent failed") if fails else nullcontext():
+            assert operator.execute({}) == "result"
+
+        generate_config.assert_called_once_with(
+            mock.ANY, eks_cluster_name=CLUSTER_NAME, pod_namespace="workloads"
+        )
+        execute.assert_called_once_with(operator, {})
+        config_context.__exit__.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry", autospec=True
+    )
+    @mock.patch.object(EksHook, "generate_config_file_with_credentials", autospec=True)
+    @pytest.mark.parametrize("fails", [False, True])
+    def test_trigger_reentry_uses_shared_auth_context(self, generate_config, reentry, fails):
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = ("/tmp/kubeconfig", "/tmp/credentials")
+        generate_config.return_value = config_context
+        operator = EksPodOperator(
+            task_id="run_pod", cluster_name=CLUSTER_NAME, namespace="workloads", image="test-image"
+        )
+        event = {"eks_cluster_name": "event-cluster", "namespace": "event-namespace"}
+
+        def run_in_context(op, context, event):
+            assert op.config_file == "/tmp/kubeconfig"
+            assert op._credentials_file_path == "/tmp/credentials"
+            config_context.__exit__.assert_not_called()
+            if fails:
+                raise RuntimeError("parent failed")
+            return "result"
+
+        reentry.side_effect = run_in_context
+        with pytest.raises(RuntimeError, match="parent failed") if fails else nullcontext():
+            assert operator.trigger_reentry({}, event) == "result"
+
+        generate_config.assert_called_once_with(
+            mock.ANY, eks_cluster_name="event-cluster", pod_namespace="event-namespace"
+        )
+        reentry.assert_called_once_with(operator, {}, event)
+        config_context.__exit__.assert_called_once()
+
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook._secure_credential_context")
@@ -1399,3 +1466,220 @@ class TestEksPodOperator:
 
         with pytest.raises(RuntimeError, match="Pod must be created with metadata before deferring"):
             op.invoke_defer_method()
+
+
+@mock.patch.dict("sys.modules", {"airflow.providers.cncf.kubernetes.operators.pod_exec": None})
+def test_eks_operators_remain_available_without_pod_exec():
+    operators = runpy.run_path(eks.__file__)
+
+    operators["EksPodOperator"](task_id="existing_operator", cluster_name=CLUSTER_NAME)
+
+
+@mock.patch.dict("sys.modules", {"airflow.providers.cncf.kubernetes.operators.pod_exec": None})
+def test_eks_pod_exec_requires_available_kubernetes_pod_exec():
+    operators = runpy.run_path(eks.__file__)
+
+    with pytest.raises(
+        AirflowOptionalProviderFeatureException,
+        match=r"EksPodExecOperator requires apache-airflow-providers-cncf-kubernetes>=10\.22\.0",
+    ):
+        operators["EksPodExecOperator"](
+            task_id="exec_operator", cluster_name=CLUSTER_NAME, pod_name="existing-pod", command=["true"]
+        )
+
+
+class TestEksPodExecOperator:
+    @pytest.mark.parametrize("parameter", ["in_cluster", "config_file", "cluster_context"])
+    @pytest.mark.parametrize("value", [None, "custom-value"])
+    def test_rejects_managed_kubernetes_parameters(self, parameter, value):
+        with pytest.raises(
+            ValueError, match=f"The {parameter} is not an allowed parameter for the EksPodExecOperator"
+        ):
+            EksPodExecOperator(
+                task_id="run_command",
+                cluster_name=CLUSTER_NAME,
+                pod_name="existing-pod",
+                command=["echo", "hello"],
+                **{parameter: value},
+            )
+
+    @staticmethod
+    def configure_eks_auth(eks_hook_mock):
+        eks_hook = eks_hook_mock.return_value
+        auth_context = mock.MagicMock(spec=AbstractContextManager)
+        auth_context.__enter__.return_value = (
+            "/tmp/eks-kubeconfig",
+            "/tmp/aws-credentials",
+        )
+        eks_hook.generate_config_file_with_credentials.return_value = auth_context
+        return eks_hook
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator.execute",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.EksHook", autospec=True)
+    def test_execute_uses_shared_auth_context(self, eks_hook_mock, pod_exec_execute_mock):
+        eks_hook = self.configure_eks_auth(eks_hook_mock)
+
+        def execute_with_generated_config(operator, context):
+            assert operator.config_file == "/tmp/eks-kubeconfig"
+            eks_hook.generate_config_file_with_credentials.return_value.__exit__.assert_not_called()
+            return "command output"
+
+        pod_exec_execute_mock.side_effect = execute_with_generated_config
+        operator = EksPodExecOperator(
+            task_id="run_command",
+            cluster_name=CLUSTER_NAME,
+            pod_name="existing-pod",
+            namespace="workloads",
+            container_name="worker",
+            command=["dbt", "run"],
+            aws_conn_id="aws_test",
+            region_name="us-east-2",
+            verify=False,
+            botocore_config={"retries": {"max_attempts": 5}},
+            do_xcom_push=True,
+            max_xcom_output_size=1024,
+        )
+
+        result = operator.execute({})
+
+        assert result == "command output"
+        eks_hook_mock.assert_called_once_with(
+            aws_conn_id="aws_test",
+            region_name="us-east-2",
+            verify=False,
+            config={"retries": {"max_attempts": 5}},
+        )
+        eks_hook.generate_config_file_with_credentials.assert_called_once_with(
+            eks_cluster_name=CLUSTER_NAME,
+            pod_namespace="workloads",
+        )
+        eks_hook.generate_config_file_with_credentials.return_value.__exit__.assert_called_once_with(
+            None, None, None
+        )
+        pod_exec_execute_mock.assert_called_once_with(operator, {})
+        assert operator.config_file is None
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator.execute",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.EksHook", autospec=True)
+    def test_execute_clears_config_file_on_failure(self, eks_hook_mock, pod_exec_execute_mock):
+        eks_hook = self.configure_eks_auth(eks_hook_mock)
+        error = RuntimeError("command failed")
+        pod_exec_execute_mock.side_effect = error
+        operator = EksPodExecOperator(
+            task_id="run_command",
+            cluster_name=CLUSTER_NAME,
+            pod_name="existing-pod",
+            command=["false"],
+        )
+
+        with pytest.raises(RuntimeError, match="command failed") as raised:
+            operator.execute({})
+
+        assert raised.value is error
+        eks_hook.generate_config_file_with_credentials.return_value.__exit__.assert_called_once_with(
+            RuntimeError, error, mock.ANY
+        )
+        assert operator.config_file is None
+
+    @pytest.mark.parametrize("first_execution_fails", [False, True])
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesHook", autospec=True)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator.execute",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.EksHook", autospec=True)
+    def test_execute_recreates_client_with_new_config(
+        self, eks_hook_mock, pod_exec_execute_mock, kubernetes_hook_mock, first_execution_fails
+    ):
+        eks_hook = self.configure_eks_auth(eks_hook_mock)
+        eks_hook.generate_config_file_with_credentials.return_value.__enter__.side_effect = [
+            ("/tmp/first-kubeconfig", "/tmp/first-credentials"),
+            ("/tmp/second-kubeconfig", "/tmp/second-credentials"),
+        ]
+        clients = []
+
+        def execute_with_client(operator, context):
+            clients.append(operator.client)
+            if first_execution_fails and len(clients) == 1:
+                raise RuntimeError("command failed")
+            return "command output"
+
+        pod_exec_execute_mock.side_effect = execute_with_client
+        operator = EksPodExecOperator(
+            task_id="run_command",
+            cluster_name=CLUSTER_NAME,
+            pod_name="existing-pod",
+            command=["true"],
+        )
+
+        if first_execution_fails:
+            with pytest.raises(RuntimeError, match="command failed"):
+                operator.execute({})
+        else:
+            operator.execute({})
+        assert operator.execute({}) == "command output"
+
+        assert kubernetes_hook_mock.call_args_list == [
+            mock.call(
+                conn_id="kubernetes_default", in_cluster=False, config_file=config_file, cluster_context=None
+            )
+            for config_file in ("/tmp/first-kubeconfig", "/tmp/second-kubeconfig")
+        ]
+
+    @pytest.mark.parametrize("kubernetes_conn_id", ["eks_kubernetes", None])
+    def test_kubernetes_connection_can_be_configured(self, kubernetes_conn_id):
+        operator = EksPodExecOperator(
+            task_id="run_command",
+            cluster_name=CLUSTER_NAME,
+            pod_name="existing-pod",
+            command=["true"],
+            kubernetes_conn_id=kubernetes_conn_id,
+        )
+
+        assert operator.kubernetes_conn_id == kubernetes_conn_id
+        assert operator.hook.conn_id == (kubernetes_conn_id or "kubernetes_default")
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod_exec.KubernetesPodExecOperator.execute",
+        autospec=True,
+    )
+    @mock.patch("airflow.providers.amazon.aws.operators.eks.EksHook", autospec=True)
+    def test_execute_propagates_auth_context_failure(self, eks_hook_mock, pod_exec_execute_mock):
+        eks_hook = self.configure_eks_auth(eks_hook_mock)
+        error = RuntimeError("Unable to retrieve AWS credentials")
+        eks_hook.generate_config_file_with_credentials.return_value.__enter__.side_effect = error
+        operator = EksPodExecOperator(
+            task_id="run_command",
+            cluster_name=CLUSTER_NAME,
+            pod_name="existing-pod",
+            command=["true"],
+        )
+
+        with pytest.raises(RuntimeError, match="Unable to retrieve AWS credentials") as raised:
+            operator.execute({})
+
+        assert raised.value is error
+        pod_exec_execute_mock.assert_not_called()
+
+    def test_template_fields(self):
+        operator = EksPodExecOperator(
+            task_id="run_command",
+            cluster_name=CLUSTER_NAME,
+            pod_name="existing-pod",
+            command=["dbt", "run"],
+        )
+
+        validate_template_fields(operator)
+        assert "cluster_name" in operator.template_fields
+        assert "pod_name" in operator.template_fields
+        assert "command" in operator.template_fields
+
+        assert "cluster_context" not in operator.template_fields
+        assert "config_file" not in operator.template_fields
+        assert "kubernetes_conn_id" in operator.template_fields

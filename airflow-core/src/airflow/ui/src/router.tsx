@@ -59,6 +59,7 @@ import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
+import { Callbacks as DagRunCallbacks } from "src/pages/Run/Callbacks";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { Security } from "src/pages/Security";
 import { Settings } from "src/pages/Settings";
@@ -250,6 +251,7 @@ export const routerConfig = [
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
           { element: <DagRunAssetEvents />, path: "asset_events" },
+          { element: <DagRunCallbacks />, path: "callbacks" },
           pluginRoute,
         ],
         element: <Run />,

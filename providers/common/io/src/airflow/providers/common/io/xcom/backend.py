@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import json
 import uuid
+from collections.abc import Callable
 from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
@@ -32,6 +33,7 @@ from airflow.utils.json import XComDecoder, XComEncoder
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.bases.xcom import XComCoordinate
     from airflow.sdk.execution_time.comms import XComResult
 
 if AIRFLOW_V_3_0_PLUS:
@@ -44,6 +46,9 @@ else:
 T = TypeVar("T")
 
 SECTION = "common.io"
+
+# S3 limits an object key to 1,024 bytes.
+_MAX_PATH_LENGTH = 1024
 
 
 def _get_compression_suffix(compression: str) -> str:
@@ -107,6 +112,22 @@ class XComObjectStorageBackend(BaseXCom):
 
         raise ValueError(f"Not a valid url: {data}")
 
+    @classmethod
+    def store_value(cls, coordinate: XComCoordinate, key: str, value: Any) -> str:
+        base = _get_base_path()
+        path = cls._write_large_value(
+            value,
+            lambda suffix: base.joinpath(
+                coordinate.build_path(
+                    "",
+                    key,
+                    suffix=f".json{suffix}",
+                    max_length=_MAX_PATH_LENGTH - len(str(base).encode()) - 1,
+                )
+            ),
+        )
+        return BaseXCom.serialize_value(value if path is None else str(path))
+
     @staticmethod
     def serialize_value(  # type: ignore[override]
         value: T,
@@ -117,38 +138,46 @@ class XComObjectStorageBackend(BaseXCom):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> bytes | str:
-        # We will use this serialized value to write to the object store.
-        s_val = json.dumps(value, cls=XComEncoder)
-        s_val_encoded = s_val.encode("utf-8")
+        def get_unused_path(suffix: str) -> ObjectStoragePath:
+            base_path = _get_base_path()
+            while True:  # Safeguard against collisions.
+                p = base_path.joinpath(
+                    dag_id or "NO_DAG_ID",
+                    run_id or "NO_RUN_ID",
+                    task_id or "NO_TASK_ID",
+                    f"{uuid.uuid4()}{suffix}",
+                )
+                if not p.exists():
+                    return p
+
+        if (path := XComObjectStorageBackend._write_large_value(value, get_unused_path)) is not None:
+            return BaseXCom.serialize_value(str(path))
+        if AIRFLOW_V_3_0_PLUS:
+            return BaseXCom.serialize_value(value)
+        # TODO: Remove this branch once we drop support for Airflow 2
+        # This is for Airflow 2.10 where the value is expected to be bytes
+        return json.dumps(value, cls=XComEncoder).encode("utf-8")
+
+    @staticmethod
+    def _write_large_value(
+        value: Any, get_path: Callable[[str], ObjectStoragePath]
+    ) -> ObjectStoragePath | None:
+        """Write ``value`` to object storage if it reaches the threshold, returning where it was written."""
+        s_val_encoded = json.dumps(value, cls=XComEncoder).encode("utf-8")
+        threshold = _get_threshold()
+        if threshold < 0 or len(s_val_encoded) < threshold:  # Either no threshold or value is small enough.
+            return None
 
         if compression := _get_compression():
             suffix = f".{_get_compression_suffix(compression)}"
         else:
             suffix = ""
-
-        threshold = _get_threshold()
-        if threshold < 0 or len(s_val_encoded) < threshold:  # Either no threshold or value is small enough.
-            if AIRFLOW_V_3_0_PLUS:
-                return BaseXCom.serialize_value(value)
-            # TODO: Remove this branch once we drop support for Airflow 2
-            # This is for Airflow 2.10 where the value is expected to be bytes
-            return s_val_encoded
-
-        base_path = _get_base_path()
-        while True:  # Safeguard against collisions.
-            p = base_path.joinpath(
-                dag_id or "NO_DAG_ID",
-                run_id or "NO_RUN_ID",
-                task_id or "NO_TASK_ID",
-                f"{uuid.uuid4()}{suffix}",
-            )
-            if not p.exists():
-                break
+        p = get_path(suffix)
         p.parent.mkdir(parents=True, exist_ok=True)
 
         with p.open(mode="wb", compression=compression) as f:
             f.write(s_val_encoded)
-        return BaseXCom.serialize_value(str(p))
+        return p
 
     @staticmethod
     def deserialize_value(result) -> Any:

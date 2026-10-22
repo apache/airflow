@@ -280,7 +280,7 @@ def get_active_airflow_versions(
     for version in airflow_versions:
         date = get_tag_date(version)
         if not date:
-            console_print("[error]Error fetching tag date for Airflow {version}")
+            console_print(f"[error]Error fetching tag date for Airflow {version}")
             sys.exit(1)
         airflow_release_dates[version] = date
     console_print("[info]All Airflow 2/3 versions loaded from GitHub[/]")

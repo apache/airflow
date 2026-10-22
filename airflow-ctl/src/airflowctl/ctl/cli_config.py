@@ -248,7 +248,7 @@ ARG_AUTH_URL = Arg(
     type=str,
     default="http://localhost:8080",
     dest="api_url",
-    help="The URL of the metadata database API",
+    help="The URL of the Airflow API server",
 )
 ARG_AUTH_TOKEN = Arg(
     flags=("--api-token",),
@@ -1074,8 +1074,12 @@ command_factory = CommandFactory()
 AUTH_COMMANDS = (
     ActionCommand(
         name="login",
-        help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
-        description="Login to the metadata database",
+        help="Log in to the Airflow API server with an API token or a username and password",
+        description=(
+            "Log in to the Airflow API server and store the credentials for the selected environment. "
+            "Pass --api-token (or set AIRFLOW_CLI_TOKEN), or --username and --password; "
+            "missing credentials are prompted for when running in a terminal."
+        ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(
             ARG_AUTH_URL,

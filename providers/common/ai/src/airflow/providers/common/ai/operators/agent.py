@@ -229,6 +229,11 @@ def _answered_request(event: dict[str, Any]) -> int | None:
         return -1
 
 
+def _is_awaiting_input(error: BaseException) -> bool:
+    """Whether ``error`` is the pause for tool approval, which only Airflow 3.3+ raises."""
+    return AIRFLOW_V_3_3_PLUS and isinstance(error, TaskAwaitingInput)
+
+
 def _declares_agent_template_fields(toolset: Any) -> bool:
     """Whether *toolset*, or a toolset it wraps or combines, has connection IDs to render."""
     return isinstance(toolset, AbstractToolset) and any(
@@ -368,8 +373,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         Cannot be combined with a ``SandboxToolset`` (raises), attached or
         not: a replayed tool result describes a workspace state the replay did
         not reproduce, and the first call that misses the cache runs against
-        whatever the sandbox holds now. Cannot be combined with a pydantic-ai-harness
-        ``CodeMode`` capability (raises).
+        whatever the sandbox holds now. With a pydantic-ai-harness ``CodeMode``
+        capability, a retry runs each ``run_code`` snippet again and replays the
+        tool calls it makes; ``CodeMode``'s ``eager`` and ``speculate`` options are
+        off while the run is durable.
     :param cache_prompt: When ``True`` (default), asks the provider to cache the
         tool definitions, system prompt and conversation so far, so the next
         request in the run -- and a mapped task's other instances within the
@@ -399,6 +406,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         object-storage XCom backend or trim old turns. Not supported together with
         ``enable_hitl_review`` (raises) -- the post-review transcript is not yet
         recoverable.
+    :param emit_message_history: Push the post-run transcript to XCom under the key
+        ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
+        otherwise. Set ``True`` to record a single-turn run without seeding it, or ``False``
+        to keep a seeded run from pushing it. Not supported together with
+        ``enable_hitl_review`` (raises).
 
     **HITL Review parameters** (requires the ``hitl_review`` plugin):
 
@@ -500,6 +512,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         durable: bool = False,
         cache_prompt: bool = True,
         message_history: list[ModelMessage] | str | bytes | None = None,
+        emit_message_history: bool | None = None,
         # Agent feedback parameters
         enable_hitl_review: bool = False,
         max_hitl_iterations: int = 5,
@@ -530,6 +543,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # No validation here -- see coerce_usage_limits() docstring for why.
         self.usage_limits = usage_limits
         self.message_history = message_history
+        self.emit_message_history = (
+            message_history is not None if emit_message_history is None else emit_message_history
+        )
 
         self.durable = durable
         self.cache_prompt = cache_prompt
@@ -560,12 +576,6 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         if durable and enable_hitl_review:
             raise ValueError("durable=True and enable_hitl_review=True cannot be used together.")
 
-        if durable and _contains_code_mode(self._declared_capabilities):
-            # Code mode collapses tools into one ``run_code`` tool and lets the model emit
-            # arbitrary Python, whose nested tool calls the journal does not see as steps of
-            # their own. Reject the combination rather than replay a partial ``run_code``.
-            raise ValueError("durable=True cannot be used with a CodeMode capability.")
-
         if durable and any(
             isinstance(capability, AirflowDurability) for capability in self._declared_capabilities
         ):
@@ -579,6 +589,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # would silently drop the human-approved turns. Block until HITL can
             # surface the final message history.
             raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
+
+        if emit_message_history and enable_hitl_review:
+            raise ValueError("emit_message_history and enable_hitl_review=True cannot be used together.")
 
         if durable or enable_hitl_review:
             self._reject_sandbox_without_continuity(durable=durable, enable_hitl_review=enable_hitl_review)
@@ -635,6 +648,21 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 "Set it on the toolset itself, and pass a function that builds a toolset as "
                 "DynamicToolset(function, id=...); the id of a Toolset capability around a toolset "
                 "does not reach it."
+            )
+        # One instance listed twice is one toolset to pydantic-ai; two instances sharing an id
+        # would have their recorded calls filed under one name.
+        first_by_id: dict[str, AbstractToolset[Any]] = {}
+        duplicates: list[str] = []
+        for toolset in self._running_toolsets():
+            for leaf in iter_toolsets(toolset):
+                if isinstance(leaf, DURABLE_UNIT_TOOLSETS) and leaf.id is not None:
+                    if first_by_id.setdefault(leaf.id, leaf) is not leaf and leaf.id not in duplicates:
+                        duplicates.append(leaf.id)
+        if duplicates:
+            raise ValueError(
+                f"durable=True needs a unique id on each toolset, but more than one toolset has the id "
+                f"{' or '.join(map(repr, duplicates))}: durable replay records each tool call "
+                "under its toolset's id, so a retry could not tell their calls apart."
             )
 
     def _reject_sandbox_without_continuity(self, *, durable: bool, enable_hitl_review: bool) -> None:
@@ -833,13 +861,15 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
     def _agent_output_type(self) -> Any:
         """
-        Return ``output_type``, plus ``DeferredToolRequests`` when tool approval is supported.
+        Return ``output_type``, plus ``DeferredToolRequests`` when tool approval is supported or ``durable``.
 
         pydantic-ai drops ``DeferredToolRequests`` from the output schema the model sees;
-        it only lets the run end on a tool call awaiting approval. ``self.output_type`` is
-        left alone because it is part of the serialized Dag.
+        it only lets the run end on a tool call awaiting approval. A durable run cannot pause,
+        but ending it there lets ``_pause_for_tool_approval`` fail the task with
+        ``UnsupportedToolDeferralError`` instead of pydantic-ai's ``UserError``.
+        ``self.output_type`` is left alone because it is part of the serialized Dag.
         """
-        if not self._supports_tool_approval():
+        if not (self._supports_tool_approval() or self.durable):
             return self.output_type
         declared = self.output_type if isinstance(self.output_type, (list, tuple)) else [self.output_type]
         return [*declared, DeferredToolRequests]
@@ -851,6 +881,20 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             for toolset in (*(self.toolsets or []), *(self.agent_params.get("toolsets") or []))
             if isinstance(toolset, AbstractToolset)
         ]
+        for capability in self._declared_capabilities:
+            if (toolset := _resolve_capability_toolset(capability)) is not None:
+                candidates.append(toolset)
+        return candidates
+
+    def _running_toolsets(self) -> list[AbstractToolset[Any]]:
+        """
+        Return the toolsets ``_build_agent`` hands the agent.
+
+        Unlike ``_declared_toolsets``, ``agent_params["toolsets"]`` counts only when
+        ``toolsets=`` is empty, because ``_build_agent`` ignores it otherwise.
+        """
+        listed = self.toolsets or self.agent_params.get("toolsets") or []
+        candidates = [toolset for toolset in listed if isinstance(toolset, AbstractToolset)]
         for capability in self._declared_capabilities:
             if (toolset := _resolve_capability_toolset(capability)) is not None:
                 candidates.append(toolset)
@@ -1034,19 +1078,26 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         """Finish a run, or pause it when the agent is waiting on a tool call to be approved."""
         log_run_summary(self.log, result, usage=attempt_usage)
         if isinstance(result.output, DeferredToolRequests):
-            self._pause_for_tool_approval(context, result, attempt_usage=attempt_usage)
+            try:
+                self._pause_for_tool_approval(context, result, attempt_usage=attempt_usage)
+            except BaseException as e:
+                # The run itself ended normally, after _run_and_report_on_failure, so a refusal
+                # here is the first point this attempt is known to have failed.
+                if (run_usage := self._run_usage) is not None and not _is_awaiting_input(e):
+                    self._report_failed_run(context, run_usage, run_id=result.run_id)
+                raise
         self._emit_run_metadata(context, result, usage=attempt_usage)
         if self._usage_budget and (run_usage := self._run_usage) is not None:
             self._log_cumulative_usage(run_usage)
 
-        if self.message_history is not None:
+        if self.emit_message_history:
             self._emit_message_history(context, result)
 
         output = result.output
 
         if self.enable_hitl_review:
             self._output_under_review = output
-            self.run_hitl_review(  # type: ignore[misc]
+            self.run_hitl_review(
                 context,
                 output,
                 message_history=result.all_messages(),
@@ -1106,7 +1157,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             )
         pending_names = ", ".join(call.tool_name for call in requests.approvals)
         if not self._supports_tool_approval():
-            # DeferredToolRequests in a user-set output_type reaches here where approval is off.
+            # Reached under durable=True, or with DeferredToolRequests in a user-set output_type.
             raise UnsupportedToolDeferralError(
                 f"The agent called tools that need approval ({pending_names}), but tool approval "
                 "needs Airflow 3.3+ and is not available with durable, enable_hitl_review, "

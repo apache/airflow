@@ -492,7 +492,12 @@ class TestCeleryExecutor:
         assert not executor.has_task(ti)
         mock_fail.assert_not_called()
 
-    @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
+    @conf_vars(
+        {
+            ("celery", "result_backend"): "db+sqlite:///:memory:",
+            ("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}',
+        }
+    )
     def test_result_backend_sqlalchemy_engine_options(self):
         import importlib
 
