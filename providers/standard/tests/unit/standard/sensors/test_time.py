@@ -136,21 +136,13 @@ class TestTimeSensor:
         except TypeError as e:
             pytest.fail(f"TypeError raised: {e}")
 
-    def test_start_trigger_args_are_not_shared_between_tasks(self):
-        """Each task must carry its own trigger arguments.
-
-        ``start_trigger_args`` is a class attribute, so assigning through it made every task
-        built from this operator advertise the moment of whichever was constructed last.
-        """
+    def test_start_from_trigger_raises_value_error(self):
+        """start_from_trigger bakes datetime.now() into trigger_kwargs at parse time,
+        causing the DAG version to change on every parse. See #69543."""
         with DAG(
-            dag_id="test_start_trigger_args_not_shared",
+            dag_id="test_start_from_trigger_raises",
             schedule=None,
-            start_date=datetime(2020, 1, 1),
+            start_date=datetime(2020, 1, 1, 13, 0),
         ):
-            early = TimeSensor(task_id="early", target_time=time(1, 0), start_from_trigger=True)
-            late = TimeSensor(task_id="late", target_time=time(23, 0), start_from_trigger=True)
-
-        assert early.start_trigger_args is not late.start_trigger_args
-        assert early.start_trigger_args.trigger_kwargs["moment"] == early.target_datetime
-        assert late.start_trigger_args.trigger_kwargs["moment"] == late.target_datetime
-        assert early.target_datetime != late.target_datetime
+            with pytest.raises(ValueError, match="TimeSensor does not support start_from_trigger=True"):
+                TimeSensor(task_id="test", target_time=time(10, 0), start_from_trigger=True)
