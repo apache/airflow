@@ -172,11 +172,11 @@ A structured ``output_type`` arrives downstream as a string or fails to deserial
     :doc:`structured_output`.
 
 A review task waits for a long time
-    That is expected: the task is waiting for a reviewer. An approval gate on an LLM operator
-    releases its worker slot while it waits (it pauses as awaiting input on Airflow 3.3+, and
-    defers to the triggerer on older Airflow versions); a HITL review on ``AgentOperator`` polls from the
-    worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout`` so an unattended
-    review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
+    That is expected: the task is waiting for a reviewer. On Airflow 3.3+ an approval gate on an
+    LLM operator and a HITL review on ``AgentOperator`` both pause as awaiting input and hold no
+    worker slot. On older Airflow versions an approval gate defers to the triggerer, while a HITL
+    review polls from the worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout``
+    so an unattended review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
 
 The provider returns a rate limit or is down
     Three features answer this at different layers. Airflow's own ``retries`` re-run the

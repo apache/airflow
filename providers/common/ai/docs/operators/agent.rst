@@ -462,8 +462,9 @@ Parameters
 
 **HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
 ``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
-loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
-parameter and the review workflow.
+loop, which needs the ``hitl_review`` plugin. On Airflow 3.3+ the task waits for the
+reviewer in the ``awaiting_input`` state and holds no worker slot. :doc:`../hitl_review`
+documents each parameter and the review workflow.
 
 Logging
 -------
