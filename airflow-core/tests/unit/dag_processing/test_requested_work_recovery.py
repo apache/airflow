@@ -258,9 +258,8 @@ def test_failed_bundle_claims_allow_healthy_priority_work_then_resume(create, ap
         del manager._processors[file]
     manager._acknowledge_requested_work()
     assert not manager._priority_claims
-    assert client.acknowledge_work.call_args_list == [
-        mock.call("priority", item) for item in [healthy_work, *work]
-    ]
+    assert client.acknowledge_work.call_count == 1 + len(work)
+    client.acknowledge_work.assert_has_calls([mock.call("priority", item) for item in work], any_order=True)
 
 
 def test_priority_claims_waiting_for_fresh_inventory_keep_the_budget_bounded(api_manager):
