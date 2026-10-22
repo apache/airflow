@@ -105,7 +105,6 @@ files_not_fully_covered = [
     "airflow-core/src/airflow/utils/deprecation_tools.py",
     "airflow-core/src/airflow/utils/dot_renderer.py",
     "airflow-core/src/airflow/utils/edgemodifier.py",
-    "airflow-core/src/airflow/utils/email.py",
     "airflow-core/src/airflow/utils/entry_points.py",
     "airflow-core/src/airflow/utils/file.py",
     "airflow-core/src/airflow/utils/helpers.py",
