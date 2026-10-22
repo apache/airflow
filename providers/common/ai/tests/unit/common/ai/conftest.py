@@ -116,12 +116,13 @@ def make_reporting_agent(make_mock_run_result):
 
     def _make(output, *, model_name):
         result = make_mock_run_result(output)
-        result.run_id = "ti-1"
         result.response = ModelResponse(parts=[], model_name=model_name)
 
         def _run_sync(*args, **kwargs):
-            # A real run updates the ``usage=`` object it is called with, which is what gets pushed.
+            # A real run updates the ``usage=`` object it is called with, which is what gets pushed,
+            # and reports back the ``run_id=`` it is called with.
             kwargs["usage"].incr(RunUsage(requests=1, input_tokens=10, output_tokens=5))
+            result.run_id = kwargs["run_id"]
             return result
 
         agent = MagicMock(spec=["run_sync", "instrument"])
