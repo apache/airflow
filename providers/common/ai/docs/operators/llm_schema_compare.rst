@@ -65,11 +65,9 @@ With Object Storage or a Database Table
 
 .. note::
 
-    Experimental: ``data_sources`` can change or be removed in a minor release of this
-    provider. A source whose connection is not a ``DbApiHook`` runs on the DataFusion
+    A source whose connection is not a ``DbApiHook`` runs on the DataFusion
     engine of ``common.sql``, which pins ``datafusion`` below 52 because the DataFusion
     52 crate is not supported with ``iceberg-core``.
-    See :ref:`howto/stability`.
 
 Use ``data_sources`` with
 :class:`~airflow.providers.common.sql.config.DataSourceConfig` to include
@@ -207,7 +205,7 @@ Parameters
 - ``db_conn_ids``: List of database connection IDs to compare. Each must resolve
   to a ``DbApiHook``.
 - ``table_names``: Tables to introspect from each ``db_conn_id``.
-- ``data_sources``: Experimental. List of ``DataSourceConfig`` objects for object-storage
+- ``data_sources``: List of ``DataSourceConfig`` objects for object-storage
   or catalog-managed sources. An entry with neither ``uri`` nor ``format``
   set works only if its ``conn_id`` resolves to a ``DbApiHook``.
 - ``context_strategy``: ``"full"`` (default) sends column names and types plus primary
