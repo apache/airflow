@@ -476,6 +476,17 @@ class TestRun:
         assert "hit the turn limit" in message
 
     @pytest.mark.asyncio
+    async def test_an_error_turn_followed_by_a_successful_turn_still_raises(self):
+        tools, _ = _build_tools()
+
+        async def _error_then_success() -> AsyncIterator[Message]:
+            yield _result_message(is_error=True, subtype="error_during_execution", result="first turn failed")
+            yield _result_message()
+
+        with pytest.raises(RuntimeError, match="first turn failed"):
+            await tools.run(_error_then_success())
+
+    @pytest.mark.asyncio
     async def test_an_error_result_message_bounds_its_free_text_fields(self):
         tools, _ = _build_tools()
 
